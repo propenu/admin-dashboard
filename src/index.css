@@ -1,0 +1,292 @@
+ 
+@import "leaflet/dist/leaflet.css";
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Syne:wght@700;800&family=Poppins:wght@400;500;600&display=swap');
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+ 
+:root{
+  --glass-border: rgba(255,255,255,0.55);
+  --glass-weak: rgba(255,255,255,0.72);
+  --glass-strong: rgba(255,255,255,0.9);
+  --muted: #64748b;
+  --accent: #0ea5a4; /* teal-ish accent */
+}
+
+/* page background: soft neutral */
+html,body,#root{height:100%}
+body{
+  @apply bg-gradient-to-br from-white via-slate-50 to-slate-100 text-slate-800 antialiased;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* white glass utility */
+.glass {
+  background: linear-gradient(180deg, rgba(255,255,255,0.75), rgba(255,255,255,0.6));
+  border: 1px solid rgba(148,163,184,0.12);
+  box-shadow: 0 6px 24px rgba(15,23,42,0.04);
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+}
+
+/* subtle elevated glass */
+.card-glass {
+  @apply glass rounded-2xl p-4;
+}
+
+/* header glass */
+.nav-glass {
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.85));
+  border-bottom: 1px solid rgba(148,163,184,0.08);
+  backdrop-filter: blur(6px);
+}
+
+/* sidebar glass */
+.sidebar-glass {
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));
+  border-right: 1px solid rgba(148,163,184,0.06);
+  backdrop-filter: blur(6px);
+}
+
+/* small helpers */
+.text-muted { color: var(--muted) }
+.shadow-subtle { box-shadow: 0 6px 20px rgba(2,6,23,0.04) }
+
+/* responsive helpers */
+@media (max-width: 768px){
+  .hide-sm{ display:none }
+}
+
+
+/* Hide scrollbar but allow scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;  
+  scrollbar-width: none;  
+}
+
+
+/* Animation for dropdown popup */
+ 
+@keyframes dropdownFade {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+}
+
+.dropdown-animate {
+  animation: dropdownFade 0.25s ease-out;
+}
+.input {
+  @apply w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-400;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+
+
+.compact-input {
+  @apply h-8 text-xs px-3;
+}
+
+.compact-label {
+  @apply text-xs font-medium mb-1;
+}
+
+.compact-button {
+  @apply h-8 text-xs px-4;
+}
+
+.compact-card {
+  @apply p-3 rounded-xl;
+}
+
+.compact-heading {
+  @apply text-lg font-bold mb-3;
+}
+
+.compact-subheading {
+  @apply text-sm font-semibold mb-2;
+}
+
+
+/* ===== Custom Scrollbar ===== */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;              /* scrollbar width */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;     /* slate-100 */
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #22c55e; /* green-500 */
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #16a34a; /* green-600 */
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #22c55e #f1f5f9; /* thumb and track colors */
+}
+
+
+
+
+
+/* Custom scrollbar one*/
+.custom-scrollbar1::-webkit-scrollbar {
+  width: 8px; /* overall scrollbar width */
+}
+
+.custom-scrollbar1::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Padding illusion using border */
+.custom-scrollbar1::-webkit-scrollbar-thumb {
+  background-color: #27AD75;
+  border-radius: 9999px;
+
+  /* 👇 THIS CREATES PADDING */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar1::-webkit-scrollbar-thumb:hover {
+  background-color: #1f9e62;
+}
+
+/* Firefox */
+.custom-scrollbar1 {
+  scrollbar-width: thin;
+  scrollbar-color: #27AD75 transparent;
+}
+
+
+
+/* In your index.css */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+
+
+
+/* popup */
+.cmu-anim          { animation: fadeIn 0.2s ease; }
+.cmu-overlay-anim  { animation: overlayIn 0.22s ease; }
+.cmu-card-anim     { animation: cardIn 0.32s cubic-bezier(0.16, 1, 0.3, 1); }
+.cmu-fade-anim     { animation: fadeIn 0.2s ease; }
+.cmu-pop-anim      { animation: pop 0.45s cubic-bezier(0.16, 1, 0.3, 1); }
+.cmu-success-anim  { animation: fadeIn 0.4s ease; }
+.cmu-fill-anim     { animation: fill 2.2s ease forwards; }
+.cmu-spin-anim     { animation: spin 0.55s linear infinite; }
+
+@keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cardIn    { from { opacity: 0; transform: scale(0.95) translateY(18px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes fadeIn    { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pop       { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes spin      { to { transform: rotate(360deg); } }
+@keyframes fill      { from { width: 0%; } to { width: 100%; } }
+
+.font-dmsans  { font-family: 'DM Sans', sans-serif; }
+.font-syne    { font-family: 'Syne', sans-serif; }
+.font-poppins { font-family: 'Poppins', sans-serif; }
+
+/* Scrollbar styles (no Tailwind equivalent) */
+.cmu-scroll { scrollbar-width: thin; scrollbar-color: rgba(39,174,96,0.2) transparent; }
+.cmu-scroll::-webkit-scrollbar       { width: 4px; }
+.cmu-scroll::-webkit-scrollbar-track { background: transparent; }
+.cmu-scroll::-webkit-scrollbar-thumb { background: rgba(39,174,96,0.2); border-radius: 99px; }
+
+/* Top border gradient glow line */
+.cmu-top-line::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 50%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(39,174,96,0.8), transparent);
+}
+
+/* Role btn gradient overlay */
+.cmu-role-btn-inner::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(39,174,96,0.06), transparent);
+  opacity: 0;
+  transition: opacity 0.18s;
+  border-radius: 11px;
+}
+.cmu-role-btn-inner:hover::before  { opacity: 1; }
+.cmu-role-btn-inner.sel::before    { opacity: 1; }
+
+/* Primary button gradient overlay */
+.cmu-btn-inner::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.18s;
+  border-radius: 12px;
+}
+.cmu-btn-inner:hover:not(:disabled)::after { opacity: 1; }
+
+/* OTP caret color */
+.otp-cell { caret-color: #27AE60; }
+
+/* TipTap Styling Fix */
+
+.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+}
+
+.ProseMirror li {
+  margin-bottom: 4px;
+}
+
+.ProseMirror mark {
+  background-color: #fef08a; /* yellow highlight */
+}
+
