@@ -1,6 +1,6 @@
  import { useQuery } from "@tanstack/react-query";
  import { Building2, Plus, MapPin } from "lucide-react";
- import { ownersProperties } from "../../services/propertyservice.jsx";
+ import { ownersProperties } from "../../services/PropertyService.jsx";
  import OwnerPropertyCard from "../OwnerProperties/OwnerPropertyCard.jsx";
  import LoadingSpinner from "../../components/common/LoadingSpinner.jsx";
  import { useNavigate } from "react-router-dom";
