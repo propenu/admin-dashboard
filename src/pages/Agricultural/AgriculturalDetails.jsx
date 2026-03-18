@@ -30,7 +30,21 @@ import {
 
 import { fetchAgricultural } from "../../services/AgricuturalServices/AgricuturalServices";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
-import { getContrastTextColor } from "../../utils/colorUtils";
+
+export const getContrastTextColor = (bgColor) => {
+  const rgb = hexToRgb(bgColor);
+  if (!rgb) return "#000000";
+
+  const whiteRgb = { r: 255, g: 255, b: 255 };
+  const blackRgb = { r: 0, g: 0, b: 0 };
+
+  const whiteContrast = getContrastRatio(rgb, whiteRgb);
+  const blackContrast = getContrastRatio(rgb, blackRgb);
+
+  // WCAG AA standard requires at least 4.5:1 contrast ratio
+  return whiteContrast > blackContrast ? "#FFFFFF" : "#000000";
+};
+
 export const formatPrice = (price) => {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
