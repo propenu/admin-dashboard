@@ -17,7 +17,7 @@ import {
   Navigation,
 } from "lucide-react";
 
-import { fetchHighlightProjects } from "../../services/propertyservice";
+import { fetchHighlightProjects } from "../../services/PropertyService";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { formatPrice } from "../../utils/formatters";
 
