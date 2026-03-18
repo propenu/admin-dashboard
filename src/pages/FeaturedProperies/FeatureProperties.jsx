@@ -433,7 +433,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchFeaturedProperties,
   deleteFeaturedProperty,
-} from "../../services/propertyservice";
+} from "../../services/PropertyService";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import PropertyCard from "./FeaturedPropertyCard";
 import { useNavigate } from "react-router-dom";
