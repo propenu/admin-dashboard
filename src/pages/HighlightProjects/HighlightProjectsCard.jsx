@@ -166,11 +166,17 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Bed, Building2, GripVertical, Check, X, Pencil } from "lucide-react";
 import { motion } from "framer-motion";
-import { formatPrice } from "../../utils/formatters";
+
 import Fallback from "../../assets/fallback.svg";
 import { editFeaturedProject } from "../../features/property/propertyService";
 import { toast } from "sonner";
-
+export const formatPrice = (price) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(price);
+};
 export default function HighlightProjectsCard({ property, onRankUpdated }) {
   const navigate = useNavigate();
 
