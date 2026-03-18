@@ -30,7 +30,14 @@ import {
 import { fetchLandById } from "../../services/PropertyService";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { getContrastTextColor } from "../../utils/colorUtils";
-import { formatPrice } from "../../utils/formatters";
+
+export const formatPrice = (price) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(price);
+};
 
 export default function LandDetails() {
   const { id } = useParams();

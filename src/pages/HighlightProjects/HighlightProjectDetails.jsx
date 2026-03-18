@@ -19,7 +19,14 @@ import {
 
 import { fetchHighlightProjects } from "../../services/PropertyService";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
-import { formatPrice } from "../../utils/formatters";
+
+export const formatPrice = (price) => {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(price);
+};
 
 export default function HighlightProjectDetails() {
   const { id } = useParams();
