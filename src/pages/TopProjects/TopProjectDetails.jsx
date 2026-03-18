@@ -14,7 +14,7 @@ import {
   Home,
 } from "lucide-react";
 
-import {  topProject } from "../../services/propertyservice";
+import {  topProject } from "../../services/PaymentServices";
 import { formatPrice } from "../../utils/formatters";
 
 import LoadingSpinner from "../../components/common/LoadingSpinner";

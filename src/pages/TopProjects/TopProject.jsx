@@ -11,7 +11,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { topProject } from "../../services/propertyservice";
+import { topProject } from "../../services/PropertyService";
 import TopProjectCard from "../TopProjects/TopProjectCard";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { useNavigate } from "react-router-dom";
