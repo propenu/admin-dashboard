@@ -1,6 +1,6 @@
 // frontend/admin-dashboard/src/pages/FeaturedActiveProperties.jsx
 import { useQuery } from "@tanstack/react-query";
-import { fetchFeaturedProperties } from "../services/propertyservice";
+import { fetchFeaturedProperties } from "../services/PropertyService";
 import PropertyCard from "./FeaturedProperies/FeaturedPropertyCard";
 import LoadingSpinner from "../components/common/LoadingSpinner";
 import { ArrowLeft } from "lucide-react";
