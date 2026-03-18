@@ -825,7 +825,7 @@ import {
   User,
 } from "lucide-react";
 
-import { fetchResidentialById } from "../../services/PaymentServices";
+import { fetchResidentialById } from "../../services/PropertyService";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 export const formatPrice = (price) => {
   return new Intl.NumberFormat("en-IN", {
