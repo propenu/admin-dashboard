@@ -350,7 +350,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchHighlightProjects,
   deleteFeaturedProperty,
-} from "../../services/propertyservice";
+} from "../../services/PropertyService";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import HighlightProjectsCard from "./HighlightProjectsCard";
 import { useNavigate } from "react-router-dom";

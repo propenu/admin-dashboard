@@ -27,7 +27,7 @@ import {
   Info,
 } from "lucide-react";
 
-import { fetchLandById } from "../../services/propertyservice";
+import { fetchLandById } from "../../services/PropertyService";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { getContrastTextColor } from "../../utils/colorUtils";
 import { formatPrice } from "../../utils/formatters";
