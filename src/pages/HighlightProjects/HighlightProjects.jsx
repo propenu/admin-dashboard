@@ -347,6 +347,10 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+// import {
+//   fetchHighlightProjects,
+//   deleteFeaturedProperty,
+// } from "../../services/PropertyService";
 import {
   fetchHighlightProjects,
   deleteFeaturedProperty,
