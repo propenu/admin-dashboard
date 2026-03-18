@@ -1,25 +1,50 @@
-// frontend/admin-dashboard/src/components/common/BasicCommonComponents/Zoning.jsx
+// // frontend/admin-dashboard/src/components/common/BasicCommonComponents/Zoning.jsx
 
+// import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
+
+// const Zoning = ({ error }) => {
+//   const { form, updateFieldValue } = useActivePropertySlice();
+
+//   return (
+//     <div className="space-y-3">
+//       <p className="text-[13px] font-weight-bold text-[#000000] uppercase font-poppins">
+//         Zoning
+//       </p>
+
+//       <input
+//         type="text"
+//         placeholder="e.g. Commercial / Residential / Mixed-use"
+//         value={form.zoning || ""}
+//         onChange={(e) => updateFieldValue("zoning", e.target.value)}
+//         className="w-full p-3 border border-[#27AD75] placeholder:text-[#524d4d] rounded-lg text-sm font-weight-bold text-[#000000] outline-none bg-white"
+//       />
+
+//       {error && <p className="text-red-500 text-xs">{error}</p>}
+//     </div>
+//   );
+// };
+
+// export default Zoning;
+
+
+//ci 
+
+// Zoning.jsx
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
 const Zoning = ({ error }) => {
   const { form, updateFieldValue } = useActivePropertySlice();
-
   return (
-    <div className="space-y-3">
-      <p className="text-[13px] font-weight-bold text-[#000000] uppercase font-poppins">
-        Zoning
-      </p>
-
+    <div className="space-y-2">
+      <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">Zoning</p>
       <input
         type="text"
         placeholder="e.g. Commercial / Residential / Mixed-use"
         value={form.zoning || ""}
         onChange={(e) => updateFieldValue("zoning", e.target.value)}
-        className="w-full p-3 border border-[#27AD75] placeholder:text-[#524d4d] rounded-lg text-sm font-weight-bold text-[#000000] outline-none bg-white"
+        className="w-full px-4 py-3 border-2 border-[#e5e7eb] rounded-xl outline-none text-sm font-semibold placeholder:text-[#c9c9c9] text-[#111827] focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10 transition-all"
       />
-
-      {error && <p className="text-red-500 text-xs">{error}</p>}
+      {error && <p className="text-red-500 text-xs font-medium">{error}</p>}
     </div>
   );
 };

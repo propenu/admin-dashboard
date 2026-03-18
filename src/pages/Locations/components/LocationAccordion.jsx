@@ -32,7 +32,7 @@ export default function LocationAccordion({
               <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
                 <MapPin className="text-green-600 w-5 h-5" />
               </div>
-              <span className="font-bold text-lg text-gray-800">{state}</span>
+              <span className=" text-lg text-[#000000]">{state}</span>
               <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
                 {cities.length} {cities.length === 1 ? "city" : "cities"}
               </span>
@@ -54,7 +54,7 @@ export default function LocationAccordion({
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="bg-gradient-to-br from-gray-50 to-green-50/20 overflow-hidden"
+                className="bg-gradient-to-br bg-green-300 from-gray-50 to-green-50/20 overflow-hidden"
               >
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {cities.map((city) => (
@@ -71,10 +71,10 @@ export default function LocationAccordion({
                     >
                       {/* CITY HEADER */}
                       <div
-                        className="p-4 cursor-pointer space-y-3"
+                        className="p-4 cursor-pointer rounded-2xl space-y-3"
                         onClick={() => onSelectCity(city)}
                       >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start  justify-between">
                           <div className="flex items-center gap-2">
                             <MapPinned
                               className={
@@ -84,7 +84,7 @@ export default function LocationAccordion({
                               }
                               size={20}
                             />
-                            <h3 className="font-bold text-lg">{city.city}</h3>
+                            <h3 className=" text-lg">{city.city}</h3>
                           </div>
                           <span
                             className={`text-xs px-2 py-1 rounded-full font-semibold ${
@@ -154,7 +154,7 @@ export default function LocationAccordion({
 
                       {/* CITY ACTIONS */}
                       <div
-                        className={`flex gap-2 p-3 border-t ${
+                        className={`flex gap-2 p-3 border-t rounded-2xl ${
                           selectedLoc?._id === city._id
                             ? "border-white/20 bg-white/10"
                             : "border-gray-100 bg-gray-50"

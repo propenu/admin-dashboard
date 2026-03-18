@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import { requestOtp, verifyOtpService } from "../services/authService";
 import { Mail, Loader2, AlertCircle, ChevronLeft } from "lucide-react";
+import heroIcon from "../assets/hero-icon.png"      //"src/assets/hero-icon.png"
 
 const OTP_LENGTH = 4;
 
@@ -87,7 +88,6 @@ export default function SignIn() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col lg:flex-row font-sans">
-
       {/* LEFT SECTION - Brand Hero */}
       <section className="flex-[1.2] bg-gradient-to-br from-green-500 to-green-600 p-8 lg:p-16 flex flex-col justify-center text-white relative overflow-hidden">
         {/* Decorative Circle */}
@@ -120,13 +120,12 @@ export default function SignIn() {
       {/* RIGHT SECTION - Auth Card */}
       <section className="flex-1 flex items-center justify-center p-6 bg-slate-50">
         <div className="w-full max-w-[420px] bg-white rounded-[2.5rem] shadow-xl shadow-green-900/5 p-8 md:p-12 relative">
-
           {/* Logo */}
           <div className="flex justify-center mb-8">
             <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center">
               <img
-                src="src/assets/hero-icon.png"
-                alt="Logo"
+                src={heroIcon}
+                alt="hero-icon"
                 className="w-10 h-10 object-contain"
               />
             </div>

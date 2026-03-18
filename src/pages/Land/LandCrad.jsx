@@ -145,7 +145,7 @@ export default function LandCard({ property }) {
               <span className="text-xs">Layout Type</span>
             </div>
             <span className="font-bold text-slate-700">
-              {property?.layoutType || 0} 
+              {property?.layoutType || 0}
             </span>
           </div>
           <div className="flex flex-col items-center md:items-start border-r border-slate-100">
@@ -154,7 +154,7 @@ export default function LandCard({ property }) {
               <span className="text-xs">Facing</span>
             </div>
             <span className="font-bold text-slate-700">
-              {property?.facing || 0} 
+              {property?.facing || 0}
             </span>
           </div>
           <div className="flex flex-col items-center md:items-start">
@@ -167,6 +167,22 @@ export default function LandCard({ property }) {
               <small className="text-[10px] font-normal">acer</small>
             </span>
           </div>
+        </div>
+
+        {/* Posted By */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
+          <span className="font-semibold text-slate-600">Posted By:</span>
+          <span className="text-[#27AE60] font-semibold">
+            {property?.createdBy?.name
+              ?.split(" ")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ") || "Unknown"}
+          </span>
+          {property?.createdBy?.phone && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+              {property.createdBy.phone}
+            </span>
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -184,8 +200,6 @@ export default function LandCard({ property }) {
           </div>
 
           <div className="flex gap-2">
-           
-
             {isPendingReview ? (
               <button
                 onClick={() =>
@@ -198,10 +212,10 @@ export default function LandCard({ property }) {
             ) : (
               <button
                 onClick={() => {
-                                  dispatch(setActiveCategory("residential"));
-                                  dispatch(actions.residential.hydrateForm(property));
-                                  navigate(`/edit-property/${property._id}`);
-                              }}
+                  dispatch(setActiveCategory("land"));
+                  dispatch(actions.land.hydrateForm(property));
+                  navigate(`/edit-property/${property._id}`);
+                }}
                 className="flex-1 sm:flex-none px-5 py-2 rounded-xl text-sm font-bold bg-[#27AE60] text-white transition-all active:scale-95"
               >
                 Edit Details

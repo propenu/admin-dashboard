@@ -1,7 +1,3 @@
-
-
-
-
 // frontend/admin-dashboard/src/pages/Payments/AgentPayments/PricingCard.jsx
 import { useDispatch } from "react-redux";
 import { useState, useMemo, useEffect } from "react";
@@ -15,12 +11,14 @@ const UP_TO_FEATURES = [
   "ENQUIRY_LIMIT",
   "PROPERTY_LISTING_LIMIT",
   "CONTACT_OWNER_LIMIT",
+  "PROPERTY_COMPARISON",
+  "LEAD_DASHBOARD",
 ];
 
 export default function PricingCard({ plan, userType }) {
   const dispatch = useDispatch();
 
-  const { code, name, price, durationDays, features = {}, createdAt } = plan;
+  const { code, name, price,dprice, durationDays, features = {}, createdAt } = plan;
 
   //const featureKeys = FEATURE_CONFIG[userType] || [];
   
@@ -34,58 +32,108 @@ export default function PricingCard({ plan, userType }) {
   const [editingKey, setEditingKey] = useState(null);
   const [editValue, setEditValue] = useState("");
 
-  /* ================= EXPIRY CHECK ================= */
-  const isExpired = useMemo(() => {
-    if (!createdAt || !durationDays) return false;
-
-    const start = new Date(createdAt);
-    const expiry = new Date(start);
-    expiry.setDate(expiry.getDate() + durationDays);
-
-    return new Date() > expiry;
-  }, [createdAt, durationDays]);
-
+  
   /* ================= SAVE HANDLER ================= */
+  // const handleSave = (key) => {
+  //   let oldValue;
+
+  //   if (key === "PRICE") oldValue = price;
+  //   else if (key === "dprice") oldValue = dprice;
+  //   else if (key === "DURATION_DAYS") oldValue = durationDays;
+  //   else oldValue = features[key];
+
+  //   if (editValue === "" || Number(editValue) === Number(oldValue)) {
+  //     setEditingKey(null);
+  //     return;
+  //   }
+
+  //   let payload = {};
+
+  //   if (key === "PRICE") {
+  //     payload = { price: Number(editValue) };
+  //   } else if (key === "dprice") {
+  //     payload = { dprice: Number(editValue) };
+  //   }
+  //    else if (key === "DURATION_DAYS") {
+  //     payload = { durationDays: Number(editValue) };
+  //   } else {
+  //     payload = {
+  //       features: {
+  //         ...features,
+  //         [key]: Number(editValue),
+  //       },
+  //     };
+  //   }
+
+  //   dispatch(
+  //     patchPaymentPlanThunk({
+  //       code,
+  //       updatedFields: payload,
+  //     })
+  //   )
+  //     .unwrap()
+  //     .catch((err) => {
+  //       console.error("❌ Update failed:", err);
+  //       alert("Update failed");
+  //     });
+
+  //   setEditingKey(null);
+  // };
+
   const handleSave = (key) => {
     let oldValue;
 
     if (key === "PRICE") oldValue = price;
+    else if (key === "DPRICE") oldValue = dprice;
     else if (key === "DURATION_DAYS") oldValue = durationDays;
     else oldValue = features[key];
-
     if (editValue === "" || Number(editValue) === Number(oldValue)) {
       setEditingKey(null);
       return;
     }
-
     let payload = {};
-
+    // ✅ PRICE update
     if (key === "PRICE") {
       payload = { price: Number(editValue) };
-    } else if (key === "DURATION_DAYS") {
+    }
+    // ✅ DPRICE update
+    else if (key === "DPRICE") {
+      payload = { dprice: Number(editValue) };
+    }
+    // ✅ DURATION update
+    else if (key === "DURATION_DAYS") {
       payload = { durationDays: Number(editValue) };
-    } else {
+    }
+    // ✅ FEATURES update
+    else {
       payload = {
         features: {
+          ...features,
           [key]: Number(editValue),
         },
       };
     }
-
     dispatch(
       patchPaymentPlanThunk({
         code,
         updatedFields: payload,
-      })
+      }),
     )
       .unwrap()
       .catch((err) => {
-        console.error("❌ Update failed:", err);
+        console.error("Update failed:", err);
         alert("Update failed");
       });
 
     setEditingKey(null);
   };
+
+  const discountPercent = useMemo(() => {
+    if (!price || !dprice) return 0;
+
+    const percent = ((dprice - price) / dprice) * 100;
+    return Math.round(percent);
+  }, [price, dprice]);
 
   /* ================= FORMAT FEATURE ================= */
   const formatValue = (key, value) => {
@@ -103,9 +151,13 @@ export default function PricingCard({ plan, userType }) {
       {/* ================= TOP ================= */}
       <div className="flex justify-center">
         <div className="w-[160px] bg-[#F1FCF5] rounded-md m-2 p-3 text-center space-y-1">
-          <p className="text-[#27AE60] text-lg text-nowrap font-medium   max-sm:text-sm">{name}</p>
+          <p className="text-[#27AE60] text-lg text-nowrap font-medium   max-sm:text-sm">
+            {name}
+          </p>
           {/* ================= PRICE ================= */}
-          <div className="flex items-center justify-center gap-1">
+
+          <div className="relative flex items-center justify-center gap-1">
+            {/* PRICE */}
             {editingKey === "PRICE" ? (
               <input
                 autoFocus
@@ -116,22 +168,66 @@ export default function PricingCard({ plan, userType }) {
                 onBlur={() => handleSave("PRICE")}
               />
             ) : (
-              <p className="text-black text-lg font-semibold">₹{price}</p>
+              <>
+                <p className="text-black text-xl font-semibold">₹{price}</p>
+                <Pencil
+                  size={12}
+                  className="cursor-pointer text-gray-400 hover:text-[#27AE60]"
+                  onClick={() => {
+                    setEditingKey("PRICE");
+                    setEditValue(price);
+                  }}
+                />
+              </>
             )}
 
-            <Pencil
-              size={12}
-              className={`${
-                isExpired
-                  ? "text-gray-300 cursor-not-allowed"
-                  : "cursor-pointer text-gray-400 hover:text-[#27AE60]"
-              }`}
-              onClick={() => {
-                if (isExpired) return;
-                setEditingKey("PRICE");
-                setEditValue(price);
-              }}
-            />
+            <span className="text-xs">/</span>
+
+            {/* DISCOUNT PRICE */}
+            {editingKey === "DPRICE" ? (
+              <input
+                autoFocus
+                type="number"
+                className="w-16 border rounded px-1 text-sm text-center"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={() => handleSave("DPRICE")}
+              />
+            ) : (
+              <>
+                <p className="text-red-500 text-[10px] font-semibold line-through">
+                  ₹{dprice}
+                </p>
+                <Pencil
+                  size={12}
+                  className="cursor-pointer text-gray-400 hover:text-[#27AE60]"
+                  onClick={() => {
+                    setEditingKey("DPRICE");
+                    setEditValue(dprice);
+                  }}
+                />
+              </>
+            )}
+
+            {/* Discount % */}
+            {/* {discountPercent > 0 && (
+              <span className="absolute -top-12 -right-5 text-white text-[11px] font-bold bg-[#27AE60] px-2 py-[2px] rounded-full shadow">
+                {discountPercent}% OFF
+              </span>
+            )} */}
+            {/* Discount % */}
+            {discountPercent > 0 && (
+              <span
+                className="absolute -top-12 -right-5 
+  text-white text-[11px] font-bold 
+  bg-gradient-to-r from-[#27AE60] to-[#2ECC71] 
+  px-2 py-[3px] rounded-full shadow-lg
+  animate-pulse
+  transition-transform duration-300 hover:scale-110"
+              >
+                {discountPercent}% OFF
+              </span>
+            )}
           </div>
 
           {/* ================= DURATION ================= */}
@@ -151,13 +247,8 @@ export default function PricingCard({ plan, userType }) {
 
             <Pencil
               size={10}
-              className={`${
-                isExpired
-                  ? "text-gray-300 cursor-not-allowed"
-                  : "cursor-pointer text-gray-400 hover:text-[#27AE60]"
-              }`}
+              className={"cursor-pointer text-gray-400 hover:text-[#27AE60]"}
               onClick={() => {
-                if (isExpired) return;
                 setEditingKey("DURATION_DAYS");
                 setEditValue(durationDays);
               }}
@@ -201,13 +292,10 @@ export default function PricingCard({ plan, userType }) {
 
               <Pencil
                 size={12}
-                className={`${
-                  isExpired
-                    ? "text-gray-300 cursor-not-allowed"
-                    : "cursor-pointer text-gray-400 hover:text-[#27AE60]"
-                } shrink-0`}
+                className={
+                  "cursor-pointer text-gray-400 hover:text-[#27AE60] shrink-0"
+                }
                 onClick={() => {
-                  if (isExpired) return;
                   setEditingKey(key);
                   setEditValue(value ?? "");
                 }}
@@ -216,13 +304,6 @@ export default function PricingCard({ plan, userType }) {
           );
         })}
       </div>
-
-      {/* ================= EXPIRED LABEL ================= */}
-      {isExpired && (
-        <div className="text-[10px] text-red-500 text-center pb-2">
-          Plan expired – editing disabled
-        </div>
-      )}
     </div>
   );
 }

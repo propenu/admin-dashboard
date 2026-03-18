@@ -1,4 +1,3 @@
-
 //frontend/admin-dashboard/src/pages/Payments/AgentPayments/PricingSection.jsx
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";

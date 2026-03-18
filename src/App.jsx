@@ -82,6 +82,8 @@ const Builders = lazy(() => import("./pages/users/AllUserInDetails/Builders.jsx"
 const SalesAgent = lazy(() => import("./pages/users/AllUserInDetails/SalesAgent.jsx"));
 const SalesManagers = lazy(() => import("./pages/users/AllUserInDetails/SalesManagers.jsx"));
 const Accounts = lazy(() => import("./pages/users/AllUserInDetails/Accounts.jsx"));
+const CustomerCare = lazy(() => import("./pages/users/AllUserInDetails/CustomerCare.jsx"));
+
 
 // Agricultural
 const Agricultural = lazy(() => import("./pages/Agricultural/Agricultural"));
@@ -153,6 +155,10 @@ const TeamManagement = lazy(() =>
 import PostPropertyController from "./pages/Residential/PostResidentailProperty/PostPropertyControler";
 
 const Payments = lazy(() => import("./pages/Payments/SubcriptionPayments/PricingSection.jsx"));
+
+const SendPushNotification = lazy(() =>
+  import("./pages/Pushnotipication/SendPushNotification.jsx")
+);
 
 function App() {
   return (
@@ -240,6 +246,7 @@ function App() {
                 <Route path="/locations" element={<Locations />} />
 
                 <Route path="accounts" element={<Accounts />} />
+                <Route path="customercare" element={<CustomerCare />} />
                 <Route path="all-agents" element={<AllAgents />} />
                 <Route path="builders" element={<Builders />} />
                 <Route path="sales-agents" element={<SalesAgent />} />
@@ -294,6 +301,12 @@ function App() {
                 <Route
                   path="/property-progress"
                   element={<PropertyProgress />}
+                />
+
+                {/* Push Notification */}
+                <Route
+                  path="/push-notifications"
+                  element={<SendPushNotification />}
                 />
 
                 <Route

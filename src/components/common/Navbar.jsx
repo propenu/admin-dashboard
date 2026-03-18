@@ -97,7 +97,7 @@ export default function Navbar({ toggleSidebar }) {
               {openDropdown && (
                 <div className="absolute  right-0 top-full pt-2 w-56 z-50">
                   {/* Arrow */}
-                  <div className="absolute -top-0 right-8 w-4 h-4 bg-white rotate-45 border-l border-t border-slate-200"></div>
+                  <div className="absolute -top-0 right-8 w-4 h-4 bg-white rotate-45 border-l  border-t border-slate-200  max-sm:right-4"></div>
                   <div className="bg-[#FFFFFF] shadow-xl rounded-xl border border-slate-200 overflow-hidden">
                     <div className="px-4 py-3 border-b border-slate-100">
                       <p className="text-sm font-semibold text-[#27AE60] capitalize">

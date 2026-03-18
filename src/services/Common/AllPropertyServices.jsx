@@ -1,6 +1,5 @@
 // frontend/admin-dashboard/src/services/Common/AllPropertyServices.jsx
 import propertyApi from "../../config/PropertyApi";
-
 /**
  * FETCH a single property by ID
  */

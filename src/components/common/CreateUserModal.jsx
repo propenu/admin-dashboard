@@ -1,663 +1,89 @@
-// // frontend/admin-dashboard/src/components/common/CreateUserModal.jsx
-// import { useState } from "react";
-// import {
-//   createRequestOtp,
-//   createVerifyOtpService,
-// } from "../../services/authService";
-// import { toast } from "sonner";
-
-// const roles = [
-//   // {
-//   //   value: "super_admin",
-//   //   label: "Super Admin",
-//   //   icon: "★",
-//   //   desc: "Full system access",
-//   // },
-//   { value: "admin", label: "Admin", icon: "⬡", desc: "Manage users & config" },
-//   {
-//     value: "sales_manager",
-//     label: "Sales Manager",
-//     icon: "◎",
-//     desc: "Lead & team oversight",
-//   },
-//   {
-//     value: "sales_agent",
-//     label: "Sales Agent",
-//     icon: "◈",
-//     desc: "Handle sales pipeline",
-//   },
-//   { value: "agent", label: "Agent", icon: "⊛", desc: "Support & operations" },
-//   { value: "user", label: "User", icon: "○", desc: "Basic access only" },
-//   { value: "accounts", label: "Accounts", icon: "⊙", desc: "Manage accounts" },
-// ];
-
-// export default function CreateUserModal({ onClose }) {
-//   const [roleOpen, setRoleOpen] = useState(false);
-//   const [step, setStep] = useState(1);
-//   const [name, setName] = useState("");
-//   const [email, setEmail] = useState("");
-//   const [role, setRole] = useState("super_admin");
-//   const [otp, setOtp] = useState("");
-//   const [success, setSuccess] = useState(false);
-//   const [loading, setLoading] = useState(false);
-//   const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
-
-//   const handleRequestOtp = async () => {
-//     try {
-//       setLoading(true);
-//       await createRequestOtp(name, email, role);
-//       setStep(2);
-//     } catch (err) {
-//       console.error(err);
-//       toast.error(`${err.message}`);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const handleOtpChange = (i, val) => {
-//     if (!/^\d*$/.test(val)) return;
-//     const next = [...otpDigits];
-//     next[i] = val.slice(-1);
-//     setOtpDigits(next);
-//     setOtp(next.join(""));
-//     if (val && i < 3) document.getElementById(`otp-${i + 1}`)?.focus();
-//   };
-
-//   const handleOtpKeyDown = (i, e) => {
-//     if (e.key === "Backspace" && !otpDigits[i] && i > 0)
-//       document.getElementById(`otp-${i - 1}`)?.focus();
-//   };
-
-//   const handleVerify = async () => {
-//     try {
-//       setLoading(true);
-//       await createVerifyOtpService(otp, email, name, role);
-//       setSuccess(true);
-//       setTimeout(() => onClose?.(), 2400);
-//     } catch (err) {
-//       console.error(err);
-//       toast.error(`${err.message}`);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const selectedRole = roles.find((r) => r.value === role);
-
-//   return (
-//     <>
-
-//       <div
-//         className="cmu-overlay-anim fixed inset-0 flex items-center justify-center z-[9999] p-4"
-//         style={{
-//           background: "rgba(2,7,3,0.82)",
-//           backdropFilter: "blur(14px)",
-//           WebkitBackdropFilter: "blur(14px)",
-//         }}
-//         onClick={(e) => e.target === e.currentTarget && onClose?.()}
-//       >
-//         {/* ── Card ── */}
-//         <div
-//           className="cmu-card-anim cmu-scroll cmu-top-line font-dmsans relative w-full max-w-[460px] max-h-[calc(100vh-32px)] overflow-y-auto overflow-x-hidden rounded-[22px] px-7 pt-8 pb-7"
-//           style={{
-//             background: "#07100a",
-//             border: "1px solid rgba(39,174,96,0.14)",
-//           }}
-//         >
-//           {/* Glow blob */}
-//           <div
-//             className="pointer-events-none absolute -top-[70px] -right-[50px] w-[200px] h-[200px]"
-//             style={{
-//               background:
-//                 "radial-gradient(circle, rgba(39,174,96,0.12) 0%, transparent 70%)",
-//             }}
-//           />
-
-//           {/* Close button */}
-//           <button
-//             className="sticky top-0 right-0 float-right w-[30px] h-[30px] mb-1 flex items-center justify-center rounded-[8px] text-[12px] cursor-pointer transition-all duration-[180ms] flex-shrink-0"
-//             style={{
-//               background: "rgba(255,255,255,0.04)",
-//               border: "1px solid rgba(255,255,255,0.07)",
-//               color: "rgba(255,255,255,0.3)",
-//             }}
-//             onMouseEnter={(e) => {
-//               e.currentTarget.style.background = "rgba(255,0,0,0.08)";
-//               e.currentTarget.style.borderColor = "rgba(255,80,80,0.2)";
-//               e.currentTarget.style.color = "rgba(255,120,120,0.8)";
-//             }}
-//             onMouseLeave={(e) => {
-//               e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-//               e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
-//               e.currentTarget.style.color = "rgba(255,255,255,0.3)";
-//             }}
-//             onClick={onClose}
-//             aria-label="Close"
-//           >
-//             ✕
-//           </button>
-
-//           {/* ── Success State ── */}
-//           {success ? (
-//             <div className="cmu-success-anim text-center pt-[18px] pb-[6px]">
-//               <div
-//                 className="cmu-pop-anim w-[78px] h-[78px] rounded-full flex items-center justify-center mx-auto mb-[18px] text-[32px] text-white"
-//                 style={{
-//                   background: "linear-gradient(135deg, #27AE60, #17703c)",
-//                   boxShadow:
-//                     "0 0 0 1px rgba(39,174,96,0.3), 0 0 40px rgba(39,174,96,0.35)",
-//                 }}
-//               >
-//                 ✓
-//               </div>
-//               <div
-//                 className="font-syne text-[20px] font-extrabold mb-2"
-//                 style={{ color: "#e6ffee" }}
-//               >
-//                 Access Granted
-//               </div>
-//               <div
-//                 className="text-[13px] leading-[1.7]"
-//                 style={{ color: "rgba(255,255,255,0.28)" }}
-//               >
-//                 <span
-//                   className="font-semibold"
-//                   style={{ color: "rgba(255,255,255,0.6)" }}
-//                 >
-//                   {name}
-//                 </span>{" "}
-//                 has been added as{" "}
-//                 <span
-//                   className="font-semibold"
-//                   style={{ color: "rgba(255,255,255,0.6)" }}
-//                 >
-//                   {selectedRole?.label || role}
-//                 </span>
-//               </div>
-//               <div
-//                 className="h-[2px] rounded-full overflow-hidden mt-6"
-//                 style={{ background: "rgba(255,255,255,0.06)" }}
-//               >
-//                 <div
-//                   className="cmu-fill-anim h-full"
-//                   style={{
-//                     background: "linear-gradient(90deg, #27AE60, #2ecc71)",
-//                   }}
-//                 />
-//               </div>
-//             </div>
-//           ) : (
-//             <>
-//               {/* Eyebrow */}
-//               <div
-//                 className="font-syne text-[10px] font-bold tracking-[0.16em] uppercase mb-[6px]"
-//                 style={{ color: "#27AE60" }}
-//               >
-//                 {step === 1 ? "User Management" : "Verification"}
-//               </div>
-
-//               {/* Title */}
-//               <div
-//                 className="font-poppins text-[20px] mb-5 leading-tight"
-//                 style={{ color: "#e6ffee" }}
-//               >
-//                 {step === 1 ? "Create Credentials" : "Verify Identity"}
-//               </div>
-
-//               {/* Step indicators */}
-//               <div className="flex gap-[5px] mb-6">
-//                 <div
-//                   className="h-[3px] flex-1 rounded-full transition-all duration-[350ms]"
-//                   style={{
-//                     background:
-//                       step >= 1 ? "#27AE60" : "rgba(255,255,255,0.07)",
-//                   }}
-//                 />
-//                 <div
-//                   className="h-[3px] flex-1 rounded-full transition-all duration-[350ms]"
-//                   style={{
-//                     background:
-//                       step === 2
-//                         ? "#27AE60"
-//                         : step > 2
-//                           ? "rgba(39,174,96,0.3)"
-//                           : "rgba(255,255,255,0.07)",
-//                   }}
-//                 />
-//               </div>
-
-//               {/* ── Step 1 ── */}
-//               {step === 1 ? (
-//                 <>
-//                   {/* Full Name */}
-//                   <label
-//                     className="block text-[10px] font-semibold tracking-[0.1em] uppercase mb-[6px]"
-//                     style={{ color: "rgba(255,255,255,0.26)" }}
-//                   >
-//                     Full Name
-//                   </label>
-//                   <input
-//                     className="font-poppins w-full rounded-[11px] px-[14px] py-[11px] text-[14px] outline-none transition-all duration-[180ms] mb-3"
-//                     style={{
-//                       background: "rgba(255,255,255,0.03)",
-//                       border: "1px solid rgba(255,255,255,0.07)",
-//                       color: "#e6ffee",
-//                     }}
-//                     placeholder="e.g. Alex Johnson"
-//                     value={name}
-//                     onChange={(e) => setName(e.target.value)}
-//                     onFocus={(e) => {
-//                       e.currentTarget.style.borderColor = "rgba(39,174,96,0.5)";
-//                       e.currentTarget.style.background = "rgba(39,174,96,0.04)";
-//                       e.currentTarget.style.boxShadow =
-//                         "0 0 0 3px rgba(39,174,96,0.09)";
-//                     }}
-//                     onBlur={(e) => {
-//                       e.currentTarget.style.borderColor =
-//                         "rgba(255,255,255,0.07)";
-//                       e.currentTarget.style.background =
-//                         "rgba(255,255,255,0.03)";
-//                       e.currentTarget.style.boxShadow = "none";
-//                     }}
-//                   />
-
-//                   {/* Email */}
-//                   <label
-//                     className="block text-[10px] font-semibold tracking-[0.1em] uppercase mb-[6px]"
-//                     style={{ color: "rgba(255,255,255,0.26)" }}
-//                   >
-//                     Email Address
-//                   </label>
-//                   <input
-//                     className="font-poppins w-full rounded-[11px] px-[14px] py-[11px] text-[14px] outline-none transition-all duration-[180ms] mb-3"
-//                     style={{
-//                       background: "rgba(255,255,255,0.03)",
-//                       border: "1px solid rgba(255,255,255,0.07)",
-//                       color: "#e6ffee",
-//                     }}
-//                     placeholder="alex@company.com"
-//                     type="email"
-//                     value={email}
-//                     onChange={(e) => setEmail(e.target.value)}
-//                     onFocus={(e) => {
-//                       e.currentTarget.style.borderColor = "rgba(39,174,96,0.5)";
-//                       e.currentTarget.style.background = "rgba(39,174,96,0.04)";
-//                       e.currentTarget.style.boxShadow =
-//                         "0 0 0 3px rgba(39,174,96,0.09)";
-//                     }}
-//                     onBlur={(e) => {
-//                       e.currentTarget.style.borderColor =
-//                         "rgba(255,255,255,0.07)";
-//                       e.currentTarget.style.background =
-//                         "rgba(255,255,255,0.03)";
-//                       e.currentTarget.style.boxShadow = "none";
-//                     }}
-//                   />
-
-//                   {/* Divider */}
-//                   <div
-//                     className="h-px my-1 mb-4"
-//                     style={{ background: "rgba(255,255,255,0.05)" }}
-//                   />
-
-//                   {/* Role label */}
-//                   <span
-//                     className="block text-[10px] font-semibold tracking-[0.1em] uppercase mb-[10px]"
-//                     style={{ color: "rgba(255,255,255,0.26)" }}
-//                   >
-//                     Assign Role
-//                   </span>
-
-//                   {/* Dropdown */}
-//                   <div className="relative mb-[10px]">
-//                     <div
-//                       className="w-full rounded-[11px] px-[14px] py-3 flex justify-between items-center cursor-pointer"
-//                       style={{
-//                         background: "rgba(255,255,255,0.03)",
-//                         border: "1px solid rgba(255,255,255,0.07)",
-//                         color: "#e6ffee",
-//                       }}
-//                       onClick={() => setRoleOpen(!roleOpen)}
-//                     >
-//                       <span>
-//                         {selectedRole?.icon} {selectedRole?.label}
-//                       </span>
-//                       <span>{roleOpen ? "▲" : "▼"}</span>
-//                     </div>
-
-//                     {roleOpen && (
-//                       <div
-//                         className="absolute top-[110%] left-0 w-full rounded-[12px] max-h-[220px] overflow-y-auto z-20"
-//                         style={{
-//                           background: "#07100a",
-//                           border: "1px solid rgba(39,174,96,0.14)",
-//                           boxShadow: "0 12px 40px rgba(0,0,0,0.6)",
-//                         }}
-//                       >
-//                         {roles.map((r) => (
-//                           <div
-//                             key={r.value}
-//                             className="px-[14px] py-[10px] cursor-pointer text-[13px] flex justify-between transition-all duration-[180ms]"
-//                             style={{ color: "rgba(255,255,255,0.6)" }}
-//                             onMouseEnter={(e) => {
-//                               e.currentTarget.style.background =
-//                                 "rgba(39,174,96,0.08)";
-//                               e.currentTarget.style.color = "#d4ffe2";
-//                             }}
-//                             onMouseLeave={(e) => {
-//                               e.currentTarget.style.background = "transparent";
-//                               e.currentTarget.style.color =
-//                                 "rgba(255,255,255,0.6)";
-//                             }}
-//                             onClick={() => {
-//                               setRole(r.value);
-//                               setRoleOpen(false);
-//                             }}
-//                           >
-//                             <span>
-//                               {r.icon} {r.label}
-//                             </span>
-//                           </div>
-//                         ))}
-//                       </div>
-//                     )}
-//                   </div>
-
-//                   {/* Send OTP Button */}
-//                   <button
-//                     className="cmu-btn-inner w-full mt-4 py-[13px] rounded-[12px] border-none text-white font-dmsans text-[14px] font-semibold tracking-[0.04em] cursor-pointer transition-all duration-[180ms] relative overflow-hidden flex items-center justify-center gap-2 disabled:opacity-35 disabled:cursor-not-allowed disabled:shadow-none"
-//                     style={{
-//                       background: "linear-gradient(135deg, #27AE60, #1d8646)",
-//                       boxShadow: "0 4px 20px rgba(39,174,96,0.26)",
-//                     }}
-//                     onMouseEnter={(e) => {
-//                       if (!e.currentTarget.disabled) {
-//                         e.currentTarget.style.transform = "translateY(-1px)";
-//                         e.currentTarget.style.boxShadow =
-//                           "0 6px 28px rgba(39,174,96,0.38)";
-//                       }
-//                     }}
-//                     onMouseLeave={(e) => {
-//                       e.currentTarget.style.transform = "translateY(0)";
-//                       e.currentTarget.style.boxShadow =
-//                         "0 4px 20px rgba(39,174,96,0.26)";
-//                     }}
-//                     onMouseDown={(e) => {
-//                       if (!e.currentTarget.disabled)
-//                         e.currentTarget.style.transform = "scale(0.99)";
-//                     }}
-//                     onMouseUp={(e) => {
-//                       e.currentTarget.style.transform = "translateY(-1px)";
-//                     }}
-//                     onClick={handleRequestOtp}
-//                     disabled={!name || !email || loading}
-//                   >
-//                     {loading ? (
-//                       <div
-//                         className="cmu-spin-anim w-[15px] h-[15px] rounded-full border-2"
-//                         style={{
-//                           borderColor: "rgba(255,255,255,0.25)",
-//                           borderTopColor: "white",
-//                         }}
-//                       />
-//                     ) : (
-//                       <>Send OTP →</>
-//                     )}
-//                   </button>
-//                 </>
-//               ) : (
-//                 /* ── Step 2: OTP ── */
-//                 <>
-//                   <p
-//                     className="text-[13px] leading-[1.6] mb-[22px]"
-//                     style={{ color: "rgba(255,255,255,0.28)" }}
-//                   >
-//                     We sent a 4-digit code to{" "}
-//                     <span className="font-medium" style={{ color: "#6fcf97" }}>
-//                       {email}
-//                     </span>
-//                   </p>
-
-//                   {/* OTP Inputs */}
-//                   <div className="flex gap-[10px] justify-center">
-//                     {otpDigits.map((d, i) => (
-//                       <input
-//                         key={i}
-//                         id={`otp-${i}`}
-//                         className="otp-cell font-syne text-center outline-none transition-all duration-[180ms]"
-//                         style={{
-//                           width: 68,
-//                           height: 70,
-//                           background: d
-//                             ? "rgba(39,174,96,0.05)"
-//                             : "rgba(255,255,255,0.03)",
-//                           border: d
-//                             ? "1.5px solid rgba(39,174,96,0.45)"
-//                             : "1.5px solid rgba(255,255,255,0.07)",
-//                           borderRadius: 13,
-//                           fontSize: 26,
-//                           fontWeight: 800,
-//                           color: d ? "#6fcf97" : "#e6ffee",
-//                         }}
-//                         maxLength={1}
-//                         value={d}
-//                         inputMode="numeric"
-//                         onChange={(e) => handleOtpChange(i, e.target.value)}
-//                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
-//                         onFocus={(e) => {
-//                           e.target.select();
-//                           e.currentTarget.style.borderColor =
-//                             "rgba(39,174,96,0.6)";
-//                           e.currentTarget.style.background =
-//                             "rgba(39,174,96,0.05)";
-//                           e.currentTarget.style.boxShadow =
-//                             "0 0 0 3px rgba(39,174,96,0.11)";
-//                         }}
-//                         onBlur={(e) => {
-//                           e.currentTarget.style.boxShadow = "none";
-//                           if (!d) {
-//                             e.currentTarget.style.borderColor =
-//                               "rgba(255,255,255,0.07)";
-//                             e.currentTarget.style.background =
-//                               "rgba(255,255,255,0.03)";
-//                           }
-//                         }}
-//                       />
-//                     ))}
-//                   </div>
-
-//                   {/* Resend hint */}
-//                   <p
-//                     className="text-[12px] text-center mt-3"
-//                     style={{ color: "rgba(255,255,255,0.2)" }}
-//                   >
-//                     Didn't receive it?{" "}
-//                     <span
-//                       className="cursor-pointer transition-all duration-[180ms] hover:underline"
-//                       style={{ color: "#27AE60" }}
-//                       onMouseEnter={(e) =>
-//                         (e.currentTarget.style.color = "#2ecc71")
-//                       }
-//                       onMouseLeave={(e) =>
-//                         (e.currentTarget.style.color = "#27AE60")
-//                       }
-//                       onClick={() => {
-//                         setOtpDigits(["", "", "", ""]);
-//                         handleRequestOtp();
-//                       }}
-//                     >
-//                       Resend code
-//                     </span>
-//                   </p>
-
-//                   {/* Verify Button */}
-//                   <button
-//                     className="cmu-btn-inner w-full mt-4 py-[13px] rounded-[12px] border-none text-white font-dmsans text-[14px] font-semibold tracking-[0.04em] cursor-pointer transition-all duration-[180ms] relative overflow-hidden flex items-center justify-center gap-2 disabled:opacity-35 disabled:cursor-not-allowed disabled:shadow-none"
-//                     style={{
-//                       background: "linear-gradient(135deg, #27AE60, #1d8646)",
-//                       boxShadow: "0 4px 20px rgba(39,174,96,0.26)",
-//                     }}
-//                     onMouseEnter={(e) => {
-//                       if (!e.currentTarget.disabled) {
-//                         e.currentTarget.style.transform = "translateY(-1px)";
-//                         e.currentTarget.style.boxShadow =
-//                           "0 6px 28px rgba(39,174,96,0.38)";
-//                       }
-//                     }}
-//                     onMouseLeave={(e) => {
-//                       e.currentTarget.style.transform = "translateY(0)";
-//                       e.currentTarget.style.boxShadow =
-//                         "0 4px 20px rgba(39,174,96,0.26)";
-//                     }}
-//                     onMouseDown={(e) => {
-//                       if (!e.currentTarget.disabled)
-//                         e.currentTarget.style.transform = "scale(0.99)";
-//                     }}
-//                     onMouseUp={(e) => {
-//                       e.currentTarget.style.transform = "translateY(-1px)";
-//                     }}
-//                     onClick={handleVerify}
-//                     disabled={otpDigits.join("").length < 4 || loading}
-//                   >
-//                     {loading ? (
-//                       <div
-//                         className="cmu-spin-anim w-[15px] h-[15px] rounded-full border-2"
-//                         style={{
-//                           borderColor: "rgba(255,255,255,0.25)",
-//                           borderTopColor: "white",
-//                         }}
-//                       />
-//                     ) : (
-//                       <>Verify & Create</>
-//                     )}
-//                   </button>
-
-//                   {/* Back */}
-//                   <button
-//                     className="font-dmsans bg-transparent border-none text-[13px] cursor-pointer p-0 flex items-center gap-[5px] mt-3 transition-all duration-[180ms]"
-//                     style={{ color: "rgba(255,255,255,0.2)" }}
-//                     onMouseEnter={(e) =>
-//                       (e.currentTarget.style.color = "rgba(255,255,255,0.55)")
-//                     }
-//                     onMouseLeave={(e) =>
-//                       (e.currentTarget.style.color = "rgba(255,255,255,0.2)")
-//                     }
-//                     onClick={() => setStep(1)}
-//                   >
-//                     ← Back
-//                   </button>
-//                 </>
-//               )}
-//             </>
-//           )}
-//         </div>
-//       </div>
-//     </>
-//   );
-// }
-
-// export function App() {
-//   const [open, setOpen] = useState(true);
-
-//   return (
-//     <div
-//       className="min-h-screen flex items-center justify-center font-dmsans"
-//       style={{
-//         background: "linear-gradient(135deg, #030804 0%, #08100a 100%)",
-//         fontFamily: "poppins, sans-serif",
-//       }}
-//     >
-//       {!open && (
-//         <button
-//           className="font-dmsans text-[14px] font-semibold cursor-pointer tracking-[0.04em] text-white border-none rounded-[12px] px-7 py-[13px]"
-//           style={{
-//             background: "linear-gradient(135deg, #27AE60, #1E8449)",
-//             boxShadow: "0 4px 24px rgba(39,174,96,0.32)",
-//             fontFamily: "DM Sans, sans-serif",
-//           }}
-//           onClick={() => setOpen(true)}
-//         >
-//           + Create User
-//         </button>
-//       )}
-//       {open && <CreateUserModal onClose={() => setOpen(false)} />}
-//     </div>
-//   );
-// }
-
-
-
-
-// frontend/admin-dashboard/src/components/common/CreateUserModal.jsx
+// src/components/common/CreateUserModal.jsx
 import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { toast } from "sonner";
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
+
 import {
   createRequestOtp,
   createVerifyOtpService,
-} from "../../services/authService";
-import { toast } from "sonner";
+  createUserLocationDetails,
+} from "../../features/user/userService";
 
-const roles = [
-  // {
-  //   value: "super_admin",
-  //   label: "Super Admin",
-  //   icon: "★",
-  //   desc: "Full system access",
-  // },
-  { value: "admin", label: "Admin", icon: "⬡", desc: "Manage users & config" },
-  {
-    value: "sales_manager",
-    label: "Sales Manager",
-    icon: "◎",
-    desc: "Lead & team oversight",
-  },
-  {
-    value: "sales_agent",
-    label: "Sales Agent",
-    icon: "◈",
-    desc: "Handle sales pipeline",
-  },
-  { value: "agent", label: "Agent", icon: "⊛", desc: "Support & operations" },
-  { value: "user", label: "User", icon: "○", desc: "Basic access only" },
-  { value: "accounts", label: "Accounts", icon: "⊙", desc: "Manage accounts" },
+/* ─── Constants ─────────────────────────────────────────────── */
+const PRIMARY       = "#27AE60";
+const PRIMARY_DARK  = "#1d8646";
+const PRIMARY_LIGHT = "#e8f7ee";
+const PRIMARY_MID   = "#d1f0df";
+
+/* ─── Zod Schema ─────────────────────────────────────────────── */
+const schema = z.object({
+  name:     z.string().min(3, "Full name is required"),
+  email:    z.string().email("Invalid email address"),
+  phone:    z.string().refine((val) => isValidPhoneNumber(val), {
+    message: "Invalid phone number",
+  }),
+  role:     z.string(),
+  pincode:  z.string().length(6, "Pincode must be 6 digits"),
+  city:     z.string().min(2, "City is required"),
+  locality: z.string().min(2, "Locality is required"),
+  state:    z.string().min(2, "State is required"),
+});
+
+/* ─── Roles ──────────────────────────────────────────────────── */
+const ROLES = [
+  { value: "customer_care",  label: "Customer Care" },
+  { value: "admin",          label: "Admin" },
+  { value: "sales_manager",  label: "Sales Manager" },
+  { value: "sales_agent",    label: "Sales Agent" },
+  { value: "agent",          label: "Agent" },
+  { value: "user",           label: "User" },
+  { value: "accounts",       label: "Accounts" },
 ];
 
-const PRIMARY      = "#27AE60";
-const PRIMARY_DARK = "#1d8646";
-const PRIMARY_LIGHT = "#e8f7ee";
-const PRIMARY_MID  = "#d1f0df";
+const STEP_LABELS = ["Info", "Verify", "Location"];
 
+/* ─── Styles ─────────────────────────────────────────────────── */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Syne:wght@700;800&display=swap');
 
-  .cmu-overlay-anim { animation: overlayIn 0.22s ease; }
-  @keyframes overlayIn { from{opacity:0} to{opacity:1} }
+  .cum-overlay-anim { animation: cumOverlayIn 0.22s ease; }
+  @keyframes cumOverlayIn { from{opacity:0} to{opacity:1} }
 
-  .cmu-card-anim { animation: cardIn 0.28s cubic-bezier(0.34,1.56,0.64,1); }
-  @keyframes cardIn {
+  .cum-card-anim { animation: cumCardIn 0.28s cubic-bezier(0.34,1.56,0.64,1); }
+  @keyframes cumCardIn {
     from { opacity:0; transform:scale(0.93) translateY(12px); }
     to   { opacity:1; transform:scale(1)    translateY(0);    }
   }
 
-  .cmu-success-anim { animation: fadeUp 0.3s ease; }
-  @keyframes fadeUp {
+  .cum-success-anim { animation: cumFadeUp 0.3s ease; }
+  @keyframes cumFadeUp {
     from { opacity:0; transform:translateY(10px); }
     to   { opacity:1; transform:translateY(0);    }
   }
 
-  .cmu-pop-anim { animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.05s both; }
-  @keyframes pop {
+  .cum-pop-anim { animation: cumPop 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.05s both; }
+  @keyframes cumPop {
     from { transform:scale(0); opacity:0; }
     to   { transform:scale(1); opacity:1; }
   }
 
-  .cmu-fill-anim { animation: fill 2.4s linear forwards; width:0%; }
-  @keyframes fill { from{width:0%} to{width:100%} }
+  .cum-fill-anim { animation: cumFill 2.6s linear forwards; width:0%; }
+  @keyframes cumFill { from{width:0%} to{width:100%} }
 
-  .cmu-spin-anim { animation: spin 0.7s linear infinite; }
-  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  .cum-spin-anim { animation: cumSpin 0.7s linear infinite; }
+  @keyframes cumSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
-  .cmu-top-line::before {
+  .cum-step-anim { animation: cumStepIn 0.22s ease; }
+  @keyframes cumStepIn {
+    from { opacity:0; transform:translateX(14px); }
+    to   { opacity:1; transform:translateX(0);    }
+  }
+
+  .cum-top-line::before {
     content: '';
     position: absolute;
     top: 0; left: 10%; width: 80%; height: 2px;
@@ -665,109 +91,279 @@ const styles = `
     border-radius: 999px;
   }
 
-  .cmu-scroll::-webkit-scrollbar { width: 4px; }
-  .cmu-scroll::-webkit-scrollbar-track { background: transparent; }
-  .cmu-scroll::-webkit-scrollbar-thumb { background: rgba(39,174,96,0.2); border-radius: 4px; }
+  .cum-scroll::-webkit-scrollbar { width: 4px; }
+  .cum-scroll::-webkit-scrollbar-track { background: transparent; }
+  .cum-scroll::-webkit-scrollbar-thumb { background: rgba(39,174,96,0.2); border-radius: 4px; }
 
-  .otp-cell { caret-color: #27AE60; }
+  .cum-input {
+    width: 100%; box-sizing: border-box;
+    padding: 11px 14px;
+    background: #f9fafb;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 11px;
+    font-size: 14px;
+    font-family: Poppins, sans-serif;
+    color: #111827;
+    outline: none;
+    transition: all 0.18s;
+    display: block;
+  }
+  .cum-input:focus {
+    border-color: #27AE60;
+    background: #e8f7ee;
+    box-shadow: 0 0 0 3px rgba(39,174,96,0.10);
+  }
+  .cum-input.cum-error { border-color: #fca5a5; background: #fff5f5; }
+  .cum-input::placeholder { color: #9ca3af; }
+
+  .cum-select {
+    width: 100%; box-sizing: border-box;
+    padding: 11px 36px 11px 14px;
+    background: #f9fafb;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 11px;
+    font-size: 14px;
+    font-family: Poppins, sans-serif;
+    color: #111827;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .cum-select:focus {
+    border-color: #27AE60;
+    background: #e8f7ee;
+    box-shadow: 0 0 0 3px rgba(39,174,96,0.10);
+  }
+
+  .cum-phone-wrap {
+    display: flex; align-items: center; gap: 8px;
+    padding: 11px 14px;
+    background: #f9fafb;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 11px;
+    transition: all 0.18s;
+    box-sizing: border-box;
+  }
+  .cum-phone-wrap:focus-within {
+    border-color: #27AE60;
+    background: #e8f7ee;
+    box-shadow: 0 0 0 3px rgba(39,174,96,0.10);
+  }
+  .cum-phone-wrap.cum-error { border-color: #fca5a5; background: #fff5f5; }
+  .cum-phone-wrap .PhoneInputInput {
+    background: transparent; border: none; outline: none;
+    font-size: 14px; font-family: Poppins, sans-serif;
+    color: #111827; width: 100%;
+  }
+  .cum-phone-wrap .PhoneInputInput::placeholder { color: #9ca3af; }
+  .cum-phone-wrap .PhoneInputCountrySelect { background: transparent; border: none; outline: none; cursor: pointer; }
+  .cum-phone-wrap .PhoneInputCountrySelectArrow { display: none; }
+
+  .cum-otp-input {
+    width: 52px; height: 60px;
+    text-align: center; font-size: 22px; font-weight: 700;
+    font-family: Poppins, sans-serif;
+    background: #f9fafb;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    outline: none; transition: all 0.18s;
+    color: #111827; box-sizing: border-box;
+  }
+  .cum-otp-input:focus {
+    border-color: #27AE60;
+    background: #e8f7ee;
+    box-shadow: 0 0 0 3px rgba(39,174,96,0.10);
+    transform: translateY(-2px);
+  }
+  .cum-otp-input:not(:placeholder-shown) {
+    border-color: #27AE60;
+    background: #e8f7ee;
+    color: #1d8646;
+  }
+
+  .cum-btn-primary {
+    width: 100%; padding: 13px 0;
+    border-radius: 12px; border: none; color: #fff;
+    font-family: DM Sans, sans-serif;
+    font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
+    cursor: pointer;
+    background: linear-gradient(135deg, #27AE60, #1d8646);
+    box-shadow: 0 4px 20px rgba(39,174,96,0.28);
+    transition: all 0.18s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .cum-btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 28px rgba(39,174,96,0.38);
+  }
+  .cum-btn-primary:active:not(:disabled) { transform: scale(0.99); }
+  .cum-btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .cum-btn-dark {
+    width: 100%; padding: 13px 0;
+    border-radius: 12px; border: none; color: #fff;
+    font-family: DM Sans, sans-serif;
+    font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
+    cursor: pointer;
+    background: linear-gradient(135deg, #111827, #1f2937);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+    transition: all 0.18s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .cum-btn-dark:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 28px rgba(0,0,0,0.28);
+  }
+  .cum-btn-dark:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .cum-cancel-btn {
+    background: transparent; border: none;
+    font-size: 13px; cursor: pointer; padding: 0;
+    display: flex; align-items: center; gap: 5px;
+    margin-top: 12px; color: #9ca3af;
+    font-family: DM Sans, sans-serif; transition: all 0.18s;
+  }
+  .cum-cancel-btn:hover { color: #374151; }
 `;
 
-export default function CreateUserModal({ onClose }) {
-  const [roleOpen, setRoleOpen]   = useState(false);
-  const [step, setStep]           = useState(1);
-  const [name, setName]           = useState("");
-  const [email, setEmail]         = useState("");
-  const [role, setRole]           = useState("super_admin");
-  const [otp, setOtp]             = useState("");
-  const [success, setSuccess]     = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
+/* ─── Field wrapper ──────────────────────────────────────────── */
+function Field({ label, error, children }) {
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{
+        display: "block", fontSize: 10, fontWeight: 600,
+        letterSpacing: "0.1em", textTransform: "uppercase",
+        marginBottom: 6, color: "#9ca3af",
+        fontFamily: "DM Sans, sans-serif",
+      }}>
+        {label}
+      </label>
+      {children}
+      {error && (
+        <p style={{
+          margin: "5px 0 0", fontSize: 11, fontWeight: 500,
+          color: "#ef4444", fontFamily: "DM Sans, sans-serif",
+        }}>
+          {error.message}
+        </p>
+      )}
+    </div>
+  );
+}
 
-  /* ── API Calls — identical to original ── */
+/* ─── Main Modal ─────────────────────────────────────────────── */
+export default function CreateUserModal({ onClose }) {
+  const [step,    setStep]    = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [otp,     setOtp]     = useState(["", "", "", ""]);
+  const [locationToken, setLocationToken] = useState("");
+
+  const {
+    register, watch, trigger, control,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: { role: "admin", phone: "", pincode: "", city: "", locality: "", state: "" },
+    mode: "onChange",
+  });
+
+  const formData = watch();
+
+  /* ── Handlers ── */
   const handleRequestOtp = async () => {
+    const ok = await trigger(["name", "email", "phone", "role"]);
+    if (!ok) return;
     try {
       setLoading(true);
-      await createRequestOtp(name, email, role);
+      await createRequestOtp(formData.phone);
+      toast.success(`OTP sent to ${formData.phone}`);
       setStep(2);
     } catch (err) {
-      console.error(err);
-      toast.error(`${err.message}`);
+      toast.error(err.message || "Failed to send OTP");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOtpChange = (i, val) => {
-    if (!/^\d*$/.test(val)) return;
-    const next = [...otpDigits];
-    next[i] = val.slice(-1);
-    setOtpDigits(next);
-    setOtp(next.join(""));
-    if (val && i < 3) document.getElementById(`otp-${i + 1}`)?.focus();
-  };
-
-  const handleOtpKeyDown = (i, e) => {
-    if (e.key === "Backspace" && !otpDigits[i] && i > 0)
-      document.getElementById(`otp-${i - 1}`)?.focus();
-  };
-
-  const handleVerify = async () => {
+  const handleVerifyOtp = async () => {
+    const finalOtp = otp.join("");
+    if (finalOtp.length < 4) return toast.error("Enter 4-digit code");
     try {
       setLoading(true);
-      await createVerifyOtpService(otp, email, name, role);
-      setSuccess(true);
-      setTimeout(() => onClose?.(), 2400);
+      const response = await createVerifyOtpService({
+        otp:   finalOtp,
+        email: formData.email,
+        name:  formData.name,
+        role:  formData.role,
+        phone: formData.phone,
+      });
+      if (response.token) {
+        setLocationToken(response.token);
+        localStorage.setItem("locationToken", response.token);
+        toast.success("Identity Verified!");
+        setStep(3);
+      }
     } catch (err) {
-      console.error(err);
-      toast.error(`${err.message}`);
+      toast.error(err.message || "Invalid OTP");
     } finally {
       setLoading(false);
     }
   };
 
-  const selectedRole = roles.find((r) => r.value === role);
-
-  /* ── Shared input style helpers ── */
-  const inputStyle = {
-    background: "#f9fafb",
-    border: "1.5px solid #e5e7eb",
-    color: "#111827",
-    borderRadius: 11,
-    padding: "11px 14px",
-    fontSize: 14,
-    width: "100%",
-    outline: "none",
-    fontFamily: "Poppins, sans-serif",
-    transition: "all 0.18s",
-    display: "block",
-    boxSizing: "border-box",
+  const handleFinalSubmit = async () => {
+    const ok = await trigger(["pincode", "city", "locality", "state"]);
+    if (!ok) return;
+    try {
+      setLoading(true);
+      await createUserLocationDetails({
+        pincode:  formData.pincode,
+        city:     formData.city,
+        locality: formData.locality,
+        state:    formData.state,
+      });
+      setSuccess(true);
+      setTimeout(() => onClose?.(), 2800);
+    } catch (err) {
+      toast.error(err.message || "Location update failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const onFocusInput = (e) => {
-    e.currentTarget.style.borderColor = PRIMARY;
-    e.currentTarget.style.background  = PRIMARY_LIGHT;
-    e.currentTarget.style.boxShadow   = "0 0 0 3px rgba(39,174,96,0.12)";
+  const handleOtpChange = (index, value) => {
+    if (!/^\d*$/.test(value)) return;
+    const next = [...otp];
+    next[index] = value.slice(-1);
+    setOtp(next);
+    if (value && index < 3) document.getElementById(`otp-${index + 1}`)?.focus();
   };
-  const onBlurInput = (e) => {
-    e.currentTarget.style.borderColor = "#e5e7eb";
-    e.currentTarget.style.background  = "#f9fafb";
-    e.currentTarget.style.boxShadow   = "none";
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0)
+      document.getElementById(`otp-${index - 1}`)?.focus();
   };
+
+  const Spinner = () => (
+    <div className="cum-spin-anim" style={{
+      width: 15, height: 15, borderRadius: "50%",
+      border: "2px solid rgba(255,255,255,0.25)",
+      borderTopColor: "white",
+    }} />
+  );
 
   return (
     <>
       <style>{styles}</style>
 
+      {/* ── Overlay ── */}
       <div
-        className="cmu-overlay-anim"
+        className="cum-overlay-anim"
         style={{
-          position: "fixed",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 9999,
-          padding: 16,
+          position: "fixed", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 9999, padding: 16,
           background: "rgba(220,240,228,0.55)",
           backdropFilter: "blur(14px)",
           WebkitBackdropFilter: "blur(14px)",
@@ -776,630 +372,366 @@ export default function CreateUserModal({ onClose }) {
       >
         {/* ── Card ── */}
         <div
-          className="cmu-card-anim cmu-scroll cmu-top-line"
+          className="cum-card-anim cum-scroll cum-top-line"
           style={{
             position: "relative",
-            width: "100%",
-            maxWidth: 460,
+            width: "100%", maxWidth: 460,
             maxHeight: "calc(100vh - 32px)",
-            overflowY: "auto",
-            overflowX: "hidden",
-            borderRadius: 22,
-            padding: "32px 28px 28px",
+            overflowY: "auto", overflowX: "hidden",
+            borderRadius: 22, padding: "32px 28px 28px",
             background: "#ffffff",
             border: "1px solid rgba(39,174,96,0.18)",
-            boxShadow:
-              "0 8px 48px rgba(39,174,96,0.10), 0 2px 16px rgba(0,0,0,0.06)",
+            boxShadow: "0 8px 48px rgba(39,174,96,0.10), 0 2px 16px rgba(0,0,0,0.06)",
             fontFamily: "DM Sans, sans-serif",
           }}
         >
           {/* Glow blob */}
-          <div
-            style={{
-              pointerEvents: "none",
-              position: "absolute",
-              top: -70,
-              right: -50,
-              width: 200,
-              height: 200,
-              background:
-                "radial-gradient(circle, rgba(39,174,96,0.10) 0%, transparent 70%)",
-            }}
-          />
+          <div style={{
+            pointerEvents: "none", position: "absolute",
+            top: -70, right: -50, width: 200, height: 200,
+            background: "radial-gradient(circle, rgba(39,174,96,0.10) 0%, transparent 70%)",
+          }} />
 
-          {/* Close button */}
+          {/* ── Close ── */}
           <button
             style={{
-              position: "sticky",
-              top: 0,
-              float: "right",
-              width: 30,
-              height: 30,
-              marginBottom: 4,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 8,
-              fontSize: 12,
-              cursor: "pointer",
-              background: "#f3f4f6",
-              border: "1px solid #e5e7eb",
-              color: "#9ca3af",
-              transition: "all 0.18s",
-              flexShrink: 0,
+              position: "sticky", top: 0, float: "right",
+              width: 30, height: 30, marginBottom: 4,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              borderRadius: 8, fontSize: 12, cursor: "pointer",
+              background: "#f3f4f6", border: "1px solid #e5e7eb",
+              color: "#9ca3af", transition: "all 0.18s", flexShrink: 0,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background   = "#fee2e2";
-              e.currentTarget.style.borderColor  = "#fca5a5";
-              e.currentTarget.style.color        = "#ef4444";
+              e.currentTarget.style.background  = "#fee2e2";
+              e.currentTarget.style.borderColor = "#fca5a5";
+              e.currentTarget.style.color       = "#ef4444";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background   = "#f3f4f6";
-              e.currentTarget.style.borderColor  = "#e5e7eb";
-              e.currentTarget.style.color        = "#9ca3af";
+              e.currentTarget.style.background  = "#f3f4f6";
+              e.currentTarget.style.borderColor = "#e5e7eb";
+              e.currentTarget.style.color       = "#9ca3af";
             }}
             onClick={onClose}
             aria-label="Close"
-          >
-            ✕
-          </button>
+          >✕</button>
 
-          {/* ── Success State ── */}
+          {/* ── SUCCESS ── */}
           {success ? (
-            <div
-              className="cmu-success-anim"
-              style={{ textAlign: "center", paddingTop: 18, paddingBottom: 6 }}
-            >
-              <div
-                className="cmu-pop-anim"
-                style={{
-                  width: 78,
-                  height: 78,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto 18px",
-                  fontSize: 32,
-                  color: "#fff",
-                  background: `linear-gradient(135deg, ${PRIMARY}, ${PRIMARY_DARK})`,
-                  boxShadow: `0 0 0 6px ${PRIMARY_MID}, 0 0 40px rgba(39,174,96,0.25)`,
-                }}
-              >
-                ✓
+            <div className="cum-success-anim"
+              style={{ textAlign: "center", paddingTop: 18, paddingBottom: 6 }}>
+              <div className="cum-pop-anim" style={{
+                width: 78, height: 78, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 18px", fontSize: 32, color: "#fff",
+                background: `linear-gradient(135deg, ${PRIMARY}, ${PRIMARY_DARK})`,
+                boxShadow: `0 0 0 6px ${PRIMARY_MID}, 0 0 40px rgba(39,174,96,0.25)`,
+              }}>✓</div>
+
+              <div style={{
+                fontFamily: "Syne, sans-serif", fontSize: 20,
+                fontWeight: 800, marginBottom: 8, color: "#111827",
+              }}>
+                Account Created!
               </div>
-              <div
-                style={{
-                  fontFamily: "Syne, sans-serif",
-                  fontSize: 20,
-                  fontWeight: 800,
-                  marginBottom: 8,
-                  color: "#111827",
-                }}
-              >
-                Access Granted
-              </div>
-              <div style={{ fontSize: 13, lineHeight: 1.7, color: "#6b7280" }}>
-                <span style={{ fontWeight: 600, color: "#374151" }}>{name}</span>{" "}
-                has been added as{" "}
+
+              <div style={{ fontSize: 13, lineHeight: 1.8, color: "#6b7280" }}>
+                <span style={{ fontWeight: 600, color: "#374151" }}>
+                  {formData.name}
+                </span>{" "}has been registered as a{" "}
                 <span style={{ fontWeight: 600, color: PRIMARY_DARK }}>
-                  {selectedRole?.label || role}
+                  {ROLES.find((r) => r.value === formData.role)?.label}
                 </span>
               </div>
-              <div
-                style={{
-                  height: 2,
-                  borderRadius: 999,
-                  overflow: "hidden",
-                  marginTop: 24,
-                  background: "#e5e7eb",
-                }}
-              >
-                <div
-                  className="cmu-fill-anim"
-                  style={{
-                    height: "100%",
-                    background: `linear-gradient(90deg, ${PRIMARY}, #2ecc71)`,
-                  }}
-                />
+
+              {/* Progress bar */}
+              <div style={{
+                height: 2, borderRadius: 999, overflow: "hidden",
+                marginTop: 24, background: "#e5e7eb",
+              }}>
+                <div className="cum-fill-anim" style={{
+                  height: "100%",
+                  background: `linear-gradient(90deg, ${PRIMARY}, #2ecc71)`,
+                }} />
               </div>
             </div>
+
           ) : (
             <>
               {/* Eyebrow */}
-              <div
-                style={{
-                  fontFamily: "Syne, sans-serif",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                  color: PRIMARY,
-                }}
-              >
-                {step === 1 ? "User Management" : "Verification"}
+              <div style={{
+                fontFamily: "Syne, sans-serif", fontSize: 10, fontWeight: 700,
+                letterSpacing: "0.16em", textTransform: "uppercase",
+                marginBottom: 6, color: PRIMARY,
+              }}>
+                User Management
               </div>
 
               {/* Title */}
-              <div
-                style={{
-                  fontFamily: "Poppins, sans-serif",
-                  fontSize: 20,
-                  fontWeight: 600,
-                  marginBottom: 20,
-                  lineHeight: 1.3,
-                  color: "#111827",
-                }}
-              >
-                {step === 1 ? "Create Credentials" : "Verify Identity"}
+              <div style={{
+                fontFamily: "Poppins, sans-serif", fontSize: 20, fontWeight: 600,
+                marginBottom: 4, lineHeight: 1.3, color: "#111827",
+              }}>
+                Create New User
               </div>
 
-              {/* Step indicators */}
-              <div style={{ display: "flex", gap: 5, marginBottom: 24 }}>
-                {[1, 2].map((s) => (
-                  <div
-                    key={s}
-                    style={{
-                      height: 3,
-                      flex: 1,
-                      borderRadius: 999,
-                      background: step >= s ? PRIMARY : "#e5e7eb",
-                      transition: "all 0.35s",
-                    }}
-                  />
-                ))}
+              {/* Sub */}
+              <div style={{
+                fontSize: 12, fontWeight: 500, color: "#9ca3af",
+                fontFamily: "DM Sans, sans-serif", marginBottom: 18,
+              }}>
+                Step {step} of 3 —{" "}
+                {["Basic Information", "Verify Identity", "Location Details"][step - 1]}
               </div>
 
-              {/* ── Step 1 ── */}
-              {step === 1 ? (
-                <>
-                  {/* Full Name */}
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      marginBottom: 6,
-                      color: "#9ca3af",
-                    }}
-                  >
-                    Full Name
-                  </label>
-                  <input
-                    style={{ ...inputStyle, marginBottom: 12 }}
-                    placeholder="e.g. Alex Johnson"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    onFocus={onFocusInput}
-                    onBlur={onBlurInput}
-                  />
-
-                  {/* Email */}
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      marginBottom: 6,
-                      color: "#9ca3af",
-                    }}
-                  >
-                    Email Address
-                  </label>
-                  <input
-                    style={{ ...inputStyle, marginBottom: 12 }}
-                    placeholder="alex@company.com"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onFocus={onFocusInput}
-                    onBlur={onBlurInput}
-                  />
-
-                  {/* Divider */}
-                  <div
-                    style={{ height: 1, background: "#f3f4f6", margin: "4px 0 16px" }}
-                  />
-
-                  {/* Role label */}
-                  <span
-                    style={{
-                      display: "block",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      letterSpacing: "0.1em",
-                      textTransform: "uppercase",
-                      marginBottom: 10,
-                      color: "#9ca3af",
-                    }}
-                  >
-                    Assign Role
-                  </span>
-
-                  {/* Dropdown */}
-                  <div style={{ position: "relative", marginBottom: 10 }}>
-                    <div
-                      style={{
-                        width: "100%",
-                        borderRadius: 11,
-                        padding: "11px 14px",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        cursor: "pointer",
-                        background: roleOpen ? PRIMARY_LIGHT : "#f9fafb",
-                        border: `1.5px solid ${roleOpen ? PRIMARY : "#e5e7eb"}`,
-                        color: "#111827",
-                        fontSize: 14,
-                        fontFamily: "Poppins, sans-serif",
-                        transition: "all 0.18s",
-                        boxSizing: "border-box",
-                        boxShadow: roleOpen
-                          ? "0 0 0 3px rgba(39,174,96,0.12)"
-                          : "none",
-                      }}
-                      onClick={() => setRoleOpen(!roleOpen)}
-                    >
-                      <span>
-                        {selectedRole?.icon} {selectedRole?.label}
-                      </span>
-                      <span style={{ color: "#9ca3af", fontSize: 10 }}>
-                        {roleOpen ? "▲" : "▼"}
-                      </span>
-                    </div>
-
-                    {roleOpen && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "110%",
-                          left: 0,
-                          width: "100%",
-                          borderRadius: 12,
-                          maxHeight: 220,
-                          overflowY: "auto",
-                          zIndex: 20,
-                          background: "#fff",
-                          border: "1.5px solid rgba(39,174,96,0.18)",
-                          boxShadow: "0 12px 40px rgba(0,0,0,0.10)",
-                        }}
-                      >
-                        {roles.map((r) => (
-                          <div
-                            key={r.value}
-                            style={{
-                              padding: "10px 14px",
-                              cursor: "pointer",
-                              fontSize: 13,
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              color: r.value === role ? PRIMARY_DARK : "#374151",
-                              background:
-                                r.value === role ? PRIMARY_LIGHT : "transparent",
-                              fontFamily: "DM Sans, sans-serif",
-                              transition: "all 0.18s",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = PRIMARY_LIGHT;
-                              e.currentTarget.style.color      = PRIMARY_DARK;
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background =
-                                r.value === role ? PRIMARY_LIGHT : "transparent";
-                              e.currentTarget.style.color =
-                                r.value === role ? PRIMARY_DARK : "#374151";
-                            }}
-                            onClick={() => {
-                              setRole(r.value);
-                              setRoleOpen(false);
-                            }}
-                          >
-                            <span>
-                              {r.icon} {r.label}
-                            </span>
-                            <span style={{ fontSize: 11, color: "#9ca3af" }}>
-                              {r.desc}
-                            </span>
-                          </div>
-                        ))}
+              {/* ── Step Progress bars ── */}
+              <div style={{ display: "flex", gap: 6, marginBottom: 22 }}>
+                {STEP_LABELS.map((label, i) => {
+                  const s      = i + 1;
+                  const done   = step > s;
+                  const active = step === s;
+                  return (
+                    <div key={s} style={{ flex: 1 }}>
+                      <div style={{
+                        height: 4, borderRadius: 999, overflow: "hidden",
+                        background: "#f3f4f6",
+                      }}>
+                        <div style={{
+                          height: "100%", borderRadius: 999,
+                          background: done || active
+                            ? `linear-gradient(90deg, ${PRIMARY}, #2ecc71)`
+                            : "transparent",
+                          transition: "width 0.4s ease",
+                          width: done || active ? "100%" : "0%",
+                        }} />
                       </div>
-                    )}
+                      <div style={{
+                        marginTop: 5, fontSize: 10, fontWeight: 600,
+                        letterSpacing: "0.06em", textTransform: "uppercase",
+                        fontFamily: "DM Sans, sans-serif",
+                        color: active ? PRIMARY : done ? PRIMARY_DARK : "#d1d5db",
+                        transition: "color 0.3s",
+                      }}>
+                        {done ? "✓ " : ""}{label}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Divider */}
+              <div style={{ height: 1, background: "#f3f4f6", margin: "0 0 20px" }} />
+
+              {/* ══ STEP 1 ══ */}
+              {step === 1 && (
+                <div className="cum-step-anim">
+                  <Field label="Full Name" error={errors.name}>
+                    <input
+                      {...register("name")}
+                      placeholder="e.g. Ravi Kumar"
+                      className={`cum-input${errors.name ? " cum-error" : ""}`}
+                    />
+                  </Field>
+
+                  <Field label="Phone Number" error={errors.phone}>
+                    <div className={`cum-phone-wrap${errors.phone ? " cum-error" : ""}`}>
+                      <Controller
+                        name="phone"
+                        control={control}
+                        render={({ field }) => (
+                          <PhoneInput
+                            {...field}
+                            defaultCountry="IN"
+                            placeholder="Enter phone number"
+                            style={{ width: "100%" }}
+                          />
+                        )}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="Email Address" error={errors.email}>
+                    <input
+                      {...register("email")}
+                      placeholder="example@company.com"
+                      className={`cum-input${errors.email ? " cum-error" : ""}`}
+                    />
+                  </Field>
+
+                  <Field label="Assigned Role">
+                    <div style={{ position: "relative" }}>
+                      <select {...register("role")} className="cum-select">
+                        {ROLES.map((r) => (
+                          <option key={r.value} value={r.value}>{r.label}</option>
+                        ))}
+                      </select>
+                      <div style={{
+                        position: "absolute", right: 12, top: "50%",
+                        transform: "translateY(-50%)", pointerEvents: "none",
+                        color: "#9ca3af", fontSize: 11,
+                      }}>▼</div>
+                    </div>
+                  </Field>
+
+                  <button
+                    className="cum-btn-primary"
+                    style={{ marginTop: 6 }}
+                    onClick={handleRequestOtp}
+                    disabled={loading}
+                  >
+                    {loading ? <Spinner /> : <>Send Verification Code →</>}
+                  </button>
+
+                  <button className="cum-cancel-btn" onClick={onClose}>
+                    ← Cancel
+                  </button>
+                </div>
+              )}
+
+              {/* ══ STEP 2 ══ */}
+              {step === 2 && (
+                <div className="cum-step-anim">
+                  <div style={{ textAlign: "center", marginBottom: 22 }}>
+                    <div style={{
+                      width: 64, height: 64, borderRadius: 18,
+                      background: PRIMARY_LIGHT,
+                      border: `1px solid rgba(39,174,96,0.25)`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      margin: "0 auto 14px", fontSize: 28,
+                    }}>🛡️</div>
+                    <div style={{
+                      fontFamily: "Poppins, sans-serif", fontSize: 15,
+                      fontWeight: 600, color: "#111827", marginBottom: 5,
+                    }}>
+                      Verify Identity
+                    </div>
+                    <div style={{ fontSize: 13, color: "#6b7280", fontFamily: "DM Sans, sans-serif" }}>
+                      Enter the 4-digit code sent to{" "}
+                      <span style={{ fontWeight: 600, color: "#374151" }}>{formData.phone}</span>
+                    </div>
                   </div>
 
-                  {/* Send OTP Button */}
-                  <button
-                    style={{
-                      width: "100%",
-                      marginTop: 16,
-                      padding: "13px 0",
-                      borderRadius: 12,
-                      border: "none",
-                      color: "#fff",
-                      fontFamily: "DM Sans, sans-serif",
-                      fontSize: 14,
-                      fontWeight: 600,
-                      letterSpacing: "0.04em",
-                      cursor: !name || !email || loading ? "not-allowed" : "pointer",
-                      opacity: !name || !email || loading ? 0.35 : 1,
-                      background: `linear-gradient(135deg, ${PRIMARY}, ${PRIMARY_DARK})`,
-                      boxShadow: "0 4px 20px rgba(39,174,96,0.28)",
-                      transition: "all 0.18s",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (name && email && !loading) {
-                        e.currentTarget.style.transform  = "translateY(-1px)";
-                        e.currentTarget.style.boxShadow =
-                          "0 6px 28px rgba(39,174,96,0.38)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform  = "translateY(0)";
-                      e.currentTarget.style.boxShadow =
-                        "0 4px 20px rgba(39,174,96,0.28)";
-                    }}
-                    onMouseDown={(e) => {
-                      if (name && email && !loading)
-                        e.currentTarget.style.transform = "scale(0.99)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "translateY(-1px)";
-                    }}
-                    onClick={handleRequestOtp}
-                    disabled={!name || !email || loading}
-                  >
-                    {loading ? (
-                      <div
-                        className="cmu-spin-anim"
-                        style={{
-                          width: 15,
-                          height: 15,
-                          borderRadius: "50%",
-                          border: "2px solid rgba(255,255,255,0.25)",
-                          borderTopColor: "white",
-                        }}
-                      />
-                    ) : (
-                      <>Send OTP →</>
-                    )}
-                  </button>
-                </>
-              ) : (
-                /* ── Step 2: OTP ── */
-                <>
-                  <p
-                    style={{
-                      fontSize: 13,
-                      lineHeight: 1.6,
-                      marginBottom: 22,
-                      color: "#6b7280",
-                    }}
-                  >
-                    We sent a 4-digit code to{" "}
-                    <span style={{ fontWeight: 600, color: PRIMARY_DARK }}>
-                      {email}
-                    </span>
-                  </p>
-
-                  {/* OTP Inputs */}
-                  <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-                    {otpDigits.map((d, i) => (
+                  <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 20 }}>
+                    {otp.map((digit, i) => (
                       <input
                         key={i}
                         id={`otp-${i}`}
-                        className="otp-cell"
-                        style={{
-                          width: 68,
-                          height: 70,
-                          background: d ? PRIMARY_LIGHT : "#f9fafb",
-                          border: `1.5px solid ${d ? PRIMARY : "#e5e7eb"}`,
-                          borderRadius: 13,
-                          fontSize: 26,
-                          fontWeight: 800,
-                          color: d ? PRIMARY_DARK : "#374151",
-                          textAlign: "center",
-                          outline: "none",
-                          fontFamily: "Syne, sans-serif",
-                          transition: "all 0.18s",
-                        }}
-                        maxLength={1}
-                        value={d}
+                        type="text"
                         inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        placeholder="·"
                         onChange={(e) => handleOtpChange(i, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                        onFocus={(e) => {
-                          e.target.select();
-                          e.currentTarget.style.borderColor = PRIMARY;
-                          e.currentTarget.style.background  = PRIMARY_LIGHT;
-                          e.currentTarget.style.boxShadow   =
-                            "0 0 0 3px rgba(39,174,96,0.12)";
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.boxShadow = "none";
-                          if (!d) {
-                            e.currentTarget.style.borderColor = "#e5e7eb";
-                            e.currentTarget.style.background  = "#f9fafb";
-                          }
-                        }}
+                        className="cum-otp-input"
                       />
                     ))}
                   </div>
 
-                  {/* Resend hint */}
-                  <p
-                    style={{
-                      fontSize: 12,
-                      textAlign: "center",
-                      marginTop: 12,
-                      color: "#9ca3af",
-                    }}
-                  >
-                    Didn't receive it?{" "}
-                    <span
-                      style={{ color: PRIMARY, cursor: "pointer", transition: "all 0.18s" }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.color           = PRIMARY_DARK;
-                        e.currentTarget.style.textDecoration  = "underline";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color           = PRIMARY;
-                        e.currentTarget.style.textDecoration  = "none";
-                      }}
-                      onClick={() => {
-                        setOtpDigits(["", "", "", ""]);
-                        handleRequestOtp();
-                      }}
-                    >
-                      Resend code
-                    </span>
-                  </p>
+                  <button className="cum-btn-primary" onClick={handleVerifyOtp} disabled={loading}>
+                    {loading ? <Spinner /> : "Verify Code →"}
+                  </button>
 
-                  {/* Verify Button */}
-                  <button
-                    style={{
-                      width: "100%",
-                      marginTop: 16,
-                      padding: "13px 0",
-                      borderRadius: 12,
-                      border: "none",
-                      color: "#fff",
-                      fontFamily: "DM Sans, sans-serif",
-                      fontSize: 14,
-                      fontWeight: 600,
-                      letterSpacing: "0.04em",
-                      cursor:
-                        otpDigits.join("").length < 4 || loading
-                          ? "not-allowed"
-                          : "pointer",
-                      opacity:
-                        otpDigits.join("").length < 4 || loading ? 0.35 : 1,
-                      background: `linear-gradient(135deg, ${PRIMARY}, ${PRIMARY_DARK})`,
-                      boxShadow: "0 4px 20px rgba(39,174,96,0.28)",
-                      transition: "all 0.18s",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (otpDigits.join("").length >= 4 && !loading) {
-                        e.currentTarget.style.transform  = "translateY(-1px)";
-                        e.currentTarget.style.boxShadow =
-                          "0 6px 28px rgba(39,174,96,0.38)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform  = "translateY(0)";
-                      e.currentTarget.style.boxShadow =
-                        "0 4px 20px rgba(39,174,96,0.28)";
-                    }}
-                    onMouseDown={(e) => {
-                      if (otpDigits.join("").length >= 4 && !loading)
-                        e.currentTarget.style.transform = "scale(0.99)";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.transform = "translateY(-1px)";
-                    }}
-                    onClick={handleVerify}
-                    disabled={otpDigits.join("").length < 4 || loading}
-                  >
-                    {loading ? (
-                      <div
-                        className="cmu-spin-anim"
-                        style={{
-                          width: 15,
-                          height: 15,
-                          borderRadius: "50%",
-                          border: "2px solid rgba(255,255,255,0.25)",
-                          borderTopColor: "white",
-                        }}
+                  <button className="cum-cancel-btn" onClick={() => setStep(1)}>
+                    ← Back to edit info
+                  </button>
+                </div>
+              )}
+
+              {/* ══ STEP 3 ══ */}
+              {step === 3 && (
+                <div className="cum-step-anim">
+                  <Field label="Locality" error={errors.locality}>
+                    <input
+                      {...register("locality")}
+                      placeholder="e.g. Madhapur"
+                      className={`cum-input${errors.locality ? " cum-error" : ""}`}
+                    />
+                  </Field>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <Field label="City" error={errors.city}>
+                      <input
+                        {...register("city")}
+                        placeholder="Hyderabad"
+                        className={`cum-input${errors.city ? " cum-error" : ""}`}
                       />
-                    ) : (
-                      <>Verify & Create</>
-                    )}
-                  </button>
+                    </Field>
+                    <Field label="Pincode" error={errors.pincode}>
+                      <input
+                        {...register("pincode")}
+                        placeholder="500033"
+                        maxLength={6}
+                        className={`cum-input${errors.pincode ? " cum-error" : ""}`}
+                      />
+                    </Field>
+                  </div>
 
-                  {/* Back */}
-                  <button
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      fontSize: 13,
-                      cursor: "pointer",
-                      padding: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
-                      marginTop: 12,
-                      color: "#9ca3af",
-                      fontFamily: "DM Sans, sans-serif",
-                      transition: "all 0.18s",
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.color = "#374151")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.color = "#9ca3af")
-                    }
-                    onClick={() => setStep(1)}
-                  >
-                    ← Back
+                  <Field label="State" error={errors.state}>
+                    <input
+                      {...register("state")}
+                      placeholder="Telangana"
+                      className={`cum-input${errors.state ? " cum-error" : ""}`}
+                    />
+                  </Field>
+
+                  {/* Account summary preview */}
+                  <div style={{
+                    marginTop: 4, marginBottom: 18,
+                    padding: "12px 14px",
+                    background: PRIMARY_LIGHT,
+                    border: `1px solid rgba(39,174,96,0.22)`,
+                    borderRadius: 12,
+                    fontFamily: "DM Sans, sans-serif",
+                  }}>
+                    <p style={{
+                      margin: "0 0 10px", fontSize: 10, fontWeight: 700,
+                      letterSpacing: "0.1em", textTransform: "uppercase", color: PRIMARY,
+                    }}>
+                      Account Summary
+                    </p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                        background: `linear-gradient(135deg, ${PRIMARY}, ${PRIMARY_DARK})`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "#fff", fontSize: 15, fontWeight: 700,
+                      }}>
+                        {formData.name?.charAt(0)?.toUpperCase() || "?"}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{
+                          margin: 0, fontSize: 13, fontWeight: 600, color: "#111827",
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>
+                          {formData.name || "—"}
+                        </p>
+                        <p style={{
+                          margin: 0, fontSize: 11, color: "#6b7280",
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>
+                          {formData.email || "—"}
+                        </p>
+                      </div>
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, padding: "3px 8px",
+                        borderRadius: 999, background: "rgba(39,174,96,0.15)",
+                        color: PRIMARY_DARK, whiteSpace: "nowrap", flexShrink: 0,
+                      }}>
+                        {ROLES.find((r) => r.value === formData.role)?.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button className="cum-btn-dark" onClick={handleFinalSubmit} disabled={loading}>
+                    {loading ? <Spinner /> : "Finish & Create Account →"}
                   </button>
-                </>
+                </div>
               )}
             </>
           )}
         </div>
       </div>
     </>
-  );
-}
-
-export function CreateModel() {
-  const [open, setOpen] = useState(true);
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background:
-          "linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f9fafb 100%)",
-        fontFamily: "DM Sans, sans-serif",
-      }}
-    >
-      {!open && (
-        <button
-          style={{
-            fontFamily: "DM Sans, sans-serif",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            letterSpacing: "0.04em",
-            color: "#fff",
-            border: "none",
-            borderRadius: 12,
-            padding: "13px 28px",
-            background: `linear-gradient(135deg, ${PRIMARY}, ${PRIMARY_DARK})`,
-            boxShadow: "0 4px 24px rgba(39,174,96,0.32)",
-          }}
-          onClick={() => setOpen(true)}
-        >
-          + Create User
-        </button>
-      )}
-      {open && <CreateUserModal onClose={() => setOpen(false)} />}
-    </div>
   );
 }

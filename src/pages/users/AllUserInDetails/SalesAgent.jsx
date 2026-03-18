@@ -15,7 +15,7 @@ const avatarShades = [
   { bg: "bg-[#c9eedb]", text: "text-[#27AE60]", border: "border-[#27AE60]/20" },
 ];
 
-const AgentCard = ({ agent, index }) => {
+const SalesAgentCard = ({ agent, index }) => {
   const palette = avatarShades[index % avatarShades.length];
   const permissions = agent.role?.permissions || [];
 
@@ -52,7 +52,7 @@ const AgentCard = ({ agent, index }) => {
               text-[#27AE60] text-[10px] font-semibold tracking-[1.5px] uppercase
               px-2.5 py-[3px] rounded-full">
               <span className="w-[6px] h-[6px] rounded-full bg-[#27AE60] animate-pulse" />
-              {agent.role?.label || "Sales Agent"}
+              {agent.role || "N/A"}
             </div>
           </div>
         </div>
@@ -207,7 +207,7 @@ const SalesAgents = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {agents.map((agent, idx) => (
-              <AgentCard key={agent._id} agent={agent} index={idx} />
+              <SalesAgentCard key={agent._id} agent={agent} index={idx} />
             ))}
           </div>
         )}

@@ -97,6 +97,7 @@ const BorewellDetails = ({ errors = {} }) => {
           <input
             type="number"
             value={borewell.depthMeters || ""}
+            placeholder="Enter DepthMeters"
             onChange={(e) =>
               updateNestedFieldValue(
                 "borewellDetails",
@@ -119,6 +120,7 @@ const BorewellDetails = ({ errors = {} }) => {
           <input
             type="number"
             value={borewell.yieldLpm || ""}
+            placeholder="Enter Yield (LPM)"
             onChange={(e) =>
               updateNestedFieldValue(
                 "borewellDetails",
@@ -141,6 +143,7 @@ const BorewellDetails = ({ errors = {} }) => {
             min="1900"
             max={new Date().getFullYear()}
             value={borewell.drilledYear || ""}
+            placeholder="Enter Drilled Year"
             onChange={(e) =>
               updateNestedFieldValue(
                 "borewellDetails",

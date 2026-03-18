@@ -301,14 +301,15 @@ export default function ResidentialFields({ back, next }) {
     const e = {};
     if (!form.amenities || form.amenities.length === 0) e.amenities = "Select at least one amenity";
     if (!form.parkingType) e.parkingType = "Select parking type";
-    if (!form.twoWheeler) e.twoWheeler = "Enter two wheeler capacity";
-    if (!form.fourWheeler) e.fourWheeler = "Enter four wheeler capacity";
+    if (!form.parkingDetails?.twoWheeler)
+      e.twoWheeler = "Enter two wheeler capacity";
+    if (!form.parkingDetails?.fourWheeler)
+      e.fourWheeler = "Enter four wheeler capacity";
     if (!form.totalFloors) e.totalFloors = "Enter total floors";
     if (!form.floorNumber) e.floorNumber = "Enter floor number";
     if (!form.flooringType) e.flooringType = "Select flooring type";
     if (!form.kitchenType) e.kitchenType = "Select kitchen type";
     if (!form.description) e.description = "Enter property description";
-    if (!form.status) e.status = "Select property status";
     if (!form.galleryFiles || form.galleryFiles.length === 0) e.galleryFiles = "Upload at least one image";
     return e;
   };
@@ -318,14 +319,13 @@ export default function ResidentialFields({ back, next }) {
       const updated = { ...prev };
       if (form.amenities?.length > 0) delete updated.amenities;
       if (form.parkingType) delete updated.parkingType;
-      if (form.twoWheeler) delete updated.twoWheeler;
-      if (form.fourWheeler) delete updated.fourWheeler;
+      if (form.parkingDetails?.twoWheeler) delete updated.twoWheeler;
+      if (form.parkingDetails?.fourWheeler) delete updated.fourWheeler;
       if (form.totalFloors) delete updated.totalFloors;
       if (form.floorNumber) delete updated.floorNumber;
       if (form.flooringType) delete updated.flooringType;
       if (form.kitchenType) delete updated.kitchenType;
       if (form.description) delete updated.description;
-      if (form.status) delete updated.status;
       if (form.galleryFiles?.length > 0) delete updated.galleryFiles;
       return updated;
     });
@@ -354,13 +354,16 @@ export default function ResidentialFields({ back, next }) {
       .finally(() => setIsSubmitting(false));
   };
 
+
+  
+  
   return (
     <div ref={topRef} className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-[#111827]">Property Profile</h2>
-          <p className="text-xs text-[#9ca3af] mt-0.5">Add detailed information about your property</p>
+          <h2 className="text-xl font-bold text-[#27AE60]">Property Profile</h2>
+          <p className="text-xs text-[#000000] mt-0.5">Add detailed information about your property</p>
         </div>
         <button type="button" className="flex items-center gap-2 text-sm bg-[#f0fdf4] border border-[#bbf7d0] text-[#27AE60] font-semibold px-4 py-2 rounded-xl hover:bg-[#dcfce7] transition-colors">
           <Phone size={13} />

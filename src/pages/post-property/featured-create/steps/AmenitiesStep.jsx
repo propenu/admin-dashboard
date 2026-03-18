@@ -5,7 +5,6 @@ import LeadsStep from "./Components/LeadsStep";
 import { Search, Plus } from "lucide-react";
 
 const AMENITIES_MASTER = {
-  
   Safety: [
     "24 x 7 Security",
     "CCTV / Video Surveillance",
@@ -15,6 +14,8 @@ const AMENITIES_MASTER = {
     "Seismic Safety Compliant",
     "Video Intercom",
     "Emergency Rescue / Alarms",
+    "Security Cabin / Guard Room",
+"Compound Wall / Fencing Boom Barrier",
   ],
   Land: ["Free from encroachments", "Levelled / semi-levelled land"],
   "Water Resources": [
@@ -31,10 +32,7 @@ const AMENITIES_MASTER = {
     "Water pump set",
     "Motor Shed",
   ],
-  "Farm Infrastructure": [
-    "Cattle shed",
-    "Greenhouse",
-  ],
+  "Farm Infrastructure": ["Cattle shed", "Greenhouse"],
   Leisure: [
     "Clubhouse",
     "Indoor Games",
@@ -85,6 +83,9 @@ const AMENITIES_MASTER = {
     "Automatic Boom Barriers",
     "Elevator",
     "Party Lawn",
+    "Common Restrooms",
+    "Emergency Staircases",
+    "Maintenance Services",
   ],
   Sports: [
     "Gymnasium",
@@ -121,18 +122,21 @@ const AMENITIES_MASTER = {
     "Solar Lighting",
     "IGBC Certified Building",
   ],
-  "Connectivity & Access": [
-    "Near highway",
-    "Close to Village",
+  "Connectivity & Access": ["Near highway", "Close to Village"],
+  "Residentail & Farm Living": ["Watchman room", "Toilets & wash area"],
+  Security: ["CCTV / Video Surveillance"],
+  Technology: [
+    "High-Speed Internet",
+     "Server / IT Room Provision",
   ],
-  "Residentail & Farm Living": [
-    "Watchman room",
-    "Toilets & wash area",
-
+  Infrastucture: [
+    "Infrastructure",
+"Blacktop / CC Internal Roads",
+"Plot Demarcation with Stones",
+"Street Lighting",
+"Water Pipeline Network",
+"Underground Drainage",
   ],
-  Security:[
-    "CCTV / Video Surveillance",
-  ]
 };
 const CAT_ICONS = {
   Sports: "🏋️",
@@ -147,7 +151,8 @@ const CAT_ICONS = {
   "Connectivity & Access": "🚗",
   "Residentail & Farm Living": "🏠",
   Security: "🛡️",
-  
+  Technology: "📡",
+  Infrastucture: "🛰️",
 };
 
 const AmenitiesStep = forwardRef(({ payload, update }, ref) => {

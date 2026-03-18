@@ -2,20 +2,20 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import {
   createPropertyDraft,
-  updatePropertyBasic,
-  updatePropertyLocation,
-  updatePropertyDetails,
-  updatePropertyVerification,
+  editPropertyBasic,
+  editPropertyLocation,
+  editPropertyDetails,
+  editPropertyVerification,
 } from "../../features/property/propertyService";
 
 export const savePropertyData = createAsyncThunk(
   "properties/save",
-  async ({ category, id = null, step }, { getState, rejectWithValue }) => {
+  async ({ category, id = null, step, data }, { getState, rejectWithValue }) => {
     try {
       if (!category) throw new Error("Category is required");
 
       const state = getState();
-      const stateForm = state[category]?.form;
+      const stateForm =  data || state[category]?.form 
 
       console.log("STATE FORM:", stateForm);
 
@@ -97,6 +97,9 @@ export const savePropertyData = createAsyncThunk(
           "bhk",
           "bathrooms",
           "bedrooms",
+          "balconies",
+          "seats",
+          "cabins",
           "rank",
           "floorNumber",
           "totalFloors",
@@ -144,7 +147,7 @@ export const savePropertyData = createAsyncThunk(
       let response;
       switch (step) {
         case "basic":
-          response = await updatePropertyBasic(category, id, fd);
+          response = await editPropertyBasic(category, id, fd);
           break;
         case "location": {
           const locationPayload = {
@@ -158,7 +161,7 @@ export const savePropertyData = createAsyncThunk(
             nearbyPlaces: stateForm.nearbyPlaces,
           };
 
-          response = await updatePropertyLocation(
+          response = await editPropertyLocation(
             category,
             id,
             locationPayload,
@@ -179,12 +182,12 @@ export const savePropertyData = createAsyncThunk(
             fd.delete("status");
           }
 
-          response = await updatePropertyDetails(category, id, fd); // ✅ SEND fd
+          response = await editPropertyDetails(category, id, fd); 
           break;
         }
 
         case "verification":
-          response = await updatePropertyVerification(category, id, fd);
+          response = await editPropertyVerification(category, id, fd);
           break;
         default:
           throw new Error(`Invalid step "${step}"`);

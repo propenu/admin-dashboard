@@ -64,7 +64,7 @@ const AccountCard = ({ user, index }) => {
               px-2.5 py-[3px] rounded-full"
             >
               <span className="w-[6px] h-[6px] rounded-full bg-[#27AE60] animate-pulse" />
-              {user.role?.label || "Accounts"}
+              {user.role || "N/A"}
             </div>
           </div>
         </div>

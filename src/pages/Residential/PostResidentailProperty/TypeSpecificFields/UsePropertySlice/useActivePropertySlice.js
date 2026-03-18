@@ -1,6 +1,3 @@
-
-
-
 // frontend/admin-dashboard/src/pages/Residential/PostResidentailProperty/TypeSpecificFields/UsePropertySlice/useActivePropertySlice.jsx
 import { useDispatch, useSelector } from "react-redux";
 import { actions } from "../../../../../store/newIndex";

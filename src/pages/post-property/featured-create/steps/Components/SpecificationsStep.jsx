@@ -179,6 +179,7 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
                 </div>
               </div>
             ))}
+            <div className="flex items-center justify-between gap-3">
             <button
               onClick={() => addItem(i)}
               className="flex items-center gap-2 text-sm font-black transition-colors"
@@ -194,6 +195,7 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
             >
               <Plus size={14} strokeWidth={3} /> Add Category
             </button>
+            </div>
           </div>
         </div>
       ))}

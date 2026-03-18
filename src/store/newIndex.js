@@ -1,15 +1,12 @@
-
-
 // frontend/admin-dashboard/src/store/newIndex.js
 import { configureStore } from "@reduxjs/toolkit";
 import { createPropertySlice } from "./properties/propertySlices";
-import    uiReducer   from "./Ui/uiSlice";
+import uiReducer   from "./Ui/uiSlice";
 import paymentReducer from "./payment/PaymentSlice";
 import agentsReducer from "./agents/agentsSlice";
 import propertyProgressReducer from "./PropertyProgress/propertyProgressSlice";
 import residentialUiReducer from "./Residential/residentialUiSlice";
 import residentialReducer from "./Residential/residentialSlice";
-
 
 const getBaseState = (category, type) => ({
   propertyCategory: category,
@@ -68,7 +65,7 @@ const residential = createPropertySlice("residential", {
   facing: "",
   possessionDate: "",
   smartHomeFeatures: [],
-  parkingDetails: { visitorParking: true, twoWheeler: "", fourWheeler: "" },
+  // parkingDetails: { visitorParking: true, twoWheeler: "", fourWheeler: "" },
 });
 
 const commercial = createPropertySlice("commercial", {
@@ -78,12 +75,13 @@ const commercial = createPropertySlice("commercial", {
   cabins: "",
   zoning: "",
   floorNumber: "",
+  furnishedStatus: "",
   totalFloors: "",
   powerCapacityKw: "",
   tenantName: "",
   propertyAge: "",
-  pantry: { type: "none", insidePremises: true, shared: false },
-  buildingManagement: { security: true, managedBy: "", contact: "" },
+  pantry: { type: "", insidePremises: false, shared: false },
+  buildingManagement: { security: false, managedBy: "", contact: "" },
   fireSafety: {
     fireExtinguisher: false,
     fireSprinklerSystem: false,
@@ -102,10 +100,10 @@ const land = createPropertySlice("land", {
     plotArea: "",
     plotAreaUnit: "sqft",
     roadWidthFt: "",
-    readyToConstruct: true,
-    waterConnection: true,
-    electricityConnection: true,
-    fencing: true,
+    readyToConstruct: false,
+    waterConnection: false,
+    electricityConnection: false,
+    fencing: false,
     facing: "",
     cornerPlot: false,
     surveyNumber: "",
@@ -117,7 +115,7 @@ const land = createPropertySlice("land", {
 });
 
 const agricultural = createPropertySlice("agricultural", {
-  ...getBaseState("agricultural", "agricultural-land"),
+  ...getBaseState("agricultural", "ranch"),
   boundaryWall: false,
   areaUnit: "",
   soilType: "",
@@ -132,11 +130,9 @@ const agricultural = createPropertySlice("agricultural", {
   numberOfBorewells: "",
   borewellDetails: { depthMeters: "", yieldLpm: "", drilledYear: "" },
   waterSource: "",
-  electricityConnection: true,
+  electricityConnection: false,
   accessRoadType: "",
-  statePurchaseRestrictions: "No Restrictions",
-
-  
+  statePurchaseRestrictions: "",
 });
 
 // 2. Configure Store
@@ -165,6 +161,11 @@ export const store = configureStore({
           "commercial/setDocumentsFiles",
           "land/setDocumentsFiles",
           "agricultural/setDocumentsFiles",
+
+          "residential/updateField",
+          "commercial/updateField",
+          "land/updateField",
+          "agricultural/updateField",
 
           "residential/updateCurrentField",
         ],

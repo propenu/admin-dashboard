@@ -10,9 +10,12 @@ export const editFeaturedProject = (id, formData) => {
   return apiClient.patch(`${SERVICES.PROPERTY}/featured-project/${id}`, formData);
 }
 
+
+//Properties Draft Residential, Commertial, Land and Agricultural
 export const createPropertyDraft = (category) => {
   return apiClient.post(`${SERVICES.PROPERTY}/${category}/draft`);
 };
+
 
 
 export const getMyPropertyDrafts = (category) => {
@@ -20,7 +23,7 @@ export const getMyPropertyDrafts = (category) => {
 };
 
 
-export const updatePropertyBasic = (category, id, formData) => {
+export const editPropertyBasic = (category, id, formData) => {
   return apiClient.patch(
     `${SERVICES.PROPERTY}/${category}/${id}/basic`,
     formData,
@@ -28,7 +31,7 @@ export const updatePropertyBasic = (category, id, formData) => {
 };
 
 
-export const updatePropertyLocation = (category, id, payload) => {
+export const editPropertyLocation = (category, id, payload) => {
   return apiClient.patch(
     `${SERVICES.PROPERTY}/${category}/${id}/location`,
     payload,
@@ -36,7 +39,7 @@ export const updatePropertyLocation = (category, id, payload) => {
 };
 
 
-export const updatePropertyDetails = (category, id, formData) => {
+export const editPropertyDetails = (category, id, formData) => {
   return apiClient.patch(
     `${SERVICES.PROPERTY}/${category}/${id}/details`,
     formData,
@@ -44,7 +47,7 @@ export const updatePropertyDetails = (category, id, formData) => {
 };
 
 
-export const updatePropertyVerification = (category, id, formData) => {
+export const editPropertyVerification = (category, id, formData) => {
   return apiClient.patch(
     `${SERVICES.PROPERTY}/${category}/${id}/verification`,
     formData,

@@ -1,5 +1,5 @@
 
-// //frontend/admin-dashboard/src/pages/Payments/AgentPayments/ServiceDetailsCard.jsx
+//frontend/admin-dashboard/src/pages/Payments/AgentPayments/ServiceDetailsCard.jsx
 import { FEATURE_CONFIG } from "./featureConfig";
 const LABELS = {
   PROPERTY_LISTING_LIMIT: "No. of Property Listings",
@@ -16,6 +16,7 @@ const LABELS = {
   PHOTOSHOOT: "Photoshoot",
   WALKTHROUGH_3D: "3D Walkthrough",
   BANNER: "Banner Promotion",
+  PROPERTY_COMPARISON: "Property Comparison",
 };
 
 export default function ServiceDetailsCard({ userType, category }) {

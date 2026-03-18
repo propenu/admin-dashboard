@@ -65,7 +65,7 @@ const BuilderCard = ({ builder, index }) => {
               px-2.5 py-[3px] rounded-full"
             >
               <span className="w-[6px] h-[6px] rounded-full bg-[#27AE60] animate-pulse" />
-              {builder.role?.label || "Builder"}
+              {builder.role}
             </div>
           </div>
         </div>

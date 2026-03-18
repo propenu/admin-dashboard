@@ -2,26 +2,73 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
+import DashboardIcon from "../../assets/dashboard/dashboard.svg";
+import PropertiesIcon from "../../assets/dashboard/Properties.svg";
+import PropertyProgressIcon from "../../assets/dashboard/property_progress.svg";
+import FeaturedProjetsIcon from "../../assets/dashboard/prime_projects.svg";
+import HighlightedProjectsIcon from "../../assets/dashboard/top_selling.svg";
+import ResidentialIcon from "../../assets/dashboard/residential.svg";
+import AgriculturalIcon from "../../assets/dashboard/agriculture.svg";
+import CommercialIcon from "../../assets/dashboard/commercial.svg";
+import LandIcon from "../../assets/dashboard/land.svg";
+import UserIcon from "../../assets/dashboard/user.svg";
+import AllUsersIcon from "../../assets/dashboard/all_user.svg";
+import TeamManagementIcon from "../../assets/dashboard/team_management.svg";
+import SalesManagerIcon from "../../assets/dashboard/sales_manager.svg";
+import SalesAgentIcon from "../../assets/dashboard/sales_agent.svg";
+import BuilderIcon from "../../assets/dashboard/builder.svg";
+import AgentIcon from "../../assets/dashboard/agent.svg";
+import AccountsIcon from "../../assets/dashboard/accounts.svg";
+import CreateCredentialsIcon from "../../assets/dashboard/create_credentials.svg";
+import SubcriptinIcon from "../../assets/dashboard/subscription.svg";
+import PostPropertyIcon from "../../assets/dashboard/post_property.svg";
+import PropertyViewIcon from "../../assets/dashboard/property_view.svg";
+import OwnerIcon from "../../assets/dashboard/owner.svg";
+import PostProprtSellerIcon from "../../assets/dashboard/users_Buyers.svg";
+import LocationsIcon from "../../assets/dashboard/location.svg";
+import AccountsSummaryIcon from "../../assets/dashboard/account.svg";
+import PaymentsListIcon from "../../assets/dashboard/payment_list.svg";
+import ActiveSubcriptionsIcon from "../../assets/dashboard/active_subscription.svg";
+import SubcriptionHistoryIcon from "../../assets/dashboard/subscription_history.svg";
+import RevenueByPlanIcon from "../../assets/dashboard/revenue_by_plan.svg";
 
-import {
-  Home,
-  FolderKanban,
-  Star,
-  Building2,
-  Users,
-  UserCircle,
-  Store,
-  Leaf,
-  MapPin,
-  Shield,
-  SubscriptIcon,
-  Locate,
-  ChevronDown,
-  ChevronRight,
-  ActivitySquare,
-} from "lucide-react";
+import { UserCircle, ChevronDown, ChevronRight } from "lucide-react";
 import CreateUserModal from "./CreateUserModal";
+import AssignManagerPage from "./AssignManager";
 
+/* ─── Reusable Icon wrapper ──────────────────────────────────────────────── */
+// All icons — top-level, child, and sub-child — use this component so they
+// are always the same physical size and aligned identically.
+const NavIcon = ({ src, active, isParent = false, size = "md" }) => {
+  const dim = size === "sm" ? "w-5 h-5" : "w-6 h-6";
+
+  let filterStyle = {};
+  if (active) {
+    if (isParent) {
+      // Turn icon green (#27AE60) for active parent
+      filterStyle = {
+        filter:
+          "invert(59%) sepia(61%) saturate(456%) hue-rotate(95deg) brightness(92%) contrast(88%)",
+      };
+    } else {
+      // Turn icon pure WHITE for active child (sitting on green bg)
+      filterStyle = {
+        filter: "brightness(0) invert(1)",
+      };
+    }
+  }
+
+  return (
+    <span className="flex items-center justify-center w-8 h-8 flex-shrink-0">
+      <img
+        src={src}
+        alt="icons"
+        className={`${dim} object-contain transition-all duration-200`}
+        style={filterStyle}
+      />
+    </span>
+  );
+};
 export default function Sidebar({
   expanded,
   isMobileOpen,
@@ -31,12 +78,12 @@ export default function Sidebar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAssignAgentModal, setShowAssignAgentModal] = useState(false);
   const [user, setUser] = useState(null);
   const [openMenus, setOpenMenus] = useState({});
 
-  /* ---------------- HELPERS ---------------- */
-
+  /* ── helpers ── */
   const isActiveRoute = (path) => location.pathname === path;
 
   const hasActiveDescendant = (item) => {
@@ -48,844 +95,556 @@ const [showCreateModal, setShowCreateModal] = useState(false);
     );
   };
 
-  const toggleMenu = (key) => {
+  const toggleMenu = (key) =>
     setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
 
-  /* ---------------- LOAD USER ---------------- */
-
+  /* ── load user ── */
   useEffect(() => {
     fetchLoggedInUser()
       .then(setUser)
       .catch(() => {});
   }, []);
 
-  /* ---------------- AUTO OPEN ACTIVE PATH ---------------- */
-
+  /* ── auto-open active parent menus ── */
   useEffect(() => {
     if (!user) return;
-
     const autoOpen = {};
-
-    const walk = (items) => {
+    const walk = (items) =>
       items.forEach((item) => {
-        if (hasActiveDescendant(item) && item.key) {
-          autoOpen[item.key] = true;
-        }
+        if (hasActiveDescendant(item) && item.key) autoOpen[item.key] = true;
         if (item.children) walk(item.children);
       });
-    };
-
     walk(getMenuByRole(user.roleName));
     setOpenMenus((prev) => ({ ...prev, ...autoOpen }));
   }, [location.pathname, user]);
 
-  /* ---------------- MENU CONFIG ---------------- */
-
+  /* ── menu config ── */
   const getMenuByRole = (role) =>
     ({
       super_admin: [
-        { path: "/", label: "Dashboard", icon: Home },
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
         {
           label: "Properties",
-          icon: FolderKanban,
+          icon: PropertiesIcon,
           key: "properties",
           children: [
-            { path: "/residential", label: "Residential", icon: Home },
-            { path: "/commercial", label: "Commercial", icon: Store },
-            { path: "/agricultural", label: "Agricultural", icon: Leaf },
-            { path: "/land", label: "Land", icon: MapPin },
+            {
+              path: "/residential",
+              label: "Residential",
+              icon: ResidentialIcon,
+            },
+            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
+            {
+              path: "/agricultural",
+              label: "Agricultural",
+              icon: AgriculturalIcon,
+            },
+            { path: "/land", label: "Land", icon: LandIcon },
           ],
         },
         {
           path: "/property-progress",
           label: "Property Progress",
-          icon: ActivitySquare,
+          icon: PropertyProgressIcon,
         },
         {
           path: "/featured-properties",
           label: "Featured Projects",
-          icon: Star,
+          icon: FeaturedProjetsIcon,
         },
         {
           path: "/highlight-projects",
           label: "Highlight Projects",
-          icon: Building2,
+          icon: HighlightedProjectsIcon,
         },
         {
           label: "Users",
-          icon: Users,
+          icon: UserIcon,
           key: "users",
           children: [
-            { path: "/users", label: "All Users", icon: Users },
-            // { path: "/users/builder", label: "Builders", icon: Building2 },
+            { path: "/users", label: "All Users", icon: AllUsersIcon },
             {
               path: "/team-management",
               label: "Team Management",
-              icon: UserCircle,
+              icon: TeamManagementIcon,
             },
             {
               path: "/sales-managers",
               label: "Sales Managers",
-              icon: UserCircle,
+              icon: SalesManagerIcon,
             },
             {
               path: "/sales-agents",
-              label: "Sales Agents",
-              icon: UserCircle,
+              label: "Propenu Agents",
+              icon: SalesAgentIcon,
             },
+            { path: "/builders", label: "Builders", icon: BuilderIcon },
+            { path: "/all-agents", label: "Agents", icon: AgentIcon },
+            { path: "/accounts", label: "Accounts", icon: AccountsIcon },
             {
-              path: "/builders",
-              label: "Builders",
-              icon: UserCircle,
-            },
-            {
-              path: "/all-agents",
-              label: "Agents",
-              icon: UserCircle,
-            },
-            {
-              path: "/accounts",
-              label: "Accounts",
-              icon: UserCircle,
+              path: "/customercare",
+              label: "Customer Care",
+              icon: LocationsIcon,
             },
             {
               label: "Create Credentials",
-              icon: UserCircle,
+              icon: CreateCredentialsIcon,
               key: "create-credentials",
               action: "openCreateUserModal",
             },
             {
-              path: "/users/roles",
-              label: "Roles & Permissions",
-              icon: Shield,
+              label: "Assign Agent",
+              icon: AgentIcon,
+              key: "assign-agent",
+              action: "openAssignAgentModal",
             },
           ],
         },
         {
           label: "Subscriptions",
-          icon: SubscriptIcon,
+          icon: SubcriptinIcon,
           key: "subscriptions",
           children: [
-            { path: "/agent-payments", label: "Agent", icon: Users },
+            { path: "/agent-payments", label: "Agent", icon: AgentIcon },
             {
               label: "Post Property",
               key: "post-property",
-              icon: Shield,
+              icon: PostPropertyIcon,
               children: [
                 {
                   path: "/owner-sell-property",
                   label: "Owner-Sell",
-                  icon: UserCircle,
+                  icon: OwnerIcon,
                 },
                 {
                   path: "/owner-rent-property",
                   label: "Owner-Rent",
-                  icon: Shield,
+                  icon: OwnerIcon,
                 },
               ],
             },
             {
               label: "Property View",
               key: "property-view",
-              icon: Shield,
+              icon: PropertyViewIcon,
               children: [
                 {
                   path: "/owner-buy-view",
                   label: "Owner-Buy",
-                  icon: UserCircle,
+                  icon: PostProprtSellerIcon,
                 },
-                { path: "/owner-rent-view", label: "Owner-Rent", icon: Shield },
+                {
+                  path: "/owner-rent-view",
+                  label: "Owner-Rent",
+                  icon: PostProprtSellerIcon,
+                },
               ],
-            },
-            {
-              path: "/create-payments",
-              label: "Create-Payments",
-              icon: Shield,
             },
           ],
         },
-        { path: "/locations", label: "Locations", icon: Locate },
+        { path: "/locations", label: "Locations", icon: LocationsIcon },
+
         {
           label: "Accounts",
-          icon: Users,
+          icon: AccountsIcon,
           key: "accounts",
           children: [
             {
               path: "/accounts-summary",
               label: "Accounts Summary",
-              icon: Users,
+              icon: AccountsSummaryIcon,
             },
-            { path: "/paymets-list", label: "Payments List", icon: Users },
+            {
+              path: "/paymets-list",
+              label: "Payments List",
+              icon: PaymentsListIcon,
+            },
             {
               path: "/active-subscriptions",
               label: "Active Subscriptions",
-              icon: Users,
+              icon: ActiveSubcriptionsIcon,
             },
             {
               path: "/subscription-history",
               label: "Subscription History",
-              icon: Users,
+              icon: SubcriptionHistoryIcon,
             },
             {
               path: "/Revenue-by-plan",
               label: "Revenue By Plan",
-              icon: Users,
+              icon: RevenueByPlanIcon,
             },
           ],
         },
+        { path: "/push-notifications", label: "Push Notifications", icon: LocationsIcon },
       ],
+
       builder: [
-        { path: "/", label: "Dashboard", icon: Home },
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
         {
           label: "Properties",
-          icon: FolderKanban,
+          icon: PropertiesIcon,
           key: "properties",
           children: [
-            { path: "/residential", label: "Residential", icon: Home },
-            { path: "/commercial", label: "Commercial", icon: Store },
-            { path: "/agricultural", label: "Agricultural", icon: Leaf },
-            { path: "/land", label: "Land", icon: MapPin },
+            {
+              path: "/residential",
+              label: "Residential",
+              icon: ResidentialIcon,
+            },
+            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
+            {
+              path: "/agricultural",
+              label: "Agricultural",
+              icon: AgriculturalIcon,
+            },
+            { path: "/land", label: "Land", icon: LandIcon },
           ],
         },
-        // {
-        //   path: "/property-progress",
-        //   label: "Property Progress",
-        //   icon: ActivitySquare,
-        // },
         {
           path: "/featured-properties",
           label: "Featured Projects",
-          icon: Star,
+          icon: FeaturedProjetsIcon,
         },
         {
           path: "/highlight-projects",
           label: "Highlight Projects",
-          icon: Building2,
+          icon: HighlightedProjectsIcon,
         },
-        // {
-        //   label: "Users",
-        //   icon: Users,
-        //   key: "users",
-        //   children: [
-        //     { path: "/users", label: "All Users", icon: Users },
-        //     // { path: "/users/builder", label: "Builders", icon: Building2 },
-        //     {
-        //       path: "/team-management",
-        //       label: "Team Management",
-        //       icon: UserCircle,
-        //     },
-        //     {
-        //       path: "/sales-managers",
-        //       label: "Sales Managers",
-        //       icon: UserCircle,
-        //     },
-        //     {
-        //       path: "/sales-agents",
-        //       label: "Sales Agents",
-        //       icon: UserCircle,
-        //     },
-        //     {
-        //       path: "/builders",
-        //       label: "Builders",
-        //       icon: UserCircle,
-        //     },
-        //     {
-        //       path: "/all-agents",
-        //       label: "Agents",
-        //       icon: UserCircle,
-        //     },
-        //     {
-        //       path: "/accounts",
-        //       label: "Accounts",
-        //       icon: UserCircle,
-        //     },
-        //     {
-        //       label: "Create Credentials",
-        //       icon: UserCircle,
-        //       key: "create-credentials",
-        //       action: "openCreateUserModal",
-        //     },
-        //     {
-        //       path: "/users/roles",
-        //       label: "Roles & Permissions",
-        //       icon: Shield,
-        //     },
-        //   ],
-        // },
-        // {
-        //   label: "Subscriptions",
-        //   icon: SubscriptIcon,
-        //   key: "subscriptions",
-        //   children: [
-        //     { path: "/agent-payments", label: "Agent", icon: Users },
-        //     {
-        //       label: "Post Property",
-        //       key: "post-property",
-        //       icon: Shield,
-        //       children: [
-        //         {
-        //           path: "/owner-sell-property",
-        //           label: "Owner-Sell",
-        //           icon: UserCircle,
-        //         },
-        //         {
-        //           path: "/owner-rent-property",
-        //           label: "Owner-Rent",
-        //           icon: Shield,
-        //         },
-        //       ],
-        //     },
-        //     {
-        //       label: "Property View",
-        //       key: "property-view",
-        //       icon: Shield,
-        //       children: [
-        //         {
-        //           path: "/owner-buy-view",
-        //           label: "Owner-Buy",
-        //           icon: UserCircle,
-        //         },
-        //         { path: "/owner-rent-view", label: "Owner-Rent", icon: Shield },
-        //       ],
-        //     },
-        //     {
-        //       path: "/create-payments",
-        //       label: "Create-Payments",
-        //       icon: Shield,
-        //     },
-        //   ],
-        // },
-        // { path: "/locations", label: "Locations", icon: Locate },
-        // {
-        //   label: "Accounts",
-        //   icon: Users,
-        //   key: "accounts",
-        //   children: [
-        //     {
-        //       path: "/accounts-summary",
-        //       label: "Accounts Summary",
-        //       icon: Users,
-        //     },
-        //     { path: "/paymets-list", label: "Payments List", icon: Users },
-        //     {
-        //       path: "/active-subscriptions",
-        //       label: "Active Subscriptions",
-        //       icon: Users,
-        //     },
-        //     {
-        //       path: "/subscription-history",
-        //       label: "Subscription History",
-        //       icon: Users,
-        //     },
-        //     {
-        //       path: "/Revenue-by-plan",
-        //       label: "Revenue By Plan",
-        //       icon: Users,
-        //     },
-        //   ],
-        // },
       ],
+
       admin: [
-        { path: "/", label: "Dashboard", icon: Home },
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
         {
           label: "Properties",
-          icon: FolderKanban,
+          icon: PropertiesIcon,
           key: "properties",
           children: [
-            { path: "/residential", label: "Residential", icon: Home },
-            { path: "/commercial", label: "Commercial", icon: Store },
-            { path: "/agricultural", label: "Agricultural", icon: Leaf },
-            { path: "/land", label: "Land", icon: MapPin },
+            {
+              path: "/residential",
+              label: "Residential",
+              icon: ResidentialIcon,
+            },
+            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
+            {
+              path: "/agricultural",
+              label: "Agricultural",
+              icon: AgriculturalIcon,
+            },
+            { path: "/land", label: "Land", icon: LandIcon },
           ],
         },
         {
           path: "/property-progress",
           label: "Property Progress",
-          icon: ActivitySquare,
+          icon: PropertyProgressIcon,
         },
         {
           path: "/featured-properties",
           label: "Featured Projects",
-          icon: Star,
+          icon: FeaturedProjetsIcon,
         },
         {
           path: "/highlight-projects",
           label: "Highlight Projects",
-          icon: Building2,
+          icon: HighlightedProjectsIcon,
         },
         {
           label: "Users",
-          icon: Users,
+          icon: UserIcon,
           key: "users",
           children: [
-            { path: "/users", label: "All Users", icon: Users },
-            // { path: "/users/builder", label: "Builders", icon: Building2 },
+            { path: "/users", label: "All Users", icon: AllUsersIcon },
             {
               path: "/team-management",
               label: "Team Member Details",
-              icon: UserCircle,
+              icon: TeamManagementIcon,
             },
             {
               label: "Create Credentials",
-              icon: UserCircle,
+              icon: CreateCredentialsIcon,
               key: "create-credentials",
               action: "openCreateUserModal",
-            },
-            {
-              path: "/users/roles",
-              label: "Roles & Permissions",
-              icon: Shield,
             },
           ],
         },
         {
           label: "Subscriptions",
-          icon: SubscriptIcon,
+          icon: SubcriptinIcon,
           key: "subscriptions",
           children: [
-            { path: "/agent-payments", label: "Agent", icon: Users },
+            { path: "/agent-payments", label: "Agent", icon: AgentIcon },
             {
               label: "Post Property",
               key: "post-property",
-              icon: Shield,
+              icon: PostPropertyIcon,
               children: [
                 {
                   path: "/owner-sell-property",
                   label: "Owner-Sell",
-                  icon: UserCircle,
+                  icon: PostPropertyIcon,
                 },
                 {
                   path: "/owner-rent-property",
                   label: "Owner-Rent",
-                  icon: Shield,
+                  icon: PostPropertyIcon,
                 },
               ],
             },
             {
               label: "Property View",
               key: "property-view",
-              icon: Shield,
+              icon: PropertyViewIcon,
               children: [
                 {
                   path: "/owner-buy-view",
                   label: "Owner-Buy",
-                  icon: UserCircle,
+                  icon: PropertyViewIcon,
                 },
-                { path: "/owner-rent-view", label: "Owner-Rent", icon: Shield },
+                {
+                  path: "/owner-rent-view",
+                  label: "Owner-Rent",
+                  icon: PropertyViewIcon,
+                },
               ],
-            },
-            {
-              path: "/create-payments",
-              label: "Create-Payments",
-              icon: Shield,
             },
           ],
         },
-        { path: "/locations", label: "Locations", icon: Locate },
+        { path: "/locations", label: "Locations", icon: LocationsIcon },
         {
           label: "Accounts",
-          icon: Users,
+          icon: AccountsIcon,
           key: "accounts",
           children: [
             {
               path: "/accounts-summary",
               label: "Accounts Summary",
-              icon: Users,
+              icon: AccountsSummaryIcon,
             },
-            { path: "/paymets-list", label: "Payments List", icon: Users },
+            {
+              path: "/paymets-list",
+              label: "Payments List",
+              icon: PaymentsListIcon,
+            },
             {
               path: "/active-subscriptions",
               label: "Active Subscriptions",
-              icon: Users,
+              icon: ActiveSubcriptionsIcon,
             },
             {
               path: "/subscription-history",
               label: "Subscription History",
-              icon: Users,
+              icon: SubcriptionHistoryIcon,
             },
             {
               path: "/Revenue-by-plan",
               label: "Revenue By Plan",
-              icon: Users,
+              icon: RevenueByPlanIcon,
             },
           ],
         },
       ],
+
       sales_manager: [
-        { path: "/", label: "Dashboard", icon: Home },
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
         {
           label: "Properties",
-          icon: FolderKanban,
+          icon: PropertiesIcon,
           key: "properties",
           children: [
-            { path: "/residential", label: "Residential", icon: Home },
-            { path: "/commercial", label: "Commercial", icon: Store },
-            { path: "/agricultural", label: "Agricultural", icon: Leaf },
-            { path: "/land", label: "Land", icon: MapPin },
+            {
+              path: "/residential",
+              label: "Residential",
+              icon: ResidentialIcon,
+            },
+            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
+            {
+              path: "/agricultural",
+              label: "Agricultural",
+              icon: AgriculturalIcon,
+            },
+            { path: "/land", label: "Land", icon: LandIcon },
           ],
         },
-        // {
-        //   path: "/property-progress",
-        //   label: "Property Progress",
-        //   icon: ActivitySquare,
-        // },
         {
           path: "/featured-properties",
           label: "Featured Projects",
-          icon: Star,
+          icon: FeaturedProjetsIcon,
         },
         {
           path: "/highlight-projects",
           label: "Highlight Projects",
-          icon: Building2,
+          icon: HighlightedProjectsIcon,
         },
-        // {
-        //   label: "Users",
-        //   icon: Users,
-        //   key: "users",
-        //   children: [
-        //     { path: "/users", label: "All Users", icon: Users },
-        //     // { path: "/users/builder", label: "Builders", icon: Building2 },
-        //     {
-        //       path: "/team-management",
-        //       label: "Team Member Details",
-        //       icon: UserCircle,
-        //     },
-        //     {
-        //       label: "Create Credentials",
-        //       icon: UserCircle,
-        //       key: "create-credentials",
-        //       action: "openCreateUserModal",
-        //     },
-        //     {
-        //       path: "/users/roles",
-        //       label: "Roles & Permissions",
-        //       icon: Shield,
-        //     },
-        //   ],
-        // },
-        // {
-        //   label: "Subscriptions",
-        //   icon: SubscriptIcon,
-        //   key: "subscriptions",
-        //   children: [
-        //     { path: "/agent-payments", label: "Agent", icon: Users },
-        //     {
-        //       label: "Post Property",
-        //       key: "post-property",
-        //       icon: Shield,
-        //       children: [
-        //         {
-        //           path: "/owner-sell-property",
-        //           label: "Owner-Sell",
-        //           icon: UserCircle,
-        //         },
-        //         {
-        //           path: "/owner-rent-property",
-        //           label: "Owner-Rent",
-        //           icon: Shield,
-        //         },
-        //       ],
-        //     },
-        //     {
-        //       label: "Property View",
-        //       key: "property-view",
-        //       icon: Shield,
-        //       children: [
-        //         {
-        //           path: "/owner-buy-view",
-        //           label: "Owner-Buy",
-        //           icon: UserCircle,
-        //         },
-        //         { path: "/owner-rent-view", label: "Owner-Rent", icon: Shield },
-        //       ],
-        //     },
-        //     {
-        //       path: "/create-payments",
-        //       label: "Create-Payments",
-        //       icon: Shield,
-        //     },
-        //   ],
-        // },
-        //{ path: "/locations", label: "Locations", icon: Locate },
-        // {
-        //   label: "Accounts",
-        //   icon: Users,
-        //   key: "accounts",
-        //   children: [
-        //     {
-        //       path: "/accounts-summary",
-        //       label: "Accounts Summary",
-        //       icon: Users,
-        //     },
-        //     { path: "/paymets-list", label: "Payments List", icon: Users },
-        //     {
-        //       path: "/active-subscriptions",
-        //       label: "Active Subscriptions",
-        //       icon: Users,
-        //     },
-        //     {
-        //       path: "/subscription-history",
-        //       label: "Subscription History",
-        //       icon: Users,
-        //     },
-        //     {
-        //       path: "/Revenue-by-plan",
-        //       label: "Revenue By Plan",
-        //       icon: Users,
-        //     },
-        //   ],
-        // },
       ],
+
       sales_agent: [
-        { path: "/", label: "Dashboard", icon: Home },
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
         {
           label: "Properties",
-          icon: FolderKanban,
+          icon: PropertiesIcon,
           key: "properties",
           children: [
-            { path: "/residential", label: "Residential", icon: Home },
-            { path: "/commercial", label: "Commercial", icon: Store },
-            { path: "/agricultural", label: "Agricultural", icon: Leaf },
-            { path: "/land", label: "Land", icon: MapPin },
+            {
+              path: "/residential",
+              label: "Residential",
+              icon: ResidentialIcon,
+            },
+            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
+            {
+              path: "/agricultural",
+              label: "Agricultural",
+              icon: AgriculturalIcon,
+            },
+            { path: "/land", label: "Land", icon: LandIcon },
           ],
         },
         {
           path: "/property-progress",
           label: "Property Progress",
-          icon: ActivitySquare,
+          icon: PropertyProgressIcon,
         },
         {
           path: "/featured-properties",
           label: "Featured Projects",
-          icon: Star,
+          icon: FeaturedProjetsIcon,
         },
         {
           path: "/highlight-projects",
           label: "Highlight Projects",
-          icon: Building2,
+          icon: HighlightedProjectsIcon,
         },
-        // {
-        //   label: "Users",
-        //   icon: Users,
-        //   key: "users",
-        //   children: [
-        //     { path: "/users", label: "All Users", icon: Users },
-        //     // { path: "/users/builder", label: "Builders", icon: Building2 },
-        //     {
-        //       path: "/team-management",
-        //       label: "Team Member Details",
-        //       icon: UserCircle,
-        //     },
-        //     {
-        //       label: "Create Credentials",
-        //       icon: UserCircle,
-        //       key: "create-credentials",
-        //       action: "openCreateUserModal",
-        //     },
-        //     {
-        //       path: "/users/roles",
-        //       label: "Roles & Permissions",
-        //       icon: Shield,
-        //     },
-        //   ],
-        // },
-        // {
-        //   label: "Subscriptions",
-        //   icon: SubscriptIcon,
-        //   key: "subscriptions",
-        //   children: [
-        //     { path: "/agent-payments", label: "Agent", icon: Users },
-        //     {
-        //       label: "Post Property",
-        //       key: "post-property",
-        //       icon: Shield,
-        //       children: [
-        //         {
-        //           path: "/owner-sell-property",
-        //           label: "Owner-Sell",
-        //           icon: UserCircle,
-        //         },
-        //         {
-        //           path: "/owner-rent-property",
-        //           label: "Owner-Rent",
-        //           icon: Shield,
-        //         },
-        //       ],
-        //     },
-        //     {
-        //       label: "Property View",
-        //       key: "property-view",
-        //       icon: Shield,
-        //       children: [
-        //         {
-        //           path: "/owner-buy-view",
-        //           label: "Owner-Buy",
-        //           icon: UserCircle,
-        //         },
-        //         { path: "/owner-rent-view", label: "Owner-Rent", icon: Shield },
-        //       ],
-        //     },
-        //     {
-        //       path: "/create-payments",
-        //       label: "Create-Payments",
-        //       icon: Shield,
-        //     },
-        //   ],
-        // },
-        //{ path: "/locations", label: "Locations", icon: Locate },
-        // {
-        //   label: "Accounts",
-        //   icon: Users,
-        //   key: "accounts",
-        //   children: [
-        //     {
-        //       path: "/accounts-summary",
-        //       label: "Accounts Summary",
-        //       icon: Users,
-        //     },
-        //     { path: "/paymets-list", label: "Payments List", icon: Users },
-        //     {
-        //       path: "/active-subscriptions",
-        //       label: "Active Subscriptions",
-        //       icon: Users,
-        //     },
-        //     {
-        //       path: "/subscription-history",
-        //       label: "Subscription History",
-        //       icon: Users,
-        //     },
-        //     {
-        //       path: "/Revenue-by-plan",
-        //       label: "Revenue By Plan",
-        //       icon: Users,
-        //     },
-        //   ],
-        // },
       ],
-      accounts: [
-        { path: "/", label: "Dashboard", icon: Home },
+
+      customer_care: [
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
         {
           label: "Properties",
-          icon: FolderKanban,
+          icon: PropertiesIcon,
           key: "properties",
           children: [
-            { path: "/residential", label: "Residential", icon: Home },
-            { path: "/commercial", label: "Commercial", icon: Store },
-            { path: "/agricultural", label: "Agricultural", icon: Leaf },
-            { path: "/land", label: "Land", icon: MapPin },
+            {
+              path: "/residential",
+              label: "Residential",
+              icon: ResidentialIcon,
+            },
+            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
+            {
+              path: "/agricultural",
+              label: "Agricultural",
+              icon: AgriculturalIcon,
+            },
+            { path: "/land", label: "Land", icon: LandIcon },
           ],
         },
-        // {
-        //   path: "/property-progress",
-        //   label: "Property Progress",
-        //   icon: ActivitySquare,
-        // },
+        {
+          path: "/property-progress",
+          label: "Property Progress",
+          icon: PropertyProgressIcon,
+        },
         // {
         //   path: "/featured-properties",
         //   label: "Featured Projects",
-        //   icon: Star,
+        //   icon: FeaturedProjetsIcon,
         // },
         // {
         //   path: "/highlight-projects",
         //   label: "Highlight Projects",
-        //   icon: Building2,
+        //   icon: HighlightedProjectsIcon,
         // },
-        // {
-        //   label: "Users",
-        //   icon: Users,
-        //   key: "users",
-        //   children: [
-        //     { path: "/users", label: "All Users", icon: Users },
-        //     // { path: "/users/builder", label: "Builders", icon: Building2 },
-        //     {
-        //       path: "/team-management",
-        //       label: "Team Member Details",
-        //       icon: UserCircle,
-        //     },
-        //     {
-        //       label: "Create Credentials",
-        //       icon: UserCircle,
-        //       key: "create-credentials",
-        //       action: "openCreateUserModal",
-        //     },
-        //     {
-        //       path: "/users/roles",
-        //       label: "Roles & Permissions",
-        //       icon: Shield,
-        //     },
-        //   ],
-        // },
+      ],
+
+      accounts: [
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
+        {
+          label: "Properties",
+          icon: PropertiesIcon,
+          key: "properties",
+          children: [
+            {
+              path: "/residential",
+              label: "Residential",
+              icon: ResidentialIcon,
+            },
+            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
+            {
+              path: "/agricultural",
+              label: "Agricultural",
+              icon: AgriculturalIcon,
+            },
+            { path: "/land", label: "Land", icon: LandIcon },
+          ],
+        },
         {
           label: "Subscriptions",
-          icon: SubscriptIcon,
+          icon: SubcriptinIcon,
           key: "subscriptions",
           children: [
-            { path: "/agent-payments", label: "Agent", icon: Users },
+            { path: "/agent-payments", label: "Agent", icon: AgentIcon },
             {
               label: "Post Property",
               key: "post-property",
-              icon: Shield,
+              icon: PostPropertyIcon,
               children: [
                 {
                   path: "/owner-sell-property",
                   label: "Owner-Sell",
-                  icon: UserCircle,
+                  icon: PostPropertyIcon,
                 },
                 {
                   path: "/owner-rent-property",
                   label: "Owner-Rent",
-                  icon: Shield,
+                  icon: PostPropertyIcon,
                 },
               ],
             },
             {
               label: "Property View",
               key: "property-view",
-              icon: Shield,
+              icon: PropertyViewIcon,
               children: [
                 {
                   path: "/owner-buy-view",
                   label: "Owner-Buy",
-                  icon: UserCircle,
+                  icon: PropertyViewIcon,
                 },
-                { path: "/owner-rent-view", label: "Owner-Rent", icon: Shield },
+                {
+                  path: "/owner-rent-view",
+                  label: "Owner-Rent",
+                  icon: PropertyViewIcon,
+                },
               ],
-            },
-            {
-              path: "/create-payments",
-              label: "Create-Payments",
-              icon: Shield,
             },
           ],
         },
-        //{ path: "/locations", label: "Locations", icon: Locate },
         {
           label: "Accounts",
-          icon: Users,
+          icon: AccountsIcon,
           key: "accounts",
           children: [
             {
               path: "/accounts-summary",
               label: "Accounts Summary",
-              icon: Users,
+              icon: AccountsSummaryIcon,
             },
-            { path: "/paymets-list", label: "Payments List", icon: Users },
+            {
+              path: "/paymets-list",
+              label: "Payments List",
+              icon: PaymentsListIcon,
+            },
             {
               path: "/active-subscriptions",
               label: "Active Subscriptions",
-              icon: Users,
+              icon: ActiveSubcriptionsIcon,
             },
             {
               path: "/subscription-history",
               label: "Subscription History",
-              icon: Users,
+              icon: SubcriptionHistoryIcon,
             },
             {
               path: "/Revenue-by-plan",
               label: "Revenue By Plan",
-              icon: Users,
+              icon: RevenueByPlanIcon,
             },
           ],
         },
@@ -895,10 +654,10 @@ const [showCreateModal, setShowCreateModal] = useState(false);
   const menuItems = user ? getMenuByRole(user.roleName) : [];
   const showText = expanded || isMobileOpen;
 
-  /* ---------------- RENDER ---------------- */
-
+  /* ── render ── */
   return (
     <>
+      {/* Mobile overlay */}
       {isMobileOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -909,117 +668,136 @@ const [showCreateModal, setShowCreateModal] = useState(false);
       <aside
         onMouseEnter={onHoverStart}
         onMouseLeave={onHoverEnd}
-        className={`fixed left-0 top-16 h-[calc(100vh-64px)] bg-white border-r border-gray-200 z-50 flex flex-col transition-all
+        className={`fixed left-0 top-16 h-[calc(100vh-64px)] bg-white border-r border-gray-200
+          z-50 flex flex-col transition-all duration-200
           ${expanded ? "lg:w-64" : "lg:w-[68px]"}
           ${isMobileOpen ? "w-64" : "lg:translate-x-0 -translate-x-full"}`}
       >
-        <nav className="flex-1 py-4 px-3 overflow-y-auto no-scrollbar">
+        <nav className="flex-1 py-4 px-3 overflow-y-auto no-scrollbar space-y-0.5">
           {menuItems.map((item) => {
-            const Icon = item.icon;
             const active = hasActiveDescendant(item);
 
+            /* ── Parent with children ── */
             if (item.children) {
               return (
-                <div key={item.key} className="mb-1">
+                <div key={item.key}>
+                  {/* Parent toggle button */}
                   <button
                     onClick={() => toggleMenu(item.key)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg
-                      ${active ? "bg-green-50 text-[#27AE60]" : "hover:bg-gray-50"}`}
+                    className={`w-full flex items-center px-2 py-2 rounded-lg
+                      ${showText ? "justify-between" : "justify-center"}
+                      ${active ? "bg-green-50 text-[#27AE60]" : "hover:bg-gray-50 text-gray-700"}`}
                   >
-                    <div className="flex items-center gap-3">
-                      <Icon className="w-5 h-5" />
-                      {showText && <span>{item.label}</span>}
+                    <div className="flex items-center gap-2">
+                      {/* Parent toggle button icon */}
+                      <NavIcon
+                        src={item.icon}
+                        active={active}
+                        isParent={true}
+                      />
+                      {showText && (
+                        <span className="text-sm font-medium truncate">
+                          {item.label}
+                        </span>
+                      )}
                     </div>
                     {showText && (
                       <ChevronDown
-                        className={`w-4 h-4 transition ${
-                          openMenus[item.key] ? "rotate-180" : ""
-                        }`}
+                        className={`w-4 h-4 flex-shrink-0 transition-transform duration-200
+                          ${openMenus[item.key] ? "rotate-180" : ""}`}
                       />
                     )}
                   </button>
 
+                  {/* Children */}
                   {openMenus[item.key] && showText && (
-                    <div className="ml-4 mt-1 space-y-1 relative">
-                      <div className="absolute left-2 top-0 bottom-4 w-px bg-gray-200" />
+                    <div className="relative ml-4 mt-0.5 space-y-0.5">
+                      {/* Vertical guide line — stops at the last child's midpoint */}
+                      <div
+                        className="absolute left-[15px] top-0 w-px bg-gray-200"
+                        style={{ height: `calc(100% - 23px)` }}
+                      />
 
                       {item.children.map((child) => {
-                        const ChildIcon = child.icon;
-                        const childActive =
-                          (child.path && isActiveRoute(child.path)) ||
-                          hasActiveDescendant(child);
+                        const childSelfActive =
+                          child.path && isActiveRoute(child.path);
+                        const childHasActive = hasActiveDescendant(child);
+                        const childActive = childSelfActive || childHasActive;
 
                         return (
                           <div
                             key={child.key || child.path}
                             className="relative"
                           >
-                            <div className="absolute left-2 top-1/2 w-3 h-px bg-gray-200" />
+                            <div className="absolute left-[15px] top-1/2 w-3 h-px bg-gray-200" />
 
                             <button
-                              // onClick={() =>
-                              //   child.children
-                              //     ? toggleMenu(child.key)
-                              //     : navigate(child.path)
-                              // }
                               onClick={() => {
                                 if (child.action === "openCreateUserModal") {
                                   setShowCreateModal(true);
+                                } else if (
+                                  child.action === "openAssignAgentModal"
+                                ) {
+                                  setShowAssignAgentModal(true);
                                 } else if (child.children) {
                                   toggleMenu(child.key);
                                 } else {
                                   navigate(child.path);
                                 }
                               }}
-                              className={`ml-5 w-[calc(100%-20px)] px-3 py-2 rounded-lg text-sm flex justify-between
-                                ${
-                                  childActive
-                                    ? "bg-[#27AE60] text-white"
-                                    : "hover:bg-gray-50"
-                                }`}
+                              className={`relative ml-7 w-[calc(100%-28px)] flex items-center justify-between
+          px-2 py-2 rounded-lg text-sm
+          ${
+            childSelfActive
+              ? "bg-[#27AE60] text-white" // only self-active = full green
+              : childHasActive
+                ? "bg-green-50 text-[#27AE60]" // has active child = light green (like parent)
+                : "hover:bg-gray-50 text-gray-700" // inactive = default
+          }`}
                             >
                               <div className="flex items-center gap-2">
-                                <ChildIcon className="w-4 h-4" />
-                                {child.label}
+                                <NavIcon
+                                  src={child.icon}
+                                  active={childActive}
+                                  isParent={childHasActive && !childSelfActive} // green icon when it's a parent of active
+                                />
+                                <span className="truncate">{child.label}</span>
                               </div>
-
                               {child.children && (
                                 <ChevronRight
-                                  className={`w-4 h-4 ${
-                                    openMenus[child.key] ? "rotate-90" : ""
-                                  }`}
+                                  className={`w-4 h-4 flex-shrink-0 transition-transform duration-200
+              ${openMenus[child.key] ? "rotate-90" : ""}`}
                                 />
                               )}
                             </button>
 
+                            {/* Sub-children */}
                             {child.children && openMenus[child.key] && (
-                              <div className="ml-8 mt-1 relative space-y-1">
-                                <div className="absolute left-2 top-0 bottom-3 w-px bg-gray-200" />
+                              <div className="relative ml-7 mt-0.5 space-y-0.5">
+                                <div
+                                  className="absolute left-[15px] top-0 w-px bg-gray-200"
+                                  style={{ height: "calc(100% - 23px)" }}
+                                />
                                 {child.children.map((sub) => {
-                                  const SubIcon = sub.icon;
-
+                                  const subActive = isActiveRoute(sub.path);
                                   return (
-                                    <div
-                                      key={sub.path}
-                                      className="relative top-1"
-                                    >
-                                      <div className="absolute left-2 top-1/2 w-3 h-px bg-gray-200" />
-
+                                    <div key={sub.path} className="relative">
+                                      <div className="absolute left-[15px] top-1/2 w-3 h-px bg-gray-200" />
                                       <button
                                         onClick={() => navigate(sub.path)}
-                                        className={`ml-5 mb-1 w-[calc(100%-20px)] px-3 py-2 rounded-lg text-xs
-          flex items-center gap-2
-          ${
-            isActiveRoute(sub.path)
-              ? "bg-[#27AE60] text-white"
-              : "hover:bg-gray-50"
-          }`}
+                                        className={`relative ml-7 w-[calc(100%-28px)] flex items-center gap-2
+                    px-2 py-2 rounded-lg text-xs
+                    ${
+                      subActive
+                        ? "bg-[#27AE60] text-white"
+                        : "hover:bg-gray-50 text-gray-700"
+                    }`}
                                       >
-                                        {/* ✅ SUB ICON */}
-                                        {SubIcon && (
-                                          <SubIcon className="w-3.5 h-3.5 shrink-0" />
-                                        )}
-
+                                        <NavIcon
+                                          src={sub.icon}
+                                          active={subActive}
+                                          size="sm"
+                                        />
                                         <span className="truncate">
                                           {sub.label}
                                         </span>
@@ -1038,28 +816,35 @@ const [showCreateModal, setShowCreateModal] = useState(false);
               );
             }
 
+            /* ── Top-level leaf item ── */
             return (
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className={`w-full px-3 py-2.5 rounded-lg flex gap-3
+                className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg
+                  ${showText ? "justify-start" : "justify-center"}
                   ${
                     isActiveRoute(item.path)
                       ? "bg-[#27AE60] text-white"
-                      : "hover:bg-gray-50"
+                      : "hover:bg-gray-50 text-gray-700"
                   }`}
               >
-                <Icon className="w-5 h-5" />
-                {showText && item.label}
+                <NavIcon src={item.icon} active={isActiveRoute(item.path)} />
+                {showText && (
+                  <span className="text-sm font-medium truncate">
+                    {item.label}
+                  </span>
+                )}
               </button>
             );
           })}
         </nav>
 
+        {/* User profile footer */}
         {user && (
           <div className="border-t border-gray-100 p-4 bg-gray-50/50">
-            <div className="flex gap-3 items-center">
-              <div className="w-9 h-9 rounded-full bg-[#27AE60] flex items-center justify-center shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-[#27AE60] flex items-center justify-center shadow-sm flex-shrink-0">
                 <UserCircle className="w-6 h-6 text-white" />
               </div>
               {showText && (
@@ -1076,8 +861,13 @@ const [showCreateModal, setShowCreateModal] = useState(false);
           </div>
         )}
       </aside>
+
       {showCreateModal && (
         <CreateUserModal onClose={() => setShowCreateModal(false)} />
+      )}
+
+      {showAssignAgentModal && (
+        <AssignManagerPage onClose={() => setShowAssignAgentModal(false)} />
       )}
     </>
   );

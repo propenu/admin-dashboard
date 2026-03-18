@@ -171,6 +171,22 @@ export default function CommercialCard({ property }) {
           </div>
         </div>
 
+        {/* Posted By */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 mb-3">
+          <span className="font-semibold text-slate-600">Posted By:</span>
+          <span className="text-[#27AE60] font-semibold">
+            {property?.createdBy?.name
+              ?.split(" ")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ") || "Unknown"}
+          </span>
+          {property?.createdBy?.phone && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+              {property.createdBy.phone}
+            </span>
+          )}
+        </div>
+
         {/* Footer Actions */}
         <div className="mt-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4 text-[11px] text-slate-400 font-medium">
@@ -198,10 +214,10 @@ export default function CommercialCard({ property }) {
             ) : (
               <button
                 onClick={() => {
-                                  dispatch(setActiveCategory("residential"));
-                                  dispatch(actions.residential.hydrateForm(property));
-                                  navigate(`/edit-property/${property._id}`);
-                                }}
+                  dispatch(setActiveCategory("commercial"));
+                  dispatch(actions.commercial.hydrateForm(property));
+                  navigate(`/edit-property/${property._id}`);
+                }}
                 className="flex-1 sm:flex-none px-5 py-2 rounded-xl text-sm font-bold bg-[#27AE60] text-white  transition-all active:scale-95"
               >
                 Edit Details

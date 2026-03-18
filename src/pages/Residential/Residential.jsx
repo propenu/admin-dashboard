@@ -279,7 +279,6 @@ export default function Commercial() {
             key={index}
             className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition border cursor-pointer max-sm:text-center"
             onClick={() => {
-              // localStorage.removeItem("propertyId");
               dispatch(setActiveCategory("residential"));
               navigate(stat.route);
             }}
@@ -323,7 +322,7 @@ export default function Commercial() {
           </div>
 
           {openLocations && (
-            <div className="absolute z-50 left-0 right-0 mt-2 w-72 bg-white border shadow-xl rounded-xl p-4 overflow-hidden">
+            <div className="absolute z-50 left-0 right-0 mt-2  bg-white border shadow-xl rounded-xl p-4 overflow-hidden">
               <div className="flex items-center gap-2 mb-3 border border-[#27AE60] rounded-lg px-3 py-2 bg-slate-50">
                 <Search className="w-4 h-4 text-slate-400" />
                 <input

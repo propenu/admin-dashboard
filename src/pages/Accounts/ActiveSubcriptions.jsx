@@ -1,330 +1,206 @@
-// import React, { useState, useEffect } from "react";
-// import { getActiveSubscriptions } from "../../features/payment/paymentServices";
-
-// const ActiveSubscriptions = () => {
-//   const [subscriptions, setSubscriptions] = useState([]);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     getActiveSubscriptions()
-//       .then((res) => {
-//         setSubscriptions(res.data);
-//         setLoading(false);
-//       })
-//       .catch((err) => {
-//         console.error("Failed to load subscriptions", err);
-//         setLoading(false);
-//       });
-//   }, []);
-
-//   if (loading)
-//     return (
-//       <div className="flex h-screen items-center justify-center bg-gray-50">
-//         <div className="flex flex-col items-center gap-4">
-//           <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-//           <p className="animate-pulse font-medium text-gray-500">
-//             Loading your plans...
-//           </p>
-//         </div>
-//       </div>
-//     );
-
-//   return (
-//     <div className="min-h-screen bg-[#f8fafc] pb-12">
-//       {/* Sticky Responsive Header */}
-//       <div className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-md">
-//         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-//           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-//             <div>
-//               <h1 className="text-xl font-black tracking-tight text-gray-900 sm:text-3xl">
-//                 Active Subscriptions
-//               </h1>
-//               <p className="text-xs font-medium text-gray-500 sm:text-sm">
-//                 Managing {subscriptions.length} live accounts
-//               </p>
-//             </div>
-//             <div className="hidden rounded-full bg-blue-50 px-4 py-1.5 text-sm font-bold text-blue-700 sm:block">
-//               Today: {new Date().toLocaleDateString("en-GB")}
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-
-//       <main className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
-//         {/* Responsive Grid: 1 col on mobile, 2 on tablet, 3 on desktop, 4 on large screens */}
-//         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-//           {subscriptions.map((sub) => (
-//             <SubscriptionCard key={sub._id} sub={sub} />
-//           ))}
-//         </div>
-
-//         {subscriptions.length === 0 && (
-//           <div className="mt-20 text-center">
-//             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400">
-//               <svg
-//                 className="h-8 w-8"
-//                 fill="none"
-//                 stroke="currentColor"
-//                 viewBox="0 0 24 24"
-//               >
-//                 <path
-//                   strokeLinecap="round"
-//                   strokeLinejoin="round"
-//                   strokeWidth="2"
-//                   d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2m16 0l-8 8-8-8"
-//                 />
-//               </svg>
-//             </div>
-//             <h3 className="text-lg font-bold text-gray-900">
-//               No active plans found
-//             </h3>
-//             <p className="text-gray-500">
-//               New subscriptions will appear here automatically.
-//             </p>
-//           </div>
-//         )}
-//       </main>
-//     </div>
-//   );
-// };
-
-// const SubscriptionCard = ({ sub }) => {
-//   const daysRemaining = Math.ceil(
-//     (new Date(sub.endDate) - new Date()) / (1000 * 60 * 60 * 24),
-//   );
-//   const isExpiringSoon = daysRemaining < 7;
-
-//   // Progress bar calculation (capped between 0-100)
-//   const progress = Math.max(0, Math.min(100, (daysRemaining / 30) * 100));
-
-//   return (
-//     <div className="group flex flex-col justify-between rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl sm:p-6">
-//       <div>
-//         {/* Status & Badge Row */}
-//         <div className="mb-4 flex items-center justify-between">
-//           <div
-//             className={`rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
-//               sub.userType === "agent"
-//                 ? "bg-indigo-50 text-indigo-600"
-//                 : "bg-orange-50 text-orange-600"
-//             }`}
-//           >
-//             {sub.userType}
-//           </div>
-//           <div className="flex items-center gap-1.5">
-//             <span className="relative flex h-2 w-2">
-//               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
-//               <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500"></span>
-//             </span>
-//             <span className="text-[10px] font-bold text-green-600">LIVE</span>
-//           </div>
-//         </div>
-
-//         {/* Plan Title */}
-//         <h3 className="mb-1 text-lg font-extrabold text-gray-900 group-hover:text-blue-600">
-//           {sub.planCode.replace(/_/g, " ")}
-//         </h3>
-//         <p className="font-mono text-[10px] text-gray-400">
-//           Ref: #{sub._id.slice(-8).toUpperCase()}
-//         </p>
-
-//         {/* Stats Row */}
-//         <div className="mt-6 flex items-center justify-between border-y border-gray-50 py-4">
-//           <div className="text-center">
-//             <p className="text-[10px] font-bold uppercase text-gray-400">
-//               Tier
-//             </p>
-//             <p className="text-sm font-bold text-gray-700 capitalize">
-//               {sub.tier}
-//             </p>
-//           </div>
-//           <div className="h-8 w-[1px] bg-gray-100"></div>
-//           <div className="text-center">
-//             <p className="text-[10px] font-bold uppercase text-gray-400">
-//               Category
-//             </p>
-//             <p className="text-sm font-bold text-gray-700 capitalize">
-//               {sub.category}
-//             </p>
-//           </div>
-//         </div>
-
-//         {/* Expiry / Progress Section */}
-//         <div className="mt-6">
-//           <div className="mb-2 flex items-end justify-between">
-//             <span className="text-xs font-bold text-gray-500">
-//               Time Remaining
-//             </span>
-//             <span
-//               className={`text-sm font-black ${isExpiringSoon ? "text-red-500" : "text-blue-600"}`}
-//             >
-//               {daysRemaining} Days
-//             </span>
-//           </div>
-//           <div className="h-2.5 w-full rounded-full bg-gray-100">
-//             <div
-//               className={`h-full rounded-full transition-all duration-1000 ${isExpiringSoon ? "bg-red-500" : "bg-blue-500"}`}
-//               style={{ width: `${progress}%` }}
-//             ></div>
-//           </div>
-//           <div className="mt-2 flex justify-between text-[10px] font-medium text-gray-400">
-//             <span>Started: {new Date(sub.startDate).toLocaleDateString()}</span>
-//             <span>Ends: {new Date(sub.endDate).toLocaleDateString()}</span>
-//           </div>
-//         </div>
-
-//         {/* Usage Pill */}
-//         {sub.usage && (
-//           <div className="mt-4 flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3">
-//             <span className="text-xs font-bold text-gray-500">
-//               Contacts Used
-//             </span>
-//             <span className="text-sm font-black text-gray-900">
-//               {sub.usage.contactUsed}
-//             </span>
-//           </div>
-//         )}
-//       </div>
-
-//       {/* Action Buttons */}
-//       <div className="mt-8 flex items-center gap-3">
-//         <a
-//           href={sub.invoiceUrl}
-//           target="_blank"
-//           rel="noreferrer"
-//           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-xs font-bold text-white transition-all hover:bg-gray-800 active:scale-95"
-//         >
-//           <svg
-//             className="h-4 w-4"
-//             fill="none"
-//             stroke="currentColor"
-//             viewBox="0 0 24 24"
-//           >
-//             <path
-//               strokeLinecap="round"
-//               strokeLinejoin="round"
-//               strokeWidth="2"
-//               d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-//             />
-//           </svg>
-//           Invoice
-//         </a>
-//         <button className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600">
-//           <svg
-//             className="h-5 w-5"
-//             fill="none"
-//             stroke="currentColor"
-//             viewBox="0 0 24 24"
-//           >
-//             <path
-//               strokeLinecap="round"
-//               strokeLinejoin="round"
-//               strokeWidth="2"
-//               d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-//             />
-//           </svg>
-//         </button>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default ActiveSubscriptions;
-
-
 import React, { useState, useEffect } from "react";
 import { getActiveSubscriptions } from "../../features/payment/paymentServices";
+import { Activity, Download, FileX } from "lucide-react";
 
-const ActiveSubscriptions = () => {
-  const [subscriptions, setSubscriptions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+// ─── Icon wrappers ────────────────────────────────────────────────────────────
+const ActivityIcon = () => <Activity size={20} strokeWidth={1.5} />;
+const DownloadIcon = () => <Download size={14} strokeWidth={2} />;
+const EmptyIcon = () => (
+  <FileX size={48} strokeWidth={1} style={{ opacity: 0.3 }} />
+);
 
-  useEffect(() => {
-    const fetchSubscriptions = async () => {
-      try {
-        const res = await getActiveSubscriptions();
-        setSubscriptions(res?.data || []);
-      } catch (err) {
-        console.error("Failed to load subscriptions", err);
-        setError("Unable to fetch subscriptions. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+const SkeletonRow = ({ index }) => (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 120px 120px 180px 90px",
+      gap: "0",
+      padding: "20px 28px",
+      borderBottom: "1px solid #f0f0f0",
+      alignItems: "center",
+      animation: `pulse 1.5s ease-in-out ${index * 0.1}s infinite`,
+    }}
+  >
+    {[
+      ["65%", "12px"],
+      ["45%", "12px"],
+      ["35%", "12px"],
+      ["80%", "8px"],
+      ["30%", "12px"],
+    ].map(([w, h], i) => (
+      <div
+        key={i}
+        style={{
+          height: h,
+          width: w,
+          background: "#f0f2f5",
+          borderRadius: "6px",
+        }}
+      />
+    ))}
+  </div>
+);
 
-    fetchSubscriptions();
-  }, []);
+// ─── Summary Card ─────────────────────────────────────────────────────────────
+const SummaryCard = ({ label, value, sub, accent }) => (
+  <div
+    style={{
+      background: "#fff",
+      borderRadius: "16px",
+      padding: "20px 24px",
+      border: "1px solid #eef0f3",
+      flex: 1,
+      minWidth: "160px",
+      borderLeft: `3px solid ${accent}`,
+      boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+    }}
+  >
+    <p
+      style={{
+        margin: 0,
+        fontSize: "11px",
+        fontWeight: "700",
+        color: "#9ca3af",
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+      }}
+    >
+      {label}
+    </p>
+    <p
+      style={{
+        margin: "6px 0 2px",
+        fontSize: "22px",
+        fontWeight: "800",
+        color: "#111827",
+        letterSpacing: "-0.5px",
+      }}
+    >
+      {value}
+    </p>
+    {sub && (
+      <p
+        style={{
+          margin: 0,
+          fontSize: "11px",
+          color: "#6b7280",
+          fontWeight: "500",
+        }}
+      >
+        {sub}
+      </p>
+    )}
+  </div>
+);
 
-  if (loading) return <SkeletonLoader />;
-
-  if (error)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-red-500 font-semibold">
-        {error}
-      </div>
-    );
-
-  if (!subscriptions.length)
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        No Active Subscriptions Found.
-      </div>
-    );
-
+// ─── Badge ────────────────────────────────────────────────────────────────────
+const Badge = ({ label, variant }) => {
+  const styles = {
+    agent: { bg: "#faf5ff", color: "#7e22ce", border: "#e9d5ff" },
+    owner: { bg: "#f0fdf4", color: "#15803d", border: "#bbf7d0" },
+    member: { bg: "#faf5ff", color: "#7e22ce", border: "#e9d5ff" },
+    annual: { bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" },
+    monthly: { bg: "#fff7ed", color: "#c2410c", border: "#fed7aa" },
+    default: { bg: "#f3f4f6", color: "#374151", border: "#e5e7eb" },
+  };
+  const s = styles[variant?.toLowerCase()] || styles.default;
   return (
-    <div className="min-h-screen bg-gray-50  px-4 sm:px-6 lg:px-2">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-[#27AE60]">
-              Live Subscriptions
-            </h1>
-            <p className="text-sm text-gray-500">
-              Monitor active user plans and usage limits.
-            </p>
-          </div>
-          <div className="bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm text-sm font-bold text-gray-700">
-            Total Active: {subscriptions.length}
-          </div>
-        </div>
-
-        {/* Desktop View */}
-        <div className="hidden md:block overflow-hidden bg-white rounded-2xl border border-gray-200 shadow-sm">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <TableHead>User / Plan</TableHead>
-                <TableHead>Tier</TableHead>
-                <TableHead>Usage</TableHead>
-                <TableHead>Timeline</TableHead>
-                <TableHead align="right">Invoice</TableHead>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {subscriptions.map((sub) => (
-                <DesktopRow key={sub._id} sub={sub} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile View */}
-        <div className="grid grid-cols-1 gap-4 md:hidden">
-          {subscriptions.map((sub) => (
-            <MobileCard key={sub._id} sub={sub} />
-          ))}
-        </div>
-      </div>
-    </div>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "2px 8px",
+        borderRadius: "99px",
+        fontSize: "10px",
+        fontWeight: "700",
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+        background: s.bg,
+        color: s.color,
+        border: `1px solid ${s.border}`,
+      }}
+    >
+      {label}
+    </span>
   );
 };
 
-/* =======================
-   Desktop Row Component
-======================= */
-const DesktopRow = ({ sub }) => {
+// ─── Status Chip ──────────────────────────────────────────────────────────────
+const StatusChip = ({ daysLeft }) => {
+  const isExpired = daysLeft <= 0;
+  const isExpiringSoon = !isExpired && daysLeft <= 7;
+
+  const config = isExpired
+    ? { label: "Expired", bg: "#fef2f2", color: "#991b1b", dot: "#ef4444" }
+    : isExpiringSoon
+      ? {
+          label: `${daysLeft}d left`,
+          bg: "#fffbeb",
+          color: "#92400e",
+          dot: "#f59e0b",
+        }
+      : { label: "Active", bg: "#f0fdf4", color: "#166534", dot: "#22c55e" };
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "5px",
+        padding: "3px 10px",
+        borderRadius: "99px",
+        fontSize: "11px",
+        fontWeight: "600",
+        background: config.bg,
+        color: config.color,
+      }}
+    >
+      <span
+        style={{
+          width: "6px",
+          height: "6px",
+          borderRadius: "50%",
+          background: config.dot,
+          flexShrink: 0,
+          boxShadow:
+            !isExpired && !isExpiringSoon
+              ? `0 0 0 3px ${config.dot}33`
+              : "none",
+        }}
+      />
+      {config.label}
+    </span>
+  );
+};
+
+// ─── Progress Bar ─────────────────────────────────────────────────────────────
+const ProgressBar = ({ value, color }) => (
+  <div
+    style={{
+      height: "5px",
+      background: "#f3f4f6",
+      borderRadius: "99px",
+      overflow: "hidden",
+      width: "100%",
+    }}
+  >
+    <div
+      style={{
+        height: "100%",
+        width: `${value}%`,
+        background: color,
+        borderRadius: "99px",
+        transition: "width 0.8s cubic-bezier(0.25, 1, 0.5, 1)",
+      }}
+    />
+  </div>
+);
+
+// ─── Desktop Row ──────────────────────────────────────────────────────────────
+const DesktopRow = ({ sub, index }) => {
+  const [hovered, setHovered] = useState(false);
+
   const now = new Date();
   const start = new Date(sub.startDate);
   const end = new Date(sub.endDate);
@@ -336,135 +212,690 @@ const DesktopRow = ({ sub }) => {
     Math.max((remaining / totalDuration) * 100, 0),
     100,
   );
-
   const isExpired = daysLeft <= 0;
+  const isExpiringSoon = !isExpired && daysLeft <= 7;
+
+  const progressColor = isExpired
+    ? "#ef4444"
+    : isExpiringSoon
+      ? "#f59e0b"
+      : "#27AE60";
+
+  const planDisplay = (sub.planCode || "")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (l) => l.toUpperCase());
 
   return (
-    <tr className="hover:bg-blue-50/30 transition-colors">
-      <td className="px-6 py-4">
-        <div className="text-sm font-bold text-gray-900">
-          {sub.planCode?.replace(/_/g, " ")}
-        </div>
-        <div className="text-xs text-gray-400 font-mono">
-          ID: {sub._id.slice(-6)}
-        </div>
-      </td>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 120px 120px 180px 90px",
+        gap: "0",
+        padding: "18px 28px",
+        borderBottom: "1px solid #f7f8fa",
+        alignItems: "center",
+        background: hovered ? "#fafbff" : index % 2 === 0 ? "#fff" : "#fdfdfd",
+        transition: "background 0.15s ease",
+        position: "relative",
+        cursor: "default",
+      }}
+    >
+      {hovered && (
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: "3px",
+            background: "#27AE60",
+            borderRadius: "0 2px 2px 0",
+          }}
+        />
+      )}
 
-      <td className="px-6 py-4">
-        <div className="text-sm font-medium capitalize text-gray-700">
-          {sub.category}
-        </div>
-        <div className="text-xs uppercase text-gray-400">{sub.tier}</div>
-      </td>
-
-      <td className="px-6 py-4">
-        <div className="text-sm font-bold text-gray-900">
-          {sub.usage?.contactUsed || 0}
-        </div>
-        <div className="text-xs text-gray-400">Contacts Used</div>
-      </td>
-
-      <td className="px-6 py-4 w-48">
-        <div className="text-xs font-bold mb-1">
-          {isExpired ? (
-            <span className="text-red-500">Expired</span>
-          ) : (
-            <span className="text-blue-600">{daysLeft} days left</span>
-          )}
-        </div>
-
-        <div className="w-full bg-gray-100 h-2 rounded-full">
-          <div
-            className={`h-full rounded-full ${
-              isExpired ? "bg-red-500" : "bg-blue-500"
-            }`}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </td>
-
-      <td className="px-6 py-4 text-right">
-        <a
-          href={sub.invoiceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 hover:text-blue-800 text-sm font-bold"
+      {/* User / Plan */}
+      <div>
+        <p
+          style={{
+            margin: 0,
+            fontSize: "13px",
+            fontWeight: "700",
+            color: "#111827",
+          }}
         >
-          View
-        </a>
-      </td>
-    </tr>
-  );
-};
+          {planDisplay}
+        </p>
+        <p
+          style={{
+            margin: "3px 0 0",
+            fontSize: "10px",
+            color: "#9ca3af",
+            fontWeight: "500",
+            fontFamily: "monospace",
+          }}
+        >
+          #{sub._id.slice(-8).toUpperCase()}
+        </p>
+      </div>
 
-/* =======================
-   Mobile Card Component
-======================= */
-const MobileCard = ({ sub }) => {
-  const now = new Date();
-  const end = new Date(sub.endDate);
-  const daysLeft = Math.max(Math.ceil((end - now) / 86400000), 0);
-  const isExpired = daysLeft <= 0;
+      {/* Tier */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        <Badge label={sub.category} variant={sub.category} />
+        <Badge label={sub.tier} variant={sub.tier?.toLowerCase()} />
+      </div>
 
-  return (
-    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-      <div className="flex justify-between mb-4">
-        <div>
-          <h3 className="text-base font-bold text-gray-900">
-            {sub.planCode?.replace(/_/g, " ")}
-          </h3>
-          <p className="text-xs text-gray-400 capitalize">
-            {sub.category} • {sub.tier}
-          </p>
-        </div>
+      {/* Usage */}
+      <div>
+        <p
+          style={{
+            margin: 0,
+            fontSize: "15px",
+            fontWeight: "700",
+            color: "#111827",
+            letterSpacing: "-0.3px",
+          }}
+        >
+          {sub.usage?.contactUsed || 0}
+        </p>
+        <p
+          style={{
+            margin: "2px 0 0",
+            fontSize: "10px",
+            color: "#9ca3af",
+            fontWeight: "500",
+          }}
+        >
+          contacts used
+        </p>
+      </div>
 
-        <div className="text-right">
-          <div
-            className={`text-xs font-black ${
-              isExpired ? "text-red-500" : "text-blue-600"
-            }`}
+      {/* Timeline */}
+      <div style={{ width: "160px" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "6px",
+          }}
+        >
+          <StatusChip daysLeft={daysLeft} />
+          <span
+            style={{ fontSize: "10px", color: "#9ca3af", fontWeight: "500" }}
           >
-            {isExpired ? "Expired" : `${daysLeft}d left`}
-          </div>
+            {new Date(sub.endDate).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+            })}
+          </span>
         </div>
+        <ProgressBar value={progress} color={progressColor} />
       </div>
 
-      <div className="text-sm font-bold text-gray-700 mb-3">
-        {sub.usage?.contactUsed || 0} Contacts Used
+      {/* Invoice */}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        {sub.invoiceUrl ? (
+          <a
+            href={sub.invoiceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+              padding: "7px 12px",
+              borderRadius: "8px",
+              textDecoration: "none",
+              fontSize: "12px",
+              fontWeight: "600",
+              background: hovered ? "#27AE60" : "#f3f4f6",
+              color: hovered ? "#fff" : "#374151",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <DownloadIcon /> PDF
+          </a>
+        ) : (
+          <span
+            style={{ fontSize: "11px", color: "#d1d5db", fontStyle: "italic" }}
+          >
+            —
+          </span>
+        )}
       </div>
-
-      <a
-        href={sub.invoiceUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full bg-gray-900 text-white text-center py-2.5 rounded-xl text-xs font-bold active:scale-95 transition"
-      >
-        View Invoice
-      </a>
     </div>
   );
 };
 
-/* =======================
-   Table Head Component
-======================= */
-const TableHead = ({ children, align }) => (
-  <th
-    className={`px-6 py-4 text-xs font-bold text-gray-400 uppercase ${
-      align === "right" ? "text-right" : ""
-    }`}
-  >
-    {children}
-  </th>
-);
+// ─── Mobile Card ──────────────────────────────────────────────────────────────
+const MobileCard = ({ sub }) => {
+  const now = new Date();
+  const end = new Date(sub.endDate);
+  const daysLeft = Math.max(Math.ceil((end - now) / 86400000), 0);
 
-/* =======================
-   Skeleton Loader
-======================= */
-const SkeletonLoader = () => (
-  <div className="min-h-screen flex items-center justify-center text-gray-400 animate-pulse">
-    Loading Subscriptions...
-  </div>
-);
+  const planDisplay = (sub.planCode || "")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: "16px",
+        padding: "18px",
+        border: "1px solid #eef0f3",
+        marginBottom: "12px",
+        borderLeft: "3px solid #27AE60",
+      }}
+    >
+      {/* Top */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: "10px",
+        }}
+      >
+        <div>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "14px",
+              fontWeight: "800",
+              color: "#111827",
+            }}
+          >
+            {planDisplay}
+          </p>
+          <p
+            style={{
+              margin: "3px 0 0",
+              fontSize: "10px",
+              color: "#9ca3af",
+              fontFamily: "monospace",
+            }}
+          >
+            #{sub._id.slice(-8).toUpperCase()}
+          </p>
+        </div>
+        <StatusChip daysLeft={daysLeft} />
+      </div>
+
+      {/* Badges */}
+      <div
+        style={{
+          display: "flex",
+          gap: "6px",
+          marginBottom: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <Badge label={sub.category} variant={sub.category} />
+        <Badge label={sub.tier} variant={sub.tier?.toLowerCase()} />
+      </div>
+
+      {/* Stats */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          paddingTop: "10px",
+          borderTop: "1px solid #f3f4f6",
+          marginBottom: "14px",
+        }}
+      >
+        <div>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "10px",
+              fontWeight: "700",
+              color: "#9ca3af",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            Contacts Used
+          </p>
+          <p
+            style={{
+              margin: "2px 0 0",
+              fontSize: "16px",
+              fontWeight: "800",
+              color: "#111827",
+            }}
+          >
+            {sub.usage?.contactUsed || 0}
+          </p>
+        </div>
+        <div>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "10px",
+              fontWeight: "700",
+              color: "#9ca3af",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            Expires
+          </p>
+          <p
+            style={{
+              margin: "2px 0 0",
+              fontSize: "13px",
+              fontWeight: "700",
+              color: "#374151",
+            }}
+          >
+            {new Date(sub.endDate).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+      </div>
+
+      {/* Invoice */}
+      {sub.invoiceUrl ? (
+        <a
+          href={sub.invoiceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
+            width: "100%",
+            padding: "10px",
+            borderRadius: "10px",
+            textDecoration: "none",
+            fontSize: "12px",
+            fontWeight: "700",
+            background: "linear-gradient(135deg, #27AE60, #16a34a)",
+            color: "#fff",
+          }}
+        >
+          <DownloadIcon /> View Invoice
+        </a>
+      ) : (
+        <p
+          style={{
+            margin: 0,
+            textAlign: "center",
+            fontSize: "11px",
+            color: "#d1d5db",
+            fontStyle: "italic",
+          }}
+        >
+          No invoice available
+        </p>
+      )}
+    </div>
+  );
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+const ActiveSubscriptions = () => {
+  const [subscriptions, setSubscriptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 768 : false,
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    getActiveSubscriptions()
+      .then((res) => {
+        setSubscriptions(res?.data || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load subscriptions", err);
+        setError("Unable to fetch subscriptions. Please try again.");
+        setLoading(false);
+      });
+  }, []);
+
+  // Summaries
+  const now = new Date();
+  const expiringSoon = subscriptions.filter((s) => {
+    const d = Math.ceil((new Date(s.endDate) - now) / 86400000);
+    return d > 0 && d <= 7;
+  }).length;
+  const totalContacts = subscriptions.reduce(
+    (s, i) => s + (i.usage?.contactUsed || 0),
+    0,
+  );
+
+  return (
+    <div
+      style={{
+        fontFamily: "'DM Sans', 'Manrope', system-ui, sans-serif",
+        minHeight: "100vh",
+        background: "#f8fafc",
+        padding: isMobile ? "20px 16px" : "32px 32px",
+      }}
+    >
+      <style>{`
+        @keyframes pulse   { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes fadeUp  { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        * { box-sizing: border-box; }
+      `}</style>
+
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        {/* ── Header ── */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            justifyContent: "space-between",
+            alignItems: isMobile ? "flex-start" : "center",
+            marginBottom: "28px",
+            gap: "16px",
+            animation: "fadeUp 0.4s ease forwards",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "12px",
+                background: "linear-gradient(135deg, #27AE60, #16a34a)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                flexShrink: 0,
+              }}
+            >
+              <ActivityIcon />
+            </div>
+            <div>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: isMobile ? "20px" : "24px",
+                  fontWeight: "800",
+                  color: "#111827",
+                  letterSpacing: "-0.5px",
+                }}
+              >
+                Live Subscriptions
+              </h1>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "13px",
+                  color: "#9ca3af",
+                  fontWeight: "500",
+                }}
+              >
+                Monitor active user plans and usage limits
+              </p>
+            </div>
+          </div>
+
+          {!loading && !error && (
+            <div
+              style={{
+                padding: "9px 18px",
+                borderRadius: "12px",
+                border: "1px solid #eef0f3",
+                background: "#fff",
+                fontSize: "12px",
+                fontWeight: "700",
+                color: "#374151",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              }}
+            >
+              Total Active:{" "}
+              <strong style={{ color: "#27AE60" }}>
+                {subscriptions.length}
+              </strong>
+            </div>
+          )}
+        </div>
+
+        {/* ── Summary Cards ── */}
+        {!loading && !error && subscriptions.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              gap: "12px",
+              marginBottom: "24px",
+              flexWrap: "wrap",
+              animation: "fadeUp 0.4s ease 0.1s both",
+            }}
+          >
+            <SummaryCard
+              label="Active Plans"
+              value={subscriptions.length}
+              sub="currently running"
+              accent="#27AE60"
+            />
+            <SummaryCard
+              label="Expiring Soon"
+              value={expiringSoon}
+              sub="within 7 days"
+              accent="#f59e0b"
+            />
+            <SummaryCard
+              label="Total Contacts Used"
+              value={totalContacts.toLocaleString()}
+              sub="across all plans"
+              accent="#3b82f6"
+            />
+          </div>
+        )}
+
+        {/* ── Loading ── */}
+        {loading && (
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "20px",
+              border: "1px solid #eef0f3",
+              overflow: "hidden",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
+              animation: "fadeUp 0.3s ease forwards",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 28px",
+                borderBottom: "1px solid #f0f2f5",
+              }}
+            >
+              <div
+                style={{
+                  height: "10px",
+                  width: "25%",
+                  background: "#f0f2f5",
+                  borderRadius: "6px",
+                }}
+              />
+            </div>
+            {[...Array(5)].map((_, i) => (
+              <SkeletonRow key={i} index={i} />
+            ))}
+          </div>
+        )}
+
+        {/* ── Error ── */}
+        {error && !loading && (
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "20px",
+              border: "1px solid #eef0f3",
+              padding: "60px 24px",
+              textAlign: "center",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                fontSize: "14px",
+                color: "#ef4444",
+                fontWeight: "600",
+              }}
+            >
+              {error}
+            </p>
+            <p
+              style={{ margin: "8px 0 0", fontSize: "12px", color: "#9ca3af" }}
+            >
+              Please try refreshing the page.
+            </p>
+          </div>
+        )}
+
+        {/* ── Empty ── */}
+        {!loading && !error && subscriptions.length === 0 && (
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "20px",
+              border: "1px solid #eef0f3",
+              padding: "80px 24px",
+              textAlign: "center",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
+            }}
+          >
+            <div
+              style={{
+                marginBottom: "16px",
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <EmptyIcon />
+            </div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "15px",
+                fontWeight: "700",
+                color: "#374151",
+              }}
+            >
+              No Active Subscriptions
+            </p>
+            <p
+              style={{ margin: "6px 0 0", fontSize: "13px", color: "#9ca3af" }}
+            >
+              Active plans will appear here
+            </p>
+          </div>
+        )}
+
+        {/* ── Desktop Table ── */}
+        {!loading && !error && subscriptions.length > 0 && !isMobile && (
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "20px",
+              border: "1px solid #eef0f3",
+              overflow: "hidden",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
+              animation: "fadeUp 0.4s ease 0.2s both",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 120px 120px 180px 90px",
+                padding: "12px 28px",
+                borderBottom: "2px solid #f3f4f6",
+                background: "#fafbfc",
+              }}
+            >
+              {[
+                { label: "User / Plan" },
+                { label: "Tier" },
+                { label: "Usage" },
+                { label: "Timeline" },
+                { label: "Invoice", right: true },
+              ].map(({ label, right }) => (
+                <div
+                  key={label}
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: "700",
+                    color: "#9ca3af",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    textAlign: right ? "right" : "left",
+                  }}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+
+            {/* Rows */}
+            {subscriptions.map((sub, index) => (
+              <DesktopRow key={sub._id} sub={sub} index={index} />
+            ))}
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: "12px 28px",
+                borderTop: "1px solid #f3f4f6",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "12px",
+                  color: "#9ca3af",
+                  fontWeight: "500",
+                }}
+              >
+                Showing{" "}
+                <strong style={{ color: "#374151" }}>
+                  {subscriptions.length}
+                </strong>{" "}
+                active subscriptions
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Mobile Cards ── */}
+        {!loading && !error && subscriptions.length > 0 && isMobile && (
+          <div style={{ animation: "fadeUp 0.4s ease 0.2s both" }}>
+            {subscriptions.map((sub) => (
+              <MobileCard key={sub._id} sub={sub} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default ActiveSubscriptions;

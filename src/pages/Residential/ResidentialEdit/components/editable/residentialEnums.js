@@ -68,14 +68,79 @@ export const FACING_TYPES = [
   { value: "west", label: "West", icon: "🧭" },
 ];
 
+export const LAYOUT_TYPES = [
+  { value: "approved layout", label: "Approved Layout", icon: "🧭" },
+  { value: "un-approved layout", label: "Un-Approved Layout", icon: "🧭" },
+  { value : "gated layout", label: "Gated Layout", icon: "🧭" },  
+  { value : "indvidual layout", label: "Indvidual Layout", icon: "🧭" },
+]
+
+export const SOIL_TYPES = [
+  { label: "Red Soil", value: "red" },
+  { label: "Black Soil", value: "black" },
+  { label: "Alluvial Soil", value: "alluvial" },
+  { label: "Sandy Soil", value: "sandy" },
+  { label: "Clay Soil", value: "clay" },
+  { label: "Loamy Soil", value: "loamy" },
+];
+
+export const IRRIGATION_TYPES = [
+ { label: "Rainfed", value: "rainfed" },
+  { label: "Canal", value: "canal"},
+  { label: "Borewell", value: "borewell"},
+ {  label: "Drip", value: "drip"},
+  { label: "Sprinkler", value: "sprinkler"},
+  { label: "River", value: "river"},
+  { label: "Tank", value: "tank"},
+];
+
+export const WATER_SOURCES = [
+  { label: "Borewell", value: "borewell"},
+  { label: "Canal", value: "canal"},
+  { label: "River", value: "river"},
+  { label: "Tank", value: "tank"},
+  { label: "Rainwater", value: "rainwater"},
+  { label: "Municipal", value: "municipal"},
+  { label: "Multiple Sources", value: "multiple Sources"},
+];
+
+export const WALL_FINISH_STATUS = [
+  { label: "No Partitions", value: "no-partitions" },
+  { label: "Brick Walls", value: "brick-walls" },
+  { label: "Plastered Walls", value: "plastered-walls" },
+];
+
 export const FLOORING_TYPES = [
-  { value: "vitrified", label: "Vitrified", icon: "✨" },
+  { value: "verified", label: "Verified", icon: "✨" },
   { value: "marble", label: "Marble", icon: "💎" },
   { value: "granite", label: "Granite", icon: "🪨" },
   { value: "wooden", label: "Wooden", icon: "🪵" },
   { value: "ceramic-tiles", label: "Ceramic Tiles", icon: "🔲" },
   { value: "cement", label: "Cement", icon: "🪨" },
   { value: "other", label: "Other", icon: "🎨" },
+];
+
+export const RESIDENTIAL_FLOORING = [
+  { label: "Vitrified", value: "vitrified", icon: "✨" },
+  { label: "Marble", value: "marble", icon: "💎" },
+  { label: "Granite", value: "granite", icon: "🪨" },
+  { label: "Wooden", value: "wooden" },
+  { label: "Ceramic Tiles", value: "ceramic-tiles", icon: "🔲" },
+  { label: "Cement", value: "cement", icon: "🪨" },
+  { label: "Mosaic", value: "mosaic" },
+  { label: "Normal Tiles", value: "normal-tiles", icon: "🔲" },
+  { label: "Other", value: "other", icon: "🎨" },
+];
+
+export const COMMERCIAL_FLOORING = [
+  { label: "Vitrified Tiles", value: "vitrified-tiles", icon: "✨" },
+  { label: "Ceramic Tiles", value: "ceramic-tiles", icon: "🔲" },
+  { label: "Bare Cement", value: "bare-cement", icon: "🪨" },
+  { label: "Marble", value: "marble", icon: "💎" },
+  { label: "Granite", value: "granite", icon: "🪨" },
+  { label: "Carpet", value: "carpet", icon: "🪵" },
+  { label: "Epoxy", value: "epoxy", icon: "🪵" },
+  { label: "Wooden", value: "wooden", icon: "🪵" },
 ];
 
 export const KITCHEN_TYPES = [
@@ -89,10 +154,19 @@ export const KITCHEN_TYPES = [
 ];
 
 export const PARKING_TYPES = [
-  { value: "open", label: "Open" },
-  { value: "covered", label: "Covered" },
-  { value: "basement", label: "Basement" },
-  { value: "stilt", label: "Stilt" },
+  { label: "Covered", value: "covered" },
+  { label: "Open", value: "open" },
+  { label: "Stilt", value: "stilt" },
+  { label: "Basement", value: "basement" },
+  { label: "Street", value: "street" },
+  { label: "Dedicated", value: "dedicated" },
+  { label: "Shared", value: "shared" },
+];
+
+export const PANTRY_TYPES = [
+  { label: "None", value: "none" },
+  { label: "Shared Pantry", value: "shared" },
+  { label: "Private Pantry", value: "private" },
 ];
 
 export const PROPERTY_STATUS_TYPES = [
@@ -114,3 +188,83 @@ export const POPULAR_LANDMARKS = [
   { name: "International School", icon: "🏫", type: "school" },
   { name: "Central Park", icon: "🌳", type: "park" },
 ];
+
+export const COMMERCIAL_TYPES = [
+  { value: "office", label: "Office", icon: "🏢" },
+  { value: "retail", label: "Retail", icon: "🛍️" },
+  { value: "shop", label: "Shop", icon: "🏪" },
+  { value: "showroom", label: "Showroom", icon: "✨" },
+  { value: "warehouse", label: "Warehouse", icon: "📦" },
+  { value: "industrial", label: "Industrial", icon: "🏭" },
+  { value: "coworking", label: "Co-working",icon: "💻" },
+  { value: "restaurant", label: "Restaurant", icon: "🍴" },
+  { value: "clinic", label:"Clinic", icon: "🏥"  },
+];
+
+export const LAND_TYPES = [
+  { value: "plot", label: "Plot", icon: "🌿" },
+  { value: "residential-plot", label: "Residential Plot", icon: "🏠" },
+  { value: "industrial-plot", label: "Industrial Plot", icon: "🏭" },
+  { value: "investment-plot", label: "Investment Plot", icon: "🌾" },
+  { value: "commercial-plot", label: "Commercial Plot", icon: "🏢" },
+  { value: "corner-plot", label: "Corner Plot", icon: "🌾" },
+  { value: "na-plot", label: "Not Applicable Plot", icon: "🌾" },
+];
+
+export const AGRI_TYPES = [
+  { value: "dry-land", label: "Dry Land", icon: "🏜️" },
+  { value: "wet-land", label: "Wet Land", icon: "💧" },
+  { value: "farm-land", label: "Farm Land", icon: "🚜" },
+  { value: "plantation", label: "Plantation", icon: "🌳" },
+  { value: "orchard-land", label: "Orchard Land", icon: "🌲" },
+  { value: "agricultural-land", label: "Agricultural Land", icon: "🌾" },
+  { value: "dairy-farm", label: "Dairy Farm", icon: "🥛" },
+  { value: "ranch", label: "Ranch", icon: "🐄" },
+];
+
+export const FURNISHED_STATUS_COMMERCIAL = [
+  { value: "unfurnished", label: "Unfurnished", icon: "🛋️" },
+  { value: "semi-furnished", label: "Semi-Furnished", icon: "📦" },
+  { value: "fully-furnished", label: "Fully-Furnished", icon: "🏢" },
+];
+
+
+  export const COMMERCIAL_SUB_TYPES = [
+    { label: "Bare Shell", value: "bare-shell", icon: "🧱" },
+    { label: "Warm Shell", value: "warm-shell", icon: "🔥" },
+    { label: "Business Center", value: "business-center", icon: "🏢" },
+    { label: "High Street Shop", value: "high-street-shop", icon: "🛍️" },
+    { label: "Mall Shop", value: "mall-shop", icon: "🏬" },
+    { label: "Kiosk", value: "kiosk", icon: "🎨" },
+    { label: "Food Court Unit", value: "food-court-unit", icon: "🍴" },
+    { label: "Shutter Shop", value: "shutter-shop", icon: "🎨" },
+    { label: "Showroom Space", value: "showroom-space", icon: "✨" },
+    { label: "Warehouse / Godown", value: "warehouse-godown", icon: "📦" },
+    { label: "Logistics Hub", value: "logistics-hub", icon: "🚚" },
+    { label: "Cold Storage", value: "cold-storage", icon: "❄️" },
+    { label: "Industrial Shed", value: "industrial-shed", icon: "🏭" },
+  ]
+
+  export const LAND_SUB_TYPES = [
+    { label: "Gated Community", value: "gated-community", icon: "🚪" },
+    { label: "Non Gated", value: "non-gated", icon: "🏜️" },
+    { label: "Road Facing", value: "road-facing", icon: "🛣️" },
+    { label: "Two Side Open", value: "two-side-open", icon: "🌳" },
+    { label: "Three Side Open", value: "three-side-open", icon: "🌳" },
+    { label: "Resale", value: "resale", icon: "📦" },
+    { label: "New Plot", value: "new-plot", icon: "🌳" },
+    { label: "Corner", value: "corner", icon: "🌳" },
+  ]
+
+ export const AGRI_SUB_TYPES = [
+    { label: "Irrigated", value: "irrigated", icon: "💧" },
+    { label: "Non Irrigated", value: "non-irrigated", icon: "🌾" },
+    { label: "Fenced", value: "fenced", icon: "🚪" },
+    { label: "Unfenced", value: "unfenced", icon: "🌳" },
+    { label: "With Well", value: "with-well", icon: "💧" },
+    { label: "With Borewell", value: "with-borewell", icon: "💧" },
+    { label: "With Electricity", value: "with-electricity", icon: "🔌" },
+    { label: "Near Road", value: "near-road", icon: "🛣️" },
+    { label: "Inside Village", value: "inside-village", icon: "🌳" },
+    { label: "Farmhouse Permission", value: "farmhouse-permission", icon: "🌳" },
+  ]

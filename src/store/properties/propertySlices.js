@@ -57,14 +57,7 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
       },
 
       
-      // hydrateForm: (state, action) => {
-      //   state.form = {
-      //     ...initialState.form,
-      //     ...action.payload,
-      //     galleryFiles: [],
-      //     documentsFiles: [],
-      //   };
-      // },
+      
 
       hydrateForm: (state, action) => {
   const {
@@ -72,7 +65,7 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
     rank,
     listingSource,
     isPublished,
-    __v,
+    // __v,
     completion,
     meta,
     ...cleanPayload
@@ -80,8 +73,13 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
 
   state.form = {
     ...initialState.form,
-    ...cleanPayload,
-    galleryFiles: [],
+    ...cleanPayload, 
+
+    // 🔑 keep uploaded files if they exist
+    galleryFiles:
+      state.form.galleryFiles?.length > 0
+        ? state.form.galleryFiles
+        : cleanPayload.gallery || [],
     documentsFiles: [],
   };
 },

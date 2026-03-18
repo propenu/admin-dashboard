@@ -362,10 +362,10 @@ export default function Step4VerifyPublish({ back }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-[#111827]">Verify & Publish</h2>
-          <p className="text-xs text-[#9ca3af] mt-0.5">Final step to list your property</p>
+          <h2 className="text-xl font-bold text-[#27AE60]">Verify & Publish</h2>
+          <p className="text-xs text-[#000000] mt-0.5">Final step to list your property</p>
         </div>
-        <button type="button" className="flex items-center gap-2 text-sm bg-[#f0fdf4] border border-[#bbf7d0] text-[#27AE60] font-semibold px-4 py-2 rounded-xl hover:bg-[#dcfce7] transition-colors">
+        <button type="button" className="flex items-center gap-2 text-sm bg-[#f0fdf4] border border-[#bbf7d0] text-[#27AE60] font-semibold px-2 py-2 rounded-xl hover:bg-[#dcfce7] transition-colors  max-sm:text-[12px]  max-sm:justify-between">
           <Phone size={13} />
           Get a callback
         </button>
