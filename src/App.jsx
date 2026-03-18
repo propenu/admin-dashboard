@@ -102,9 +102,7 @@ const CommercialDetails = lazy(() =>
   import("./pages/Commercial/CommercialDetails")
 );
 
-const CreateCommercialProperty = lazy(() =>
-  import("./pages/commercial/CreateCommercialProperty")
-);
+
 
 const CommercialPropertyVerification = lazy(() =>
   import("./pages/Commercial/CommercialPropertyVerification")
@@ -265,10 +263,7 @@ function App() {
                 {/* Commercial */}
                 <Route path="/commercial" element={<Commercial />} />
                 <Route path="/commercial/:id" element={<CommercialDetails />} />
-                <Route
-                  path="/create-commercial-property"
-                  element={<CreateCommercialProperty />}
-                />
+                
                 <Route
                   path="/commercial-property-verification/:id"
                   element={<CommercialPropertyVerification />}
