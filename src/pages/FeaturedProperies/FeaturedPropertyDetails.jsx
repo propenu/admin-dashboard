@@ -17,7 +17,7 @@ import {
   Navigation,
 } from "lucide-react";
 
-import { fetchFeaturedProperties } from "../../services/propertyservice";
+import { fetchFeaturedProperties } from "../../services/PropertyService";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { formatPrice } from "../../utils/formatters";
 
