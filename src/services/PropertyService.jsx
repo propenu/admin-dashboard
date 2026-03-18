@@ -61,11 +61,6 @@ export const deleteFeaturedProperty = async (id) =>
     method: "DELETE",
   });
 
-/* ------------------------------------------------------------
-   OWNER PROPERTIES
------------------------------------------------------------- */
-export const ownersProperties = async () =>
-  apiRequest(API_ENDPOINTS.Owner_Properties, { method: "GET" });
 
 /* ------------------------------------------------------------
    TOP PROJECT

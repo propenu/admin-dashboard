@@ -55,15 +55,6 @@ const HighlightProjectDetails = lazy(() =>
   import("./pages/HighlightProjects/HighlightProjectDetails")
 );
 
-
-// Owner Properties
-const OwnerProperties = lazy(() =>
-  import("./pages/OwnerProperties/OwnerProperties")
-);
-
-const OwnerPropertyDetails = lazy(() =>
-  import("./pages/OwnerProperties/OwnerPropertiesDetials")
-);
 // Top Projects
 const TopProperties = lazy(() => import("./pages/TopProjects/TopProject"));
 const TopProjectDetails = lazy(() =>
@@ -226,12 +217,7 @@ function App() {
                   element={<HighlightProjectDetails />}
                 />
 
-                {/* Owner */}
-                <Route path="/owner-properties" element={<OwnerProperties />} />
-                <Route
-                  path="/owner-property/:id"
-                  element={<OwnerPropertyDetails />}
-                />
+                
                 {/* Top Projects */}
                 <Route path="/top-project" element={<TopProperties />} />
                 <Route
