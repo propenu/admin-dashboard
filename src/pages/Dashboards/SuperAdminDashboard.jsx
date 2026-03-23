@@ -114,8 +114,8 @@ const SuperAdminDashboard = () => {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold text-[#27AE60] ">
-              {/* Business Overview */}
-              Super Admin Dashboard
+              Business Overview
+             
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Real-time performance metrics and subscription health
