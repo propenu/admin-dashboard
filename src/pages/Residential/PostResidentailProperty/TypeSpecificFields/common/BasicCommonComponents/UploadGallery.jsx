@@ -41,41 +41,55 @@ const UploadGallery = forwardRef(({ error }, ref) => {
   //   e.target.value = "";
   // };
 
-  const handlePhotoUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+ const handlePhotoUpload = async (e) => {
+   const files = Array.from(e.target.files || []);
+   if (!files.length) return;
 
-    const compressedFiles = [];
+   const processedFiles = [];
 
-    for (let file of files) {
-      try {
-        const options = {
-          maxSizeMB: MAX_SIZE_MB, // 1MB
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-          fileType: file.type, // ✅ important
-        };
+   for (let file of files) {
+     try {
+       let finalFile = file;
 
-        const compressedFile = await imageCompression(file, options);
+       const sizeInMB = file.size / (1024 * 1024);
 
-        console.log(
-          `📉 ${file.name}: ${(file.size / 1024 / 1024).toFixed(
-            2,
-          )}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
-        );
+       // ✅ Only compress if > 1MB
+       if (sizeInMB > MAX_SIZE_MB) {
+         const options = {
+           maxSizeMB: MAX_SIZE_MB,
+           maxWidthOrHeight: 1920,
+           useWebWorker: true,
+           fileType: file.type,
+         };
 
-        compressedFiles.push(compressedFile);
-      } catch (error) {
-        console.error("Compression error:", error);
-      }
-    }
+         const compressedFile = await imageCompression(file, options);
 
-    const existing = form.galleryFiles || [];
-    const updated = [...existing, ...compressedFiles].slice(0, MAX_FILES);
+         console.log(
+           `📉 ${file.name}: ${sizeInMB.toFixed(2)}MB → ${(
+             compressedFile.size /
+             1024 /
+             1024
+           ).toFixed(2)}MB`,
+         );
 
-    updateFieldValue("galleryFiles", updated);
-    e.target.value = "";
-  };
+         finalFile = compressedFile;
+       }
+
+       processedFiles.push(finalFile);
+     } catch (error) {
+       console.error("Compression error:", error);
+       processedFiles.push(file); // fallback
+     }
+   }
+
+   const existing = form.galleryFiles || [];
+   const updated = [...existing, ...processedFiles].slice(0, MAX_FILES);
+
+   console.log("✅ Files selected:", updated);
+
+   updateFieldValue("galleryFiles", updated);
+   e.target.value = "";
+ };
 
   /* ================= REMOVE ================= */
   const handleRemovePhoto = (index) => {
@@ -85,35 +99,30 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
   /* ================= PREVIEW ================= */
 
+//  useEffect(() => {
+//    if (!form.galleryFiles || form.galleryFiles.length === 0) {
+//      setPreviewUrls([]);
+//      return;
+//    }
 
-// useEffect(() => {
-//   if (!form.galleryFiles || form.galleryFiles.length === 0) {
-//     setPreviewUrls([]);
-//     return;
-//   }
+//    const urls = form.galleryFiles.map((file) => {
+//      if (file instanceof File) {
+//        return URL.createObjectURL(file);
+//      }
+//      return file?.url || file;
+//    });
 
-//   const urls = form.galleryFiles.map((file) => {
-//     if (file instanceof File) {
-//       return URL.createObjectURL(file);
-//     }
+//    setPreviewUrls(urls);
 
-//     if (typeof file === "string") {
-//       return file;
-//     }
-
-//     return file?.url || "";
-//   });
-
-//   setPreviewUrls(urls);
-
-//   return () => {
-//     urls.forEach((url) => {
-//       if (typeof url === "string" && url.startsWith("blob:")) {
-//         URL.revokeObjectURL(url);
-//       }
-//     });
-//   };
-// }, [form.galleryFiles]);
+//    // cleanup only blob URLs
+//    return () => {
+//      urls.forEach((url) => {
+//        if (url && url.startsWith("blob:")) {
+//          URL.revokeObjectURL(url);
+//        }
+//      });
+//    };
+//  }, [form.galleryFiles]);
 
 
 useEffect(() => {
@@ -123,20 +132,15 @@ useEffect(() => {
   }
 
   const urls = form.galleryFiles.map((file) => {
-    try {
-      if (file instanceof File || file instanceof Blob) {
-        return URL.createObjectURL(file);
-      }
-
-      if (typeof file === "string") {
-        return file;
-      }
-
-      return file?.url || "";
-    } catch (err) {
-      console.error("Preview error:", err);
-      return "";
+    if (file instanceof File) {
+      return URL.createObjectURL(file);
     }
+
+    if (typeof file === "string") {
+      return file;
+    }
+
+    return file?.url || "";
   });
 
   setPreviewUrls(urls);
@@ -149,6 +153,7 @@ useEffect(() => {
     });
   };
 }, [form.galleryFiles]);
+
 
   return (
     <div ref={ref}>
