@@ -5,7 +5,7 @@ import { forwardRef, useEffect, useState } from "react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
 const MAX_FILES = 20;
-const MAX_SIZE_MB = 10;
+const MAX_SIZE_MB = 1;
 
 const UploadGallery = forwardRef(({ error }, ref) => {
   const { form, updateFieldValue } = useActivePropertySlice();
