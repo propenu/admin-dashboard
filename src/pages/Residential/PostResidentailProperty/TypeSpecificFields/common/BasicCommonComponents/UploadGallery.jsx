@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { forwardRef, useEffect, useState } from "react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
+import imageCompression from "browser-image-compression";
 
 const MAX_FILES = 20;
 const MAX_SIZE_MB = 1;
@@ -17,29 +18,66 @@ const UploadGallery = forwardRef(({ error }, ref) => {
   }, [form.galleryFiles]);
 
   /* ================= UPLOAD ================= */
-  const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files || []);
+  // const handlePhotoUpload = (e) => {
+  //   const files = Array.from(e.target.files || []);
 
+  //   if (!files.length) return;
+
+  //   const validFiles = files.filter((file) => {
+  //     const sizeInMB = file.size / (1024 * 1024);
+  //   //   if (sizeInMB > MAX_SIZE_MB) {
+  //   //     alert(`${file.name} exceeds ${MAX_SIZE_MB}MB limit`);
+  //   //     return false;
+  //   //   }
+  //     return true;
+  //   });
+
+  //   const existing = form.galleryFiles || [];
+  //   const updated = [...existing, ...validFiles].slice(0, MAX_FILES);
+
+  //   console.log("✅ Files selected:", updated);
+
+  //   updateFieldValue("galleryFiles", updated);
+  //   e.target.value = "";
+  // };
+
+  
+
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const validFiles = files.filter((file) => {
-      const sizeInMB = file.size / (1024 * 1024);
-    //   if (sizeInMB > MAX_SIZE_MB) {
-    //     alert(`${file.name} exceeds ${MAX_SIZE_MB}MB limit`);
-    //     return false;
-    //   }
-      return true;
-    });
+    const compressedFiles = [];
+
+    for (let file of files) {
+      try {
+        const options = {
+          maxSizeMB: 1, // 🔥 ensure below 1MB
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        };
+
+        const compressedFile = await imageCompression(file, options);
+
+        console.log(
+          `📉 ${file.name}: ${(file.size / 1024 / 1024).toFixed(
+            2,
+          )}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
+        );
+
+        compressedFiles.push(compressedFile);
+      } catch (error) {
+        console.error("Compression error:", error);
+      }
+    }
 
     const existing = form.galleryFiles || [];
-    const updated = [...existing, ...validFiles].slice(0, MAX_FILES);
-
-    console.log("✅ Files selected:", updated);
+    const updated = [...existing, ...compressedFiles].slice(0, MAX_FILES);
 
     updateFieldValue("galleryFiles", updated);
     e.target.value = "";
   };
-
+  
   /* ================= REMOVE ================= */
   const handleRemovePhoto = (index) => {
     const updated = (form.galleryFiles || []).filter((_, i) => i !== index);
@@ -48,61 +86,59 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
   /* ================= PREVIEW ================= */
 
-//  useEffect(() => {
-//    if (!form.galleryFiles || form.galleryFiles.length === 0) {
-//      setPreviewUrls([]);
-//      return;
-//    }
+  //  useEffect(() => {
+  //    if (!form.galleryFiles || form.galleryFiles.length === 0) {
+  //      setPreviewUrls([]);
+  //      return;
+  //    }
 
-//    const urls = form.galleryFiles.map((file) => {
-//      if (file instanceof File) {
-//        return URL.createObjectURL(file);
-//      }
-//      return file?.url || file;
-//    });
+  //    const urls = form.galleryFiles.map((file) => {
+  //      if (file instanceof File) {
+  //        return URL.createObjectURL(file);
+  //      }
+  //      return file?.url || file;
+  //    });
 
-//    setPreviewUrls(urls);
+  //    setPreviewUrls(urls);
 
-//    // cleanup only blob URLs
-//    return () => {
-//      urls.forEach((url) => {
-//        if (url && url.startsWith("blob:")) {
-//          URL.revokeObjectURL(url);
-//        }
-//      });
-//    };
-//  }, [form.galleryFiles]);
+  //    // cleanup only blob URLs
+  //    return () => {
+  //      urls.forEach((url) => {
+  //        if (url && url.startsWith("blob:")) {
+  //          URL.revokeObjectURL(url);
+  //        }
+  //      });
+  //    };
+  //  }, [form.galleryFiles]);
 
-
-useEffect(() => {
-  if (!form.galleryFiles || form.galleryFiles.length === 0) {
-    setPreviewUrls([]);
-    return;
-  }
-
-  const urls = form.galleryFiles.map((file) => {
-    if (file instanceof File) {
-      return URL.createObjectURL(file);
+  useEffect(() => {
+    if (!form.galleryFiles || form.galleryFiles.length === 0) {
+      setPreviewUrls([]);
+      return;
     }
 
-    if (typeof file === "string") {
-      return file;
-    }
-
-    return file?.url || "";
-  });
-
-  setPreviewUrls(urls);
-
-  return () => {
-    urls.forEach((url) => {
-      if (typeof url === "string" && url.startsWith("blob:")) {
-        URL.revokeObjectURL(url);
+    const urls = form.galleryFiles.map((file) => {
+      if (file instanceof File) {
+        return URL.createObjectURL(file);
       }
-    });
-  };
-}, [form.galleryFiles]);
 
+      if (typeof file === "string") {
+        return file;
+      }
+
+      return file?.url || "";
+    });
+
+    setPreviewUrls(urls);
+
+    return () => {
+      urls.forEach((url) => {
+        if (typeof url === "string" && url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [form.galleryFiles]);
 
   return (
     <div ref={ref}>
