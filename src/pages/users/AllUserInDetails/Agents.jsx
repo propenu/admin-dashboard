@@ -273,7 +273,7 @@ const AgentCard = ({ agent, index, onEditStatus }) => {
         <div className="h-px bg-gradient-to-r from-gray-100 via-[#27AE60]/10 to-transparent" />
 
         {/* Contact Info */}
-        <div className="flex flex-col gap-2.5">
+        <div className="flex  flex-col gap-2.5">
           {agent.email && (
             <div className="flex items-center gap-3 group/row">
               <div
@@ -283,7 +283,7 @@ const AgentCard = ({ agent, index, onEditStatus }) => {
               >
                 <Mail size={16} />
               </div>
-              <span className="text-gray-500 text-[13px] truncate leading-none">
+              <span className="text-gray-500 p-1 text-[13px] truncate leading-none">
                 {agent.email}
               </span>
             </div>

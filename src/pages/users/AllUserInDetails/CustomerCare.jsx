@@ -75,7 +75,7 @@ const CustomerCareCard = ({ user, index }) => {
         {/* Contact rows */}
         <div className="flex flex-col gap-2.5">
           {user.email && (
-            <div className="flex items-center gap-3 group/row">
+            <div className="flex items-center p-1 gap-3 group/row">
               <div
                 className="w-8 h-8 rounded-lg bg-[#f0faf5] border border-[#27AE60]/12
                 text-[#27AE60] flex items-center justify-center shrink-0
@@ -83,7 +83,7 @@ const CustomerCareCard = ({ user, index }) => {
               >
                 <Mail size={16} />
               </div>
-              <span className="text-[#000000] text-[13px] truncate leading-none">
+              <span className="text-[#000000] p-1 text-[13px] truncate leading-none">
                 {user.email}
               </span>
             </div>

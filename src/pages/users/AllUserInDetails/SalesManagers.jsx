@@ -27,31 +27,40 @@ const ManagerCard = ({ manager, index }) => {
         hover:shadow-[0_12px_40px_rgba(39,174,96,0.13)]
         hover:-translate-y-1.5 hover:border-[#27AE60]/25
         transition-all duration-300 ease-out group"
-      style={{ animation: "cardIn 0.45s ease both", animationDelay: `${index * 80}ms` }}
+      style={{
+        animation: "cardIn 0.45s ease both",
+        animationDelay: `${index * 80}ms`,
+      }}
     >
       {/* Top green bar */}
       <div className="h-1 w-full bg-gradient-to-r from-[#27AE60] via-[#2ecc71] to-[#27AE60]/40" />
 
       <div className="p-6 flex flex-col gap-5">
-
         {/* Avatar + Identity */}
         <div className="flex items-center gap-4">
-          <div className={`relative w-[52px] h-[52px] rounded-xl ${palette.bg} ${palette.text}
+          <div
+            className={`relative w-[52px] h-[52px] rounded-xl ${palette.bg} ${palette.text}
             border ${palette.border} flex items-center justify-center
             text-[17px] font-bold shrink-0 tracking-wide shadow-sm
-            group-hover:scale-105 transition-transform duration-300`}>
+            group-hover:scale-105 transition-transform duration-300`}
+          >
             {getInitials(manager.name)}
             <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/60 to-transparent pointer-events-none" />
           </div>
 
           <div className="min-w-0 flex-1">
             <h2 className="text-gray-800 font-bold text-[15px] truncate leading-tight mb-1.5">
-              {manager.name.split(" ").map((n)=> n.charAt(0).toUpperCase() + n.slice(1)).join(" ")}
+              {manager.name
+                .split(" ")
+                .map((n) => n.charAt(0).toUpperCase() + n.slice(1))
+                .join(" ")}
             </h2>
-            <div className="inline-flex items-center gap-1.5
+            <div
+              className="inline-flex items-center gap-1.5
               bg-[#27AE60]/8 border border-[#27AE60]/18
               text-[#27AE60] text-[10px] font-semibold tracking-[1.5px] uppercase
-              px-2.5 py-[3px] rounded-full">
+              px-2.5 py-[3px] rounded-full"
+            >
               <span className="w-[6px] h-[6px] rounded-full bg-[#27AE60] animate-pulse" />
               {manager.role?.label || "Sales Manager"}
             </div>
@@ -64,20 +73,24 @@ const ManagerCard = ({ manager, index }) => {
         {/* Contact rows */}
         <div className="flex flex-col gap-2.5">
           <div className="flex items-center gap-3 group/row">
-            <div className="w-8 h-8 rounded-lg bg-[#f0faf5] border border-[#27AE60]/12
+            <div
+              className="w-8 h-8 rounded-lg bg-[#f0faf5] border border-[#27AE60]/12
               text-[#27AE60] flex items-center justify-center shrink-0
-              group-hover/row:bg-[#27AE60]/12 transition-colors duration-200">
+              group-hover/row:bg-[#27AE60]/12 transition-colors duration-200"
+            >
               <Mail size={16} />
             </div>
-            <span className="text-gray-500 text-[13px] truncate leading-none">
+            <span className="text-gray-500 p-1 text-[13px] truncate leading-none">
               {manager.email || "—"}
             </span>
           </div>
 
           <div className="flex items-center gap-3 group/row">
-            <div className="w-8 h-8 rounded-lg bg-[#f0faf5] border border-[#27AE60]/12
+            <div
+              className="w-8 h-8 rounded-lg bg-[#f0faf5] border border-[#27AE60]/12
               text-[#27AE60] flex items-center justify-center shrink-0
-              group-hover/row:bg-[#27AE60]/12 transition-colors duration-200">
+              group-hover/row:bg-[#27AE60]/12 transition-colors duration-200"
+            >
               <Phone size={16} />
             </div>
             <span className="text-gray-500 text-[13px] truncate leading-none">
@@ -97,11 +110,13 @@ const ManagerCard = ({ manager, index }) => {
             </div>
             <div className="flex flex-wrap gap-1.5">
               {permissions.map((p) => (
-                <span key={p}
+                <span
+                  key={p}
                   className="text-[10px] font-semibold text-[#219653]
                     bg-white border border-[#27AE60]/15
                     px-2 py-[3px] rounded-md tracking-wide
-                    shadow-[0_1px_3px_rgba(39,174,96,0.08)]">
+                    shadow-[0_1px_3px_rgba(39,174,96,0.08)]"
+                >
                   {p}
                 </span>
               ))}
