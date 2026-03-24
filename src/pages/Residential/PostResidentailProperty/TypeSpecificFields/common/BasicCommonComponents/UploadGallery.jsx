@@ -49,43 +49,29 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
    for (let file of files) {
      try {
-       let finalFile = file;
+       const options = {
+         maxSizeMB: 0.5, // 🔥 compress more (target 0.5MB)
+         maxWidthOrHeight: 1280, // 🔥 reduce resolution also
+         useWebWorker: true,
+         fileType: file.type,
+         initialQuality: 0.7, // 🔥 extra compression
+       };
 
-       const sizeInMB = file.size / (1024 * 1024);
+       const compressedFile = await imageCompression(file, options);
 
-       // ✅ Only compress if > 1MB
-       if (sizeInMB > MAX_SIZE_MB) {
-         const options = {
-           maxSizeMB: MAX_SIZE_MB,
-           maxWidthOrHeight: 1920,
-           useWebWorker: true,
-           fileType: file.type,
-         };
+       console.log(
+         `📉 ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
+       );
 
-         const compressedFile = await imageCompression(file, options);
-
-         console.log(
-           `📉 ${file.name}: ${sizeInMB.toFixed(2)}MB → ${(
-             compressedFile.size /
-             1024 /
-             1024
-           ).toFixed(2)}MB`,
-         );
-
-         finalFile = compressedFile;
-       }
-
-       processedFiles.push(finalFile);
+       processedFiles.push(compressedFile);
      } catch (error) {
        console.error("Compression error:", error);
-       processedFiles.push(file); // fallback
+       processedFiles.push(file);
      }
    }
 
    const existing = form.galleryFiles || [];
    const updated = [...existing, ...processedFiles].slice(0, MAX_FILES);
-
-   console.log("✅ Files selected:", updated);
 
    updateFieldValue("galleryFiles", updated);
    e.target.value = "";
