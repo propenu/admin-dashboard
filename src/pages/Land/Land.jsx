@@ -397,12 +397,12 @@ export default function Land() {
       {/* TABS */}
       <div
         className="
-  flex items-center gap-3 sm:gap-6
+  flex items-center gap-3 max-sm:gap-0
   border-b border-slate-200
   overflow-x-auto
   whitespace-nowrap
   scrollbar-hide
-  px-1
+  px-1 max-sm:px-0
 "
       >
         {/* VERIFIED */}

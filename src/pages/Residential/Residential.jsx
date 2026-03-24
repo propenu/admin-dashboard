@@ -259,7 +259,7 @@ export default function Commercial() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[#27AE60] max-sm:text-xl max-sm:text-center">
-            Residential Properties adtta
+            Residential Properties
           </h1>
           <p className="text-slate-600 mt-1 max-sm:text-center">
             Explore residential property listings.
@@ -273,7 +273,7 @@ export default function Commercial() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid  grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => (
           <div
             key={index}
@@ -283,7 +283,7 @@ export default function Commercial() {
               navigate(stat.route);
             }}
           >
-            <div className="flex items-center justify-between mb-4 max-sm:justify-center">
+            <div className="flex items-center justify-between mb-4  max-sm:justify-center">
               <div
                 className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.bg} flex items-center justify-center`}
               >
@@ -311,7 +311,7 @@ export default function Commercial() {
             </div>
             <div className="flex justify-between items-center">
               <p className="text-[#000000] text-sm md:text-base max-sm:text-xl">
-                {selectedLocation || "Cities "}
+                {selectedLocation || "Locations"}
               </p>
               {openLocations ? (
                 <ChevronUp className="w-5 h-5" />
@@ -394,12 +394,12 @@ export default function Commercial() {
       {/* TABS */}
       <div
         className="
-  flex items-center gap-3 sm:gap-6
+  flex items-center gap-3 max-sm:gap-0
   border-b border-slate-200
   overflow-x-auto
   whitespace-nowrap
   scrollbar-hide
-  px-1
+  px-1 max-sm:px-0
 "
       >
         {/* VERIFIED */}
@@ -510,3 +510,5 @@ export default function Commercial() {
     </div>
   );
 }
+
+
