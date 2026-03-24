@@ -18,64 +18,29 @@ const UploadGallery = forwardRef(({ error }, ref) => {
   }, [form.galleryFiles]);
 
   /* ================= UPLOAD ================= */
-  // const handlePhotoUpload = (e) => {
-  //   const files = Array.from(e.target.files || []);
+  const handlePhotoUpload = (e) => {
+    const files = Array.from(e.target.files || []);
 
-  //   if (!files.length) return;
+    if (!files.length) return;
 
-  //   const validFiles = files.filter((file) => {
-  //     const sizeInMB = file.size / (1024 * 1024);
-  //     if (sizeInMB > MAX_SIZE_MB) {
-  //       alert(`${file.name} exceeds ${MAX_SIZE_MB}MB limit`);
-  //       return false;
-  //     }
-  //     return true;
-  //   });
+    const validFiles = files.filter((file) => {
+      const sizeInMB = file.size / (1024 * 1024);
+      if (sizeInMB > MAX_SIZE_MB) {
+        alert(`${file.name} exceeds ${MAX_SIZE_MB}MB limit`);
+        return false;
+      }
+      return true;
+    });
 
-  //   const existing = form.galleryFiles || [];
-  //   const updated = [...existing, ...validFiles].slice(0, MAX_FILES);
+    const existing = form.galleryFiles || [];
+    const updated = [...existing, ...validFiles].slice(0, MAX_FILES);
 
-  //   console.log("✅ Files selected:", updated);
+    console.log("✅ Files selected:", updated);
 
-  //   updateFieldValue("galleryFiles", updated);
-  //   e.target.value = "";
-  // };
+    updateFieldValue("galleryFiles", updated);
+    e.target.value = "";
+  };
 
- const handlePhotoUpload = async (e) => {
-   const files = Array.from(e.target.files || []);
-   if (!files.length) return;
-
-   const processedFiles = [];
-
-   for (let file of files) {
-     try {
-       const options = {
-         maxSizeMB: 0.5, // 🔥 compress more (target 0.5MB)
-         maxWidthOrHeight: 1280, // 🔥 reduce resolution also
-         useWebWorker: true,
-         fileType: file.type,
-         initialQuality: 0.7, // 🔥 extra compression
-       };
-
-       const compressedFile = await imageCompression(file, options);
-
-       console.log(
-         `📉 ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`,
-       );
-
-       processedFiles.push(compressedFile);
-     } catch (error) {
-       console.error("Compression error:", error);
-       processedFiles.push(file);
-     }
-   }
-
-   const existing = form.galleryFiles || [];
-   const updated = [...existing, ...processedFiles].slice(0, MAX_FILES);
-
-   updateFieldValue("galleryFiles", updated);
-   e.target.value = "";
- };
 
   /* ================= REMOVE ================= */
   const handleRemovePhoto = (index) => {
@@ -85,60 +50,33 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
   /* ================= PREVIEW ================= */
 
-//  useEffect(() => {
-//    if (!form.galleryFiles || form.galleryFiles.length === 0) {
-//      setPreviewUrls([]);
-//      return;
-//    }
+ useEffect(() => {
+   if (!form.galleryFiles || form.galleryFiles.length === 0) {
+     setPreviewUrls([]);
+     return;
+   }
 
-//    const urls = form.galleryFiles.map((file) => {
-//      if (file instanceof File) {
-//        return URL.createObjectURL(file);
-//      }
-//      return file?.url || file;
-//    });
+   const urls = form.galleryFiles.map((file) => {
+     if (file instanceof File) {
+       return URL.createObjectURL(file);
+     }
+     return file?.url || file;
+   });
 
-//    setPreviewUrls(urls);
+   setPreviewUrls(urls);
 
-//    // cleanup only blob URLs
-//    return () => {
-//      urls.forEach((url) => {
-//        if (url && url.startsWith("blob:")) {
-//          URL.revokeObjectURL(url);
-//        }
-//      });
-//    };
-//  }, [form.galleryFiles]);
+   // cleanup only blob URLs
+   return () => {
+     urls.forEach((url) => {
+       if (url && url.startsWith("blob:")) {
+         URL.revokeObjectURL(url);
+       }
+     });
+   };
+ }, [form.galleryFiles]);
 
 
-useEffect(() => {
-  if (!form.galleryFiles || form.galleryFiles.length === 0) {
-    setPreviewUrls([]);
-    return;
-  }
 
-  const urls = form.galleryFiles.map((file) => {
-    if (file instanceof File) {
-      return URL.createObjectURL(file);
-    }
-
-    if (typeof file === "string") {
-      return file;
-    }
-
-    return file?.url || "";
-  });
-
-  setPreviewUrls(urls);
-
-  return () => {
-    urls.forEach((url) => {
-      if (typeof url === "string" && url.startsWith("blob:")) {
-        URL.revokeObjectURL(url);
-      }
-    });
-  };
-}, [form.galleryFiles]);
 
 
   return (
