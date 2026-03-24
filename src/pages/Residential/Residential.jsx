@@ -1,4 +1,4 @@
-//frontend\admin-dashboard\src\pages\Commercial\Commercial.jsx
+//frontend\admin-dashboard\src\pages\Residential\Residential\.jsx
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import { setActiveCategory } from "../../store/Ui/uiSlice";
@@ -228,7 +228,7 @@ export default function Commercial() {
     <div className="space-y-6">
       {/* Delete Confirmation Popup */}
       {showDeletePopup && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-2">
           <div className="bg-white w-full max-w-sm md:max-w-md p-4 md:p-6 rounded-xl shadow-xl animate-fade-in">
             <h2 className="text-lg md:text-xl font-bold text-red-600 flex items-center gap-2">
               <Trash2 className="w-5 h-5" /> Delete Property
@@ -258,7 +258,7 @@ export default function Commercial() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[#27AE60] max-sm:text-xl text-center">
+          <h1 className="text-3xl font-bold text-[#27AE60] max-sm:text-xl max-sm:text-center">
             Residential Properties
           </h1>
           <p className="text-slate-600 mt-1 max-sm:text-center">
