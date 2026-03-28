@@ -61,55 +61,88 @@ export default function Step4VerifyPublish({ back }) {
     let compressed = file;
     let quality = 0.9;
 
-    // 🔥 LOOP UNTIL STRICT < 1MB
-    while (compressed.size / 1024 / 1024 > 1 && quality > 0.1) {
-      compressed = await imageCompression(compressed, {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1280,
-        initialQuality: quality,
-        useWebWorker: true,
+    try {
+      // 🔥 LOOP UNTIL STRICT < 1MB
+      while (compressed.size / 1024 / 1024 > 1 && quality > 0.1) {
+        compressed = await imageCompression(compressed, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1280,
+          initialQuality: quality,
+          useWebWorker: true,
+          // fileType: "image/jpeg", // 🔥 optional (better compression)
+        });
+
+        quality -= 0.1;
+      }
+
+      console.log(
+        "Final size:",
+        (compressed.size / 1024 / 1024).toFixed(2),
+        "MB",
+      );
+
+      return new File([compressed], file.name, {
+        type: file.type,
       });
-
-      quality -= 0.1;
+    } catch (error) {
+      console.error("Compression error:", error);
+      throw error;
     }
-
-    console.log("Final size:", compressed.size / 1024 / 1024, "MB");
-
-    return new File([compressed], file.name, {
-      type: file.type,
-    });
   };
 
- const handleFileChange = async (e) => {
-   if (!category) return;
+  const handleFileChange = async (e) => {
+    if (!category) return;
 
-   const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files);
 
-   toast.loading("Compressing images...", { id: "compress" });
+    toast.loading("Compressing images...", { id: "compress" });
 
-   const compressedFiles = await Promise.all(
-     files.map(async (file) => {
-       if (file.type.startsWith("image/")) {
-         const compressed = await compressTo1MB(file);
+    try {
+      const compressedFiles = await Promise.all(
+        files.map(async (file) => {
+          if (file.type.startsWith("image/")) {
+            try {
+              console.log(
+                "Original:",
+                (file.size / 1024 / 1024).toFixed(2),
+                "MB",
+              );
 
-         // ❗ FINAL SAFETY CHECK
-         if (compressed.size / 1024 / 1024 > 1) {
-           toast.error(`${file.name} is still larger than 1MB`);
-           return null;
-         }
+              const compressed = await compressTo1MB(file);
 
-         return compressed;
-       }
-       return file;
-     }),
-   );
+              // ❗ FINAL SAFETY CHECK
+              if (compressed.size / 1024 / 1024 > 1) {
+                toast.error(`${file.name} is still larger than 1MB`);
+                return null;
+              }
 
-   // ❗ remove failed files
-   const finalFiles = compressedFiles.filter(Boolean);
+              return compressed;
+            } catch (err) {
+              console.error("Compression failed:", err);
+              toast.error(`Failed to compress ${file.name}`);
+              return null;
+            }
+          }
 
-   dispatch(actions[category].setDocumentsFiles(finalFiles));
- };
+          // PDF or other files
+          return file;
+        }),
+      );
 
+      // ❗ remove failed files
+      const finalFiles = compressedFiles.filter(Boolean);
+
+      dispatch(actions[category].setDocumentsFiles(finalFiles));
+
+      toast.success("Images optimized successfully!", { id: "compress" });
+    } catch (error) {
+      console.error("File handling error:", error);
+      toast.error("Error processing images", { id: "compress" });
+    }
+
+    // 🔥 Reset input (important UX fix)
+    e.target.value = null;
+  };
 
   const removeFile = (index) => {
     if (!category) return;
