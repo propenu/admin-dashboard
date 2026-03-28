@@ -61,33 +61,37 @@ const handleFileChange = async (e) => {
 
   const files = Array.from(e.target.files);
 
+  toast.loading("Compressing images...", { id: "compress" });
+
   const compressedFiles = await Promise.all(
     files.map(async (file) => {
-      // only compress images
       if (file.type.startsWith("image/")) {
         try {
+          console.log("Original:", file.size / 1024 / 1024, "MB");
+
           const options = {
-            maxSizeMB: 1, // ✅ 1MB limit
-            maxWidthOrHeight: 1920,
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1280, // 🔥 reduce more
+            initialQuality: 0.7, // 🔥 stronger compression
             useWebWorker: true,
           };
 
           const compressedFile = await imageCompression(file, options);
 
-          // optional: rename file
-          return new File([compressedFile], file.name, {
-            type: compressedFile.type,
-          });
+          console.log("Compressed:", compressedFile.size / 1024 / 1024, "MB");
+
+          return compressedFile; // ✅ directly return
         } catch (error) {
           console.error("Compression error:", error);
           return file;
         }
       }
 
-      // for PDFs or others → no compression
       return file;
     }),
   );
+
+  toast.success("Images optimized!", { id: "compress" });
 
   dispatch(actions[category].setDocumentsFiles(compressedFiles));
 };
