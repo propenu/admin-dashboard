@@ -1,4 +1,4 @@
-//src/Auth/SignIn.jsx
+//src/Auth/SignUp.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
@@ -35,7 +35,7 @@ export default function SignUp() {
   const [step, setStep] = useState(1); 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("super_admin"); // default to super_admin
+  const [role, setRole] = useState("super_admin"); 
   const [otp, setOtp] = useState(new Array(OTP_LENGTH).fill(""));
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
@@ -343,3 +343,6 @@ export default function SignUp() {
     </div>
   );
 }
+
+
+

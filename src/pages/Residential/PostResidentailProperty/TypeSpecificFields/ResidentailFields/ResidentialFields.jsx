@@ -50,7 +50,7 @@ export default function ResidentialFields({ back, next }) {
     if (!form.flooringType) e.flooringType = "Select flooring type";
     if (!form.kitchenType) e.kitchenType = "Select kitchen type";
     if (!form.description) e.description = "Enter property description";
-    if (!form.galleryFiles || form.galleryFiles.length === 0) e.galleryFiles = "Upload at least one image";
+    if (!form.galleryFiles || form.galleryFiles.length < 5) e.galleryFiles = "Upload at least Five image";
     return e;
   };
 

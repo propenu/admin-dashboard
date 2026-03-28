@@ -22,6 +22,7 @@ function HeroSectionBase({ data }) {
             ? URL.createObjectURL(data.logo)
             : data.logo?.url || data.logo?.location,
 
+      tagline: data.heroTagline,
       subTagline: data.heroSubTagline,
       description: data.heroDescription,
       color: data.color || "#27AE60",
@@ -107,6 +108,11 @@ function HeroSectionBase({ data }) {
         {/* Left — text + stats */}
         <div className="lg:col-span-7 flex flex-col justify-end gap-6 pb-2">
           <div>
+            {hero.tagline && (
+              <p className="text-white/70 text-sm font-medium mb-1 tracking-wide">
+                {hero.tagline}
+              </p>
+            )}
             {hero.subTagline && (
               <p className="text-white/70 text-sm font-medium mb-1 tracking-wide">
                 {hero.subTagline}
@@ -114,7 +120,7 @@ function HeroSectionBase({ data }) {
             )}
             {hero.description && (
               <h1
-                className="text-2xl lg:text-2xl font-black leading-tight text-white"
+                className="text-2xl lg:text-sm font-black leading-tight text-white  "
                 style={{ textShadow: `0 2px 20px ${hero.color}60` }}
               >
                 {hero.description}

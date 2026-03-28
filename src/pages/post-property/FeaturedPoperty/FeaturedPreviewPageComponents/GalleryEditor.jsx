@@ -2,6 +2,8 @@
 import React, { useRef } from "react";
 import { toast } from "react-hot-toast";
 
+import { deleteFeaturedProjectGallery } from "../../../../features/property/propertyService";
+
 const FALLBACK = "";
 
 export default function GalleryEditor({
@@ -17,11 +19,7 @@ export default function GalleryEditor({
   const fileMapRef = useRef({});
   const addingRef = useRef(false);
 
-  //Include .id so new uploads are correctly identified
-  // const uid = (item) => {
-  //   if (!item) return null;
-  //   return item._id || item.key || item.id || item.url;
-  // };
+  
 
 
   const uid = (item, index) => {
@@ -167,48 +165,40 @@ export default function GalleryEditor({
   }
 
   // ✅ FIXED: Cleaned up the double logic and properly ordered execution
-  async function deleteAndSave(id) {
-    if (!id) return;
-
-    // 1. Identify the item to delete
-    const itemToDelete = gallery.find((item) => uid(item) === id);
-    if (!itemToDelete) return;
-
-    // 2. Create the NEW gallery state first
-    const updatedGallery = gallery
-      .filter((item) => uid(item) !== id)
-      .map((item, idx) => ({
-        ...item,
-        order: idx + 1, // Fix ordering
-      }));
-
-    // 3. Prepare the full data object
-    const updatedFormData = {
-      ...formData,
-      gallerySummary: updatedGallery,
-    };
-
-    // 4. Update UI Optimistically
-    setFormData(updatedFormData);
-    setLivePreviewData(updatedFormData);
-
-    // 5. Cleanup memory
-    if (itemToDelete.url?.startsWith("blob:")) {
-      URL.revokeObjectURL(itemToDelete.url);
-    }
-
-    // 6. Persist to Server
+  async function handleDelete(item, index) {
     try {
-      // Use the 'updatedFormData' we just built to ensure sync
-      const payload = buildPayload(updatedFormData, updatedGallery);
-      await onSave(payload);
-      toast.success("Item removed successfully");
-    } catch (error) {
-      console.error("Delete failed:", error);
-      toast.error("Failed to sync deletion with server");
-      // Optional: Rollback UI state here if server fails
+      if (!window.confirm("Delete this item?")) return;
+
+      const propertyId = formData._id || formData.id;
+
+      // 🔥 FINAL FIX: backend uses index
+      const correctIndex = index 
+
+      console.log("DELETE:", propertyId, correctIndex);
+
+      await deleteFeaturedProjectGallery(propertyId, correctIndex);
+
+      // update UI
+      setFormData((prev) => {
+        const updatedGallery = (prev.gallerySummary || [])
+          .filter((_, i) => i !== index)
+          .map((item, idx) => ({
+            ...item,
+            order: idx + 1, // optional for UI
+          }));
+
+        const next = { ...prev, gallerySummary: updatedGallery };
+        setLivePreviewData(next);
+        return next;
+      });
+
+      toast.success("Deleted successfully");
+    } catch (err) {
+      console.error("DELETE ERROR:", err.response?.data);
+      toast.error("Delete failed");
     }
   }
+
   async function saveGallery() {
     const payload = buildPayload(formData, gallery);
     try {
@@ -257,16 +247,25 @@ export default function GalleryEditor({
               const previewUrl = item.url;
 
               return (
-                <div key={itemId} className="relative group rounded-xl border border-gray-100 overflow-hidden bg-gray-50">
+                <div
+                  key={itemId}
+                  className="relative group rounded-xl border border-gray-100 overflow-hidden bg-gray-50"
+                >
                   <div className="h-28 w-full relative">
                     {item.isVideo ? (
-                      <video src={previewUrl} className="w-full h-full object-cover" muted />
+                      <video
+                        src={previewUrl}
+                        className="w-full h-full object-cover"
+                        muted
+                      />
                     ) : (
                       <img
                         src={previewUrl}
                         alt={item.title || "Preview"}
                         className="w-full h-full object-cover"
-                        onError={(e) => { e.target.src = FALLBACK; }}
+                        onError={(e) => {
+                          e.target.src = FALLBACK;
+                        }}
                       />
                     )}
                     {item.isVideo && (
@@ -286,20 +285,26 @@ export default function GalleryEditor({
                       className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#27AE60]/30 bg-white"
                       placeholder="Title"
                       value={item.title || ""}
-                      onChange={(e) => updateItem(itemId, "title", e.target.value)}
+                      onChange={(e) =>
+                        updateItem(itemId, "title", e.target.value)
+                      }
                     />
                     <input
                       className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#27AE60]/30 bg-white"
                       placeholder="Category"
                       value={item.category || ""}
-                      onChange={(e) => updateItem(itemId, "category", e.target.value)}
+                      onChange={(e) =>
+                        updateItem(itemId, "category", e.target.value)
+                      }
                     />
                     <input
                       className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#27AE60]/30 bg-white"
                       type="number"
                       placeholder="Order"
                       value={item.order || ""}
-                      onChange={(e) => updateItem(itemId, "order", Number(e.target.value))}
+                      onChange={(e) =>
+                        updateItem(itemId, "order", Number(e.target.value))
+                      }
                     />
                   </div>
 
@@ -322,12 +327,14 @@ export default function GalleryEditor({
                         type="file"
                         accept="image/*,video/*"
                         className="hidden"
-                        onChange={(e) => handleFileUpload(itemId, e.target.files[0])}
+                        onChange={(e) =>
+                          handleFileUpload(itemId, e.target.files[0])
+                        }
                       />
                     </label>
                     <button
                       className="bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg shadow font-semibold hover:bg-red-600 transition"
-                      onClick={() => deleteAndSave(itemId)}
+                      onClick={() => handleDelete(item, index)}
                     >
                       Delete
                     </button>

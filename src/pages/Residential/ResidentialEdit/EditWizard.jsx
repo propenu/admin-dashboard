@@ -126,10 +126,16 @@ export default function EditWizard() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(160deg, #f0fdf4 0%, #ffffff 50%, #f8fffe 100%)" }}>
+    <div
+      className="min-h-screen"
+      style={{
+        background:
+          "linear-gradient(160deg, #f0fdf4 0%, #ffffff 50%, #f8fffe 100%)",
+      }}
+    >
       {/* HEADER */}
       <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-[#27AE60]/12 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-16 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <button
@@ -142,12 +148,14 @@ export default function EditWizard() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#27AE60] hidden sm:inline-block" />
-                  <h1 className="text-sm font-black text-slate-900 truncate">
+                  <h1 className="text-sm  text-[#000000] truncate">
                     Edit {category.charAt(0).toUpperCase() + category.slice(1)}
-                    <span className="text-slate-300 font-normal text-xs ml-1.5 hidden sm:inline">#{id?.slice(-6)}</span>
+                    <span className="text-[blue] font-normal text-xs ml-1.5 hidden sm:inline">
+                      #{id?.slice(-6)}
+                    </span>
                   </h1>
                 </div>
-                <p className="text-[10px] text-[#27AE60] font-bold uppercase tracking-[0.15em] truncate hidden sm:block mt-0.5">
+                <p className="text-[12px] text-[#27AE60] uppercase truncate hidden sm:block mt-0.5">
                   {current.title || "Draft Property"}
                 </p>
               </div>
@@ -156,9 +164,17 @@ export default function EditWizard() {
             <div className="flex items-center gap-2.5 shrink-0">
               {loading && (
                 <div className="hidden sm:flex items-center gap-2 bg-[#27AE60]/8 border border-[#27AE60]/15 px-3.5 py-1.5 rounded-full">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#27AE60] animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#27AE60] animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <span className="text-[10px] text-[#27AE60] font-black uppercase tracking-widest ml-0.5">Saving</span>
+                  <div
+                    className="w-1.5 h-1.5 rounded-full bg-[#27AE60] animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  />
+                  <div
+                    className="w-1.5 h-1.5 rounded-full bg-[#27AE60] animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  />
+                  <span className="text-[10px] text-[#27AE60] font-black uppercase tracking-widest ml-0.5">
+                    Saving
+                  </span>
                 </div>
               )}
               <button
@@ -172,23 +188,55 @@ export default function EditWizard() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-12">
+      <main className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-1 py-8 sm:py-12 space-y-8 sm:space-y-12">
         <CompletionHeader completion={current?.completion?.percent || 0} />
 
         <div className="space-y-8 sm:space-y-12">
-          <WizardSection step="01" title="Standard Information" icon={<LayoutList className="w-4 h-4" />} accentColor="#3B82F6">
-            <StepBasicDetails data={current} onChange={(f, v) => handleFieldUpdate(f, v, "basic")} onSave={() => handleStepSave("basic")} />
+          <WizardSection
+            step="01"
+            title="Standard Information"
+            icon={<LayoutList className="w-4 h-4" />}
+            accentColor="#27AE60"
+          >
+            <StepBasicDetails
+              data={current}
+              onChange={(f, v) => handleFieldUpdate(f, v, "basic")}
+              onSave={() => handleStepSave("basic")}
+            />
           </WizardSection>
 
-          <WizardSection step="02" title="Geographic Context" icon={<MapPin className="w-4 h-4" />} accentColor="#F59E0B">
-            <StepLocationDetails data={current} onChange={(f, v) => handleFieldUpdate(f, v, "location")} onSave={() => handleStepSave("location")} />
+          <WizardSection
+            step="02"
+            title="Geographic Context"
+            icon={<MapPin className="w-4 h-4" />}
+            accentColor="#27AE60"
+          >
+            <StepLocationDetails
+              data={current}
+              onChange={(f, v) => handleFieldUpdate(f, v, "location")}
+              onSave={() => handleStepSave("location")}
+            />
           </WizardSection>
 
-          <WizardSection step="03" title="Property Specifications" icon={<SlidersHorizontal className="w-4 h-4" />} accentColor="#8B5CF6">
-            <StepPropertyDetails data={current} onChange={(f, v) => handleFieldUpdate(f, v, "details")} onSave={() => handleStepSave("details")} />
+          <WizardSection
+            step="03"
+            title="Property Specifications"
+            icon={<SlidersHorizontal className="w-4 h-4" />}
+            accentColor="#27AE60"
+          >
+            <StepPropertyDetails
+              data={current}
+              onChange={(f, v) => handleFieldUpdate(f, v, "details")}
+              onSave={() => handleStepSave("details")}
+            />
           </WizardSection>
 
-          <WizardSection step="04" title="Compliance & Publish" icon={<ShieldCheck className="w-4 h-4" />} accentColor="#27AE60">
+          <WizardSection
+            step="04"
+            title="Compliance & Publish"
+            icon={<ShieldCheck className="w-4 h-4" />}
+            accentColor="#27AE60"
+          >
             <StepVerifyPublish
               data={current}
               onVerifyDocument={handleVerifyDocument}
@@ -208,17 +256,17 @@ function WizardSection({ children, step, title, icon, accentColor }) {
   return (
     <section>
       {/* Label row */}
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-center gap-3 mb-1">
         <div
-          className="flex items-center gap-2 pl-3 pr-4 py-2 rounded-2xl text-white text-[11px] font-black uppercase tracking-wider shrink-0 shadow-lg"
+          className="flex items-center gap-2 pl-3 pr-4 py-2 rounded-2xl text-white text-[12px] font-bold uppercase tracking-wider shrink-0 shadow-lg"
           style={{ background: accentColor, boxShadow: `0 6px 20px ${accentColor}35` }}
         >
           {icon}
           <span className="hidden xs:inline sm:inline">{title}</span>
         </div>
         <span className="sm:hidden text-xs font-black text-slate-600 uppercase tracking-wide truncate">{title}</span>
-        <div className="h-px flex-1 bg-gradient-to-r from-slate-200/80 to-transparent" />
-        <span className="text-[10px] font-black text-slate-300 shrink-0 tabular-nums">{step} / 04</span>
+        <div className="h-px flex-1 bg-gradient-to-r from-green-900 to-transparent" />
+        <span className="text-[10px] font-black text-[#27AE60] shrink-0 tabular-nums">{step}/ 04</span>
       </div>
 
       {/* Panel */}

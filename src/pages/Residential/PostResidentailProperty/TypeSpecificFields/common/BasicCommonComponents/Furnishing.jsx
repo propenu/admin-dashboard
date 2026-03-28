@@ -50,9 +50,9 @@ import { forwardRef } from "react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
 const FURNISHING_OPTS = [
-  { label: "Unfurnished", value: "unfurnished" },
   { label: "Semi Furnished", value: "semi-furnished" },
   { label: "Fully Furnished", value: "fully-furnished" },
+  { label: "Unfurnished", value: "unfurnished" },
 ];
 
 const Furnishing = forwardRef(({ error }, ref) => {
@@ -62,7 +62,7 @@ const Furnishing = forwardRef(({ error }, ref) => {
       <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">
         Furnishing Status
       </p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2     max-sm:flex-col ">
         {FURNISHING_OPTS.map((opt) => (
           <button
             key={opt.value}

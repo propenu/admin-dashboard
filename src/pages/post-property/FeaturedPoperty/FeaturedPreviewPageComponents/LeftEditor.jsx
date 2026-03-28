@@ -47,6 +47,16 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
 
       <div className="p-5 space-y-5 max-h-[600px] overflow-y-auto">
 
+        {/* Tagline */}
+        <FieldGroup label="Tagline" hint="Bold colored tagline">
+          <input
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30 focus:border-[#27AE60] transition bg-gray-50/50"
+            value={local.heroTagline ?? ""}
+            onChange={(e) => changeLocal("heroTagline", e.target.value)}
+            placeholder="e.g. Where Dreams Come Home"
+          />
+        </FieldGroup>
+
         {/* Sub Tagline */}
         <FieldGroup label="Sub Tagline" hint="Appears below the hero image">
           <input

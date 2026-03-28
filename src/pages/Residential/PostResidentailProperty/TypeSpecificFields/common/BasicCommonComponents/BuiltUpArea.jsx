@@ -53,7 +53,7 @@ export const BuiltUpArea = forwardRef(({ error }, ref) => {
           onChange={(e) => updateFieldValue("builtUpArea", e.target.value)}
           className="flex-1 px-4 py-3 outline-none text-sm font-semibold placeholder:text-[#c9c9c9] text-[#111827]"
         />
-        <div className="flex items-center px-4 bg-[#f9fafb] border-l border-[#e5e7eb] text-[#9ca3af] text-xs font-bold whitespace-nowrap">
+        <div className="flex items-center px-2 bg-[#f9fafb] border-l border-[#e5e7eb] text-[#9ca3af] text-xs font-bold whitespace-nowrap">
           sq.ft
         </div>
       </div>

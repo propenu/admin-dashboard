@@ -10,6 +10,12 @@ export const editFeaturedProject = (id, formData) => {
   return apiClient.patch(`${SERVICES.PROPERTY}/featured-project/${id}`, formData);
 }
 
+export const deleteFeaturedProjectGallery = (id,index) => {
+  return apiClient.delete(
+    `${SERVICES.PROPERTY}/featured-project/${id}/gallery/${index}`,
+  );
+}
+
 
 //Properties Draft Residential, Commertial, Land and Agricultural
 export const createPropertyDraft = (category) => {
@@ -53,6 +59,12 @@ export const editPropertyVerification = (category, id, formData) => {
     formData,
   );
 };
+
+export const deletePropertyGalleryImagesIndex = (category, id, index) => {
+  return apiClient.delete(
+    `${SERVICES.PROPERTY}/${category}/${id}/gallery/${index}`,
+  );
+}
 
 
 // Roles Analytics

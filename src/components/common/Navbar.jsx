@@ -54,7 +54,7 @@ export default function Navbar({ toggleSidebar }) {
           </div>
 
           {/* SEARCH */}
-          {/* <div className="hidden md:flex flex-1 max-w-md mx-8">
+          {/*<div className="hidden md:flex flex-1 max-w-md mx-8">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
@@ -69,10 +69,10 @@ export default function Navbar({ toggleSidebar }) {
           {/* RIGHT */}
           <div className="flex items-center gap-2 sm:gap-4 relative">
             {/* NOTIFICATION */}
-            <button className="p-2 rounded-lg hover:bg-slate-100 transition-colors relative">
+            {/* <button className="p-2 rounded-lg hover:bg-slate-100 transition-colors relative">
               <Bell className="w-5 h-5 text-slate-700" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
+            </button> */}
 
             {/* USER DROPDOWN */}
             <div
@@ -88,7 +88,10 @@ export default function Navbar({ toggleSidebar }) {
                   <User className="w-5 h-5 text-white" />
                 </div>
 
-                <span className="hidden sm:block text-sm font-medium text-[#27AE60] capitalize">
+                {/* <span className="hidden sm:block text-sm font-medium text-[#27AE60] capitalize">
+                  {user?.name || "SignIn"}
+                </span> */}
+                <span className="hidden sm:block text-sm font-medium text-[#27AE60] capitalize max-w-[50px] md:max-w-[160px] sm:max-w-[50px] max-sm:max-w-[30px] truncate">
                   {user?.name || "SignIn"}
                 </span>
               </button>
@@ -100,21 +103,15 @@ export default function Navbar({ toggleSidebar }) {
                   <div className="absolute -top-0 right-8 w-4 h-4 bg-white rotate-45 border-l  border-t border-slate-200  max-sm:right-4"></div>
                   <div className="bg-[#FFFFFF] shadow-xl rounded-xl border border-slate-200 overflow-hidden">
                     <div className="px-4 py-3 border-b border-slate-100">
-                      <p className="text-sm font-semibold text-[#27AE60] capitalize">
+                      <p className="text-sm font-semibold text-[#27AE60] capitalize whitespace-nowrap overflow-hidden text-ellipsis">
                         {user?.name}
                       </p>
-                      <p className="text-xs text-slate-500 capitalize">
-                        {user?.roleName}
+                      <p className="text-xs text-slate-500">
+                        {user?.roleName
+                          ?.replace(/_/g, " ")
+                          .replace(/\b\w/g, (c) => c.toUpperCase())}
                       </p>
                     </div>
-
-                    {/* <button
-                      onClick={() => navigate("/signin")}
-                      className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-slate-100 transition"
-                    >
-                      <LogIn className="w-4 h-4 text-[#27AE60]" />
-                      Login
-                    </button> */}
 
                     <button
                       onClick={() => navigate("/profile")}

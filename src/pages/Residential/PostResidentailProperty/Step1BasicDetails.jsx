@@ -547,7 +547,7 @@ const buildPayloadByCategory = (category, data) => {
           </CardWrapper>
           <CardWrapper>
             <SectionLabel>Area & Pricing</SectionLabel>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <CarpetArea error={errors.carpetArea} />
               <BuiltUpArea error={errors.builtUpArea} />
             </div>

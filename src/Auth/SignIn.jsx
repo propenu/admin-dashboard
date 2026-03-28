@@ -1,10 +1,10 @@
 //src/Auth/SignIn.jsx
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import { requestOtp, verifyOtpService } from "../services/authService";
 import { Mail, Loader2, AlertCircle, ChevronLeft } from "lucide-react";
-import heroIcon from "../assets/hero-icon.png"      //"src/assets/hero-icon.png"
+import heroIcon from "../assets/hero-icon.png"      
 
 const OTP_LENGTH = 4;
 
@@ -12,7 +12,7 @@ export default function SignIn() {
   const navigate = useNavigate();
 
   // State
-  const [step, setStep] = useState(1); // 1: Email, 2: OTP
+  const [step, setStep] = useState(1); 
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(new Array(OTP_LENGTH).fill(""));
   const [errorMsg, setErrorMsg] = useState("");
@@ -131,8 +131,8 @@ export default function SignIn() {
             </div>
           </div>
 
-          <h2 className="text-xl font-bold text-center text-slate-800 mb-8">
-            {step === 1 ? "Admin Login" : "Enter Code"}
+          <h2 className="text-xl font-bold text-center text-[#27AE60] mb-8">
+            {step === 1 ? "Super Admin Login" : "Enter Code"}
           </h2>
 
           {/* Form Content */}
@@ -141,7 +141,7 @@ export default function SignIn() {
               <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {/* Email Field */}
                 <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                  <label className="text-xs font-bold text-[#27AE60] uppercase tracking-widest ml-1 mb-2 block">
                     Email Address
                   </label>
                   <div className="relative">
@@ -231,7 +231,14 @@ export default function SignIn() {
           </div>
 
           {/* Support Footer */}
-          <footer className="mt-8 pt-6 border-t border-slate-100 text-center">
+          <footer className="mt-2 pt-6 border-t border-slate-100 text-center">
+           
+            {/* <p className="text-xs text-[#000000]">
+              Don't have an account?{" "}
+              <Link to="/signup" className="text-[#27AE60] font-extrabold hover:underline">
+                Sign up
+              </Link>
+            </p> */}
             <p className="text-xs text-slate-400">
               Technical issues?{" "}
               <a
@@ -240,6 +247,9 @@ export default function SignIn() {
               >
                 propenu@gmail.com
               </a>
+            </p>
+            <p className="text-xs text-slate-400">
+              &copy; 2026 Propenu. All rights reserved.
             </p>
           </footer>
         </div>

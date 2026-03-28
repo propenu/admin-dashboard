@@ -672,7 +672,7 @@ export default function FeaturedProperties() {
           </div>
 
           {openLocations && (
-            <div className="absolute z-50 left-0 right-0 mt-2 w-11/12 md:w-full mx-auto md:mx-0 bg-white border shadow-xl rounded-xl p-4 max-h-72 overflow-hidden dropdown-animate">
+            <div className="absolute z-20 left-0 right-0 mt-2 w-11/12 md:w-full mx-auto md:mx-0 bg-white border shadow-xl rounded-xl p-4 max-h-72 overflow-hidden dropdown-animate">
               <div className="flex items-center gap-2 mb-3 border border-[#27AE60] rounded-lg px-3 py-2 bg-slate-50">
                 <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 <input
@@ -776,11 +776,11 @@ export default function FeaturedProperties() {
       {/* PROPERTY GRID */}
       <div className="mt-6">
         {/* Section header with rank legend */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-slate-900">Featured Properties</h2>
+        <div className="flex items-center justify-between  mb-4">
+          <h2 className="text-xl font-bold text-[#27AE60]  max-sm:text-sm ">Featured Properties</h2>
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <ArrowUpDown className="w-3.5 h-3.5" />
-            <span>Sorted by rank · Click rank badge on card to edit</span>
+            <ArrowUpDown className="w-3.5 h-3.5 max-sm:w-3 max-sm:h-3 max-sm:text-xs" />
+            <span>Sorted by rank</span>
           </div>
         </div>
 

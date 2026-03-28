@@ -182,6 +182,20 @@ export const updateFeaturedProperty = async (id, payload) => {
 
     fd.append("nearbyPlaces", JSON.stringify(safePlaces));
   }
+
+  /* ─────────────────────────────────────────────
+   6️⃣ YouTube Videos (🔥 MISSING FIX)
+───────────────────────────────────────────── */
+  if (Array.isArray(payload.youtubeVideos)) {
+    const videosJson = payload.youtubeVideos.map((v, index) => ({
+      title: v.title || "",
+      url: v.url || "",
+      order: Number(v.order ?? index),
+    }));
+
+    fd.append("youtubeVideos", JSON.stringify(videosJson));
+  }
+
   try {
     const res = await authAxios.patch(API_ENDPOINTS.PROPERTY_DETAILS(id), fd, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -193,7 +207,7 @@ export const updateFeaturedProperty = async (id, payload) => {
     console.error("❌ PATCH ERROR:", error.response?.data || error);
     throw error;
   }
-};
+};;
 
 
 export const createFeaturedProperty = async (
