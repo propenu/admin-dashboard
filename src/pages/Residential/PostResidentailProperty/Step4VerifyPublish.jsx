@@ -58,18 +58,22 @@ export default function Step4VerifyPublish({ back }) {
 
 
   const compressTo1MB = async (file) => {
-    let quality = 0.8;
     let compressed = file;
+    let quality = 0.9;
 
-    while (compressed.size / 1024 / 1024 > 0.5 && quality > 0.1) {
+    // 🔥 LOOP UNTIL STRICT < 1MB
+    while (compressed.size / 1024 / 1024 > 1 && quality > 0.1) {
       compressed = await imageCompression(compressed, {
-        maxSizeMB: 0.5,
+        maxSizeMB: 1,
         maxWidthOrHeight: 1280,
         initialQuality: quality,
         useWebWorker: true,
       });
+
       quality -= 0.1;
     }
+
+    console.log("Final size:", compressed.size / 1024 / 1024, "MB");
 
     return new File([compressed], file.name, {
       type: file.type,
@@ -86,26 +90,24 @@ export default function Step4VerifyPublish({ back }) {
    const compressedFiles = await Promise.all(
      files.map(async (file) => {
        if (file.type.startsWith("image/")) {
-         try {
-           console.log("Original:", file.size / 1024 / 1024, "MB");
+         const compressed = await compressTo1MB(file);
 
-           const compressed = await compressTo1MB(file);
-
-           console.log("Compressed:", compressed.size / 1024 / 1024, "MB");
-
-           return compressed;
-         } catch (error) {
-           console.error("Compression error:", error);
-           return file;
+         // ❗ FINAL SAFETY CHECK
+         if (compressed.size / 1024 / 1024 > 1) {
+           toast.error(`${file.name} is still larger than 1MB`);
+           return null;
          }
+
+         return compressed;
        }
        return file;
      }),
    );
 
-   toast.success("Images optimized!", { id: "compress" });
+   // ❗ remove failed files
+   const finalFiles = compressedFiles.filter(Boolean);
 
-   dispatch(actions[category].setDocumentsFiles(compressedFiles));
+   dispatch(actions[category].setDocumentsFiles(finalFiles));
  };
 
 
