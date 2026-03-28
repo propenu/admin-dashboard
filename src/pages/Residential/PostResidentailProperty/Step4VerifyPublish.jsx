@@ -51,11 +51,53 @@ export default function Step4VerifyPublish({ back }) {
     dispatch(actions[category].updateField({ key: "verificationDocumentType", value: id }));
   };
 
-  const handleFileChange = (e) => {
-    if (!category) return;
-    dispatch(actions[category].setDocumentsFiles(Array.from(e.target.files)));
-  };
+  // const handleFileChange = (e) => {
+  //   if (!category) return;
+  //   dispatch(actions[category].setDocumentsFiles(Array.from(e.target.files)));
+  // };
 
+
+  const handleFileChange = async (e) => {
+    if (!category) return;
+
+    const files = Array.from(e.target.files);
+
+    toast.loading("Compressing images...", { id: "compress" });
+
+    const compressedFiles = await Promise.all(
+      files.map(async (file) => {
+        // ✅ Only compress images
+        if (file.type.startsWith("image/")) {
+          try {
+            const options = {
+              maxSizeMB: 1, // 🔥 target 1MB
+              maxWidthOrHeight: 1280, // 🔥 resize
+              initialQuality: 0.7, // 🔥 strong compression
+              useWebWorker: true,
+            };
+
+            const compressedFile = await imageCompression(file, options);
+
+            // 🔥 IMPORTANT: keep original type
+            return new File([compressedFile], file.name, {
+              type: file.type,
+            });
+          } catch (error) {
+            console.error("Compression error:", error);
+            return file;
+          }
+        }
+
+        // ✅ PDF or other files → no compression
+        return file;
+      }),
+    );
+
+    toast.success("Images optimized!", { id: "compress" });
+
+    // ✅ SAME as your old working logic
+    dispatch(actions[category].setDocumentsFiles(compressedFiles));
+  };
 
 
   const removeFile = (index) => {
