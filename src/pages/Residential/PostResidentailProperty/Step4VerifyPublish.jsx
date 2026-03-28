@@ -197,7 +197,7 @@ export default function Step4VerifyPublish({ back }) {
 
       {/* Document Type Selection */}
       <CardWrapper>
-        <SectionLabel>Select Document Type</SectionLabel>
+        <SectionLabel>Select Document Type datta</SectionLabel>
         <div className="space-y-3">
           {docOptions.map((doc) => (
             <label
