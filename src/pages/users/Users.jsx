@@ -26,6 +26,7 @@ import {
    CONSTANTS & MAPS
 ═══════════════════════════════════════════ */
 const ACCOUNT_STATUS_MAP = {
+  
   active: {
     label: "Active",
     bg: "bg-[#27AE60]/10",
@@ -415,6 +416,7 @@ export default function Users() {
   const [filterKycStatus, setFilterKycStatus] = useState("");
   const [filterPhoneVerified, setFilterPhoneVerified] = useState("");
   const [filterIsActive, setFilterIsActive] = useState("");
+  const [filterRole, setFilterRole] = useState("user"); 
 
   // Location filter (deep)
   const [locationFilter, setLocationFilter] = useState(null);
@@ -434,15 +436,22 @@ export default function Users() {
     }
   };
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   /* ── Debounced API search (name/phone/email) ── */
   useEffect(() => {
-    if (!search) { loadUsers(); return; }
+    if (!search) {
+      loadUsers();
+      return;
+    }
     const timer = setTimeout(async () => {
       try {
         setLoading(true);
-        const res = await authAxios.get(`${USER_API_ENDPOINTS.SEARCH_USERS}?q=${search}`);
+        const res = await authAxios.get(
+          `${USER_API_ENDPOINTS.SEARCH_USERS}?q=${search}`,
+        );
         setUsers(res.data.results || []);
       } catch (err) {
         console.error("Search failed:", err);
@@ -454,56 +463,126 @@ export default function Users() {
   }, [search]);
 
   /* ── Client-side filtering (location + status + kyc + phone) ── */
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return users.filter((u) => {
-      // General text search (name / phone / email)
-      if (
-        q &&
-        !u.name?.toLowerCase().includes(q) &&
-        !u.phone?.includes(q) &&
-        !u.email?.toLowerCase().includes(q)
-      ) return false;
+  // const filtered = useMemo(() => {
+  //   const q = search.trim().toLowerCase();
+  //   return users.filter((u) => {
+  //     // General text search (name / phone / email)
+  //     if (
+  //       q &&
+  //       !u.name?.toLowerCase().includes(q) &&
+  //       !u.phone?.includes(q) &&
+  //       !u.email?.toLowerCase().includes(q)
+  //     )
+  //       return false;
 
-      // Location deep filter
-      if (locationFilter) {
-        const { value, type } = locationFilter;
-        const field = u[type]?.toLowerCase() || "";
-        if (!field.includes(value.toLowerCase())) return false;
-      }
+  //     // Location deep filter
+  //     if (locationFilter) {
+  //       const { value, type } = locationFilter;
+  //       const field = u[type]?.toLowerCase() || "";
+  //       if (!field.includes(value.toLowerCase())) return false;
+  //     }
 
-      // Account status
-      if (filterAccountStatus && u.accountStatus !== filterAccountStatus) return false;
+  //     // Account status
+  //     if (filterAccountStatus && u.accountStatus !== filterAccountStatus)
+  //       return false;
 
-      // KYC
-      if (filterKycStatus && u.kyc?.status !== filterKycStatus) return false;
+  //     // KYC
+  //     if (filterKycStatus && u.kyc?.status !== filterKycStatus) return false;
 
-      // Phone verified
-      if (filterPhoneVerified !== "") {
-        const want = filterPhoneVerified === "true";
-        if (!!u.phoneVerified !== want) return false;
-      }
+  //     // Phone verified
+  //     if (filterPhoneVerified !== "") {
+  //       const want = filterPhoneVerified === "true";
+  //       if (!!u.phoneVerified !== want) return false;
+  //     }
 
-      // Is active
-      if (filterIsActive !== "") {
-        const want = filterIsActive === "true";
-        if (!!u.isActive !== want) return false;
-      }
+  //     // Is active
+  //     if (filterIsActive !== "") {
+  //       const want = filterIsActive === "true";
+  //       if (!!u.isActive !== want) return false;
+  //     }
 
-      return true;
-    });
-  }, [users, search, locationFilter, filterAccountStatus, filterKycStatus, filterPhoneVerified, filterIsActive]);
+  //     return true;
+  //   });
+  // }, [
+  //   users,
+  //   search,
+  //   locationFilter,
+  //   filterAccountStatus,
+  //   filterKycStatus,
+  //   filterPhoneVerified,
+  //   filterIsActive,
+  //   filterRole
+  // ]);
+
+const filtered = useMemo(() => {
+  const q = search.trim().toLowerCase();
+
+  return users.filter((u) => {
+    if (
+      q &&
+      !u.name?.toLowerCase().includes(q) &&
+      !u.phone?.includes(q) &&
+      !u.email?.toLowerCase().includes(q)
+    )
+      return false;
+
+    // ✅ ADD THIS ROLE FILTER
+    if (filterRole && u.roleName !== filterRole) return false;
+
+    // existing filters...
+    if (locationFilter) {
+      const { value, type } = locationFilter;
+      const field = u[type]?.toLowerCase() || "";
+      if (!field.includes(value.toLowerCase())) return false;
+    }
+
+    if (filterAccountStatus && u.accountStatus !== filterAccountStatus)
+      return false;
+    if (filterKycStatus && u.kyc?.status !== filterKycStatus) return false;
+
+    if (filterPhoneVerified !== "") {
+      const want = filterPhoneVerified === "true";
+      if (!!u.phoneVerified !== want) return false;
+    }
+
+    if (filterIsActive !== "") {
+      const want = filterIsActive === "true";
+      if (!!u.isActive !== want) return false;
+    }
+
+    return true;
+  });
+}, [
+  users,
+  search,
+  locationFilter,
+  filterAccountStatus,
+  filterKycStatus,
+  filterPhoneVerified,
+  filterIsActive,
+  filterRole, // ✅ add dependency
+]);
 
   /* ── Stats ── */
-  const stats = useMemo(() => ({
-    total: users.length,
-    active: users.filter((u) => u.accountStatus === "active").length,
-    kycVerified: users.filter((u) => u.kyc?.status === "verified").length,
-    phoneVerified: users.filter((u) => u.phoneVerified).length,
-    locPending: users.filter((u) => u.accountStatus === "location_pending").length,
-  }), [users]);
+  const stats = useMemo(
+    () => ({
+      total: users.length,
+      active: users.filter((u) => u.accountStatus === "active").length,
+      kycVerified: users.filter((u) => u.kyc?.status === "verified").length,
+      phoneVerified: users.filter((u) => u.phoneVerified).length,
+      locPending: users.filter((u) => u.accountStatus === "location_pending")
+        .length,
+    }),
+    [users],
+  );
 
-  const hasFilters = search || filterAccountStatus || filterKycStatus || filterPhoneVerified || filterIsActive || locationFilter;
+  const hasFilters =
+    search ||
+    filterAccountStatus ||
+    filterKycStatus ||
+    filterPhoneVerified ||
+    filterIsActive ||
+    locationFilter;
 
   const clearAll = () => {
     setSearch("");
@@ -512,6 +591,7 @@ export default function Users() {
     setFilterPhoneVerified("");
     setFilterIsActive("");
     setLocationFilter(null);
+    setFilterRole("user"); // ✅ reset to default user
   };
 
   /* ── Format location for display ── */
@@ -593,7 +673,6 @@ export default function Users() {
 
       {/* ── Search + Filters Panel ── */}
       <div className="bg-white rounded-2xl  border border-gray-100 shadow-sm p-4 mb-4 space-y-3">
-       
         {/* <div className="flex justify-center gap-4">
           <div className="relative flex items-center">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -625,47 +704,62 @@ export default function Users() {
           />
         </div> */}
         <div className="flex w-full gap-4">
-  
-  {/* Search Input */}
-  <div className="relative flex items-center flex-1">
-    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-    
-    <input
-      type="text"
-      placeholder="Search by name, phone, email…"
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-      className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 bg-white text-sm
+          {/* Search Input */}
+          <div className="relative flex items-center flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+
+            <input
+              type="text"
+              placeholder="Search by name, phone, email…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-9 py-2.5 rounded-xl border border-gray-200 bg-white text-sm
                  text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#27AE60]
                  focus:ring-4 focus:ring-[#27AE60]/10 shadow-sm transition-all duration-200"
-    />
+            />
 
-    {search && (
-      <button
-        onClick={() => setSearch("")}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-    )}
-  </div>
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
 
-  {/* Location Search */}
-  <div className="flex-1">
-    <LocationSearch
-      users={users}
-      onFilter={setLocationFilter}
-      activeTag={locationFilter}
-      onClearTag={() => setLocationFilter(null)}
-    />
-  </div>
-
-</div>
+          {/* Location Search */}
+          <div className="flex-1">
+            <LocationSearch
+              users={users}
+              onFilter={setLocationFilter}
+              activeTag={locationFilter}
+              onClearTag={() => setLocationFilter(null)}
+            />
+          </div>
+        </div>
         {/* Row 3: Dropdown filters */}
         <div className="flex flex-wrap gap-2.5 items-center">
           <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
             <Filter className="w-3.5 h-3.5" /> Filters
           </div>
+
+          <FilterSelect
+            value={filterRole}
+            onChange={setFilterRole}
+            placeholder="All Roles"
+            options={[
+              { value: "super_admin", label: "Super Admin" },
+              { value: "admin", label: "Admin" },
+              { value: "sales_manager", label: "Sales Manager" },
+              { value: "sales_agent", label: "Sales Agent" },
+              { value: "accounts", label: "Accounts" },
+              { value: "user", label: "User" },
+              { value: "agent", label: "Agent" },
+              { value: "builder", label: "Builder" },
+              { value: "customer_care", label: "Customer Care" },
+            ]}
+          />
 
           <FilterSelect
             value={filterAccountStatus}
