@@ -149,12 +149,12 @@ export default function Sidebar({
         },
         {
           path: "/featured-properties",
-          label: "Featured Projects",
+          label: "Prime Projects",
           icon: FeaturedProjetsIcon,
         },
         {
           path: "/highlight-projects",
-          label: "Highlight Projects",
+          label: "Top Selling Projects",
           icon: HighlightedProjectsIcon,
         },
         {
@@ -302,12 +302,12 @@ export default function Sidebar({
         },
         {
           path: "/featured-properties",
-          label: "Featured Projects",
+          label: "Prime Projects",
           icon: FeaturedProjetsIcon,
         },
         {
           path: "/highlight-projects",
-          label: "Highlight Projects",
+          label: "Top Selling Projects",
           icon: HighlightedProjectsIcon,
         },
       ],
@@ -340,12 +340,12 @@ export default function Sidebar({
         },
         {
           path: "/featured-properties",
-          label: "Featured Projects",
+          label: "Prime Projects",
           icon: FeaturedProjetsIcon,
         },
         {
           path: "/highlight-projects",
-          label: "Highlight Projects",
+          label: "Top Selling Projects",
           icon: HighlightedProjectsIcon,
         },
         {
@@ -467,12 +467,12 @@ export default function Sidebar({
         },
         {
           path: "/featured-properties",
-          label: "Featured Projects",
+          label: "Prime Projects",
           icon: FeaturedProjetsIcon,
         },
         {
           path: "/highlight-projects",
-          label: "Highlight Projects",
+          label: "Top Selling Projects",
           icon: HighlightedProjectsIcon,
         },
       ],
@@ -505,12 +505,12 @@ export default function Sidebar({
         },
         {
           path: "/featured-properties",
-          label: "Featured Projects",
+          label: "Prime Projects",
           icon: FeaturedProjetsIcon,
         },
         {
           path: "/highlight-projects",
-          label: "Highlight Projects",
+          label: "Top Selling Projects",
           icon: HighlightedProjectsIcon,
         },
       ],

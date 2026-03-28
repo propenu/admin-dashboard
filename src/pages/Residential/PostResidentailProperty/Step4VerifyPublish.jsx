@@ -8,9 +8,12 @@ import { UploadCloud, Phone, X, FileText, ShieldCheck, CheckCircle2 } from "luci
 import { actions } from "../../../store/newIndex";
 import { savePropertyData } from "../../../store/common/propertyThunks";
 import { useState, useEffect } from "react";
+import imageCompression from "browser-image-compression";
+
+
 
 const CardWrapper = ({ children, className = "" }) => (
-  <div className={`bg-white rounded-2xl border border-[#e6f4ec] p-6 shadow-sm ${className}`}>{children}</div>
+  <div className={`bg-white rounded-2xl border border-[#e6f4ec] p-4 shadow-sm ${className}`}>{children}</div>
 );
 
 const SectionLabel = ({ children }) => (
@@ -48,10 +51,46 @@ export default function Step4VerifyPublish({ back }) {
     dispatch(actions[category].updateField({ key: "verificationDocumentType", value: id }));
   };
 
-  const handleFileChange = (e) => {
-    if (!category) return;
-    dispatch(actions[category].setDocumentsFiles(Array.from(e.target.files)));
-  };
+  // const handleFileChange = (e) => {
+  //   if (!category) return;
+  //   dispatch(actions[category].setDocumentsFiles(Array.from(e.target.files)));
+  // };
+
+const handleFileChange = async (e) => {
+  if (!category) return;
+
+  const files = Array.from(e.target.files);
+
+  const compressedFiles = await Promise.all(
+    files.map(async (file) => {
+      // only compress images
+      if (file.type.startsWith("image/")) {
+        try {
+          const options = {
+            maxSizeMB: 1, // ✅ 1MB limit
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+          };
+
+          const compressedFile = await imageCompression(file, options);
+
+          // optional: rename file
+          return new File([compressedFile], file.name, {
+            type: compressedFile.type,
+          });
+        } catch (error) {
+          console.error("Compression error:", error);
+          return file;
+        }
+      }
+
+      // for PDFs or others → no compression
+      return file;
+    }),
+  );
+
+  dispatch(actions[category].setDocumentsFiles(compressedFiles));
+};
 
   const removeFile = (index) => {
     if (!category) return;
@@ -80,7 +119,7 @@ export default function Step4VerifyPublish({ back }) {
   const canPublish = !loading && form.verificationDocumentType && form.documentsFiles?.length;
 
   return (
-    <div className="space-y-1 mt-5 px-5">
+    <div className="space-y-1 mt-1 px-1">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -99,7 +138,7 @@ export default function Step4VerifyPublish({ back }) {
           <ShieldCheck size={18} className="text-[#27AE60]" />
         </div>
         <div>
-          <p className="text-sm font-bold text-[#111827]">Why verify your property?</p>
+          <p className="text-sm font-bold text-[#27AE60]">Why verify your property?</p>
           <p className="text-xs text-[#6b7280] mt-1 leading-relaxed">Upload ownership proofs to verify your property, boost credibility with buyers, and prevent duplicate listings on Propenu.</p>
         </div>
       </div>
@@ -111,7 +150,7 @@ export default function Step4VerifyPublish({ back }) {
           {docOptions.map((doc) => (
             <label
               key={doc.id}
-              className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-150 ${
+              className={`flex items-center gap-3 p-2 rounded-xl border-2 cursor-pointer transition-all duration-150 ${
                 form.verificationDocumentType === doc.id
                   ? "border-[#27AE60] bg-[#f0fdf4]"
                   : "border-[#e5e7eb] hover:border-[#bbf7d0] hover:bg-[#fafafa]"
@@ -140,7 +179,7 @@ export default function Step4VerifyPublish({ back }) {
 
         {/* Previews */}
         {previews.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div className="grid  grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             {previews.map((file, index) => (
               <div key={index} className="relative group border border-[#e6f4ec] rounded-xl overflow-hidden bg-white shadow-sm h-28">
                 {file.url ? (
