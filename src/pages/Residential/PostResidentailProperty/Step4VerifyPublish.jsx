@@ -51,50 +51,12 @@ export default function Step4VerifyPublish({ back }) {
     dispatch(actions[category].updateField({ key: "verificationDocumentType", value: id }));
   };
 
-  // const handleFileChange = (e) => {
-  //   if (!category) return;
-  //   dispatch(actions[category].setDocumentsFiles(Array.from(e.target.files)));
-  // };
+  const handleFileChange = (e) => {
+    if (!category) return;
+    dispatch(actions[category].setDocumentsFiles(Array.from(e.target.files)));
+  };
 
-const handleFileChange = async (e) => {
-  if (!category) return;
 
-  const files = Array.from(e.target.files);
-
-  toast.loading("Compressing images...", { id: "compress" });
-
-  const compressedFiles = await Promise.all(
-    files.map(async (file) => {
-      if (file.type.startsWith("image/")) {
-        try {
-          console.log("Original:", file.size / 1024 / 1024, "MB");
-
-          const options = {
-            maxSizeMB: 1,
-            maxWidthOrHeight: 1280, // 🔥 reduce more
-            initialQuality: 0.7, // 🔥 stronger compression
-            useWebWorker: true,
-          };
-
-          const compressedFile = await imageCompression(file, options);
-
-          console.log("Compressed:", compressedFile.size / 1024 / 1024, "MB");
-
-          return compressedFile; // ✅ directly return
-        } catch (error) {
-          console.error("Compression error:", error);
-          return file;
-        }
-      }
-
-      return file;
-    }),
-  );
-
-  toast.success("Images optimized!", { id: "compress" });
-
-  dispatch(actions[category].setDocumentsFiles(compressedFiles));
-};
 
   const removeFile = (index) => {
     if (!category) return;
