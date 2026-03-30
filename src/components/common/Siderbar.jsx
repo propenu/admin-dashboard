@@ -175,7 +175,7 @@ export default function Sidebar({
             },
             {
               path: "/sales-agents",
-              label: "Propenu Agents",
+              label: "Sales Executive",
               icon: SalesAgentIcon,
             },
             { path: "/builders", label: "Builders", icon: BuilderIcon },
@@ -276,7 +276,11 @@ export default function Sidebar({
             },
           ],
         },
-        { path: "/push-notifications", label: "Push Notifications", icon: LocationsIcon },
+        {
+          path: "/push-notifications",
+          label: "Push Notifications",
+          icon: LocationsIcon,
+        },
       ],
 
       builder: [

@@ -1,6 +1,3 @@
-
-
-
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/SpecificationEditor.jsx
 import React from "react";
 import { toast } from "react-hot-toast";
