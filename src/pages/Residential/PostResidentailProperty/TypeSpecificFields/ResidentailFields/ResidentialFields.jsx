@@ -83,7 +83,8 @@ export default function ResidentialFields({ back, next }) {
       return;
     }
 
-    const propertyId = localStorage.getItem("propertyId");
+   const activeCategory = localStorage.getItem("activeCategory");
+   const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
     if (!propertyId) { toast.error("Property ID missing."); return; }
 
     setIsSubmitting(true);

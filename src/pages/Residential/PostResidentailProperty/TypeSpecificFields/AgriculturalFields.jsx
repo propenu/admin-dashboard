@@ -58,9 +58,8 @@ export default function AgriculturalFields({ back, next }) {
     const e = {};
     if (!form.areaUnit) e.areaUnit = "Area unit is required";
     if (!form.landShape) e.landShape = "Land shape is required";
-    if (!form.totalArea?.value || Number(form.totalArea.value) <= 0) e.totalArea = "Total area is required";
     if (!form.soilType) e.soilType = "Soil type is required";
-    if (!form.landName || form.landName.trim().length < 3) e.landName = "Land name required (min 3 chars)";
+   
     return e;
   };
 
@@ -75,9 +74,8 @@ export default function AgriculturalFields({ back, next }) {
   const validateStep3 = () => {
     const e = {};
     if (!form.currency) e.currency = "Currency is required";
-    if (!form.price || Number(form.price) <= 0) e.price = "Enter a valid price";
-    if (!form.description || form.description.trim().length < 20) e.description = "Description is too short";
-    if (!form.galleryFiles?.length) e.galleryFiles = "Upload at least one property image";
+     if (!form.galleryFiles || form.galleryFiles.length < 5)
+       e.galleryFiles = "Upload at least Five image";
     return e;
   };
 
@@ -89,7 +87,7 @@ export default function AgriculturalFields({ back, next }) {
       if (form.areaUnit) delete updated.areaUnit;
       if (form.totalArea?.value > 0) delete updated.totalArea;
       if (form.waterSource) delete updated.waterSource;
-      if (form.price > 0) delete updated.price;
+      
       if (form.galleryFiles?.length > 0) delete updated.galleryFiles;
       return updated;
     });
@@ -114,7 +112,8 @@ export default function AgriculturalFields({ back, next }) {
       setSubStep(subStep + 1);
       setTimeout(scrollToTop, 50);
     } else {
-      const propertyId = localStorage.getItem("propertyId");
+      const activeCategory = localStorage.getItem("activeCategory");
+      const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
       if (!propertyId) { toast.error("Property ID missing."); return; }
       setIsSubmitting(true);
       dispatch(savePropertyData({ category: "agricultural", id: propertyId, step: "details" }))
@@ -184,7 +183,7 @@ export default function AgriculturalFields({ back, next }) {
           </SectionCard>
           <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <LandName error={errors.landName} />
+              {/* <LandName error={errors.landName} /> */}
               <Suitablefor error={errors.suitableFor} />
             </div>
           </SectionCard>

@@ -922,8 +922,9 @@ const filtered = useMemo(() => {
                                 )
                                 .join(" ")}
                             </p>
+
                             <p className="text-[10px] text-[#27AE60] font-mono leading-tight mt-0.5 truncate max-w-[130px]">
-                              {u._id}
+                              {u.userCode || u._id}
                             </p>
                           </div>
                         </div>

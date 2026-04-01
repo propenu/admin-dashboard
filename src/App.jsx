@@ -68,6 +68,7 @@ const AllAgents = lazy(() => import("./pages/users/AllUserInDetails/Agents.jsx")
 const Builders = lazy(() => import("./pages/users/AllUserInDetails/Builders.jsx"));
 const SalesAgent = lazy(() => import("./pages/users/AllUserInDetails/SalesAgent.jsx"));
 const SalesManagers = lazy(() => import("./pages/users/AllUserInDetails/SalesManagers.jsx"));
+
 const Accounts = lazy(() => import("./pages/users/AllUserInDetails/Accounts.jsx"));
 const CustomerCare = lazy(() => import("./pages/users/AllUserInDetails/CustomerCare.jsx"));
 

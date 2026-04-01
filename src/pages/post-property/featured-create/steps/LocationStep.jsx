@@ -1383,7 +1383,7 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
 
         {/* Photon dropdown */}
         {(photonResults.length > 0 || photonMsg) && (
-          <div className="absolute z-20 w-full mt-1.5 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden">
+          <div className="relative z-10 w-full mt-1.5 bg-white border-2 border-gray-200  rounded-xl shadow-xl overflow-hidden">
             {photonResults.map((p, i) => {
               const name  = p.address ? `${p.title}, ${p.address}` : p.title;
               const added = isAdded(name, p.type);
@@ -1522,24 +1522,42 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
   }));
 
   /* ── Pin change callback ── */
+  // const handlePinChange = useCallback(
+  //   ({ coordinates, pincode, locality, city, state }) => {
+  //     pinPlacedByUserRef.current = true;
+  //     setMarkerPlaced(true);
+  //     clr("coords");
+
+  //     update({
+  //       location: { type: "Point", coordinates: [String(coordinates[0]), String(coordinates[1])] },
+  //     });
+
+  //     // if (pincode)  setAddr("pincode",  pincode);
+  //     // if (locality) setAddr("locality", locality);
+  //     // if (city)     setAddr("city",     city);
+  //     // if (state)    setAddr("state",    state);
+  //   },
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  //   [update]
+  // );
+
+
   const handlePinChange = useCallback(
-    ({ coordinates, pincode, locality, city, state }) => {
+    ({ coordinates }) => {
       pinPlacedByUserRef.current = true;
       setMarkerPlaced(true);
       clr("coords");
 
       update({
-        location: { type: "Point", coordinates: [String(coordinates[0]), String(coordinates[1])] },
+        location: {
+          type: "Point",
+          coordinates: [String(coordinates[0]), String(coordinates[1])],
+        },
       });
-
-      if (pincode)  setAddr("pincode",  pincode);
-      if (locality) setAddr("locality", locality);
-      if (city)     setAddr("city",     city);
-      if (state)    setAddr("state",    state);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [update]
+    [update],
   );
+
 
   /* ── GPS button ── */
   const handleUseMyLocation = useCallback(() => {
@@ -1588,32 +1606,32 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
   };
 
   /* ── Pincode auto-fill ── */
-  useEffect(() => {
-    const pin = (addrFields.pincode || "").replace(/\D/g, "");
-    if (pin.length !== 6) return;
+  // useEffect(() => {
+  //   const pin = (addrFields.pincode || "").replace(/\D/g, "");
+  //   if (pin.length !== 6) return;
 
-    pincodeAbortRef.current?.abort();
-    const ctrl = new AbortController();
-    pincodeAbortRef.current = ctrl;
+  //   pincodeAbortRef.current?.abort();
+  //   const ctrl = new AbortController();
+  //   pincodeAbortRef.current = ctrl;
 
-    const tid = setTimeout(async () => {
-      try {
-        const geo = await geocodePincode(pin, ctrl.signal);
-        if (!geo) return;
-        const { lat, lng, locality, city, state } = geo;
-        if (locality) setAddr("locality", locality);
-        if (city)     setAddr("city",     city);
-        if (state)    setAddr("state",    state);
-        if (!pinPlacedByUserRef.current && Number.isFinite(lat) && Number.isFinite(lng)) {
-          update({ location: { type: "Point", coordinates: [String(lng), String(lat)] } });
-          setMarkerPlaced(true); clr("coords");
-        }
-      } catch (e) { if (e?.name !== "AbortError") console.error(e); }
-    }, 300);
+  //   const tid = setTimeout(async () => {
+  //     try {
+  //       const geo = await geocodePincode(pin, ctrl.signal);
+  //       if (!geo) return;
+  //       const { lat, lng, locality, city, state } = geo;
+  //       if (locality) setAddr("locality", locality);
+  //       if (city)     setAddr("city",     city);
+  //       if (state)    setAddr("state",    state);
+  //       if (!pinPlacedByUserRef.current && Number.isFinite(lat) && Number.isFinite(lng)) {
+  //         update({ location: { type: "Point", coordinates: [String(lng), String(lat)] } });
+  //         setMarkerPlaced(true); clr("coords");
+  //       }
+  //     } catch (e) { if (e?.name !== "AbortError") console.error(e); }
+  //   }, 300);
 
-    return () => { ctrl.abort(); clearTimeout(tid); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addrFields.pincode]);
+  //   return () => { ctrl.abort(); clearTimeout(tid); };
+  // // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [addrFields.pincode]);
 
   /* ── Cleanup ── */
   useEffect(() => {
@@ -1762,10 +1780,10 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
               <Check size={12} />
               <p className="text-xs font-medium">
                 Location pinned — click map to re-pin
-                {addrFields.locality || addrFields.city
+                {/* {addrFields.locality || addrFields.city
                   ? ` · ${[addrFields.locality, addrFields.city].filter(Boolean).join(", ")}`
                   : ""}
-                {addrFields.pincode ? ` · ${addrFields.pincode}` : ""}
+                {addrFields.pincode ? ` · ${addrFields.pincode}` : ""} */}
               </p>
             </div>
           )}
@@ -1774,7 +1792,7 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
           )}
 
           {/* Auto-filled address fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
             <div>
               <label className={LABEL}>
                 Pincode{" "}
@@ -1817,7 +1835,8 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
                 value={addrFields.state}
               />
             </div>
-          </div>
+          </div> */}
+
 
           {/* Read-only coordinate display */}
           <div className="grid grid-cols-2 gap-4 pt-1">

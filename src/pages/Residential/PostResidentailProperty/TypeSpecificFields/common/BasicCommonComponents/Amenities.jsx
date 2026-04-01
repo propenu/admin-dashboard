@@ -5,7 +5,6 @@ import { X, ChevronDown, Check, Search } from "lucide-react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
 /* ─── Amenity Data by Category & Property Type ───────────────── */
-
 const AMENITIES = {
   residential: [
     {

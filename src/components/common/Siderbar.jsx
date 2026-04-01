@@ -35,6 +35,7 @@ import RevenueByPlanIcon from "../../assets/dashboard/revenue_by_plan.svg";
 import { UserCircle, ChevronDown, ChevronRight } from "lucide-react";
 import CreateUserModal from "./CreateUserModal";
 import AssignManagerPage from "./AssignManager";
+import TransferCredentials from "./TransferCredentials";
 
 /* ─── Reusable Icon wrapper ──────────────────────────────────────────────── */
 // All icons — top-level, child, and sub-child — use this component so they
@@ -80,6 +81,7 @@ export default function Sidebar({
   const location = useLocation();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignAgentModal, setShowAssignAgentModal] = useState(false);
+  const [showTrancforCredentails, setShowTrancforCredentails] = useState(false);
   const [user, setUser] = useState(null);
   const [openMenus, setOpenMenus] = useState({});
 
@@ -191,6 +193,12 @@ export default function Sidebar({
               icon: CreateCredentialsIcon,
               key: "create-credentials",
               action: "openCreateUserModal",
+            },
+            {
+              label: "Transfer Credentials",
+              icon: CreateCredentialsIcon,
+              key: "transfer-credentials",
+              action: "openTranforCredentialsModal",
             },
             {
               label: "Assign Agent",
@@ -740,6 +748,11 @@ export default function Sidebar({
                                 if (child.action === "openCreateUserModal") {
                                   setShowCreateModal(true);
                                 } else if (
+                                  child.action === "openTranforCredentialsModal"
+                                ){
+                                  setShowTrancforCredentails(true)                              
+                                 }
+                                 else if (
                                   child.action === "openAssignAgentModal"
                                 ) {
                                   setShowAssignAgentModal(true);
@@ -872,6 +885,10 @@ export default function Sidebar({
 
       {showAssignAgentModal && (
         <AssignManagerPage onClose={() => setShowAssignAgentModal(false)} />
+      )}
+
+      {showTrancforCredentails && (
+        <TransferCredentials onClose={() => setShowTrancforCredentails(false)} />
       )}
     </>
   );

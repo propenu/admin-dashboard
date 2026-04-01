@@ -1,7 +1,7 @@
-
-
-import React, { useState } from "react";
+// export default SendPushNotification;
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Select from "react-select";
 import {
   Send,
   Bell,
@@ -16,6 +16,9 @@ import {
   Wifi,
   Battery,
   Signal,
+  ImagePlus,
+  X,
+  MapPin,
 } from "lucide-react";
 import { adminCustomNotification } from "../../features/user/userService";
 import { toast } from "sonner";
@@ -61,7 +64,6 @@ const STYLES = `
   color: var(--text);
 }
 
-/* header */
 .pn-eyebrow {
   display: flex; align-items: center; gap: .45rem;
   font-size: .63rem; font-weight: 700; letter-spacing: .15em;
@@ -79,14 +81,12 @@ const STYLES = `
 .pn-title span { color: var(--green); }
 .pn-sub { font-size: .82rem; color: var(--text3); font-weight: 500; }
 
-/* layout */
 .pn-grid {
   max-width: 1060px; margin: 2.25rem auto 0;
   display: grid; grid-template-columns: 1fr; gap: 2rem;
 }
 @media(min-width:900px){ .pn-grid { grid-template-columns: 1fr 360px; gap: 2.5rem; } }
 
-/* card */
 .pn-card {
   background: var(--surface);
   border: 1.5px solid var(--border);
@@ -94,7 +94,6 @@ const STYLES = `
   box-shadow: var(--shadow-md);
 }
 
-/* stats strip */
 .pn-stats {
   display: grid; grid-template-columns: repeat(3,1fr);
   border-bottom: 1.5px solid var(--border);
@@ -107,7 +106,6 @@ const STYLES = `
 .pn-stat-val { font-size: 1.25rem; font-weight: 800; color: var(--green); line-height: 1; }
 .pn-stat-key { font-size: .57rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-top: .3rem; }
 
-/* section label */
 .pn-section-label {
   font-size: .61rem; font-weight: 700; letter-spacing: .14em;
   text-transform: uppercase; color: var(--muted); margin-bottom: .85rem;
@@ -115,11 +113,10 @@ const STYLES = `
 }
 .pn-section-label::after { content:''; flex:1; height:1px; background: var(--border); }
 
-/* audience chips */
-.pn-audience-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.pn-audience-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: .65rem; }
 .pn-chip {
-  display: flex; align-items: center; gap: .75rem;
-  padding: .9rem 1rem; border-radius: 14px;
+  display: flex; align-items: center; gap: .6rem;
+  padding: .8rem .85rem; border-radius: 14px;
   border: 1.5px solid var(--border); background: var(--surface2);
   cursor: pointer; text-align: left;
   transition: border-color .18s, background .18s, box-shadow .18s;
@@ -130,18 +127,19 @@ const STYLES = `
   box-shadow: 0 0 0 3px var(--green-ring);
 }
 .pn-chip-icon {
-  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   background: var(--surface); color: var(--muted);
   border: 1px solid var(--border);
   transition: background .18s, color .18s, border-color .18s;
 }
 .pn-chip.active .pn-chip-icon { background: var(--green); color: #fff; border-color: var(--green); }
-.pn-chip-label { font-size: .82rem; font-weight: 700; color: var(--text2); line-height: 1.2; }
+.pn-chip-label { font-size: .78rem; font-weight: 700; color: var(--text2); line-height: 1.2; }
 .pn-chip.active .pn-chip-label { color: var(--green-dark); }
-.pn-chip-sub { font-size: .67rem; color: var(--muted); font-weight: 600; margin-top: 1px; }
+.pn-chip-sub { font-size: .62rem; color: var(--muted); font-weight: 600; margin-top: 1px; }
 
-/* inputs */
+.pn-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; }
+
 .pn-field { margin-bottom: 1.15rem; }
 .pn-label {
   display: block; font-size: .69rem; font-weight: 700;
@@ -168,7 +166,30 @@ const STYLES = `
 }
 .pn-char-counter.warn { color: #d97706; }
 
-/* footer */
+.pn-img-upload {
+  width: 100%; padding: 1rem;
+  border: 1.5px dashed var(--border2); border-radius: 12px;
+  background: var(--surface2); cursor: pointer;
+  display: flex; align-items: center; gap: .75rem;
+  color: var(--text3); font-size: .82rem; font-weight: 600;
+  transition: border-color .18s, background .18s;
+}
+.pn-img-upload:hover { border-color: var(--green); background: var(--green-light); }
+.pn-img-preview {
+  position: relative; display: inline-block; margin-top: .6rem;
+}
+.pn-img-preview img {
+  height: 72px; border-radius: 10px; border: 1.5px solid var(--border2);
+  object-fit: cover; display: block;
+}
+.pn-img-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--danger); color: #fff; border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: .7rem;
+}
+
 .pn-footer {
   padding: 1rem 1.5rem; border-top: 1.5px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
@@ -191,7 +212,6 @@ const STYLES = `
 .pn-btn:active:not(:disabled) { transform: translateY(0); }
 .pn-btn:disabled { opacity: .5; cursor: not-allowed; }
 
-/* alert */
 .pn-alert {
   display: flex; align-items: center; gap: .75rem;
   padding: .9rem 1.1rem; border-radius: 14px;
@@ -201,10 +221,8 @@ const STYLES = `
 .pn-alert.success { background: var(--green-light); border-color: var(--border2); color: var(--green-dark); }
 .pn-alert.error   { background: var(--danger-bg);   border-color: var(--danger-bdr); color: var(--danger); }
 
-/* form body */
 .pn-form-body { padding: 1.5rem; }
 
-/* phone */
 .pn-phone-wrap { display: flex; flex-direction: column; align-items: center; }
 .pn-preview-label {
   display: flex; align-items: center; gap: .45rem;
@@ -254,6 +272,7 @@ const STYLES = `
 .pn-notif-time { font-size: .57rem; color: var(--muted); margin-left: auto; }
 .pn-notif-title { font-size: .77rem; font-weight: 700; color: var(--text); margin-bottom: .18rem; line-height: 1.3; }
 .pn-notif-body { font-size: .69rem; color: var(--text2); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pn-notif-img { width: 100%; border-radius: 8px; margin-top: .5rem; object-fit: cover; max-height: 72px; display: block; }
 .pn-empty-title { color: var(--muted); font-style: italic; }
 .pn-empty-body  { color: #b7d9c4; font-style: italic; }
 .pn-live-badge {
@@ -265,39 +284,167 @@ const STYLES = `
 }
 .pn-live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: blink 1s infinite; }
 
-@media(max-width:500px){
-  .pn-audience-grid { grid-template-columns: 1fr; }
+@media(max-width:600px){
+  .pn-audience-grid { grid-template-columns: 1fr 1fr; }
+  .pn-row2 { grid-template-columns: 1fr; }
   .pn-stats { grid-template-columns: 1fr 1fr; }
+}
+@media(max-width:400px){
+  .pn-audience-grid { grid-template-columns: 1fr; }
 }
 `;
 
+// ── Indian states list ──────────────────────────────────────────────────────
+const INDIAN_STATES = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Delhi",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Puducherry",
+  "Chandigarh",
+].map((s) => ({ value: s, label: s }));
 
+// ── react-select shared custom styles (matches your green theme) ────────────
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    fontFamily: "'Plus Jakarta Sans', sans-serif",
+    fontSize: ".875rem",
+    fontWeight: 500,
+    background: "var(--surface2)",
+    borderColor: state.isFocused ? "#27AE60" : "#d4eddd",
+    borderWidth: "1.5px",
+    borderRadius: "12px",
+    boxShadow: state.isFocused ? "0 0 0 3px rgba(39,174,96,.18)" : "none",
+    minHeight: "44px",
+    "&:hover": { borderColor: "#b7dfca" },
+  }),
+  menu: (base) => ({
+    ...base,
+    borderRadius: "12px",
+    border: "1.5px solid #d4eddd",
+    boxShadow: "0 8px 32px rgba(39,174,96,.12)",
+    overflow: "hidden",
+    zIndex: 99,
+  }),
+  option: (base, state) => ({
+    ...base,
+    fontSize: ".875rem",
+    fontFamily: "'Plus Jakarta Sans', sans-serif",
+    fontWeight: 500,
+    background: state.isSelected
+      ? "#27AE60"
+      : state.isFocused
+        ? "#eafaf1"
+        : "#fff",
+    color: state.isSelected ? "#fff" : "#0f2d1c",
+    cursor: "pointer",
+  }),
+  singleValue: (base) => ({ ...base, color: "#0f2d1c" }),
+  placeholder: (base) => ({ ...base, color: "#9ec9ad" }),
+  indicatorSeparator: () => ({ display: "none" }),
+  dropdownIndicator: (base) => ({ ...base, color: "#9ec9ad" }),
+  loadingIndicator: (base) => ({ ...base, color: "#27AE60" }),
+  clearIndicator: (base) => ({
+    ...base,
+    color: "#9ec9ad",
+    "&:hover": { color: "#dc2626" },
+  }),
+};
+
+// ── Role chips ───────────────────────────────────────────────────────────────
 const ROLES = [
   {
-    value: "all",
+    value: "",
     label: "All Users",
-    icon: <Users size={16} />,
-    desc: "Global broadcast",
+    icon: <Users size={15} />,
+    desc: "Everyone",
   },
   {
     value: "agent",
     label: "Agent",
-    icon: <UserCheck size={16} />,
+    icon: <UserCheck size={15} />,
     desc: "Field agents",
   },
+  {
+    value: "builder",
+    label: "Builder",
+    icon: <UserCheck size={15} />,
+    desc: "Builders",
+  },
 ];
-const BODY_MAX = 180;
 
+const BODY_MAX = 180;
+const EMPTY_FORM = {
+  title: "",
+  body: "",
+  target: "",
+  city: null,
+  state: null,
+  image: null,
+};
+
+// ── Component ────────────────────────────────────────────────────────────────
 const SendPushNotification = () => {
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    title: "",
-    body: "",
-    target: "all",
-  });
+  const [formData, setFormData] = useState(EMPTY_FORM);
   const [status, setStatus] = useState({ type: "", message: "" });
   const [sent, setSent] = useState(0);
+  const [cityOptions, setCityOptions] = useState([]);
+  const [cityLoading, setCityLoading] = useState(false);
+  const fileRef = useRef();
 
+  // ── Load cities when state changes ────────────────────────────────────────
+  useEffect(() => {
+    if (!formData.state) {
+      setCityOptions([]);
+      return;
+    }
+    setCityLoading(true);
+    setCityOptions([]);
+    setFormData((p) => ({ ...p, city: null })); // reset city on state change
+
+    fetch("https://countriesnow.space/api/v0.1/countries/state/cities", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ country: "India", state: formData.state.value }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        setCityOptions((d.data || []).map((c) => ({ value: c, label: c })));
+      })
+      .catch(() => setCityOptions([]))
+      .finally(() => setCityLoading(false));
+  }, [formData.state]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === "body" && value.length > BODY_MAX) return;
@@ -305,19 +452,45 @@ const SendPushNotification = () => {
     setStatus({ type: "", message: "" });
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) =>
+      setFormData((p) => ({
+        ...p,
+        image: { dataUrl: ev.target.result, name: file.name, file },
+      }));
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setFormData((p) => ({ ...p, image: null }));
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setStatus({ type: "", message: "" });
     try {
-      await adminCustomNotification(formData);
+      const fd = new FormData();
+      fd.append("title", formData.title);
+      fd.append("body", formData.body);
+      fd.append("target", formData.target);
+      fd.append("city", formData.city?.value || "");
+      fd.append("state", formData.state?.value || "");
+      if (formData.image?.file) fd.append("image", formData.image.file);
+
+      await adminCustomNotification(fd);
       setStatus({
         type: "success",
         message: "Notification dispatched successfully!",
       });
       toast.success("Push notification dispatched!");
       setSent((n) => n + 1);
-      setFormData({ title: "", body: "", target: "all" });
+      setFormData(EMPTY_FORM);
+      if (fileRef.current) fileRef.current.value = "";
     } catch (err) {
       setStatus({
         type: "error",
@@ -390,7 +563,7 @@ const SendPushNotification = () => {
 
               <form onSubmit={handleSubmit}>
                 <div className="pn-form-body">
-                  {/* Audience */}
+                  {/* ── Audience ── */}
                   <div style={{ marginBottom: "1.5rem" }}>
                     <div className="pn-section-label">
                       <Radio size={11} /> Target Audience
@@ -415,7 +588,68 @@ const SendPushNotification = () => {
                     </div>
                   </div>
 
-                  {/* Content */}
+                  {/* ── Location — react-select dropdowns ── */}
+                  <div style={{ marginBottom: "1.5rem" }}>
+                    <div className="pn-section-label">
+                      <MapPin size={11} /> Location Filter{" "}
+                      <span
+                        style={{
+                          fontSize: ".58rem",
+                          fontWeight: 500,
+                          marginLeft: ".3rem",
+                        }}
+                      >
+                        (optional)
+                      </span>
+                    </div>
+                    <div className="pn-row2">
+                      {/* State */}
+                      <div className="pn-field" style={{ marginBottom: 0 }}>
+                        <label className="pn-label">State</label>
+                        <Select
+                          options={INDIAN_STATES}
+                          value={formData.state}
+                          onChange={(opt) =>
+                            setFormData((p) => ({
+                              ...p,
+                              state: opt,
+                              city: null,
+                            }))
+                          }
+                          placeholder="Select state…"
+                          isClearable
+                          styles={selectStyles}
+                          classNamePrefix="pn-sel"
+                        />
+                      </div>
+
+                      {/* City — loads after state is picked */}
+                      <div className="pn-field" style={{ marginBottom: 0 }}>
+                        <label className="pn-label">City</label>
+                        <Select
+                          options={cityOptions}
+                          value={formData.city}
+                          onChange={(opt) =>
+                            setFormData((p) => ({ ...p, city: opt }))
+                          }
+                          placeholder={
+                            !formData.state
+                              ? "Pick state first…"
+                              : cityLoading
+                                ? "Loading cities…"
+                                : "Select city…"
+                          }
+                          isDisabled={!formData.state || cityLoading}
+                          isLoading={cityLoading}
+                          isClearable
+                          styles={selectStyles}
+                          classNamePrefix="pn-sel"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Content ── */}
                   <div className="pn-section-label">
                     <Zap size={11} /> Notification Content
                   </div>
@@ -429,7 +663,7 @@ const SendPushNotification = () => {
                       required
                       value={formData.title}
                       onChange={handleChange}
-                      placeholder="e.g. New property listings available!"
+                      placeholder="e.g. 🔥 Big Offer — Flat 20% off!"
                       autoComplete="off"
                     />
                   </div>
@@ -450,6 +684,49 @@ const SendPushNotification = () => {
                     >
                       {bodyLen} / {BODY_MAX}
                     </div>
+                  </div>
+
+                  {/* ── Image ── */}
+                  <div className="pn-field">
+                    <label className="pn-label">
+                      Image{" "}
+                      <span
+                        style={{
+                          fontWeight: 500,
+                          textTransform: "none",
+                          letterSpacing: 0,
+                        }}
+                      >
+                        (optional)
+                      </span>
+                    </label>
+                    {!formData.image ? (
+                      <div
+                        className="pn-img-upload"
+                        onClick={() => fileRef.current?.click()}
+                      >
+                        <ImagePlus size={18} />
+                        <span>Click to attach an image</span>
+                        <input
+                          ref={fileRef}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          onChange={handleImageChange}
+                        />
+                      </div>
+                    ) : (
+                      <div className="pn-img-preview">
+                        <img src={formData.image.dataUrl} alt="preview" />
+                        <button
+                          type="button"
+                          className="pn-img-remove"
+                          onClick={removeImage}
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -478,7 +755,6 @@ const SendPushNotification = () => {
             <div className="pn-preview-label">
               <Smartphone size={13} /> Live Preview
             </div>
-
             <div className="pn-phone">
               <div className="pn-phone-inner">
                 <div className="pn-notch" />
@@ -493,7 +769,11 @@ const SendPushNotification = () => {
                 <div style={{ padding: "0 .7rem" }}>
                   <div className="pn-wallpaper">
                     <motion.div
-                      key={formData.title + formData.body}
+                      key={
+                        formData.title +
+                        formData.body +
+                        (formData.image?.dataUrl || "")
+                      }
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.22 }}
@@ -517,16 +797,21 @@ const SendPushNotification = () => {
                         {formData.body ||
                           "Your message will appear here as you type…"}
                       </div>
+                      {formData.image && (
+                        <img
+                          src={formData.image.dataUrl}
+                          alt=""
+                          className="pn-notif-img"
+                        />
+                      )}
                     </motion.div>
                   </div>
                 </div>
               </div>
             </div>
-
             <div className="pn-live-badge">
               <div className="pn-live-dot" /> Updates live
             </div>
-           
           </div>
         </div>
       </div>

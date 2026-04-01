@@ -978,7 +978,8 @@ export default function Step2LocationDetails({ next, back, category }) {
   const handleContinue = async () => {
     const ve = validate();
     if (Object.keys(ve).length) { setErrors(ve); return; }
-    const propertyId = localStorage.getItem("propertyId");
+    const activeCategory = localStorage.getItem("activeCategory");
+    const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
     if (!propertyId) { toast.error("Property ID missing."); return; }
     try {
       await dispatch(savePropertyData({ category, id: propertyId, step: "location" })).unwrap();

@@ -56,6 +56,15 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
   const profileRef = useRef(null);
   const [builders, setBuilders] = useState([]);
 
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [filters, setFilters] = useState({
+    state: "",
+    city: "",
+    pincode: "",
+    locality: "",
+  });
+
   useEffect(() => {
     async function loadBuilders() {
       try {
@@ -69,6 +78,73 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
 
     loadBuilders();
   }, []);
+
+  // Unique values from full builder list
+  const uniqueStates = [
+    ...new Set(builders.map((b) => b.state).filter(Boolean)),
+  ];
+  const uniqueCities = [
+    ...new Set(
+      builders
+        .filter((b) => !filters.state || b.state === filters.state)
+        .map((b) => b.city)
+        .filter(Boolean),
+    ),
+  ];
+  const uniquePincodes = [
+    ...new Set(
+      builders
+        .filter(
+          (b) =>
+            (!filters.state || b.state === filters.state) &&
+            (!filters.city || b.city === filters.city),
+        )
+        .map((b) => b.pincode)
+        .filter(Boolean),
+    ),
+  ];
+  const uniqueLocalities = [
+    ...new Set(
+      builders
+        .filter(
+          (b) =>
+            (!filters.state || b.state === filters.state) &&
+            (!filters.city || b.city === filters.city) &&
+            (!filters.pincode || b.pincode === filters.pincode),
+        )
+        .map((b) => b.locality)
+        .filter(Boolean),
+    ),
+  ];
+
+  // Final filtered builder list shown in Select Builder dropdown
+  // const filteredBuilders = builders.filter(
+  //   (b) =>
+  //     (!filters.state || b.state === filters.state) &&
+  //     (!filters.city || b.city === filters.city) &&
+  //     (!filters.pincode || b.pincode === filters.pincode) &&
+  //     (!filters.locality || b.locality === filters.locality),
+  // );
+
+  const filteredBuilders = builders.filter((b) => {
+    const matchesState = !filters.state || b.state === filters.state;
+    const matchesCity = !filters.city || b.city === filters.city;
+    const matchesPincode = !filters.pincode || b.pincode === filters.pincode;
+    const matchesLocality =
+      !filters.locality || b.locality === filters.locality;
+    const matchesSearch =
+      !searchQuery.trim() ||
+      b.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.phone?.includes(searchQuery);
+    return (
+      matchesState &&
+      matchesCity &&
+      matchesPincode &&
+      matchesLocality &&
+      matchesSearch
+    );
+  });
 
   const addYoutube = () => {
     const list = payload.youtubeVideos || [];
@@ -98,17 +174,14 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
       if (!payload.totalTowers || Number(payload.totalTowers) <= 0)
         e.totalTowers = "Required (must be > 0)";
 
-      if (!payload.totalFloors?.trim())
-        e.totalFloors = "Required";
+      if (!payload.totalFloors?.trim()) e.totalFloors = "Required";
 
-      if (!payload.possessionDate)
-        e.possessionDate = "Required";
+      if (!payload.possessionDate) e.possessionDate = "Required";
 
       if (!payload.projectArea || Number(payload.projectArea) <= 0)
         e.projectArea = "Required (must be > 0)";
 
-      if (!payload.areaUnits)
-        e.areaUnits = "Select a unit";
+      if (!payload.areaUnits) e.areaUnits = "Select a unit";
 
       if (!payload.totalUnits || Number(payload.totalUnits) <= 0)
         e.totalUnits = "Required (must be > 0)";
@@ -123,20 +196,16 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
       )
         e.availableUnits = "Cannot exceed total units";
 
-      if (!payload.state?.trim())
-        e.state = "Required";
+      if (!payload.state?.trim()) e.state = "Required";
 
-      if (!payload.locality?.trim())
-        e.locality = "Required";
+      if (!payload.locality?.trim()) e.locality = "Required";
 
-      if (!payload.reraNumber?.trim())
-        e.reraNumber = "Required";
+      if (!payload.reraNumber?.trim()) e.reraNumber = "Required";
 
       if (!payload.banksApproved?.length)
         e.banksApproved = "Select at least one bank";
 
-      if (!payload.brochure)
-        e.brochure = "Brochure PDF is required";
+      if (!payload.brochure) e.brochure = "Brochure PDF is required";
 
       // redirectUrl — optional but if filled must be a valid URL
       if (payload.redirectUrl?.trim()) {
@@ -150,7 +219,10 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
       setErrors(e);
 
       if (Object.keys(e).length) {
-        profileRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        profileRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
         return false;
       }
       return true;
@@ -550,8 +622,9 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
           </button>
         </div>
       </SectionCard>
+
       {/* Builder Selection */}
-      <div className="md:col-span-2  lg:col-span-3">
+      {/* <div className="md:col-span-2  lg:col-span-3">
         <label className={LABEL}>Select Builder *</label>
 
         <select
@@ -569,7 +642,277 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
         </select>
 
         {errors.createdBy && <p className={ERR}>⚠ {errors.createdBy}</p>}
-      </div>
+      </div> */}
+
+      <SectionCard icon={Building2} title="Select Builder" sub="Builder">
+        {/* Search bar */}
+        <div className="mb-4">
+          <label className={LABEL}>Search Builder</label>
+          <div className="relative">
+            <svg
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            <input
+              type="text"
+              className={`${inp()} pl-10`}
+              placeholder="Search by name, email or phone..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                handleChange("createdBy", "");
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  handleChange("createdBy", "");
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Location filters */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <div>
+            <label className={LABEL}>State</label>
+            <select
+              className={inp()}
+              value={filters.state}
+              onChange={(e) => {
+                setFilters({
+                  state: e.target.value,
+                  city: "",
+                  pincode: "",
+                  locality: "",
+                });
+                handleChange("createdBy", "");
+              }}
+            >
+              <option value="">All States</option>
+              {uniqueStates.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={LABEL}>City</label>
+            <select
+              className={inp()}
+              value={filters.city}
+              onChange={(e) => {
+                setFilters((f) => ({
+                  ...f,
+                  city: e.target.value,
+                  pincode: "",
+                  locality: "",
+                }));
+                handleChange("createdBy", "");
+              }}
+            >
+              <option value="">All Cities</option>
+              {uniqueCities.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={LABEL}>Pincode</label>
+            <select
+              className={inp()}
+              value={filters.pincode}
+              onChange={(e) => {
+                setFilters((f) => ({
+                  ...f,
+                  pincode: e.target.value,
+                  locality: "",
+                }));
+                handleChange("createdBy", "");
+              }}
+            >
+              <option value="">All Pincodes</option>
+              {uniquePincodes.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={LABEL}>Locality</label>
+            <select
+              className={inp()}
+              value={filters.locality}
+              onChange={(e) => {
+                setFilters((f) => ({ ...f, locality: e.target.value }));
+                handleChange("createdBy", "");
+              }}
+            >
+              <option value="">All Localities</option>
+              {uniqueLocalities.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Active filter chips + clear all */}
+        {(searchQuery ||
+          filters.state ||
+          filters.city ||
+          filters.pincode ||
+          filters.locality) && (
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            {searchQuery && (
+              <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                "{searchQuery}"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    handleChange("createdBy", "");
+                  }}
+                  className="ml-1 hover:text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {filters.state && (
+              <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                {filters.state}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters({
+                      state: "",
+                      city: "",
+                      pincode: "",
+                      locality: "",
+                    });
+                    handleChange("createdBy", "");
+                  }}
+                  className="ml-1 hover:text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {filters.city && (
+              <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                {filters.city}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters((f) => ({
+                      ...f,
+                      city: "",
+                      pincode: "",
+                      locality: "",
+                    }));
+                    handleChange("createdBy", "");
+                  }}
+                  className="ml-1 hover:text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {filters.pincode && (
+              <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                {filters.pincode}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters((f) => ({ ...f, pincode: "", locality: "" }));
+                    handleChange("createdBy", "");
+                  }}
+                  className="ml-1 hover:text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {filters.locality && (
+              <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                {filters.locality}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters((f) => ({ ...f, locality: "" }));
+                    handleChange("createdBy", "");
+                  }}
+                  className="ml-1 hover:text-red-500"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setFilters({ state: "", city: "", pincode: "", locality: "" });
+                setSearchQuery("");
+                handleChange("createdBy", "");
+              }}
+              className="text-xs text-red-400 font-bold hover:text-red-600 ml-1"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+
+        {/* Final builder dropdown */}
+        <div>
+          <label className={LABEL}>Select Builder *</label>
+          <select
+            className={inp(errors.createdBy)}
+            value={payload.createdBy || ""}
+            onChange={(e) => handleChange("createdBy", e.target.value)}
+          >
+            <option value="">
+              {filteredBuilders.length === 0
+                ? "No builders found"
+                : "Select Builder"}
+            </option>
+            {filteredBuilders.map((builder) => (
+              <option key={builder._id} value={builder._id}>
+                {builder.name.charAt(0).toUpperCase() + builder.name.slice(1)} —{" "}
+                {builder.city}, {builder.state}
+              </option>
+            ))}
+          </select>
+          {errors.createdBy && <p className={ERR}>⚠ {errors.createdBy}</p>}
+          {filteredBuilders.length > 0 && (
+            <p className="text-xs text-gray-400 mt-1">
+              {filteredBuilders.length} builder(s) found
+            </p>
+          )}
+        </div>
+      </SectionCard>
     </div>
   );
 });

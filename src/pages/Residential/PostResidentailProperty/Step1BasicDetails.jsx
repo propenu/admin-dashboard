@@ -249,7 +249,7 @@ export default function Step1BasicDetails({ next }) {
 
   const setValue = (key, value) => {
     if (key === "__category__") {
-      localStorage.removeItem("propertyId");
+      // localStorage.removeItem("propertyId");
       dispatch(setActiveCategory(value));
       dispatch(actions[value].updateField({ key: "propertyType", value: "" }));
       dispatch(actions[value].updateField({ key: "propertySubType", value: "" }));
@@ -432,7 +432,9 @@ const buildPayloadByCategory = (category, data) => {
       return;
     }
 
-    const propertyId = localStorage.getItem("propertyId");
+
+    const activeCategory = localStorage.getItem("activeCategory");
+    const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
     console.log("🆔 Current Property ID from Storage:", propertyId);
 
     if (!propertyId) {
@@ -564,9 +566,10 @@ const buildPayloadByCategory = (category, data) => {
               <AgeOfProperty error={errors.propertyAge} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <AvailabilityStatus error={errors.constructionStatus} />
-                <CreatedBy error={errors.createdBy} />
+                <TransactionTypes error={errors.transactionType} />
               </div>
-              <TransactionTypes error={errors.transactionType} />
+
+              <CreatedBy error={errors.createdBy} />
             </div>
           </CardWrapper>
         </>
@@ -604,8 +607,8 @@ const buildPayloadByCategory = (category, data) => {
               <AvailabilityStatus error={errors.constructionStatus} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <TransactionTypes error={errors.transactionType} />
-                <CreatedBy error={errors.createdBy} />
               </div>
+              <CreatedBy error={errors.createdBy} />
             </div>
           </CardWrapper>
         </>

@@ -90,7 +90,8 @@ export default function CommercialFields({ back, next }) {
       if (form.parkingType) delete updated.parkingType;
       if (form.constructionStatus) delete updated.constructionStatus;
       if (form.price > 0) delete updated.price;
-      if (form.galleryFiles?.length > 0) delete updated.galleryFiles;
+       if (!form.galleryFiles || form.galleryFiles.length < 5)
+         e.galleryFiles = "Upload at least Five image";
       return updated;
     });
   }, [form]);
@@ -114,7 +115,8 @@ export default function CommercialFields({ back, next }) {
       setSubStep(subStep + 1);
       setTimeout(scrollToTop, 50);
     } else {
-      const propertyId = localStorage.getItem("propertyId");
+      const activeCategory = localStorage.getItem("activeCategory");
+      const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
       if (!propertyId) { toast.error("Property ID missing."); return; }
       setIsSubmitting(true);
       dispatch(savePropertyData({ category: "commercial", id: propertyId, step: "details" }))

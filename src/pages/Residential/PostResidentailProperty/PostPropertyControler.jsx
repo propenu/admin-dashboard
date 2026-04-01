@@ -55,6 +55,8 @@ export default function PropertyController() {
     if (storedCategory && !activeCategory) dispatch(setActiveCategory(storedCategory));
   }, [activeCategory, dispatch]);
 
+
+
   const isInitializing = useRef(false);
 
   useEffect(() => {
@@ -105,15 +107,16 @@ export default function PropertyController() {
               ),
             );
             setStepFromDraft(draft);
-            localStorage.setItem("propertyId", draft._id);
+            // localStorage.setItem("propertyId", draft._id);
+            localStorage.setItem(`${activeCategory}_propertyId`, draft._id);
             localStorage.setItem("activeCategory", activeCategory);
-            console.log("Property ID:", draft._id);
+            console.log(`${activeCategory}_propertyId`, draft._id);
             setIsDataLoaded(true);
           }
           return;
         }
         console.log("LOCAL STORAGE:", localStorage);
-        const storedId = localStorage.getItem("propertyId");
+        const storedId = localStorage.getItem(`${activeCategory}_propertyId`);
         console.log("STORED ID:", storedId);
 
         if (storedId) {
@@ -129,7 +132,7 @@ export default function PropertyController() {
               setIsDataLoaded(true);
               return;
             }
-          } catch { localStorage.removeItem("propertyId"); }
+          } catch { localStorage.removeItem(`${activeCategory}_propertyId`); }
         }
 
         const response = await createPropertyDraft(activeCategory);
@@ -138,7 +141,7 @@ export default function PropertyController() {
         
         if (!draft?._id) throw new Error("Draft ID missing");
         dispatch(actions[activeCategory].hydrateForm(normalizeDraft(draft)));
-        localStorage.setItem("propertyId", draft._id);
+        localStorage.setItem(`${activeCategory}_propertyId`, draft._id);
         localStorage.setItem("activeCategory", activeCategory);
         setStep(0); setCompletedSteps([]); setIsDataLoaded(true);
       } catch (err) {

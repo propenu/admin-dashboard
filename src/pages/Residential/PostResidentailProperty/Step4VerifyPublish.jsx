@@ -151,7 +151,8 @@ export default function Step4VerifyPublish({ back }) {
 
   const handlePublish = async () => {
     if (!category) { toast.error("Property category missing"); return; }
-    const propertyId = localStorage.getItem("propertyId");
+    const activeCategory = localStorage.getItem("activeCategory");
+    const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
     if (!propertyId) { toast.error("Property ID missing"); return; }
     if (!form.verificationDocumentType) { toast.error("Please select a document type"); return; }
     if (!form.documentsFiles?.length) { toast.error("Please upload the required document"); return; }
@@ -160,7 +161,8 @@ export default function Step4VerifyPublish({ back }) {
     try {
       await dispatch(savePropertyData({ category, id: propertyId, step: "verification" })).unwrap();
       toast.success("Property Published Successfully!", { id: "publish" });
-      localStorage.removeItem("propertyId");
+      localStorage.removeItem(`${activeCategory}_propertyId`);
+      localStorage.removeItem("activeCategory");
       setTimeout(() => { navigate(`/${category}`); }, 1500);
     } catch (err) {
       console.error("Publish Error:", err);

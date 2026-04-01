@@ -54,45 +54,40 @@ export const createUserLocationDetails = async (formData) => {
   }
 };
 
-
 //All Users
 export const getAllUsers = () => {
-    return apiClient.get(`${SERVICES.USER}/auth/all-users`);
+  return apiClient.get(`${SERVICES.USER}/auth/all-users`);
 };
 
 //UserSerach
 export const getUserSearch = (query) => {
-    return apiClient.get(`${SERVICES.USER}/auth/search?role=${query}`);
+  return apiClient.get(`${SERVICES.USER}/auth/search?role=${query}`);
 };
 
-//Agent Verifcation Status Edit 
+//TransferCredentials
+export const transferCredentials = (id, formData) => {
+  return apiClient.patch(`${SERVICES.USER}/auth/${id}/role`, formData);
+};
+
+//Agent Verifcation Status Edit
 export const editAgentVerificationStatus = (id, formData) => {
-    return apiClient.patch(
-      `${SERVICES.USER}/agent/admin/verify/${id}`,
-      formData,
-    );
-}
+  return apiClient.patch(`${SERVICES.USER}/agent/admin/verify/${id}`, formData);
+};
 
 //Manage Team Members
 export const getManagerAndTeamMembers = (id) => {
-    return apiClient.get(
-      `${SERVICES.USER}/auth/manager-team-details/${id}`,
-    );
-}
+  return apiClient.get(`${SERVICES.USER}/auth/manager-team-details/${id}`);
+};
 
 //AssignMangered
 export const assignManager = (formData) => {
-    return apiClient.post(
-      `${SERVICES.USER}/auth/assign-manager`,
-      formData,
-    );
-}
+  return apiClient.post(`${SERVICES.USER}/auth/assign-manager`, formData);
+};
 
 //Custom Notification
 export const adminCustomNotification = (formData) => {
-    return apiClient.post(
-      `${SERVICES.USER}/notifications/admin/notify/custom`,
-      formData,
-    );
-}
-
+  return apiClient.post(
+    `${SERVICES.USER}/notifications/admin/notify/custom`,
+    formData,
+  );
+};

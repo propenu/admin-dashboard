@@ -1,5 +1,5 @@
 // EditWizard.jsx — FIXED VERSION with proper amenities saving
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
@@ -19,13 +19,16 @@ export default function EditWizard() {
   const storedId = localStorage.getItem("editPropertyId");
   const storedCategory = localStorage.getItem("editPropertyCategory");
 
-
+ 
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const category = useSelector((s) => s.ui.activeCategory) || storedCategory;
-  const propertyId = id || storedId;
+  console.log("🆔dattattttttttttttttttttttttttttttttttttttt Current Category from Storage:", category);
+ 
+  const propertyId = id || storedId; 
+  console.log("🆔edit Current Property ID from Storage:", propertyId);
 
   const { form: current, loading } = useSelector((s) => s[category] || {});
 
@@ -100,7 +103,11 @@ export default function EditWizard() {
     }
   };
 
-  if (!current || current._id !== id) {
+console.log("🆔edit Current Property ID:", propertyId);
+console.log("🆔edit Current Property Category:", category);
+console.log("🆔edit Current Property:", current);
+
+  if (!category) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#f0fdf4] via-white to-[#ecfdf5] flex flex-col items-center justify-center gap-6 px-4">
         <div className="flex flex-col items-center gap-5">
@@ -135,7 +142,7 @@ export default function EditWizard() {
     >
       {/* HEADER */}
       <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-xl border-b border-[#27AE60]/12 shadow-sm">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 max-sm">
           <div className="h-16 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
               <button
@@ -188,7 +195,7 @@ export default function EditWizard() {
         </div>
       </header>
 
-      <main className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-1 py-8 sm:py-12 space-y-8 sm:space-y-12">
+      <main className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-1 py-8 sm:py-12 space-y-8 sm:space-y-12 max-sm:w-[calc(100vw-32px)]">
         <CompletionHeader completion={current?.completion?.percent || 0} />
 
         <div className="space-y-8 sm:space-y-12">
@@ -256,7 +263,7 @@ function WizardSection({ children, step, title, icon, accentColor }) {
   return (
     <section>
       {/* Label row */}
-      <div className="flex items-center gap-3 mb-1">
+      <div className="flex items-center gap-1 mb-1">
         <div
           className="flex items-center gap-2 pl-3 pr-4 py-2 rounded-2xl text-white text-[12px] font-bold uppercase tracking-wider shrink-0 shadow-lg"
           style={{ background: accentColor, boxShadow: `0 6px 20px ${accentColor}35` }}
@@ -275,7 +282,7 @@ function WizardSection({ children, step, title, icon, accentColor }) {
         style={{ border: `1.5px solid ${accentColor}18`, boxShadow: `0 2px 20px ${accentColor}08` }}
       >
         <div className="h-0.5" style={{ background: `linear-gradient(90deg, ${accentColor}60, ${accentColor}20, transparent)` }} />
-        <div className="p-5 sm:p-7 lg:p-9">{children}</div>
+        <div className="p-5 sm:p-7 lg:p-9  max-sm:p-2">{children}</div>
       </div>
     </section>
   );

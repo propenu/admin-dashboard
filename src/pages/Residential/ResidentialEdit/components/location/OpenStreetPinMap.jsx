@@ -177,12 +177,7 @@ function LocationMarker({ position, onChange }) {
   return position ? <Marker position={position} icon={redIcon} /> : null;
 }
 
-// ─────────────────────────────────────────────
-// Main export
-// Props:
-//   value    – { type: "Point", coordinates: [lng, lat] } | null
-//   onChange – ([lng, lat]) => void
-// ─────────────────────────────────────────────
+─────────────────────────────────────────────
 
 export default function OpenStreetPinMap({ value, onChange }) {
   const coords   = value?.coordinates;                          // [lng, lat]

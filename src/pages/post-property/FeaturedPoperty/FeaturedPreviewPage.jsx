@@ -1,7 +1,3 @@
-
-
-
-
 // D:\propenu\frontend\admin-dashboard\src\pages\post-property\FeaturedPoperty\FeaturedPreviewPage.jsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";

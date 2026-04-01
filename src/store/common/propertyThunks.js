@@ -147,7 +147,7 @@ export const savePropertyData = createAsyncThunk(
       let response;
       switch (step) {
         case "basic":
-          response = await editPropertyBasic(category, id, fd);
+          response = await editPropertyBasic(category, id, stateForm);
           break;
         case "location": {
           const locationPayload = {
