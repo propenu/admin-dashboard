@@ -14,6 +14,9 @@ import {
   AlertCircle,
   Image as ImageIcon,
   ChevronRight,
+  AreaChart,
+  LucidePanelRightDashed,
+  LucidePanelLeftDashed,
 } from "lucide-react";
 import FALLBACK from "../../assets/fallback.svg";
 
@@ -141,25 +144,25 @@ export default function LandCard({ property }) {
         <div className="grid grid-cols-3 gap-4 py-3 border-y border-slate-50 mb-4">
           <div className="flex flex-col items-center md:items-start border-r border-slate-100">
             <div className="flex items-center gap-1.5 text-slate-400">
-              <Bed className="w-4 h-4" />
-              <span className="text-xs">Layout Type</span>
+              <LucidePanelLeftDashed className="w-4 h-4" />
+              <span className="text-xs">Width</span>
             </div>
             <span className="font-bold text-slate-700">
-              {property?.layoutType || 0}
+              {property?.dimensions?.width || 0}
             </span>
           </div>
           <div className="flex flex-col items-center md:items-start border-r border-slate-100">
             <div className="flex items-center gap-1.5 text-slate-400">
-              <Bath className="w-4 h-4" />
-              <span className="text-xs">Facing</span>
+              <LucidePanelRightDashed className="w-4 h-4" />
+              <span className="text-xs">Length</span>
             </div>
             <span className="font-bold text-slate-700">
-              {property?.facing || 0}
+              {property?.dimensions?.length || 0}
             </span>
           </div>
           <div className="flex flex-col items-center md:items-start">
             <div className="flex items-center gap-1.5 text-slate-400">
-              <Move className="w-4 h-4" />
+              <AreaChart className="w-4 h-4" />
               <span className="text-xs">Plot Area</span>
             </div>
             <span className="font-bold text-slate-700">
@@ -214,6 +217,8 @@ export default function LandCard({ property }) {
                 onClick={() => {
                   dispatch(setActiveCategory("land"));
                   dispatch(actions.land.hydrateForm(property));
+                  localStorage.setItem("editPropertyId", property._id);
+                  localStorage.setItem("editPropertyCategory", "land");
                   navigate(`/edit-property/${property._id}`);
                 }}
                 className="flex-1 sm:flex-none px-5 py-2 rounded-xl text-sm font-bold bg-[#27AE60] text-white transition-all active:scale-95"

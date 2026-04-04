@@ -131,10 +131,10 @@ export default function ResidentialCard({ property }) {
           <div className="flex flex-col items-center md:items-start">
             <div className="flex items-center gap-1.5 text-slate-400">
               <Move className="w-4 h-4" />
-              <span className="text-xs">Area</span>
+              <span className="text-xs">Carpet Area</span>
             </div>
             <span className="font-bold text-slate-700">
-              {property?.builtUpArea}{" "}
+              {property?.carpetArea || 0}{" "}
               <small className="text-[10px] font-normal">sqft</small>
             </span>
           </div>
@@ -182,6 +182,9 @@ export default function ResidentialCard({ property }) {
             ) : (
               <button
                 onClick={() => {
+                  localStorage.removeItem("editPropertyId");
+                  localStorage.removeItem("editPropertyCategory");
+                  
                   dispatch(setActiveCategory("residential"));
                   dispatch(actions.residential.hydrateForm(property));
                   localStorage.setItem("editPropertyId", property._id);

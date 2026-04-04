@@ -14,6 +14,14 @@ import {
   AlertCircle,
   Image as ImageIcon,
   ChevronRight,
+  AreaChart,
+  AreaChartIcon,
+  Rotate3D,
+  ListEnd,
+  MapIcon,
+  LandPlot,
+  LeafIcon,
+  Leaf,
 } from "lucide-react";
 import FALLBACK from "../../assets/fallback.svg";
 
@@ -140,30 +148,32 @@ export default function AgriculturalCard({ property }) {
         <div className="grid grid-cols-3 gap-4 py-3 border-y border-slate-50 mb-4">
           <div className="flex flex-col items-center md:items-start border-r border-slate-100">
             <div className="flex items-center gap-1.5 text-slate-400">
-              <Bed className="w-4 h-4" />
-              <span className="text-xs">borewellDetails</span>
+              <AreaChart className="w-4 h-4" />
+              <span className="text-xs">Total Area</span>
             </div>
             <span className="font-bold text-slate-700">
-              {property?.borewellDetails?.depthMeters || 0}
+              {property?.totalArea?.value || 0}
             </span>
           </div>
           <div className="flex flex-col items-center md:items-start border-r border-slate-100">
             <div className="flex items-center gap-1.5 text-slate-400">
-              <Bath className="w-4 h-4" />
-              <span className="text-xs">yieldLpm</span>
+              <MapIcon className="w-4 h-4" />
+              <span className="text-xs">Road Width</span>
             </div>
             <span className="font-bold text-slate-700">
-              {property?.borewellDetails?.yieldLpm || 0} Baths
+              {property?.roadWidth?.value || 0}
             </span>
           </div>
           <div className="flex flex-col items-center md:items-start">
             <div className="flex items-center gap-1.5 text-slate-400">
-              <Move className="w-4 h-4" />
+              <Leaf className="w-4 h-4" />
               <span className="text-xs">Property Type</span>
             </div>
             <span className="font-bold text-slate-700">
-              {property?.propertyType || 0}{" "}
-              {/* <small className="text-[10px] font-normal">sqft</small> */}
+              {property?.propertyType
+                ?.split("-")
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(" ") || ""}
             </span>
           </div>
         </div>
@@ -215,6 +225,8 @@ export default function AgriculturalCard({ property }) {
                 onClick={() => {
                   dispatch(setActiveCategory("agricultural"));
                   dispatch(actions.agricultural.hydrateForm(property));
+                  localStorage.setItem("editPropertyId", property._id);
+                  localStorage.setItem("editPropertyCategory", "agricultural");
                   navigate(`/edit-property/${property._id}`);
                 }}
                 className="flex-1 sm:flex-none px-5 py-2 rounded-xl text-sm font-bold bg-[#27AE60] text-white  transition-all active:scale-95"

@@ -7,7 +7,7 @@ export const useActivePropertySlice = () => {
 
   const activeCategory = useSelector((state) => state.ui.activeCategory);
    
-  const form = useSelector((state) => state[activeCategory].form);
+  const form = useSelector((state) => state[activeCategory]?.form);
 
   const updateFieldValue = (key, value) => {
     dispatch(actions[activeCategory].updateField({ key, value }));

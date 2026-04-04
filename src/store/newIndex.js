@@ -16,6 +16,7 @@ const getBaseState = (category, type) => ({
   // title: "",
   description: "",
   buildingName: "",
+  landName: "",
   address: "",
   city: "",
   state: "",
@@ -110,7 +111,7 @@ const land = createPropertySlice("land", {
     landUseZone: "",
     layoutType: "",
     dimensions: { length: "", width: ""},
-    landName: "",
+    
     approvedByAuthority: []
 });
 
@@ -124,7 +125,7 @@ const agricultural = createPropertySlice("agricultural", {
   roadWidth: { value: "", unit: "ft" },
   currentCrop: "",
   irrigationType: "",
-  landName: "",
+  
   suitableFor: "",
   plantationAge: "",
   numberOfBorewells: "",

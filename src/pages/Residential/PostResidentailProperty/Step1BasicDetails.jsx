@@ -401,26 +401,7 @@ const buildPayloadByCategory = (category, data) => {
 };
 
 
-  // const handleContinue = async () => {
-  //   const validationErrors = validateStep1();
-  //   if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
-  //   const propertyId = localStorage.getItem("propertyId");
-  //   if (!propertyId) { toast.error("Property draft not found. Please restart."); return; }
-
-  //   const { meta, completion, _id, __v, createdAt, updatedAt, gallery, documents, ...cleanData } = form;
-    
-
-  //   const finalPayload = buildPayloadByCategory(category, cleanData);
-  //   try {
-  //     await dispatch(savePropertyData({ category, id: propertyId, step: "basic", data: finalPayload })).unwrap();
-  //     toast.success("Basic details saved");
-  //     next();
-  //   } catch (err) {
-  //     console.error("Save Error:", err);
-  //     toast.error("Failed to save basic details");
-  //   }
-  // };
-
+  
 
   const handleContinue = async () => {
     console.log("🔍 DEBUG: Starting Validation for Category:", category);
@@ -554,7 +535,7 @@ const buildPayloadByCategory = (category, data) => {
               <BuiltUpArea error={errors.builtUpArea} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-              <Price error={errors.price} />
+              <Price  error={errors.price} />
               <PricePerSqft error={errors.pricePerSqft} />
               <Facing error={errors.facing} />
             </div>
@@ -562,7 +543,9 @@ const buildPayloadByCategory = (category, data) => {
           <CardWrapper>
             <SectionLabel>Property Details</SectionLabel>
             <div className="space-y-5">
-              <Furnishing error={errors.furnishing} />
+              <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
+                <Furnishing error={errors.furnishing} />
+              </div>
               <AgeOfProperty error={errors.propertyAge} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <AvailabilityStatus error={errors.constructionStatus} />

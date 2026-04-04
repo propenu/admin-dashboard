@@ -43,9 +43,11 @@ const AGRICULTURAL_FEATURES = [
 ]
 
 export default function StepPropertyDetails({ data, onChange, onSave }) {
+  console.log("📝 StepPropertyDetails data:", data);
   if (!data) return null;
   const upd = (f, v) => onChange(f, v, "details");
   const cat = data.propertyCategory?.toLowerCase();
+
   const totalImgs = (data.gallery?.length || 0) + (data.galleryFiles?.length || 0);
 
   return (

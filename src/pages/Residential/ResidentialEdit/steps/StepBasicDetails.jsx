@@ -6,7 +6,8 @@ import {
   ArrowRightLeft, ChevronDown, Save, Minus, Plus
 } from "lucide-react";
 import * as Enums from "../components/editable/residentialEnums";
-import TotalArea from "../components/editable/TotalArea";
+import TotalArea from "../components/editable/TotalArea"; 
+import CreatedBy  from "../../PostResidentailProperty/TypeSpecificFields/common/BasicCommonComponents/CreatedBy";
 
 const ROAD_WIDTH_UNITS = [
   { label: "Feet", value: "ft", icon: "📏" },
@@ -405,12 +406,13 @@ export default function StepBasicDetails({ data, onChange, onSave }) {
                   onChange={(v) => upd("price", v)}
                   prefix="₹"
                 />
-                
               </div>
             </FinCard>
           </div>
         </FinCard>
       )}
+
+      <CreatedBy data={data} />
 
       {/* Footer */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-6 border-t border-slate-100">
@@ -445,7 +447,7 @@ export default function StepBasicDetails({ data, onChange, onSave }) {
           ) : (
             <>
               <Save className="w-3.5 h-3.5" />
-              Save 
+              Save
             </>
           )}
         </button>

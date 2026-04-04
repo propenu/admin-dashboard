@@ -205,12 +205,12 @@ const AMENITIES = {
   ],
 };
 
-// const PROPERTY_TYPES = [
-//   { key: "residential", label: "Residential" },
-//   { key: "commercial", label: "Commercial" },
-//   { key: "land", label: "Land" },
-//   { key: "agricultural", label: "Agricultural" },
-// ];
+const PROPERTY_TYPES = [
+  { key: "residential", label: "Residential" },
+  { key: "commercial", label: "Commercial" },
+  { key: "land", label: "Land" },
+  { key: "agricultural", label: "Agricultural" },
+];
 
 export default function AmenitiesInput({
   value = [],
@@ -265,7 +265,7 @@ export default function AmenitiesInput({
   return (
     <div className="space-y-5">
       {/* Property Type Tabs */}
-      {/* <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap">
         {PROPERTY_TYPES.map((type) => (
           <button
             key={type.key}
@@ -281,7 +281,7 @@ export default function AmenitiesInput({
             {type.label}
           </button>
         ))}
-      </div> */}
+      </div>
 
       {/* Search Input */}
       <div className="relative">

@@ -289,6 +289,16 @@ export default function Sidebar({
           label: "Push Notifications",
           icon: LocationsIcon,
         },
+        {
+          path: "/email-notifications",
+          label: "Email Notifications",
+          icon: LocationsIcon,
+        },
+        {
+          path: "/whatsapp-notifications",
+          label: "WhatsApp Notifications",
+          icon: LocationsIcon,
+        },
       ],
 
       builder: [

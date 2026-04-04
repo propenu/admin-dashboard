@@ -6,13 +6,13 @@ import { getUserSearch } from "../../../../../../features/user/userService";
 const ROLES = [
   { label: "All",           value: ""              },
   { label: "User",          value: "user"          },
-  { label: "Builder",       value: "builder"       },
-  { label: "Agent",         value: "agent"         },
+  // { label: "Builder",       value: "builder"       },
+  // { label: "Agent",         value: "agent"         },
   { label: "Sales Manager", value: "sales_manager" },
   { label: "Sales Agent",   value: "sales_agent"   },
-  { label: "Super Admin",   value: "super_admin"   },
-  { label: "Admin",         value: "admin"         },
-  { label: "Customer Care", value: "customer_care" },
+  // { label: "Super Admin",   value: "super_admin"   },
+  // { label: "Admin",         value: "admin"         },
+  // { label: "Customer Care", value: "customer_care" },
 ];
 
 const inp = (err) =>
@@ -68,11 +68,11 @@ const CreatedBy = forwardRef(({ error }, ref) => {
 
   /* ── if form already has a createdBy id, find the user label ── */
   useEffect(() => {
-    if (form.createdBy && allUsers.length) {
-      const found = allUsers.find((u) => u._id === form.createdBy);
+    if (form?.createdBy && allUsers.length) {
+      const found = allUsers.find((u) => u?._id === form?.createdBy);
       if (found) setSelectedUser(found);
     }
-  }, [form.createdBy, allUsers]);
+  }, [form?.createdBy, allUsers]);
 
   /* ── derive unique location options (cascade) ── */
   const base = allUsers.filter((u) =>
@@ -216,7 +216,7 @@ const CreatedBy = forwardRef(({ error }, ref) => {
 
         {/* ── Dropdown panel ── */}
         {dropdownOpen && (
-          <div className="absolute z-50 top-full mt-2 left-0 right-0 bg-white border-2 border-gray-200
+          <div className="relative z-20 top-full mt-2 left-0 right-0 bg-white border-2 border-gray-200
             rounded-2xl shadow-xl overflow-hidden">
 
             {/* Role tabs */}
@@ -401,7 +401,7 @@ const CreatedBy = forwardRef(({ error }, ref) => {
                 </li>
               ) : (
                 filteredUsers.map((user) => {
-                  const isSelected = form.createdBy === user._id;
+                  const isSelected = form?.createdBy === user?._id;
                   return (
                     <li
                       key={user._id}

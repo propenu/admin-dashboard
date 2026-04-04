@@ -147,22 +147,22 @@ export default function CommercialCard({ property }) {
               <span className="text-xs">cabins</span>
             </div>
             <span className="font-bold text-slate-700">
-              {property?.cabins || 0} cabins
+              {property?.cabins || 0} 
             </span>
           </div>
           <div className="flex flex-col items-center md:items-start border-r border-slate-100">
             <div className="flex items-center gap-1.5 text-slate-400">
               <Ruler className="w-4 h-4" />
-              <span className="text-xs">BuiltUpArea</span>
+              <span className="text-xs">BuiltUp Area</span>
             </div>
             <span className="font-bold text-slate-700">
-              {property?.builtUpArea || 0} BuiltUpArea
+              {property?.builtUpArea || 0}  
             </span>
           </div>
           <div className="flex flex-col items-center md:items-start">
             <div className="flex items-center gap-1.5 text-slate-400">
               <LayoutGrid className="w-4 h-4" />
-              <span className="text-xs">CarpetArea</span>
+              <span className="text-xs">Carpet Area</span>
             </div>
             <span className="font-bold text-slate-700">
               {property?.carpetArea}{" "}
@@ -214,8 +214,11 @@ export default function CommercialCard({ property }) {
             ) : (
               <button
                 onClick={() => {
+
                   dispatch(setActiveCategory("commercial"));
                   dispatch(actions.commercial.hydrateForm(property));
+                  localStorage.setItem("editPropertyId", property._id);
+                  localStorage.setItem("editPropertyCategory", "commercial");
                   navigate(`/edit-property/${property._id}`);
                 }}
                 className="flex-1 sm:flex-none px-5 py-2 rounded-xl text-sm font-bold bg-[#27AE60] text-white  transition-all active:scale-95"

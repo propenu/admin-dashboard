@@ -1,5 +1,4 @@
 // src/features/property/common/userService.js
-
 import { apiClient } from "../../api/apiClient";
 import { SERVICES } from "../../config/services";
 import { ENV } from "../../config/env";
@@ -91,3 +90,69 @@ export const adminCustomNotification = (formData) => {
     formData,
   );
 };
+
+
+
+//All email notifications
+export const getAllEmailNotifications = () => {
+  return apiClient.get(`${SERVICES.USER}/notifications/email`);
+};
+
+
+//Email Notifications
+export const createEmailNotification = (formData) => {
+  return apiClient.post(`${SERVICES.USER}/notifications/email`, formData);
+}
+export const getEmailNotification = (slug) => {
+  return apiClient.get(`${SERVICES.USER}/notifications/email/${slug}`);
+}
+
+export const updateEmailNotification = (id, formData) => {
+  return apiClient.put(`${SERVICES.USER}/notifications/email/${id}`, formData);
+}
+
+export const deleteEmailNotification = (id) => {
+  return apiClient.delete(`${SERVICES.USER}/notifications/email/${id}`);
+}
+
+export const sentEmailNotification = (formData) => {
+  return apiClient.post(
+    `${SERVICES.USER}/notifications/send-email-campaign`,
+    formData,
+  );
+}
+
+
+{/* Whatsapp Notification */}
+export const createWhatsAppNotification = (formData) => {
+  return apiClient.post(
+    `${SERVICES.USER}/notifications/whatsapp/template`,
+    formData,
+  );
+}
+
+export const updateWhatsAppNotification = (formData) => {
+  return apiClient.put(
+    `${SERVICES.USER}/notifications/whatsapp/template`,
+    formData,
+  );
+};
+
+export const getAllWhatsAppNotifications = () => {
+  return apiClient.get(`${SERVICES.USER}/notifications/whatsapp/template`);
+}
+
+export const getWhatsAppNotificationByName = (name) => {
+  return apiClient.get(
+    `${SERVICES.USER}/notifications/whatsapp/template/${name}`,
+  );
+}
+
+export const deleteWhatsAppNotificationByName = (name) => {
+  return apiClient.delete(
+    `${SERVICES.USER}/notifications/whatsapp/template/${name}`,
+  );
+}
+
+
+

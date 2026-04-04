@@ -156,6 +156,7 @@ export const savePropertyData = createAsyncThunk(
             city: stateForm.city,
             state: stateForm.state,
             buildingName: stateForm.buildingName,
+            landName: stateForm.landName,
             pincode: stateForm.pincode,
             location: stateForm.location,
             nearbyPlaces: stateForm.nearbyPlaces,

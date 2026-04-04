@@ -1,9 +1,6 @@
-
-
-
 // ── PantryInput ──
 import { useEffect as uE, useRef as uR, useState } from "react";
-import { Coffee, ChevronDown, Check } from "lucide-react";
+import { Coffee, ChevronDown, Check, X } from "lucide-react";
 const PANTRY = [{ label: "None", value: "none" }, { label: "Shared", value: "shared" }, { label: "Private", value: "private" }];
 export default function PantryInput({ data, onChange }) {
   const p = data.pantry || { type: "none", insidePremises: true, shared: false };

@@ -50,7 +50,7 @@ const Price = forwardRef(({ error }, ref) => {
           placeholder="Expected price"
           value={form.price || ""}
           onChange={(e) => updateFieldValue("price", e.target.value)}
-          className="flex-1 px-4 py-3 outline-none text-sm font-semibold placeholder:text-[#c9c9c9] text-[#111827]"
+          className="flex-1 px-2 py-3 outline-none text-sm font-semibold placeholder:text-[#c9c9c9] text-[#111827]"
         />
       </div>
       {error && <p className="text-red-500 text-xs font-medium">{error}</p>}

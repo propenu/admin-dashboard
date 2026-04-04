@@ -100,7 +100,7 @@ const CHAR_LIMIT = 5000;
 
 const TiptapEditor = ({ value, onChange }) => {
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [wordCount, setWordCount]         = useState(0);
+  const [wordCount, setWordCount] = useState(0);
 
   const editor = useEditor({
     extensions: [
@@ -109,10 +109,17 @@ const TiptapEditor = ({ value, onChange }) => {
       Highlight.configure({ multicolor: false }),
       Subscript,
       Superscript,
-      Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-[#27AE60] underline" } }),
-      Image.configure({ HTMLAttributes: { class: "rounded-xl max-w-full my-2" } }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { class: "text-[#27AE60] underline" },
+      }),
+      Image.configure({
+        HTMLAttributes: { class: "rounded-xl max-w-full my-2" },
+      }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Placeholder.configure({ placeholder: "Start writing your property description here…" }),
+      Placeholder.configure({
+        placeholder: "Start writing your property description here…",
+      }),
       CharacterCount.configure({ limit: CHAR_LIMIT }),
     ],
     content: value || "",
@@ -129,6 +136,8 @@ const TiptapEditor = ({ value, onChange }) => {
     },
   });
 
+  
+
   // Sync external value changes
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
@@ -136,20 +145,21 @@ const TiptapEditor = ({ value, onChange }) => {
     }
   }, [value, editor]);
 
-  if (!editor) return (
-    <div className="w-full border-2 border-gray-200 rounded-2xl bg-white animate-pulse">
-      <div className="h-12 bg-gray-100 border-b border-gray-200 rounded-t-2xl" />
-      <div className="h-48 p-5 space-y-3">
-        <div className="h-3 bg-gray-100 rounded-full w-3/4" />
-        <div className="h-3 bg-gray-100 rounded-full w-1/2" />
-        <div className="h-3 bg-gray-100 rounded-full w-5/6" />
+  if (!editor)
+    return (
+      <div className="w-full border-2 border-gray-200 rounded-2xl bg-white animate-pulse">
+        <div className="h-12 bg-gray-100 border-b border-gray-200 rounded-t-2xl" />
+        <div className="h-48 p-5 space-y-3">
+          <div className="h-3 bg-gray-100 rounded-full w-3/4" />
+          <div className="h-3 bg-gray-100 rounded-full w-1/2" />
+          <div className="h-3 bg-gray-100 rounded-full w-5/6" />
+        </div>
       </div>
-    </div>
-  );
+    );
 
-  const chars     = editor.storage.characterCount.characters();
+  const chars = editor.storage.characterCount.characters();
   const remaining = CHAR_LIMIT - chars;
-  const pct       = Math.min(100, (chars / CHAR_LIMIT) * 100);
+  const pct = Math.min(100, (chars / CHAR_LIMIT) * 100);
 
   const handleLinkConfirm = (url) => {
     setShowLinkModal(false);
@@ -163,7 +173,10 @@ const TiptapEditor = ({ value, onChange }) => {
     const formData = new FormData();
     formData.append("image", file);
     try {
-      const res  = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
       const data = await res.json();
       editor.chain().focus().setImage({ src: data.imageUrl }).run();
     } catch {
@@ -173,13 +186,10 @@ const TiptapEditor = ({ value, onChange }) => {
 
   return (
     <div className="w-full border-2 border-gray-200 rounded-2xl bg-white overflow-hidden shadow-sm">
-
       {/* ── Toolbar ── */}
       <div className="px-3 py-2.5 border-b border-gray-100 bg-gray-50">
-
         {/* Row 1: History + Formatting + Headings */}
         <div className="flex flex-wrap items-center gap-0.5 mb-1">
-
           {/* History */}
           <ToolBtn
             title="Undo (Ctrl+Z)"
@@ -199,33 +209,139 @@ const TiptapEditor = ({ value, onChange }) => {
           <Divider />
 
           {/* Text formatting */}
-          <ToolBtn title="Bold (Ctrl+B)"      active={editor.isActive("bold")}      onClick={() => editor.chain().focus().toggleBold().run()}>      <Bold size={16} /></ToolBtn>
-          <ToolBtn title="Italic (Ctrl+I)"    active={editor.isActive("italic")}    onClick={() => editor.chain().focus().toggleItalic().run()}>    <Italic size={16} /></ToolBtn>
-          <ToolBtn title="Underline (Ctrl+U)" active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()}> <UnderlineIcon size={16} /></ToolBtn>
-          <ToolBtn title="Highlight"          active={editor.isActive("highlight")} onClick={() => editor.chain().focus().toggleHighlight().run()}>  <Highlighter size={16} /></ToolBtn>
-          <ToolBtn title="Subscript"          active={editor.isActive("subscript")} onClick={() => editor.chain().focus().toggleSubscript().run()}>  <SubIcon size={16} /></ToolBtn>
-          <ToolBtn title="Superscript"        active={editor.isActive("superscript")} onClick={() => editor.chain().focus().toggleSuperscript().run()}><SuperIcon size={16} /></ToolBtn>
+          <ToolBtn
+            title="Bold (Ctrl+B)"
+            active={editor.isActive("bold")}
+            onClick={() => editor.chain().focus().toggleBold().run()}
+          >
+            {" "}
+            <Bold size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Italic (Ctrl+I)"
+            active={editor.isActive("italic")}
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+          >
+            {" "}
+            <Italic size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Underline (Ctrl+U)"
+            active={editor.isActive("underline")}
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+          >
+            {" "}
+            <UnderlineIcon size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Highlight"
+            active={editor.isActive("highlight")}
+            onClick={() => editor.chain().focus().toggleHighlight().run()}
+          >
+            {" "}
+            <Highlighter size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Subscript"
+            active={editor.isActive("subscript")}
+            onClick={() => editor.chain().focus().toggleSubscript().run()}
+          >
+            {" "}
+            <SubIcon size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Superscript"
+            active={editor.isActive("superscript")}
+            onClick={() => editor.chain().focus().toggleSuperscript().run()}
+          >
+            <SuperIcon size={16} />
+          </ToolBtn>
 
           <Divider />
 
           {/* Headings */}
-          <ToolBtn title="Heading 1" active={editor.isActive("heading", { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 size={16} /></ToolBtn>
-          <ToolBtn title="Heading 2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={16} /></ToolBtn>
-          <ToolBtn title="Heading 3" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}><Heading3 size={16} /></ToolBtn>
-          <ToolBtn title="Paragraph" active={editor.isActive("paragraph") && !editor.isActive("heading")} onClick={() => editor.chain().focus().setParagraph().run()}><Type size={16} /></ToolBtn>
+          <ToolBtn
+            title="Heading 1"
+            active={editor.isActive("heading", { level: 1 })}
+            onClick={() =>
+              editor.chain().focus().toggleHeading({ level: 1 }).run()
+            }
+          >
+            <Heading1 size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Heading 2"
+            active={editor.isActive("heading", { level: 2 })}
+            onClick={() =>
+              editor.chain().focus().toggleHeading({ level: 2 }).run()
+            }
+          >
+            <Heading2 size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Heading 3"
+            active={editor.isActive("heading", { level: 3 })}
+            onClick={() =>
+              editor.chain().focus().toggleHeading({ level: 3 }).run()
+            }
+          >
+            <Heading3 size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Paragraph"
+            active={editor.isActive("paragraph") && !editor.isActive("heading")}
+            onClick={() => editor.chain().focus().setParagraph().run()}
+          >
+            <Type size={16} />
+          </ToolBtn>
 
           <Divider />
 
           {/* Lists */}
-          <ToolBtn title="Bullet List"   active={editor.isActive("bulletList")}  onClick={() => editor.chain().focus().toggleBulletList().run()}>  <List size={16} /></ToolBtn>
-          <ToolBtn title="Ordered List"  active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()}> <ListOrdered size={16} /></ToolBtn>
+          <ToolBtn
+            title="Bullet List"
+            active={editor.isActive("bulletList")}
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+          >
+            {" "}
+            <List size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Ordered List"
+            active={editor.isActive("orderedList")}
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          >
+            {" "}
+            <ListOrdered size={16} />
+          </ToolBtn>
 
           <Divider />
 
           {/* Alignment */}
-          <ToolBtn title="Align Left"   active={editor.isActive({ textAlign: "left" })}   onClick={() => editor.chain().focus().setTextAlign("left").run()}>   <AlignLeft size={16} /></ToolBtn>
-          <ToolBtn title="Align Center" active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()}> <AlignCenter size={16} /></ToolBtn>
-          <ToolBtn title="Align Right"  active={editor.isActive({ textAlign: "right" })}  onClick={() => editor.chain().focus().setTextAlign("right").run()}>  <AlignRight size={16} /></ToolBtn>
+          <ToolBtn
+            title="Align Left"
+            active={editor.isActive({ textAlign: "left" })}
+            onClick={() => editor.chain().focus().setTextAlign("left").run()}
+          >
+            {" "}
+            <AlignLeft size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Align Center"
+            active={editor.isActive({ textAlign: "center" })}
+            onClick={() => editor.chain().focus().setTextAlign("center").run()}
+          >
+            {" "}
+            <AlignCenter size={16} />
+          </ToolBtn>
+          <ToolBtn
+            title="Align Right"
+            active={editor.isActive({ textAlign: "right" })}
+            onClick={() => editor.chain().focus().setTextAlign("right").run()}
+          >
+            {" "}
+            <AlignRight size={16} />
+          </ToolBtn>
 
           <Divider />
 
@@ -255,14 +371,21 @@ const TiptapEditor = ({ value, onChange }) => {
           </ToolBtn>
 
           {/* Image upload */}
-          <label className={`
+          <label
+            className={`
             relative p-2 rounded-lg transition-all duration-150 flex items-center justify-center cursor-pointer
             text-gray-500 hover:text-gray-900 hover:bg-gray-100
-          `} title="Insert Image">
+          `}
+            title="Insert Image"
+          >
             <ImageIcon size={16} />
-            <input type="file" hidden accept="image/*" onChange={handleImageUpload} />
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={handleImageUpload}
+            />
           </label>
-
         </div>
       </div>
 
@@ -293,7 +416,12 @@ const TiptapEditor = ({ value, onChange }) => {
             className="h-full rounded-full transition-all duration-300"
             style={{
               width: `${pct}%`,
-              background: pct >= 95 ? "#ef4444" : pct >= 80 ? "#f59e0b" : "linear-gradient(90deg,#27AE60,#2ecc71)",
+              background:
+                pct >= 95
+                  ? "#ef4444"
+                  : pct >= 80
+                    ? "#f59e0b"
+                    : "linear-gradient(90deg,#27AE60,#2ecc71)",
             }}
           />
         </div>
@@ -301,8 +429,16 @@ const TiptapEditor = ({ value, onChange }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <span className="text-xs font-bold text-gray-500">
-              <span className="font-black" style={{ color: charColor(chars, CHAR_LIMIT) }}>{chars}</span>
-              <span className="text-gray-400"> / {CHAR_LIMIT.toLocaleString()} chars</span>
+              <span
+                className="font-black"
+                style={{ color: charColor(chars, CHAR_LIMIT) }}
+              >
+                {chars}
+              </span>
+              <span className="text-gray-400">
+                {" "}
+                / {CHAR_LIMIT.toLocaleString()} chars
+              </span>
             </span>
             <span className="text-xs font-bold text-gray-500">
               <span className="font-black text-gray-700">{wordCount}</span>
@@ -315,7 +451,7 @@ const TiptapEditor = ({ value, onChange }) => {
               className="text-xs font-black px-2.5 py-1 rounded-lg"
               style={{
                 background: remaining <= 50 ? "#fef2f2" : "#fffbeb",
-                color:      remaining <= 50 ? "#ef4444" : "#d97706",
+                color: remaining <= 50 ? "#ef4444" : "#d97706",
               }}
             >
               {remaining} chars remaining
@@ -325,6 +461,6 @@ const TiptapEditor = ({ value, onChange }) => {
       </div>
     </div>
   );
-};
+};;
 
 export default TiptapEditor;

@@ -12,6 +12,69 @@ import StepBasicDetails from "./steps/StepBasicDetails";
 import StepLocationDetails from "./steps/StepLocationDetails";
 import StepPropertyDetails from "./steps/StepPropertyDetails";
 import StepVerifyPublish from "./steps/StepVerifyPublish";
+import { getPropertyById } from "../../../services/Common/AllPropertyServices";
+import { setActiveCategory } from "../../../store/Ui/uiSlice";
+
+const cleanData = (obj) => {
+  // ✅ Handle File
+  if (obj instanceof File) return obj;
+
+  // ✅ Handle FileList
+  if (obj instanceof FileList) return Array.from(obj);
+
+  // ✅ Handle Date
+  if (obj instanceof Date) return obj;
+
+  // ✅ Handle Array
+  if (Array.isArray(obj)) {
+    return obj
+      .map(cleanData)
+      .filter(
+        (v) =>
+          v !== undefined &&
+          v !== null &&
+          !(
+            typeof v === "object" &&
+            !(v instanceof File) &&
+            Object.keys(v).length === 0
+          ),
+      );
+  }
+
+  // ✅ Handle Object
+  if (obj && typeof obj === "object") {
+    const cleaned = {};
+
+    Object.keys(obj).forEach((key) => {
+      let value = obj[key];
+
+      // 🔥 Fix createdBy
+      if (key === "createdBy" && typeof value === "object") {
+        value = value?._id;
+      }
+
+      const cleanedValue = cleanData(value);
+
+      if (
+        cleanedValue !== "" &&
+        cleanedValue !== undefined &&
+        cleanedValue !== null &&
+        !(
+          typeof cleanedValue === "object" &&
+          !(cleanedValue instanceof File) &&
+          !(cleanedValue instanceof Date) &&
+          Object.keys(cleanedValue).length === 0
+        )
+      ) {
+        cleaned[key] = cleanedValue;
+      }
+    });
+
+    return cleaned;
+  }
+
+  return obj;
+};
 
 export default function EditWizard() {
   const { id } = useParams();
@@ -30,62 +93,153 @@ export default function EditWizard() {
   const propertyId = id || storedId; 
   console.log("🆔edit Current Property ID from Storage:", propertyId);
 
+  useEffect(() => {
+    if (storedCategory) {
+      console.log("🔁 Force setting category:", storedCategory);
+      dispatch(setActiveCategory(storedCategory));
+    }
+  }, [storedCategory, dispatch]);
+
+
+   useEffect(() => {
+     if (!category && storedCategory) {
+       dispatch(setActiveCategory(storedCategory));
+     }
+   }, [category, storedCategory, dispatch]);
   const { form: current, loading } = useSelector((s) => s[category] || {});
+
+useEffect(() => {
+  if (!category || !propertyId) return;
+
+  console.log("🔥 FETCHING PROPERTY:", category, propertyId);
+
+  const fetchData = async () => {
+    try {
+      const res = await getPropertyById(category, propertyId);
+
+      const property = res?.data;
+
+      console.log("✅ API RESPONSE:", property);
+
+      if (!property) return;
+
+      dispatch(
+        actions[category].hydrateForm({
+          ...property,
+          galleryFiles: property.galleryFiles || [],
+          amenities: property.amenities || [],
+        }),
+      );
+    } catch (err) {
+      console.error("❌ FETCH ERROR:", err);
+    }
+  };
+
+  fetchData();
+}, [category, propertyId]);
+
+ 
+
+
 
   const debouncedAutoSave = useMemo(
     () =>
       debounce(async (stepName) => {
         console.log("🔄 Auto-saving step:", stepName);
         try {
-          await dispatch(savePropertyData({ category, id: propertyId, step: stepName })).unwrap();
+          const payload = cleanData(current);
+          console.log("🔥 Payload:", payload);
+          await dispatch(savePropertyData({ category, id: propertyId, step: stepName ,data:payload})).unwrap();
           console.log("✅ Auto-save successful:", stepName);
         } catch (err) {
           console.error("❌ Autosave failed:", err);
         }
       }, 1500),
-    [id, category, dispatch]
+    [id, category, dispatch, current],
   );
 
-  // ✅ FIXED: Handle both flat and nested field updates
-  const handleFieldUpdate = (field, value, stepName) => {
-    console.log("📝 Field update:", field, value);
+  
 
-    dispatch(
-      actions[category].updateField({
-        key: field,
-        value: value,
-      }),
-    );
+ const handleFieldUpdate = (field, value, stepName) => {
+   if (!category || !actions[category]) {
+     console.error("❌ Category not ready:", category);
+     toast.error("Category not ready");
+     return;
+   }
 
-    debouncedAutoSave(stepName);
-  };
+   dispatch(
+     actions[category].updateField({
+       key: field,
+       value: value,
+     }),
+   );
+
+   debouncedAutoSave(stepName);
+ };
+
+  
 
   const handleUploadDocument = async (files) => {
+    // update Redux
     dispatch(actions[category].setDocumentsFiles(files));
-    await dispatch(savePropertyData({ category, id: propertyId, step: "verification" })).unwrap();
+
+    // ✅ use latest data manually
+    const payload = cleanData({
+      ...current,
+      documentsFiles: files, // 🔥 FORCE latest files
+    });
+
+    await dispatch(
+      savePropertyData({
+        category,
+        id: propertyId,
+        step: "verification",
+        data: payload,
+      }),
+    ).unwrap();
+
     toast.success("Documents uploaded");
+
   };
 
   const handleVerifyDocument = (index, status) => {
     const serverDocs = [...(current.verificationDocuments || [])];
     const localDocs = [...(current.documentsFiles || [])];
+
     if (index < serverDocs.length) {
       serverDocs[index] = { ...serverDocs[index], status };
-      dispatch(actions[category].updateField({ key: "verificationDocuments", value: serverDocs }));
     } else {
       const li = index - serverDocs.length;
       if (localDocs[li]) {
         localDocs[li] = { ...localDocs[li], status };
-        dispatch(actions[category].setDocumentsFiles(localDocs));
       }
     }
-    debouncedAutoSave("verification");
-  };
 
+    // update Redux
+    dispatch(actions[category].setDocumentsFiles(localDocs));
+
+    // ✅ FIX: use updated data
+    const payload = cleanData({
+      ...current,
+      documentsFiles: localDocs,
+      verificationDocuments: serverDocs,
+    });
+
+    dispatch(
+      savePropertyData({
+        category,
+        id: propertyId,
+        step: "verification",
+        data: payload,
+      }),
+    );
+  };
+  
   const handleStepSave = async (stepName) => {
     const tid = toast.loading(`Saving ${stepName}...`);
     try {
-      await dispatch(savePropertyData({ category, id, step: stepName })).unwrap();
+      const payload = cleanData(current);
+      await dispatch(savePropertyData({ category, id, step: stepName, data: payload })).unwrap();
       toast.success("Saved to cloud!", { id: tid });
     } catch {
       toast.error("Sync failed", { id: tid });
@@ -95,7 +249,8 @@ export default function EditWizard() {
   const handleSubmit = async () => {
     const tid = toast.loading("Publishing...");
     try {
-      await dispatch(savePropertyData({ category, id, step: "verification" })).unwrap();
+      const payload = cleanData(current);
+      await dispatch(savePropertyData({ category, id, step: "verification", data: payload })).unwrap();
       toast.success("Property is Live!", { id: tid });
       navigate(`/${category}`);
     } catch (err) {
@@ -103,11 +258,15 @@ export default function EditWizard() {
     }
   };
 
+   
+
+ 
+
 console.log("🆔edit Current Property ID:", propertyId);
 console.log("🆔edit Current Property Category:", category);
 console.log("🆔edit Current Property:", current);
 
-  if (!category) {
+  if (!category || !propertyId) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#f0fdf4] via-white to-[#ecfdf5] flex flex-col items-center justify-center gap-6 px-4">
         <div className="flex flex-col items-center gap-5">
