@@ -1282,7 +1282,7 @@ const ViewModal = ({ item, onClose, onEdit }) => {
         )}
 
         {/* Raw JSON */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
+        {/* <div className="border border-gray-200 rounded-xl overflow-hidden">
           <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
             <FileText size={12} className="text-gray-400" />
             <p className="text-[10px] font-bold uppercase text-gray-400">
@@ -1292,7 +1292,7 @@ const ViewModal = ({ item, onClose, onEdit }) => {
           <pre className="p-3 text-[10px] text-gray-600 font-mono whitespace-pre-wrap bg-white max-h-44 overflow-y-auto">
             {JSON.stringify(item, null, 2)}
           </pre>
-        </div>
+        </div> */}
 
         <button
           onClick={onEdit}
@@ -1494,25 +1494,7 @@ const WhatsUpNotifications = () => {
     }
   };
 
-  // ── UPDATE — PUT /notifications/whatsapp/template
-//   const handleUpdate = async (payload) => {
-//     try {
-//       setSubmitting(true);
-//       await updateWhatsAppNotification(payload);
-//       toast.success("Template updated!");
-//       setEditItem(null);
-//       fetchAll();
-//     } catch (err) {
-//       const msg =
-//         err?.response?.data?.message?.error?.error_user_msg ||
-//         err?.response?.data?.message?.error?.message ||
-//         err?.response?.data?.message ||
-//         "Failed to update template";
-//       toast.error(msg);
-//     } finally {
-//       setSubmitting(false);
-//     }
-//   };
+  
 
   // ── DELETE — DELETE /whatsapp/template/:name  (uses Meta `name` field)
   const handleDelete = async () => {
@@ -1583,20 +1565,7 @@ const WhatsUpNotifications = () => {
           />
         </Modal>
       )}
-      {/* {editItem && (
-        <Modal
-          title="Edit Template"
-          icon={<Edit2 size={16} />}
-          wide
-          onClose={() => setEditItem(null)}
-        >
-          <TemplateForm
-            initial={editItem}
-            onSubmit={handleUpdate}
-            submitting={submitting}
-          />
-        </Modal>
-      )} */}
+     
       {viewItem && (
         <ViewModal
           item={viewItem}
@@ -1614,7 +1583,7 @@ const WhatsUpNotifications = () => {
       )}
 
       {/* Topbar */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 h-16 flex items-center justify-between sticky top-0 z-40">
+      <div className="bg-green-50 border-b border-gray-200 px-4 sm:px-6 h-16 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#25D366] flex items-center justify-center flex-shrink-0">
             <MessageSquare size={18} className="text-white" />
