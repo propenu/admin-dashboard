@@ -1,3 +1,5 @@
+//src/pages/EmailNotifications/modals/Modal.jsx
+
 import { X } from "lucide-react";
 
 export const Modal = ({ title, icon, wide, onClose, children }) => (
