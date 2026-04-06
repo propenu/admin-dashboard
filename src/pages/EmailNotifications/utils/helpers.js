@@ -1,3 +1,5 @@
+
+src/pages/EmailNotifications/utils/helpers.js
 import { Mail, PartyPopper, Send, Zap } from "lucide-react";
 
 // ─── helpers ──────────//

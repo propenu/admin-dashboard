@@ -2,9 +2,8 @@
 import { useState } from "react";
 import { useMemo } from "react";
 import { toast } from "react-hot-toast";
-import { applyValues, extractAllVars } from "../utils/Helpers";
+import { applyValues, extractAllVars, toSamplesMap } from "../utils/helpers";
 
-import { toSamplesMap } from "../utils/Helpers";
 import { BodySection } from "./sections/BodySection";
 import { DetectedVarsPanel } from "./sections/DetectedVarsPanel";
 import { InfoSection } from "./sections/InfoSection";

@@ -5,7 +5,7 @@ import {
   Mail,
   Send,
 } from "lucide-react";
-import { getCatMeta, formatDate } from "../utils/Helpers";
+import { getCatMeta, formatDate } from "../utils/helpers";
 
 
 const TemplateCard = ({ item, onView, onEdit, onDelete, onSend }) => {

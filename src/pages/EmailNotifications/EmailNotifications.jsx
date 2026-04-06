@@ -9,7 +9,7 @@ import { Modal } from "./modals/Modal";
 import { ViewModal } from "./modals/ViewModal";
 import { DeleteConfirm } from "./modals/DeleteConfirm";
 import { SendCampaignModal } from "./modals/SendCampaignModal";
-import { getCatMeta } from "./utils/Helpers";
+import { getCatMeta } from "./utils/helpers";
 const EMPTY_FORM = {
   name: "", slug: "", subject: "", content: "",
   variables: [], category: "festival", status: "active",
