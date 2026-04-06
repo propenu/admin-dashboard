@@ -1,4 +1,4 @@
-import { applyValues } from "../../utils/Helpers";
+import { applyValues } from "../../utils/helpers";
 
 
 export const PreviewPanel = ({ form, detectedVars, samplesMap }) => (

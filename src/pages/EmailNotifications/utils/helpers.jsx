@@ -1,6 +1,5 @@
 
-src/pages/EmailNotifications/utils/helpers.js
-import { Mail, PartyPopper, Send, Zap } from "lucide-react";
+//src/pages/EmailNotifications/utils/helpers.js
 
 // ─── helpers ──────────//
 export const formatDate = (iso) =>
@@ -15,24 +14,28 @@ export const formatDate = (iso) =>
 
 export const getCatMeta = (c) =>
   CATEGORY_META[c] || {
-    icon: <Mail size={14} />,
+    // icon: <Mail size={14} />,
+    icon:"mail",
     label: c,
     color: "bg-gray-100 text-gray-600 border-gray-200",
   };
 
 export const CATEGORY_META = {
   festival: {
-    icon: <PartyPopper size={14} />,
+    // icon: <PartyPopper size={14} />,
+    icon:"partypopper",
     label: "Festival",
     color: "bg-amber-100 text-amber-800 border-amber-200",
   },
   offer: {
-    icon: <Send size={14} />,
+    // icon: <Send size={14} />,
+    icon:"send",
     label: "Offer",
     color: "bg-purple-100 text-purple-800 border-purple-200",
   },
   transactional: {
-    icon: <Zap size={14} />,
+    // icon: <Zap size={14} />,
+    icon:"zap",
     label: "Transactional",
     color: "bg-blue-100 text-blue-800 border-blue-200",
   },

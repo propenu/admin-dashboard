@@ -4,8 +4,19 @@ import {
   Edit2,
   Mail,
   Send,
+  PartyPopper,
+  Zap,
 } from "lucide-react";
 import { getCatMeta, formatDate } from "../utils/helpers";
+
+
+
+const iconMap = {
+  mail: <Mail size={14} />,
+  partypopper: <PartyPopper size={14} />,
+  send: <Send size={14} />,
+  zap: <Zap size={14} />,
+};
 
 
 const TemplateCard = ({ item, onView, onEdit, onDelete, onSend }) => {
@@ -16,8 +27,6 @@ const TemplateCard = ({ item, onView, onEdit, onDelete, onSend }) => {
       onClick={() => onView(item)}
       className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-green-200 transition-all cursor-pointer group"
     >
-
-
       <div className="flex items-start gap-3 p-4">
         <div className="w-10 h-10 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center text-green-700 flex-shrink-0">
           <Mail size={18} />
@@ -38,7 +47,7 @@ const TemplateCard = ({ item, onView, onEdit, onDelete, onSend }) => {
             <span
               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${meta.color}`}
             >
-              {meta.icon} {meta.label}
+              {iconMap[meta.icon]} {meta.label}
             </span>
           </div>
         </div>
@@ -74,7 +83,6 @@ const TemplateCard = ({ item, onView, onEdit, onDelete, onSend }) => {
           {item.subject}
         </p>
       </div>
-
 
       <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 bg-gray-50/50">
         <div className="flex items-center gap-1.5 flex-wrap">
