@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import {Plus, X, Search, Edit2, Mail,Check, AlertCircle, Loader2, Tag, } from "lucide-react";
 import { getEmailNotification} from "../../features/user/userService";
-import { useEmailNotifications } from "./hooks/useEmailNotifications";
+import { useEmailNotifications} from "./hooks/useEmailNotifications";
 import TemplateCard from "./emailNotificationComponents/TemplateCard";
 import NotificationForm from "./emailNotificationComponents/NotificationForm";
 import { Modal } from "./modals/Modal";
