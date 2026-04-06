@@ -3,7 +3,7 @@
 
 import { X } from "lucide-react";
 
-export const CreateModal = ({ title, icon, wide, onClose, children }) => (
+export const Modal = ({ title, icon, wide, onClose, children }) => (
   <div
     className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4 bg-black/40 backdrop-blur-sm"
     onClick={(e) => e.target === e.currentTarget && onClose()}

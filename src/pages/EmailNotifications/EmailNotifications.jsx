@@ -5,7 +5,7 @@ import { getEmailNotification} from "../../features/user/userService";
 import { useEmailNotifications} from "./hooks/useEmailNotifications";
 import TemplateCard from "./emailNotificationComponents/TemplateCard";
 import NotificationForm from "./emailNotificationComponents/NotificationForm";
-import { CreateModal } from "./modals/CreateModal.jsx";
+import { Modal } from "./modals/CreateModal.jsx";
 import { ViewModal } from "./modals/ViewModal.jsx";
 import { DeleteConfirm } from "./modals/DeleteConfirm.jsx";
 import { SendCampaignModal } from "./modals/SendCampaignModal.jsx";
@@ -72,7 +72,7 @@ const EmailNotifications = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {showCreate && (
-        <CreateModal
+        <Modal
           title="Create New Template"
           icon={<Mail size={16} />}
           wide
@@ -85,7 +85,7 @@ const EmailNotifications = () => {
             }
             submitting={submitting}
           />
-        </CreateModal>
+        </Modal>
       )}
       {editItem && (
         <Modal
