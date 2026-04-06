@@ -2,16 +2,16 @@
 import { useState } from "react";
 import { useMemo } from "react";
 import { toast } from "react-hot-toast";
-import { applyValues, extractAllVars } from "../Utils/helpers";
+import { applyValues, extractAllVars } from "../utils/Helpers";
 
-import { toSamplesMap } from "../Utils/helpers";
-import { BodySection } from "./Sections/BodySection";
-import { DetectedVarsPanel } from "./Sections/DetectedVarsPanel";
-import { InfoSection } from "./Sections/InfoSection";
-import { PreviewPanel } from "./Sections/PreviewPanel";
-import { StatusSection } from "./Sections/StatusSection";
-import { SubjectSection } from "./Sections/SubjectSection";
-import { VariableSamplesSection } from "./Sections/VariableSamplesSection";
+import { toSamplesMap } from "../utils/Helpers";
+import { BodySection } from "./sections/BodySection";
+import { DetectedVarsPanel } from "./sections/DetectedVarsPanel";
+import { InfoSection } from "./sections/InfoSection";
+import { PreviewPanel } from "./sections/PreviewPanel";
+import { StatusSection } from "./sections/StatusSection";
+import { SubjectSection } from "./sections/SubjectSection";
+import { VariableSamplesSection } from "./sections/VariableSamplesSection";
 import { Loader2 } from "lucide-react";
 
 

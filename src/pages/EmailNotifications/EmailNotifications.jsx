@@ -2,14 +2,14 @@
 import { useEffect, useState } from "react";
 import {Plus, X, Search, Edit2, Mail,Check, AlertCircle, Loader2, Tag, } from "lucide-react";
 import { getEmailNotification} from "../../features/user/userService";
-import { useEmailNotifications } from "./Hooks/useEmailNotifications";
-import TemplateCard from "./EmaiNotificationComponents/TemplateCard";
-import NotificationForm from "./EmaiNotificationComponents/NotificationForm";
-import { Modal } from "./Modals/Modal";
-import { ViewModal } from "./Modals/ViewModal";
-import { DeleteConfirm } from "./Modals/DeleteConfirm";
-import { SendCampaignModal } from "./Modals/SendCampaignModal";
-import { getCatMeta } from "./Utils/helpers";
+import { useEmailNotifications } from "./hooks/useEmailNotifications";
+import TemplateCard from "./emailNotificationComponents/TemplateCard";
+import NotificationForm from "./emailNotificationComponents/NotificationForm";
+import { Modal } from "./modals/Modal";
+import { ViewModal } from "./modals/ViewModal";
+import { DeleteConfirm } from "./modals/DeleteConfirm";
+import { SendCampaignModal } from "./modals/SendCampaignModal";
+import { getCatMeta } from "./utils/Helpers";
 const EMPTY_FORM = {
   name: "", slug: "", subject: "", content: "",
   variables: [], category: "festival", status: "active",

@@ -1,4 +1,4 @@
-import { CATEGORY_META } from "../../Utils/helpers";
+import { CATEGORY_META } from "../../utils/Helpers";
 
 
 

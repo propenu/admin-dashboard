@@ -1,5 +1,5 @@
 import { Edit2, Mail } from "lucide-react";
-import { getCatMeta, formatDate } from "../Utils/helpers";
+import { getCatMeta, formatDate } from "../utils/Helpers";
 import { Modal } from "./Modal";
 
 export const ViewModal = ({ item, onClose, onEdit }) => {
