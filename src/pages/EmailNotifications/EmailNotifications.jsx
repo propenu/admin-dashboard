@@ -85,7 +85,7 @@ const EmailNotifications = () => {
             }
             submitting={submitting}
           />
-        </Modal>
+        </CreateModal>
       )}
       {editItem && (
         <Modal
