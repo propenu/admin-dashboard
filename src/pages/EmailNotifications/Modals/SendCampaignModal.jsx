@@ -19,7 +19,7 @@ import {
   getUserSearch,
   sentEmailNotification,
 } from "../../../features/user/userService";
-import { Modal } from "./Modal";
+import { Modal } from "./CreateModal";
 
 // ─── India states & cities via country-state-city ────//
 const IN_STATES = State.getStatesOfCountry("IN");

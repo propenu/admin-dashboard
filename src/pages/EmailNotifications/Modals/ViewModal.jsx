@@ -1,6 +1,6 @@
 import { Edit2, Mail } from "lucide-react";
 import { getCatMeta, formatDate } from "../utils/helpers";
-import { Modal } from "./Modal";
+import { Modal } from "./CreateModal";
 
 export const ViewModal = ({ item, onClose, onEdit }) => {
   const meta = getCatMeta(item.category);

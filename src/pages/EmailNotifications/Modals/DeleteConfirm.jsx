@@ -1,5 +1,5 @@
 import { Loader2, Trash2 } from "lucide-react";
-import { Modal } from "./Modal";
+import { Modal } from "./CreateModal";
 
 
 
