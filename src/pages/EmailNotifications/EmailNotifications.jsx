@@ -5,10 +5,10 @@ import { getEmailNotification} from "../../features/user/userService";
 import { useEmailNotifications} from "./hooks/useEmailNotifications";
 import TemplateCard from "./emailNotificationComponents/TemplateCard";
 import NotificationForm from "./emailNotificationComponents/NotificationForm";
-import { Modal } from "./modals/Modal";
-import { ViewModal } from "./modals/ViewModal";
-import { DeleteConfirm } from "./modals/DeleteConfirm";
-import { SendCampaignModal } from "./modals/SendCampaignModal";
+import { Modal } from "./modals/Modal.jsx";
+import { ViewModal } from "./modals/ViewModal.jsx";
+import { DeleteConfirm } from "./modals/DeleteConfirm.jsx";
+import { SendCampaignModal } from "./modals/SendCampaignModal.jsx";
 import { getCatMeta } from "./utils/helpers";
 const EMPTY_FORM = {
   name: "", slug: "", subject: "", content: "",
