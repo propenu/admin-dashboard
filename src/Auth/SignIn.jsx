@@ -30,7 +30,7 @@ export default function SignIn() {
     setLoading(true);
     setErrorMsg("");
     try {
-      console.log("📤 SEND OTP EMAIL:", email);
+      
       await requestOtp(email);
       setStep(2);
     } catch (err) {

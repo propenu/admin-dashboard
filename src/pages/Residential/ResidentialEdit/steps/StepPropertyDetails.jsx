@@ -43,7 +43,7 @@ const AGRICULTURAL_FEATURES = [
 ]
 
 export default function StepPropertyDetails({ data, onChange, onSave }) {
-  console.log("📝 StepPropertyDetails data:", data);
+  
   if (!data) return null;
   const upd = (f, v) => onChange(f, v, "details");
   const cat = data.propertyCategory?.toLowerCase();

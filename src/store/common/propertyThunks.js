@@ -17,8 +17,6 @@ export const savePropertyData = createAsyncThunk(
       const state = getState();
       const stateForm =  data || state[category]?.form 
 
-      console.log("STATE FORM:", stateForm);
-
       if (!stateForm) throw new Error(`Slice "${category}" not found`);
 
       /* 1️⃣ CREATE DRAFT */
@@ -29,9 +27,6 @@ export const savePropertyData = createAsyncThunk(
 
       /* 2️⃣ BUILD FORM DATA */
       const fd = new FormData();
-
-      console.log("📦 FINAL CLEAN PAYLOAD SENT TO API:", fd);
-
       /* ================= GALLERY ================= */
       if (
         Array.isArray(stateForm.galleryFiles) &&
@@ -134,15 +129,8 @@ export const savePropertyData = createAsyncThunk(
         }
       });
 
-      /* ✅ NOW DEBUG */
-      console.log("======= FORM DATA DEBUG START =======");
-
-      for (let pair of fd.entries()) {
-        console.log(pair[0], ":", pair[1]);
-      }
-
-      console.log("======= FORM DATA DEBUG END =======");
-
+      // for (let pair of fd.entries()) {
+      // }
       /* 3️⃣ STEP-BASED API ROUTING */
       let response;
       switch (step) {

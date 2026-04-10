@@ -462,58 +462,6 @@ export default function Users() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  /* ── Client-side filtering (location + status + kyc + phone) ── */
-  // const filtered = useMemo(() => {
-  //   const q = search.trim().toLowerCase();
-  //   return users.filter((u) => {
-  //     // General text search (name / phone / email)
-  //     if (
-  //       q &&
-  //       !u.name?.toLowerCase().includes(q) &&
-  //       !u.phone?.includes(q) &&
-  //       !u.email?.toLowerCase().includes(q)
-  //     )
-  //       return false;
-
-  //     // Location deep filter
-  //     if (locationFilter) {
-  //       const { value, type } = locationFilter;
-  //       const field = u[type]?.toLowerCase() || "";
-  //       if (!field.includes(value.toLowerCase())) return false;
-  //     }
-
-  //     // Account status
-  //     if (filterAccountStatus && u.accountStatus !== filterAccountStatus)
-  //       return false;
-
-  //     // KYC
-  //     if (filterKycStatus && u.kyc?.status !== filterKycStatus) return false;
-
-  //     // Phone verified
-  //     if (filterPhoneVerified !== "") {
-  //       const want = filterPhoneVerified === "true";
-  //       if (!!u.phoneVerified !== want) return false;
-  //     }
-
-  //     // Is active
-  //     if (filterIsActive !== "") {
-  //       const want = filterIsActive === "true";
-  //       if (!!u.isActive !== want) return false;
-  //     }
-
-  //     return true;
-  //   });
-  // }, [
-  //   users,
-  //   search,
-  //   locationFilter,
-  //   filterAccountStatus,
-  //   filterKycStatus,
-  //   filterPhoneVerified,
-  //   filterIsActive,
-  //   filterRole
-  // ]);
-
 const filtered = useMemo(() => {
   const q = search.trim().toLowerCase();
 

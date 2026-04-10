@@ -10,7 +10,6 @@ export const requestOtp = async (email) => {
       { email }
     );
     return res.data;
-    console.log(res.data);
   } catch (err) {
     throw err.response?.data || { message: "OTP sending failed" };
   }
@@ -40,7 +39,6 @@ export const createRequestOtp = async (name, email, role) => {
       role,
     });
     return res.data;
-    console.log(res.data);
   } catch (err) {
     throw err.response?.data || { message: "OTP sending failed" };
   }

@@ -404,7 +404,7 @@ const buildPayloadByCategory = (category, data) => {
   
 
   const handleContinue = async () => {
-    console.log("🔍 DEBUG: Starting Validation for Category:", category);
+    
     const validationErrors = validateStep1();
 
     if (Object.keys(validationErrors).length > 0) {
@@ -416,7 +416,7 @@ const buildPayloadByCategory = (category, data) => {
 
     const activeCategory = localStorage.getItem("activeCategory");
     const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
-    console.log("🆔 Current Property ID from Storage:", propertyId);
+    
 
     if (!propertyId) {
       toast.error("Property draft not found. Please restart.");
@@ -436,16 +436,11 @@ const buildPayloadByCategory = (category, data) => {
       ...cleanData
     } = form;
 
-    // LOG THE RAW DATA BEFORE CLEANING
-    console.log("📦 Raw Form Data from Redux:", cleanData);
+    
 
     const finalPayload = buildPayloadByCategory(category, cleanData);
 
-    // THIS IS THE MOST IMPORTANT LOG
-    console.log(
-      "🚀 FINAL PAYLOAD TO API (Category: " + category + "):",
-      finalPayload,
-    );
+    
 
     try {
       const response = await dispatch(
@@ -457,7 +452,7 @@ const buildPayloadByCategory = (category, data) => {
         }),
       ).unwrap();
 
-      console.log("✅ API Response Success:", response);
+      
       toast.success(`${category} details saved`);
       next(); // This moves you to Step 2 (Location)
     } catch (err) {

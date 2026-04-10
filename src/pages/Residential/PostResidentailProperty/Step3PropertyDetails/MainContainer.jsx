@@ -89,9 +89,9 @@ export default function MainContainer({ next, back }) {
   const handleSaveAndNext = async () => {
     const activeCategory = localStorage.getItem("activeCategory");
     const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
-    console.log("Property ID datatatatatatatatatatatatatatat:", propertyId);
+    
     if (!propertyId) {
-      console.log("Property draft not found. Please restart.");
+      
       toast.error("Property draft not found. Please restart.");
       return;
     }

@@ -29,15 +29,14 @@ const SalesAgentDashboard = () => {
       else setLoading(true);
 
       const res = await getSalesAgentAnalytics();
-      console.log("Analytics Response:", res);
-
+      
       const data =
         res?.data?.data || 
         res?.data?.[0] || 
         res?.data || 
         {};
 
-        console.log("Analytics Data:", data);
+       
 
       setAnalytics(data);
     } catch (err) {

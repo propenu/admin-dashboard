@@ -75,11 +75,7 @@ export default function Step4VerifyPublish({ back }) {
         quality -= 0.1;
       }
 
-      console.log(
-        "Final size:",
-        (compressed.size / 1024 / 1024).toFixed(2),
-        "MB",
-      );
+
 
       return new File([compressed], file.name, {
         type: file.type,
@@ -102,12 +98,6 @@ export default function Step4VerifyPublish({ back }) {
         files.map(async (file) => {
           if (file.type.startsWith("image/")) {
             try {
-              console.log(
-                "Original:",
-                (file.size / 1024 / 1024).toFixed(2),
-                "MB",
-              );
-
               const compressed = await compressTo1MB(file);
 
               // ❗ FINAL SAFETY CHECK

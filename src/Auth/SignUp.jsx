@@ -60,7 +60,7 @@ export default function SignUp() {
     setLoading(true);
     setErrorMsg("");
     try {
-      console.log("📤 SEND OTP:", { name, email, role });
+      
       await createRequestOtp(name, email, role);
       setStep(2);
     } catch (err) {
@@ -95,7 +95,7 @@ export default function SignUp() {
         setLoading(true);
         setErrorMsg("");
         try {
-          console.log("✅ VERIFY OTP:", { otp: fullOtp, email, name, role });
+         
           const res = await createVerifyOtpService(fullOtp, email, name, role);
           Cookies.set("token", res.token, {
             path: "/",

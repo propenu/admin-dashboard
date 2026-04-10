@@ -18,21 +18,27 @@ const UP_TO_FEATURES = [
 export default function PricingCard({ plan, userType }) {
   const dispatch = useDispatch();
 
-  const { code, name, price,dprice, durationDays, features = {}, createdAt } = plan;
+  const {
+    code,
+    name,
+    price,
+    dprice,
+    durationDays,
+    features = {},
+    createdAt,
+  } = plan;
 
   //const featureKeys = FEATURE_CONFIG[userType] || [];
-  
+
   const featureKeys =
     userType === "owner"
       ? FEATURE_CONFIG.owner?.[plan.category] || []
       : FEATURE_CONFIG[userType] || [];
 
-
   /* ================= STATE ================= */
   const [editingKey, setEditingKey] = useState(null);
   const [editValue, setEditValue] = useState("");
 
-  
   /* ================= SAVE HANDLER ================= */
   // const handleSave = (key) => {
   //   let oldValue;
@@ -210,20 +216,10 @@ export default function PricingCard({ plan, userType }) {
             )}
 
             {/* Discount % */}
-            {/* {discountPercent > 0 && (
-              <span className="absolute -top-12 -right-5 text-white text-[11px] font-bold bg-[#27AE60] px-2 py-[2px] rounded-full shadow">
-                {discountPercent}% OFF
-              </span>
-            )} */}
-            {/* Discount % */}
             {discountPercent > 0 && (
               <span
-                className="absolute -top-12 -right-5 
-  text-white text-[11px] font-bold 
-  bg-gradient-to-r from-[#27AE60] to-[#2ECC71] 
-  px-2 py-[3px] rounded-full shadow-lg
-  animate-pulse
-  transition-transform duration-300 hover:scale-110"
+                className="absolute -top-12 -right-5 text-white text-[11px] font-bold bg-gradient-to-r from-[#27AE60] to-[#2ECC71] px-2 py-[3px] rounded-full shadow-lg animate-pulse transition-transform duration-300 hover:scale-110
+                max-sm:-top-12 max-sm:right-8 max-sm:text-[10px] max-sm:shadow-lime-900"
               >
                 {discountPercent}% OFF
               </span>
@@ -307,4 +303,3 @@ export default function PricingCard({ plan, userType }) {
     </div>
   );
 }
-

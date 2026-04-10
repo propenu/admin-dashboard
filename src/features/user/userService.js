@@ -154,5 +154,26 @@ export const deleteWhatsAppNotificationByName = (name) => {
   );
 }
 
+// export const getEmailCampaignStatus = (campaignId) => {
+//   return apiClient.get(
+//     `${SERVICES.USER}/notifications/send-email-campaign-status`,
+//     {
+//       params: {
+//         campaignId,
+//       },
+//     },
+//   );
+// };
+
+export const getEmailCampaignStatus = (campaignId) => {
+  return apiClient.get(
+    `${SERVICES.USER}/notifications/send-email-campaign-status`,
+    {
+      params: campaignId ? { campaignId } : {}, // ✅ only send if exists
+    },
+  );
+};
+
+
 
 

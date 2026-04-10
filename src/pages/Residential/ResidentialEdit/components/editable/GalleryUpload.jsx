@@ -82,11 +82,7 @@ const compressImageToTarget = (file) => {
             lastModified: Date.now(),
           });
 
-          console.log(
-            `✅ ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(
-              finalFile.size / 1024
-            ).toFixed(0)}KB`
-          );
+          
 
           resolve(finalFile);
         })
@@ -110,7 +106,6 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
   /* ── DEBUG ── */
   useEffect(() => {
-    console.log("📸 galleryFiles:", form?.galleryFiles);
   }, [form?.galleryFiles]);
 
   /* ── Separate existing (server) vs new (File) entries ── */
@@ -156,14 +151,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
     const updated = [...allFiles, ...compressedFiles].slice(0, MAX_FILES);
 
-    console.log(
-      "📦 Final gallery:",
-      updated.map((f) =>
-        f instanceof File
-          ? `${f.name} (${(f.size / 1024).toFixed(0)}KB)`
-          : f?.url || f
-      )
-    );
+    
 
     updateFieldValue("galleryFiles", updated);
     setCompressing(false);
@@ -193,7 +181,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
       const propertyId = form._id || form.id;
       const category = form.propertyCategory;
 
-      console.log("DELETE API:", category, propertyId, index);
+      
 
       await deletePropertyGalleryImagesIndex(category, propertyId, index);
 

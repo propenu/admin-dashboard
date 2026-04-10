@@ -299,38 +299,10 @@ export default function Sidebar({
           label: "WhatsApp Notifications",
           icon: LocationsIcon,
         },
-      ],
-
-      builder: [
-        { path: "/", label: "Dashboard", icon: DashboardIcon },
         {
-          label: "Properties",
-          icon: PropertiesIcon,
-          key: "properties",
-          children: [
-            {
-              path: "/residential",
-              label: "Residential",
-              icon: ResidentialIcon,
-            },
-            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
-            {
-              path: "/agricultural",
-              label: "Agricultural",
-              icon: AgriculturalIcon,
-            },
-            { path: "/land", label: "Land", icon: LandIcon },
-          ],
-        },
-        {
-          path: "/featured-properties",
-          label: "Prime Projects",
-          icon: FeaturedProjetsIcon,
-        },
-        {
-          path: "/highlight-projects",
-          label: "Top Selling Projects",
-          icon: HighlightedProjectsIcon,
+          path: "/automations",
+          label: "Automations",
+          icon: LocationsIcon,
         },
       ],
 

@@ -7,6 +7,7 @@ import LoadingSpinner from "./components/common/LoadingSpinner";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import PublicRoute from "./pages/PublicRoute";
 import ProtectedRoute from "./pages/ProtectedRoute";
+
 // Lazy Loaded Pages
 const Dashboard = lazy(() => import("./pages/Dashboards/MainDashboard.jsx"));
 const FeaturedProperties = lazy(() =>
@@ -26,27 +27,20 @@ const LandPropertyVerification = lazy(() =>
 const PropertyDetails = lazy(() =>
   import("./pages/FeaturedProperies/FeaturedPropertyDetails")
 );
+
 const HighlightedProject = lazy(() =>
   import("./pages/HighlightProjects/HighlightProjectDetails")
 );
-// Step Wizard POST Create Page
+
 const CreateFeaturedProject = lazy(() =>
-  import("./pages/post-property/CreateFeaturedWizard")
+  import("./pages/UpsertFeaturedProjects/CreateFeaturedProjects/CreateFeaturedWizard.jsx")
 );
 
-const FeaturedActiveProperties = lazy(() =>
-  import("./pages/FeaturedActiveProperties")
-);
-
-const PostFeaturedProperty = lazy(() =>
-  import("./pages/post-property/Post-Featured-Property")
-);
 
 const PostProperty = lazy(() =>
-  import("./pages/post-property/FeaturedPoperty/FeaturedPreviewPage")
+  import("./pages/UpsertFeaturedProjects/EditFeaturedProjects/FeaturedPreviewPage.jsx")
 );
 
-//hightlighted
 const HighlightProjects = lazy(() =>
   import("./pages/HighlightProjects/HighlightProjects")
 );
@@ -58,7 +52,6 @@ const HighlightProjectDetails = lazy(() =>
 
 // Users 
 const Users = lazy(() => import("./pages/users/Users"));
-const Agents = lazy(() => import("./pages/Agents/Agents"));
 const Locations = lazy(() => import("./pages/Locations/LocationsPage.jsx"))
 const NotFound = lazy(() => import("./pages/NotFound"));
 const SignIn = lazy(() => import("./Auth/SignIn"));
@@ -68,10 +61,8 @@ const AllAgents = lazy(() => import("./pages/users/AllUserInDetails/Agents.jsx")
 const Builders = lazy(() => import("./pages/users/AllUserInDetails/Builders.jsx"));
 const SalesAgent = lazy(() => import("./pages/users/AllUserInDetails/SalesAgent.jsx"));
 const SalesManagers = lazy(() => import("./pages/users/AllUserInDetails/SalesManagers.jsx"));
-
 const Accounts = lazy(() => import("./pages/users/AllUserInDetails/Accounts.jsx"));
 const CustomerCare = lazy(() => import("./pages/users/AllUserInDetails/CustomerCare.jsx"));
-
 
 // Agricultural
 const Agricultural = lazy(() => import("./pages/Agricultural/Agricultural"));
@@ -90,27 +81,24 @@ const CommercialDetails = lazy(() =>
   import("./pages/Commercial/CommercialDetails")
 );
 
-
-
 const CommercialPropertyVerification = lazy(() =>
   import("./pages/Commercial/CommercialPropertyVerification")
 );
 
-// Residential
 const Residential = lazy(() => 
   import("./pages/Residential/Residential"));
 
 const ResidentialDetails = lazy(() =>
   import("./pages/Residential/ResidentialDetails")
 );
+
 const ResidentialEdit = lazy(() =>
   import("./pages/Residential/ResidentialEdit/EditWizard.jsx")
 );
+
 const ResidentialPropertyVerification = lazy(() =>
   import("./pages/Residential/ResidentaialPropertyVerification")
 );
-
-
 
 const PropertyProgress = lazy(() =>
   import("./pages/PropertyProgress/PropertyProgress")
@@ -122,6 +110,7 @@ const AccountsSummary = lazy(() =>
 const PaymentsList = lazy(() =>
   import("./pages/Accounts/PaymentsList")
 );
+
 const ActiveSubscriptions = lazy(() =>
   import("./pages/Accounts/ActiveSubcriptions")
 );
@@ -152,6 +141,11 @@ const EmailNotifications = lazy(() =>
 const WhatsAppNotifications = lazy(() =>
   import("./pages/WhatsAppNotifications/WhatsAppNotifications.jsx")
 );
+
+const AutomationsCompainings = lazy(() =>
+  import("./pages/automations/Automations.jsx")
+);
+
 function App() {
   return (
     <Router>
@@ -180,10 +174,7 @@ function App() {
                   path="/featured-property/:id"
                   element={<PropertyDetails />}
                 />
-                <Route
-                  path="/featured-active-properties"
-                  element={<FeaturedActiveProperties />}
-                />
+                
                 <Route
                   path="highlight-property/:id"
                   element={<HighlightedProject />}
@@ -200,10 +191,7 @@ function App() {
                   element={<LandPropertyVerification />}
                 />
 
-                <Route
-                  path="/post-featured-property"
-                  element={<PostFeaturedProperty />}
-                />
+                
                 <Route path="/post-property/:id" element={<PostProperty />} />
                 <Route
                   path="/create-featured-project"
@@ -223,7 +211,7 @@ function App() {
                 
                 {/* Users */}
                 <Route path="/users" element={<Users />} />
-                <Route path="/agents" element={<Agents />} />
+                
                 <Route path="/locations" element={<Locations />} />
 
                 <Route path="accounts" element={<Accounts />} />
@@ -299,6 +287,11 @@ function App() {
                   element={<WhatsAppNotifications />}
                 />
                 
+                {/* Automations */}
+                <Route
+                  path="/automations"
+                  element={<AutomationsCompainings />}
+                />
 
                 <Route
                   path="/agent-payments"

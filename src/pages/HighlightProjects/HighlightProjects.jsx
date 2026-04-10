@@ -13,10 +13,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-// import {
-//   fetchHighlightProjects,
-//   deleteFeaturedProperty,
-// } from "../../services/PropertyService";
+
 import {
   fetchHighlightProjects,
   deleteFeaturedProperty,
@@ -181,9 +178,9 @@ export default function HighlightProjects() {
       )}
 
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center  sm:justify-between max-sm:text-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[#27AE60]">
+          <h1 className="text-3xl font-bold text-[#27AE60] ">
             Top Selling Projects
           </h1>
           <p className="text-slate-600 mt-1">
@@ -207,7 +204,7 @@ export default function HighlightProjects() {
       </div>
 
       {/* STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-sm:text-center">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -219,7 +216,7 @@ export default function HighlightProjects() {
               }
               className="bg-white rounded-xl p-6 shadow-md border cursor-pointer hover:shadow-lg transition"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 max-sm:justify-center">
                 <div
                   className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.bg} flex items-center justify-center`}
                 >

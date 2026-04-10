@@ -1,5 +1,5 @@
 import { AlertTriangle } from "lucide-react";
-import TiptapEditor from "../../../post-property/featured-create/steps/Components/TiptapEditor";
+import TiptapEditor from "../../../UpsertFeaturedProjects/CreateFeaturedProjects/Components/TiptapEditor";
 
 
 

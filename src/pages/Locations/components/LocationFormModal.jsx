@@ -29,17 +29,10 @@ export default function LocationFormModal({
   const [form, setForm] = useState(EMPTY_FORM);
   const toastProcessedRef = useRef(false);
 
-  // DEBUG 1: Track every render
-  console.log("DEBUG: Modal Rendered", {
-    show,
-    success,
-    loading,
-    lock: toastProcessedRef.current,
-  });
+  
 
   useEffect(() => {
     if (show) {
-      console.log("DEBUG: Modal Opened - Resetting Lock");
       toastProcessedRef.current = false;
     }
   }, [show]);
@@ -63,14 +56,10 @@ export default function LocationFormModal({
 
   // SUCCESS HANDLER WITH DEBUGGING
   useEffect(() => {
-    console.log("DEBUG: Success Effect Triggered", {
-      success,
-      show,
-      alreadyProcessed: toastProcessedRef.current,
-    });
+    
 
     if (success && show && !toastProcessedRef.current) {
-      console.log("DEBUG: 🔥 FIRING TOAST NOW!");
+      
 
       toastProcessedRef.current = true; // Lock immediately
 

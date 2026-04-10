@@ -88,14 +88,12 @@ export default function EditWizard() {
   const navigate = useNavigate();
 
   const category = useSelector((s) => s.ui.activeCategory) || storedCategory;
-  console.log("🆔dattattttttttttttttttttttttttttttttttttttt Current Category from Storage:", category);
+  
  
   const propertyId = id || storedId; 
-  console.log("🆔edit Current Property ID from Storage:", propertyId);
 
   useEffect(() => {
     if (storedCategory) {
-      console.log("🔁 Force setting category:", storedCategory);
       dispatch(setActiveCategory(storedCategory));
     }
   }, [storedCategory, dispatch]);
@@ -111,7 +109,7 @@ export default function EditWizard() {
 useEffect(() => {
   if (!category || !propertyId) return;
 
-  console.log("🔥 FETCHING PROPERTY:", category, propertyId);
+  
 
   const fetchData = async () => {
     try {
@@ -119,7 +117,7 @@ useEffect(() => {
 
       const property = res?.data;
 
-      console.log("✅ API RESPONSE:", property);
+      
 
       if (!property) return;
 
@@ -145,12 +143,12 @@ useEffect(() => {
   const debouncedAutoSave = useMemo(
     () =>
       debounce(async (stepName) => {
-        console.log("🔄 Auto-saving step:", stepName);
+        
         try {
           const payload = cleanData(current);
-          console.log("🔥 Payload:", payload);
+          
           await dispatch(savePropertyData({ category, id: propertyId, step: stepName ,data:payload})).unwrap();
-          console.log("✅ Auto-save successful:", stepName);
+          
         } catch (err) {
           console.error("❌ Autosave failed:", err);
         }
@@ -258,13 +256,6 @@ useEffect(() => {
     }
   };
 
-   
-
- 
-
-console.log("🆔edit Current Property ID:", propertyId);
-console.log("🆔edit Current Property Category:", category);
-console.log("🆔edit Current Property:", current);
 
   if (!category || !propertyId) {
     return (

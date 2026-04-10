@@ -25,8 +25,6 @@ export default function LocationsPage() {
     deleteLocality,
   } = useLocations();
 
-  console.log("DEBUG: LocationsPage Rendered", { data });
-
   const [selectedLoc, setSelectedLoc] = useState(null);
   const [openState, setOpenState] = useState(null);
   const [showAdd, setShowAdd] = useState(false);

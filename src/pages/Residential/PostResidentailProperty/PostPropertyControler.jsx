@@ -61,9 +61,7 @@ export default function PropertyController() {
 
   useEffect(() => {
   
-    console.log("ACTIVE CATEGORY:", activeCategory);
-   
-    console.log("INIT FLAG:", isInitializing.current);
+    
   }, [activeCategory]);
 
   useEffect(() => {
@@ -95,7 +93,6 @@ export default function PropertyController() {
         if (id) {
           const response = await getMyPropertyDrafts(activeCategory);
           const draft = response?.data;
-          console.log("DRAFT:", draft);
           if (draft?._id) {
 
             // dispatch(actions[activeCategory].hydrateForm(normalizeDraft(draft)));
@@ -110,24 +107,18 @@ export default function PropertyController() {
             // localStorage.setItem("propertyId", draft._id);
             localStorage.setItem(`${activeCategory}_propertyId`, draft._id);
             localStorage.setItem("activeCategory", activeCategory);
-            console.log(`${activeCategory}_propertyId`, draft._id);
             setIsDataLoaded(true);
           }
           return;
         }
-        console.log("LOCAL STORAGE:", localStorage);
         const storedId = localStorage.getItem(`${activeCategory}_propertyId`);
-        console.log("STORED ID:", storedId);
-
         if (storedId) {
           try {
             const response = await getPropertyById(activeCategory, storedId);
 
             const draft = response?.data;
-            console.log("DRAFT:", draft);
             if (draft?._id) {
               dispatch(actions[activeCategory].hydrateForm(normalizeDraft(draft)));
-              console.log("Property ID:", draft._id);
               setStepFromDraft(draft);
               setIsDataLoaded(true);
               return;
@@ -157,9 +148,9 @@ export default function PropertyController() {
 
   const handleNext = useCallback(() => {
     setCompletedSteps((prev) => prev.includes(step) ? prev : [...prev, step]);
-    console.log("COMPLETED STEPS:", completedSteps);
+    
     setStep((prev) => Math.min(prev + 1, STEPS.length - 1));
-    console.log("NEXT STEP:", step);
+    
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
 
@@ -169,7 +160,7 @@ export default function PropertyController() {
   }, [step, navigate]);
 
   const progressPercentage = (completedSteps.length / STEPS.length) * 100;
-  console.log("PROGRESS PERCENTAGE:", progressPercentage);
+  
 
   if (isFetching || !isDataLoaded) {
     return (

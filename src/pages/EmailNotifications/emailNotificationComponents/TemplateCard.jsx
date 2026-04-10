@@ -33,7 +33,10 @@ const TemplateCard = ({ item, onView, onEdit, onDelete, onSend }) => {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-gray-800 truncate">
-            {item.name}
+            {item.name
+              .split(" ")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ")}
           </p>
           <div className="flex gap-1.5 mt-1.5 flex-wrap">
             <span

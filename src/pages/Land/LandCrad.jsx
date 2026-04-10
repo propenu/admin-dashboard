@@ -32,7 +32,7 @@ export default function LandCard({ property }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  console.log(property);
+
   // Logic to determine status badge UI
   const getDocStatus = () => {
     const docs = property?.verificationDocuments || [];

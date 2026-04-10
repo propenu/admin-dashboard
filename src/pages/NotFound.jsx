@@ -11,7 +11,7 @@ export default function NotFound() {
         backgroundImage: "url('/src/assets/notfound.jpg')",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center",
-        backgroundSize: "auto 100%", // 🔥 KEY FIX
+        backgroundSize: "auto 100%",
         backgroundColor: "#B9F6E9",
       }}
     >

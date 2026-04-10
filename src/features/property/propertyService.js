@@ -3,6 +3,15 @@ import { apiClient } from "../../api/apiClient";
 import { SERVICES } from "../../config/services";
 
 //Featured Projects
+// Only API call (no progress logic)
+export const createFeaturedProperty = (formData, config = {}) => {
+  return apiClient.post(
+    `${SERVICES.PROPERTY}/featured-project`,
+    formData,
+    config
+  );
+};
+
 export const getFeaturedProjects = (id) => {
   return apiClient.get(`${SERVICES.PROPERTY}/featured-project/${id}`);
 }

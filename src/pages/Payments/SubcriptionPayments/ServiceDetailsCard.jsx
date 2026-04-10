@@ -28,7 +28,7 @@ export default function ServiceDetailsCard({ userType, category }) {
       : FEATURE_CONFIG[userType] || [];
 
 
-      console.log(featureKeys)
+      
 
 
   return (

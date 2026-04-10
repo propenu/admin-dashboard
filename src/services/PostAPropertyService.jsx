@@ -37,8 +37,6 @@ export const fetchPostFeaturedPropertyById = async (id) => {
 /* ======= FULLY UPDATED updateFeaturedProperty ======= */
 export const updateFeaturedProperty = async (id, payload) => {
   const fd = new FormData();
-  console.log("🟡 PATCH PAYLOAD RECEIVED:", payload);
-
   /* ─────────────────────────────────────────────
      1️⃣ BHK Summary
   ───────────────────────────────────────────── */
@@ -201,43 +199,10 @@ export const updateFeaturedProperty = async (id, payload) => {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
-    console.log("✅ PATCH SUCCESS:", res.data);
+    
     return res.data;
   } catch (error) {
     console.error("❌ PATCH ERROR:", error.response?.data || error);
     throw error;
   }
 };;
-
-
-export const createFeaturedProperty = async (
-  formData,
-  onProgress = () => {},
-) => {
-  try {
-    const res = await authAxios.post(
-      API_ENDPOINTS.FEATURED_PROPERTIES,
-      formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (evt) => {
-          if (evt.total) {
-            onProgress(Math.round((evt.loaded * 100) / evt.total));
-          }
-        },
-      },
-    );
-
-    return res.data;
-    console.log("📦 FINAL CLEAN PAYLOAD SENT TO API:", formData);
-    c
-  } catch (error) {
-    console.error("❌ createFeaturedProperty ERROR:", error);
-
-    if (error.response?.data?.issues) {
-      console.table(error.response.data.issues);
-    }
-
-    throw error;
-  }
-};

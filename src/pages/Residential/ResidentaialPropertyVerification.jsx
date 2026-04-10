@@ -43,7 +43,7 @@ const PropertyVerification = () => {
   });
 
   const property = response?.data;
-  console.log(property);
+  
 
   // --- HELPER FUNCTIONS ---
   const getFileType = (url) => {
