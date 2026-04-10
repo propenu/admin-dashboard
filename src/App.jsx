@@ -138,6 +138,7 @@ const SendPushNotification = lazy(() =>
 const EmailNotifications = lazy(() =>
   import("./pages/EmailNotifications/EmailNotifications.jsx")
 );
+
 const WhatsAppNotifications = lazy(() =>
   import("./pages/WhatsAppNotifications/WhatsAppNotifications.jsx")
 );
@@ -280,6 +281,8 @@ function App() {
                   path="/email-notifications"
                   element={<EmailNotifications />}
                 />
+
+               
 
                 {/* WhatsApp Notification */}
                 <Route

@@ -95,20 +95,56 @@ export const adminCustomNotification = (formData) => {
 
 //All email notifications
 export const getAllEmailNotifications = () => {
-  return apiClient.get(`${SERVICES.USER}/notifications/email`);
+  return apiClient.get(`${SERVICES.USER}/email`);
 };
-
-
 //Email Notifications
 export const createEmailNotification = (formData) => {
   return apiClient.post(`${SERVICES.USER}/notifications/email`, formData);
 }
-export const getEmailNotification = (slug) => {
-  return apiClient.get(`${SERVICES.USER}/notifications/email/${slug}`);
+export const getEmailNotification = (id) => {
+  return apiClient.get(`${SERVICES.USER}/email/${id}`);
 }
 
+export const getSentEmailNotification = () => {
+  return apiClient.get(`${SERVICES.USER}/email/email-logs`);
+}
+
+export const getSentEmailNotificationAnalytics = () => {
+  return apiClient.get(`${SERVICES.USER}/email/email-logs/stats`);
+}
+
+
+export const getCanpaingsAnalytics = () => {
+  return apiClient.get(`${SERVICES.USER}/email/email-logs/campaigns`);
+}
+
+export const getCanpaingsAnalyticsByCampaignId = (campaignId) => {
+  return apiClient.get(
+    `${SERVICES.USER}/email/email-logs/campaign/${campaignId}`,
+  );
+};
+
+export const resentCanpaingByCampaignId = (campaignId) => {
+  return apiClient.post(
+    `${SERVICES.USER}/email/email-logs/retry-failed/${campaignId}`,
+  );
+};
+
+export const getRunningCampaigns = () => {
+  return apiClient.get(`${SERVICES.USER}/email/email-logs/campaign-running`);
+}
+
+
+export const sentBulkEmailNotification = (formData) => {
+  return apiClient.post(
+    `${SERVICES.USER}/email/send-csv-bulk-email`,
+    formData,
+  );
+}
+
+
 export const updateEmailNotification = (id, formData) => {
-  return apiClient.put(`${SERVICES.USER}/notifications/email/${id}`, formData);
+  return apiClient.put(`${SERVICES.USER}/email/${id}`, formData);
 }
 
 export const deleteEmailNotification = (id) => {
@@ -116,10 +152,7 @@ export const deleteEmailNotification = (id) => {
 }
 
 export const sentEmailNotification = (formData) => {
-  return apiClient.post(
-    `${SERVICES.USER}/notifications/send-email-campaign`,
-    formData,
-  );
+  return apiClient.post(`${SERVICES.USER}/email/send-email`, formData);
 }
 
 
@@ -154,22 +187,13 @@ export const deleteWhatsAppNotificationByName = (name) => {
   );
 }
 
-// export const getEmailCampaignStatus = (campaignId) => {
-//   return apiClient.get(
-//     `${SERVICES.USER}/notifications/send-email-campaign-status`,
-//     {
-//       params: {
-//         campaignId,
-//       },
-//     },
-//   );
-// };
+
 
 export const getEmailCampaignStatus = (campaignId) => {
   return apiClient.get(
     `${SERVICES.USER}/notifications/send-email-campaign-status`,
     {
-      params: campaignId ? { campaignId } : {}, // ✅ only send if exists
+      params: campaignId ? { campaignId } : {}, 
     },
   );
 };
