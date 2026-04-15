@@ -293,7 +293,7 @@ const LastCampaignCard = ({ campaign }) => {
           Last Campaign
         </p>
         <span className="text-[10px] font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-lg font-mono">
-          {campaign.progress}
+          {campaign.progress}d
         </span>
       </div>
       <p className="text-xs font-mono text-gray-600 truncate mb-3">
