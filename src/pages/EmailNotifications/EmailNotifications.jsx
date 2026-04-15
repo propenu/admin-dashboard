@@ -35,16 +35,16 @@ import {
 } from "../../features/user/userService";
 import { useEmailNotifications } from "./hooks/useEmailNotifications";
 import { useEmailLogs } from "./hooks/useEmailLogs";
-import TemplateCard from "./EmailNotificationComponents/TemplateCard.jsx";
-import NotificationForm from "./EmailNotificationComponents/NotificationForm.jsx";
+import TemplateCard from "./EmailNotificationComponents/TemplateCard";
+import NotificationForm from "./EmailNotificationComponents/NotificationForm";
 import { Modal } from "./modals/CreateModal.jsx";
 import { ViewModal } from "./modals/ViewModal.jsx";
 import { DeleteConfirm } from "./modals/DeleteConfirm.jsx";
 import { getCatMeta } from "./utils/helpers";
-import { CampaignTab } from "./EmailNotificationComponents/CampaignTab.jsx";
+import { CampaignTab } from "./EmailNotificationComponents/CampaignTab";
 import { LogsTab } from "./EmailNotificationComponents/LogsTab.jsx";
-import { ProgressBar } from "./EmailNotificationComponents/Progressbar.jsx";
-import { SendCampaignModal } from "./modals/SendCampaignModal.jsx";
+import { ProgressBar } from "./EmailNotificationComponents/Progressbar";
+import { SendCampaignModal } from "./modals/SendCampaignModal";
 
 // ─── Geo ──────────────────────────────────────────────────
 const IN_STATES = State.getStatesOfCountry("IN");
