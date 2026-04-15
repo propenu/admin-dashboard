@@ -2,7 +2,7 @@ import { applyValues } from "../../utils/helpers";
 
 
 export const PreviewPanel = ({ form, detectedVars, samplesMap }) => (
-  <div className="w-72 flex-shrink-0 hidden lg:flex flex-col gap-3 sticky top-4 self-start max-h-screen overflow-y-auto pb-4">
+  <div className="w-72  flex-shrink-0 lg:flex flex-col gap-3 sticky top-4 self-start max-h-screen overflow-y-auto pb-4">
     <div className="flex items-center gap-2">
       <span className="text-xs font-bold uppercase tracking-wide text-gray-400">
         Live Preview

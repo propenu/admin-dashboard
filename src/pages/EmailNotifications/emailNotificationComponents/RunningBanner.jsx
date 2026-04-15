@@ -10,7 +10,6 @@ export const RunningBanner = ({ data, onRetry, retrying }) => {
 
   return (
     <>
-      {/* ── Keyframes injected once via a style tag ── */}
       <style>{`
         @keyframes rbn-shimmer {
           0%   { background-position: -200% center; }
@@ -58,7 +57,7 @@ export const RunningBanner = ({ data, onRetry, retrying }) => {
           position: relative;
           width: 10px; height: 10px;
           border-radius: 50%;
-          background: #3b82f6;
+          background: #27AE60;
           flex-shrink: 0;
         }
         .rbn-radar-dot::before,
@@ -67,16 +66,20 @@ export const RunningBanner = ({ data, onRetry, retrying }) => {
           position: absolute;
           inset: 0;
           border-radius: 50%;
-          background: #3b82f6;
+          background: #27AE60;
           animation: rbn-radar 1.6s ease-out infinite;
         }
         .rbn-radar-dot::after { animation-delay: 0.8s; }
 
         .rbn-shimmer-text {
           background: linear-gradient(
-            90deg,
-            #1d4ed8 0%, #60a5fa 40%, #93c5fd 50%, #60a5fa 60%, #1d4ed8 100%
-          );
+  90deg,
+  #1e8449 0%,   /* darker green */
+  #27AE60 40%,  /* primary */
+  #58d68d 50%,  /* light highlight */
+  #27AE60 60%,  /* primary */
+  #1e8449 100%  /* darker green */
+);
           background-size: 200% auto;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
@@ -208,9 +211,9 @@ export const RunningBanner = ({ data, onRetry, retrying }) => {
       <div
         className="rbn-wrap"
         style={{
-          background: "var(--color-background-primary, #fff)",
-          border: "0.5px solid rgba(59,130,246,0.35)",
-          borderLeft: "3px solid #3b82f6",
+          background: "var(--color-background-primary, #FFFFFF)",
+          border: "0.5px solid #27AE60",
+          borderLeft: "5px solid #27AE60",
           borderRadius: 12,
           padding: "14px 16px",
           display: "flex",
@@ -223,15 +226,24 @@ export const RunningBanner = ({ data, onRetry, retrying }) => {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Title row */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 7,
+              flexWrap: "wrap",
+            }}
+          >
             <span className="rbn-shimmer-text">Campaign Running</span>
             <span
               style={{
                 fontFamily: "var(--font-mono, monospace)",
                 fontSize: 10,
-                color: "var(--color-text-secondary, #64748b)",
+                color: "var(--color-text-secondary, #000000)",
                 background: "var(--color-background-secondary, #f1f5f9)",
-                border: "0.5px solid var(--color-border-tertiary, rgba(0,0,0,0.12))",
+                border:
+                  "0.5px solid #27AE60",
                 borderRadius: 6,
                 padding: "2px 8px",
                 maxWidth: 180,
@@ -270,26 +282,54 @@ export const RunningBanner = ({ data, onRetry, retrying }) => {
           </div>
 
           {/* Stat pills */}
-          <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              flexWrap: "wrap",
+            }}
+          >
             <span
               className="rbn-pill"
-              style={{ background: "rgba(34,197,94,0.1)", color: "#15803d", animationDelay: "0.1s" }}
+              style={{
+                background: "rgba(34,197,94,0.1)",
+                color: "#15803d",
+                animationDelay: "0.1s",
+              }}
             >
-              <span className="rbn-pill-dot" style={{ background: "#22c55e" }} />
+              <span
+                className="rbn-pill-dot"
+                style={{ background: "#22c55e" }}
+              />
               {data.success} sent
             </span>
             <span
               className="rbn-pill"
-              style={{ background: "rgba(248,113,113,0.1)", color: "#b91c1c", animationDelay: "0.2s" }}
+              style={{
+                background: "rgba(248,113,113,0.1)",
+                color: "#b91c1c",
+                animationDelay: "0.2s",
+              }}
             >
-              <span className="rbn-pill-dot" style={{ background: "#f87171" }} />
+              <span
+                className="rbn-pill-dot"
+                style={{ background: "#f87171" }}
+              />
               {data.failed} failed
             </span>
             <span
               className="rbn-pill"
-              style={{ background: "rgba(252,211,77,0.12)", color: "#92400e", animationDelay: "0.3s" }}
+              style={{
+                background: "rgba(252,211,77,0.12)",
+                color: "#92400e",
+                animationDelay: "0.3s",
+              }}
             >
-              <span className="rbn-pill-dot" style={{ background: "#fcd34d" }} />
+              <span
+                className="rbn-pill-dot"
+                style={{ background: "#fcd34d" }}
+              />
               {data.pending} pending
             </span>
             <span className="rbn-progress-label" style={{ marginLeft: "auto" }}>

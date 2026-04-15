@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useMemo } from "react";
 import { toast } from "react-hot-toast";
-import { applyValues, extractAllVars, toSamplesMap } from "../utils/helpers";
+import { applyValues, extractAllVars, toSamplesMap, toSingleBraces } from "../utils/helpers";
 
 import { BodySection } from "./sections/BodySection";
 import { DetectedVarsPanel } from "./sections/DetectedVarsPanel";
@@ -53,33 +53,54 @@ const NotificationForm = ({ initial, onSubmit, submitting }) => {
 
   const missingSamples = detectedVars.filter((n) => !samplesMap[n]?.trim());
 
+  // const handleSubmit = (e) => {
+  //   e.preventDefault();
+  //   setSubmitAttempted(true);
+
+  //   // Block save if any variable has no value filled
+  //   if (missingSamples.length > 0) {
+  //     toast.error(
+  //       `Fill values for: ${missingSamples.map((n) => `{{${n}}}`).join(", ")}`,
+  //       {
+  //         description:
+  //           "These values replace the tokens in subject & body before saving.",
+  //       },
+  //     );
+  //     return;
+  //   }
+
+  //   // Substitute all {{varName}} → actual value in subject & content, then save
+  //   onSubmit({
+  //     ...form,
+  //     subject: applyValues(form.subject, samplesMap),
+  //     content: applyValues(form.content, samplesMap),
+  //     variables: detectedVars,
+  //   });
+  // };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setSubmitAttempted(true);
 
-    // Block save if any variable has no value filled
     if (missingSamples.length > 0) {
       toast.error(
         `Fill values for: ${missingSamples.map((n) => `{{${n}}}`).join(", ")}`,
-        {
-          description:
-            "These values replace the tokens in subject & body before saving.",
-        },
       );
       return;
     }
 
-    // Substitute all {{varName}} → actual value in subject & content, then save
+    // ✅ DO NOT replace values while saving
     onSubmit({
       ...form,
-      subject: applyValues(form.subject, samplesMap),
-      content: applyValues(form.content, samplesMap),
+      subject: toSingleBraces(form.subject), // ✅ {{name}} → {name}
+      content: toSingleBraces(form.content), // ✅
       variables: detectedVars,
+      variableSamples: samplesMap,
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-6">
+    <form onSubmit={handleSubmit} className="flex lg:flex-row md:flex-col sm:flex-col max-sm:flex-col  gap-6">
       <div className="flex-1 min-w-0 flex flex-col gap-4">
         <InfoSection form={form} setField={setField} />
 

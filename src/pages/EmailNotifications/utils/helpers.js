@@ -58,6 +58,17 @@ export const extractVarNames = (text) => {
   return result;
 };
 
+
+// Convert {{name}} → {name} (for saving)
+export const toSingleBraces = (text) =>
+  (text || "").replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, "{$1}");
+
+
+// Convert {name} → {{name}} (for editing UI)
+export const toDoubleBraces = (text) =>
+  (text || "").replace(/\{([a-zA-Z0-9_]+)\}/g, "{{$1}}");
+
+
 // ─── Extract from both subject + stripped HTML body ───────────────────────
 export const extractAllVars = (subject, content) => {
   const stripped = (content || "").replace(/<[^>]*>/g, " ");
@@ -89,16 +100,7 @@ export const toSamplesMap = (vars) => {
 export const applyValues = (text, samplesMap) =>
   (text || "").replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, name) =>
     samplesMap[name]?.trim() ? samplesMap[name] : `{{${name}}}`,
-  ); /// this is direct value name adding
-
-//export const applyValues = (text, samplesMap) =>
-//   (text || "").replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, name) => {
-//     let value = samplesMap[name]?.trim();
-//     if (!value) return `{{${name}}}`;
-
-//     value = value.replace(/\{\{|\}\}/g, "");
-//     return `{{${value}}}`;
-//   }); // this {{varName}} adding
+  ); 
 
 
-
+  

@@ -5,7 +5,7 @@ import { Loader2, MessageSquare, Plus, RefreshCw } from "lucide-react"
 
 export const Topbar = ({ loading, templates, setShowCreate, fetchAll }) => {
     return (
-      <div className="bg-green-50 border-b border-gray-200 px-4 sm:px-6 h-16 flex items-center justify-between sticky top-0 z-40">
+      <div className="bg-green-50 border-b border-gray-200 px-4 sm:px-6 h-16 flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#25D366] flex items-center justify-center flex-shrink-0">
             <MessageSquare size={18} className="text-white" />

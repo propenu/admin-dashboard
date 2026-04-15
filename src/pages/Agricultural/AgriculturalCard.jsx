@@ -123,10 +123,10 @@ export default function AgriculturalCard({ property }) {
 
           {/* Price Desktop */}
           <div className="hidden md:flex flex-col items-end">
-            <span className="text-2xl font-black text-[#27AE60]">
+            <span className="text-2xl font-black text-[#27AE60] md:text-sm text-nowrap">
               {typeof property?.price === "number"
                 ? formatPrice(property.price)
-                : "Price on Request"}
+                : "--"}
             </span>
             {property?.pricePerSqft && (
               <span className="text-[11px] text-slate-400 font-medium">

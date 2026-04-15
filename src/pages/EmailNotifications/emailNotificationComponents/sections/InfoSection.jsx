@@ -1,9 +1,5 @@
 import { CATEGORY_META } from "../../utils/helpers";
 
-
-
-
-
 export const InfoSection = ({ form, setField }) => {
   const handleNameChange = (v) => {
     setField("name", v);
@@ -67,14 +63,12 @@ export const InfoSection = ({ form, setField }) => {
                 }`}
               >
                 <span
-                  className={
-                    form.category === key ? "text-green-600" : "text-gray-400"
-                  }
+                  className={`max-sm:hidden sm:hidden  ${form.category === key ? "text-green-600" : "text-gray-400"}`}
                 >
                   {meta.icon}
                 </span>
                 <span
-                  className={`text-xs font-bold ${form.category === key ? "text-green-700" : "text-gray-500"}`}
+                  className={`text-xs font-bold max-sm:m-0 max-sm:truncate max-sm:w-[60px] ${form.category === key ? "text-green-700" : "text-gray-500"}`}
                 >
                   {meta.label}
                 </span>

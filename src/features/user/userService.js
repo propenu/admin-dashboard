@@ -33,7 +33,6 @@ export const createUserLocationDetails = async (formData) => {
   try {
     // 1. Get the specific token from storage
     const locationToken = localStorage.getItem("locationToken");
-
     // 2. Use 'axios' directly instead of 'apiClient'
     const res = await axios.post(
       `${ENV.API_BASE_URL}${SERVICES.USER}/auth/update-location/create`,
@@ -91,15 +90,13 @@ export const adminCustomNotification = (formData) => {
   );
 };
 
-
-
 //All email notifications
 export const getAllEmailNotifications = () => {
   return apiClient.get(`${SERVICES.USER}/email`);
 };
 //Email Notifications
 export const createEmailNotification = (formData) => {
-  return apiClient.post(`${SERVICES.USER}/notifications/email`, formData);
+  return apiClient.post(`${SERVICES.USER}/email`, formData);
 }
 export const getEmailNotification = (id) => {
   return apiClient.get(`${SERVICES.USER}/email/${id}`);
@@ -148,7 +145,7 @@ export const updateEmailNotification = (id, formData) => {
 }
 
 export const deleteEmailNotification = (id) => {
-  return apiClient.delete(`${SERVICES.USER}/notifications/email/${id}`);
+  return apiClient.delete(`${SERVICES.USER}/email/${id}`);
 }
 
 export const sentEmailNotification = (formData) => {
@@ -191,7 +188,7 @@ export const deleteWhatsAppNotificationByName = (name) => {
 
 export const getEmailCampaignStatus = (campaignId) => {
   return apiClient.get(
-    `${SERVICES.USER}/notifications/send-email-campaign-status`,
+    `${SERVICES.USER}/email/send-email-campaign-status`,
     {
       params: campaignId ? { campaignId } : {}, 
     },

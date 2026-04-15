@@ -13,7 +13,7 @@ import FALLBACK from "../../assets/fallback.svg";
 
 // ✅ Indian Price Formatter
 const formatPrice = (price) => {
-  if (!price || isNaN(price)) return "Price on Request";
+  if (!price || isNaN(price)) return "Price";
   if (price >= 10000000) return `₹${(price / 10000000).toFixed(2)} Cr`;
   if (price >= 100000) return `₹${(price / 100000).toFixed(2)} L`;
   return `₹${price.toLocaleString("en-IN")}`;
@@ -87,10 +87,10 @@ export default function ResidentialCard({ property }) {
 
           {/* Price Desktop */}
           <div className="hidden md:flex flex-col items-end">
-            <span className="text-2xl font-black text-[#27AE60]">
+            <span className="text-2xl font-black text-[#27AE60]  md:text-sm text-nowrap">
               {typeof property?.price === "number"
                 ? formatPrice(property.price)
-                : "Price on Request"}
+                : "--"}
             </span>
             {property?.pricePerSqft && (
               <span className="text-[11px] text-slate-400 font-medium">
@@ -144,9 +144,9 @@ export default function ResidentialCard({ property }) {
           <span className="font-semibold text-slate-600">Posted By:</span>
           <span className="text-[#27AE60] font-semibold">
             {property?.createdBy?.name
-  ?.split(" ")
-  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-  .join(" ") || "Unknown"}
+              ?.split(" ")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ") || "Unknown"}
           </span>
           {property?.createdBy?.phone && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
@@ -184,7 +184,7 @@ export default function ResidentialCard({ property }) {
                 onClick={() => {
                   localStorage.removeItem("editPropertyId");
                   localStorage.removeItem("editPropertyCategory");
-                  
+
                   dispatch(setActiveCategory("residential"));
                   dispatch(actions.residential.hydrateForm(property));
                   localStorage.setItem("editPropertyId", property._id);

@@ -351,11 +351,46 @@ export default function StepBasicDetails({ data, onChange, onSave }) {
                     value={data.roadWidthFt || ""}
                     onChange={(v) => upd("roadWidthFt", v)}
                   />
-                  <NumField
+                  {/* <NumField
                     label="Plot Area"
                     value={data.plotArea || ""}
                     onChange={(v) => upd("plotArea", v)}
                   />
+                  <NumField
+                    label="Plot Area units"
+                    value={data.plotAreaUnit || ""}
+                    onChange={(v) => upd("plotAreaUnit", v)}
+                  /> */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-[#000000] uppercase">
+                      Plot Area
+                    </label>
+
+                    <div className="flex items-center bg-slate-50 rounded-xl border border-[#27AE60] overflow-hidden">
+                      {/* Plot Area Input */}
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={data.plotArea || ""}
+                        onChange={(e) => upd("plotArea", e.target.value)}
+                        className="flex-1 px-3 py-3 outline-none text-[#27AE60] text-sm bg-transparent"
+                      />
+
+                      {/* Unit Dropdown */}
+                      <select
+                        value={data.plotAreaUnit || ""}
+                        onChange={(e) => upd("plotAreaUnit", e.target.value)}
+                        className="px-3 py-3 border-l border-[#27AE60] bg-white text-sm outline-none"
+                      >
+                        <option value="">Unit</option>
+                        <option value="sqft">Sq Ft</option>
+                        <option value="sqm">Sq Meter</option>
+                        <option value="acre">Acre</option>
+                        <option value="cent">Cent</option>
+                        <option value="yard">Sq Yard</option>
+                      </select>
+                    </div>
+                  </div>
                 </>
               )}
             </div>

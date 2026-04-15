@@ -1,4 +1,4 @@
-// src/pages/EmailNotifications/EmailNotificationComponents/ProgressBar.jsx
+// src/pages/EmailNotifications/EmailNotificationComponents/Progressbar.jsx
 
 const STYLES = `
   @keyframes pb-fill-in {
@@ -24,7 +24,7 @@ const STYLES = `
   }
 
   .pb-track {
-    width: 100%; height: 8px; border-radius: 999px;
+    width: 100%; height: 7px; border-radius: 999px;
     background: rgba(0,0,0,0.06);
     overflow: hidden; display: flex; position: relative;
   }
@@ -35,7 +35,7 @@ const STYLES = `
   }
   .pb-seg-sent  { background: #22c55e; border-radius: 999px 0 0 999px; animation-delay: 0.05s; }
   .pb-seg-fail  { background: #f87171; animation-delay: 0.2s; }
-  .pb-seg-pend  { background: #fcd34d; opacity: 0.55; border-radius: 0 999px 999px 0; flex: 1; }
+  .pb-seg-pend  { background: #fcd34d; opacity: 0.5; border-radius: 0 999px 999px 0; flex: 1; }
   .pb-sweep-layer {
     position: absolute; top: 0; height: 100%; width: 40%;
     background: rgba(255,255,255,0.4); border-radius: 999px;
@@ -61,7 +61,6 @@ const injectStyles = () => {
 };
 
 // ─── Variant 1: Sweep Shimmer ─────────────────────────────
-// Classic single stacked bar with a travelling light sweep.
 const SweepBar = ({ s, f }) => (
   <div className="pb-track">
     {s > 0 && <div className="pb-seg pb-seg-sent" style={{ width: `${s}%` }} />}
@@ -72,7 +71,6 @@ const SweepBar = ({ s, f }) => (
 );
 
 // ─── Variant 2: Segmented Blocks ──────────────────────────
-// Gapped blocks — sent has a hatched shimmer, pending marches.
 const BlocksBar = ({ s, f, p }) => (
   <div style={{ display: "flex", gap: 3, height: 10 }}>
     <div
@@ -121,13 +119,12 @@ const BlocksBar = ({ s, f, p }) => (
 );
 
 // ─── Variant 3: Stacked Rows ──────────────────────────────
-// Three individual thin bars, one per status, with labels.
 const RowItem = ({ label, pct, color, textColor, delay }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
     <span
       style={{
         fontSize: 10,
-        color: "var(--color-text-secondary)",
+        color: "#6b7280",
         width: 44,
         textAlign: "right",
         flexShrink: 0,
@@ -190,8 +187,6 @@ const RowsBar = ({ s, f, p }) => (
 );
 
 // ─── Variant 4: Dot Ticks ─────────────────────────────────
-// Each individual email shown as a tiny colored square tile.
-// Works best for small totals (≤ 60). Caps at 60 tiles.
 const TicksBar = ({ success, failed, total }) => {
   const cap = Math.min(total, 60);
   const scale = cap / total;
@@ -272,7 +267,7 @@ const Labels = ({ success, failed, pending, total }) => (
         marginLeft: "auto",
         fontSize: 10,
         fontWeight: 700,
-        color: "var(--color-text-secondary)",
+        color: "#6b7280",
         animation: "pb-badge-pop 0.4s ease both 0.35s",
       }}
     >
@@ -289,7 +284,6 @@ export const ProgressBar = ({
   variant = "sweep", // "sweep" | "blocks" | "rows" | "ticks"
   showLabels = false,
 }) => {
-  // Inject keyframes once on first render
   if (typeof document !== "undefined") injectStyles();
 
   const s = total ? Math.round((success / total) * 100) : 0;
@@ -305,7 +299,6 @@ export const ProgressBar = ({
       {variant === "ticks" && (
         <TicksBar success={success} failed={failed} total={total} />
       )}
-
       {showLabels && (
         <Labels
           success={success}
