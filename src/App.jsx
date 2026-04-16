@@ -51,7 +51,7 @@ const HighlightProjectDetails = lazy(() =>
 
 
 // Users 
-const Users = lazy(() => import("./pages/users/Users"));
+const Users = lazy(() => import("./pages/users/Users/Users"));
 const Locations = lazy(() => import("./pages/Locations/LocationsPage.jsx"))
 const NotFound = lazy(() => import("./pages/NotFound"));
 const SignIn = lazy(() => import("./Auth/SignIn"));

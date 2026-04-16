@@ -52,6 +52,9 @@ export const createUserLocationDetails = async (formData) => {
   }
 };
 
+///////////////////////////////
+  {/* User Services */}
+//////////////////////////////
 //All Users
 export const getAllUsers = () => {
   return apiClient.get(`${SERVICES.USER}/auth/all-users`);
@@ -61,6 +64,13 @@ export const getAllUsers = () => {
 export const getUserSearch = (query) => {
   return apiClient.get(`${SERVICES.USER}/auth/search?role=${query}`);
 };
+
+//User Details
+export const getUserDetails = () => {
+  return apiClient.get(`${SERVICES.USER}/auth/me`);
+};
+
+//////////////////////////////////////////////////////////////////////////////////////
 
 //TransferCredentials
 export const transferCredentials = (id, formData) => {
