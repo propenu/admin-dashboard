@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import { Upload, ImageIcon } from "lucide-react";
 import imageCompression from "browser-image-compression";
-import { saveImage } from "../utils/indexedDB";
+import { saveImage, getFileFromKey } from "../utils/indexedDB";
 
 const compressImage = async (file) => {
   const options = {
@@ -139,7 +139,8 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
     const compressed = await compressImage(file);
     const base64 = await fileToBase64(compressed);
 
-    const key = await saveImage(compressed, "other");
+    //const key = await saveImage(compressed, "other");
+    const key = await saveImage(compressed, "other", "logo");
 
     update({
       heroImage: {
@@ -153,9 +154,34 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
   };
 
  useEffect(() => {
-   setHeroPreview(payload.heroImagePreview || "");
-   setLogoPreview(payload.logoPreview || "");
- }, [payload.heroImagePreview, payload.logoPreview]);
+   const loadImages = async () => {
+     // 🔹 HERO IMAGE
+     const heroKey =
+       typeof payload.heroImage === "string"
+         ? payload.heroImage
+         : payload.heroImage?.key;
+
+     if (heroKey) {
+       const file = await getFileFromKey(heroKey, "other");
+       if (file) {
+         setHeroPreview(URL.createObjectURL(file));
+       }
+     }
+
+     // 🔹 LOGO
+     const logoKey =
+       typeof payload.logo === "string" ? payload.logo : payload.logo?.key;
+
+     if (logoKey) {
+       const file = await getFileFromKey(logoKey, "other");
+       if (file) {
+         setLogoPreview(URL.createObjectURL(file));
+       }
+     }
+   };
+
+   loadImages();
+ }, [payload.heroImage, payload.logo]);
   
  const onLogoFile = async (e) => {
    const file = e.target.files[0];
@@ -164,7 +190,8 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
    const compressed = await compressImage(file);
    const base64 = await fileToBase64(compressed);
 
-   const key = await saveImage(compressed, "other");
+   //const key = await saveImage(compressed, "other");
+   const key = await saveImage(compressed, "other", "hero");
 
    update({
      logo: {

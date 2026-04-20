@@ -117,14 +117,7 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
     ),
   ];
 
-  // Final filtered builder list shown in Select Builder dropdown
-  // const filteredBuilders = builders.filter(
-  //   (b) =>
-  //     (!filters.state || b.state === filters.state) &&
-  //     (!filters.city || b.city === filters.city) &&
-  //     (!filters.pincode || b.pincode === filters.pincode) &&
-  //     (!filters.locality || b.locality === filters.locality),
-  // );
+  
 
   const filteredBuilders = builders.filter((b) => {
     const matchesState = !filters.state || b.state === filters.state;
@@ -181,7 +174,7 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
       if (!payload.projectArea || Number(payload.projectArea) <= 0)
         e.projectArea = "Required (must be > 0)";
 
-      if (!payload.areaUnits) e.areaUnits = "Select a unit";
+      //if (!payload.areaUnits) e.areaUnits = "Select a unit";
 
       if (!payload.totalUnits || Number(payload.totalUnits) <= 0)
         e.totalUnits = "Required (must be > 0)";
@@ -308,7 +301,7 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
                 onChange={(e) => handleChange("projectArea", e.target.value)}
               />
               {/* Area unit dropdown */}
-              <select
+              {/* <select
                 className={`px-3 py-3 bg-white border-2 rounded-xl text-gray-900 text-sm font-bold
                   outline-none transition-all duration-200 cursor-pointer flex-shrink-0
                   ${
@@ -327,7 +320,7 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
                     {u.label}
                   </option>
                 ))}
-              </select>
+              </select> */}
             </div>
             {/* Error messages for both fields */}
             {errors.projectArea && (

@@ -231,54 +231,7 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      // onChange={(e) => {
-                      //   const f = e.target.files?.[0];
-                      //   if (!f) return;
-                      //   updUnit(bi, ui, {
-                      //     planFile: f,
-                      //     planFileName: f.name,
-                      //     planPreview: URL.createObjectURL(f),
-                      //   });
-                      // }}
-                      // onChange={async (e) => {
-                      //   const file = e.target.files?.[0];
-                      //   if (!file) return;
-
-                      //   // ✅ validate (optional but recommended)
-                      //   const allowedTypes = [
-                      //     "image/jpeg",
-                      //     "image/png",
-                      //     "image/webp",
-                      //   ];
-                      //   if (!allowedTypes.includes(file.type)) {
-                      //     alert("Only JPG, PNG, WEBP allowed");
-                      //     return;
-                      //   }
-
-                      //   // ✅ compress
-                      //   const compressed = await compressImage(file);
-
-                      //   // ✅ convert to base64
-                      //   const base64 = await fileToBase64(compressed);
-
-                      //   // ✅ update state
-                      //   const key = await saveImage(compressed, "other");
-
-                      //   // updUnit(bi, ui, {
-                      //   //   planFile: key,
-                      //   //   planFileName: file.name,
-                      //   //   planPreview: base64,
-                      //   // });
-                      //   updUnit(bi, ui, {
-                      //     planFile: {
-                      //       file: compressed,
-                      //       key: key,
-                      //     },
-                      //     planFileName: file.name,
-                      //     planPreview: base64,
-                      //   });
-
-                      // }}
+                      
 
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
@@ -287,7 +240,12 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                         const compressed = await compressImage(file);
                         const base64 = await fileToBase64(compressed);
 
-                        const key = await saveImage(compressed, "other");
+                        //const key = await saveImage(compressed, "other");
+                        const key = await saveImage(
+                          compressed,
+                          "other",
+                          `bhk_${bi}_${ui}`,
+                        );
 
                         updUnit(bi, ui, {
                           planFile: {

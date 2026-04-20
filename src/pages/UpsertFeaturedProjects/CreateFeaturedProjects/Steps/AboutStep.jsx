@@ -10,7 +10,7 @@ import TiptapEditor from "../Components/TiptapEditor";
 import { X, ImageIcon } from "lucide-react";
 
 import imageCompression from "browser-image-compression";
-import { saveImage } from "../utils/indexedDB";
+import { saveImage, getFileFromKey } from "../utils/indexedDB";
 import { deleteImage } from "../utils/indexedDB";
 
 const compressImage = async (file) => {
@@ -110,12 +110,15 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
     // ✅ convert to base64 (for localStorage)
     const base64 = await fileToBase64(compressed);
 
-    const key = await saveImage(compressed, "other");
+    //const key = await saveImage(compressed, "other");
+    const key = await saveImage(compressed, "other", "about");
 
     // ✅ save
     update({
-      aboutImage: key, // backend
-      aboutImagePreview: base64, // localStorage
+      aboutImage: {
+        file: compressed,
+        key: key,
+      },
     });
 
     // ✅ UI preview
@@ -128,7 +131,14 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
   
 
   const removeImage = async () => {
-    await deleteImage("about"); 
+    const key =
+      typeof payload.aboutImage === "string"
+        ? payload.aboutImage
+        : payload.aboutImage?.key;
+
+    if (key) {
+      await deleteImage(key, "other");
+    }
 
     update({
       aboutImage: null,
@@ -138,17 +148,27 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
     setPreview(null);
   };
 
-  // useEffect(() => {
-  //   if (payload.aboutImage && typeof payload.aboutImage === "string") {
-  //     setPreview(payload.aboutImage);
-  //   }
-  // }, [payload.aboutImage]);
   
-  useEffect(() => {
-    if (payload.aboutImagePreview) {
-      setPreview(payload.aboutImagePreview);
-    }
-  }, [payload.aboutImagePreview]);
+  
+ useEffect(() => {
+   const loadImage = async () => {
+     const key =
+       typeof payload.aboutImage === "string"
+         ? payload.aboutImage
+         : payload.aboutImage?.key;
+
+     if (key) {
+       const file = await getFileFromKey(key, "other");
+
+       if (file) {
+         const url = URL.createObjectURL(file);
+         setPreview(url);
+       }
+     }
+   };
+
+   loadImage();
+ }, [payload.aboutImage]);
 
   return (
     <div className="space-y-6" ref={aboutRef}>

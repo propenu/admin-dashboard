@@ -8,6 +8,8 @@ import {
   updateFeaturedProperty,
 } from "../../../services/PostAPropertyService";
 
+
+
 import HeroSection from "./FeaturedPreviewPageComponents/HeroSection";
 import LeftEditor from "./FeaturedPreviewPageComponents/LeftEditor";
 import AmenitiesEditor from "./FeaturedPreviewPageComponents/AmenitiesEditor";
@@ -53,16 +55,22 @@ function SectionWrapper({
 }) {
   const [editorOpen, setEditorOpen] = useState(false); // mobile accordion
 
+  
+
   return (
-    <section id={`${id}-section`} className="group">
+    <section id={`${id}-section`} className="group ">
       {/* Section Header */}
-      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5 px-1">
+      <div className="flex  items-center gap-2 sm:gap-3 mb-4 sm:mb-5 px-1 ">
         <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#27AE60]/10 flex items-center justify-center text-base sm:text-lg flex-shrink-0">
           {icon}
         </div>
         <div className="min-w-0">
-          <h2 className="text-sm sm:text-base font-bold text-gray-800 leading-tight truncate">{title}</h2>
-          <p className="text-[11px] sm:text-xs text-gray-400 truncate">{subtitle}</p>
+          <h2 className="text-sm sm:text-base font-bold text-gray-800 leading-tight truncate">
+            {title}
+          </h2>
+          <p className="text-[11px] sm:text-xs text-gray-400 truncate">
+            {subtitle}
+          </p>
         </div>
 
         {/* Mobile: toggle editor button */}
@@ -74,9 +82,16 @@ function SectionWrapper({
           {editorOpen ? "Hide" : "Edit"}
           <svg
             className={`w-3 h-3 transition-transform duration-200 ${editorOpen ? "rotate-180" : ""}`}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </button>
 
@@ -86,7 +101,6 @@ function SectionWrapper({
 
       {/* Section Body */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
-
         {/* Editor — always shown lg+, collapsible on mobile */}
         <div
           className={[
@@ -101,7 +115,7 @@ function SectionWrapper({
 
         {/* Preview — always visible */}
         <div
-          className="lg:col-span-8 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+          className="lg:col-span-8 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden "
           ref={registerSectionRef}
           data-section-id={id}
         >
@@ -165,14 +179,28 @@ export default function FeaturedPreviewPage() {
     }
   }
 
+  // const scrollTo = useCallback((sectionId) => {
+  //   const node = sectionRefs.current[sectionId];
+  //   if (node) {
+  //     node.scrollIntoView({ behavior: "smooth", block: "start" });
+  //     setMobileNavOpen(false);
+  //   }
+  // }, []);
+
   const scrollTo = useCallback((sectionId) => {
     const node = sectionRefs.current[sectionId];
     if (node) {
-      node.scrollIntoView({ behavior: "smooth", block: "center" });
+      const yOffset = -210; // adjust based on header
+      const y = node.getBoundingClientRect().top + window.pageYOffset + yOffset;
+
+      window.scrollTo({
+        top: y,
+        behavior: "smooth",
+      });
+
       setMobileNavOpen(false);
     }
   }, []);
-
   /* IntersectionObserver for active section */
   useEffect(() => {
     if (!formData) return;
@@ -194,7 +222,7 @@ export default function FeaturedPreviewPage() {
   return (
     <div className="min-h-screen bg-gray-50/60">
       {/* ── TOP NAV BAR ── */}
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-gray-100 shadow-sm">
+      <div className="sticky top-16 z-50 bg-white/90 backdrop-blur border border-[#27AE60] rounded-xl shadow-2xl">
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <div className="flex items-center h-13 sm:h-14 gap-2">
             {/* Brand dot */}

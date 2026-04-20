@@ -42,16 +42,16 @@ export const useFeaturedProject = (projectType) => {
 
   const [progress, setProgress] = useState(0);
 
-  // ✅ SAVE ON CHANGE
-  // useEffect(() => {
-  //   localStorage.setItem("featuredPayload", JSON.stringify(payload));
-  // }, [payload]);
 
   useEffect(() => {
     const safePayload = {
       ...payload,
       galleryFiles: [],
 
+      // 🔥 REMOVE HEAVY FIELDS
+      heroImagePreview: "",
+      logoPreview: "",
+      aboutImagePreview: "",
     };
 
     localStorage.setItem("featuredPayload", JSON.stringify(safePayload));
@@ -115,7 +115,7 @@ export const useFeaturedProject = (projectType) => {
 
      
 
-    const formData = buildFormData(updatedPayload);
+    const formData = await buildFormData(updatedPayload);
     const config = getUploadProgressConfig(setProgress);
 
     return createFeaturedProperty(formData, config);
@@ -125,9 +125,9 @@ export const useFeaturedProject = (projectType) => {
     onSuccess: async () => {
       toast.success("Property created successfully ✅");
 
-      //await clearAllImages();
+      await clearAllImages();
 
-      //localStorage.removeItem("featuredPayload");
+      localStorage.removeItem("featuredPayload");
       setProgress(0);
 
       navigate("/featured-properties");
