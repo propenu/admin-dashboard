@@ -162,38 +162,53 @@ export const sentEmailNotification = (formData) => {
   return apiClient.post(`${SERVICES.USER}/email/send-email`, formData);
 }
 
-
+///////////////////////////////////////////////////////////////
 {/* Whatsapp Notification */}
+
+export const geAlltWhatsappLogs = () => {
+  return apiClient.get(`${SERVICES.USER}/whatsapp/whatsapp-logs`);
+}
+
+export const getWhatsAppNotificationAnalytics = () => {
+  return apiClient.get(`${SERVICES.USER}/whatsapp/whatsapp-logs/stats`);
+}
+
+
+
 export const createWhatsAppNotification = (formData) => {
   return apiClient.post(
-    `${SERVICES.USER}/notifications/whatsapp/template`,
+    `${SERVICES.USER}/whatsapp`,
     formData,
   );
 }
 
-export const updateWhatsAppNotification = (formData) => {
-  return apiClient.put(
-    `${SERVICES.USER}/notifications/whatsapp/template`,
-    formData,
-  );
-};
-
 export const getAllWhatsAppNotifications = () => {
-  return apiClient.get(`${SERVICES.USER}/notifications/whatsapp/template`);
+  return apiClient.get(`${SERVICES.USER}/whatsapp`);
 }
 
 export const getWhatsAppNotificationByName = (name) => {
   return apiClient.get(
-    `${SERVICES.USER}/notifications/whatsapp/template/${name}`,
+    `${SERVICES.USER}/whatsapp/${name}`,
   );
 }
 
 export const deleteWhatsAppNotificationByName = (name) => {
   return apiClient.delete(
-    `${SERVICES.USER}/notifications/whatsapp/template/${name}`,
+    `${SERVICES.USER}/whatsapp/${name}`,
   );
 }
 
+export const sentWhatsAppNotification = (formData) => {
+  return apiClient.post(`${SERVICES.USER}/whatsapp/send-whatsapp`, formData);
+}
+
+export const sentBulkWhatsAppNotification = (formData) => {
+  return apiClient.post(
+    `${SERVICES.USER}/whatsapp/send-csv-bulk-whatsapp`,
+    formData,
+  );
+}
+///////////////////////////////////////////////////////////////////
 
 
 export const getEmailCampaignStatus = (campaignId) => {

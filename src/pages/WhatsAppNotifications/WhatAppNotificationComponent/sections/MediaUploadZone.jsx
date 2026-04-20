@@ -1,4 +1,4 @@
-
+// frontend/admin-dashboard/src/pages/WhatsAppNotifications/WhatAppNotificationComponent/sections/MediaUploadZone.jsx
 import { useState, useRef, useCallback } from "react";
 import {
   X,
@@ -6,6 +6,7 @@ import {
   Upload,
 } from "lucide-react"; 
 import { MEDIA_ACCEPT, MEDIA_ICON } from "../../utils/constants";
+import { toast } from "sonner";
 
 
 export const MediaUploadZone = ({ format, header, onChange }) => {
@@ -63,7 +64,10 @@ export const MediaUploadZone = ({ format, header, onChange }) => {
       {header.mediaPreview || header.mediaHandle ? (
         <div className="relative flex items-center gap-3 p-3 bg-[#E8F8EF] border border-[#C2EDD6] rounded-xl">
           <div className="w-10 h-10 rounded-lg bg-[#27AE60] flex items-center justify-center text-white flex-shrink-0">
-            {MEDIA_ICON[format]}
+            {(() => {
+              const Icon = MEDIA_ICON[format];
+              return Icon ? <Icon size={18} /> : null;
+            })()}
           </div>
           <div className="flex-1 min-w-0">
             {format === "IMAGE" && header.mediaPreview && (

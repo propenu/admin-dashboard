@@ -1,4 +1,4 @@
-
+//src/pages/WhatsAppNotifications/cards/TemplateCard.jsx
 import { Globe, Hash, MessageSquare, Trash2 } from "lucide-react";
 import { CAT_COLOR, getStatusMeta } from "../utils/constants";
 import { countVars, formatDate } from "../utils/helper";

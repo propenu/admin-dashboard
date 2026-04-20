@@ -1,4 +1,4 @@
-
+// src/pages/WhatsAppNotifications/WhatAppNotificationComponent/sections/HeaderSection.jsx
 import {
   FileText,
   Image as ImageIcon,
@@ -8,11 +8,6 @@ import {
 import { Toggle } from "../../common/Toggle";
 import { HEADER_FORMATS } from "../../utils/constants";
 import { MediaUploadZone } from "./MediaUploadZone";
-
-
-
-
-
 export const HeaderSection = ({ header, onChange }) => (
 
 

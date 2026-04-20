@@ -799,7 +799,7 @@ const CsvPage = ({
       return;
     }
     if (!file) {
-      toast.error("Upload a CSV/Excel file first");
+      toast.error("Upload a CSV");
       return;
     }
     try {
@@ -889,7 +889,7 @@ const CsvPage = ({
               Configure Bulk Campaign
             </p>
             <p className="text-xs text-gray-400 mt-0.5">
-              Select a template and upload a CSV/Excel file with recipient data
+              Select a template and upload a CSV file with recipient data
             </p>
           </div>
           <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
@@ -913,7 +913,7 @@ const CsvPage = ({
             <div className="flex flex-col gap-4 sm:gap-5">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-3">
-                  Upload CSV / Excel
+                  Upload CSV
                 </p>
                 <div className="flex items-start gap-2 px-3 py-2.5 bg-blue-50 border border-blue-200 rounded-xl mb-4">
                   <FileText
@@ -994,7 +994,7 @@ const CsvPage = ({
                       </div>
                       <div className="text-center">
                         <p className="text-sm font-semibold text-gray-600">
-                          Drop CSV / Excel here
+                          Drop CSV 
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
                           or tap to browse · .csv .xlsx

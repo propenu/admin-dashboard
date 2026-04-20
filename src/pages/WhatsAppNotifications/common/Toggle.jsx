@@ -1,3 +1,4 @@
+//src/pages/WhatsAppNotifications/common/Toggle.jsx
 export const Toggle = ({ on, onToggle }) => (
   <button
     type="button"

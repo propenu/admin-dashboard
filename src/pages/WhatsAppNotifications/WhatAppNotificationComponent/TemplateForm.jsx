@@ -1,3 +1,4 @@
+// frontend/admin-dashboard/src/pages/WhatsAppNotifications/WhatAppNotificationComponent/TemplateForm.jsx
 import { useState } from "react";
 import { EMPTY_FORM } from "../common/EmptyForm";
 import { countVars } from "../utils/helper";

@@ -1,3 +1,4 @@
+// src/pages/WhatsAppNotifications/WhatAppNotificationComponent/preview/PreviewPanel.jsx
 import { FileText, MessageSquare, Link2, PhoneIcon } from "lucide-react";
 import { buildPayload } from "../../utils/payloadBuilder";
 import { LANGUAGES, MEDIA_ICON } from "../../utils/constants";
@@ -69,7 +70,10 @@ export const PreviewPanel = ({ form }) => {
                   />
                 ) : (
                   <div className="w-full h-20 bg-gray-200 rounded-lg flex flex-col items-center justify-center gap-1">
-                    {MEDIA_ICON[form.header.format]}
+                    {(() => {
+                      const Icon = MEDIA_ICON[form.header.format];
+                      return Icon ? <Icon size={20} /> : null;
+                    })()}
                     <span className="text-xs text-gray-400">
                       {form.header.format}
                     </span>

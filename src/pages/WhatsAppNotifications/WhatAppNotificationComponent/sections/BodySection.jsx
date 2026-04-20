@@ -1,3 +1,5 @@
+
+// frontend/admin-dashboard/src/pages/WhatsAppNotifications/WhatAppNotificationComponent/sections/BodySection.jsx
 import { useRef } from "react";
 import { countVars } from "../../utils/helper";
 

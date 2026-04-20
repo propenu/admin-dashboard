@@ -39,22 +39,40 @@ const CsvUploadPanel = ({ item, onClose }) => {
     }
   };
 
-  const handleSend = async () => {
-    if (!file) { toast.error("Please upload a file first"); return; }
-    try {
-      setBusy(true);
-      const fd = new FormData();
-      fd.append("file",       file);
-      fd.append("templateId", item._id);
-      await sentBulkEmailNotification(fd);
-      toast.success("Bulk email campaign started! 🚀");
-      onClose();
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Bulk send failed");
-    } finally {
-      setBusy(false);
-    }
-  };
+  // const handleSend = async () => {
+  //   if (!file) { toast.error("Please upload a file first"); return; }
+  //   try {
+  //     setBusy(true);
+  //     const fd = new FormData();
+  //     fd.append("file",       file);
+  //     fd.append("templateId", item._id);
+  //     await sentBulkEmailNotification(fd);
+  //     toast.success("Bulk email campaign started! 🚀");
+  //     onClose();
+  //   } catch (err) {
+  //     toast.error(err?.response?.data?.message || "Bulk send failed");
+  //   } finally {
+  //     setBusy(false);
+  //   }
+  // };
+
+ const handleSend = async () => {
+   try {
+     await sentEmailNotification({
+       slug: item.slug,
+       state: stateCode
+         ? IN_STATES.find((s) => s.isoCode === stateCode)?.name
+         : "",
+       city: cityName,
+       locality: locality,
+     });
+
+     toast.success("Campaign triggered based on filters 🚀");
+     onClose();
+   } catch (err) {
+     toast.error(err?.message || "Failed");
+   }
+ };
 
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
@@ -197,6 +215,7 @@ const SelectUsersPanel = ({ item, onSend, sending, onClose }) => {
   //   }
   // };
 
+
   const handleSend = async () => {
     if (!filtered.length) {
       toast.error("No users found");
@@ -204,22 +223,22 @@ const SelectUsersPanel = ({ item, onSend, sending, onClose }) => {
     }
 
     try {
-      const allIds = filtered.map((u) => u._id); // ✅ ALL FILTERED USERS
+      await sentEmailNotification({
+        slug: item.slug,
+        state: stateCode
+          ? IN_STATES.find((s) => s.isoCode === stateCode)?.name
+          : "",
+        city: cityName,
+        locality: locality,
+      });
 
-      if (onSend) {
-        onSend({ slug: item.slug, userIds: allIds });
-      } else {
-        await sentEmailNotification({
-          slug: item.slug,
-          userIds: allIds,
-        });
-        toast.success(`Campaign sent to ${allIds.length} users 🚀`);
-        onClose();
-      }
+      toast.success(`Campaign triggered for ${filtered.length} users 🚀`);
+      onClose();
     } catch (err) {
       toast.error(err?.message || "Failed");
     }
   };
+
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
       {/* Filters */}

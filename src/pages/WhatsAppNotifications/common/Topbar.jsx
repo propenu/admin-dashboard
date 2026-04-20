@@ -1,7 +1,5 @@
+// src/pages/WhatsAppNotifications/common/Topbar.jsx
 import { Loader2, MessageSquare, Plus, RefreshCw } from "lucide-react"
-
-
-
 
 export const Topbar = ({ loading, templates, setShowCreate, fetchAll }) => {
     return (

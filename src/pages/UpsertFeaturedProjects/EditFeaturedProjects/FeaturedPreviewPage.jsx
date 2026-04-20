@@ -1,7 +1,7 @@
 // D:\propenu\frontend\admin-dashboard\src\pages\post-property\FeaturedPoperty\FeaturedPreviewPage.jsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 import {
   fetchPostFeaturedPropertyById,
@@ -25,16 +25,19 @@ import Specifications from "./FeaturedPreviewPageComponents/Specifications";
 import AboutUS from "./FeaturedPreviewPageComponents/AboutUs";
 import AboutUsEditor from "./FeaturedPreviewPageComponents/AboutUsEditor";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
+import PropertyDetailsEditor from "./FeaturedPreviewPageComponents/PropertyDetailsEditor";
+import PropertyDetailsSection from "./FeaturedPreviewPageComponents/PropertyDetailsSection";
 import { Video } from "lucide-react";
 
 const SECTIONS = [
-  { id: "hero",           label: "Hero",           icon: "🏠" },
-  { id: "bhk",            label: "BHK",            icon: "📐" },
-  { id: "amenities",      label: "Amenities",      icon: "✨" },
-  { id: "gallery",        label: "Gallery",        icon: "🖼️" },
+  { id: "hero", label: "Hero", icon: "🏠" },
+  { id: "bhk", label: "BHK", icon: "📐" },
+  { id: "amenities", label: "Amenities", icon: "✨" },
+  { id: "gallery", label: "Gallery", icon: "🖼️" },
   { id: "specifications", label: "Specifications", icon: "📑" },
-  { id: "about",          label: "About",          icon: "📋" },
-  { id: "locate",         label: "Location",       icon: "📍" },
+  { id: "about", label: "About", icon: "📋" },
+  { id: "locate", label: "Location", icon: "📍" },
+  { id: "details", label: "Details", icon: "📊" },
 ];
 
 /* ─────────────────────────────────────────────
@@ -454,6 +457,24 @@ export default function FeaturedPreviewPage() {
           leftProps={{ formData, setFormData, saving, onSave: handleSave }}
           rightProps={{ data: livePreviewData }}
           registerSectionRef={(el) => (sectionRefs.current["locate"] = el)}
+        />
+
+        <SectionWrapper
+          id="details"
+          title="Property Details"
+          subtitle="Stats, documents & videos"
+          icon="📊"
+          LeftComponent={PropertyDetailsEditor}
+          RightComponent={PropertyDetailsSection}
+          leftProps={{
+            formData,
+            setFormData,
+            setLivePreviewData,
+            saving,
+            onSave: handleSave,
+          }}
+          rightProps={{ data: livePreviewData }}
+          registerSectionRef={(el) => (sectionRefs.current["details"] = el)}
         />
 
         <div className="h-10 sm:h-16" />

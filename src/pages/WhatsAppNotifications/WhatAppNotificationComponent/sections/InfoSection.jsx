@@ -1,3 +1,4 @@
+// frontend/admin-dashboard/src/pages/WhatsAppNotifications/WhatAppNotificationComponent/sections/InfoSection.jsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   ChevronDown,
