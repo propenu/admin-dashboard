@@ -262,7 +262,7 @@ export default function PropertyDetailsSection({ data }) {
       )}
 
       {/* ── YouTube Videos ── */}
-      {sorted.length > 0 && (
+      {/* {sorted.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-red-50">
@@ -279,7 +279,7 @@ export default function PropertyDetailsSection({ data }) {
             </span>
           </div>
 
-          {/* Main player */}
+          
           {activeVidId && (
             <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm aspect-video mb-4">
               <iframe
@@ -293,7 +293,7 @@ export default function PropertyDetailsSection({ data }) {
             </div>
           )}
 
-          {/* Video title + link */}
+          
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-sm font-bold text-gray-800">
@@ -317,7 +317,7 @@ export default function PropertyDetailsSection({ data }) {
             </a>
           </div>
 
-          {/* Playlist thumbnails */}
+          
           {sorted.length > 1 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {sorted.map((v, i) => {
@@ -385,7 +385,7 @@ export default function PropertyDetailsSection({ data }) {
             </div>
           )}
         </div>
-      )}
+      )} */}
     </section>
   );
 }

@@ -363,7 +363,7 @@ export default function PropertyDetailsEditor({
         </div>
 
         {/* ── YouTube Videos ── */}
-        <div>
+        {/* <div>
           <SectionLabel icon="🎥" label="YouTube Videos" />
           <div className="mt-3 space-y-3">
             {local.youtubeVideos?.length > 0 && (
@@ -375,7 +375,7 @@ export default function PropertyDetailsEditor({
                       key={i}
                       className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50/50"
                     >
-                      {/* Thumbnail */}
+                      
                       <div className="w-14 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 relative">
                         {vid ? (
                           <img
@@ -428,7 +428,7 @@ export default function PropertyDetailsEditor({
               </div>
             )}
 
-            {/* Add new video */}
+            
             <div className="border border-gray-100 rounded-xl overflow-hidden">
               <div className="px-4 py-2.5 bg-white border-b border-gray-100">
                 <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
@@ -500,7 +500,7 @@ export default function PropertyDetailsEditor({
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* ── Save footer ── */}
