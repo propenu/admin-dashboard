@@ -11,17 +11,19 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-
-  // 🔥 VERY IMPORTANT for Netlify
   base: "/",
 
   build: {
-    outDir: "dist",
-    assetsDir: "assets",
-    sourcemap: false,
-  },
-
-  server: {
-    port: 5173,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom"],
+          router: ["react-router-dom"],
+          query: ["@tanstack/react-query"],
+          charts: ["recharts"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   },
 });
