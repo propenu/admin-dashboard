@@ -147,9 +147,6 @@ export const getAllGalleryImages = async () => {
   return files;
 };
 
-//
-// ✅ GET ALL OTHER IMAGES (hero, logo, about, plans)
-//
 export const getAllOtherImages = async () => {
   const db = await getDB();
   const keys = await db.getAllKeys(STORES.OTHER);

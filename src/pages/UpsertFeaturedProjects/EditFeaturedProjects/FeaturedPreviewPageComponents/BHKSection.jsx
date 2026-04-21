@@ -71,7 +71,7 @@ export default function BHKSection({
         style={{ backgroundColor: `${primary}08`, borderColor: `${primary}20` }}
       >
         {/* Unit size sub-tabs */}
-        {activeBhk?.units?.length > 1 && (
+        {activeBhk?.units?.length >= 1 && (
           <div
             className="flex gap-1 mb-5 border-b pb-3 overflow-x-auto"
             style={{ borderColor: `${primary}20` }}
