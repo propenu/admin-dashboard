@@ -11,7 +11,7 @@ import ProtectedRoute from "./pages/ProtectedRoute";
 // Lazy Loaded Pages
 const Dashboard = lazy(() => import("./pages/Dashboards/MainDashboard.jsx"));
 const FeaturedProperties = lazy(() =>
-  import("./pages/FeaturedProperties/FeatureProperties.jsx")
+  import("./pages/FeaturedProperties/FeatureProperties")
 );
 
 //Land
@@ -24,7 +24,7 @@ const LandPropertyVerification = lazy(() =>
 );
 
 const PropertyDetails = lazy(() =>
-  import("./pages/FeaturedProperties/FeaturedPropertyDetails.jsx")
+  import("./pages/FeaturedProperties/FeaturedPropertyDetails")
 );
 
 const HighlightedProject = lazy(() =>
