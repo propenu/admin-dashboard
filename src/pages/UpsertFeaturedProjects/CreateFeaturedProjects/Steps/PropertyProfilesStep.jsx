@@ -254,8 +254,8 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
 
   const toggleCategory = (category) => {
     update({
-      categoryTypes:
-        payload.categoryTypes === category.value ? "" : category.value,
+      categoryType:
+        payload.categoryType === category.value ? "" : category.value,
     });
   };
 
@@ -440,7 +440,7 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
         )}
         <div className="flex flex-wrap gap-3">
           {CATEGORY_TYPES.map((category) => {
-            const sel = payload.categoryTypes === category.value;
+            const sel = payload.categoryType === category.value;
 
             return (
               <button

@@ -5,48 +5,48 @@ export async function buildFormData(payload) {
   const bhkPlanFiles = [];
 
   const bhkSummary = await Promise.all(
-  (payload.bhkSummary || []).map(async (b) => ({
-    bhk: Number(b.bhk || 0),
-    bhkLabel: b.bhkLabel,
-    units: await Promise.all(
-      (b.units || []).map(async (u) => {
-        let file = null;
+    (payload.bhkSummary || []).map(async (b) => ({
+      bhk: Number(b.bhk || 0),
+      bhkLabel: b.bhkLabel,
+      units: await Promise.all(
+        (b.units || []).map(async (u) => {
+          let file = null;
 
-        // ✅ Case 1: before refresh
-        if (u.planFile?.file instanceof File) {
-          file = u.planFile.file;
-        }
+          // ✅ Case 1: before refresh
+          if (u.planFile?.file instanceof File) {
+            file = u.planFile.file;
+          }
 
-        // ✅ Case 2: after refresh (THIS IS YOUR FIX)
-        else if (u.planFile?.key) {
-          file = await getFileFromKey(u.planFile.key, "other");
-        }
+          // ✅ Case 2: after refresh (THIS IS YOUR FIX)
+          else if (u.planFile?.key) {
+            file = await getFileFromKey(u.planFile.key, "other");
+          }
 
-        if (file) {
-          const index = bhkPlanFiles.length;
-          bhkPlanFiles.push(file);
+          if (file) {
+            const index = bhkPlanFiles.length;
+            bhkPlanFiles.push(file);
+
+            return {
+              minSqft: Number(u.minSqft || 0),
+              maxPrice: Number(u.maxPrice || 0),
+              availableCount: Number(u.availableCount || 0),
+
+              // 🔥 IMPORTANT for backend
+              planFileIndex: index,
+              planFileName: file.name,
+            };
+          }
 
           return {
             minSqft: Number(u.minSqft || 0),
             maxPrice: Number(u.maxPrice || 0),
             availableCount: Number(u.availableCount || 0),
-
-            // 🔥 IMPORTANT for backend
-            planFileIndex: index,
-            planFileName: file.name,
+            planFileName: u.planFileName,
           };
-        }
-
-        return {
-          minSqft: Number(u.minSqft || 0),
-          maxPrice: Number(u.maxPrice || 0),
-          availableCount: Number(u.availableCount || 0),
-          planFileName: u.planFileName,
-        };
-      })
-    ),
-  }))
-);
+        }),
+      ),
+    })),
+  );
 
   if (!payload.title?.trim() || !payload.address?.trim()) {
     throw new Error("Title and Address are required");
@@ -73,15 +73,41 @@ export async function buildFormData(payload) {
     "status",
     "mapEmbedUrl",
     "redirectUrl",
-    "categoryType",
-    "totalTowers",
-    "totalFloors",
-    "projectArea",
-    "totalUnits",
-    "availableUnits",
   ].forEach((key) => {
-    if (payload[key]) fd.append(key, payload[key]);
+    if (payload[key] !== undefined && payload[key] !== null) {
+      fd.append(key, payload[key]);
+    }
   });
+
+  // ✅ categoryType
+  if (payload.categoryType !== undefined) {
+    fd.append("categoryType", payload.categoryType);
+  }
+
+  // ✅ totalTowers
+  if (payload.totalTowers !== undefined) {
+    fd.append("totalTowers", Number(payload.totalTowers));
+  }
+
+  // ✅ totalFloors
+  if (payload.totalFloors) {
+    fd.append("totalFloors", payload.totalFloors);
+  }
+
+  // ✅ projectArea
+  if (payload.projectArea !== undefined) {
+    fd.append("projectArea", Number(payload.projectArea));
+  }
+
+  // ✅ totalUnits
+  if (payload.totalUnits !== undefined) {
+    fd.append("totalUnits", Number(payload.totalUnits));
+  }
+
+  // ✅ availableUnits
+  if (payload.availableUnits !== undefined) {
+    fd.append("availableUnits", Number(payload.availableUnits));
+  }
 
   fd.append("isFeatured", payload.isFeatured ? "true" : "false");
   if (payload.sqftRange) {
@@ -105,7 +131,7 @@ export async function buildFormData(payload) {
     fd.append("banksApproved", JSON.stringify(payload.banksApproved));
 
   fd.append("gallerySummary", JSON.stringify(payload.gallerySummary || []));
-  
+
   if (payload.aboutSummary?.length)
     fd.append("aboutSummary", JSON.stringify(payload.aboutSummary));
   if (payload.leads?.length) fd.append("leads", JSON.stringify(payload.leads));
@@ -125,22 +151,21 @@ export async function buildFormData(payload) {
     );
   }
 
-  
   const appendFile = async (value, fieldName) => {
-  if (!value) return;
+    if (!value) return;
 
-  let file = null;
+    let file = null;
 
-  if (value.file instanceof File) {
-    file = value.file;
-  } else if (value.key) {
-    file = await getFileFromKey(value.key, "other");
-  }
+    if (value.file instanceof File) {
+      file = value.file;
+    } else if (value.key) {
+      file = await getFileFromKey(value.key, "other");
+    }
 
-  if (file instanceof File) {
-    fd.append(fieldName, file);
-  }
-};
+    if (file instanceof File) {
+      fd.append(fieldName, file);
+    }
+  };
 
   await appendFile(payload.heroImage, "heroImage");
   await appendFile(payload.logo, "logo");
@@ -162,6 +187,6 @@ export async function buildFormData(payload) {
   if (payload.youtubeVideos?.length) {
     fd.append("youtubeVideos", JSON.stringify(payload.youtubeVideos));
   }
-  for (const pair of fd.entries()) console.log(pair[0], pair[1]); return fd;
-   
+  for (const pair of fd.entries()) console.log(pair[0], pair[1]);
+  return fd;
 }
