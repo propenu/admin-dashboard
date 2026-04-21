@@ -1,6 +1,7 @@
 
 //frontend/admin-dashboard/src/pages/Payments/AgentPayments/ServiceDetailsCard.jsx
 import { FEATURE_CONFIG } from "./featureConfig";
+import  Illustration  from "../../../assets/illustration.svg"
 const LABELS = {
   PROPERTY_LISTING_LIMIT: "No. of Property Listings",
   BUYER_REACH_PERCENT: "Buyer Reach",
@@ -35,7 +36,8 @@ export default function ServiceDetailsCard({ userType, category }) {
     <div className="relative w-[230px] top-[40px] max-sm:w-[190px]">
       {/* Illustration */}
       <img
-        src="/src/assets/illustration.svg"
+        // src="/src/assets/illustration.svg"
+        src={Illustration}
         alt="illustration"
         className="absolute top-3 left-4 w-[50px]"
       />
