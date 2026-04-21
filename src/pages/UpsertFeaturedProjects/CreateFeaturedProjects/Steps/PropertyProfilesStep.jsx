@@ -1,7 +1,7 @@
 // src/pages/post-property/featured-create/steps/PropertyProfilesStep.jsx
 
 import { forwardRef, useImperativeHandle, useRef, useState,useEffect } from "react";
-import { Building2, FileText, BadgeCheck, Globe, Map } from "lucide-react";
+import { Building2, FileText, BadgeCheck, Globe, Map, Tag } from "lucide-react";
 import { getUserSearch } from "../../../../features/user/userService";
  
 
@@ -20,6 +20,13 @@ const ERR   = "text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1
 
 /* ─── Constants ─────────────────────────────────────────────── */
 const BANKS = ["HDFC", "ICICI", "SBI", "Axis", "PNB", "Kotak", "Yes Bank"];
+
+const CATEGORY_TYPES = [ 
+  {value:"residential", label:"Residential"}, 
+  {value:"commercial", label:"Commercial"}, 
+  {value:"land", label:"Land"}, 
+  {value:"agricultural", label:"Agricultural"}
+];
 
 const AREA_UNITS = [
   { value: "Acres",   label: "Acres"   },
@@ -245,6 +252,13 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
     clr("banksApproved");
   };
 
+  const toggleCategory = (category) => {
+    update({
+      categoryTypes:
+        payload.categoryTypes === category.value ? "" : category.value,
+    });
+  };
+
   /* ── Render ── */
   return (
     <div className="space-y-5" ref={profileRef}>
@@ -413,6 +427,37 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
               >
                 {sel ? "✓ " : ""}
                 {bank}
+              </button>
+            );
+          })}
+        </div>
+      </SectionCard>
+
+      {/* ── 2. Catogory Types ── */}
+      <SectionCard icon={Tag} title="Category Types" sub="Category">
+        {errors.categoryTypes && (
+          <p className={`${ERR} mb-4`}>⚠ {errors.categoryTypes}</p>
+        )}
+        <div className="flex flex-wrap gap-3">
+          {CATEGORY_TYPES.map((category) => {
+            const sel = payload.categoryTypes === category.value;
+
+            return (
+              <button
+                key={category.value}
+                type="button"
+                onClick={() => toggleCategory(category)}
+                className="px-5 py-2.5 rounded-xl border-2 text-sm font-black"
+                style={{
+                  background: sel
+                    ? "linear-gradient(135deg,#27AE60,#1e8449)"
+                    : "white",
+                  borderColor: sel ? "#27AE60" : "#e5e7eb",
+                  color: sel ? "white" : "#374151",
+                }}
+              >
+                {sel ? "✓ " : ""}
+                {category.label}
               </button>
             );
           })}

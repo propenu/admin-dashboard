@@ -263,7 +263,7 @@ export default function Sidebar({
               icon: AccountsSummaryIcon,
             },
             {
-              path: "/paymets-list",
+              path: "/payments-list",
               label: "Payments List",
               icon: PaymentsListIcon,
             },
@@ -415,7 +415,7 @@ export default function Sidebar({
               icon: AccountsSummaryIcon,
             },
             {
-              path: "/paymets-list",
+              path: "/payments-list",
               label: "Payments List",
               icon: PaymentsListIcon,
             },
@@ -621,7 +621,7 @@ export default function Sidebar({
               icon: AccountsSummaryIcon,
             },
             {
-              path: "/paymets-list",
+              path: "/payments-list",
               label: "Payments List",
               icon: PaymentsListIcon,
             },

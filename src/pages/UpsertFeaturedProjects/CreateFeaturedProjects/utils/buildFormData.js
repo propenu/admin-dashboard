@@ -73,6 +73,12 @@ export async function buildFormData(payload) {
     "status",
     "mapEmbedUrl",
     "redirectUrl",
+    "categoryType",
+    "totalTowers",
+    "totalFloors",
+    "projectArea",
+    "totalUnits",
+    "availableUnits",
   ].forEach((key) => {
     if (payload[key]) fd.append(key, payload[key]);
   });
