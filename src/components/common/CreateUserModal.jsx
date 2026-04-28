@@ -273,12 +273,12 @@ export default function CreateUserModal({ onClose }) {
 
   /* ── Handlers ── */
   const handleRequestOtp = async () => {
-    const ok = await trigger(["name", "email", "phone", "role"]);
+    const ok = await trigger(["name", "email", "role"]);
     if (!ok) return;
     try {
       setLoading(true);
-      await createRequestOtp(formData.phone);
-      toast.success(`OTP sent to ${formData.phone}`);
+      await createRequestOtp(formData.email);
+      toast.success(`OTP sent to ${formData.email}`);
       setStep(2);
     } catch (err) {
       toast.error(err.message || "Failed to send OTP");
@@ -297,7 +297,6 @@ export default function CreateUserModal({ onClose }) {
         email: formData.email,
         name:  formData.name,
         role:  formData.role,
-        phone: formData.phone,
       });
       if (response.token) {
         setLocationToken(response.token);
@@ -533,7 +532,7 @@ export default function CreateUserModal({ onClose }) {
                     />
                   </Field>
 
-                  <Field label="Phone Number" error={errors.phone}>
+                  {/* <Field label="Phone Number" error={errors.phone}>
                     <div className={`cum-phone-wrap${errors.phone ? " cum-error" : ""}`}>
                       <Controller
                         name="phone"
@@ -548,7 +547,7 @@ export default function CreateUserModal({ onClose }) {
                         )}
                       />
                     </div>
-                  </Field>
+                  </Field> */}
 
                   <Field label="Email Address" error={errors.email}>
                     <input

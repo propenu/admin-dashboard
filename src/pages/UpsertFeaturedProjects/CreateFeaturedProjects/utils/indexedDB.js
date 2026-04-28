@@ -52,6 +52,20 @@ export const getDB = async () => {
 //   return key;
 // };
 
+// export const saveImage = async (file, type = "gallery", prefix = "img") => {
+//   const db = await getDB();
+
+//   const storeName = type === "gallery" ? STORES.GALLERY : STORES.OTHER;
+
+//   const fileName = file.name || "image.jpg";
+
+//   // 🔥 UNIQUE KEY
+//   const key = `${prefix}__${Date.now()}__${fileName}`;
+
+//   await db.put(storeName, file, key);
+
+//   return key;
+// };
 export const saveImage = async (file, type = "gallery", prefix = "img") => {
   const db = await getDB();
 
@@ -59,13 +73,16 @@ export const saveImage = async (file, type = "gallery", prefix = "img") => {
 
   const fileName = file.name || "image.jpg";
 
-  // 🔥 UNIQUE KEY
   const key = `${prefix}__${Date.now()}__${fileName}`;
 
-  await db.put(storeName, file, key);
+  // ✅ FORCE BLOB
+  const blob = new Blob([file], { type: file.type });
+
+  await db.put(storeName, blob, key);
 
   return key;
 };
+
 
 //
 // ✅ GET SINGLE IMAGE
@@ -104,26 +121,48 @@ export const clearAllImages = async () => {
   await db.clear(STORES.OTHER);
 };
 
-export const getFileFromKey = async (key, type = "other") => {
-  if (!key) return null;
+// export const getFileFromKey = async (key, type = "other") => {
+//   if (!key) return null;
 
-  const blob = await getImage(key, type);
-  if (!blob) return null;
+//   const blob = await getImage(key, type);
+//   if (!blob) return null;
 
-  const name =
-    typeof key === "string" && key.includes("__")
-      ? key.split("__")[2] // because prefix__timestamp__filename
-      : "image.jpg";
+//   const name =
+//     typeof key === "string" && key.includes("__")
+//       ? key.split("__")[2] // because prefix__timestamp__filename
+//       : "image.jpg";
 
-  return new File([blob], name, {
-    type: blob.type,
-  });
-};
+//       console.log("✅ Retrieved file:", name);
+
+//   return new File([blob], name, {
+//     type: blob.type,
+//   });
+// };
 
 //
 // ✅ GET ALL GALLERY IMAGES ONLY
 //
 
+
+export const getFileFromKey = async (key, type = "other") => {
+  if (!key) return null;
+
+  const blob = await getImage(key, type);
+
+  if (!blob) {
+    console.error("❌ No blob found for key:", key);
+    return null;
+  }
+
+  const parts = key.split("__");
+  const name = parts.slice(2).join("__") || "image.jpg";
+
+  console.log("✅ Retrieved file:", name);
+
+  return new File([blob], name, {
+    type: blob.type,
+  });
+};
 
 export const getAllGalleryImages = async () => {
   const db = await getDB();

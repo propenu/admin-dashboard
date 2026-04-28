@@ -127,7 +127,7 @@ export default function BHKSection({
                   style={{ backgroundColor: primary }}
                 />
                 <span className="text-sm font-semibold text-gray-800">
-                  {activeBhk?.bhkLabel} Apartment
+                  {activeBhk?.bhkLabel} 
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export default function BHKSection({
                   style={{ backgroundColor: primary }}
                 />
                 <span className="text-sm text-gray-600">
-                  {activeUnit?.minSqft} sqft Super Built-up Area
+                  {activeUnit?.minSqft} sqft 
                 </span>
               </div>
               <div className="flex items-center gap-2">

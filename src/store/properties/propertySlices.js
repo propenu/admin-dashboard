@@ -1,5 +1,7 @@
 // frontend/admin-dashboard/src/store/properties/propertySlices.js
 import { createSlice } from "@reduxjs/toolkit";
+import { savePropertyData } from "../common/propertyThunks";
+
 export const createPropertySlice = (name, uniqueInitialFields) => {
   const initialState = {
     form: {
@@ -94,6 +96,25 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
     // 🟢 Universal Async State Handling
     extraReducers: (builder) => {
       builder
+        .addCase(savePropertyData.fulfilled, (state, action) => {
+          if (action.payload?.data) {
+            const payload = action.payload.data;
+
+            state.form = {
+              ...initialState.form,
+              ...payload,
+
+              // 🔥 IMPORTANT FIX
+              galleryFiles:
+                payload.gallery?.map((img) => ({
+                  preview: img.url,
+                  name: img.filename,
+                  key: img.key,
+                  source: "server",
+                })) || [],
+            };
+          }
+        })
         .addMatcher(
           (a) => a.type.endsWith("/pending"),
           (state) => {

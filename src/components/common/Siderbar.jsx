@@ -32,7 +32,11 @@ import ActiveSubcriptionsIcon from "../../assets/dashboard/active_subscription.s
 import SubcriptionHistoryIcon from "../../assets/dashboard/subscription_history.svg";
 import RevenueByPlanIcon from "../../assets/dashboard/revenue_by_plan.svg";
 
-import { UserCircle, ChevronDown, ChevronRight } from "lucide-react";
+
+
+
+import { UserCircle, ChevronDown, ChevronRight, Bell,  } from "lucide-react";
+
 import CreateUserModal from "./CreateUserModal";
 import AssignManagerPage from "./AssignManager";
 import TransferCredentials from "./TransferCredentials";
@@ -149,16 +153,45 @@ export default function Sidebar({
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
+
         {
-          path: "/featured-properties",
-          label: "Prime Projects",
+          label: "Projects",
           icon: FeaturedProjetsIcon,
+          key: "projects",
+          children: [
+            {
+              path: "/normal",
+              label: "Normal Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/featured",
+              label: "Featured Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/prime",
+              label: "Prime Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/sponsored",
+              label: "Sponsored Projects",
+              icon: HighlightedProjectsIcon,
+            },
+          ],
         },
-        {
-          path: "/highlight-projects",
-          label: "Top Selling Projects",
-          icon: HighlightedProjectsIcon,
-        },
+        // {
+        //   path: "/featured-properties",
+        //   label: "Prime Projects",
+        //   icon: FeaturedProjetsIcon,
+        // },
+
+        // {
+        //   path: "/highlight-projects",
+        //   label: "Top Selling Projects",
+        //   icon: HighlightedProjectsIcon,
+        // },
         {
           label: "Users",
           icon: UserIcon,

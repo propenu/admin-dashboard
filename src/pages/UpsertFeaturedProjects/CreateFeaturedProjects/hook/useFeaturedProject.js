@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { createFeaturedProperty } from "../../../../features/property/propertyService";
+import {  createFeaturedProject } from "../../../../features/property/propertyService";
 import { getUploadProgressConfig } from "../utils/uploadWithProgress";
 import { INITIAL_PAYLOAD } from "../Constants/constants";
 import { buildFormData } from "../utils/buildFormData";
@@ -48,6 +48,12 @@ export const useFeaturedProject = (projectType) => {
       ...payload,
       galleryFiles: [],
 
+      // ✅ FIX brochure storage
+      brochure:
+        typeof payload.brochure === "object"
+          ? payload.brochure?.key
+          : payload.brochure,
+
       // 🔥 REMOVE HEAVY FIELDS
       heroImagePreview: "",
       logoPreview: "",
@@ -69,10 +75,14 @@ export const useFeaturedProject = (projectType) => {
     mutationFn: async () => {
     const galleryFiles = await getAllGalleryImages();
     
-    
     const otherImages = await getAllOtherImages();
 
     const getKey = (val) => (typeof val === "string" ? val : val?.key);
+
+    const brochureKey = getKey(payload.brochure);
+
+    const brochureFile =
+      brochureKey && otherImages[brochureKey] ? otherImages[brochureKey] : null;
 
     const hero = getKey(payload.heroImage)
       ? otherImages[getKey(payload.heroImage)]
@@ -85,6 +95,7 @@ export const useFeaturedProject = (projectType) => {
     const about = getKey(payload.aboutImage)
       ? otherImages[getKey(payload.aboutImage)]
       : null;
+      
 
       const updatedBhkSummary = (payload.bhkSummary || []).map((b) => ({
         ...b,
@@ -111,6 +122,7 @@ export const useFeaturedProject = (projectType) => {
       logo,
       aboutImage: about,
       bhkSummary: updatedBhkSummary,
+      brochure: brochureFile,
     };
 
      
@@ -118,16 +130,16 @@ export const useFeaturedProject = (projectType) => {
     const formData = await buildFormData(updatedPayload);
     const config = getUploadProgressConfig(setProgress);
 
-    return createFeaturedProperty(formData, config);
+    return createFeaturedProject(formData, config);
   },
 
 
     onSuccess: async () => {
       toast.success("Property created successfully ✅");
 
-      await clearAllImages();
+     // await clearAllImages();
 
-      localStorage.removeItem("featuredPayload");
+      //localStorage.removeItem("featuredPayload");
       setProgress(0);
 
       navigate("/featured-properties");

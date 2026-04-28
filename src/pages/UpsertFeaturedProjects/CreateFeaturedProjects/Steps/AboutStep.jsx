@@ -8,6 +8,7 @@ import {
 } from "react";
 import TiptapEditor from "../Components/TiptapEditor";
 import { X, ImageIcon } from "lucide-react";
+import { toast } from "sonner";
 
 import imageCompression from "browser-image-compression";
 import { saveImage, getFileFromKey } from "../utils/indexedDB";
@@ -67,15 +68,40 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
   const [preview, setPreview] = useState(null);
   const aboutRef = useRef(null);
 
+  // useImperativeHandle(ref, () => ({
+  //   validate() {
+  //     const e = {};
+  //     if (!summary.aboutDescription.trim())
+  //       e.aboutDescription = "About description is required";
+  //     if (isEditorEmpty(summary.rightContent))
+  //       e.rightContent = "Right side content is required";
+  //     if (!payload.aboutImage) e.aboutImage = "About image is required";
+  //     setErrors(e);
+  //     if (Object.keys(e).length) {
+  //       aboutRef.current?.scrollIntoView({
+  //         behavior: "smooth",
+  //         block: "center",
+  //       });
+  //       return false;
+  //     }
+  //     return true;
+  //   },
+  // }));
+ 
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
+
       if (!summary.aboutDescription.trim())
         e.aboutDescription = "About description is required";
+
       if (isEditorEmpty(summary.rightContent))
         e.rightContent = "Right side content is required";
+
       if (!payload.aboutImage) e.aboutImage = "About image is required";
+
       setErrors(e);
+
       if (Object.keys(e).length) {
         aboutRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -83,9 +109,20 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
         });
         return false;
       }
+
       return true;
     },
+
+    // ✅ ADD THIS (IMPORTANT)
+    isValid() {
+      return (
+        summary.aboutDescription?.trim() &&
+        !isEditorEmpty(summary.rightContent) &&
+        payload.aboutImage
+      );
+    },
   }));
+
 
   const clr = (key) =>
     setErrors((p) => {
@@ -100,20 +137,52 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
   };
 
   
-  const handleImage = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // const handleImage = async (e) => {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
 
-    // ✅ compress
-    const compressed = await compressImage(file);
+  //   const toastId = toast.loading("Compressing image... ⏳");
 
-    // ✅ convert to base64 (for localStorage)
-    const base64 = await fileToBase64(compressed);
 
-    //const key = await saveImage(compressed, "other");
+  //   // ✅ compress
+  //   const compressed = await compressImage(file);
+
+  //   // ✅ convert to base64 (for localStorage)
+  //   const base64 = await fileToBase64(compressed);
+
+  //   //const key = await saveImage(compressed, "other");
+  //   const key = await saveImage(compressed, "other", "about");
+
+  //   // ✅ save
+  //   update({
+  //     aboutImage: {
+  //       file: compressed,
+  //       key: key,
+  //     },
+  //   });
+
+  //   // ✅ UI preview
+  //   setPreview(base64);
+
+  //   clr("aboutImage");
+  // };
+
+
+const handleImage = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const toastId = toast.loading("Compressing image... ⏳");
+
+  try {
+    const compressedBlob = await compressImage(file);
+
+    const compressed = new File([compressedBlob], file.name, {
+      type: compressedBlob.type,
+    });
+
     const key = await saveImage(compressed, "other", "about");
 
-    // ✅ save
     update({
       aboutImage: {
         file: compressed,
@@ -121,14 +190,18 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
       },
     });
 
-    // ✅ UI preview
-    setPreview(base64);
+    // ✅ BEST PREVIEW METHOD
+    const previewUrl = URL.createObjectURL(compressed);
+    setPreview(previewUrl);
 
     clr("aboutImage");
-  };
 
-
-  
+    toast.success("Image uploaded successfully", { id: toastId });
+  } catch (err) {
+    console.error(err);
+    toast.error("Upload failed", { id: toastId });
+  }
+};
 
   const removeImage = async () => {
     const key =
@@ -144,6 +217,8 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
       aboutImage: null,
       aboutImagePreview: "",
     });
+
+    toast.success("Image removed successfully");
 
     setPreview(null);
   };

@@ -198,8 +198,17 @@ export default function AgriculturalCard({ property }) {
         <div className="mt-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4 text-[11px] text-slate-400 font-medium">
             <span className="flex items-center gap-1">
-              <Eye className="w-3.5 h-3.5" /> {property?.views || 0}
+              <Eye className="w-3.5 h-3.5" /> {property?.meta?.views || 0}
             </span>
+
+            <span className="flex items-center gap-1">
+              Clicks: {property?.meta?.clicks || 0}
+            </span>
+
+            <span className="flex items-center gap-1">
+              Inquiries: {property?.meta?.inquiries || 0}
+            </span>
+
             <span>
               Listed:{" "}
               {property?.createdAt

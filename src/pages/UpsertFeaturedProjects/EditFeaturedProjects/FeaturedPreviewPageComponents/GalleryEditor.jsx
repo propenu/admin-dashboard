@@ -2,7 +2,7 @@
 import React, { useRef } from "react";
 import { toast } from "react-hot-toast";
 
-import { deleteFeaturedProjectGallery } from "../../../../features/property/propertyService";
+import { deleteFeaturedProjectGalleryImage } from "../../../../features/property/propertyService";
 
 const FALLBACK = "";
 
@@ -176,7 +176,7 @@ export default function GalleryEditor({
 
       
 
-      await deleteFeaturedProjectGallery(propertyId, correctIndex);
+      await deleteFeaturedProjectGalleryImage(propertyId, correctIndex);
 
       // update UI
       setFormData((prev) => {

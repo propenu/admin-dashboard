@@ -1,6 +1,3 @@
-
-
-
 // frontend/admin-dashboard/src/pages/FeatureProperties.jsx
 import { useState, useEffect } from "react";
 import {
@@ -179,7 +176,7 @@ export default function FeaturedProperties() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[#27AE60] max-sm:text-xl text-center">
-            Prime Projects
+          Prime Projects
           </h1>
           <p className="text-slate-600 mt-1 max-sm:text-center">
             Explore premium prime listings.

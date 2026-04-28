@@ -12,7 +12,7 @@ import {
   Loader2,
   Eye,
   FileImage,
-  Menu, // New icon
+  Menu, 
   X, // New icon
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

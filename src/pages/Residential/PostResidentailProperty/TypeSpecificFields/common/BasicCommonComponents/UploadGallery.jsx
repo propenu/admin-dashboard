@@ -106,18 +106,93 @@ const UploadGallery = forwardRef(({ error }, ref) => {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [currentFileName, setCurrentFileName] = useState("");
 
-  /* ── DEBUG ── */
-  useEffect(() => {
-    
-  }, [form.galleryFiles]);
+  
+
+// useEffect(() => {
+//   if (!form.gallery || !form.gallery.length) return;
+
+//   // 🔥 prevent overwrite if already user modified
+//   if (form.galleryFiles && form.galleryFiles.length > 0) return;
+
+//   // const serverImages = form.gallery.map((img) => ({
+//   //   ...img,
+//   // }));
+
+//   const serverImages = form.gallery.map((img) => ({
+//     preview: img.url,
+//     name: img.filename,
+//     key: img.key,
+//     source: "server", // 🔥 IMPORTANT
+//   }));
+
+//   updateFieldValue("galleryFiles", serverImages);
+// }, [form.gallery]);
+
+useEffect(() => {
+  if (!form.gallery || !form.gallery.length) return;
+
+  const serverImages = form.gallery.map((img) => ({
+    preview: img.url,
+    name: img.filename,
+    key: img.key,
+    source: "server",
+  }));
+
+  console.log("🔥 RESET galleryFiles from backend:", serverImages);
+
+  updateFieldValue("galleryFiles", serverImages);
+}, [form.gallery]);
+
 
   /* ── UPLOAD & COMPRESS ── */
+  // const handlePhotoUpload = async (e) => {
+  //   const files = Array.from(e.target.files || []);
+  //   if (!files.length) return;
+
+  //   // Check slot availability
+  //   const existing = form.galleryFiles || [];
+  //   const slotsLeft = MAX_FILES - existing.length;
+  //   if (slotsLeft <= 0) {
+  //     alert(`Maximum ${MAX_FILES} photos allowed.`);
+  //     e.target.value = "";
+  //     return;
+  //   }
+
+  //   const filesToProcess = files.slice(0, slotsLeft);
+
+  //   setCompressing(true);
+  //   setProgress({ done: 0, total: filesToProcess.length });
+
+  //   const compressedFiles = [];
+
+  //   for (const file of filesToProcess) {
+  //     setCurrentFileName(file.name);
+  //     try {
+  //       const compressed = await compressImageToTarget(file);
+  //       compressedFiles.push(compressed);
+  //     } catch (err) {
+  //       console.error(`❌ Failed: ${file.name}`, err);
+  //       // Skip failed files — do NOT push originals (they may be huge)
+  //     }
+  //     setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
+  //   }
+
+  //   const updated = [...existing, ...compressedFiles].slice(0, MAX_FILES);
+
+
+  //   updateFieldValue("galleryFiles", updated);
+  //   setCompressing(false);
+  //   setCurrentFileName("");
+  //   setProgress({ done: 0, total: 0 });
+  //   e.target.value = "";
+  // };
+
   const handlePhotoUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    // Check slot availability
     const existing = form.galleryFiles || [];
+
     const slotsLeft = MAX_FILES - existing.length;
     if (slotsLeft <= 0) {
       alert(`Maximum ${MAX_FILES} photos allowed.`);
@@ -130,37 +205,53 @@ const UploadGallery = forwardRef(({ error }, ref) => {
     setCompressing(true);
     setProgress({ done: 0, total: filesToProcess.length });
 
-    const compressedFiles = [];
+    const newItems = [];
 
     for (const file of filesToProcess) {
       setCurrentFileName(file.name);
+
       try {
         const compressed = await compressImageToTarget(file);
-        compressedFiles.push(compressed);
+
+        // 🔥 IMPORTANT: store as structured object (like Next.js)
+        newItems.push({
+          file: compressed,
+          source: "local", // ✅ identify as new
+          name: compressed.name,
+          preview: URL.createObjectURL(compressed),
+        });
       } catch (err) {
         console.error(`❌ Failed: ${file.name}`, err);
-        // Skip failed files — do NOT push originals (they may be huge)
       }
-      setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
+
+      setProgress((prev) => ({
+        ...prev,
+        done: prev.done + 1,
+      }));
     }
 
-    const updated = [...existing, ...compressedFiles].slice(0, MAX_FILES);
+    // 🔥 Keep existing + new structured items
+    const updated = [...existing, ...newItems].slice(0, MAX_FILES);
 
+    console.log("🔥 UPDATED galleryFiles:", updated);
 
     updateFieldValue("galleryFiles", updated);
+
     setCompressing(false);
     setCurrentFileName("");
     setProgress({ done: 0, total: 0 });
+
     e.target.value = "";
   };
-
 
 const handleRemovePhoto = async (index) => {
   try {
     const currentFiles = form.galleryFiles || [];
     const fileToRemove = currentFiles[index];
 
-    const isNewFile = fileToRemove instanceof File;
+    //const isNewFile = fileToRemove instanceof File;
+
+    const isNewFile = fileToRemove?.source === "local";
 
     // 🔥 SCENARIO 1: BEFORE SAVE (NEW FILE)
     if (isNewFile) {
@@ -193,16 +284,26 @@ const handleRemovePhoto = async (index) => {
       return;
     }
 
-    const urls = form.galleryFiles.map((file) => {
-      if (file instanceof File) return URL.createObjectURL(file);
-      return file?.url || file;
-    });
+    const urls = form.galleryFiles
+      .map((item) => {
+        if (item?.source === "local" && item.preview) return item.preview;
+        if (item?.source === "server" && item.preview) return item.preview;
+
+        // 🔥 fallback safety
+        if (item?.url) return item.url;
+
+        console.error("❌ INVALID PREVIEW ITEM:", item);
+        return null;
+      })
+      .filter(Boolean); // 🔥 remove null/empty
 
     setPreviewUrls(urls);
 
     return () => {
       urls.forEach((url) => {
-        if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+        if (url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
       });
     };
   }, [form.galleryFiles]);
@@ -318,11 +419,23 @@ const handleRemovePhoto = async (index) => {
                 key={index}
                 className="relative h-24 rounded-xl overflow-hidden border border-gray-200 shadow-sm"
               >
-                <img
+                {/* <img
                   src={url}
                   alt={`preview-${index}`}
                   className="w-full h-full object-cover"
-                />
+                /> */}
+
+                {url ? (
+                  <img
+                    src={url}
+                    alt={`preview-${index}`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                    No Preview
+                  </div>
+                )}
 
                 {/* Remove button */}
                 <button

@@ -14,7 +14,7 @@ const TARGET_KB = 200;
 const TARGET_BYTES = TARGET_KB * 1024;
 
 // Persistent WeakMap cache for blob preview URLs
-const previewCache = new WeakMap();
+//const previewCache = new WeakMap();
 
 /* ══════════════════════════════════════════════════════════
    IMAGE COMPRESSION UTILITY
@@ -110,8 +110,8 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
   /* ── Separate existing (server) vs new (File) entries ── */
   const allFiles = form?.galleryFiles || [];
-  const existingImages = allFiles.filter((f) => !(f instanceof File));
-  const newFiles = allFiles.filter((f) => f instanceof File);
+  const existingImages = allFiles.filter((f) => f?.source === "server");
+  const newFiles = allFiles.filter((f) => f?.source === "local");
 
   const totalCount = allFiles.length;
 
@@ -136,18 +136,27 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
     for (const file of filesToProcess) {
       setCurrentFileName(file.name);
+
       try {
         const compressed = await compressImageToTarget(file);
-        // Cache preview URL immediately after compression
-        if (!previewCache.has(compressed)) {
-          previewCache.set(compressed, URL.createObjectURL(compressed));
-        }
-        compressedFiles.push(compressed);
+
+        const preview = URL.createObjectURL(compressed);
+        //previewCache.set(compressed, preview);
+
+        compressedFiles.push({
+          file: compressed,
+          source: "local",
+          name: compressed.name,
+          preview,
+        });
       } catch (err) {
         console.error(`❌ Failed: ${file.name}`, err);
       }
+
       setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
     }
+
+    
 
     const updated = [...allFiles, ...compressedFiles].slice(0, MAX_FILES);
 
@@ -163,14 +172,22 @@ const UploadGallery = forwardRef(({ error }, ref) => {
   const handleRemovePhoto = async (index) => {
     try {
       const fileToRemove = allFiles[index];
-      const isNewFile = fileToRemove instanceof File;
+      const isNewFile = fileToRemove?.source === "local";
 
       // SCENARIO 1: New (unsaved) file
       if (isNewFile) {
-        const blobUrl = previewCache.get(fileToRemove);
-        if (blobUrl) {
+        // const blobUrl = fileToRemove.preview;
+        // if (blobUrl?.startsWith("blob:")) {
+        //   URL.revokeObjectURL(blobUrl);
+        // }
+        // if (blobUrl) {
+        //   URL.revokeObjectURL(blobUrl);
+        //   //previewCache.delete(fileToRemove);
+        // }
+
+        const blobUrl = fileToRemove.preview;
+        if (blobUrl?.startsWith("blob:")) {
           URL.revokeObjectURL(blobUrl);
-          previewCache.delete(fileToRemove);
         }
         const updated = allFiles.filter((_, i) => i !== index);
         updateFieldValue("galleryFiles", updated);
@@ -196,19 +213,21 @@ const UploadGallery = forwardRef(({ error }, ref) => {
   };
 
   /* ── GET PREVIEW URL ── */
-  const getPreviewUrl = (file) => {
-    if (file instanceof File) {
-      if (!previewCache.has(file)) {
-        try {
-          previewCache.set(file, URL.createObjectURL(file));
-        } catch {
-          return null;
-        }
-      }
-      return previewCache.get(file);
-    }
-    return file?.url || file;
-  };
+ const getPreviewUrl = (file) => {
+   if (!file) return null;
+
+   // ✅ local images (already have preview)
+   if (file.source === "local") {
+     return file.preview;
+   }
+
+   // ✅ server images
+   if (file.source === "server") {
+     return file.preview;
+   }
+
+   return null;
+ };
 
   /* ── RENDER ── */
   return (
@@ -324,7 +343,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
       {totalCount > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {allFiles.map((file, index) => {
-            const isNewFile = file instanceof File;
+            const isNewFile = file?.source === "local";
             const previewUrl = getPreviewUrl(file);
 
             if (!previewUrl) return null;
@@ -343,8 +362,12 @@ const UploadGallery = forwardRef(({ error }, ref) => {
                   onError={(e) => {
                     if (isNewFile) {
                       try {
-                        const fallback = URL.createObjectURL(file);
-                        previewCache.set(file, fallback);
+                        // const fallback = URL.createObjectURL(file.file);
+                        if (file?.file) {
+                          const fallback = URL.createObjectURL(file.file);
+                          e.target.src = fallback;
+                        }
+                        //previewCache.set(file, fallback);
                         e.target.src = fallback;
                       } catch {}
                     }

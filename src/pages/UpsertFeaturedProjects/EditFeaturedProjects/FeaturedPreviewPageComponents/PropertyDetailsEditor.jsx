@@ -32,7 +32,8 @@ export default function PropertyDetailsEditor({
       youtubeVideos: Array.isArray(formData.youtubeVideos)
         ? formData.youtubeVideos
         : [],
-      brochureUrl: formData.brochureUrl ?? "",
+      //brochureUrl: formData.brochureUrl ?? "",
+      brochureUrl: formData?.brochure?.url ?? "",
     });
   }, [formData]);
 
@@ -106,19 +107,41 @@ export default function PropertyDetailsEditor({
     const file = e.target.files?.[0];
     if (!file) return;
     setBrochureFile(file);
-    setFormData((prev) => ({ ...prev, brochureFile: file }));
+    //setFormData((prev) => ({ ...prev, brochureFile: file }));
+    setFormData((prev) => ({
+      ...prev,
+      brochure: {
+        file: file,
+        filename: file.name,
+      },
+    }));
+    // setLivePreviewData((prev) => ({
+    //   ...prev,
+    //   brochureUrl: URL.createObjectURL(file),
+    // }));
     setLivePreviewData((prev) => ({
       ...prev,
       brochureUrl: URL.createObjectURL(file),
+      brochure: {
+        filename: file.name,
+      },
     }));
   }
 
+  // function handleSave() {
+  //   const payload = {
+  //     ...local,
+  //     ...(brochureFile ? { brochureFile } : {}),
+  //   };
+  //   onSave(payload);
+  // }
+
   function handleSave() {
     const payload = {
-      ...formData,
       ...local,
-      ...(brochureFile ? { brochureFile } : {}),
+      ...(formData.brochure && { brochure: formData.brochure }),
     };
+
     onSave(payload);
   }
 
@@ -321,7 +344,10 @@ export default function PropertyDetailsEditor({
                         />
                       </svg>
                       <span className="text-[11px] font-bold text-[#27AE60]">
-                        {brochureFile ? brochureFile.name : "Brochure uploaded"}
+                        {/* {brochureFile ? brochureFile.name : "Brochure uploaded"} */}
+                        {brochureFile
+                          ? brochureFile.name
+                          : formData?.brochure?.filename || "Brochure uploaded"}
                       </span>
                       <span className="text-[9px] text-gray-400">
                         Click to replace

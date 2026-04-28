@@ -100,6 +100,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
           <AmenitiesInput
             value={data.amenities || []}
             onChange={(v) => upd("amenities", v)}
+            propertyType={cat}
           />
         </div>
       </div>
@@ -356,57 +357,55 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
       {/* Agricultural */}
       {cat === "agricultural" && (
         <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[
-            { label: "Plantation Age", key: "plantationAge", type: "number" },
-            {
-              label: "Number of Borewells",
-              key: "numberOfBorewells",
-              type: "number",
-            },
-            { label: "Current Crop", key: "currentCrop" },
-            { label: "Suitable For", key: "suitableFor" },
-            { label: "Land Shape", key: "landShape" },
-            {
-              label: "Purchase Restrictions",
-              key: "statePurchaseRestrictions",
-            },
-            { label: "Access Road Type", key: "accessRoadType" },
-          ].map(({ label, key, type }) => (
-            <FI
-              key={key}
-              label={label}
-              type={type}
-              value={data[key] || ""}
-              onChange={(v) => upd(key, v)}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[
+              // { label: "Plantation Age", key: "plantationAge", type: "number" },
+              {
+                label: "Number of Borewells",
+                key: "numberOfBorewells",
+                type: "number",
+              },
+              { label: "Current Crop", key: "currentCrop" },
+              // { label: "Suitable For", key: "suitableFor" },
+              { label: "Land Shape", key: "landShape" },
+              {
+                label: "Purchase Restrictions",
+                key: "statePurchaseRestrictions",
+              },
+              { label: "Access Road Type", key: "accessRoadType" },
+            ].map(({ label, key, type }) => (
+              <FI
+                key={key}
+                label={label}
+                type={type}
+                value={data[key] || ""}
+                onChange={(v) => upd(key, v)}
+              />
+            ))}
+            <FS
+              label="Soil Type"
+              value={data.soilType || ""}
+              onChange={(v) => upd("soilType", v)}
+              options={SOIL_TYPES}
             />
-          ))}
-          <FS
-            label="Soil Type"
-            value={data.soilType || ""}
-            onChange={(v) => upd("soilType", v)}
-            options={SOIL_TYPES}
-          />
-          <FS
-            label="Irrigation Type"
-            value={data.irigationType || ""}
-            onChange={(v) => upd("irigationType", v)}
-            options={IRRIGATION_TYPES}
-          />
-          <FS
-            label="Water Source"
-            value={data.waterSource || ""}
-            onChange={(v) => upd("waterSource", v)}
-            options={WATER_SOURCES}
-          />
+            <FS
+              label="Irrigation Type"
+              value={data.irigationType || ""}
+              onChange={(v) => upd("irigationType", v)}
+              options={IRRIGATION_TYPES}
+            />
+            <FS
+              label="Water Source"
+              value={data.waterSource || ""}
+              onChange={(v) => upd("waterSource", v)}
+              options={WATER_SOURCES}
+            />
 
-          <div className="col-span-full">
-            <BorewellDetails data={data} onChange={upd} />
+            <div className="col-span-full">
+              <BorewellDetails data={data} onChange={upd} />
+            </div>
           </div>
-
-          
-        </div>
-         <div className="pt-4 border-t border-slate-100 space-y-4">
+          <div className="pt-4 border-t border-slate-100 space-y-4">
             <SH
               icon={<Sparkles className="w-4 h-4" />}
               title="Agricultural Features"
@@ -424,7 +423,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
               ))}
             </div>
           </div>
-          </div>
+        </div>
       )}
 
       {/* Description */}

@@ -6,122 +6,157 @@ import { useParams } from "react-router-dom";
 /* ── Categorised master list ── */
 const AMENITIES_MASTER = {
   Safety: [
-    "24 x 7 Security",
-    "CCTV / Video Surveillance",
-    "Fire Fighting Systems",
-    "Smoke / Heat Sensors",
-    "Smart Card Access",
-    "Seismic Safety Compliant",
-    "Video Intercom",
-    "Emergency Rescue/Alarms",
+    { key: "24x7_security", title: "24x7 Security" },
+    { key: "cctv_video_surveillance", title: "CCTV / Video Surveillance" },
+    { key: "fire_fighting_systems", title: "Fire Fighting Systems" },
+    //{ key: "smoke_heat_sensors", title: "Smoke/Heat Sensors" },
+    { key: "smart_card_access", title: "Smart Card Access" },
+    //{ key: "seismic_safety_compliant", title: "Seismic Safety Compliant" },
+    { key: "video_intercom", title: "Video Intercom" },
+    { key: "emergency_rescue_alarms", title: "Emergency Rescue / Alarms" },
+    //{ key: "security_cabin_guard_room", title: "Security Cabin / Guard Room" },
+    //{ key: "compound_wall_fencing_boom_barrier", title: "Compound Wall / Fencing Boom Barrier",},
   ],
-  Land: ["Free from encroachments", "Levelled / semi-levelled land"],
+  Land: [
+    //{ key: "free_from_encroachments", title: "Free from encroachments" },
+    // {
+    //   key: "levelled_semi_levelled_land",
+    //   title: "Levelled / semi-levelled land",
+    // },
+  ],
   "Water Resources": [
-    "Borewell / Open well",
-    "Drip irrigation facility",
-    "Sprinkler irrigation system",
-    "Canal / river water access",
-    "river harvesting system",
+    { key: "borewell_open_well", title: "Borewell / Open well" },
+    { key: "drip_irrigation_facility", title: "Drip irrigation facility" },
+    {
+      key: "sprinkler_irrigation_system",
+      title: "Sprinkler irrigation system",
+    },
+    //{ key: "canal_river_water_access", title: "Canal/river water access" },
+    { key: "river_harvesting_system", title: "river harvesting system" },
   ],
   "Power & Utilities": [
-    "electricity connection",
-    "Solar power provision",
-    "Power Backup",
-    "Water pump set",
-    "Motor Shed",
+    { key: "electricity_connection", title: "electricity connection" },
+    { key: "solar_power_provision", title: "Solar power provision" },
+    { key: "power_backup", title: "Power Backup" },
+    { key: "water_pump_set", title: "Water pump set" },
+    //{ key: "generator_set", title: "Generator set" },
   ],
-  "Farm Infrastructure": ["Cattle shed", "Greenhouse"],
+  "Farm Infrastructure": [
+    { key: "cattle_shed", title: "Cattle shed" },
+    { key: "greenhouse", title: "Greenhouse" },
+  ],
   Leisure: [
-    "Clubhouse",
-    "Indoor Games",
-    "Hypermarket",
-    "Restaurant",
-    "Conference Room",
-    "Jacuzzi",
-    "Sauna",
-    "Cafe / Coffee Bar",
-    "Massage Room",
-    "Dance Room",
-    "Mini Theatre",
-    "Reading Room / Library",
-    "Party Hall",
-    "Amphitheatre",
-    "Bowling",
-    "Spa",
-    "Private Pool in Select Unit",
-    "sky Deck",
-    "Outdoor Cafes",
-    "Patisseries",
-    "Senior Citizen Area",
+    //{ key: "clubhouse", title: "Clubhouse" },
+    { key: "Indoor_Games", title: "Indoor Games" },
+    { key: "hypermarket", title: "Hypermarket" },
+    { key: "restaurant", title: "Restaurant" },
+    { key: "conference_room", title: "Conference Room" },
+    { key: "jacuzzi", title: "Jacuzzi" },
+    { key: "sauna", title: "Sauna" },
+    //{key: "cafe_coffee_bar", title: "Cafe / Coffee Bar"},
+    { key: "massage_room", title: "Massage Room" },
+    { key: "dance_room", title: "Dance Room" },
+    { key: "mini_theatre", title: "Mini Theatre" },
+    { key: "reading_room_library", title: "Reading Room / Library" },
+    { key: "party_hall", title: "Party Hall" },
+    { key: "amphitheatre", title: "Amphitheatre" },
+    { key: "bowling", title: "Bowling" },
+    { key: "spa", title: "Spa" },
+    { key: "private_pool_select_unit", title: "Private Pool in Select Unit" },
+    { key: "sky_deck", title: "Sky Deck" },
+    //{key: "outdoor_cafes", title: "Outdoor Cafes"},
+    { key: "patisseries", title: "Patisseries" },
+    { key: "senior_citizen_area", title: "Senior Citizen Area" },
   ],
   Convenience: [
-    "Power Backup",
-    "Convenience store",
-    "Home Automation",
-    "Play school",
-    "Medical Facility",
-    "Pet Area",
-    "Pet Friendly",
-    "ATM's",
-    "Gas pipeline connection",
-    "AC Waiting Lobby",
-    "Solar Heaters",
-    "Treated Water Supply",
-    "Car Washing Bays",
-    "Parking",
-    "Valet Parking",
-    "Visitor Parking",
-    "Podium Parking",
-    "Multi level parking",
-    "Common laundry",
-    "Front desk service",
-    "Centralized AC",
-    "24 x 7 Water Supply",
-    "Separate Entry / Exit Gates",
-    "Automatic Boom Barriers",
-    "Elevator",
-    "Party Lawn",
+    
+    { key: "convenience_store", title: "Convenience store" },
+    { key: "home_automation", title: "Home Automation" },
+    { key: "play_school", title: "Play school" },
+    { key: "medical_facility", title: "Medical Facility" },
+    { key: "pet_area", title: "Pet Area" },
+    { key: "pet_friendly", title: "Pet Friendly" },
+    { key: "atms", title: "ATM's" },
+    { key: "gas_pipeline_connection", title: "Gas pipeline connection" },
+    { key: "ac_waiting_lobby", title: "AC Waiting Lobby" },
+    { key: "solar_heaters", title: "Solar Heaters" },
+    { key: "treated_water_supply", title: "Treated Water Supply" },
+    { key: "car_washing_bays", title: "Car Washing Bays" },
+    { key: "parking", title: "Parking" },
+    { key: "valet_parking", title: "Valet Parking" },
+    { key: "visitor_parking", title: "Visitor Parking" },
+    { key: "podium_parking", title: "Podium Parking" },
+    { key: "multi_level_parking", title: "Multi level parking" },
+    { key: "common_laundry", title: "Common laundry" },
+    { key: "front_desk_service", title: "Front desk service" },
+    { key: "centralized_ac", title: "Centralized AC" },
+    //{key: "24x7_water_supply", title: "24 x 7 Water Supply"},
+    //{key: "separate_entry_or_exit_gates", title: "Separate Entry / Exit Gates"},
+    { key: "automatic_boom_barriers", title: "Automatic Boom Barriers" },
+    { key: "elevator", title: "Elevator" },
+    { key: "party_lawn", title: "Party Lawn" },
+    //{key: "common_restrooms", title: "Common Restrooms"},
+    //{key: "emergency_staircases", title: "Emergency Staircases"},
+    //{key: "maintenance_services", title: "Maintenance Services"},
   ],
   Sports: [
-    "Gymnasium",
-    "Swimming Pool",
-    "Badminton Court",
-    "Tennis Court",
-    "Squash Court",
-    "Kids' Play Area",
-    "Football",
-    "Jogging",
-    "Cycle Track",
-    "Golf Court",
-    "Kid's Pool",
-    "Cricket",
-    "Basketball",
-    "Volleyball",
-    "Yoga Area",
-    "Table Tennis",
-    "Snooker / Pool",
-    "Skating Rink",
-    "Golf Simulator",
-    "Base Ball",
-    "Rugby",
-    "Golf Putting green",
-    "Horse Riding",
-    "Go Kart/Racing Track",
-    "Rappelling/Rock Climbing",
-    "Gazebo",
+    { key: "gym", title: "Gym" },
+    { key: "swimming_pool", title: "Swimming Pool" },
+    { key: "badminton_court", title: "Badminton Court" },
+    { key: "tennis_court", title: "Tennis Court" },
+    { key: "squash_court", title: "Squash Court" },
+    { key: "kids_play_area", title: "Kids' Play Area" },
+    { key: "football", title: "Football" },
+    { key: "jogging", title: "Jogging" },
+    { key: "cycle_track", title: "Cycle Track" },
+    { key: "golf_court", title: "Golf Court" },
+    { key: "kids_pool", title: "Kid's Pool" },
+    { key: "cricket", title: "Cricket" },
+    { key: "basketball", title: "Basketball" },
+    { key: "volleyball", title: "Volleyball" },
+    { key: "yoga_area", title: "Yoga Area" },
+    { key: "table_tennis", title: "Table Tennis" },
+    //{key: "snooker_pool", title: "Snooker / Pool"},
+    { key: "skating_rink", title: "Skating Rink" },
+    { key: "golf_simulator", title: "Golf Simulator" },
+    { key: "baseball", title: "Base Ball" },
+    { key: "rugby", title: "Rugby" },
+    { key: "golf_putting_green", title: "Golf Putting green" },
+    { key: "horse_riding", title: "Horse Riding" },
+    //{key: "go_kart_or_racing_track", title: "Go Kart / Racing Track"},
+    { key: "rock_climbing", title: "Rappelling / Rock Climbing" },
+    { key: "gazebo", title: "Gazebo" },
   ],
   Environment: [
-    "Rain Water Harvesting",
-    "Solar Treatment Plant",
-    "Park",
-    "Solar Lighting",
-    "IGBC Certified Building",
+    { key: "rain_water_harvesting", title: "Rain Water Harvesting" },
+    //{key: "solar_treatment_plant", title: "Solar Treatment Plant"},
+    { key: "park", title: "Park" },
+    { key: "solar_lighting", title: "Solar Lighting" },
+    //{key: "igbc_certified", title: "IGBC Certified Building"},
   ],
-  "Connectivity & Access": ["Near highway", "Close to Village"],
-  "Residentail & Farm Living": ["Watchman room", "Toilets & wash area"],
-  Security: ["CCTV / Video Surveillance"],
+  "Connectivity & Access": [
+    { key: "near_highway", title: "Near highway" },
+    { key: "close_to_village", title: "Close to Village" },
+  ],
+  "Residentail & Farm Living": [
+    { key: "watchman_room", title: "Watchman room" },
+    //{key: "toilets_wash_area", title: "Toilets & wash area"}
+  ],
+  Security: [
+    { key: "cctv_video_surveillance", title: "CCTV / Video Surveillance" },
+  ],
+  //Technology: [
+  //{key: "high_speed_internet", title: "High-Speed Internet"},
+  //{key: "server_it_room_provision", title: "Server / IT Room Provision"}],
+  // Infrastucture: [
+  //  //{key: "infrastructure", title: "Infrastructure"},
+  //   {key: "blacktop_cc_internal_roads", title: "Blacktop / CC Internal Roads"},
+  //   {key: "plot_demarcation_with_stones", title: "Plot Demarcation with Stones"},
+  //   {key: "street_lighting", title: "Street Lighting"},
+  //   {key: "water_pipeline_network", title: "Water Pipeline Network"},
+  //   {key: "underground_drainage", title: "Underground Drainage"},
+  // ],
 };
-
 const CAT_ICONS = {
   Sports: "🏋️",
   Convenience: "🏪",
@@ -161,33 +196,57 @@ export default function AmenitiesEditor({ formData, setFormData }) {
     if (!q) return AMENITIES_MASTER;
     const result = {};
     Object.entries(AMENITIES_MASTER).forEach(([cat, items]) => {
-      const visible = items.filter((i) => i.toLowerCase().includes(q));
+      //const visible = items.filter((i) => i.toLowerCase().includes(q));
+      const visible = items.filter(
+        (i) =>
+          i.title.toLowerCase().includes(q) || i.key.toLowerCase().includes(q),
+      );
       if (visible.length) result[cat] = visible;
     });
     return result;
   }, [search]);
 
   /* Toggle a single amenity on/off */
- function toggleAmenity(title) {
-   const normalizedTitle = title.trim().toLowerCase();
-   const key = normalizedTitle.replace(/\s+/g, "-");
+//  function toggleAmenity(title) {
+//    const normalizedTitle = title.trim().toLowerCase();
+//    const key = normalizedTitle.replace(/\s+/g, "-");
 
-   setFormData((prev) => {
-     const exists = prev.amenities.some((a) => a.key === key);
+//    setFormData((prev) => {
+//      const exists = prev.amenities.some((a) => a.key === key);
 
-     if (exists) {
-       return {
-         ...prev,
-         amenities: prev.amenities.filter((a) => a.key !== key),
-       };
-     }
+//      if (exists) {
+//        return {
+//          ...prev,
+//          amenities: prev.amenities.filter((a) => a.key !== key),
+//        };
+//      }
 
-     return {
-       ...prev,
-       amenities: [...prev.amenities, { key, title: title.trim() }],
-     };
-   });
- }
+//      return {
+//        ...prev,
+//        amenities: [...prev.amenities, { key, title: title.trim() }],
+//      };
+//    });
+//  }
+
+function toggleAmenity(item) {
+  const { key, title } = item;
+
+  setFormData((prev) => {
+    const exists = prev.amenities.some((a) => a.key === key);
+
+    if (exists) {
+      return {
+        ...prev,
+        amenities: prev.amenities.filter((a) => a.key !== key),
+      };
+    }
+
+    return {
+      ...prev,
+      amenities: [...prev.amenities, { key, title }],
+    };
+  });
+}
 
   /* Add custom amenity from search bar */
   function addCustom() {
@@ -202,7 +261,11 @@ export default function AmenitiesEditor({ formData, setFormData }) {
       return; // Already exists — do nothing
     }
 
-    toggleAmenity(val);
+    //toggleAmenity(val);
+    toggleAmenity({
+      key: normalizedKey,
+      title: val,
+    });
     setSearch("");
   }
 
@@ -326,7 +389,8 @@ export default function AmenitiesEditor({ formData, setFormData }) {
         ) : (
           Object.entries(filteredMaster).map(([cat, items]) => {
             const selCount   = items.filter((i) =>
-              selectedKeys.has(i.toLowerCase().replace(/\s+/g, "-"))
+              //selectedKeys.has(i.toLowerCase().replace(/\s+/g, "-"))
+              selectedKeys.has(i.key)
             ).length;
             const isCollapsed = !!collapsed[cat];
 
@@ -364,7 +428,9 @@ export default function AmenitiesEditor({ formData, setFormData }) {
                 {!isCollapsed && (
                   <div className="flex flex-wrap gap-2">
                     {items.map((item) => {
-                      const key = item.toLowerCase().replace(/\s+/g, "-");
+                      // const key = item.toLowerCase().replace(/\s+/g, "-");
+                      // const sel = selectedKeys.has(key);
+                      const key = item.key;
                       const sel = selectedKeys.has(key);
                       return (
                         <button
@@ -373,21 +439,19 @@ export default function AmenitiesEditor({ formData, setFormData }) {
                           onClick={() => toggleAmenity(item)}
                           className="px-3 py-1.5 text-[11px] font-bold rounded-xl border-2 transition-all duration-150 active:scale-95"
                           style={{
-                            background:  sel
+                            background: sel
                               ? "linear-gradient(135deg,#27AE60,#1e8449)"
                               : "white",
                             borderColor: sel ? "#27AE60" : "#e5e7eb",
-                            color:       sel ? "white"   : "#4b5563",
-                            boxShadow:   sel
+                            color: sel ? "white" : "#4b5563",
+                            boxShadow: sel
                               ? "0 2px 8px rgba(39,174,96,0.28)"
                               : "none",
-                            transform:   sel ? "translateY(-1px)" : "none",
+                            transform: sel ? "translateY(-1px)" : "none",
                           }}
                         >
-                          {sel && (
-                            <span className="mr-0.5">✓ </span>
-                          )}
-                          {item}
+                          {sel && <span className="mr-0.5">✓ </span>}
+                          {item.title}
                         </button>
                       );
                     })}

@@ -3,6 +3,7 @@ import { forwardRef, useImperativeHandle, useRef, useState ,useEffect} from "rea
 import { Upload, X, Images } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import { getDB, deleteImage, saveImage } from "../utils/indexedDB";
+import { toast } from "sonner";
 
 
 const compressImage = async (file) => {
@@ -34,18 +35,46 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
   const [errors, setErrors] = useState({});
   const galleryRef = useRef(null);
 
+  // useImperativeHandle(ref, () => ({
+  //   validate() {
+  //     const e = {};
+  //     if (galleryFiles.length < 5) e.gallery = "Minimum 5 images are required";
+  //     setErrors(e);
+  //     if (Object.keys(e).length) {
+  //       galleryRef.current?.scrollIntoView({ behavior:"smooth", block:"center" });
+  //       return false;
+  //     }
+  //     return true;
+  //   },
+  // }));
+ 
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
-      if (galleryFiles.length < 5) e.gallery = "Minimum 5 images are required";
+
+      if (galleryFiles.length < 5) {
+        e.gallery = "Minimum 5 images are required";
+      }
+
       setErrors(e);
+
       if (Object.keys(e).length) {
-        galleryRef.current?.scrollIntoView({ behavior:"smooth", block:"center" });
+        galleryRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
         return false;
       }
+
       return true;
     },
+
+    // ✅ ADD THIS (IMPORTANT)
+    isValid() {
+      return galleryFiles.length >= 5;
+    },
   }));
+
 
   const clr = (key) => setErrors((p) => { const c={...p}; delete c[key]; return c; });
 
@@ -86,35 +115,76 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
  const handleUpload = async (e) => {
    const files = Array.from(e.target.files);
    if (!files.length) return;
+   const toastId = toast.loading("Compressing & uploading images...⏳");
 
-   const compressedFiles = await Promise.all(
-     files.map((f) => compressImage(f)),
-   );
+   
+   try{
+     const compressedFiles = await Promise.all(
+       files.map((f) => compressImage(f)),
+     );
+    const items = await Promise.all(
+      compressedFiles.map(async (file) => {
+        const key = await saveImage(file, "gallery");
 
-   const items = await Promise.all(
-     compressedFiles.map(async (file) => {
-       const key = await saveImage(file, "gallery"); 
+        return {
+          file,
+          key,
+          name: file.name,
+        };
+      }),
+    );
 
-       return {
-         file,
-         key,
-         name: file.name,
-       };
-     }),
-   );
+    const newSummary = items.map((item, i) => ({
+      title: item.file.name.replace(/\.[^/.]+$/, ""),
+      category: "Gallery",
+      order: gallerySummary.length + i + 1,
+      filename: item.file.name,
+    }));
 
-   const newSummary = items.map((item, i) => ({
-     title: item.file.name.replace(/\.[^/.]+$/, ""),
-     category: "Gallery",
-     order: gallerySummary.length + i + 1,
-     filename: item.file.name,
+    update({
+      galleryFiles: [...galleryFiles, ...items], // ✅ now contains key
+      gallerySummary: [...gallerySummary, ...newSummary],
+    });
 
-   }));
+    toast.success("Images uploaded successfully!", {
+      id: toastId,
+    });
+   }catch(e){
+    toast.error("Something went wrong!", {
+      id: toastId,
+    });
+   }
 
-   update({
-     galleryFiles: [...galleryFiles, ...items], // ✅ now contains key
-     gallerySummary: [...gallerySummary, ...newSummary],
-   });
+  //  const compressedFiles = await Promise.all(
+  //    files.map((f) => compressImage(f)),
+  //  );
+
+  //  const items = await Promise.all(
+  //    compressedFiles.map(async (file) => {
+  //      const key = await saveImage(file, "gallery"); 
+
+  //      return {
+  //        file,
+  //        key,
+  //        name: file.name,
+  //      };
+  //    }),
+  //  );
+
+  //  const newSummary = items.map((item, i) => ({
+  //    title: item.file.name.replace(/\.[^/.]+$/, ""),
+  //    category: "Gallery",
+  //    order: gallerySummary.length + i + 1,
+  //    filename: item.file.name,
+
+  //  }));
+
+  //  update({
+  //    galleryFiles: [...galleryFiles, ...items], // ✅ now contains key
+  //    gallerySummary: [...gallerySummary, ...newSummary],
+  //  });
+
+    
  };
 
   // const removeImage = (index) => {
@@ -136,7 +206,52 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
   //       .map((item, idx) => ({ ...item, order: idx + 1 })),
   //   });
   // };
-const removeImage = async (index) => {
+
+  //  const handleUpload = async (e) => {
+  //    const files = Array.from(e.target.files);
+  //    if (!files.length) return;
+
+  //    const toastId = toast.loading("Compressing & uploading images...⏳");
+
+  //    try {
+  //      const compressedFiles = await Promise.all(
+  //        files.map((f) => compressImage(f)),
+  //      );
+
+  //      const items = await Promise.all(
+  //        compressedFiles.map(async (file) => {
+  //          const key = await saveImage(file, "gallery");
+  //          return { file, key, name: file.name };
+  //        }),
+  //      );
+
+  //      const newSummary = items.map((item, i) => ({
+  //        title: item.file.name.replace(/\.[^/.]+$/, ""),
+  //        category: "Gallery",
+  //        order: gallerySummary.length + i + 1,
+  //        filename: item.file.name,
+  //      }));
+
+  //      update({
+  //        galleryFiles: [...galleryFiles, ...items],
+  //        gallerySummary: [...gallerySummary, ...newSummary],
+  //      });
+
+  //      // ✅ Replace loading toast
+  //      toast.success("Images uploaded successfully", {
+  //        id: toastId,
+  //      });
+  //    } catch (err) {
+  //      // ❌ If error → replace loading with error
+  //      toast.error("Upload failed", {
+  //        id: toastId,
+  //      });
+  //    }
+  //  };
+
+
+
+  const removeImage = async (index) => {
   const item = galleryFiles[index];
 
   if (!item?.key) return; // safety
@@ -149,6 +264,8 @@ const removeImage = async (index) => {
       .filter((_, i) => i !== index)
       .map((item, idx) => ({ ...item, order: idx + 1 })),
   });
+
+  toast.success("Image deleted successfully");
 };
 
   const count  = galleryFiles.length;
@@ -227,11 +344,11 @@ const removeImage = async (index) => {
 
       {/* Image grid */}
       {count > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 lg:grid-cols-8 gap-4">
           {galleryFiles.map((file, i) => (
             <div
               key={i}
-              className="group relative rounded-2xl overflow-hidden border-2 border-gray-200 shadow-sm aspect-square bg-gray-100"
+              className="group w-[100px] relative rounded-2xl overflow-hidden border-2 border-gray-200 shadow-sm aspect-square bg-gray-100"
             >
               <img
                 src={

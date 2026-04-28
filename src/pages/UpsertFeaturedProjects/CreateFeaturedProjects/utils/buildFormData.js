@@ -84,6 +84,10 @@ export async function buildFormData(payload) {
     fd.append("categoryType", payload.categoryType);
   }
 
+  if (payload.propertyType !== undefined) {
+    fd.append("propertyType", payload.propertyType);
+  }
+
   // ✅ totalTowers
   if (payload.totalTowers !== undefined) {
     fd.append("totalTowers", Number(payload.totalTowers));
@@ -151,19 +155,53 @@ export async function buildFormData(payload) {
     );
   }
 
+  // const appendFile = async (value, fieldName) => {
+  //   if (!value) return;
+
+  //   let file = null;
+
+  //   if (value.file instanceof File) {
+  //     file = value.file;
+  //   } else if (value.key) {
+  //     file = await getFileFromKey(value.key, "other");
+  //   }
+
+  //   if (file instanceof File) {
+  //     fd.append(fieldName, file);
+  //   }
+  // }; 
+
   const appendFile = async (value, fieldName) => {
-    if (!value) return;
+    if (!value) {
+      console.error("❌ No value for:", fieldName);
+      return;
+    }
 
     let file = null;
 
-    if (value.file instanceof File) {
+    // ✅ CASE 1: Direct File (YOUR CURRENT CASE)
+    if (value instanceof File) {
+      file = value;
+      console.log("✅ Direct File:", file.name);
+    }
+
+    // ✅ CASE 2: Object with file
+    else if (value.file instanceof File) {
       file = value.file;
-    } else if (value.key) {
+      console.log("✅ File from object:", file.name);
+    }
+
+    // ✅ CASE 3: IndexedDB key
+    else if (value.key) {
       file = await getFileFromKey(value.key, "other");
+      console.log("🔄 Loaded from DB:", file);
     }
 
     if (file instanceof File) {
+      console.log("✅ Appending:", fieldName, file.name);
       fd.append(fieldName, file);
+    } else {
+      console.error("❌ File NOT appended:", fieldName, value);
     }
   };
 

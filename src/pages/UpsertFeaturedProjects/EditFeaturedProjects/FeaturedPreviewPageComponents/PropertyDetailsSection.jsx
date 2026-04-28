@@ -55,7 +55,7 @@ export default function PropertyDetailsSection({ data }) {
     visibleStats.length > 0 ||
     data.reraNumber ||
     banks.length > 0 ||
-    data.brochureUrl ||
+    data?.brochure?.url ||
     data.redirectUrl ||
     sorted.length > 0;
 
@@ -201,11 +201,11 @@ export default function PropertyDetailsSection({ data }) {
       )}
 
       {/* ── CTA Buttons Row ── */}
-      {(data.brochureUrl || data.redirectUrl) && (
+      {(data.brochure?.url || data.redirectUrl) && (
         <div className="flex flex-wrap gap-3">
-          {data.brochureUrl && (
+          {data.brochure?.url && (
             <a
-              href={data.brochureUrl}
+              href={data.brochure.url}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm border-2 transition-all hover:brightness-95 active:scale-95"
@@ -261,131 +261,6 @@ export default function PropertyDetailsSection({ data }) {
         </div>
       )}
 
-      {/* ── YouTube Videos ── */}
-      {/* {sorted.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-red-50">
-              <svg
-                className="w-3 h-3 text-red-500"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-              </svg>
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-              Project Videos
-            </span>
-          </div>
-
-          
-          {activeVidId && (
-            <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-sm aspect-video mb-4">
-              <iframe
-                key={activeVidId}
-                src={`https://www.youtube.com/embed/${activeVidId}?rel=0`}
-                className="w-full h-full"
-                title={activeVid?.title || "Project Video"}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          )}
-
-          
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-sm font-bold text-gray-800">
-                {activeVid?.title || "Project Video"}
-              </p>
-              <p className="text-[10px] text-gray-400 mt-0.5">
-                {activeVideo + 1} of {sorted.length}
-              </p>
-            </div>
-            <a
-              href={activeVid?.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl"
-              style={{ backgroundColor: "#fee2e2", color: "#ef4444" }}
-            >
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-              </svg>
-              YouTube
-            </a>
-          </div>
-
-          
-          {sorted.length > 1 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {sorted.map((v, i) => {
-                const vid = getYoutubeId(v.url);
-                const isActive = i === activeVideo;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => setActiveVideo(i)}
-                    className="group relative rounded-xl overflow-hidden border-2 transition-all text-left"
-                    style={{
-                      borderColor: isActive ? color : "transparent",
-                      boxShadow: isActive ? `0 0 0 2px ${color}30` : "none",
-                    }}
-                  >
-                    <div className="relative aspect-video bg-gray-100">
-                      {vid ? (
-                        <img
-                          src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`}
-                          alt={v.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gray-200" />
-                      )}
-                      <div
-                        className={`absolute inset-0 transition-opacity ${isActive ? "opacity-20" : "opacity-0 group-hover:opacity-20"}`}
-                        style={{ backgroundColor: color }}
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${isActive ? "opacity-100 scale-100" : "opacity-0 group-hover:opacity-100"}`}
-                          style={{
-                            backgroundColor: isActive
-                              ? color
-                              : "rgba(0,0,0,0.6)",
-                          }}
-                        >
-                          <svg
-                            className="w-3 h-3 text-white ml-0.5"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M5 3v18l15-9L5 3z" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      className="px-2.5 py-2"
-                      style={{
-                        backgroundColor: isActive ? `${color}08` : "white",
-                      }}
-                    >
-                      <p
-                        className="text-xs font-bold truncate"
-                        style={{ color: isActive ? color : "#374151" }}
-                      >
-                        {v.title || `Video ${i + 1}`}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )} */}
     </section>
   );
 }

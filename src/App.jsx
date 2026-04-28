@@ -10,6 +10,16 @@ import ProtectedRoute from "./pages/ProtectedRoute";
 
 // Lazy Loaded Pages
 const Dashboard = lazy(() => import("./pages/Dashboards/MainDashboard.jsx"));
+
+
+const PrimeProjectsPage = lazy(() => import("./pages/features/property/pages/PrimeProjects/PrimeProjectsPage"));
+
+const FeaturedProjectsPage = lazy(() => import("./pages/features/property/pages/FeaturedProjects/FeaturedProjectsPage"));
+
+const NormalProjectsPage = lazy(() => import("./pages/features/property/pages/NormalProjects/NormalProjectsPage"));
+
+const SponsoredProjectsPage = lazy(() => import("./pages/features/property/pages/SponsoredProjects/SponsoredProjectsPage"));
+
 const FeaturedProperties = lazy(() =>
   import("./pages/FeaturedProperties/FeatureProperties")
 );
@@ -144,6 +154,10 @@ const AutomationsCompainings = lazy(() =>
   import("./pages/automations/Automations.jsx")
 );
 
+
+
+
+
 function App() {
   return (
     <Router>
@@ -162,6 +176,13 @@ function App() {
               <Route element={<Layout />}>
                 {/* Admin Dashboard */}
                 <Route path="/" element={<Dashboard />} />
+
+                {/* Projects */}
+
+                <Route path="/prime" element={<PrimeProjectsPage />} />
+                <Route path="/featured" element={<FeaturedProjectsPage />} />
+                <Route path="/sponsored" element={<SponsoredProjectsPage />} />
+                <Route path="/normal" element={<NormalProjectsPage />} />
 
                 {/* Featured Property */}
                 <Route
@@ -345,7 +366,7 @@ function App() {
 
 export default App;
 
-// anove all error
+// above all error
 
 // import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 // import { Suspense, lazy } from "react";

@@ -5,134 +5,394 @@ import { X, ChevronDown, Check, Search } from "lucide-react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
 /* ─── Amenity Data by Category & Property Type ───────────────── */
+// const AMENITIES = {
+//   residential: [
+//     {
+//       category: "Sports",
+//       items: ["Gym", "Swimming Pool", "Jogging Track", "Kid's Play Area"],
+//     },
+//     {
+//       category: "Convenience",
+//       items: ["Elevator", "Power Backup", "Club House", "Visitor Parking"],
+//     },
+//     {
+//       category: "Safety",
+//       items: [
+//         "24x7 Security",
+//         "CCTV Video Surveillance",
+//         "Fire Fighting Systems",
+//         "Video Intercom",
+//       ],
+//     },
+//     {
+//       category: "Environment",
+//       items: ["Park", "Rain Water Harvesting", "Solar Lighting"],
+//     },
+//   ],
+
+//   commercial: [
+//     {
+//       category: "Sports",
+//       items: ["Gym", "Swimming Pool"],
+//     },
+//     {
+//       category: "Convenience",
+//       items: [
+//         "Elevator",
+//         "Power Backup",
+//         "Visitor Parking",
+//         "ATMs",
+//         "AC Waiting Lobby",
+//         "Parking",
+//         "Valet Parking",
+//         "Podium Parking",
+//         "Multi Level Parking",
+//         "Front Desk Service",
+//         "Centralized AC",
+//         "24x7 Water Supply",
+//         "Separate Entry or Exit Gates",
+//         "Automatic Boom Barriers",
+//         "Cafe or Coffee Bar",
+//       ],
+//     },
+//     {
+//       category: "Safety",
+//       items: [
+//         "24x7 Security",
+//         "CCTV Video Surveillance",
+//         "Fire Fighting Systems",
+//         "Smoke or Heat Sensors",
+//         "Smart Card Access",
+//         "Emergency Rescue Alarms",
+//       ],
+//     },
+//     {
+//       category: "Environment",
+//       items: ["Solar Lighting", "IGBC Certified Building"],
+//     },
+//   ],
+
+//   land: [
+//     {
+//       category: "Land",
+//       items: ["24x7 Water Supply"],
+//     },
+//     {
+//       category: "Water",
+//       items: ["Borewell Open Well"],
+//     },
+//     {
+//       category: "Power",
+//       items: ["Electricity Connection", "Solar Power Provision"],
+//     },
+//     {
+//       category: "Connectivity",
+//       items: ["Near Highway", "Close to Village"],
+//     },
+//     {
+//       category: "Safety",
+//       items: ["CCTV Video Surveillance"],
+//     },
+//   ],
+
+//   agricultural: [
+//     {
+//       category: "Land",
+//       items: ["Levelled or Semi-Levelled Land"],
+//     },
+//     {
+//       category: "Water",
+//       items: [
+//         "River Harvesting System",
+//         "Drip Irrigation Facility",
+//         "Sprinkler Irrigation System",
+//         "Canal River Water Access",
+//       ],
+//     },
+//     {
+//       category: "Power",
+//       items: [
+//         "Water Pump Set",
+//         "Solar Power Provision",
+//         "Electricity Connection",
+//       ],
+//     },
+//     {
+//       category: "Infrastructure",
+//       items: [
+//         "Cattle Shed",
+//         "Motor Shed",
+//         "Greenhouse",
+//         "Watchman Room",
+//         "Toilets and Wash Area",
+//       ],
+//     },
+//     {
+//       category: "Safety",
+//       items: ["CCTV Video Surveillance"],
+//     },
+//   ],
+// };
+
 const AMENITIES = {
   residential: [
     {
       category: "Sports",
-      items: ["Gym", "Swimming Pool", "Jogging Track", "Kid's Play Area"],
+      items: [
+        { key: "gym", title: "Gym", icon: "🏋️" },
+        { key: "swimming_pool", title: "Swimming Pool", icon: "🏊" },
+        { key: "jogging_track", title: "Jogging Track", icon: "🏃" },
+        { key: "kids_play_area", title: "Kid's Play Area", icon: "🎮" },
+      ],
     },
     {
       category: "Convenience",
-      items: ["Elevator", "Power Backup", "Club House", "Visitor Parking"],
+      items: [
+        { key: "Elevator", title: "Elevator", icon: "🛗" },
+        { key: "power_backup", title: "Power Backup", icon: "⚡" },
+        { key: "club_house", title: "Club House", icon: "🏛️" },
+        { key: "visitor_parking", title: "Visitor Parking", icon: "🅿️" },
+      ],
     },
     {
       category: "Safety",
       items: [
-        "24x7 Security",
-        "CCTV Video Surveillance",
-        "Fire Fighting Systems",
-        "Video Intercom",
+        { key: "24x7_security", title: "24x7 Security", icon: "🛡️" },
+        {
+          key: "cctv_video_surveillance",
+          title: "CCTV Video Surveillance",
+          icon: "📷",
+        },
+        {
+          key: "fire_fighting_systems",
+          title: "Fire Fighting Systems",
+          icon: "🧯",
+        },
+        { key: "video_intercom", title: "Video Intercom", icon: "📞" },
       ],
     },
     {
       category: "Environment",
-      items: ["Park", "Rain Water Harvesting", "Solar Lighting"],
+      items: [
+        { key: "park", title: "Park", icon: "🌳" },
+        {
+          key: "rain_water_harvesting",
+          title: "Rain Water Harvesting",
+          icon: "💧",
+        },
+        { key: "solar_lighting", title: "Solar Lighting", icon: "☀️" },
+      ],
     },
   ],
 
   commercial: [
     {
       category: "Sports",
-      items: ["Gym", "Swimming Pool"],
+      items: [
+        { key: "gym", title: "Gym", icon: "🏋️" },
+        { key: "swimming_pool", title: "Swimming Pool", icon: "🏊" },
+      ],
     },
     {
       category: "Convenience",
       items: [
-        "Elevator",
-        "Power Backup",
-        "Visitor Parking",
-        "ATMs",
-        "AC Waiting Lobby",
-        "Parking",
-        "Valet Parking",
-        "Podium Parking",
-        "Multi Level Parking",
-        "Front Desk Service",
-        "Centralized AC",
-        "24x7 Water Supply",
-        "Separate Entry or Exit Gates",
-        "Automatic Boom Barriers",
-        "Cafe or Coffee Bar",
+        { key: "elevator", title: "Elevator", icon: "🛗" },
+        { key: "power_backup", title: "Power Backup", icon: "⚡" },
+        { key: "visitor_parking", title: "Visitor Parking", icon: "🅿️" },
+        { key: "atms", title: "ATMs", icon: "🏧" },
+        { key: "ac_waiting_lobby", title: "AC Waiting Lobby", icon: "❄️" },
+        { key: "parking", title: "Parking", icon: "🚗" },
+        { key: "valet_parking", title: "Valet Parking", icon: "🔑" },
+        { key: "podium_parking", title: "Podium Parking", icon: "🏢" },
+        {
+          key: "multi_level_parking",
+          title: "Multi Level Parking",
+          icon: "🅿️",
+        },
+        { key: "front_desk_service", title: "Front Desk Service", icon: "🛎️" },
+        { key: "centralized-ac", title: "Centralized AC", icon: "🌡️" },
+        { key: "24x7_water_supply", title: "24x7 Water Supply", icon: "💧" },
+        {
+          key: "separate_entry_or_exit_gates",
+          title: "Separate Entry or Exit Gates",
+          icon: "🚪",
+        },
+        {
+          key: "automatic_boom_barriers",
+          title: "Automatic Boom Barriers",
+          icon: "🚧",
+        },
+        { key: "cafe_or_coffee_bar", title: "Cafe or Coffee Bar", icon: "☕" },
       ],
     },
     {
       category: "Safety",
       items: [
-        "24x7 Security",
-        "CCTV Video Surveillance",
-        "Fire Fighting Systems",
-        "Smoke or Heat Sensors",
-        "Smart Card Access",
-        "Emergency Rescue Alarms",
+        { key: "24x7_security", title: "24x7 Security", icon: "🛡️" },
+        {
+          key: "cctv_video_surveillance",
+          title: "CCTV Video Surveillance",
+          icon: "📷",
+        },
+        {
+          key: "fire_fighting_systems",
+          title: "Fire Fighting Systems",
+          icon: "🧯",
+        },
+        {
+          key: "smoke_or_heat_sensors",
+          title: "Smoke or Heat Sensors",
+          icon: "🔔",
+        },
+        { key: "smart_card-access", title: "Smart Card Access", icon: "💳" },
+        {
+          key: "emergency_Rescue_alarms",
+          title: "Emergency Rescue Alarms",
+          icon: "🚨",
+        },
+        { key: "solar_lighting", title: "Solar Lighting", icon: "☀️" },
+        {
+          key: "igbc_certified_building",
+          title: "IGBC Certified Building",
+          icon: "🏅",
+        },
       ],
     },
-    {
-      category: "Environment",
-      items: ["Solar Lighting", "IGBC Certified Building"],
-    },
+    // {
+    //   category: "Environment",
+    //   items: [
+    //     { key: "solar_lighting", title: "Solar Lighting", icon: "☀️" },
+    //     { key: "igbc_certified", title: "IGBC Certified Building", icon: "🏅" },
+    //   ],
+    // },
   ],
 
   land: [
     {
       category: "Land",
-      items: ["24x7 Water Supply"],
+      items: [
+        { key: "24x7_water_supply", title: "24x7 Water Supply", icon: "💧" },
+      ],
     },
     {
       category: "Water",
-      items: ["Borewell Open Well"],
+      items: [
+        { key: "borewell_open_well", title: "Borewell Open Well", icon: "🌊" },
+      ],
     },
     {
       category: "Power",
-      items: ["Electricity Connection", "Solar Power Provision"],
+      items: [
+        {
+          key: "electricity_connection",
+          title: "Electricity Connection",
+          icon: "⚡",
+        },
+        {
+          key: "solar_power_provision",
+          title: "Solar Power Provision",
+          icon: "☀️",
+        },
+      ],
     },
     {
       category: "Connectivity",
-      items: ["Near Highway", "Close to Village"],
+      items: [
+        { key: "near_highway", title: "Near Highway", icon: "🛣️" },
+        { key: "close_to_village", title: "Close to Village", icon: "🏘️" },
+      ],
     },
     {
       category: "Safety",
-      items: ["CCTV Video Surveillance"],
+      items: [
+        {
+          key: "cctv_video_surveillance",
+          title: "CCTV Video Surveillance",
+          icon: "📷",
+        },
+      ],
     },
   ],
 
   agricultural: [
     {
       category: "Land",
-      items: ["Levelled or Semi-Levelled Land"],
+      items: [
+        {
+          key: "levelled_land_or_semi_levelled_land",
+          title: "Levelled or Semi_Levelled Land",
+          icon: "🌾",
+        },
+      ],
     },
     {
       category: "Water",
       items: [
-        "River Harvesting System",
-        "Drip Irrigation Facility",
-        "Sprinkler Irrigation System",
-        "Canal River Water Access",
+        {
+          key: "river_harvesting_system",
+          title: "River Harvesting System",
+          icon: "🌊",
+        },
+        {
+          key: "drip_irrigation_facility",
+          title: "Drip Irrigation Facility",
+          icon: "💧",
+        },
+        {
+          key: "sprinkler_irrigation_system",
+          title: "Sprinkler Irrigation System",
+          icon: "🚿",
+        },
+        {
+          key: "canal_river_water_access",
+          title: "Canal River Water Access",
+          icon: "🏞️",
+        },
       ],
     },
     {
       category: "Power",
       items: [
-        "Water Pump Set",
-        "Solar Power Provision",
-        "Electricity Connection",
+        { key: "water_pump_set", title: "Water Pump Set", icon: "⛽" },
+        {
+          key: "solar_power_provision",
+          title: "Solar Power Provision",
+          icon: "☀️",
+        },
+        {
+          key: "electricity_connection",
+          title: "Electricity Connection",
+          icon: "⚡",
+        },
       ],
     },
     {
       category: "Infrastructure",
       items: [
-        "Cattle Shed",
-        "Motor Shed",
-        "Greenhouse",
-        "Watchman Room",
-        "Toilets and Wash Area",
+        { key: "cattle_shed", title: "Cattle Shed", icon: "🐄" },
+        { key: "motor_shed", title: "Motor Shed", icon: "🏚️" },
+        { key: "greenhouse", title: "Greenhouse", icon: "🌿" },
+        { key: "watchman_room", title: "Watchman Room", icon: "👷" },
+        {
+          key: "toilets_wash_area",
+          title: "Toilets and Wash Area",
+          icon: "🚻",
+        },
       ],
     },
     {
       category: "Safety",
-      items: ["CCTV Video Surveillance"],
+      items: [
+        {
+          key: "cctv_video_surveillance",
+          title: "CCTV Video Surveillance",
+          icon: "📷",
+        },
+      ],
     },
   ],
 };
+
 
 /* ─── Component ───────────────────────────────────────────────── */
 
@@ -148,8 +408,11 @@ const Amenities = ({ error }) => {
     ? categoryGroups
         .map((g) => ({
           ...g,
+          // items: g.items.filter((item) =>
+          //   item.toLowerCase().includes(search.toLowerCase())
+          // ),
           items: g.items.filter((item) =>
-            item.toLowerCase().includes(search.toLowerCase())
+            item.title.toLowerCase().includes(search.toLowerCase()),
           ),
         }))
         .filter((g) => g.items.length > 0)
@@ -203,7 +466,7 @@ const Amenities = ({ error }) => {
                   className="cursor-pointer hover:text-red-500 transition-colors flex-shrink-0"
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleArrayValue("amenities", item.title);
+                    toggleArrayValue("amenities", item);
                   }}
                 />
               </span>
@@ -264,23 +527,35 @@ const Amenities = ({ error }) => {
                       {group.category}
                     </p>
                   </div>
-                  {group.items.map((name) => {
-                    const isSelected = selected.some((a) => a.title === name);
+                  {group.items.map((item) => {
+                       const isSelected = selected.some(
+                         (a) => a.key === item.key,
+                       );
                     return (
                       <div
-                        key={name}
+                        key={item.key || item.title}
                         onClick={(e) => {
                           e.stopPropagation();
-                          toggleArrayValue("amenities", name);
+                          toggleArrayValue("amenities", item);
                         }}
                         className={`px-4 py-2.5 flex justify-between items-center cursor-pointer border-b border-[#f9f9f9] last:border-none transition-colors hover:bg-[#f0fdf4] ${
                           isSelected ? "bg-[#f0fdf4]" : ""
                         }`}
                       >
-                        <span className={`text-sm ${isSelected ? "text-[#27AE60] font-bold" : "text-[#374151] font-medium"}`}>
-                          {name}
+                        <span
+                          className={`text-sm ${isSelected ? "text-[#27AE60] font-bold" : "text-[#374151] font-medium"}`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span>{item.icon}</span>
+                            <span>{item.title}</span>
+                          </span>
                         </span>
-                        {isSelected && <Check size={14} className="text-[#27AE60] flex-shrink-0" />}
+                        {isSelected && (
+                          <Check
+                            size={14}
+                            className="text-[#27AE60] flex-shrink-0"
+                          />
+                        )}
                       </div>
                     );
                   })}

@@ -110,23 +110,74 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
  };
 
 
+  // useImperativeHandle(ref, () => ({
+  //   validate() {
+  //     const e = {};
+  //     if (!payload.heroTagline?.trim())    e.heroTagline    = "Hero Tagline is required";
+  //     if (!payload.heroSubTagline?.trim()) e.heroSubTagline = "Hero Sub Tagline is required";
+  //     if (!payload.heroDescription?.trim()) e.heroDescription = "Hero Description is required";
+  //     if (!payload.color?.trim())          e.color          = "Theme Color is required";
+  //     if (!payload.heroImage)              e.heroImage      = "Hero Image is required";
+  //     if (!payload.logo)                   e.logo           = "Logo is required";
+  //     setErrors(e);
+  //     if (Object.keys(e).length) {
+  //       const refMap = { heroTagline:heroTaglineRef, heroSubTagline:heroSubTaglineRef,
+  //         heroDescription:heroDescriptionRef, color:colorRef, heroImage:heroImageRef, logo:logoRef };
+  //       refMap[Object.keys(e)[0]]?.current?.scrollIntoView({ behavior:"smooth", block:"center" });
+  //       return false;
+  //     }
+  //     return true;
+  //   },
+  // }));
+
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
-      if (!payload.heroTagline?.trim())    e.heroTagline    = "Hero Tagline is required";
-      if (!payload.heroSubTagline?.trim()) e.heroSubTagline = "Hero Sub Tagline is required";
-      if (!payload.heroDescription?.trim()) e.heroDescription = "Hero Description is required";
-      if (!payload.color?.trim())          e.color          = "Theme Color is required";
-      if (!payload.heroImage)              e.heroImage      = "Hero Image is required";
-      if (!payload.logo)                   e.logo           = "Logo is required";
+
+      if (!payload.heroTagline?.trim())
+        e.heroTagline = "Hero Tagline is required";
+      if (!payload.heroSubTagline?.trim())
+        e.heroSubTagline = "Hero Sub Tagline is required";
+      if (!payload.heroDescription?.trim())
+        e.heroDescription = "Hero Description is required";
+      if (!payload.color?.trim()) e.color = "Theme Color is required";
+      if (!payload.heroImage) e.heroImage = "Hero Image is required";
+      if (!payload.logo) e.logo = "Logo is required";
+
       setErrors(e);
+
       if (Object.keys(e).length) {
-        const refMap = { heroTagline:heroTaglineRef, heroSubTagline:heroSubTaglineRef,
-          heroDescription:heroDescriptionRef, color:colorRef, heroImage:heroImageRef, logo:logoRef };
-        refMap[Object.keys(e)[0]]?.current?.scrollIntoView({ behavior:"smooth", block:"center" });
+        const refMap = {
+          heroTagline: heroTaglineRef,
+          heroSubTagline: heroSubTaglineRef,
+          heroDescription: heroDescriptionRef,
+          color: colorRef,
+          heroImage: heroImageRef,
+          logo: logoRef,
+        };
+
+        const first = Object.keys(e)[0];
+        refMap[first]?.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+
         return false;
       }
+
       return true;
+    },
+
+    // ✅ ADD THIS (IMPORTANT)
+    isValid() {
+      return (
+        payload.heroTagline?.trim() &&
+        payload.heroSubTagline?.trim() &&
+        payload.heroDescription?.trim() &&
+        payload.color?.trim() &&
+        payload.heroImage &&
+        payload.logo
+      );
     },
   }));
 

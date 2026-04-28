@@ -3,6 +3,10 @@
 import { forwardRef, useImperativeHandle, useRef, useState,useEffect } from "react";
 import { Building2, FileText, BadgeCheck, Globe, Map, Tag } from "lucide-react";
 import { getUserSearch } from "../../../../features/user/userService";
+import { saveImage, deleteImage } from "../utils/indexedDB";
+import { compressPdfAdvanced } from "../utils/compressPdfAdvanced";
+import { toast } from "sonner";
+
  
 
 /* ─── Design tokens ─────────────────────────────────────────── */
@@ -21,12 +25,7 @@ const ERR   = "text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1
 /* ─── Constants ─────────────────────────────────────────────── */
 const BANKS = ["HDFC", "ICICI", "SBI", "Axis", "PNB", "Kotak", "Yes Bank"];
 
-const CATEGORY_TYPES = [ 
-  {value:"residential", label:"Residential"}, 
-  {value:"commercial", label:"Commercial"}, 
-  {value:"land", label:"Land"}, 
-  {value:"agricultural", label:"Agricultural"}
-];
+
 
 const AREA_UNITS = [
   { value: "Acres",   label: "Acres"   },
@@ -163,14 +162,13 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
     const list = [...(payload.youtubeVideos || [])];
     list.splice(index, 1);
     update({ youtubeVideos: list });
+   
   };
 
-  /* ── Validation ── */
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
 
-      // totalTowers — cast to Number so "0" fails correctly
       if (!payload.totalTowers || Number(payload.totalTowers) <= 0)
         e.totalTowers = "Required (must be > 0)";
 
@@ -180,8 +178,6 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
 
       if (!payload.projectArea || Number(payload.projectArea) <= 0)
         e.projectArea = "Required (must be > 0)";
-
-      //if (!payload.areaUnits) e.areaUnits = "Select a unit";
 
       if (!payload.totalUnits || Number(payload.totalUnits) <= 0)
         e.totalUnits = "Required (must be > 0)";
@@ -207,12 +203,11 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
 
       if (!payload.brochure) e.brochure = "Brochure PDF is required";
 
-      // redirectUrl — optional but if filled must be a valid URL
       if (payload.redirectUrl?.trim()) {
         try {
           new URL(payload.redirectUrl.trim());
         } catch {
-          e.redirectUrl = "Enter a valid URL (e.g. https://example.com)";
+          e.redirectUrl = "Enter a valid URL";
         }
       }
 
@@ -225,6 +220,43 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
         });
         return false;
       }
+
+      return true;
+    },
+
+    // ✅ ADD THIS (IMPORTANT)
+    isValid() {
+      if (!payload.totalTowers || Number(payload.totalTowers) <= 0)
+        return false;
+      if (!payload.totalFloors?.trim()) return false;
+      if (!payload.possessionDate) return false;
+      if (!payload.projectArea || Number(payload.projectArea) <= 0)
+        return false;
+      if (!payload.totalUnits || Number(payload.totalUnits) <= 0) return false;
+      if (!payload.availableUnits || Number(payload.availableUnits) < 0)
+        return false;
+
+      if (
+        payload.totalUnits &&
+        payload.availableUnits &&
+        Number(payload.availableUnits) > Number(payload.totalUnits)
+      )
+        return false;
+
+      if (!payload.state?.trim()) return false;
+      if (!payload.locality?.trim()) return false;
+      if (!payload.reraNumber?.trim()) return false;
+      if (!payload.banksApproved?.length) return false;
+      if (!payload.brochure) return false;
+
+      if (payload.redirectUrl?.trim()) {
+        try {
+          new URL(payload.redirectUrl.trim());
+        } catch {
+          return false;
+        }
+      }
+
       return true;
     },
   }));
@@ -233,7 +265,7 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
   const clr = (key) =>
     setErrors((prev) => {
       const copy = { ...prev };
-      delete copy[key];
+      delete copy[key]; 
       return copy;
     });
 
@@ -252,11 +284,30 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
     clr("banksApproved");
   };
 
-  const toggleCategory = (category) => {
-    update({
-      categoryType:
-        payload.categoryType === category.value ? "" : category.value,
-    });
+
+  const removeBrochure = async () => {
+    const key =
+      typeof payload.brochure === "string"
+        ? payload.brochure
+        : payload.brochure?.key;
+
+    if (key) {
+      await deleteImage(key, "other");
+    }
+
+    update({ brochure: null });
+
+    toast.success("Brochure removed successfully");
+  };
+  
+  const getBrochureName = () => {
+    if (payload.brochure?.file) return payload.brochure.file.name;
+
+    if (typeof payload.brochure === "string") {
+      return payload.brochure.split("__")[2]; // extract filename
+    }
+
+    return null;
   };
 
   /* ── Render ── */
@@ -433,37 +484,6 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
         </div>
       </SectionCard>
 
-      {/* ── 2. Catogory Types ── */}
-      <SectionCard icon={Tag} title="Category Types" sub="Category">
-        {errors.categoryTypes && (
-          <p className={`${ERR} mb-4`}>⚠ {errors.categoryTypes}</p>
-        )}
-        <div className="flex flex-wrap gap-3">
-          {CATEGORY_TYPES.map((category) => {
-            const sel = payload.categoryType === category.value;
-
-            return (
-              <button
-                key={category.value}
-                type="button"
-                onClick={() => toggleCategory(category)}
-                className="px-5 py-2.5 rounded-xl border-2 text-sm font-black"
-                style={{
-                  background: sel
-                    ? "linear-gradient(135deg,#27AE60,#1e8449)"
-                    : "white",
-                  borderColor: sel ? "#27AE60" : "#e5e7eb",
-                  color: sel ? "white" : "#374151",
-                }}
-              >
-                {sel ? "✓ " : ""}
-                {category.label}
-              </button>
-            );
-          })}
-        </div>
-      </SectionCard>
-
       {/* ── 3. Documents & Links ── */}
       <SectionCard icon={FileText} title="Files & Links" sub="Documents">
         <div className="space-y-5">
@@ -492,13 +512,12 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
                 <p
                   className={`text-sm font-bold truncate ${errors.brochure ? "text-red-600" : "text-gray-800"}`}
                 >
-                  {payload.brochure
+                  {/* {payload.brochure
                     ? payload.brochure.name
-                    : "Upload Brochure PDF"}
+                    : "Upload Brochure PDF"} */}
+                  {getBrochureName() || "Upload Brochure PDF"}
                 </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  PDF files only · Max 8MB
-                </p>
+                <p className="text-xs text-gray-400 mt-0.5">PDF files only</p>
               </div>
               {payload.brochure && (
                 <span
@@ -512,12 +531,118 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
                 type="file"
                 accept="application/pdf"
                 className="hidden"
-                onChange={(e) => {
-                  update({ brochure: e.target.files[0] });
+                // onChange={(e) => {
+                //   update({ brochure: e.target.files[0] });
+                //   clr("brochure");
+                // }}
+                // onChange={async (e) => {
+                //   const file = e.target.files[0];
+
+                //   if (!file) return;
+
+                //   const key = await saveImage(file, "other", "brochure");
+
+                //   update({
+                //     brochure: {
+                //       key,
+                //       file, // optional (for instant preview)
+                //     },
+                //   });
+
+                //   clr("brochure");
+                // }}
+                // onChange={async (e) => {
+                //   let file = e.target.files[0];
+                //   if (!file) return;
+
+                //   // 🚫 Only PDF
+                //   if (file.type !== "application/pdf") {
+                //     toast.error("Only PDF allowed ❌");
+                //     return;
+                //   }
+
+                //   // 🔥 If >1MB → compress
+                //   if (file.size > 1024 * 1024) {
+                //     toast.loading("Compressing brochure... ⏳");
+
+                //     const compressed = await compressPDF(file);
+
+                //     toast.dismiss();
+
+                //     if (compressed.size > 1024 * 1024) {
+                //       toast.error("File still >1MB after compression ❌");
+                //       return;
+                //     }
+
+                //     file = compressed;
+
+                //     toast.success("Compressed successfully ✅");
+                //   }
+
+                //   // ✅ Save to IndexedDB
+                //   const key = await saveImage(file, "other", "brochure");
+
+                //   update({
+                //     brochure: {
+                //       key,
+                //       file,
+                //     },
+                //   });
+
+                //   clr("brochure");
+                // }}
+                onChange={async (e) => {
+                  let file = e.target.files[0];
+                  if (!file) return;
+
+                  if (file.type !== "application/pdf") {
+                    toast.error("Only PDF allowed ❌");
+                    return;
+                  }
+
+                  // 🔥 compress if >1MB
+                  const MAX_SIZE = 3 * 1024 * 1024;
+                  if (file.size > MAX_SIZE) {
+                    toast.loading("Compressing PDF... ⏳");
+
+                    const compressed = await compressPdfAdvanced(file);
+
+                    toast.dismiss();
+
+                    const sizeMB = (compressed.size / 1024 / 1024).toFixed(2);
+
+                    if (compressed.size > MAX_SIZE) {
+                      toast.error(
+                        `Still ${sizeMB}MB. Please upload smaller PDF ❌`,
+                      );
+                      return;
+                    }
+
+                    toast.success(`Compressed ✅`);
+
+                    file = compressed;
+                  }
+
+                  const key = await saveImage(file, "other", "brochure");
+
+                  update({
+                    brochure: { key, file },
+                  });
+
                   clr("brochure");
                 }}
               />
+              {payload.brochure && (
+                <button
+                  type="button"
+                  onClick={removeBrochure}
+                  className="text-red-500 text-xs font-bold ml-2"
+                >
+                  Remove
+                </button>
+              )}
             </label>
+
             {errors.brochure && <p className={ERR}>⚠ {errors.brochure}</p>}
           </div>
 

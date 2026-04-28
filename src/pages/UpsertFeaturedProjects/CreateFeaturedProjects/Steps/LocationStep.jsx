@@ -322,7 +322,7 @@ function MapplsPinMap({ coordinates, onPinChange }) {
 
   if (mapError) {
     return (
-      <div className="h-full w-full flex items-center justify-center text-gray-500 text-sm px-4 text-center bg-gray-50 rounded-2xl">
+      <div className="h-full w-full  flex items-center justify-center text-gray-500 text-sm px-4 text-center bg-gray-50 rounded-2xl">
         {mapError}
       </div>
     );
@@ -605,22 +605,53 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
   // }, [update]);
 
   /* ── Validation ── */
-  useImperativeHandle(ref, () => ({
-    validate() {
-      const e = {};
-      if (!location.coordinates[0] || !location.coordinates[1])
-        e.coords = "Please pin a location on the map";
-      if (!places.length)
-        e.nearbyPlaces = "Please add at least one nearby place";
-      setErrors(e);
-      if (Object.keys(e).length) {
-        locationRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        return false;
-      }
-      return true;
-    },
-  }));
+  // useImperativeHandle(ref, () => ({
+  //   validate() {
+  //     const e = {};
+  //     if (!location.coordinates[0] || !location.coordinates[1])
+  //       e.coords = "Please pin a location on the map";
+  //     if (!places.length)
+  //       e.nearbyPlaces = "Please add at least one nearby place";
+  //     setErrors(e);
+  //     if (Object.keys(e).length) {
+  //       locationRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  //       return false;
+  //     }
+  //     return true;
+  //   },
+  // }));
+useImperativeHandle(ref, () => ({
+  validate() {
+    const e = {};
 
+    if (!location.coordinates[0] || !location.coordinates[1]) {
+      e.coords = "Please pin a location on the map";
+    }
+
+    if (!places.length) {
+      e.nearbyPlaces = "Please add at least one nearby place";
+    }
+
+    setErrors(e);
+
+    if (Object.keys(e).length) {
+      locationRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      return false;
+    }
+
+    return true;
+  },
+
+  // ✅ ADD THIS (IMPORTANT)
+  isValid() {
+    return (
+      location.coordinates[0] && location.coordinates[1] && places.length > 0
+    );
+  },
+}));
   /* ── Pin change callback ── */
   // const handlePinChange = useCallback(
   //   ({ coordinates, pincode, locality, city, state }) => {
@@ -784,21 +815,26 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
   ════════════════════════════════════════════════════════════ */
   return (
     <div className="space-y-6" ref={locationRef}>
-
       {/* ── Section 1: Project Coordinates (Mappls Map) ───── */}
       <div className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-
         {/* Card header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "linear-gradient(135deg,#f0fdf6,#dcfce7)", border: "2px solid #bbf7d0" }}
+            style={{
+              background: "linear-gradient(135deg,#f0fdf6,#dcfce7)",
+              border: "2px solid #bbf7d0",
+            }}
           >
             <Navigation size={17} style={{ color: "#27AE60" }} />
           </div>
           <div className="flex-1">
-            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">GeoJSON · Point</p>
-            <h3 className="text-sm font-black text-gray-900">Project Coordinates</h3>
+            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+              GeoJSON · Point
+            </p>
+            <h3 className="text-sm font-black text-gray-900">
+              Project Coordinates
+            </h3>
           </div>
           <button
             type="button"
@@ -808,17 +844,23 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
               text-gray-600 hover:border-[#27AE60] hover:text-[#27AE60] hover:bg-[#f0fdf6]
               transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {locatingUser ? <Loader2 size={13} className="animate-spin" /> : <LocateFixed size={13} />}
+            {locatingUser ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <LocateFixed size={13} />
+            )}
             {locatingUser ? "Locating…" : "Use My Location"}
           </button>
         </div>
 
         <div className="p-5 space-y-4">
-
           {/* Address search */}
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search
+                size={15}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-sm
                   font-semibold text-gray-900 placeholder:text-gray-400 outline-none
@@ -837,7 +879,11 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
                 hover:opacity-90 transition-all shadow-md disabled:opacity-60"
               style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
             >
-              {searching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+              {searching ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <Search size={15} />
+              )}
               {searching ? "Searching…" : "Search"}
             </button>
           </div>
@@ -846,21 +892,29 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
           <div className="flex items-start gap-2 px-4 py-3 bg-[#f0fdf6] border border-[#27AE60]/20 rounded-xl">
             <Info size={14} className="text-[#27AE60] mt-0.5 flex-shrink-0" />
             <p className="text-xs text-[#1a7a42] font-semibold leading-relaxed">
-              Click anywhere on the map to drop the pin — pincode, locality, city and state
-              are auto-filled via OpenStreetMap. You can also type a 6-digit pincode below to auto-locate.
+              Click anywhere on the map to drop the pin — pincode, locality,
+              city and state are auto-filled via OpenStreetMap. You can also
+              type a 6-digit pincode below to auto-locate.
             </p>
           </div>
 
           {/* Mappls Map */}
           <div
-            className="rounded-2xl overflow-hidden border-2 border-gray-200 shadow-sm"
-            style={{ position: "relative", height: 360 }}
+            className="rounded-2xl overflow-hidden border-2   border-gray-200 shadow-sm"
+            style={{ position: "relative", height: 360, width: "90%" }}
+            
           >
-            <MapplsPinMap coordinates={mapCoords} onPinChange={handlePinChange} />
+            <MapplsPinMap
+              coordinates={mapCoords}
+              onPinChange={handlePinChange}
+            />
             {location.coordinates[0] && location.coordinates[1] && (
               <div
                 className="absolute bottom-3 left-3 px-3 py-2 rounded-xl text-xs font-black text-white z-10 shadow-lg"
-                style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)", pointerEvents: "none" }}
+                style={{
+                  background: "linear-gradient(135deg,#27AE60,#1e8449)",
+                  pointerEvents: "none",
+                }}
               >
                 📍 {parseFloat(location.coordinates[1]).toFixed(5)},{" "}
                 {parseFloat(location.coordinates[0]).toFixed(5)}
@@ -872,7 +926,9 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
           {!markerPlaced && (
             <div className="flex items-center gap-1.5 text-amber-500">
               <Navigation size={12} />
-              <p className="text-xs font-medium">Click the map or use "Use My Location" to pin your property</p>
+              <p className="text-xs font-medium">
+                Click the map or use "Use My Location" to pin your property
+              </p>
             </div>
           )}
           {markerPlaced && (
@@ -888,7 +944,9 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
             </div>
           )}
           {errors.coords && (
-            <p className="text-xs text-red-500 font-semibold">⚠ {errors.coords}</p>
+            <p className="text-xs text-red-500 font-semibold">
+              ⚠ {errors.coords}
+            </p>
           )}
 
           {/* Auto-filled address fields */}
@@ -937,13 +995,14 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
             </div>
           </div> */}
 
-
           {/* Read-only coordinate display */}
           <div className="grid grid-cols-2 gap-4 pt-1">
             <div>
               <label className={LABEL}>Longitude (X)</label>
               <input
-                type="number" step="any" readOnly
+                type="number"
+                step="any"
+                readOnly
                 className={inp(false) + " bg-gray-50 cursor-default"}
                 placeholder="Auto from map"
                 value={location.coordinates[0]}
@@ -952,14 +1011,15 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
             <div>
               <label className={LABEL}>Latitude (Y)</label>
               <input
-                type="number" step="any" readOnly
+                type="number"
+                step="any"
+                readOnly
                 className={inp(false) + " bg-gray-50 cursor-default"}
                 placeholder="Auto from map"
                 value={location.coordinates[1]}
               />
             </div>
           </div>
-
         </div>
       </div>
 
@@ -987,7 +1047,9 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <span
                     className="px-2.5 py-1 text-xs font-black rounded-lg text-white shrink-0 capitalize"
-                    style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
+                    style={{
+                      background: "linear-gradient(135deg,#27AE60,#1e8449)",
+                    }}
                   >
                     {p.type || "Place"}
                   </span>
@@ -1017,7 +1079,10 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "linear-gradient(135deg,#f0fdf6,#dcfce7)", border: "2px solid #bbf7d0" }}
+            style={{
+              background: "linear-gradient(135deg,#f0fdf6,#dcfce7)",
+              border: "2px solid #bbf7d0",
+            }}
           >
             <Search size={17} style={{ color: "#27AE60" }} />
           </div>
@@ -1028,7 +1093,9 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
             <h3 className="text-sm font-black text-gray-900">Nearby Places</h3>
           </div>
           {errors.nearbyPlaces && (
-            <p className="text-xs text-red-500 font-semibold">⚠ {errors.nearbyPlaces}</p>
+            <p className="text-xs text-red-500 font-semibold">
+              ⚠ {errors.nearbyPlaces}
+            </p>
           )}
         </div>
 
@@ -1036,7 +1103,10 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
           <NearbyPlacesPanel
             pinnedCoords={
               location.coordinates[0] && location.coordinates[1]
-                ? [parseFloat(location.coordinates[0]), parseFloat(location.coordinates[1])]
+                ? [
+                    parseFloat(location.coordinates[0]),
+                    parseFloat(location.coordinates[1]),
+                  ]
                 : null
             }
             selectedPlaces={places}
@@ -1045,7 +1115,6 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
           />
         </div>
       </div>
-
     </div>
   );
 });

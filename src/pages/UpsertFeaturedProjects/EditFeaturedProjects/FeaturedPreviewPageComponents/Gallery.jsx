@@ -140,7 +140,7 @@ export default function Gallery(props) {
 
         {/* 4 small images on right */}
         <div className="md:col-span-5 grid grid-cols-2 gap-3">
-          {items.slice(1, 20).map((it, i) => (
+          {items.slice(1, 5).map((it, i) => (
             <div
               key={i}
               className="relative rounded-xl overflow-hidden cursor-pointer group shadow-sm border border-gray-100"

@@ -39,29 +39,58 @@ export const updateFeaturedProperty = async (id, payload) => {
   const fd = new FormData();
   /* ─────────────────────────────────────────────
      1️⃣ BHK Summary
-  ───────────────────────────────────────────── */
+  // ───────────────────────────────────────────── */
+  
+
   if (Array.isArray(payload.bhkSummary)) {
     const bhkSummaryJson = payload.bhkSummary.map((bhk) => {
+      console.log("🔹 ORIGINAL BHK:", bhk);
+
       const units = (bhk.units || []).map((u) => {
+        console.log("   🔸 ORIGINAL UNIT:", u);
+
         if (u.planFile instanceof File) {
           fd.append("bhkPlanFiles", u.planFile);
         }
 
-        return {
-          ...u,
+        const unitJson = {
           minSqft: Number(u.minSqft || 0),
           maxPrice: Number(u.maxPrice || 0),
           availableCount: Number(u.availableCount || 0),
-          planFile: undefined,
-          planPreview: undefined,
+          ...(u._id && { _id: u._id }),
+          ...(u.planFileName && { planFileName: u.planFileName }),
+          ...(!(u.planFile instanceof File) && u.plan?.url && { plan: u.plan }),
         };
+
+        console.log("   ✅ UNIT JSON:", unitJson);
+
+        return unitJson;
       });
 
-      return { ...bhk, units };
+      const bhkObj = {
+        bhk: Number(bhk.bhk || 0),
+        bhkLabel: bhk.bhkLabel || "",
+        ...(bhk._id && { _id: bhk._id }),
+        ...(bhk.minPrice !== undefined && { minPrice: bhk.minPrice }),
+        ...(bhk.maxPrice !== undefined && { maxPrice: bhk.maxPrice }),
+        units,
+      };
+
+      console.log("✅ FINAL BHK OBJECT:", bhkObj);
+
+      return bhkObj;
     });
 
+    console.log("🔥 FINAL BHK SUMMARY JSON:", bhkSummaryJson);
+
     fd.append("bhkSummary", JSON.stringify(bhkSummaryJson));
+
+    console.log("📦 FORM DATA:");
+    for (let pair of fd.entries()) {
+      console.log(pair[0], pair[1]);
+    }
   }
+
 
   /* ─────────────────────────────────────────────
      2️⃣ Gallery (FINAL CORRECT VERSION)
@@ -109,6 +138,19 @@ export const updateFeaturedProperty = async (id, payload) => {
     fd.append("logo", payload.logo);
   }
 
+  // if (payload.brochure?.file instanceof File) {
+  //   fd.append("brochure", payload.brochure.file);
+  // }
+
+  console.log("🔥 FINAL BROCHURE PAYLOAD:", payload.brochure);
+
+  if (payload.brochure?.file instanceof File) {
+    console.log("✅ Appending NEW brochure:", payload.brochure.file.name);
+    fd.append("brochure", payload.brochure.file);
+  } else {
+    console.error("❌ brochure NOT appended:", payload.brochure);
+  }
+
   /* ─────────────────────────────────────────────
      4️⃣ Simple Fields
   ───────────────────────────────────────────── */
@@ -121,6 +163,18 @@ export const updateFeaturedProperty = async (id, payload) => {
     "heroSubTagline",
     "amenities",
     "aboutSummary",
+
+    // ✅ ADD THESE
+    "totalTowers",
+    "totalFloors",
+    "projectArea",
+    "totalUnits",
+    "availableUnits",
+    "possessionDate",
+    "reraNumber",
+    "redirectUrl",
+    "banksApproved",
+    
   ];
 
   simpleFields.forEach((key) => {
@@ -194,6 +248,9 @@ export const updateFeaturedProperty = async (id, payload) => {
     fd.append("youtubeVideos", JSON.stringify(videosJson));
   }
 
+   
+  
+
   try {
     const res = await authAxios.patch(API_ENDPOINTS.PROPERTY_DETAILS(id), fd, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -201,8 +258,12 @@ export const updateFeaturedProperty = async (id, payload) => {
 
     
     return res.data;
+
   } catch (error) {
     console.error("❌ PATCH ERROR:", error.response?.data || error);
     throw error;
   }
 };;
+
+
+

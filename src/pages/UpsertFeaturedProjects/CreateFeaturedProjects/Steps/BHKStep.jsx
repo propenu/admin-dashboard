@@ -41,27 +41,79 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
   const bhkSummaryRef = useRef(null);
   const sqftRangeRef  = useRef(null);
 
+  // useImperativeHandle(ref, () => ({
+  //   validate() {
+  //     const e = {};
+  //     if (!bhkSummary.length) e.bhkSummary = "At least one BHK is required";
+  //     bhkSummary.forEach((b, bi) => {
+  //       if (!b.units?.length) e[`bhk-${bi}`] = "At least one unit is required";
+  //       b.units?.forEach((u, ui) => {
+  //         if (!u.minSqft)       e[`bhk-${bi}-unit-${ui}-minSqft`]  = "Required";
+  //         if (!u.maxPrice)      e[`bhk-${bi}-unit-${ui}-maxPrice`]  = "Required";
+  //         if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`]   = "Required";
+  //       });
+  //     });
+  //     if (!sqftRange.min || !sqftRange.max) e.sqftRange = "Overall sqft range required";
+  //     setErrors(e);
+  //     if (Object.keys(e).length) {
+  //       (e.bhkSummary ? bhkSummaryRef : sqftRangeRef).current?.scrollIntoView({ behavior:"smooth" });
+  //       return false;
+  //     }
+  //     return true;
+  //   },
+  // }));
+ 
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
+
       if (!bhkSummary.length) e.bhkSummary = "At least one BHK is required";
+
       bhkSummary.forEach((b, bi) => {
         if (!b.units?.length) e[`bhk-${bi}`] = "At least one unit is required";
+
         b.units?.forEach((u, ui) => {
-          if (!u.minSqft)       e[`bhk-${bi}-unit-${ui}-minSqft`]  = "Required";
-          if (!u.maxPrice)      e[`bhk-${bi}-unit-${ui}-maxPrice`]  = "Required";
-          if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`]   = "Required";
+          if (!u.minSqft) e[`bhk-${bi}-unit-${ui}-minSqft`] = "Required";
+          if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
+          if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";
         });
       });
-      if (!sqftRange.min || !sqftRange.max) e.sqftRange = "Overall sqft range required";
+
+      if (!sqftRange.min || !sqftRange.max)
+        e.sqftRange = "Overall sqft range required";
+
       setErrors(e);
+
       if (Object.keys(e).length) {
-        (e.bhkSummary ? bhkSummaryRef : sqftRangeRef).current?.scrollIntoView({ behavior:"smooth" });
+        (e.bhkSummary ? bhkSummaryRef : sqftRangeRef).current?.scrollIntoView({
+          behavior: "smooth",
+        });
         return false;
       }
+
+      return true;
+    },
+
+    // ✅ ADD THIS (IMPORTANT)
+    isValid() {
+      if (!bhkSummary.length) return false;
+
+      for (let b of bhkSummary) {
+        if (!b.units?.length) return false;
+
+        for (let u of b.units) {
+          if (!u.minSqft || !u.maxPrice || !u.availableCount) {
+            return false;
+          }
+        }
+      }
+
+      if (!sqftRange.min || !sqftRange.max) return false;
+
       return true;
     },
   }));
+
 
   const addBhk = () => update({
     bhkSummary: [...bhkSummary, {

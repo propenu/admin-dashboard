@@ -17,6 +17,7 @@ import React, {
 } from "react";
 import {
   MapPin,
+  Map,
   Trash2,
   Navigation,
   Search,
@@ -236,8 +237,11 @@ function MapplsPinMap({ coordinates, onPinChange, height = 360, readOnly = false
 
         if (!mapRef.current) {
           mapRef.current = new sdk.Map(containerId, {
-            center: DEFAULT_POSITION, zoom: 12,
-            zoomControl: true, location: false,
+            center: DEFAULT_POSITION,
+            zoom: 12,
+            zoomControl: true,
+            location: false,
+            
           });
           setMapReady(true);
         } else {
@@ -905,7 +909,7 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
               <MapplsPinMap coordinates={mapCoords} onPinChange={handlePinChange} height={320} />
               {location.coordinates[0] && location.coordinates[1] && (
                 <div
-                  className="absolute bottom-3 left-3 px-3 py-2 rounded-xl text-xs font-black text-white z-10 shadow-lg pointer-events-none"
+                  className="absolute  bottom-3 left-3 px-3 py-2 rounded-xl text-xs font-black text-white z-10 shadow-lg pointer-events-none"
                   style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
                 >
                   📍 {parseFloat(location.coordinates[1]).toFixed(5)},{" "}

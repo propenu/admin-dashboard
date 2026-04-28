@@ -165,7 +165,11 @@ export default function FeaturedPreviewPage() {
   async function handleSave(sectionUpdate) {
     try {
       setSaving(true);
-      const payload = { ...formData, ...sectionUpdate };
+      const payload = { ...formData, ...sectionUpdate,
+        brochure: formData.brochure || sectionUpdate.brochure,
+       };
+
+      console.log(payload);
       const result  = await updateFeaturedProperty(id, payload);
       const updatedData = result?.data ?? result;
       setFormData(updatedData);

@@ -4,11 +4,11 @@ import { SERVICES } from "../../config/services";
 import { ENV } from "../../config/env";
 import axios from "axios";
 
-export const createRequestOtp = async (phone) => {
+export const createRequestOtp = async (email) => {
   try {
     const res = await apiClient.post(
-      `${SERVICES.USER}/auth/request-otp/create`,
-      { phone },
+      `${SERVICES.USER}/auth/request-otp/admin-create`,
+      { email },
     );
     return res.data;
   } catch (err) {
@@ -19,7 +19,7 @@ export const createRequestOtp = async (phone) => {
 export const createVerifyOtpService = async (payload) => {
   try {
     const res = await apiClient.post(
-      `${SERVICES.USER}/auth/verify-otp/create`,
+      `${SERVICES.USER}/auth/verify-otp/admin-create`,
       payload,
     );
     return res.data; // Expected: { success: true, token: "...", user: {...} }
@@ -35,7 +35,7 @@ export const createUserLocationDetails = async (formData) => {
     const locationToken = localStorage.getItem("locationToken");
     // 2. Use 'axios' directly instead of 'apiClient'
     const res = await axios.post(
-      `${ENV.API_BASE_URL}${SERVICES.USER}/auth/update-location/create`,
+      `${ENV.API_BASE_URL}${SERVICES.USER}/auth/update-location/admin-create`,
       formData,
       {
         headers: {

@@ -170,11 +170,7 @@ export default function FeaturedPropertyCard({ property, onRankUpdated }) {
           </span>
         </div>
 
-        {/* TYPE */}
-        <div className="flex items-center gap-1 text-[10px] mt-2 bg-slate-50 px-2 py-1 rounded border">
-          <Building2 className="w-3 h-3" />
-          Featured Property
-        </div>
+      
 
         {/* PRICE */}
         <div className="mt-2">
