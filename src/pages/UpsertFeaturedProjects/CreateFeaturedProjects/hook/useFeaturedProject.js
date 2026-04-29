@@ -137,12 +137,12 @@ export const useFeaturedProject = (projectType) => {
     onSuccess: async () => {
       toast.success("Property created successfully ✅");
 
-     // await clearAllImages();
+     await clearAllImages();
 
-      //localStorage.removeItem("featuredPayload");
+      localStorage.removeItem("featuredPayload");
       setProgress(0);
 
-      navigate("/featured-properties");
+      navigate("/normal");
     },
 
     onError: (err) => {

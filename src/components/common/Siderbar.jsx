@@ -35,45 +35,76 @@ import RevenueByPlanIcon from "../../assets/dashboard/revenue_by_plan.svg";
 
 
 
-import { UserCircle, ChevronDown, ChevronRight, Bell,  } from "lucide-react";
+import {
+  UserCircle,
+  ChevronDown,
+  ChevronRight,
+  Bell,
+  Mail,
+  MessageCircle,
+  Workflow
+} from "lucide-react";
 
 import CreateUserModal from "./CreateUserModal";
 import AssignManagerPage from "./AssignManager";
 import TransferCredentials from "./TransferCredentials";
 
 /* ─── Reusable Icon wrapper ──────────────────────────────────────────────── */
-// All icons — top-level, child, and sub-child — use this component so they
-// are always the same physical size and aligned identically.
-const NavIcon = ({ src, active, isParent = false, size = "md" }) => {
+
+// const NavIcon = ({ src, active, isParent = false, size = "md" }) => {
+//   const dim = size === "sm" ? "w-5 h-5" : "w-6 h-6";
+
+//   let filterStyle = {};
+//   if (active) {
+//     if (isParent) {
+//       // Turn icon green (#27AE60) for active parent
+//       filterStyle = {
+//         filter:
+//           "invert(59%) sepia(61%) saturate(456%) hue-rotate(95deg) brightness(92%) contrast(88%)",
+//       };
+//     } else {
+//       // Turn icon pure WHITE for active child (sitting on green bg)
+//       filterStyle = {
+//         filter: "brightness(0) invert(1)",
+//       };
+//     }
+//   }
+
+//   return (
+//     <span className="flex items-center justify-center w-8 h-8 flex-shrink-0">
+//       <img
+//         src={src}
+//         alt="icons"
+//         className={`${dim} object-contain transition-all duration-200`}
+//         style={filterStyle}
+//       />
+//     </span>
+//   );
+// };
+
+
+const NavIcon = ({ src, active, size = "md" }) => {
   const dim = size === "sm" ? "w-5 h-5" : "w-6 h-6";
 
-  let filterStyle = {};
-  if (active) {
-    if (isParent) {
-      // Turn icon green (#27AE60) for active parent
-      filterStyle = {
-        filter:
-          "invert(59%) sepia(61%) saturate(456%) hue-rotate(95deg) brightness(92%) contrast(88%)",
-      };
-    } else {
-      // Turn icon pure WHITE for active child (sitting on green bg)
-      filterStyle = {
-        filter: "brightness(0) invert(1)",
-      };
-    }
+  // ✅ If src is string → image
+  if (typeof src === "string") {
+    return (
+      <span className="flex items-center justify-center w-8 h-8">
+        <img src={src} alt="icon" className={`${dim} object-contain`} />
+      </span>
+    );
   }
 
+  // ✅ Otherwise → React component (Lucide)
+  const Icon = src;
+
   return (
-    <span className="flex items-center justify-center w-8 h-8 flex-shrink-0">
-      <img
-        src={src}
-        alt="icons"
-        className={`${dim} object-contain transition-all duration-200`}
-        style={filterStyle}
-      />
+    <span className="flex items-center justify-center w-8 h-8">
+      <Icon className={`${dim} ${active ? "text-white" : "text-gray-600"}`} />
     </span>
   );
 };
+
 export default function Sidebar({
   expanded,
   isMobileOpen,
@@ -320,22 +351,22 @@ export default function Sidebar({
         {
           path: "/push-notifications",
           label: "Push Notifications",
-          icon: LocationsIcon,
+          icon: Bell,
         },
         {
           path: "/email-notifications",
           label: "Email Notifications",
-          icon: LocationsIcon,
+          icon: Mail,
         },
         {
           path: "/whatsapp-notifications",
           label: "WhatsApp Notifications",
-          icon: LocationsIcon,
+          icon: MessageCircle,
         },
         {
           path: "/automations",
           label: "Automations",
-          icon: LocationsIcon,
+          icon: Workflow,
         },
       ],
 

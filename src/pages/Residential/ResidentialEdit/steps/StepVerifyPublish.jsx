@@ -685,7 +685,6 @@
 ///////////////////////////////////////////////////// 
 
 
-
 // StepVerifyPublish.jsx — select doc type → upload → auto-save via verification PATCH
 import { useState, useRef, useMemo } from "react";
 import {
@@ -699,7 +698,6 @@ const DOC_TYPE_OPTIONS = [
   { id: "tax",        label: "Municipal Tax Receipt" },
   { id: "utility",    label: "Water or Electricity Bill" },
   { id: "sale_deed",  label: "Sale Deed" },
-  { id: "rera",       label: "RERA Certificate" },
 ];
 
 export default function StepVerifyPublish({

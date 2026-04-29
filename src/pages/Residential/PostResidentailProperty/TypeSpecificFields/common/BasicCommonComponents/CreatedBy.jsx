@@ -7,7 +7,7 @@ const ROLES = [
   { label: "All",           value: ""              },
   { label: "User",          value: "user"          },
   // { label: "Builder",       value: "builder"       },
-  // { label: "Agent",         value: "agent"         },
+  //{ label: "Agent",         value: "agent"         },
   { label: "Sales Manager", value: "sales_manager" },
   { label: "Sales Agent",   value: "sales_agent"   },
   // { label: "Super Admin",   value: "super_admin"   },

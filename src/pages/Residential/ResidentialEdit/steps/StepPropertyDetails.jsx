@@ -1,5 +1,3 @@
-
-
 // StepPropertyDetails.jsx — Premium Emerald Theme
 import {
   ImagePlus, Sparkles, Car, Home, UtensilsCrossed, AlignLeft,
