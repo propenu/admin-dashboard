@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   getAccountsSummary,
   getRevenueByPlan,
@@ -44,6 +45,8 @@ const SuperAdminDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const navigateone = useNavigate();
 
   const fetchDashboardData = async (isRefresh = false) => {
     try {
@@ -115,7 +118,6 @@ const SuperAdminDashboard = () => {
           <div>
             <h1 className="text-3xl font-bold text-[#27AE60] ">
               Business Overview
-             
             </h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Real-time performance metrics and subscription health
@@ -141,14 +143,16 @@ const SuperAdminDashboard = () => {
           icon={<DollarSign size={20} />}
           color="white"
           trend={null}
+          route={"/accounts-summary"}
         />
         <StatCard
           title="Today's Revenue"
           value={`₹${todayRev.toLocaleString("en-IN")}`}
-           sub="Day by day earnings"
+          sub="Day by day earnings"
           icon={<TrendingUp size={20} />}
           color="white"
           // trend="+0%"
+          route={"/Revenue-by-plan"}
         />
         <StatCard
           title="Active Subscriptions"
@@ -157,6 +161,7 @@ const SuperAdminDashboard = () => {
           icon={<Users size={20} />}
           color="white"
           trend={null}
+          route={"/active-subscriptions"}
         />
         <StatCard
           title="Failed Payments"
@@ -165,6 +170,7 @@ const SuperAdminDashboard = () => {
           icon={<AlertCircle size={20} />}
           color={failedPayments === 0 ? "white" : "orange"}
           trend={failedPayments === 0 ? "0%" : null}
+          route={"/payments-list"}
         />
       </div>
 
@@ -182,10 +188,15 @@ const SuperAdminDashboard = () => {
             </span>
           </div>
 
-          <div className="h-64 sm:h-72 w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 sm:h-72 w-full flex items-center justify-center outline-none focus:outline-none">
+            <ResponsiveContainer
+              style={{ outline: "none" }}
+              width="100%"
+              height="100%"
+            >
               <PieChart>
                 <Pie
+                  style={{ outline: "none" }}
                   data={[
                     { name: "Paid", value: data.paidCount },
                     { name: "Failed", value: data.failedCount },
@@ -198,6 +209,20 @@ const SuperAdminDashboard = () => {
                     `${name} ${(percent * 100).toFixed(0)}%`
                   }
                   labelLine={false}
+                  // onClick={(data) => {
+                  //   navigateone("/payments-list");
+                  // }}
+                  onClick={(data, index, e) => {
+                    e?.target?.blur(); // ✅ removes focus border
+                    navigateone("/payments-list");
+                  }}
+                  // onClick={(entry) => {
+                  //   if (entry.name === "Paid") {
+                  //     navigateone("/payments-list?status=paid");
+                  //   } else {
+                  //     navigateone("/payments-list?status=failed");
+                  //   }
+                  // }}
                 >
                   <Cell fill="#10b981" />
                   <Cell fill="#ef4444" />
@@ -247,14 +272,13 @@ const SuperAdminDashboard = () => {
                 data={data.revenueByPlan}
                 barCategoryGap="20%"
                 barGap={4}
-                
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
                   vertical={false}
                   stroke="#f1f5f9"
                 />
-                
+
                 <XAxis
                   dataKey="displayName"
                   interval={0}
@@ -286,6 +310,9 @@ const SuperAdminDashboard = () => {
                   fill="#27AE60"
                   radius={[10, 10, 0, 0]}
                   maxBarSize={60}
+                  onClick={(data) => {
+                    navigateone("/Revenue-by-plan");
+                  }}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -406,7 +433,10 @@ const LegendItem = ({ color, label, value }) => (
 );
 
 // Stat Card Component
-const StatCard = ({ title, value, sub, icon, color, trend }) => {
+const StatCard = ({ title, value, sub, icon, color, trend, route }) => {
+
+  const navigate = useNavigate();
+
   const colors = {
     blue: "bg-gradient-to-br from-blue-600 to-blue-700 shadow-blue-200",
     emerald:
@@ -419,6 +449,7 @@ const StatCard = ({ title, value, sub, icon, color, trend }) => {
 
   return (
     <div
+      onClick={() => route && navigate(route)}
       className={`${colors[color]} p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl text-white relative overflow-hidden shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] cursor-pointer`}
     >
       <div className="relative z-10">
@@ -440,7 +471,6 @@ const StatCard = ({ title, value, sub, icon, color, trend }) => {
       <div className="absolute right-3 top-3 sm:right-4 sm:top-4 bg-green-500 p-2 sm:p-2.5 rounded-xl md:rounded-2xl backdrop-blur-md border border-green-500">
         {icon}
       </div>
-      
     </div>
   );
 };

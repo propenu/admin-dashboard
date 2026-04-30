@@ -397,15 +397,42 @@ export default function Sidebar({
           icon: PropertyProgressIcon,
         },
         {
-          path: "/featured-properties",
-          label: "Prime Projects",
+          label: "Projects",
           icon: FeaturedProjetsIcon,
+          key: "projects",
+          children: [
+            {
+              path: "/normal",
+              label: "Normal Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/featured",
+              label: "Featured Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/prime",
+              label: "Prime Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/sponsored",
+              label: "Sponsored Projects",
+              icon: HighlightedProjectsIcon,
+            },
+          ],
         },
-        {
-          path: "/highlight-projects",
-          label: "Top Selling Projects",
-          icon: HighlightedProjectsIcon,
-        },
+        // {
+        //   path: "/featured-properties",
+        //   label: "Prime Projects",
+        //   icon: FeaturedProjetsIcon,
+        // },
+        // {
+        //   path: "/highlight-projects",
+        //   label: "Top Selling Projects",
+        //   icon: HighlightedProjectsIcon,
+        // },
         {
           label: "Users",
           icon: UserIcon,
@@ -523,15 +550,42 @@ export default function Sidebar({
             { path: "/land", label: "Land", icon: LandIcon },
           ],
         },
+        // {
+        //   path: "/featured-properties",
+        //   label: "Prime Projects",
+        //   icon: FeaturedProjetsIcon,
+        // },
+        // {
+        //   path: "/highlight-projects",
+        //   label: "Top Selling Projects",
+        //   icon: HighlightedProjectsIcon,
+        // },
         {
-          path: "/featured-properties",
-          label: "Prime Projects",
+          label: "Projects",
           icon: FeaturedProjetsIcon,
-        },
-        {
-          path: "/highlight-projects",
-          label: "Top Selling Projects",
-          icon: HighlightedProjectsIcon,
+          key: "projects",
+          children: [
+            {
+              path: "/normal",
+              label: "Normal Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/featured",
+              label: "Featured Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/prime",
+              label: "Prime Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/sponsored",
+              label: "Sponsored Projects",
+              icon: HighlightedProjectsIcon,
+            },
+          ],
         },
       ],
 
@@ -561,20 +615,47 @@ export default function Sidebar({
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
+        // {
+        //   path: "/featured-properties",
+        //   label: "Prime Projects",
+        //   icon: FeaturedProjetsIcon,
+        // },
+        // {
+        //   path: "/highlight-projects",
+        //   label: "Top Selling Projects",
+        //   icon: HighlightedProjectsIcon,
+        // },
         {
-          path: "/featured-properties",
-          label: "Prime Projects",
+          label: "Projects",
           icon: FeaturedProjetsIcon,
-        },
-        {
-          path: "/highlight-projects",
-          label: "Top Selling Projects",
-          icon: HighlightedProjectsIcon,
+          key: "projects",
+          children: [
+            {
+              path: "/normal",
+              label: "Normal Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/featured",
+              label: "Featured Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/prime",
+              label: "Prime Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/sponsored",
+              label: "Sponsored Projects",
+              icon: HighlightedProjectsIcon,
+            },
+          ],
         },
       ],
 
       customer_care: [
-        { path: "/", label: "Dashboard", icon: DashboardIcon },
+        //{ path: "/", label: "Dashboard", icon: DashboardIcon },
         {
           label: "Properties",
           icon: PropertiesIcon,
