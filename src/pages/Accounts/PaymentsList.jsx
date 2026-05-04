@@ -21,7 +21,7 @@ const SkeletonRow = ({ index }) => (
   <div
     style={{
       display: "grid",
-      gridTemplateColumns: "140px 160px 130px 1fr 110px",
+      gridTemplateColumns: "140px 180px 220px 140px 1fr 160px 110px",
       gap: "0",
       padding: "20px 28px",
       borderBottom: "1px solid #f0f0f0",
@@ -148,7 +148,7 @@ const DesktopRow = ({ payment, index }) => {
       onMouseLeave={() => setHovered(false)}
       style={{
         display: "grid",
-        gridTemplateColumns: "140px 160px 130px 1fr 110px",
+        gridTemplateColumns: "140px 180px 220px 140px 1fr 160px 110px",
         gap: "0",
         padding: "18px 28px",
         borderBottom: "1px solid #f7f8fa",
@@ -212,7 +212,7 @@ const DesktopRow = ({ payment, index }) => {
             fontFamily: "monospace",
           }}
         >
-          {payment.userId?.slice(-10) || "—"}
+          {payment.userId?.name || "Unknown User"}
         </p>
         <p
           style={{
@@ -222,7 +222,18 @@ const DesktopRow = ({ payment, index }) => {
             fontWeight: "500",
           }}
         >
-          user id
+          {payment.userId?.email || "—"}
+        </p>
+      </div>
+
+      {/* Location */}
+      <div>
+        <p style={{ margin: 0, fontSize: "12px", fontWeight: "600" }}>
+          {payment.userId?.city || "—"}, {payment.userId?.state || ""}
+        </p>
+
+        <p style={{ fontSize: "10px", color: "#9ca3af" }}>
+          {payment.userId?.locality || ""} ,{payment.userId?.pincode || ""}
         </p>
       </div>
 
@@ -274,6 +285,40 @@ const DesktopRow = ({ payment, index }) => {
           }}
         >
           {payment.razorpayPaymentId ? "razorpay id" : "no gateway id"}
+        </p>
+      </div>
+
+      <div>
+        <p
+          style={{
+            margin: 0,
+            fontSize: "11px",
+            fontWeight: "600",
+            fontFamily: "monospace",
+            color: payment.razorpayPaymentId ? "#3b82f6" : "#d1d5db",
+          }}
+        >
+          {payment.planId?.name || "—"}
+        </p>
+        <p
+          style={{
+            margin: "2px 0 0",
+            fontSize: "10px",
+            color: "#9ca3af",
+            fontWeight: "500",
+          }}
+        >
+          {payment.planId?.tier || "—"}
+        </p>
+        <p
+          style={{
+            margin: "2px 0 0",
+            fontSize: "10px",
+            color: "#9ca3af",
+            fontWeight: "500",
+          }}
+        >
+          {payment.userType || "—"}
         </p>
       </div>
 
@@ -353,7 +398,7 @@ const MobileCard = ({ payment }) => {
             fontFamily: "monospace",
           }}
         >
-          User: {payment.userId?.slice(-10) || "—"}
+          User: {payment.userId?.name || "Unknown"}
         </p>
         <p
           style={{
@@ -576,12 +621,12 @@ const PaymentsList = () => {
               sub={`${currentStatus} payments`}
               accent={currentStatus === "paid" ? "#22c55e" : "#ef4444"}
             />
-            <SummaryCard
+            {/* <SummaryCard
               label="Avg Transaction"
               value={`${currency}${payments.length > 0 ? Math.round(totalAmount / payments.length).toLocaleString() : 0}`}
               sub="per payment"
               accent="#f59e0b"
-            />
+            /> */}
           </div>
         )}
 
@@ -686,7 +731,7 @@ const PaymentsList = () => {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "140px 160px 130px 1fr 110px",
+                  gridTemplateColumns: "140px 180px 220px 140px 1fr 160px 110px",
                   padding: "12px 28px",
                   borderBottom: "2px solid #f3f4f6",
                   background: "#fafbfc",
@@ -695,8 +740,10 @@ const PaymentsList = () => {
                 {[
                   { label: "Date" },
                   { label: "User" },
+                  { label: "Location" },
                   { label: "Amount" },
                   { label: "Gateway ID" },
+                 { label: "Plan Name" },
                   { label: "Status", right: true },
                 ].map(({ label, right }) => (
                   <div

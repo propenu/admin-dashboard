@@ -195,14 +195,19 @@ export default function Sidebar({
               label: "Normal Projects",
               icon: HighlightedProjectsIcon,
             },
-            {
-              path: "/featured",
-              label: "Featured Projects",
-              icon: HighlightedProjectsIcon,
-            },
+            // {
+            //   path: "/featured",
+            //   label: "Top Selling Projects",
+            //   icon: HighlightedProjectsIcon,
+            // },
             {
               path: "/prime",
               label: "Prime Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/featured",
+              label: "Top Selling Projects",
               icon: HighlightedProjectsIcon,
             },
             {
@@ -406,14 +411,19 @@ export default function Sidebar({
               label: "Normal Projects",
               icon: HighlightedProjectsIcon,
             },
-            {
-              path: "/featured",
-              label: "Featured Projects",
-              icon: HighlightedProjectsIcon,
-            },
+            // {
+            //   path: "/featured",
+            //   label: "Top Selling Projects",
+            //   icon: HighlightedProjectsIcon,
+            // },
             {
               path: "/prime",
               label: "Prime Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            {
+              path: "/featured",
+              label: "Top Selling Projects",
               icon: HighlightedProjectsIcon,
             },
             {
@@ -636,15 +646,20 @@ export default function Sidebar({
               icon: HighlightedProjectsIcon,
             },
             {
-              path: "/featured",
-              label: "Featured Projects",
-              icon: HighlightedProjectsIcon,
-            },
-            {
               path: "/prime",
               label: "Prime Projects",
               icon: HighlightedProjectsIcon,
             },
+            {
+              path: "/featured",
+              label: "Top Selling Projects",
+              icon: HighlightedProjectsIcon,
+            },
+            // {
+            //   path: "/prime",
+            //   label: "Prime Projects",
+            //   icon: HighlightedProjectsIcon,
+            // },
             {
               path: "/sponsored",
               label: "Sponsored Projects",
