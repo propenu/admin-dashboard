@@ -5,9 +5,10 @@ import { Highlight } from "../utils/highlight";
 
 
 
+
 export const MobileCardView = ({ filtered, loading, formatLocation, locQuery }) => {
   return (
-    <div className="md:hidden divide-y divide-gray-50">
+    <div className="md:hidden divide-y divide-gray-50 ">
       {loading ? (
         <div className="flex flex-col items-center justify-center gap-3 py-16">
           <div className="w-8 h-8 rounded-full border-4 border-[#27AE60]/20 border-t-[#27AE60] animate-spin" />
@@ -24,13 +25,14 @@ export const MobileCardView = ({ filtered, loading, formatLocation, locQuery }) 
           const locParts = formatLocation(u);
           return (
             <div
+            
               key={u._id}
-              className="p-4 hover:bg-green-50/30 transition-colors"
+              className="  p-4 hover:bg-green-50/30 transition-colors"
             >
               {/* Top row */}
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
-                  <Avatar name={u.name} />
+                  {/* <Avatar name={u.name} /> */}
                   <div className="min-w-0">
                     <p className="font-bold text-gray-800 text-sm">
                       {u.name

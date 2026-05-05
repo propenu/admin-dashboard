@@ -8,7 +8,7 @@ export default function FeaturedProjectsPage() {
   return (
     <PropertyListPage
       type="featured"
-      title="Featured Projects"
+      title="Top Selling Projects"
       subtitle="Highlighted properties displayed in featured sections."
       createRoute="/create-featured-project"
       accentColor="text-[#27AE60]"

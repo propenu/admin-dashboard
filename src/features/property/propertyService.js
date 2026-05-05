@@ -2,10 +2,6 @@
 import { apiClient } from "../../api/apiClient";
 import { SERVICES } from "../../config/services";
 
-
-
-
-
 // //Featured Projects
 // // Only API call (no progress logic)
 // export const createFeaturedProperty = (formData, config = {}) => {
