@@ -17,9 +17,14 @@ const PROJECT_TYPES = [
 
 const ProjectCard = ({ p, type }) => {
   const [imgError, setImgError] = useState(false);
-  const thumb =
-    !imgError &&
-    (p.gallery?.[0]?.url || p.images?.[0]?.url || p.thumbnail || p.coverImage);
+//   const thumb =
+//     !imgError &&
+//     (p.gallery?.[0]?.url || p.images?.[0]?.url || p.thumbnail || p.coverImage);
+const thumb =
+  !imgError &&
+  (p.heroImage || // ✅ main banner
+    p.logo?.url || // ✅ fallback logo
+    p.gallerySummary?.[0]?.url); // ✅ gallery image
 
   return (
     <div
