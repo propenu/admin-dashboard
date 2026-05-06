@@ -79,12 +79,25 @@ export const useUserFeaturedProjectCounts = (userId) => {
   const normal = useUserFeaturedProjects(userId, "normal");
   const sponsored = useUserFeaturedProjects(userId, "sponsored");
 
+  // const getCount = (data) => {
+  //   if (Array.isArray(data)) return data.length;
+  //   if (Array.isArray(data?.data)) return data.data.length;
+  //   if (Array.isArray(data?.items)) return data.items.length;
+  //   if (Array.isArray(data?.projects)) return data.projects.length;
+  //   return 0;
+  // };
+
   const getCount = (data) => {
-    if (Array.isArray(data)) return data.length;
-    if (Array.isArray(data?.data)) return data.data.length;
-    if (Array.isArray(data?.items)) return data.items.length;
-    if (Array.isArray(data?.projects)) return data.projects.length;
-    return 0;
+    const items = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.items)
+        ? data.items
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
+
+    return items.filter((p) => String(p.createdBy?._id) === String(userId))
+      .length;
   };
 
   return {

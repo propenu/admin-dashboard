@@ -215,6 +215,11 @@ const FeaturedContent = ({ userId }) => {
           ? data.items
           : [];
 
+          
+    const filteredProperties = projects.filter(
+      (p) => String(p.createdBy?._id) === String(userId),
+    );
+
     const counts = useUserFeaturedProjectCounts(userId);
 
   return (
@@ -270,7 +275,7 @@ const FeaturedContent = ({ userId }) => {
             <Skel key={i} h="200px" radius="14px" />
           ))}
         </div>
-      ) : projects.length === 0 ? (
+      ) : filteredProperties.length === 0 ? (
         <Empty msg={`No ${type} projects`} icon="🏗️" />
       ) : (
         <div
@@ -280,7 +285,7 @@ const FeaturedContent = ({ userId }) => {
             gap: "10px",
           }}
         >
-          {projects.map((p) => (
+          {filteredProperties.map((p) => (
             <ProjectCard key={p._id} p={p} type={type} />
           ))}
         </div>
