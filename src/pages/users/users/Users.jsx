@@ -17,7 +17,7 @@ export default function Users() {
   const [filterKycStatus, setFilterKycStatus] = useState("");
   const [filterPhoneVerified, setFilterPhoneVerified] = useState("");
   const [filterIsActive, setFilterIsActive] = useState("");
-  //const [filterRole, setFilterRole] = useState("user"); 
+  const [filterRole, setFilterRole] = useState("all"); 
   const { data: allUsers = [], isLoading, refetch } = useUsers();
   const { data: searchData = {} } = useSearchUsers(search);
   const [locationFilter, setLocationFilter] = useState(null);
@@ -82,7 +82,14 @@ export default function Users() {
 // ]);
 
 
-const users = allUsers.filter((u) => u.roleName === "user");
+//const users = allUsers.filter((u) => u.roleName === "user");
+const users = allUsers.filter((u) => {
+  if (filterRole === "all") {
+    return ["user", "builder"].includes(u.roleName);
+  }
+
+  return u.roleName === filterRole;
+});
 
 const filtered = useMemo(() => {
   const q = search.trim().toLowerCase();
@@ -118,6 +125,8 @@ const filtered = useMemo(() => {
   filterKycStatus,
   filterPhoneVerified,
   filterIsActive,
+  filterRole,
+
 ]);
 
 
@@ -142,16 +151,6 @@ const filtered = useMemo(() => {
     filterIsActive ||
     locationFilter;
 
-  // const clearAll = () => {
-  //   setSearch("");
-  //   setFilterAccountStatus("");
-  //   setFilterKycStatus("");
-  //   setFilterPhoneVerified("");
-  //   setFilterIsActive("");
-  //   setLocationFilter(null);
-  //   //setFilterRole("user"); // ✅ reset to default user
-  // }; 
-
   const clearAll = () => {
     setSearch("");
     setFilterAccountStatus("");
@@ -159,7 +158,10 @@ const filtered = useMemo(() => {
     setFilterPhoneVerified("");
     setFilterIsActive("");
     setLocationFilter(null);
-  };
+    setFilterRole("user"); 
+  }; 
+
+  
 
   /* ── Format location for display ── */
   const formatLocation = (u) => {
@@ -197,8 +199,8 @@ const filtered = useMemo(() => {
         setFilterPhoneVerified={setFilterPhoneVerified}
         filterIsActive={filterIsActive}
         setFilterIsActive={setFilterIsActive}
-        //filterRole={filterRole}
-        //setFilterRole={setFilterRole}
+        filterRole={filterRole}
+        setFilterRole={setFilterRole}
         hasFilters={hasFilters}
         clearAll={clearAll}
       />

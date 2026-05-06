@@ -25,7 +25,7 @@ export const SearchFiltersPanel = ({
     clearAll
 }) => {
     return (
-        <div className="bg-white rounded-2xl  border border-gray-100 shadow-sm p-4 mb-4 space-y-3">
+      <div className="bg-white rounded-2xl  border border-gray-100 shadow-sm p-4 mb-4 space-y-3">
         <div className="flex w-full gap-4">
           {/* Search Input */}
           <div className="relative flex items-center flex-1">
@@ -83,6 +83,17 @@ export const SearchFiltersPanel = ({
               // { value: "customer_care", label: "Customer Care" },
             ]}
           /> */}
+
+          <FilterSelect
+            value={filterRole}
+            onChange={setFilterRole}
+            placeholder="Seletect Role"
+            options={[
+              { value: "all", label: "All Users" },
+              { value: "user", label: "Users" },
+              { value: "builder", label: "Builders" },
+            ]}
+          />
 
           <FilterSelect
             value={filterAccountStatus}
@@ -185,6 +196,6 @@ export const SearchFiltersPanel = ({
           </div>
         )}
       </div>
-    )
+    );
 
   };
