@@ -104,7 +104,7 @@ const PropertyCard = ({ p, catColor, category }) => {
             {formatPriceINR(price)}
           </div>
         )}
-        <div
+        {/* <div
           style={{
             position: "absolute",
             bottom: "7px",
@@ -123,7 +123,29 @@ const PropertyCard = ({ p, catColor, category }) => {
           }
         >
           View
-        </div>
+        </div> */}
+        {p.status === "active" && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "7px",
+              right: "110px",
+              background: "rgba(0,0,0,0.65)",
+              backdropFilter: "blur(4px)",
+              borderRadius: "7px",
+              padding: "3px 8px",
+              fontSize: "10px",
+              fontWeight: "800",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+            onClick={() =>
+              window.open(`https://propenu.com/${category}/${p.slug}`, "_blank")
+            }
+          >
+            View
+          </div>
+        )}
         <div
           style={{
             position: "absolute",

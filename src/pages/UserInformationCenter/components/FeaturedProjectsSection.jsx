@@ -83,7 +83,8 @@ const thumb =
             #{p.rank}
           </div>
         )}
-        <div
+        {p.status === "active" && (
+          <div
           style={{
             position: "absolute",
             top: "100px",
@@ -97,10 +98,11 @@ const thumb =
             color: "#fff",
             cursor: "pointer",
           }}
-          onClick={() => window.open(`http://propenu.com/prime/${p.slug}`, "_blank")}
+          onClick={() => window.open(`https://propenu.com/prime/${p.slug}`, "_blank")}
         >
           View
         </div>
+        )}
         <div
           style={{
             position: "absolute",
