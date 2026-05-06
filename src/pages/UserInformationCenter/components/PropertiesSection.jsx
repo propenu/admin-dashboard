@@ -286,6 +286,22 @@ const PropertiesContent = ({ userId }) => {
         ? data.data
         : [];
 
+        const filteredProperties = properties.filter(
+          (p) => String(p.createdBy?._id) === String(userId),
+        );
+
+        console.log("USER ID =>", userId);
+
+        console.log("FILTERED PROPERTIES =>", filteredProperties);
+
+        console.log(
+          "ALL PROPERTY CREATED BY IDS =>",
+          properties.map((p) => ({
+            propertyId: p._id,
+            createdBy: p.createdBy?._id,
+          })),
+        );
+
         const counts = useUserPropertyCounts(userId);
 
   return (
@@ -343,7 +359,7 @@ const PropertiesContent = ({ userId }) => {
             <Skel key={i} h="190px" radius="14px" />
           ))}
         </div>
-      ) : properties.length === 0 ? (
+      ) : filteredProperties.length === 0 ? (
         <Empty msg={`No ${cat} properties`} icon="🏠" />
       ) : (
         <div
@@ -353,7 +369,7 @@ const PropertiesContent = ({ userId }) => {
             gap: "10px",
           }}
         >
-          {properties.map((p) => (
+          {filteredProperties.map((p) => (
             <PropertyCard
               key={p._id}
               p={p}
@@ -374,6 +390,31 @@ const PropertiesSection = ({ userId, flat }) => {
     : Array.isArray(data?.items)
       ? data.items.length
       : 0; 
+
+      const properties = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
+
+      const filteredProperties = properties.filter(
+        (p) => String(p.createdBy?._id) === String(userId),
+      );
+
+      console.log("USER ID =>", userId);
+
+      console.log("FILTERED PROPERTIES =>", filteredProperties);
+
+      console.log(
+        "ALL PROPERTY CREATED BY IDS =>",
+        properties.map((p) => ({
+          propertyId: p._id,
+          createdBy: p.createdBy?._id,
+        })),
+      );
+
 
       const counts = useUserPropertyCounts(userId);
 
