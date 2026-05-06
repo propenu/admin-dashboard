@@ -155,12 +155,10 @@ const AutomationsCompainings = lazy(() =>
 );
 
 
-const PaymentsListTwo = lazy(() =>
-  import("./pages/Accounts/PaymentsList")
-);
+
 
 const UserDetailPage = lazy(() =>
-  import("./pages/Accounts/UserDetailPage")
+  import("./pages/UserInformationCenter/UserDetailPage")
 );
 
 
@@ -358,12 +356,6 @@ function App() {
                   element={<SubscriptionHistory />}
                 />
                 <Route path="/revenue-by-plan" element={<RevenueByPlan />} />
-
-                {/* Payments list */}
-                <Route
-                  path="/dashboard/payments"
-                  element={<PaymentsListTwo />}
-                />
 
                 {/* User detail — navigated to on row click */}
                 <Route

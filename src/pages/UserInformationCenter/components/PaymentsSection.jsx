@@ -13,7 +13,7 @@ import {
   fmtDate,
   fmtTime,
 } from "./shared";
-import { useUserPayments } from "../useUserDetail";
+import { useUserPayments } from "../../UserInformationCenter/useUserDetail";
 
 const PaymentCard = ({ p }) => (
   <div

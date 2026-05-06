@@ -311,7 +311,7 @@ const PanelContent = ({ activeKey, userId, user, userLoading }) => {
       return (
         <div>
           <PanelHeader
-            title="Featured Projects"
+            title="Projects"
             subtitle="All featured, prime, normal & sponsored"
           />
           <FeaturedProjectsSection userId={userId} flat />
@@ -386,7 +386,7 @@ const UserDetailPage = () => {
         style={{
           position: "sticky",
           top: 0,
-          zIndex: 100,
+          zIndex: 20,
           background: "rgba(255,255,255,0.97)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",

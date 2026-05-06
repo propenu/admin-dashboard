@@ -6,7 +6,8 @@ import { C, Badge, Skel, Empty, fmtDate } from "./shared";
 import {
   useUserFeaturedProjects,
   useUserFeaturedProjectCounts,
-} from "../useUserDetail";
+} from "../../UserInformationCenter/useUserDetail";
+import { useNavigate } from "react-router-dom";
 
 const PROJECT_TYPES = [
   { key: "featured", label: "⭐ Featured", color: C.info },
@@ -16,6 +17,7 @@ const PROJECT_TYPES = [
 ];
 
 const ProjectCard = ({ p, type }) => {
+    const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
 //   const thumb =
 //     !imgError &&
@@ -81,6 +83,42 @@ const thumb =
             #{p.rank}
           </div>
         )}
+        <div
+          style={{
+            position: "absolute",
+            top: "100px",
+            right: "100px",
+            background: "rgba(0,0,0,0.65)",
+            backdropFilter: "blur(4px)",
+            borderRadius: "7px",
+            padding: "3px 8px",
+            fontSize: "10px",
+            fontWeight: "700",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+          onClick={() => window.open(`http://propenu.com/prime/${p.slug}`, "_blank")}
+        >
+          View
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            top: "100px",
+            right: "8px",
+            background: "rgba(0,0,0,0.65)",
+            backdropFilter: "blur(4px)",
+            borderRadius: "7px",
+            padding: "3px 8px",
+            fontSize: "10px",
+            fontWeight: "700",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+          onClick={() => navigate(`/post-property/${p._id}`)}
+        >
+          Edit
+        </div>
       </div>
       <div style={{ padding: "12px" }}>
         <p

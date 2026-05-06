@@ -3,7 +3,8 @@ import React, { useState } from "react";
 import { Home, Building, Landmark, Leaf, MapPin, Calendar } from "lucide-react";
 import AccordionSection from "./AccordionSection";
 import { C, Badge, Skel, Empty, fmtDate } from "./shared";
-import { useUserProperties, useUserPropertyCounts } from "../useUserDetail";
+import { useUserProperties, useUserPropertyCounts } from "../../UserInformationCenter/useUserDetail";
+import { useNavigate } from "react-router-dom";
 
 const CATEGORIES = [
   { key: "residential", label: "🏠 Residential", color: C.accent },
@@ -11,9 +12,23 @@ const CATEGORIES = [
   { key: "land", label: "🌍 Land", color: C.warn },
   { key: "agricultural", label: "🌾 Agricultural", color: "#16a34a" },
 ];
+const formatPriceINR = (price) => {
+  if (!price) return "";
 
-const PropertyCard = ({ p, catColor }) => {
-    
+  const num = Number(price);
+
+  if (num >= 10000000) {
+    return `₹${(num / 10000000).toFixed(1)}Cr`;
+  }
+
+  if (num >= 100000) {
+    return `₹${(num / 100000).toFixed(1)}L`;
+  }
+
+  return `₹${num.toLocaleString("en-IN")}`;
+};
+const PropertyCard = ({ p, catColor, category }) => {
+    const navigate = useNavigate();
   const [imgErr, setImgErr] = useState(false);
   const thumb =
     !imgErr &&
@@ -86,9 +101,47 @@ const PropertyCard = ({ p, catColor }) => {
               color: "#fff",
             }}
           >
-            ₹{Number(price).toLocaleString()}
+            {formatPriceINR(price)}
           </div>
         )}
+        <div
+          style={{
+            position: "absolute",
+            bottom: "7px",
+            right: "110px",
+            background: "rgba(0,0,0,0.65)",
+            backdropFilter: "blur(4px)",
+            borderRadius: "7px",
+            padding: "3px 8px",
+            fontSize: "10px",
+            fontWeight: "800",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+          onClick={() =>
+            window.open(`http://propenu.com/${category}/${p.slug}`, "_blank")
+          }
+        >
+          View
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            bottom: "7px",
+            right: "70px",
+            background: "rgba(0,0,0,0.65)",
+            backdropFilter: "blur(4px)",
+            borderRadius: "7px",
+            padding: "3px 8px",
+            fontSize: "10px",
+            fontWeight: "800",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+          onClick={() => navigate(`/edit-property/${p._id}`)}
+        >
+          Edit
+        </div>
       </div>
       <div style={{ padding: "10px 12px" }}>
         <p
@@ -283,6 +336,7 @@ const PropertiesContent = ({ userId }) => {
               key={p._id}
               p={p}
               catColor={catObj?.color || C.accent}
+              category={cat}
             />
           ))}
         </div>

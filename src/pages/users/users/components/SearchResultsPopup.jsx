@@ -8,19 +8,7 @@ import {
 } from "./ReusableComponents";
 import { Highlight } from "../utils/highlight";
 
-/**
- * SearchResultsPopup
- *
- * A bottom-sheet on mobile / centered modal on desktop.
- * Opens automatically whenever a search query or any filter is active.
- * Closes on backdrop click, Escape key, or the × button.
- *
- * Props:
- *   users         – already-filtered user array to display
- *   query         – the raw search string (for highlight)
- *   totalCount    – total users before filtering (for context label)
- *   onClose       – callback to hide the popup
- */
+
 export const SearchResultsPopup = ({ users, query, totalCount, onClose }) => {
   const popupRef = useRef(null);
 

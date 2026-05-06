@@ -17,7 +17,7 @@ export default function Users() {
   const [filterKycStatus, setFilterKycStatus] = useState("");
   const [filterPhoneVerified, setFilterPhoneVerified] = useState("");
   const [filterIsActive, setFilterIsActive] = useState("");
-  const [filterRole, setFilterRole] = useState("user"); 
+  //const [filterRole, setFilterRole] = useState("user"); 
   const { data: allUsers = [], isLoading, refetch } = useUsers();
   const { data: searchData = {} } = useSearchUsers(search);
   const [locationFilter, setLocationFilter] = useState(null);
@@ -29,10 +29,62 @@ export default function Users() {
 
 // const users = search ? searchData?.results || [] :  allUsers;
 
-const users =   allUsers;
+//const users =   allUsers;
+// const users = allUsers.filter((u) => u.roleName === "user");
+
+// const filtered = useMemo(() => {
+
+//   const q = search.trim().toLowerCase();
+
+//   return users.filter((u) => {
+//     if (
+//       q &&
+//       !u.name?.toLowerCase().includes(q) &&
+//       !u.phone?.includes(q) &&
+//       !u.email?.toLowerCase().includes(q)
+//     )
+//       return false;
+
+//     if (filterRole && u.roleName !== filterRole) return false;
+
+//     if (locationFilter) {
+//       const { value, type } = locationFilter;
+//       const field = u[type]?.toLowerCase() || "";
+//       if (!field.includes(value.toLowerCase())) return false;
+//     }
+
+//     if (filterAccountStatus && u.accountStatus !== filterAccountStatus)
+//       return false;
+
+//     if (filterKycStatus && u.kyc?.status !== filterKycStatus) return false;
+
+//     if (filterPhoneVerified !== "") {
+//       const want = filterPhoneVerified === "true";
+//       if (!!u.phoneVerified !== want) return false;
+//     }
+
+//     if (filterIsActive !== "") {
+//       const want = filterIsActive === "true";
+//       if (!!u.isActive !== want) return false;
+//     }
+
+//     return true;
+//   });
+// }, [
+//   users,
+//   search,
+//   locationFilter,
+//   filterAccountStatus,
+//   filterKycStatus,
+//   filterPhoneVerified,
+//   filterIsActive,
+//   filterRole,
+// ]);
+
+
+const users = allUsers.filter((u) => u.roleName === "user");
 
 const filtered = useMemo(() => {
-
   const q = search.trim().toLowerCase();
 
   return users.filter((u) => {
@@ -44,11 +96,10 @@ const filtered = useMemo(() => {
     )
       return false;
 
-    if (filterRole && u.roleName !== filterRole) return false;
-
     if (locationFilter) {
       const { value, type } = locationFilter;
       const field = u[type]?.toLowerCase() || "";
+
       if (!field.includes(value.toLowerCase())) return false;
     }
 
@@ -56,16 +107,6 @@ const filtered = useMemo(() => {
       return false;
 
     if (filterKycStatus && u.kyc?.status !== filterKycStatus) return false;
-
-    if (filterPhoneVerified !== "") {
-      const want = filterPhoneVerified === "true";
-      if (!!u.phoneVerified !== want) return false;
-    }
-
-    if (filterIsActive !== "") {
-      const want = filterIsActive === "true";
-      if (!!u.isActive !== want) return false;
-    }
 
     return true;
   });
@@ -77,7 +118,6 @@ const filtered = useMemo(() => {
   filterKycStatus,
   filterPhoneVerified,
   filterIsActive,
-  filterRole,
 ]);
 
 
@@ -102,6 +142,16 @@ const filtered = useMemo(() => {
     filterIsActive ||
     locationFilter;
 
+  // const clearAll = () => {
+  //   setSearch("");
+  //   setFilterAccountStatus("");
+  //   setFilterKycStatus("");
+  //   setFilterPhoneVerified("");
+  //   setFilterIsActive("");
+  //   setLocationFilter(null);
+  //   //setFilterRole("user"); // ✅ reset to default user
+  // }; 
+
   const clearAll = () => {
     setSearch("");
     setFilterAccountStatus("");
@@ -109,7 +159,6 @@ const filtered = useMemo(() => {
     setFilterPhoneVerified("");
     setFilterIsActive("");
     setLocationFilter(null);
-    setFilterRole("user"); // ✅ reset to default user
   };
 
   /* ── Format location for display ── */
@@ -148,8 +197,8 @@ const filtered = useMemo(() => {
         setFilterPhoneVerified={setFilterPhoneVerified}
         filterIsActive={filterIsActive}
         setFilterIsActive={setFilterIsActive}
-        filterRole={filterRole}
-        setFilterRole={setFilterRole}
+        //filterRole={filterRole}
+        //setFilterRole={setFilterRole}
         hasFilters={hasFilters}
         clearAll={clearAll}
       />

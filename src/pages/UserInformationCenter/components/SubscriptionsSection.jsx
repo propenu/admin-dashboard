@@ -6,7 +6,7 @@ import { C, Badge, Skel, Empty, TabToggle, fmt, fmtDate } from "./shared";
 import {
   useUserSubscriptions,
   useUserSubscriptionHistory,
-} from "../useUserDetail";
+} from "../../UserInformationCenter/useUserDetail";
 
 const SubCard = ({ s }) => {
   const isActive = s.status === "active";

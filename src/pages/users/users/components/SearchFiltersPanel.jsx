@@ -67,22 +67,22 @@ export const SearchFiltersPanel = ({
             <Filter className="w-3.5 h-3.5" /> Filters
           </div>
 
-          <FilterSelect
+          {/* <FilterSelect
             value={filterRole}
             onChange={setFilterRole}
-            placeholder="All Roles"
+            placeholder="All Users"
             options={[
-              { value: "super_admin", label: "Super Admin" },
-              { value: "admin", label: "Admin" },
-              { value: "sales_manager", label: "Sales Manager" },
-              { value: "sales_agent", label: "Sales Agent" },
-              { value: "accounts", label: "Accounts" },
-              { value: "user", label: "User" },
-              { value: "agent", label: "Agent" },
-              { value: "builder", label: "Builder" },
-              { value: "customer_care", label: "Customer Care" },
+              // { value: "super_admin", label: "Super Admin" },
+              // { value: "admin", label: "Admin" },
+              // { value: "sales_manager", label: "Sales Manager" },
+              // { value: "sales_agent", label: "Sales Agent" },
+              // { value: "accounts", label: "Accounts" },
+              //{ value: "user", label: "Users" },
+              // { value: "agent", label: "Agent" },
+              // { value: "builder", label: "Builder" },
+              // { value: "customer_care", label: "Customer Care" },
             ]}
-          />
+          /> */}
 
           <FilterSelect
             value={filterAccountStatus}
