@@ -96,7 +96,7 @@ export const useUserFeaturedProjectCounts = (userId) => {
           ? data.data
           : [];
 
-    return items.filter((p) => String(p.createdBy?._id) === String(userId))
+    return items.filter((p) => String(p.createdBy) === String(userId))
       .length;
   };
 
