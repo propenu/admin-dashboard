@@ -217,7 +217,7 @@ const FeaturedContent = ({ userId }) => {
 
           
     const filteredProperties = projects.filter(
-      (p) => String(p.createdBy?._id) === String(userId),
+      (p) => String(p.createdBy) === String(userId),
     );
 
     const counts = useUserFeaturedProjectCounts(userId);
@@ -302,6 +302,10 @@ const FeaturedProjectsSection = ({ userId, flat }) => {
       ? data.data
       : [];
 
+      const filteredProjects = projects.filter(
+        (p) => String(p.createdBy) === String(userId),
+      );
+
   if (flat) return <FeaturedContent userId={userId} />;
 
   return (
@@ -309,7 +313,7 @@ const FeaturedProjectsSection = ({ userId, flat }) => {
       title="Featured Projects"
       icon={Star}
       accent={C.warn}
-      badge={projects.length || undefined}
+      badge={filteredProjects.length || undefined}
     >
       <FeaturedContent userId={userId} />
     </AccordionSection>
