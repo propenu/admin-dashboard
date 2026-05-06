@@ -87,7 +87,7 @@ export const SearchFiltersPanel = ({
           <FilterSelect
             value={filterRole}
             onChange={setFilterRole}
-            placeholder="Seletect Role"
+            placeholder="Select Role"
             options={[
               { value: "all", label: "All Users" },
               { value: "user", label: "Users" },
