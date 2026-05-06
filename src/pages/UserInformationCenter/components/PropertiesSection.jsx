@@ -140,7 +140,10 @@ const PropertyCard = ({ p, catColor, category }) => {
               cursor: "pointer",
             }}
             onClick={() =>
-              window.open(`https://propenu.com/${category}/${p.slug}`, "_blank")
+              window.open(
+                `https://propenu.com/properties/${category}/${p.slug}`,
+                "_blank",
+              )
             }
           >
             View
