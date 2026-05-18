@@ -4,7 +4,7 @@
 export const ALL_STEPS = [
   { id: "basic", title: "Basic" },
   { id: "hero", title: "Hero" },
-  { id: "bhk", title: "BHK" },
+  { id: "bhk", title: "Summary" },
   { id: "amenities", title: "Amenities" },
   { id: "gallery", title: "Gallery" },
   { id: "about", title: "About" },
@@ -17,7 +17,7 @@ export const ALL_STEPS = [
 export const STEP_META = [
   { icon: "🏷️", desc: "Property name, address & location basics" },
   { icon: "🖼️", desc: "Hero banner, tagline & branding" },
-  { icon: "🏠", desc: "BHK types, sizes & pricing" },
+  { icon: "🏠", desc: "Summay types, sizes & pricing" },
   { icon: "✨", desc: "Features, specs & lead info" },
   { icon: "📸", desc: "Property gallery images" },
   { icon: "📝", desc: "About section content & image" },

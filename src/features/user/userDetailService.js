@@ -1,4 +1,4 @@
-// src/features/users/userDetailService.js
+//src\features\user\userDetailService.js
 import { apiClient } from "../../api/apiClient";
 import { SERVICES } from "../../config/services";
 

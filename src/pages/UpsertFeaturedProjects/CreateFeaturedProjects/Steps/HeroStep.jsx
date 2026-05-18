@@ -76,6 +76,12 @@ function UploadBox({ label, id, preview, onFile, error, contain }) {
   );
 }
 
+const LIMITS = {
+  heroTagline: 60,
+  heroSubTagline: 100,
+  heroDescription: 250,
+};
+
 const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
   const [errors, setErrors] = useState({});
   const heroTaglineRef    = useRef(null);
@@ -110,26 +116,7 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
  };
 
 
-  // useImperativeHandle(ref, () => ({
-  //   validate() {
-  //     const e = {};
-  //     if (!payload.heroTagline?.trim())    e.heroTagline    = "Hero Tagline is required";
-  //     if (!payload.heroSubTagline?.trim()) e.heroSubTagline = "Hero Sub Tagline is required";
-  //     if (!payload.heroDescription?.trim()) e.heroDescription = "Hero Description is required";
-  //     if (!payload.color?.trim())          e.color          = "Theme Color is required";
-  //     if (!payload.heroImage)              e.heroImage      = "Hero Image is required";
-  //     if (!payload.logo)                   e.logo           = "Logo is required";
-  //     setErrors(e);
-  //     if (Object.keys(e).length) {
-  //       const refMap = { heroTagline:heroTaglineRef, heroSubTagline:heroSubTaglineRef,
-  //         heroDescription:heroDescriptionRef, color:colorRef, heroImage:heroImageRef, logo:logoRef };
-  //       refMap[Object.keys(e)[0]]?.current?.scrollIntoView({ behavior:"smooth", block:"center" });
-  //       return false;
-  //     }
-  //     return true;
-  //   },
-  // }));
-
+ 
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
@@ -263,48 +250,94 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div ref={heroTaglineRef}>
+        <div className="relative" ref={heroTaglineRef}>
           <label className={LABEL}>Hero Tagline *</label>
-          <input className={inp(errors.heroTagline)} value={payload.heroTagline}
+
+          <input
+            maxLength={LIMITS.heroTagline}
+            className={inp(errors.heroTagline)}
+            value={payload.heroTagline}
             placeholder="Luxury Living Redefined"
-            onChange={(e) => { update({ heroTagline: e.target.value }); clr("heroTagline"); }} />
+            onChange={(e) => {
+              update({ heroTagline: e.target.value });
+              clr("heroTagline");
+            }}
+          />
+          <span className="absolute right-2 top-16 transform -translate-y-1/2 text-[10px] font-bold text-gray-400">
+            {(payload.heroTagline || "").length}/{LIMITS.heroTagline}
+          </span>
           {errors.heroTagline && <p className={ERR}>⚠ {errors.heroTagline}</p>}
         </div>
 
-        <div ref={heroSubTaglineRef}>
+        <div className="relative" ref={heroSubTaglineRef}>
           <label className={LABEL}>Hero Sub Tagline *</label>
-          <input className={inp(errors.heroSubTagline)} value={payload.heroSubTagline}
+          <input
+            maxLength={LIMITS.heroSubTagline}
+            className={inp(errors.heroSubTagline)}
+            value={payload.heroSubTagline}
             placeholder="Where dreams become home"
-            onChange={(e) => { update({ heroSubTagline: e.target.value }); clr("heroSubTagline"); }} />
-          {errors.heroSubTagline && <p className={ERR}>⚠ {errors.heroSubTagline}</p>}
+            onChange={(e) => {
+              update({ heroSubTagline: e.target.value });
+              clr("heroSubTagline");
+            }}
+          />
+          <span className="absolute right-2 top-16 transform -translate-y-1/2 text-[10px] font-bold text-gray-400">
+            {(payload.heroSubTagline || "").length}/{LIMITS.heroSubTagline}
+          </span>
+          {errors.heroSubTagline && (
+            <p className={ERR}>⚠ {errors.heroSubTagline}</p>
+          )}
         </div>
       </div>
 
-      <div ref={heroDescriptionRef}>
+      <div className="relative" ref={heroDescriptionRef}>
         <label className={LABEL}>Hero Description *</label>
-        <textarea rows={3} className={`${inp(errors.heroDescription)} resize-none`}
+        <textarea
+          maxLength={LIMITS.heroDescription}
+          rows={3}
+          className={`${inp(errors.heroDescription)} resize-none`}
           value={payload.heroDescription}
           placeholder="A short compelling intro shown on the hero section..."
-          onChange={(e) => { update({ heroDescription: e.target.value }); clr("heroDescription"); }} />
-        {errors.heroDescription && <p className={ERR}>⚠ {errors.heroDescription}</p>}
+          onChange={(e) => {
+            update({ heroDescription: e.target.value });
+            clr("heroDescription");
+          }}
+        />
+        <span className="absolute right-2 top-[100px] transform -translate-y-1/2 text-[10px] font-bold text-gray-400">
+          {(payload.heroDescription || "").length}/{LIMITS.heroDescription}
+        </span>
+        {errors.heroDescription && (
+          <p className={ERR}>⚠ {errors.heroDescription}</p>
+        )}
       </div>
 
       {/* Theme Color */}
       <div ref={colorRef}>
         <label className={LABEL}>Theme Color *</label>
         <div className="flex items-center gap-4 p-4 bg-gray-50 border-2 border-gray-200 rounded-2xl">
-          <input type="color"
+          <input
+            type="color"
             value={payload.color || "#27AE60"}
-            onChange={(e) => { update({ color: e.target.value }); clr("color"); }}
+            onChange={(e) => {
+              update({ color: e.target.value });
+              clr("color");
+            }}
             className="w-14 h-14 rounded-xl border-4 border-white shadow-md cursor-pointer"
-            style={{ padding: 2 }} />
+            style={{ padding: 2 }}
+          />
           <div>
-            <p className="text-sm font-black text-gray-800">{payload.color || "#27AE60"}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Accent color used across the property page</p>
+            <p className="text-sm font-black text-gray-800">
+              {payload.color || "#27AE60"}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Accent color used across the property page
+            </p>
           </div>
           {payload.color && (
-            <div className="ml-auto w-8 h-8 rounded-full border-4 border-white shadow-md"
-              style={{ background: payload.color }} />
+            <div
+              className="ml-auto w-8 h-8 rounded-full border-4 border-white shadow-md"
+              style={{ background: payload.color }}
+            />
           )}
         </div>
         {errors.color && <p className={ERR}>⚠ {errors.color}</p>}
@@ -313,12 +346,23 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
       {/* Images */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div ref={heroImageRef}>
-          <UploadBox label="Hero Image *" id="hero-img" preview={heroPreview}
-            onFile={onHeroFile} error={errors.heroImage} />
+          <UploadBox
+            label="Hero Image *"
+            id="hero-img"
+            preview={heroPreview}
+            onFile={onHeroFile}
+            error={errors.heroImage}
+          />
         </div>
         <div ref={logoRef}>
-          <UploadBox label="Logo *" id="logo-img" preview={logoPreview}
-            onFile={onLogoFile} error={errors.logo} contain />
+          <UploadBox
+            label="Logo *"
+            id="logo-img"
+            preview={logoPreview}
+            onFile={onLogoFile}
+            error={errors.logo}
+            contain
+          />
         </div>
       </div>
     </div>

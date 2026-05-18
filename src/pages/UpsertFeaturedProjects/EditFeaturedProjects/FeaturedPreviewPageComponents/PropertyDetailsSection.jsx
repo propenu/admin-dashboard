@@ -25,6 +25,13 @@ export default function PropertyDetailsSection({ data }) {
   const color = data.color || PRIMARY;
   const iconBg = `${color}14`;
 
+  const isLand = data?.categoryType === "land";
+
+  const propertyType = data?.propertyType?.toLowerCase?.() || "";
+
+  const showTowerFields =
+    !isLand && ["villa", "duplex", "triplex", "farmhouse"].includes(propertyType);
+
   const videos = Array.isArray(data.youtubeVideos) ? data.youtubeVideos : [];
   const banks = Array.isArray(data.banksApproved) ? data.banksApproved : [];
   const sorted = [...videos].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -32,18 +39,62 @@ export default function PropertyDetailsSection({ data }) {
   const [activeVideo, setActiveVideo] = useState(0);
 
   /* ── Stats config ── */
+ 
   const stats = [
-    { icon: "🏗️", label: "Total Towers", value: data.totalTowers || null },
-    { icon: "🏢", label: "Total Floors", value: data.totalFloors || null },
-    { icon: "📐", label: "Project Area", value: data.projectArea || null },
-    { icon: "🏠", label: "Total Units", value: data.totalUnits || null },
+    // ✅ TOWERS/FLOORS ONLY FOR APARTMENTS
+    ...(showTowerFields
+      ? [
+          {
+            icon: "🏗️",
+            label: "Total Towers",
+            value: data.totalTowers || null,
+          },
+
+          {
+            icon: "🏢",
+            label: "Total Floors",
+            value: data.totalFloors || null,
+          },
+        ]
+      : []),
+
+    // ✅ AREA
+    {
+      icon: isLand ? "🌍" : "📐",
+
+      label: isLand ? "Layout Area" : "Project Area",
+
+      value: data.projectArea || null,
+    },
+
+    // ✅ TOTAL
+    {
+      icon: isLand ? "🗺️" : "🏠",
+
+      label: isLand ? "Total Plots" : "Total Units",
+
+      value: data.totalUnits || null,
+    },
+
+    // ✅ AVAILABLE
     {
       icon: "✅",
-      label: "Available Units",
+
+      label: isLand ? "Available Plots" : "Available Units",
+
       value: data.availableUnits || null,
     },
-    { icon: "📅", label: "Possession", value: data.possessionDate || null },
+
+    // ✅ DATE
+    {
+      icon: "📅",
+
+      label: isLand ? "Development Completion" : "Possession",
+
+      value: data.possessionDate || null,
+    },
   ];
+
 
   const visibleStats = stats.filter((s) => s.value);
 
@@ -81,10 +132,14 @@ export default function PropertyDetailsSection({ data }) {
           </svg>
         </div>
         <p className="text-sm font-semibold text-gray-400">
-          No property details added yet
+          {isLand
+            ? "No plot details added yet"
+            : "No property details added yet"}
         </p>
         <p className="text-xs text-gray-300 mt-1">
-          Use the editor to add project stats and documents
+          {isLand
+            ? "Use the editor to add plot details and documents"
+            : "Use the editor to add project stats and documents"}
         </p>
       </div>
     );
@@ -92,6 +147,112 @@ export default function PropertyDetailsSection({ data }) {
 
   return (
     <section className="p-6 space-y-8">
+      {/* ── Location Details ── */}
+
+      {/* ── Property Header ── */}
+
+      <div
+        className="rounded-2xl p-4 border"
+        style={{
+          backgroundColor: iconBg,
+          borderColor: `${color}20`,
+        }}
+      >
+        <div className="flex items-start gap-3">
+          {/* Icon */}
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg"
+            style={{ backgroundColor: `${color}20` }}
+          >
+            {isLand ? "🌍" : "🏢"}
+          </div>
+
+          {/* Content */}
+          <div className="min-w-0 flex-1">
+            {/* Category */}
+            {/* <p className="text-[12px] tracking-widest text-[#27AE60] font-black">
+              {data.categoryType.charAt(0).toUpperCase() + data.categoryType.slice(1)}
+            </p> */}
+
+            {/* Property Type */}
+            {/* <p className="text-xs font-semibold text-gray-500 mt-1">
+              {data.propertyType.charAt(0).toUpperCase() + data.propertyType.slice(1)}
+            </p> */}
+
+            {/* Project Title */}
+            <h2 className="text-lg text-[#000000] mt-1 leading-6">
+              {data.title}
+            </h2>
+          </div>
+        </div>
+      </div>
+
+      {(data.locality || data.city || data.state) && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div
+              className="w-6 h-6 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: iconBg }}
+            >
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                stroke={color}
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 
+                  0l-4.243-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+            </div>
+
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+              Location Details
+            </span>
+          </div>
+
+          <div
+            className="rounded-2xl p-4 border"
+            style={{
+              backgroundColor: iconBg,
+              borderColor: `${color}20`,
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${color}20` }}
+              >
+                📍
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-sm  text-[#000000] leading-5">
+                  {data.address}
+                </p>
+                <p className="text-sm text-[#000000] leading-5">
+                  {[data.locality, data.city, data.state]
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+
+                <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">
+                  Property Location
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ── Project Stats Grid ── */}
       {visibleStats.length > 0 && (
         <div>
@@ -115,7 +276,7 @@ export default function PropertyDetailsSection({ data }) {
               </svg>
             </div>
             <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-              Project Overview
+              {isLand ? "Plot Overview" : "Project Overview"}
             </span>
           </div>
 
@@ -127,7 +288,7 @@ export default function PropertyDetailsSection({ data }) {
                 style={{ backgroundColor: iconBg, borderColor: `${color}20` }}
               >
                 <span className="text-lg mb-2 block">{s.icon}</span>
-                <p className="text-base font-black text-gray-900">{s.value}</p>
+                <p className="text-base  text-[#000000]">{s.value}</p>
                 <p className="text-[10px] font-semibold text-gray-400 mt-0.5 uppercase tracking-wider">
                   {s.label}
                 </p>
@@ -228,7 +389,7 @@ export default function PropertyDetailsSection({ data }) {
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                 />
               </svg>
-              Download Brochure
+              {isLand ? "Download Layout Brochure" : "Download Brochure"}
             </a>
           )}
           {data.redirectUrl && (
@@ -260,7 +421,6 @@ export default function PropertyDetailsSection({ data }) {
           )}
         </div>
       )}
-
     </section>
   );
 }

@@ -16,20 +16,7 @@ const SEOStep = forwardRef(({ payload, update }, ref) => {
   const descLen  = (payload.metaDescription || "").trim().length;
   const keywords = (payload.metaKeywords || "").split(",").map((k) => k.trim()).filter(Boolean);
 
-  // useImperativeHandle(ref, () => ({
-  //   validate() {
-  //     const e = {};
-  //     if (!payload.metaTitle || titleLen < 5)
-  //       e.metaTitle = "Meta title is required (min 5 characters)";
-  //     if (!payload.metaDescription || descLen < 20)
-  //       e.metaDescription = "Meta description is required (min 20 characters)";
-  //     if (keywords.length === 0)
-  //       e.metaKeywords = "Enter at least one keyword";
-  //     setErrors(e);
-  //     return Object.keys(e).length === 0;
-  //   },
-  // }));
- 
+  
 
   useImperativeHandle(ref, () => ({
     validate() {

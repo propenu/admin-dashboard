@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import {  createFeaturedProject } from "../../../../features/property/propertyService";
+import {getAllFeaturedProjects,  createFeaturedProject } from "../../../../features/property/propertyService";
 import { getUploadProgressConfig } from "../utils/uploadWithProgress";
 import { INITIAL_PAYLOAD } from "../Constants/constants";
 import { buildFormData } from "../utils/buildFormData";
@@ -10,7 +10,7 @@ import {
   clearAllImages,
   getAllGalleryImages,
   getAllOtherImages,
-} from "../utils/indexedDB";
+} from "../utils/indexedDB";        
 
 export const useFeaturedProject = (projectType) => {
   const navigate = useNavigate();
@@ -41,6 +41,40 @@ export const useFeaturedProject = (projectType) => {
   });
 
   const [progress, setProgress] = useState(0);
+
+  const clearDraft = async () => {
+    try {
+      console.log("🧹 Clearing draft...");
+
+      // ✅ Clear localStorage
+      localStorage.removeItem("featuredPayload");
+      localStorage.removeItem("featured_step");
+      localStorage.removeItem("featured_max_completed");
+
+      // ✅ Clear IndexedDB
+      await clearAllImages();
+
+      // ✅ Reset payload
+      setPayload({
+        ...INITIAL_PAYLOAD,
+        heroImagePreview: "",
+        logoPreview: "",
+        aboutImagePreview: "",
+        isFeatured: projectType === "featured",
+      });
+
+      // ✅ Reset progress
+      setProgress(0);
+
+      toast.success("Draft cleared successfully ✅");
+
+      console.log("✅ Draft cleared");
+    } catch (err) {
+      console.error("❌ Clear draft failed", err);
+
+      toast.error("Failed to clear draft ❌");
+    }
+  };
 
 
   useEffect(() => {
@@ -73,38 +107,91 @@ export const useFeaturedProject = (projectType) => {
 
   const mutation = useMutation({
     mutationFn: async () => {
-    const galleryFiles = await getAllGalleryImages();
-    
-    const otherImages = await getAllOtherImages();
+      // ✅ GET ALL PROJECTS
+      const projectsRes = await getAllFeaturedProjects();
 
-    const getKey = (val) => (typeof val === "string" ? val : val?.key);
+      console.log("PROJECTS =>", projectsRes);
 
-    const brochureKey = getKey(payload.brochure);
+      // ✅ TOTAL PROJECT COUNT
+      //const totalProjects = projectsRes?.data?.items?.length || 0;
+      const totalProjects =
+        projectsRes?.data?.items?.filter(
+          (item) => item?.promotion?.type === "normal",
+        )?.length || 0;
 
-    const brochureFile =
-      brochureKey && otherImages[brochureKey] ? otherImages[brochureKey] : null;
+      // ✅ NEXT RANK
+      const nextRank = totalProjects + 1;
 
-    const hero = getKey(payload.heroImage)
-      ? otherImages[getKey(payload.heroImage)]
-      : null;
+      console.log("NEXT RANK =>", nextRank);
 
-    const logo = getKey(payload.logo)
-      ? otherImages[getKey(payload.logo)]
-      : null;
+      // ---------------------------------------------- //
+      const galleryFiles = await getAllGalleryImages();
 
-    const about = getKey(payload.aboutImage)
-      ? otherImages[getKey(payload.aboutImage)]
-      : null;
-      
+      const otherImages = await getAllOtherImages();
 
-      const updatedBhkSummary = (payload.bhkSummary || []).map((b) => ({
+      const getKey = (val) => (typeof val === "string" ? val : val?.key);
+
+      const brochureKey = getKey(payload.brochure);
+
+      const brochureFile =
+        brochureKey && otherImages[brochureKey]
+          ? otherImages[brochureKey]
+          : null;
+
+      const hero = getKey(payload.heroImage)
+        ? otherImages[getKey(payload.heroImage)]
+        : null;
+
+      const logo = getKey(payload.logo)
+        ? otherImages[getKey(payload.logo)]
+        : null;
+
+      const about = getKey(payload.aboutImage)
+        ? otherImages[getKey(payload.aboutImage)]
+        : null;
+
+      // const updatedBhkSummary = (payload.bhkSummary || []).map((b) => ({
+      //     const updatedProjectSummary = (payload.projectSummary || []).map(
+      //       (b) => ({
+      //         ...b,
+      //         units: (b.units || []).map((u) => {
+      //           const key =
+      //             typeof u.planFile === "string" ? u.planFile : u.planFile?.key;
+
+      //           return {
+      //             ...u,
+      //             planFile: key
+      //               ? {
+      //                   key,
+      //                   file: otherImages[key],
+      //                 }
+      //               : null,
+      //           };
+      //         }),
+      //       }),
+      //     );
+
+      // const updatedPayload = {
+      //   ...payload,
+      //   galleryFiles,
+      //   heroImage: hero,
+      //   logo,
+      //   aboutImage: about,
+      //   //bhkSummary: updatedBhkSummary,
+      //   projectSummary: updatedProjectSummary,
+      //   brochure: brochureFile,
+      // };
+
+      const updatedProjectSummary = (payload.projectSummary || []).map((b) => ({
         ...b,
+
         units: (b.units || []).map((u) => {
           const key =
             typeof u.planFile === "string" ? u.planFile : u.planFile?.key;
 
           return {
             ...u,
+
             planFile: key
               ? {
                   key,
@@ -115,23 +202,29 @@ export const useFeaturedProject = (projectType) => {
         }),
       }));
 
-    const updatedPayload = {
-      ...payload,
-      galleryFiles,
-      heroImage: hero,
-      logo,
-      aboutImage: about,
-      bhkSummary: updatedBhkSummary,
-      brochure: brochureFile,
-    };
+      const updatedPayload = {
+        ...payload,
 
-     
+        rank: nextRank,
 
-    const formData = await buildFormData(updatedPayload);
-    const config = getUploadProgressConfig(setProgress);
+        galleryFiles,
 
-    return createFeaturedProject(formData, config);
-  },
+        heroImage: hero,
+
+        logo,
+
+        aboutImage: about,
+
+        projectSummary: updatedProjectSummary,
+
+        brochure: brochureFile,
+      };
+
+      const formData = await buildFormData(updatedPayload);
+      const config = getUploadProgressConfig(setProgress);
+
+      return createFeaturedProject(formData, config);
+    },
 
 
     onSuccess: async () => {
@@ -140,6 +233,8 @@ export const useFeaturedProject = (projectType) => {
      await clearAllImages();
 
       localStorage.removeItem("featuredPayload");
+      localStorage.removeItem("featured_step");
+      localStorage.removeItem("featured_max_completed");
       setProgress(0);
 
       navigate("/normal");
@@ -160,5 +255,6 @@ export const useFeaturedProject = (projectType) => {
     submit: mutation.mutate,
     isLoading: mutation.isPending,
     progress,
+    clearDraft,
   };
 };

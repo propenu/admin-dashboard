@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
-import { requestOtp, verifyOtpService } from "../services/authService";
+//import { requestOtp, verifyOtpService } from "../features/user/userService";
+import { useCreateRequestOtp, useVerifyOtp } from "./hook/useAuth";
 import { Mail, Loader2, AlertCircle, ChevronLeft } from "lucide-react";
 import heroIcon from "../assets/hero-icon.png"      
 
@@ -10,6 +11,10 @@ const OTP_LENGTH = 4;
 
 export default function SignIn() {
   const navigate = useNavigate();
+
+
+  const { mutateAsync: requestOtp } = useCreateRequestOtp();
+  const { mutateAsync: verifyOtpService } = useVerifyOtp();
 
   // State
   const [step, setStep] = useState(1); 
@@ -67,7 +72,7 @@ export default function SignIn() {
         setLoading(true);
         setErrorMsg("");
         try {
-          const res = await verifyOtpService(fullOtp, email);
+          const res = await verifyOtpService({otp:fullOtp, email});
           Cookies.set("token", res.token, {
             path: "/",
             expires: 30,

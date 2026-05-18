@@ -4,159 +4,250 @@ import SpecificationsStep from "../Components/SpecificationsStep";
 import LeadsStep from "../Components/LeadsStep";
 import { Search, Plus } from "lucide-react";
 
-const AMENITIES_MASTER = {
-  Safety: [
-    { key: "24x7_security", title: "24x7 Security" },
-    { key: "cctv_video_surveillance", title: "CCTV / Video Surveillance" },
-    { key: "fire_fighting_systems", title: "Fire Fighting Systems" },
-    //{ key: "smoke_heat_sensors", title: "Smoke/Heat Sensors" },
-    { key: "smart_card_access", title: "Smart Card Access" },
-    //{ key: "seismic_safety_compliant", title: "Seismic Safety Compliant" },
-    { key: "video_intercom", title: "Video Intercom" },
-    { key: "emergency_rescue_alarms", title: "Emergency Rescue / Alarms" },
-    //{ key: "security_cabin_guard_room", title: "Security Cabin / Guard Room" },
-    //{ key: "compound_wall_fencing_boom_barrier", title: "Compound Wall / Fencing Boom Barrier",},
-  ],
-  Land: [
-    //{ key: "free_from_encroachments", title: "Free from encroachments" },
-    // {
-    //   key: "levelled_semi_levelled_land",
-    //   title: "Levelled / semi-levelled land",
-    // },
-  ],
-  "Water Resources": [
-    { key: "borewell_open_well", title: "Borewell / Open well" },
-    { key: "drip_irrigation_facility", title: "Drip irrigation facility" },
+export const AMENITIES = {
+  residential: [
     {
-      key: "sprinkler_irrigation_system",
-      title: "Sprinkler irrigation system",
+      category: "Sports & Fitness",
+      items: [
+        { key: "gym", title: "Gym", icon: "🏋️" },
+        { key: "swimming_pool", title: "Swimming Pool", icon: "🏊" },
+        { key: "badminton_court", title: "Badminton Court", icon: "🏸" },
+        { key: "tennis_court", title: "Tennis Court", icon: "🎾" },
+        { key: "squash_court", title: "Squash Court", icon: "🎾" },
+        { key: "table_tennis", title: "Table Tennis", icon: "🏓" },
+        { key: "kids_play_area", title: "Kids Play Area", icon: "🛝" },
+        { key: "football", title: "Football", icon: "⚽" },
+        { key: "jogging", title: "Jogging", icon: "🏃" },
+        { key: "cycle_track", title: "Cycle Track", icon: "🚴" },
+        { key: "golf_court", title: "Golf Court", icon: "⛳" },
+        { key: "kids_pool", title: "Kids Pool", icon: "🏊" },
+        { key: "cricket", title: "Cricket", icon: "🏏" },
+        { key: "basketball", title: "Basketball", icon: "🏀" },
+        { key: "volleyball", title: "Volleyball", icon: "🏐" },
+        { key: "yoga_area", title: "Yoga Area", icon: "🧘" },
+        { key: "skating_rink", title: "Skating Rink", icon: "⛸️" },
+        { key: "golf_simulator", title: "Golf Simulator", icon: "🏌️" },
+        { key: "horse_riding", title: "Horse Riding", icon: "🐎" },
+        { key: "rock_climbing", title: "Rock Climbing", icon: "🧗" },
+        { key: "rugby", title: "Rugby", icon: "🏃" },
+        { key: "golf_putting_green", title: "Golf Putting Green", icon: "🏃" },
+      ],
     },
-    //{ key: "canal_river_water_access", title: "Canal/river water access" },
-    { key: "river_harvesting_system", title: "river harvesting system" },
+
+    {
+      category: "Leisure",
+      items: [
+        { key: "indoor_games", title: "Indoor Games", icon: "🎮" },
+        { key: "clubhouse", title: "Clubhouse", icon: "🎬" },
+        { key: "restaurant", title: "Restaurant", icon: "🍴" },
+        { key: "party_hall", title: "Party Hall", icon: "🎉" },
+        { key: "spa", title: "Spa", icon: "💆" },
+        { key: "mini_theatre", title: "Mini Theatre", icon: "🎬" },
+        {
+          key: "senior_citizen_area",
+          title: "Senior Citizen Area",
+          icon: "👴",
+        },
+        { key: "hypermarket", title: "Hypermarket", icon: "🛒" },
+        {
+          key: "reading_room_library",
+          title: "Reading Room Library",
+          icon: "📚",
+        },
+        { key: "conference_room", title: "Conference Room", icon: "🏢" },
+        { key: "jacuzzi", title: "Jacuzzi", icon: "🛁" },
+        { key: "gazebo", title: "Gazebo", icon: "🏕️" },
+        { key: "sauna", title: "Sauna", icon: "♨️" },
+        { key: "massage_room", title: "Massage Room", icon: "💆" },
+        { key: "dance_room", title: "Dance Room", icon: "💃" },
+        { key: "mini_theatre", title: "Mini Theatre", icon: "🎬" },
+        { key: "amphitheatre", title: "Amphitheatre", icon: "🎭" },
+        { key: "bowling", title: "Bowling", icon: "🎳" },
+        {
+          key: "private_pool_select_unit",
+          title: "Private Pool Select Unit",
+          icon: "🏊",
+        },
+        { key: "sky_deck", title: "Sky Deck", icon: "🌆" },
+        { key: "patisserie", title: "Patisserie", icon: "🍰" },
+        { key: "park", title: "Park", icon: "🌳" },
+      ],
+    },
+
+    {
+      category: "Convenience",
+      items: [
+        { key: "power_backup", title: "Power Backup", icon: "⚡" },
+        { key: "convenience_store", title: "Convenience Store", icon: "🛒" },
+        { key: "home_automation", title: "Home Automation", icon: "🏠" },
+        { key: "visitor_parking", title: "Visitor Parking", icon: "🅿️" },
+        { key: "parking", title: "Parking", icon: "🚗" },
+        { key: "elevator", title: "Elevator", icon: "🛗" },
+        { key: "medical_facility", title: "Medical Facility", icon: "🏥" },
+        { key: "pet_area", title: "Pet Area", icon: "🐕" },
+        { key: "pet_friendly", title: "Pet Friendly", icon: "🐕" },
+        { key: "play_school", title: "Play School", icon: "🏫" },
+        { key: "atm", title: "ATM", icon: "🏧" },
+        {
+          key: "gas_pipeline_connection",
+          title: "Gas Pipeline Connection",
+          icon: "🔥",
+        },
+        { key: "ac_waiting_lobby", title: "AC Waiting Lobby", icon: "❄️" },
+        { key: "solar_heaters", title: "Solar Heaters", icon: "☀️" },
+        {
+          key: "treated_water_supply",
+          title: "Treated Water Supply",
+          icon: "💧",
+        },
+        { key: "car_washing_bays", title: "Car Washing Bays", icon: "🚗" },
+        { key: "valet_parking", title: "Valet Parking", icon: "🔑" },
+
+        { key: "podium_parking", title: "Podium Parking", icon: "🅿️" },
+        {
+          key: "multi_level_parking",
+          title: "Multi Level Parking",
+          icon: "🅿️",
+        },
+        { key: "common_laundry", title: "Common Laundry", icon: "👖" },
+        { key: "front_desk_service", title: "Front Desk Service", icon: "🛎️" },
+        { key: "centralized_ac", title: "Centralized AC", icon: "❄️" },
+        {
+          key: "automatic_boom_barriers",
+          title: "Automatic Boom Barriers",
+          icon: "🚨",
+        },
+      ],
+    },
+
+    {
+      category: "Safety & Security",
+      items: [
+        { key: "24x7_security", title: "24x7 Security", icon: "🛡️" },
+        {
+          key: "cctv_surveillance",
+          title: "CCTV Surveillance",
+          icon: "📷",
+        },
+        {
+          key: "fire_fighting_systems",
+          title: "Fire Fighting Systems",
+          icon: "🧯",
+        },
+        { key: "video_intercom", title: "Video Intercom", icon: "📞" },
+        { key: "smart_card_access", title: "Smart Card Access", icon: "💳" },
+        {
+          key: "emergency_rescue_alarms",
+          title: "Emergency Rescue Alarms",
+          icon: "🚨",
+        },
+      ],
+    },
+
+    {
+      category: "Environment",
+      items: [
+        {
+          key: "rain_water_harvesting",
+          title: "Rain Water Harvesting",
+          icon: "💧",
+        },
+        {
+          key: "solar_street_lights",
+          title: "Solar Street Lights",
+          icon: "☀️",
+        },
+      ],
+    },
   ],
-  "Power & Utilities": [
-    { key: "electricity_connection", title: "electricity connection" },
-    { key: "solar_power_provision", title: "Solar power provision" },
-    { key: "power_backup", title: "Power Backup" },
-    { key: "water_pump_set", title: "Water pump set" },
-    //{ key: "generator_set", title: "Generator set" },
+
+  land: [
+    {
+      category: "Infrastructure",
+      items: [
+        { key: "24x7_water_supply", title: "24x7 Water Supply", icon: "💧" },
+        { key: "internal_roads", title: "Internal Roads", icon: "🛣️" },
+        { key: "street_lighting", title: "Street Lighting", icon: "💡" },
+        {
+          key: "underground_drainage_system",
+          title: "Underground Drainage System",
+          icon: "🚰",
+        },
+        { key: "water_connection", title: "Water Connection", icon: "🚿" },
+        {
+          key: "electricity_connection",
+          title: "Electricity Connection",
+          icon: "⚡",
+        },
+        { key: "storm_water_drains", title: "Storm Water Drains", icon: "🌧️" },
+        { key: "gated_community", title: "Gated Community", icon: "🏘️" },
+        { key: "clubhouse", title: "Clubhouse", icon: "🏠" },
+        { key: "swimming_pool", title: "Swimming Pool", icon: "🏊" },
+      ],
+    },
+
+    {
+      category: "Safety & Access",
+      items: [
+        {
+          key: "gated_entry_or_compound_wall",
+          title: "Gated Entry or Compound Wall",
+          icon: "🚧",
+        },
+        { key: "24x7_security", title: "24x7 Security", icon: "🛡️" },
+        { key: "cctv_surveillance", title: "CCTV Surveillance", icon: "📷" },
+        {
+          key: "security_room",
+          title: "Security Room",
+          icon: "🏢",
+        },
+      ],
+    },
+
+    // {
+    //   category: "Utility & Services",
+    //   items: [
+    //     {
+    //       key: "overhead_water_tank",
+    //       title: "Overhead Water Tank",
+    //       icon: "🛢️",
+    //     },
+    //     {
+    //       key: "solid_waste_management_system",
+    //       title: "Solid Waste Management System",
+    //       icon: "♻️",
+    //     },
+    //   ],
+    // },
+
+    {
+      category: "Basic Community Spaces",
+      items: [
+        { key: "park_or_green_space", title: "Park or Green Space", icon: "🌳" },
+        { key: "kids_play_area", title: "Kids Play Area", icon: "🛝" },
+        { key: "walking_track", title: "Walking Track", icon: "🚶" },
+      ],
+    },
+
+    {
+      category: "Eco Basics",
+      items: [
+        {
+          key: "rainwater_harvesting_system",
+          title: "Rainwater Harvesting System",
+          icon: "💧",
+        },
+        { key: "avenue_plantation", title: "Avenue Plantation", icon: "🌴" },
+        {
+          key: "solar_street_lights",
+          title: "Solar Street Lights",
+          icon: "☀️",
+        },
+        { key: "wind_turbines", title: "Wind Turbines", icon: "🌬️" },
+      ],
+    },
   ],
-  "Farm Infrastructure": [
-    { key: "cattle_shed", title: "Cattle shed" }, 
-    { key: "greenhouse", title: "Greenhouse" }
-  ],
-  Leisure: [
-    //{ key: "clubhouse", title: "Clubhouse" },
-    { key: "Indoor_Games", title: "Indoor Games"},
-    {key: "hypermarket", title: "Hypermarket"},
-    {key: "restaurant", title:  "Restaurant"},
-    {key: "conference_room", title: "Conference Room"},
-    {key: "jacuzzi", title: "Jacuzzi"},
-    {key: "sauna", title: "Sauna"},
-    //{key: "cafe_coffee_bar", title: "Cafe / Coffee Bar"},
-    {key: "massage_room", title: "Massage Room"},
-    {key: "dance_room", title: "Dance Room"},
-    {key: "mini_theatre", title: "Mini Theatre"},
-    {key: "reading_room_library", title: "Reading Room / Library"},
-    {key: "party_hall", title: "Party Hall"},
-    {key: "amphitheatre", title: "Amphitheatre"},
-    {key: "bowling", title: "Bowling"},
-    {key: "spa", title: "Spa"},
-    {key: "private_pool_select_unit", title: "Private Pool in Select Unit"},
-    {key: "sky_deck", title: "Sky Deck"},
-    //{key: "outdoor_cafes", title: "Outdoor Cafes"},
-    {key: "patisseries", title: "Patisseries"},
-    {key: "senior_citizen_area", title: "Senior Citizen Area"},
-  ],
-  Convenience: [
-    {key: "power_backup", title: "Power Backup"},
-    {key: "convenience_store", title: "Convenience store"},
-    {key: "home_automation", title: "Home Automation"},
-    {key: "play_school", title: "Play school"},
-    {key: "medical_facility", title: "Medical Facility"},
-    {key: "pet_area", title: "Pet Area"},
-    {key: "pet_friendly", title: "Pet Friendly"},
-    {key: "atms", title: "ATM's"},
-    {key: "gas_pipeline_connection", title: "Gas pipeline connection"},
-    {key: "ac_waiting_lobby", title: "AC Waiting Lobby"},
-    {key: "solar_heaters", title: "Solar Heaters"},
-    {key: "treated_water_supply", title: "Treated Water Supply"},
-    {key: "car_washing_bays", title: "Car Washing Bays"},
-    {key: "parking", title: "Parking"},
-    {key: "valet_parking", title: "Valet Parking"},
-    {key: "visitor_parking", title: "Visitor Parking"},
-    {key: "podium_parking", title: "Podium Parking"},
-    {key: "multi_level_parking", title: "Multi level parking"},
-    {key: "common_laundry", title: "Common laundry"},
-    {key: "front_desk_service", title: "Front desk service"},
-    {key: "centralized_ac", title: "Centralized AC"},
-    //{key: "24x7_water_supply", title: "24 x 7 Water Supply"},
-    //{key: "separate_entry_or_exit_gates", title: "Separate Entry / Exit Gates"},
-    {key: "automatic_boom_barriers", title: "Automatic Boom Barriers"},
-    {key: "elevator", title: "Elevator"},
-    {key: "party_lawn", title: "Party Lawn"},
-    //{key: "common_restrooms", title: "Common Restrooms"},
-    //{key: "emergency_staircases", title: "Emergency Staircases"},
-    //{key: "maintenance_services", title: "Maintenance Services"},
-  ],
-  Sports: [
-    {key: "gym", title: "Gym"},
-    {key: "swimming_pool", title: "Swimming Pool"},
-    {key: "badminton_court", title: "Badminton Court"},
-    {key: "tennis_court", title: "Tennis Court"},
-    {key: "squash_court", title: "Squash Court"},
-    {key: "kids_play_area", title: "Kids' Play Area"},
-    {key: "football", title: "Football"},
-    {key: "jogging", title: "Jogging"},
-    {key: "cycle_track", title: "Cycle Track"},
-    {key: "golf_court", title: "Golf Court"},
-    {key: "kids_pool", title: "Kid's Pool"},
-    {key: "cricket", title: "Cricket"},
-    {key: "basketball", title: "Basketball"},
-    {key: "volleyball", title: "Volleyball"},
-    {key: "yoga_area", title: "Yoga Area"},
-    {key: "table_tennis", title: "Table Tennis"},
-    //{key: "snooker_pool", title: "Snooker / Pool"},
-    {key: "skating_rink", title: "Skating Rink"},
-    {key: "golf_simulator", title: "Golf Simulator"},
-    {key: "baseball", title: "Base Ball"},
-    {key: "rugby", title: "Rugby"},
-    {key: "golf_putting_green", title: "Golf Putting green"},
-    {key: "horse_riding", title: "Horse Riding"},
-    //{key: "go_kart_or_racing_track", title: "Go Kart / Racing Track"},
-    {key: "rock_climbing", title: "Rappelling / Rock Climbing"},
-    {key: "gazebo", title: "Gazebo"},
-  ],
-  Environment: [
-    {key: "rain_water_harvesting", title: "Rain Water Harvesting"},
-    //{key: "solar_treatment_plant", title: "Solar Treatment Plant"},
-    {key: "park", title: "Park"},
-    {key: "solar_lighting", title: "Solar Lighting"},
-    //{key: "igbc_certified", title: "IGBC Certified Building"},
-  ],
-  "Connectivity & Access": [
-    {key: "near_highway", title: "Near highway"}, 
-    {key: "close_to_village", title: "Close to Village"}
-  ],
-  "Residentail & Farm Living": [
-    {key: "watchman_room", title: "Watchman room"}, 
-    //{key: "toilets_wash_area", title: "Toilets & wash area"}
-  ],
-  Security: [{key: "cctv_video_surveillance", title: "CCTV / Video Surveillance"}],
-  //Technology: [
-    //{key: "high_speed_internet", title: "High-Speed Internet"},
-    //{key: "server_it_room_provision", title: "Server / IT Room Provision"}],
-  // Infrastucture: [
-  //  //{key: "infrastructure", title: "Infrastructure"},
-  //   {key: "blacktop_cc_internal_roads", title: "Blacktop / CC Internal Roads"},
-  //   {key: "plot_demarcation_with_stones", title: "Plot Demarcation with Stones"},
-  //   {key: "street_lighting", title: "Street Lighting"},
-  //   {key: "water_pipeline_network", title: "Water Pipeline Network"},
-  //   {key: "underground_drainage", title: "Underground Drainage"},
-  // ],
 };
-
-
 
 const CAT_ICONS = {
   Sports: "🏋️",
@@ -321,7 +412,7 @@ const AmenitiesStep = forwardRef(({ payload, update }, ref) => {
 
       {/* Categories */}
       <div className="space-y-8">
-        {Object.entries(AMENITIES_MASTER).map(([cat, items]) => {
+        {/* {Object.entries(AMENITIES_MASTER).map(([cat, items]) => {
           //const visible = items.filter((i) => i.toLowerCase().includes(search.toLowerCase()));
           const visible = items.filter((i) =>
             i.title.toLowerCase().includes(search.toLowerCase()),
@@ -373,9 +464,70 @@ const AmenitiesStep = forwardRef(({ payload, update }, ref) => {
                         transform: sel ? "translateY(-1px)" : "none",
                       }}
                     >
-                      {/* {sel ? "✓ " : ""}{item} */}
+                      
                       {sel ? "✓ " : ""}
                       {item.title}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })} */}
+        {(AMENITIES[payload.categoryType] || []).map((section) => {
+          const cat = section.category;
+
+          const visible = section.items.filter((i) =>
+            i.title.toLowerCase().includes(search.toLowerCase()),
+          );
+
+          if (search && visible.length === 0) return null;
+
+          const selCount = visible.filter((i) =>
+            selectedKeys.has(i.key),
+          ).length;
+
+          return (
+            <div key={cat}>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-lg">{CAT_ICONS[cat] || "🏠"}</span>
+
+                <h4 className="text-xs font-black uppercase tracking-widest text-gray-600">
+                  {cat}
+                </h4>
+
+                <div className="flex-1 h-px bg-gray-200" />
+
+                {selCount > 0 && (
+                  <span
+                    className="px-2 py-0.5 rounded-lg text-[10px] font-black text-white"
+                    style={{ background: "#27AE60" }}
+                  >
+                    {selCount} selected
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {visible.map((item) => {
+                  const sel = selectedKeys.has(item.key);
+
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => toggleAmenity(item)}
+                      className="px-3 py-2 text-xs font-bold rounded-xl border-2 transition-all duration-200"
+                      style={{
+                        background: sel
+                          ? "linear-gradient(135deg,#27AE60,#1e8449)"
+                          : "white",
+                        borderColor: sel ? "#27AE60" : "#e5e7eb",
+                        color: sel ? "white" : "#4b5563",
+                      }}
+                    >
+                      {sel ? "✓ " : ""}
+                      {item.icon} {item.title}
                     </button>
                   );
                 })}

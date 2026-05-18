@@ -39,14 +39,36 @@ export default function LocationFormModal({
 
   useEffect(() => {
     if (show) {
+      // if (initialData) {
+      //   setForm({
+      //     state: initialData.state || "",
+      //     city: initialData.city || "",
+      //     category: initialData.category || "city",
+      //     localityName: initialData.localities?.[0]?.name || "",
+      //     lat: initialData.localities?.[0]?.location?.coordinates?.[1] || "",
+      //     lng: initialData.localities?.[0]?.location?.coordinates?.[0] || "",
+      //   });
+      // } 
       if (initialData) {
+        const isAddLocalityMode = title === "Add Locality to City";
+
         setForm({
           state: initialData.state || "",
           city: initialData.city || "",
           category: initialData.category || "city",
-          localityName: initialData.localities?.[0]?.name || "",
-          lat: initialData.localities?.[0]?.location?.coordinates?.[1] || "",
-          lng: initialData.localities?.[0]?.location?.coordinates?.[0] || "",
+
+          // Empty when adding new locality
+          localityName: isAddLocalityMode
+            ? ""
+            : initialData.localities?.[0]?.name || "",
+
+          lat: isAddLocalityMode
+            ? ""
+            : initialData.localities?.[0]?.location?.coordinates?.[1] || "",
+
+          lng: isAddLocalityMode
+            ? ""
+            : initialData.localities?.[0]?.location?.coordinates?.[0] || "",
         });
       } else {
         setForm(EMPTY_FORM);

@@ -1,5 +1,6 @@
-import { ArrowLeft, ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { ALL_STEPS } from "../Constants/constants";
+
 
 export const MainFormCard = ({
   StepComponent,
@@ -10,8 +11,11 @@ export const MainFormCard = ({
   handleSubmit,
   isLoading,
   progress,
-  
+  handleStepClick,
+  handleClearDraft,
 }) => {
+
+  
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Green accent line */}
@@ -47,7 +51,7 @@ export const MainFormCard = ({
             {ALL_STEPS.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setCurrent(i)}
+                onClick={() => handleStepClick(i)}
                 className="transition-all duration-300 rounded-full"
                 style={{
                   width: i === current ? 18 : 7,
@@ -70,6 +74,7 @@ export const MainFormCard = ({
           </span>
 
           {/* Next / Publish button */}
+
           {isLastStep ? (
             <button
               type="button"
@@ -99,19 +104,34 @@ export const MainFormCard = ({
               )}
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={handleNext}
-              className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl
+            <div className="flex items-center gap-2 sm:gap-3">
+              {window.location.hostname === "localhost" && (
+                <button
+                  type="button"
+                  onClick={handleClearDraft}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl
+               border-2 border-red-200 bg-red-50 text-red-600
+               text-xs sm:text-sm font-black hover:bg-red-100
+               transition-all shrink-0"
+                >
+                  <Trash2 size={14} />
+                  <span className=" xs:inline">Clear Draft</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleNext}
+                className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl
                             text-white text-xs sm:text-sm font-black transition-all hover:opacity-90 shadow-lg shrink-0"
-              style={{
-                background: "linear-gradient(135deg,#27AE60,#1e8449)",
-                boxShadow: "0 4px 14px rgba(39,174,96,0.3)",
-              }}
-            >
-              Next
-              <ArrowRight size={14} />
-            </button>
+                style={{
+                  background: "linear-gradient(135deg,#27AE60,#1e8449)",
+                  boxShadow: "0 4px 14px rgba(39,174,96,0.3)",
+                }}
+              >
+                Next
+                <ArrowRight size={14} />
+              </button>
+            </div>
           )}
         </div>
       </div>

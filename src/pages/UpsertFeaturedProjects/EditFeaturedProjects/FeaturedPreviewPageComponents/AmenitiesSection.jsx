@@ -12,6 +12,8 @@ export default function AmenitiesSection({ data, onRemove }) {
   // ✅ Read amenities from data prop every render — no local copy
   const items = data?.amenities || [];
 
+  const isLand = data?.categoryType === "land";
+
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
   /* ── Empty state ── */
@@ -37,10 +39,14 @@ export default function AmenitiesSection({ data, onRemove }) {
           </svg>
         </div>
         <p className="text-sm font-semibold text-gray-400">
-          No amenities added yet
+          {isLand
+            ? "No plot infrastructure added yet"
+            : "No amenities added yet"}
         </p>
         <p className="text-xs text-gray-300 mt-1">
-          Use the editor to add facilities
+          {isLand
+            ? "Use the editor to add plot infrastructure"
+            : "Use the editor to add facilities"}
         </p>
       </div>
     );
@@ -71,10 +77,14 @@ export default function AmenitiesSection({ data, onRemove }) {
           </div>
           <div>
             <p className="text-xs font-black uppercase tracking-widest text-gray-500">
-              World-Class Amenities
+              {isLand
+                ? "Plot Infrastructure & Amenities"
+                : "World-Class Amenities"}
             </p>
             <p className="text-[10px] text-gray-300 mt-0.5">
-              Everything you need, all in one place
+              {isLand
+                ? "Essential infrastructure for premium plotted development"
+                : "Everything you need, all in one place"}
             </p>
           </div>
         </div>
@@ -82,7 +92,7 @@ export default function AmenitiesSection({ data, onRemove }) {
           className="text-xs font-extrabold px-3 py-1.5 rounded-full"
           style={{ backgroundColor: iconBg, color: primary }}
         >
-          {items.length}+ Features
+          {items.length}+ {isLand ? "Infrastructure" : "Features"}
         </div>
       </div>
 
@@ -188,11 +198,13 @@ export default function AmenitiesSection({ data, onRemove }) {
             />
           </svg>
           <span className="text-[11px] font-bold" style={{ color: primary }}>
-            All amenities included in the base price
+            {isLand
+              ? "Infrastructure development included"
+              : "All amenities included in the base price"}
           </span>
         </div>
         <span className="text-[10px] text-gray-400 font-semibold flex-shrink-0">
-          No hidden charges
+          {isLand ? "Ready for plotted development" : "No hidden charges"}
         </span>
       </div>
     </section>

@@ -76,21 +76,73 @@ const PROPERTY_TYPES = {
 };
 
 const PROPERTY_SUB_TYPES = {
-  commercial: [
-    { label: "Bare Shell", value: "bare-shell" },
-    { label: "Warm Shell", value: "warm-shell" },
-    { label: "Business Center", value: "business-center" },
-    { label: "High Street Shop", value: "high-street-shop" },
-    { label: "Mall Shop", value: "mall-shop" },
-    { label: "Kiosk", value: "kiosk" },
-    { label: "Food Court Unit", value: "food-court-unit" },
-    { label: "Shutter Shop", value: "shutter-shop" },
-    { label: "Showroom Space", value: "showroom-space" },
-    { label: "Warehouse / Godown", value: "warehouse-godown" },
-    { label: "Logistics Hub", value: "logistics-hub" },
-    { label: "Cold Storage", value: "cold-storage" },
-    { label: "Industrial Shed", value: "industrial-shed" },
+  // commercial: [
+  //   { label: "Bare Shell", value: "bare-shell" },
+  //   { label: "Warm Shell", value: "warm-shell" },
+  //   { label: "Business Center", value: "business-center" },
+  //   { label: "High Street Shop", value: "high-street-shop" },
+  //   { label: "Mall Shop", value: "mall-shop" },
+  //   { label: "Kiosk", value: "kiosk" },
+  //   { label: "Food Court Unit", value: "food-court-unit" },
+  //   { label: "Shutter Shop", value: "shutter-shop" },
+  //   { label: "Showroom Space", value: "showroom-space" },
+  //   { label: "Warehouse / Godown", value: "warehouse-godown" },
+  //   { label: "Logistics Hub", value: "logistics-hub" },
+  //   { label: "Cold Storage", value: "cold-storage" },
+  //   { label: "Industrial Shed", value: "industrial-shed" },
+  // ],
+
+  commercial: {
+    office: [
+      { label: "Bare Shell", value: "bare-shell" },
+      { label: "Warm Shell", value: "warm-shell" },
+      { label: "Business Center", value: "business-center" },
+    ],
+
+    retail: [
+      { label: "High Street Shop", value: "high-street-shop" },
+      { label: "Mall Shop", value: "mall-shop" },
+      { label: "Kiosk", value: "kiosk" },
+      { label: "Food Court Unit", value: "food-court-unit" },
+    ],
+
+    shop: [
+      { label: "High Street Shop", value: "high-street-shop" },
+      { label: "Shutter Shop", value: "shutter-shop" },
+      { label: "Mall Shop", value: "mall-shop" },
+    ],
+
+    showroom: [
+      { label: "High Street Shop", value: "high-street-shop" },
+      { label: "Showroom Space", value: "showroom-space" },
+    ],
+
+    warehouse: [
+      { label: "Warehouse / Godown", value: "warehouse-godown" },
+      { label: "Logistics Hub", value: "logistics-hub" },
+      { label: "Cold Storage", value: "cold-storage" },
+    ],
+
+    industrial: [{ label: "Industrial Shed", value: "industrial-shed" }],
+
+    coworking: [
+      { label: "Dedicated Desk", value: "coworking-dedicated-desk" },
+      { label: "Hot Desk", value: "coworking-hot-desk" },
+    ],
+
+    restaurant: [{ label: "Food Court Unit", value: "food-court-unit" }],
+
+    clinic: [{ label: "Clinic Space", value: "clinic-space" }],
+  
+
+  land: [
+    { label: "Gated Community", value: "gated-community" },
+    { label: "Non Gated", value: "non-gated" },
   ],
+
+  agricultural: [{ label: "Irrigated", value: "irrigated" }],
+
+},
   land: [
     { label: "Gated Community", value: "gated-community" },
     { label: "Non Gated", value: "non-gated" },
@@ -153,7 +205,11 @@ const ChoiceChip = ({ label, selected, onClick }) => (
 
 
 function CommonHeader({ form, setValue, category, errors, listingRef, categoryRef, propertyTypeRef, subTypeRef }) {
-  const showSubTypes = PROPERTY_SUB_TYPES[category] && form.propertyType;
+  //const showSubTypes = PROPERTY_SUB_TYPES[category] && form.propertyType;
+  const showSubTypes =
+    category === "commercial"
+      ? PROPERTY_SUB_TYPES.commercial?.[form.propertyType]?.length > 0
+      : PROPERTY_SUB_TYPES[category] && form.propertyType;
 
   return (
     <>
@@ -216,7 +272,12 @@ function CommonHeader({ form, setValue, category, errors, listingRef, categoryRe
         <CardWrapper>
           <SectionLabel>Property Sub Type</SectionLabel>
           <div ref={subTypeRef} className="flex flex-wrap gap-2">
-            {(PROPERTY_SUB_TYPES[category] || []).map((type) => (
+            {/* {(PROPERTY_SUB_TYPES[category] || []).map((type) => ( */}
+           { (
+  category === "commercial"
+    ? PROPERTY_SUB_TYPES.commercial?.[form.propertyType] || []
+    : PROPERTY_SUB_TYPES[category] || []
+).map((type) => (
               <ChoiceChip
                 key={type.value}
                 label={type.label}

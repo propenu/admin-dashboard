@@ -9,9 +9,7 @@ export const hexToRgb = (hex) => {
     : null;
 };
 
-/**
- * Calculate luminance of a color
- */
+/*** Calculate luminance of a color*/
 export const getLuminance = (r, g, b) => {
   const a = [r, g, b].map((v) => {
     v /= 255;
@@ -20,9 +18,8 @@ export const getLuminance = (r, g, b) => {
   return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
 };
 
-/**
- * Calculate contrast ratio between two colors
- */
+/*** Calculate contrast ratio between two colors
+*/
 export const getContrastRatio = (rgb1, rgb2) => {
   const lum1 = getLuminance(rgb1.r, rgb1.g, rgb1.b);
   const lum2 = getLuminance(rgb2.r, rgb2.g, rgb2.b);
@@ -31,9 +28,7 @@ export const getContrastRatio = (rgb1, rgb2) => {
   return (brightest + 0.05) / (darkest + 0.05);
 };
 
-/**
- * Determine if text should be black or white based on background color
- */
+/*** Determine if text should be black or white based on background color */
 export const getContrastTextColor = (bgColor) => {
   const rgb = hexToRgb(bgColor);
   if (!rgb) return "#000000";
@@ -48,9 +43,7 @@ export const getContrastTextColor = (bgColor) => {
   return whiteContrast > blackContrast ? "#FFFFFF" : "#000000";
 };
 
-/**
- * Lighten or darken a color
- */
+/*** Lighten or darken a color */
 export const adjustColor = (color, amount) => {
   const rgb = hexToRgb(color);
   if (!rgb) return color;
@@ -67,9 +60,7 @@ export const adjustColor = (color, amount) => {
   return `#${r}${g}${b}`;
 };
 
-/**
- * Generate color palette from base color
- */
+/*** Generate color palette from base color */
 export const generateColorPalette = (baseColor) => {
   return {
     primary: baseColor,

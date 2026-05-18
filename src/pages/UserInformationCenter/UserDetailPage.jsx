@@ -114,8 +114,8 @@ const getNavItemsByRole = (role) => {
   const SALES_ROLES = [
     "sales_manager",
     "sales_agent",
-    "agent",
-    "customer_care",
+    // "agent",
+    // "customer_care",
   ];
 
   // ── USER ──
@@ -136,6 +136,14 @@ const getNavItemsByRole = (role) => {
   // ── ACCOUNTS TEAM ──
   if (role === "accounts") {
     return [profile, payments, subscriptions];
+  }
+
+  if (role === "customer_care") {
+    return [profile, projects, properties];
+  }
+
+  if (role === "agent") {
+    return [profile,, properties];
   }
 
   // ── DEFAULT (admin, super_admin, etc.) ──

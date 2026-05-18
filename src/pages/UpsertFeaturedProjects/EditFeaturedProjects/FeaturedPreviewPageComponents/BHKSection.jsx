@@ -4,19 +4,20 @@ import React, { useState,useEffect } from "react";
 export default function BHKSection({
   data,
   ctaText = "Book a Consultation",
-  onSelectBhk,
-  selectedBhkIndex,
+  selectedProjectIndex,
+  onSelectProject,
   setLivePreviewData,
 }) {
-  const bhkSummary = data?.bhkSummary || [];
+  //const bhkSummary = data?.bhkSummary || [];
+  const projectSummary = data?.projectSummary || [];
   const primary = data?.color || "#27AE60";
   const [selectedUnitIndex, setSelectedUnitIndex] = useState(0);
 
   const active =
-    typeof selectedBhkIndex === "number" && selectedBhkIndex < bhkSummary.length
-      ? selectedBhkIndex
+    typeof selectedProjectIndex === "number" && selectedProjectIndex < projectSummary.length
+      ? selectedProjectIndex
       : 0;
-  const activeBhk = bhkSummary[active];
+  const activeBhk = projectSummary[active];
   const activeUnit = activeBhk?.units?.[selectedUnitIndex] || {};
 
   const imageSrc =
@@ -27,14 +28,43 @@ export default function BHKSection({
 
   useEffect(() => {
     setSelectedUnitIndex(0);
-  }, [selectedBhkIndex]);
-  const formatPrice = (p) =>
-    p ? `₹${Number(p).toLocaleString("en-IN")}` : "—";
+  }, [selectedProjectIndex]);
+  
+  const formatPrice = (price) => {
+    const value = Number(price || 0);
 
-  if (!bhkSummary.length) {
+    if (!value) return "—";
+
+    // ✅ CRORE
+    if (value >= 10000000) {
+      const cr = value / 10000000;
+
+      return `${parseFloat(cr.toFixed(2))} Cr`;
+    }
+
+    // ✅ LAKH
+    if (value >= 100000) {
+      const lakh = value / 100000;
+
+      return `${parseFloat(lakh.toFixed(2))} L`;
+    }
+
+    // ✅ THOUSAND
+    if (value >= 1000) {
+      const k = value / 1000;
+
+      return `${parseFloat(k.toFixed(1))} K`;
+    }
+
+    return `₹${value}`;
+  };
+
+  if (!projectSummary.length) {
     return (
       <section className="p-6 text-center text-gray-400">
-        No BHK configurations added.
+        {data?.categoryType === "land"
+          ? "No Plot configurations added."
+          : "No BHK configurations added."}
       </section>
     );
   }
@@ -43,13 +73,13 @@ export default function BHKSection({
     <section className="p-6">
       {/* BHK Tab Buttons */}
       <div className="flex gap-2 mb-6 flex-wrap">
-        {bhkSummary.map((b, i) => {
+        {projectSummary.map((b, i) => {
           const isActive = active === i;
           return (
             <button
               key={i}
               onClick={() => {
-                onSelectBhk(i);
+                onSelectProject(i);
                 setSelectedUnitIndex(0);
               }}
               className="px-4 py-2 rounded-xl text-sm font-bold border transition-all"
@@ -59,7 +89,7 @@ export default function BHKSection({
                 color: isActive ? "#fff" : "#6b7280",
               }}
             >
-              {b?.bhkLabel}
+              {b?.label}
             </button>
           );
         })}
@@ -87,7 +117,10 @@ export default function BHKSection({
                   color: selectedUnitIndex === i ? "#fff" : "#6b7280",
                 }}
               >
-                {u?.minSqft} sqft
+                {/* {u?.minSqft} sqft */}
+                {data?.categoryType === "land"
+                  ? `${u?.area?.value} ${u?.area?.unit}`
+                  : `${u?.minSqft} - ${u?.maxSqft} sqft`}
               </button>
             ))}
           </div>
@@ -98,7 +131,7 @@ export default function BHKSection({
           <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
             <img
               src={imageSrc}
-              alt="Floor Plan"
+              alt={data?.categoryType === "land" ? "Plot Image" : "Floor Plan"}
               className="w-full max-h-64 object-contain rounded-lg"
               onError={(e) => {
                 e.target.src = "/src/assets/designplat.png";
@@ -115,7 +148,8 @@ export default function BHKSection({
               >
                 Starting From
               </p>
-              <p className="text-3xl font-black text-gray-900">
+              <p className="text-xl font-black text-[#1e8449]">
+                {formatPrice(activeUnit?.minPrice)} -
                 {formatPrice(activeUnit?.maxPrice)}
               </p>
             </div>
@@ -127,7 +161,7 @@ export default function BHKSection({
                   style={{ backgroundColor: primary }}
                 />
                 <span className="text-sm font-semibold text-gray-800">
-                  {activeBhk?.bhkLabel} 
+                  {activeBhk?.label}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -136,7 +170,10 @@ export default function BHKSection({
                   style={{ backgroundColor: primary }}
                 />
                 <span className="text-sm text-gray-600">
-                  {activeUnit?.minSqft} sqft 
+                  {/* {activeUnit?.minSqft} sqft */}
+                  {data?.categoryType === "land"
+                    ? `${activeUnit?.area?.value} ${activeUnit?.area?.unit}`
+                    : `${activeUnit?.minSqft} - ${activeUnit?.maxSqft} sqft`}
                 </span>
               </div>
               <div className="flex items-center gap-2">

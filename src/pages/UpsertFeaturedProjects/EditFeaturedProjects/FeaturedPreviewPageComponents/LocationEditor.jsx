@@ -870,7 +870,7 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
           <div className="p-5 space-y-4">
 
             {/* Address search bar */}
-            <div className="flex gap-2">
+            {/* <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
@@ -894,13 +894,13 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
                 {searching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
                 {searching ? "Searching…" : "Search"}
               </button>
-            </div>
+            </div> */}
 
             {/* Hint */}
             <div className="flex items-start gap-2 px-4 py-3 bg-[#f0fdf6] border border-[#27AE60]/20 rounded-xl">
               <Info size={14} className="text-[#27AE60] mt-0.5 flex-shrink-0" />
               <p className="text-xs text-[#1a7a42] font-semibold leading-relaxed">
-                Click anywhere on the map to drop the pin. You can also search by address above or use "Use My Location".
+                Click anywhere on the map to drop the pin — location
               </p>
             </div>
 

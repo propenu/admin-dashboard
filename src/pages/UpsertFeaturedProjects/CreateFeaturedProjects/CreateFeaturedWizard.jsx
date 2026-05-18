@@ -52,6 +52,7 @@ export default function CreateFeaturedWizard() {
     submit,
     isLoading,
     progress,
+    clearDraft,
   } = useFeaturedProject(projectType);
 
   const basicRef = useRef();
@@ -97,9 +98,13 @@ export default function CreateFeaturedWizard() {
       try {
         const user = await fetchLoggedInUser();
         if (!user) return;
+        // setPayload((prev) => ({
+        //   ...prev,
+        //   createdBy: user.id ?? user._id ?? "",
+        // }));
         setPayload((prev) => ({
           ...prev,
-          createdBy: user.id ?? user._id ?? "",
+          createdBy: prev.createdBy || user.id || user._id || "",
         }));
       } catch (err) {
         console.warn("User load failed", err);
@@ -159,15 +164,6 @@ export default function CreateFeaturedWizard() {
     return true;
   };
 
-  /**
-   * handleStepClick — called when user clicks a step in the Stepper.
-   *
-   * Rules:
-   *  - Backward: always allowed freely
-   *  - Within completed range (≤ maxCompleted): allowed freely
-   *  - Beyond completed range: validate from maxCompleted onward,
-   *    block at the first incomplete step
-   */
   const handleStepClick = (targetIndex) => {
     // ✅ Free backward navigation
     if (targetIndex < current) {
@@ -231,6 +227,28 @@ export default function CreateFeaturedWizard() {
     // ✅ Advance the high-water mark so stepper renders this step as "done"
     setMaxCompleted((prev) => Math.max(prev, nextStep));
     setCurrent(nextStep);
+  };
+
+  const handleClearDraft = async () => {
+    try {
+      // clear payload + indexedDB
+      await clearDraft();
+
+      // reset wizard UI states
+      setCurrent(0);
+      setMaxCompleted(0);
+      setIsSeoValid(false);
+      setStepperOpen(false);
+
+      // extra safety
+      localStorage.removeItem("featured_step");
+      localStorage.removeItem("featured_max_completed");
+
+      toast.success("All draft data cleared ✅");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to clear draft ❌");
+    }
   };
 
   const StepComponent = (
@@ -320,6 +338,9 @@ export default function CreateFeaturedWizard() {
           handleSubmit={handleSubmit}
           isLoading={isLoading}
           progress={progress}
+          handleStepClick={handleStepClick}
+          //handleClearDraft={clearDraft}
+          handleClearDraft={handleClearDraft}
         />
       </div>
     </div>

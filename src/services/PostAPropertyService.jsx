@@ -42,24 +42,54 @@ export const updateFeaturedProperty = async (id, payload) => {
   // ───────────────────────────────────────────── */
   
 
-  if (Array.isArray(payload.bhkSummary)) {
-    const bhkSummaryJson = payload.bhkSummary.map((bhk) => {
-      console.log("🔹 ORIGINAL BHK:", bhk);
+  if (Array.isArray(payload.projectSummary)) {
+    const projectSummaryJson = payload.projectSummary.map((project) => {
+      console.log("🔹 ORIGINAL PROJECT:", project);
 
-      const units = (bhk.units || []).map((u) => {
+      const units = (project.units || []).map((u) => {
         console.log("   🔸 ORIGINAL UNIT:", u);
 
+        // ✅ NEW PLAN IMAGE
         if (u.planFile instanceof File) {
           fd.append("bhkPlanFiles", u.planFile);
         }
 
         const unitJson = {
+          // ✅ SQFT
           minSqft: Number(u.minSqft || 0),
+
+          maxSqft: Number(u.maxSqft || 0),
+
+          // ✅ PRICE
+          minPrice: Number(u.minPrice || 0),
+
           maxPrice: Number(u.maxPrice || 0),
+
+          // ✅ AVAILABLE UNITS
           availableCount: Number(u.availableCount || 0),
+
+          // ✅ AREA
+          area: {
+            value: Number(u.area?.value || 0),
+
+            unit: u.area?.unit || "sqft",
+
+            sqftValue: Number(u.area?.sqftValue || 0),
+          },
+
+          // ✅ EXISTING ID
           ...(u._id && { _id: u._id }),
-          ...(u.planFileName && { planFileName: u.planFileName }),
-          ...(!(u.planFile instanceof File) && u.plan?.url && { plan: u.plan }),
+
+          // ✅ FILE NAME
+          ...(u.planFileName && {
+            planFileName: u.planFileName,
+          }),
+
+          // ✅ EXISTING IMAGE URL
+          ...(!(u.planFile instanceof File) &&
+            u.plan?.url && {
+              plan: u.plan,
+            }),
         };
 
         console.log("   ✅ UNIT JSON:", unitJson);
@@ -67,25 +97,32 @@ export const updateFeaturedProperty = async (id, payload) => {
         return unitJson;
       });
 
-      const bhkObj = {
-        bhk: Number(bhk.bhk || 0),
-        bhkLabel: bhk.bhkLabel || "",
-        ...(bhk._id && { _id: bhk._id }),
-        ...(bhk.minPrice !== undefined && { minPrice: bhk.minPrice }),
-        ...(bhk.maxPrice !== undefined && { maxPrice: bhk.maxPrice }),
+      // ✅ FINAL PROJECT OBJECT
+      const projectObj = {
+        bhk: Number(project.bhk || 0),
+
+        // ✅ LABEL
+        label: project.label || "",
+
+        // ✅ EXISTING ID
+        ...(project._id && { _id: project._id }),
+
+        // ✅ UNITS
         units,
       };
 
-      console.log("✅ FINAL BHK OBJECT:", bhkObj);
+      console.log("✅ FINAL PROJECT OBJECT:", projectObj);
 
-      return bhkObj;
+      return projectObj;
     });
 
-    console.log("🔥 FINAL BHK SUMMARY JSON:", bhkSummaryJson);
+    console.log("🔥 FINAL PROJECT SUMMARY JSON:", projectSummaryJson);
 
-    fd.append("bhkSummary", JSON.stringify(bhkSummaryJson));
+    // ✅ APPEND FINAL JSON
+    fd.append("projectSummary", JSON.stringify(projectSummaryJson));
 
     console.log("📦 FORM DATA:");
+
     for (let pair of fd.entries()) {
       console.log(pair[0], pair[1]);
     }
@@ -138,9 +175,6 @@ export const updateFeaturedProperty = async (id, payload) => {
     fd.append("logo", payload.logo);
   }
 
-  // if (payload.brochure?.file instanceof File) {
-  //   fd.append("brochure", payload.brochure.file);
-  // }
 
   console.log("🔥 FINAL BROCHURE PAYLOAD:", payload.brochure);
 
@@ -160,9 +194,16 @@ export const updateFeaturedProperty = async (id, payload) => {
     "priceFrom",
     "priceTo",
     "heroDescription",
+    "heroTagline",
     "heroSubTagline",
     "amenities",
     "aboutSummary",
+    "categoryType",
+    "propertyType",
+    "adreess",
+    "state",
+    "city",
+    "locality",
 
     // ✅ ADD THESE
     "totalTowers",

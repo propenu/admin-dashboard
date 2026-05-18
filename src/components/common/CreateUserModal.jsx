@@ -7,11 +7,14 @@ import { toast } from "sonner";
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 
-import {
-  createRequestOtp,
-  createVerifyOtpService,
-  createUserLocationDetails,
-} from "../../features/user/userService";
+
+// import {
+//   createRequestOtp,
+//   createVerifyOtpService,
+//   createUserLocationDetails,
+// } from "../../features/user/userService";
+
+import { adiminCreateOtp, adminCreateUserLocationDetails, adminCreateVerifyOtp } from "../../Auth/hook/useAuth";
 
 /* ─── Constants ─────────────────────────────────────────────── */
 const PRIMARY       = "#27AE60";
@@ -260,6 +263,10 @@ export default function CreateUserModal({ onClose }) {
   const [otp,     setOtp]     = useState(["", "", "", ""]);
   const [locationToken, setLocationToken] = useState("");
 
+  const { mutateAsync: createRequestOtp } = adiminCreateOtp();
+  const { mutateAsync: createVerifyOtpService } = adminCreateVerifyOtp();
+  const { mutateAsync: createUserLocationDetails } = adminCreateUserLocationDetails();
+
   const {
     register, watch, trigger, control,
     formState: { errors },
@@ -270,6 +277,8 @@ export default function CreateUserModal({ onClose }) {
   });
 
   const formData = watch();
+
+  
 
   /* ── Handlers ── */
   const handleRequestOtp = async () => {

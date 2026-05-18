@@ -12,7 +12,7 @@ const TYPES = [
   },
   {
     value: "featured",
-    label: "Featured",
+    label: "Top Selling Projects",
     desc: "Highlighted in featured sections.",
     color: "border-blue-400 bg-blue-50 text-blue-700",
     dot: "bg-blue-400",

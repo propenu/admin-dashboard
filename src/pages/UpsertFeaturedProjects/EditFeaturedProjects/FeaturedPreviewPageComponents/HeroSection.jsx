@@ -4,8 +4,6 @@ import React, { useState, useMemo } from "react";
 function HeroSectionBase({ data }) {
   if (!data) return null;
 
- 
-
   const hero = useMemo(
     () => ({
       heroImage:
@@ -30,19 +28,85 @@ function HeroSectionBase({ data }) {
     [data],
   );
 
+  const formatPrice = (price) => {
+    const value = Number(price || 0);
+
+    if (!value) return "—";
+
+    // ✅ CRORE
+    if (value >= 10000000) {
+      const cr = value / 10000000;
+
+      return `${parseFloat(cr.toFixed(2))} Cr`;
+    }
+
+    // ✅ LAKH
+    if (value >= 100000) {
+      const lakh = value / 100000;
+
+      return `${parseFloat(lakh.toFixed(2))} L`;
+    }
+
+    // ✅ THOUSAND
+    if (value >= 1000) {
+      const k = value / 1000;
+
+      return `${parseFloat(k.toFixed(1))} K`;
+    }
+
+    return `₹${value}`;
+  };
   
   const stats = useMemo(() => {
-    
-    const fmt = (v) => v ? `₹${(v / 10000000).toFixed(1)} Cr` : "";
+    // ✅ CONFIGURATION TEXT
+    const configurationText =
+      data?.categoryType === "land"
+        ? `${data?.projectSummary?.length || 0} Plots`
+        : data?.projectSummary?.map((b) => `${b.bhk} BHK`)?.join(" / ") || "—";
+
+    // ✅ PRICE RANGE
+    const priceText =
+      data?.priceFrom || data?.priceTo
+        ? `${formatPrice(data?.priceFrom)} - ${formatPrice(data?.priceTo)}`
+        : "—";
+
     const items = [
-      { label: "Starting Price", value: fmt(data.priceFrom) },
       {
-        label: "Configurations",
-        value: (data.bhkSummary?.map((b) => b.bhkLabel.charAt(0)).join("/")+" BHK")|| "—",
+        label: data?.categoryType === "land" ? "Plot Price" : "Starting Price",
+
+        value: priceText,
       },
-      { label: "Amenities", value: `${data.amenities?.length || 0}+` },
+
+      {
+        label: data?.categoryType === "land" ? "Plot Types" : "Configurations",
+
+        // value: configurationText,
+        value:
+          data?.categoryType === "land"
+            ? data?.projectSummary
+                ?.map((p) =>
+                  p?.units?.[0]?.area?.value
+                    ? `${p.units[0].area.value} ${p.units[0].area.unit?.toUpperCase()}`
+                    : "",
+                )
+                ?.join(" / ")
+            : configurationText,
+      },
+
+      {
+        label: "Amenities",
+
+        value: `${data?.amenities?.length || 0}+`,
+      },
     ];
-    if (data.reraNumber) items.push({ label: "Approved", value: "RERA ✓" });
+
+    if (data.reraNumber) {
+      items.push({
+        label: "Approved",
+        value: "RERA ✓",
+      });
+    }
+
     return items;
   }, [data]);
 

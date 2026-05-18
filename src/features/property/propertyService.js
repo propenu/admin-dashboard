@@ -37,6 +37,7 @@ export const getFeaturedProjectsByType = (type) =>
 export const getFeaturedProjectById = (id) => apiClient.get(`${BASE}/${id}`);
 
 // ── POST ─────────────────────────────────────────────────────────────────────
+export const getAllFeaturedProjects = (id) => apiClient.get(`${BASE}`);
 export const createFeaturedProject = (formData, config = {}) =>
   apiClient.post(BASE, formData, config);
 
@@ -53,6 +54,10 @@ export const expireProject = (id) => apiClient.patch(`${BASE}/${id}/expire`);
 
 /** Reset a project back to default/active */
 export const resetProject = (id) => apiClient.patch(`${BASE}/${id}/reset`);
+
+/** Promote a project */
+export const promoteProjectWithRank = (id, data) =>
+  apiClient.patch(`${BASE}/${id}/promote`, data);
 
 /** Update rank */
 export const updateProjectRank = (id, rank) =>
@@ -135,5 +140,9 @@ export const getSalesAgentAnalytics = () => {
 
 
 
+///////
 
+export const projectAnalytics = (id) => {
+  return apiClient.get(`${SERVICES.PROPERTY}/leads/project/${id}/leads`);
+};
 

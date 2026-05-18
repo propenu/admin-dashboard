@@ -85,7 +85,7 @@ export default function Users() {
 //const users = allUsers.filter((u) => u.roleName === "user");
 const users = allUsers.filter((u) => {
   if (filterRole === "all") {
-    return ["user", "builder"].includes(u.roleName);
+    return ["user", "builder","agent"].includes(u.roleName);
   }
 
   return u.roleName === filterRole;

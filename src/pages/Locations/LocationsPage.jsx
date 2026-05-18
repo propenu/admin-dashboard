@@ -112,9 +112,31 @@ export default function LocationsPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* HEADER */}
         <LocationHeader onAdd={handleAddNew} />
-        
+
         {/* STATS */}
-        <LocationStats total={locations.length} popularCities={popularCities} />
+        {/* <LocationStats total={locations.length} popularCities={popularCities} /> */}
+        <LocationStats
+          total={locations.length}
+          popularCities={popularCities}
+          onSelectPopularCity={(city) => {
+            const fullCity = locations.find(
+              (l) => l.city === city.city && l.state === city.state,
+            );
+
+            if (fullCity) {
+              setSelectedLoc(fullCity);
+            }
+          }}
+          onEditPopularCity={(city) => {
+            const fullCity = locations.find(
+              (l) => l.city === city.city && l.state === city.state,
+            );
+
+            if (fullCity) {
+              handleEditCity(fullCity);
+            }
+          }}
+        />
 
         {/* SELECTED DETAILS */}
         {selectedLoc && (
@@ -122,9 +144,13 @@ export default function LocationsPage() {
             data={selectedLoc}
             onClose={() => setSelectedLoc(null)}
             onEditCity={handleEditCity}
-            onEditLocality={(locality) => handleEditLocality(selectedLoc, locality)}
+            onEditLocality={(locality) =>
+              handleEditLocality(selectedLoc, locality)
+            }
             onDeleteCity={() => handleDeleteCity(selectedLoc)}
-            onDeleteLocality={(locality) => handleDeleteLocality(selectedLoc, locality)}
+            onDeleteLocality={(locality) =>
+              handleDeleteLocality(selectedLoc, locality)
+            }
           />
         )}
 
@@ -146,7 +172,9 @@ export default function LocationsPage() {
         {showAdd && (
           <LocationFormModal
             show={showAdd}
-            title={editItem ? "Add Locality to City" : "Add New City & Locality"}
+            title={
+              editItem ? "Add Locality to City" : "Add New City & Locality"
+            }
             initialData={editItem}
             states={indianStates}
             getCities={getCities}

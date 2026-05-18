@@ -21,17 +21,6 @@ import PropertyCard from "./PropertyCard";
 import PromoteModal from "./PromoteModal";
 import ConfirmModal from "./ConfirmModal";
 
-/**
- * Generic list page for Prime / Featured / Normal / Sponsored projects.
- *
- * Props:
- *  - type           : "prime" | "featured" | "normal" | "sponsored"
- *  - title          : display title
- *  - subtitle       : display subtitle
- *  - createRoute    : nav route for "Create" button
- *  - accentColor    : tailwind text color class (default "text-[#27AE60]")
- *  - hook           : result of useFeaturedProjects(type)
- */
 export default function PropertyListPage({
   type,
   title,

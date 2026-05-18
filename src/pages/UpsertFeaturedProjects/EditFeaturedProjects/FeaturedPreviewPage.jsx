@@ -31,15 +31,60 @@ import PropertyDetailsEditor from "./FeaturedPreviewPageComponents/PropertyDetai
 import PropertyDetailsSection from "./FeaturedPreviewPageComponents/PropertyDetailsSection";
 import { Video } from "lucide-react";
 
-const SECTIONS = [
-  { id: "hero", label: "Hero", icon: "🏠" },
-  { id: "bhk", label: "BHK", icon: "📐" },
-  { id: "amenities", label: "Amenities", icon: "✨" },
-  { id: "gallery", label: "Gallery", icon: "🖼️" },
-  { id: "specifications", label: "Specifications", icon: "📑" },
-  { id: "about", label: "About", icon: "📋" },
-  { id: "locate", label: "Location", icon: "📍" },
-  { id: "details", label: "Details", icon: "📊" },
+const getSections = (categoryType) => [
+  {
+    id: "hero",
+    label: "Hero",
+    icon: "🏠",
+  },
+
+  {
+    id: "bhk",
+
+    label: categoryType === "land" ? "Plots" : "BHK",
+
+    icon: categoryType === "land" ? "🌍" : "📐",
+  },
+
+  {
+    id: "amenities",
+    label: "Amenities",
+    icon: "✨",
+  },
+
+  {
+    id: "gallery",
+
+    label: categoryType === "land" ? "Plot Gallery" : "Gallery",
+
+    icon: "🖼️",
+  },
+
+  {
+    id: "specifications",
+    label: "Specifications",
+    icon: "📑",
+  },
+
+  {
+    id: "about",
+    label: "About",
+    icon: "📋",
+  },
+
+  {
+    id: "locate",
+    label: "Location",
+    icon: "📍",
+  },
+
+  {
+    id: "details",
+
+    label: categoryType === "land" ? "Plot Details" : "Details",
+
+    icon: "📊",
+  },
 ];
 
 /* ─────────────────────────────────────────────
@@ -134,10 +179,13 @@ export default function FeaturedPreviewPage() {
   const [formData, setFormData]               = useState(null);
   const [livePreviewData, setLivePreviewData] = useState(null);
   const [saving, setSaving]                   = useState(false);
-  const [selectedBhkIndex, setSelectedBhkIndex] = useState(0);
+  //const [selectedBhkIndex, setSelectedBhkIndex] = useState(0);
+  const [selectedProjectIndex, setSelectedProjectIndex] = useState(null);
   const [mobileNavOpen, setMobileNavOpen]     = useState(false);
   const sectionRefs  = useRef({});
   const [activeSection, setActiveSection]     = useState("hero");
+
+  const SECTIONS = getSections(livePreviewData?.categoryType);
 
   /* Load */
   useEffect(() => {
@@ -183,13 +231,7 @@ export default function FeaturedPreviewPage() {
     }
   }
 
-  // const scrollTo = useCallback((sectionId) => {
-  //   const node = sectionRefs.current[sectionId];
-  //   if (node) {
-  //     node.scrollIntoView({ behavior: "smooth", block: "start" });
-  //     setMobileNavOpen(false);
-  //   }
-  // }, []);
+  
 
   const scrollTo = useCallback((sectionId) => {
     const node = sectionRefs.current[sectionId];
@@ -359,24 +401,33 @@ export default function FeaturedPreviewPage() {
 
         <SectionWrapper
           id="bhk"
-          title="BHK Configurations"
-          subtitle="Unit types & floor plans"
-          icon="📐"
+          title={
+            livePreviewData?.categoryType === "land"
+              ? "Plot Configurations"
+              : "BHK Configurations"
+          }
+          subtitle={
+            livePreviewData?.categoryType === "land"
+              ? "Plot variants & plot images"
+              : "Unit types & floor plans"
+          }
+          icon={livePreviewData?.categoryType === "land" ? "🌍" : "📐"}
           LeftComponent={BHKEditor}
           RightComponent={BHKSection}
           leftProps={{
             formData,
             setFormData,
-            onSaveBhk: handleSave,
+            onSaveProject: handleSave,
             setLivePreviewData,
             saving,
-            selectedBhkIndex,
-            setSelectedBhkIndex,
+            
+            selectedProjectIndex,
+            setSelectedProjectIndex,
           }}
           rightProps={{
             data: livePreviewData,
-            selectedBhkIndex,
-            onSelectBhk: setSelectedBhkIndex,
+            selectedProjectIndex,
+            onSelectProject: setSelectedProjectIndex,
           }}
           registerSectionRef={(el) => (sectionRefs.current["bhk"] = el)}
         />

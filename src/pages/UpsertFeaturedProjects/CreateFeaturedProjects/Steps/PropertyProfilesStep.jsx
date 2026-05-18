@@ -37,6 +37,8 @@ const AREA_UNITS = [
   { value: "Hectares", label: "Hectares" },
 ];
 
+ 
+
 /* ─── SectionCard — defined OUTSIDE component to avoid remount ── */
 const SectionCard = ({ icon: Icon, title, sub, children }) => (
   <div className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden shadow-sm">
@@ -63,6 +65,30 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
   const [builders, setBuilders] = useState([]);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const builderRef = useRef(null);
+
+  const isLand = payload.categoryType === "land";
+
+
+  const [selectedBuilderId, setSelectedBuilderId] = useState("");
+
+  
+    const HIDE_TOWER_TYPES = [
+  "villa",
+  "duplex",
+  "triplex",
+  "farmhouse",
+];
+
+const shouldHideTowerFields =
+  payload.categoryType === "land" ||
+  HIDE_TOWER_TYPES.includes(
+    payload.propertyType?.trim().toLowerCase()
+  );
+
+  const isResidential = payload.categoryType === "residential";
+
+  
 
   const [filters, setFilters] = useState({
     state: "",
@@ -75,6 +101,7 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
     async function loadBuilders() {
       try {
         const res = await getUserSearch("builder");
+        console.log("BUILDER API RESPONSE =>", res);
         setBuilders(res?.data?.results || []);
       } catch (err) {
         console.error("Failed to load builders", err);
@@ -84,6 +111,21 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
 
     loadBuilders();
   }, []);
+
+  useEffect(() => {
+    // ✅ If no builders available
+    // auto assign current user
+
+    if (builders.length === 0 && payload?.me?._id && !payload.createdBy) {
+      console.log("✅ No builders found → using /me");
+
+      update({
+        createdBy: payload.me._id,
+      });
+
+      clr("createdBy");
+    }
+  }, [builders, payload?.me?._id]);
 
   // Unique values from full builder list
   const uniqueStates = [
@@ -165,102 +207,85 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
    
   };
 
+  
   useImperativeHandle(ref, () => ({
     validate() {
+      console.log("========== VALIDATION START ==========");
+
       const e = {};
 
-      if (!payload.totalTowers || Number(payload.totalTowers) <= 0)
-        e.totalTowers = "Required (must be > 0)";
+      console.log("payload =>", payload);
 
-      if (!payload.totalFloors?.trim()) e.totalFloors = "Required";
+      // RERA
+      if (!payload.reraNumber?.trim()) {
+        e.reraNumber = "Required";
+        console.log("❌ RERA missing");
+      }
 
-      if (!payload.possessionDate) e.possessionDate = "Required";
+      // Builder
+      console.log("createdBy =>", payload.createdBy);
 
-      if (!payload.projectArea || Number(payload.projectArea) <= 0)
-        e.projectArea = "Required (must be > 0)";
+    
 
-      if (!payload.totalUnits || Number(payload.totalUnits) <= 0)
-        e.totalUnits = "Required (must be > 0)";
+    const hasBuilders = builders.length > 0;
 
-      if (!payload.availableUnits || Number(payload.availableUnits) < 0)
-        e.availableUnits = "Required";
+    if (hasBuilders && !payload.createdBy) {
+      e.createdBy = "Please select builder from dropdown";
 
-      if (
-        payload.totalUnits &&
-        payload.availableUnits &&
-        Number(payload.availableUnits) > Number(payload.totalUnits)
-      )
-        e.availableUnits = "Cannot exceed total units";
+      console.log("❌ Builder not selected");
+    } else {
+      console.log("createdBy =>", payload.createdBy);
+      console.log("✅ Builder selected");
+    }
 
-      if (!payload.state?.trim()) e.state = "Required";
+      // Brochure
+      if (!payload.brochure) {
+        e.brochure = "Brochure PDF is required";
+        console.log("❌ Brochure missing");
+      }
 
-      if (!payload.locality?.trim()) e.locality = "Required";
-
-      if (!payload.reraNumber?.trim()) e.reraNumber = "Required";
-
-      if (!payload.banksApproved?.length)
-        e.banksApproved = "Select at least one bank";
-
-      if (!payload.brochure) e.brochure = "Brochure PDF is required";
-
+      // Redirect URL
       if (payload.redirectUrl?.trim()) {
         try {
           new URL(payload.redirectUrl.trim());
-        } catch {
-          e.redirectUrl = "Enter a valid URL";
+          console.log("✅ URL valid");
+        } catch (err) {
+          e.redirectUrl = "Enter valid URL";
+          console.log("❌ Invalid URL");
         }
       }
+
+      
+
+      console.log("FINAL ERRORS =>", e);
 
       setErrors(e);
 
-      if (Object.keys(e).length) {
-        profileRef.current?.scrollIntoView({
+      // Scroll to error section
+      if (Object.keys(e).length > 0) {
+        console.log("❌ Validation Failed");
+
+        const scrollTarget = e.createdBy ? builderRef : profileRef;
+
+        scrollTarget.current?.scrollIntoView({
           behavior: "smooth",
           block: "center",
         });
+
         return false;
       }
+
+      console.log("✅ Validation Success");
 
       return true;
     },
 
-    // ✅ ADD THIS (IMPORTANT)
     isValid() {
-      if (!payload.totalTowers || Number(payload.totalTowers) <= 0)
-        return false;
-      if (!payload.totalFloors?.trim()) return false;
-      if (!payload.possessionDate) return false;
-      if (!payload.projectArea || Number(payload.projectArea) <= 0)
-        return false;
-      if (!payload.totalUnits || Number(payload.totalUnits) <= 0) return false;
-      if (!payload.availableUnits || Number(payload.availableUnits) < 0)
-        return false;
-
-      if (
-        payload.totalUnits &&
-        payload.availableUnits &&
-        Number(payload.availableUnits) > Number(payload.totalUnits)
-      )
-        return false;
-
-      if (!payload.state?.trim()) return false;
-      if (!payload.locality?.trim()) return false;
-      if (!payload.reraNumber?.trim()) return false;
-      if (!payload.banksApproved?.length) return false;
-      if (!payload.brochure) return false;
-
-      if (payload.redirectUrl?.trim()) {
-        try {
-          new URL(payload.redirectUrl.trim());
-        } catch {
-          return false;
-        }
-      }
-
-      return true;
+      return this.validate();
     },
   }));
-
+  
+  
   /* ── Helpers ── */
   const clr = (key) =>
     setErrors((prev) => {
@@ -269,6 +294,10 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
       return copy;
     });
 
+  // const handleChange = (key, value) => {
+  //   update({ [key]: value });
+  //   clr(key);
+  // };
   const handleChange = (key, value) => {
     update({ [key]: value });
     clr(key);
@@ -320,72 +349,93 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
         sub="Structure & Units"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Total Towers */}
-          <div>
-            <label className={LABEL}>Total Towers *</label>
-            <input
-              type="number"
-              min="1"
-              className={inp(errors.totalTowers)}
-              placeholder="8"
-              value={payload.totalTowers || ""}
-              onChange={(e) => handleChange("totalTowers", e.target.value)}
-            />
-            {errors.totalTowers && (
-              <p className={ERR}>⚠ {errors.totalTowers}</p>
-            )}
-          </div>
+          {/* HIDE IN LAND */}
+          {!shouldHideTowerFields && (
+            <>
+              {/* Total Towers */}
+              <div>
+                <label className={LABEL}>Total Towers *</label>
 
-          {/* Total Floors */}
-          <div>
-            <label className={LABEL}>Total Floors *</label>
-            <input
-              type="text"
-              className={inp(errors.totalFloors)}
-              placeholder="G+32"
-              value={payload.totalFloors || ""}
-              onChange={(e) => handleChange("totalFloors", e.target.value)}
-            />
-            {errors.totalFloors && (
-              <p className={ERR}>⚠ {errors.totalFloors}</p>
-            )}
-          </div>
+                <input
+                  type="number"
+                  min="1"
+                  className={inp(errors.totalTowers)}
+                  placeholder="8"
+                  value={payload.totalTowers || ""}
+                  onChange={(e) => handleChange("totalTowers", e.target.value)}
+                />
+
+                {errors.totalTowers && (
+                  <p className={ERR}>⚠ {errors.totalTowers}</p>
+                )}
+              </div>
+
+              {/* Total Floors */}
+              <div>
+                <label className={LABEL}>Total Floors *</label>
+
+                <input
+                  type="text"
+                  className={inp(errors.totalFloors)}
+                  placeholder="G+32"
+                  value={payload.totalFloors || ""}
+                  onChange={(e) => handleChange("totalFloors", e.target.value)}
+                />
+
+                {errors.totalFloors && (
+                  <p className={ERR}>⚠ {errors.totalFloors}</p>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Project Area + Unit — paired in one cell */}
           <div className="md:col-span-2 lg:col-span-1">
             <label className={LABEL}>Project Area *</label>
-            <div className="flex gap-2">
-              {/* Area value */}
+            <div
+              className="
+                          flex items-center
+                          border-2 border-gray-200
+                          rounded-xl
+                          overflow-hidden
+                          bg-white
+                          focus-within:border-[#27AE60]
+                          focus-within:ring-4
+                          focus-within:ring-[#27AE60]/10
+                        "
+            >
+              {/* VALUE */}
               <input
                 type="number"
                 min="0"
                 step="0.01"
-                className={`${inp(errors.projectArea)} flex-1`}
-                placeholder="12.5"
+                className="
+                          flex-1
+                          px-4 py-3
+                          text-sm font-semibold
+                          outline-none
+                          bg-transparent
+                        "
+                placeholder="2"
                 value={payload.projectArea || ""}
                 onChange={(e) => handleChange("projectArea", e.target.value)}
               />
-              {/* Area unit dropdown */}
-              {/* <select
-                className={`px-3 py-3 bg-white border-2 rounded-xl text-gray-900 text-sm font-bold
-                  outline-none transition-all duration-200 cursor-pointer flex-shrink-0
-                  ${
-                    errors.areaUnits
-                      ? "border-red-400 focus:border-red-500"
-                      : "border-gray-200 focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10"
-                  }`}
-                value={payload.areaUnits || ""}
-                onChange={(e) => handleChange("areaUnits", e.target.value)}
+
+              {/* DIVIDER */}
+              <div className="w-px self-stretch bg-gray-200" />
+
+              {/* STATIC UNIT */}
+              <div
+                className="
+                    px-4 py-3
+                    text-sm font-black
+                    text-gray-700
+                    bg-gray-50
+                    uppercase
+                  "
               >
-                <option value="" disabled>
-                  Acres
-                </option>
-                {AREA_UNITS.map((u) => (
-                  <option key={u.value} value={u.value}>
-                    {u.label}
-                  </option>
-                ))}
-              </select> */}
+                Acre
+              </div>
             </div>
             {/* Error messages for both fields */}
             {errors.projectArea && (
@@ -531,66 +581,6 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
                 type="file"
                 accept="application/pdf"
                 className="hidden"
-                // onChange={(e) => {
-                //   update({ brochure: e.target.files[0] });
-                //   clr("brochure");
-                // }}
-                // onChange={async (e) => {
-                //   const file = e.target.files[0];
-
-                //   if (!file) return;
-
-                //   const key = await saveImage(file, "other", "brochure");
-
-                //   update({
-                //     brochure: {
-                //       key,
-                //       file, // optional (for instant preview)
-                //     },
-                //   });
-
-                //   clr("brochure");
-                // }}
-                // onChange={async (e) => {
-                //   let file = e.target.files[0];
-                //   if (!file) return;
-
-                //   // 🚫 Only PDF
-                //   if (file.type !== "application/pdf") {
-                //     toast.error("Only PDF allowed ❌");
-                //     return;
-                //   }
-
-                //   // 🔥 If >1MB → compress
-                //   if (file.size > 1024 * 1024) {
-                //     toast.loading("Compressing brochure... ⏳");
-
-                //     const compressed = await compressPDF(file);
-
-                //     toast.dismiss();
-
-                //     if (compressed.size > 1024 * 1024) {
-                //       toast.error("File still >1MB after compression ❌");
-                //       return;
-                //     }
-
-                //     file = compressed;
-
-                //     toast.success("Compressed successfully ✅");
-                //   }
-
-                //   // ✅ Save to IndexedDB
-                //   const key = await saveImage(file, "other", "brochure");
-
-                //   update({
-                //     brochure: {
-                //       key,
-                //       file,
-                //     },
-                //   });
-
-                //   clr("brochure");
-                // }}
                 onChange={async (e) => {
                   let file = e.target.files[0];
                   if (!file) return;
@@ -729,6 +719,9 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
       </SectionCard>
       <SectionCard icon={Globe} title="YouTube Videos" sub="Video Showcase">
         <div className="space-y-4">
+          {/* {errors.youtubeVideos && (
+            <p className={ERR}>⚠ {errors.youtubeVideos}</p>
+          )} */}
           {(payload.youtubeVideos || []).map((video, i) => (
             <div
               key={i}
@@ -743,6 +736,9 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
                   value={video.title}
                   onChange={(e) => updateYoutube(i, "title", e.target.value)}
                 />
+                {/* {errors[`youtube_title_${i}`] && (
+                  <p className={ERR}>⚠ {errors[`youtube_title_${i}`]}</p>
+                )} */}
               </div>
 
               <div>
@@ -754,6 +750,9 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
                   value={video.url}
                   onChange={(e) => updateYoutube(i, "url", e.target.value)}
                 />
+                {/* {errors[`youtube_url_${i}`] && (
+                  <p className={ERR}>⚠ {errors[`youtube_url_${i}`]}</p>
+                )} */}
               </div>
 
               <div>
@@ -786,296 +785,284 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
         </div>
       </SectionCard>
 
-      {/* Builder Selection */}
-      {/* <div className="md:col-span-2  lg:col-span-3">
-        <label className={LABEL}>Select Builder *</label>
-
-        <select
-          className={inp(errors.createdBy)}
-          value={payload.createdBy || ""}
-          onChange={(e) => handleChange("createdBy", e.target.value)}
-        >
-          <option value="">Select Builder</option>
-
-          {builders.map((builder) => (
-            <option key={builder._id} value={builder._id}>
-              {builder.name.charAt(0).toUpperCase() + builder.name.slice(1)}
-            </option>
-          ))}
-        </select>
-
-        {errors.createdBy && <p className={ERR}>⚠ {errors.createdBy}</p>}
-      </div> */}
-
-      <SectionCard icon={Building2} title="Select Builder" sub="Builder">
-        {/* Search bar */}
-        <div className="mb-4">
-          <label className={LABEL}>Search Builder</label>
-          <div className="relative">
-            <svg
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              width="16"
-              height="16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              type="text"
-              className={`${inp()} pl-10`}
-              placeholder="Search by name, email or phone..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                handleChange("createdBy", "");
-              }}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  handleChange("createdBy", "");
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none"
+      <div ref={builderRef}>
+        <SectionCard icon={Building2} title="Select Builder" sub="Builder">
+          {/* Search bar */}
+          <div className="mb-4">
+            <label className={LABEL}>Search Builder</label>
+            <div className="relative">
+              <svg
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
               >
-                ×
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Location filters */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-          <div>
-            <label className={LABEL}>State</label>
-            <select
-              className={inp()}
-              value={filters.state}
-              onChange={(e) => {
-                setFilters({
-                  state: e.target.value,
-                  city: "",
-                  pincode: "",
-                  locality: "",
-                });
-                handleChange("createdBy", "");
-              }}
-            >
-              <option value="">All States</option>
-              {uniqueStates.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className={LABEL}>City</label>
-            <select
-              className={inp()}
-              value={filters.city}
-              onChange={(e) => {
-                setFilters((f) => ({
-                  ...f,
-                  city: e.target.value,
-                  pincode: "",
-                  locality: "",
-                }));
-                handleChange("createdBy", "");
-              }}
-            >
-              <option value="">All Cities</option>
-              {uniqueCities.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className={LABEL}>Pincode</label>
-            <select
-              className={inp()}
-              value={filters.pincode}
-              onChange={(e) => {
-                setFilters((f) => ({
-                  ...f,
-                  pincode: e.target.value,
-                  locality: "",
-                }));
-                handleChange("createdBy", "");
-              }}
-            >
-              <option value="">All Pincodes</option>
-              {uniquePincodes.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className={LABEL}>Locality</label>
-            <select
-              className={inp()}
-              value={filters.locality}
-              onChange={(e) => {
-                setFilters((f) => ({ ...f, locality: e.target.value }));
-                handleChange("createdBy", "");
-              }}
-            >
-              <option value="">All Localities</option>
-              {uniqueLocalities.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Active filter chips + clear all */}
-        {(searchQuery ||
-          filters.state ||
-          filters.city ||
-          filters.pincode ||
-          filters.locality) && (
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            {searchQuery && (
-              <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
-                "{searchQuery}"
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+              <input
+                type="text"
+                className={`${inp()} pl-10`}
+                placeholder="Search by name, email or phone..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                }}
+              />
+              {searchQuery && (
                 <button
                   type="button"
                   onClick={() => {
                     setSearchQuery("");
-                    handleChange("createdBy", "");
                   }}
-                  className="ml-1 hover:text-red-500"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none"
                 >
                   ×
                 </button>
-              </span>
-            )}
-            {filters.state && (
-              <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
-                {filters.state}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilters({
-                      state: "",
-                      city: "",
-                      pincode: "",
-                      locality: "",
-                    });
-                    handleChange("createdBy", "");
-                  }}
-                  className="ml-1 hover:text-red-500"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            {filters.city && (
-              <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
-                {filters.city}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilters((f) => ({
-                      ...f,
-                      city: "",
-                      pincode: "",
-                      locality: "",
-                    }));
-                    handleChange("createdBy", "");
-                  }}
-                  className="ml-1 hover:text-red-500"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            {filters.pincode && (
-              <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
-                {filters.pincode}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilters((f) => ({ ...f, pincode: "", locality: "" }));
-                    handleChange("createdBy", "");
-                  }}
-                  className="ml-1 hover:text-red-500"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            {filters.locality && (
-              <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
-                {filters.locality}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilters((f) => ({ ...f, locality: "" }));
-                    handleChange("createdBy", "");
-                  }}
-                  className="ml-1 hover:text-red-500"
-                >
-                  ×
-                </button>
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setFilters({ state: "", city: "", pincode: "", locality: "" });
-                setSearchQuery("");
-                handleChange("createdBy", "");
-              }}
-              className="text-xs text-red-400 font-bold hover:text-red-600 ml-1"
-            >
-              Clear all
-            </button>
+              )}
+            </div>
           </div>
-        )}
 
-        {/* Final builder dropdown */}
-        <div>
-          <label className={LABEL}>Select Builder *</label>
-          <select
-            className={inp(errors.createdBy)}
-            value={payload.createdBy || ""}
-            onChange={(e) => handleChange("createdBy", e.target.value)}
-          >
-            <option value="">
-              {filteredBuilders.length === 0
-                ? "No builders found"
-                : "Select Builder"}
-            </option>
-            {filteredBuilders.map((builder) => (
-              <option key={builder._id} value={builder._id}>
-                {builder.name.charAt(0).toUpperCase() + builder.name.slice(1)} —{" "}
-                {builder.city}, {builder.state}
-              </option>
-            ))}
-          </select>
-          {errors.createdBy && <p className={ERR}>⚠ {errors.createdBy}</p>}
-          {filteredBuilders.length > 0 && (
-            <p className="text-xs text-gray-400 mt-1">
-              {filteredBuilders.length} builder(s) found
-            </p>
+          {/* Location filters */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div>
+              <label className={LABEL}>State</label>
+              <select
+                className={inp()}
+                value={filters.state}
+                onChange={(e) => {
+                  setFilters({
+                    state: e.target.value,
+                    city: "",
+                    pincode: "",
+                    locality: "",
+                  });
+                }}
+              >
+                <option value="">All States</option>
+                {uniqueStates.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className={LABEL}>City</label>
+              <select
+                className={inp()}
+                value={filters.city}
+                onChange={(e) => {
+                  setFilters((f) => ({
+                    ...f,
+                    city: e.target.value,
+                    pincode: "",
+                    locality: "",
+                  }));
+                }}
+              >
+                <option value="">All Cities</option>
+                {uniqueCities.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className={LABEL}>Pincode</label>
+              <select
+                className={inp()}
+                value={filters.pincode}
+                onChange={(e) => {
+                  setFilters((f) => ({
+                    ...f,
+                    pincode: e.target.value,
+                    locality: "",
+                  }));
+                }}
+              >
+                <option value="">All Pincodes</option>
+                {uniquePincodes.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className={LABEL}>Locality</label>
+              <select
+                className={inp()}
+                value={filters.locality}
+                onChange={(e) => {
+                  setFilters((f) => ({ ...f, locality: e.target.value }));
+                }}
+              >
+                <option value="">All Localities</option>
+                {uniqueLocalities.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Active filter chips + clear all */}
+          {(searchQuery ||
+            filters.state ||
+            filters.city ||
+            filters.pincode ||
+            filters.locality) && (
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {searchQuery && (
+                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                  "{searchQuery}"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                    }}
+                    className="ml-1 hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {filters.state && (
+                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                  {filters.state}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters({
+                        state: "",
+                        city: "",
+                        pincode: "",
+                        locality: "",
+                      });
+                    }}
+                    className="ml-1 hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {filters.city && (
+                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                  {filters.city}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((f) => ({
+                        ...f,
+                        city: "",
+                        pincode: "",
+                        locality: "",
+                      }));
+                    }}
+                    className="ml-1 hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {filters.pincode && (
+                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                  {filters.pincode}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((f) => ({ ...f, pincode: "", locality: "" }));
+                    }}
+                    className="ml-1 hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {filters.locality && (
+                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                  {filters.locality}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((f) => ({ ...f, locality: "" }));
+                    }}
+                    className="ml-1 hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters({
+                    state: "",
+                    city: "",
+                    pincode: "",
+                    locality: "",
+                  });
+                  setSearchQuery("");
+                }}
+                className="text-xs text-red-400 font-bold hover:text-red-600 ml-1"
+              >
+                Clear all
+              </button>
+            </div>
           )}
-        </div>
-      </SectionCard>
+
+          {/* Final builder dropdown */}
+          <div>
+            <label className={LABEL}>Select Builder *</label>
+            <select
+              className={inp(errors.createdBy)}
+              value={payload.createdBy || ""}
+              // onChange={(e) => {
+              //   console.log("SELECTED BUILDER =>", e.target.value);
+
+              //   handleChange("createdBy", e.target.value);
+              // }}
+
+              onChange={(e) => {
+                const value = e.target.value;
+
+                console.log("SELECTED BUILDER =>", value);
+
+                setSelectedBuilderId(value);
+
+                handleChange("createdBy", value);
+              }}
+            >
+              <option value="">
+                {filteredBuilders.length === 0
+                  ? "No builders found"
+                  : "Select Builder"}
+              </option>
+              {filteredBuilders.map((builder) => (
+                <option key={builder._id} value={builder._id}>
+                  {builder.name.charAt(0).toUpperCase() + builder.name.slice(1)}{" "}
+                  — {builder.city}, {builder.state}
+                </option>
+              ))}
+            </select>
+            {errors.createdBy && <p className={ERR}>⚠ {errors.createdBy}</p>}
+            {filteredBuilders.length > 0 && (
+              <p className="text-xs text-gray-400 mt-1">
+                {filteredBuilders.length} builder(s) found
+              </p>
+            )}
+          </div>
+        </SectionCard>
+      </div>
     </div>
   );
 });

@@ -19,7 +19,7 @@ import {
   Plus,
 } from "lucide-react";
 import { updateProjectRank } from "../../../../../features/property/propertyService";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 // ─────────────────────────────────────────────────────────────────────────────
 const STATUS_STYLES = {

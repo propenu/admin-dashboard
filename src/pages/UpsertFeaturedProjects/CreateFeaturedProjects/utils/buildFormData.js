@@ -2,46 +2,91 @@ import { getFileFromKey } from "./indexedDB";
 export async function buildFormData(payload) {
   const fd = new FormData();
 
+  /* ─────────────────────────────────────────────
+     1️⃣ Projec Summary
+  // ───────────────────────────────────────────── */
   const bhkPlanFiles = [];
-
-  const bhkSummary = await Promise.all(
-    (payload.bhkSummary || []).map(async (b) => ({
+  const projectSummary = await Promise.all(
+    (payload.projectSummary || []).map(async (b) => ({
       bhk: Number(b.bhk || 0),
-      bhkLabel: b.bhkLabel,
+
+      // ✅ LABEL
+      label: b.label || "",
+
       units: await Promise.all(
         (b.units || []).map(async (u) => {
           let file = null;
 
-          // ✅ Case 1: before refresh
+          // ✅ BEFORE REFRESH
           if (u.planFile?.file instanceof File) {
             file = u.planFile.file;
           }
 
-          // ✅ Case 2: after refresh (THIS IS YOUR FIX)
+          // ✅ AFTER REFRESH
           else if (u.planFile?.key) {
             file = await getFileFromKey(u.planFile.key, "other");
           }
 
+          // ✅ FILE EXISTS
           if (file) {
             const index = bhkPlanFiles.length;
+
+            // ✅ STORE FILE
             bhkPlanFiles.push(file);
 
             return {
+              // ✅ SQFT
               minSqft: Number(u.minSqft || 0),
+
+              maxSqft: Number(u.maxSqft || 0),
+
+              // ✅ PRICE
+              minPrice: Number(u.minPrice || 0),
+
               maxPrice: Number(u.maxPrice || 0),
+
+              // ✅ COUNT
               availableCount: Number(u.availableCount || 0),
 
-              // 🔥 IMPORTANT for backend
+              // ✅ AREA
+              area: {
+                value: Number(u.area?.value || 0),
+
+                unit: u.area?.unit || "sqft",
+
+                sqftValue: Number(u.area?.sqftValue || 0),
+              },
+
+              // ✅ BACKEND FILE INDEX
               planFileIndex: index,
+
+              // ✅ FILE NAME
               planFileName: file.name,
             };
           }
 
+          // ✅ WITHOUT FILE
           return {
             minSqft: Number(u.minSqft || 0),
+
+            maxSqft: Number(u.maxSqft || 0),
+
+            minPrice: Number(u.minPrice || 0),
+
             maxPrice: Number(u.maxPrice || 0),
+
             availableCount: Number(u.availableCount || 0),
-            planFileName: u.planFileName,
+
+            area: {
+              value: Number(u.area?.value || 0),
+
+              unit: u.area?.unit || "sqft",
+
+              sqftValue: Number(u.area?.sqftValue || 0),
+            },
+
+            // ✅ EXISTING IMAGE
+            planFileName: u.planFileName || "",
           };
         }),
       ),
@@ -51,7 +96,6 @@ export async function buildFormData(payload) {
   if (!payload.title?.trim() || !payload.address?.trim()) {
     throw new Error("Title and Address are required");
   }
-
   fd.append("title", payload.title);
   fd.append("address", payload.address);
 
@@ -79,6 +123,14 @@ export async function buildFormData(payload) {
     }
   });
 
+
+  
+  // ✅ rank
+  if (payload.rank !== undefined) {
+    fd.append("rank", Number(payload.rank));
+  }
+
+  console.log("payload =>",  payload.rank);
   // ✅ categoryType
   if (payload.categoryType !== undefined) {
     fd.append("categoryType", payload.categoryType);
@@ -124,7 +176,7 @@ export async function buildFormData(payload) {
     );
   }
 
-  fd.append("bhkSummary", JSON.stringify(bhkSummary));
+  fd.append("projectSummary", JSON.stringify(projectSummary));
   if (payload.amenities?.length)
     fd.append("amenities", JSON.stringify(payload.amenities));
   if (payload.specifications?.length)
@@ -155,22 +207,6 @@ export async function buildFormData(payload) {
     );
   }
 
-  // const appendFile = async (value, fieldName) => {
-  //   if (!value) return;
-
-  //   let file = null;
-
-  //   if (value.file instanceof File) {
-  //     file = value.file;
-  //   } else if (value.key) {
-  //     file = await getFileFromKey(value.key, "other");
-  //   }
-
-  //   if (file instanceof File) {
-  //     fd.append(fieldName, file);
-  //   }
-  // }; 
-
   const appendFile = async (value, fieldName) => {
     if (!value) {
       console.error("❌ No value for:", fieldName);
@@ -182,23 +218,23 @@ export async function buildFormData(payload) {
     // ✅ CASE 1: Direct File (YOUR CURRENT CASE)
     if (value instanceof File) {
       file = value;
-      console.log("✅ Direct File:", file.name);
+      
     }
 
     // ✅ CASE 2: Object with file
     else if (value.file instanceof File) {
       file = value.file;
-      console.log("✅ File from object:", file.name);
+      
     }
 
     // ✅ CASE 3: IndexedDB key
     else if (value.key) {
       file = await getFileFromKey(value.key, "other");
-      console.log("🔄 Loaded from DB:", file);
+      conso
     }
 
     if (file instanceof File) {
-      console.log("✅ Appending:", fieldName, file.name);
+      
       fd.append(fieldName, file);
     } else {
       console.error("❌ File NOT appended:", fieldName, value);
@@ -225,6 +261,6 @@ export async function buildFormData(payload) {
   if (payload.youtubeVideos?.length) {
     fd.append("youtubeVideos", JSON.stringify(payload.youtubeVideos));
   }
-  for (const pair of fd.entries()) console.log(pair[0], pair[1]);
+  for (const pair of fd.entries());
   return fd;
 }

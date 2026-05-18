@@ -1,6 +1,73 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/PropertyDetailsEditor.jsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+
+/* ─── PINCODE AUTOFILL ───── */
+
+async function geocodePincode(pincode, signal) {
+
+  const url =
+    `https://nominatim.openstreetmap.org/search` +
+    `?postalcode=${pincode}` +
+    `&country=India` +
+    `&format=json` +
+    `&addressdetails=1` +
+    `&limit=1`;
+
+  const res = await fetch(url, { signal });
+
+  if (!res.ok) {
+    throw new Error("Pincode fetch failed");
+  }
+
+  const data = await res.json();
+
+  if (!Array.isArray(data) || !data.length) {
+    return null;
+  }
+
+  const a = data[0].address || {};
+
+  return {
+
+    locality: (
+      a.suburb ||
+      a.neighbourhood ||
+      a.village ||
+      a.town ||
+      ""
+    )
+      .replace(/^Ward\s*\d+\s*/i, "")
+      .trim(),
+
+    city:
+      a.city ||
+      a.town ||
+      a.village ||
+      "",
+
+    state:
+      a.state || "",
+  };
+}
+
+const PROPERTY_TYPES = {
+  residential: [
+    { label: "Flat / Apartment", value: "apartment" },
+    { label: "Villa", value: "villa" },
+    { label: "Duplex", value: "duplex" },
+    { label: "Triplex", value: "triplex" },
+    { label: "Farmhouse", value: "farmhouse" },
+  ],
+
+  land: [
+    { label: "Plot", value: "plot" },
+    { label: "Residential Plot", value: "residential-plot" },
+    { label: "Industrial Plot", value: "industrial-plot" },
+    { label: "Agricultural Plot", value: "agricultural-plot" },
+    { label: "Commercial Plot", value: "commercial-plot" },
+  ],
+};
 
 export default function PropertyDetailsEditor({
   formData,
@@ -9,12 +76,14 @@ export default function PropertyDetailsEditor({
   saving,
   onSave,
 }) {
-  if (!formData) return null;
+
 
   const [local, setLocal] = useState({});
   const [newBank, setNewBank] = useState("");
   const [newVideo, setNewVideo] = useState({ title: "", url: "", order: "" });
   const [brochureFile, setBrochureFile] = useState(null);
+
+  const pincodeAbortRef = useRef(null);
 
   useEffect(() => {
     setLocal({
@@ -26,6 +95,14 @@ export default function PropertyDetailsEditor({
       possessionDate: formData.possessionDate ?? "",
       reraNumber: formData.reraNumber ?? "",
       redirectUrl: formData.redirectUrl ?? "",
+      propertyType: formData.propertyType ?? "",
+      categoryType: formData.categoryType ?? "",
+      title: formData.title ?? "",
+      address: formData.address ?? "",
+      pincode: formData.pincode ?? "",
+      state: formData.state ?? "",
+      city: formData.city ?? "",
+      locality: formData.locality ?? "",
       banksApproved: Array.isArray(formData.banksApproved)
         ? formData.banksApproved
         : [],
@@ -37,6 +114,18 @@ export default function PropertyDetailsEditor({
     });
   }, [formData]);
 
+  if (!formData) return null;
+
+  const isLand = formData?.categoryType === "land";
+
+  const propertyType = formData?.propertyType?.toLowerCase?.() || "";
+
+  const showTowerFields =
+    !isLand &&
+    ["villa", "duplex", "triplex", "farmhouse"].includes(propertyType);
+
+    const propertyOptions = PROPERTY_TYPES[local.categoryType] || [];
+
   function sync(patch) {
     const updated = { ...local, ...patch };
     setLocal(updated);
@@ -47,6 +136,45 @@ export default function PropertyDetailsEditor({
   function change(field, value) {
     sync({ [field]: value });
   }
+
+  /* ─── PINCODE AUTOFILL ───── */
+
+  useEffect(() => {
+    const pin = (local?.pincode || "").replace(/\D/g, "");
+
+    if (pin.length !== 6) {
+      return;
+    }
+
+    pincodeAbortRef.current?.abort();
+
+    const ctrl = new AbortController();
+
+    pincodeAbortRef.current = ctrl;
+
+    const timer = setTimeout(async () => {
+      try {
+        const geo = await geocodePincode(pin, ctrl.signal);
+
+        if (!geo) return;
+
+        sync({
+          state: geo.state,
+          city: geo.city,
+          locality: geo.locality,
+        });
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.error(err);
+        }
+      }
+    }, 500);
+
+    return () => {
+      ctrl.abort();
+      clearTimeout(timer);
+    };
+  }, [local?.pincode]);
 
   /* ── Banks ── */
   function addBank() {
@@ -115,10 +243,7 @@ export default function PropertyDetailsEditor({
         filename: file.name,
       },
     }));
-    // setLivePreviewData((prev) => ({
-    //   ...prev,
-    //   brochureUrl: URL.createObjectURL(file),
-    // }));
+    
     setLivePreviewData((prev) => ({
       ...prev,
       brochureUrl: URL.createObjectURL(file),
@@ -128,19 +253,15 @@ export default function PropertyDetailsEditor({
     }));
   }
 
-  // function handleSave() {
-  //   const payload = {
-  //     ...local,
-  //     ...(brochureFile ? { brochureFile } : {}),
-  //   };
-  //   onSave(payload);
-  // }
+  
 
   function handleSave() {
     const payload = {
       ...local,
       ...(formData.brochure && { brochure: formData.brochure }),
     };
+
+    delete payload.pincode;
 
     onSave(payload);
   }
@@ -172,10 +293,12 @@ export default function PropertyDetailsEditor({
           </div>
           <div>
             <h3 className="text-sm font-bold text-gray-800">
-              Property Details Editor
+              {isLand ? "Plot Details Editor" : "Property Details Editor"}
             </h3>
             <p className="text-[10px] text-gray-400">
-              Project stats, documents &amp; videos
+              {isLand
+                ? "Plot stats, approvals & documents"
+                : "Project stats, documents & videos"}
             </p>
           </div>
         </div>
@@ -183,29 +306,137 @@ export default function PropertyDetailsEditor({
 
       {/* ── Scrollable body ── */}
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6 min-h-0">
+        {/* ── Location Details ── */}
+
+        <div>
+          <SectionLabel icon="📍" label="Location Details" />
+
+          {/* <div className="grid grid-cols-2 gap-3 mb-2">
+            <FieldGroup label="Category Type">
+              <select
+                className={inputCls}
+                value={local.categoryType ?? ""}
+                onChange={(e) => {
+                  sync({
+                    categoryType: e.target.value,
+                    propertyType: "",
+                  });
+                }}
+              >
+                <option value="">Select Category</option>
+
+                <option value="residential">Residential</option>
+
+                <option value="land">Land</option>
+              </select>
+            </FieldGroup>
+            <FieldGroup label="Project Type">
+              <select
+                className={inputCls}
+                value={local.propertyType ?? ""}
+                onChange={(e) => change("propertyType", e.target.value)}
+                disabled={!local.categoryType}
+              >
+                <option value="">Select Project Type</option>
+
+                {propertyOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </FieldGroup>
+          </div> */}
+
+          <div className="grid grid-cols-2 gap-3">
+            <FieldGroup label="Project Name">
+              <input
+                className={`${inputCls} capitalize`}
+                value={local.title ?? ""}
+                onChange={(e) => change("title", e.target.value)}
+                placeholder="Project Name"
+              />
+            </FieldGroup>
+            <FieldGroup label="Address">
+              <input
+                className={`${inputCls} capitalize`}
+                value={local.address ?? ""}
+
+                onChange={(e) => change("address", e.target.value)}
+                placeholder="Address"
+              />
+            </FieldGroup>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <FieldGroup label="Pincode">
+              <input
+                className={inputCls}
+                value={local.pincode ?? ""}
+                onChange={(e) => change("pincode", e.target.value)}
+                placeholder="500084"
+              />
+            </FieldGroup>
+
+            <FieldGroup label="State" warning>
+              <input
+                className={inputCls}
+                value={local.state ?? ""}
+                onChange={(e) => change("state", e.target.value)}
+                placeholder="Telangana"
+              />
+            </FieldGroup>
+
+            <FieldGroup label="City" warning>
+              <input
+                className={inputCls}
+                value={local.city ?? ""}
+                onChange={(e) => change("city", e.target.value)}
+                placeholder="Hyderabad"
+              />
+            </FieldGroup>
+
+            <FieldGroup label="Locality" warning>
+              <input
+                className={inputCls}
+                value={local.locality ?? ""}
+                onChange={(e) => change("locality", e.target.value)}
+                placeholder="Kondapur"
+              />
+            </FieldGroup>
+          </div>
+        </div>
         {/* ── Project Stats ── */}
         <div>
-          <SectionLabel icon="📊" label="Project Stats" />
+          <SectionLabel
+            icon={isLand ? "🌍" : "📊"}
+            label={isLand ? "Plot Details" : "Project Stats"}
+          />
+
           <div className="grid grid-cols-2 gap-3 mt-3">
-            <FieldGroup label="Total Towers">
-              <input
-                type="number"
-                className={inputCls}
-                placeholder="e.g. 4"
-                value={local.totalTowers ?? ""}
-                onChange={(e) => change("totalTowers", e.target.value)}
-              />
-            </FieldGroup>
-            <FieldGroup label="Total Floors">
-              <input
-                type="number"
-                className={inputCls}
-                placeholder="e.g. 32"
-                value={local.totalFloors ?? ""}
-                onChange={(e) => change("totalFloors", e.target.value)}
-              />
-            </FieldGroup>
-            <FieldGroup label="Project Area">
+            {showTowerFields && (
+              <>
+                <FieldGroup label="Total Towers">
+                  <input
+                    type="number"
+                    className={inputCls}
+                    placeholder="e.g. 4"
+                    value={local.totalTowers ?? ""}
+                    onChange={(e) => change("totalTowers", e.target.value)}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Total Floors">
+                  <input
+                    type="number"
+                    className={inputCls}
+                    placeholder="e.g. 32"
+                    value={local.totalFloors ?? ""}
+                    onChange={(e) => change("totalFloors", e.target.value)}
+                  />
+                </FieldGroup>
+              </>
+            )}
+            <FieldGroup label={isLand ? "Layout Area" : "Project Area"}>
               <input
                 className={inputCls}
                 placeholder="e.g. 5 Acres"
@@ -213,7 +444,7 @@ export default function PropertyDetailsEditor({
                 onChange={(e) => change("projectArea", e.target.value)}
               />
             </FieldGroup>
-            <FieldGroup label="Total Units">
+            <FieldGroup label={isLand ? "Total Plots" : "Total Units"}>
               <input
                 type="number"
                 className={inputCls}
@@ -222,7 +453,7 @@ export default function PropertyDetailsEditor({
                 onChange={(e) => change("totalUnits", e.target.value)}
               />
             </FieldGroup>
-            <FieldGroup label="Available Units">
+            <FieldGroup label={isLand ? "Available Plots" : "Available Units"}>
               <input
                 type="number"
                 className={inputCls}
@@ -231,7 +462,9 @@ export default function PropertyDetailsEditor({
                 onChange={(e) => change("availableUnits", e.target.value)}
               />
             </FieldGroup>
-            <FieldGroup label="Possession Date">
+            <FieldGroup
+              label={isLand ? "Development Completion" : "Possession Date"}
+            >
               <input
                 className={inputCls}
                 placeholder="e.g. Dec 2026"
@@ -308,7 +541,9 @@ export default function PropertyDetailsEditor({
         <div>
           <SectionLabel icon="🔗" label="Documents &amp; Links" />
           <div className="mt-3 space-y-3">
-            <FieldGroup label="Project Website URL">
+            <FieldGroup
+              label={isLand ? "Layout Website URL" : "Project Website URL"}
+            >
               <input
                 className={inputCls}
                 placeholder="https://projectname.com"
@@ -318,7 +553,7 @@ export default function PropertyDetailsEditor({
             </FieldGroup>
 
             {/* Brochure upload */}
-            <FieldGroup label="Brochure (PDF / Image)">
+            <FieldGroup label={isLand ? "Layout Brochure" : "Project Brochure"}>
               <label className="block cursor-pointer">
                 <div
                   className={[
@@ -344,7 +579,6 @@ export default function PropertyDetailsEditor({
                         />
                       </svg>
                       <span className="text-[11px] font-bold text-[#27AE60]">
-                        {/* {brochureFile ? brochureFile.name : "Brochure uploaded"} */}
                         {brochureFile
                           ? brochureFile.name
                           : formData?.brochure?.filename || "Brochure uploaded"}
@@ -369,7 +603,7 @@ export default function PropertyDetailsEditor({
                         />
                       </svg>
                       <span className="text-[11px] font-semibold text-gray-400">
-                        Upload Brochure
+                        {isLand ? "Upload Layout Brochure" : "Upload Brochure"}
                       </span>
                       <span className="text-[9px] text-gray-300">
                         PDF, PNG, JPG
@@ -387,146 +621,6 @@ export default function PropertyDetailsEditor({
             </FieldGroup>
           </div>
         </div>
-
-        {/* ── YouTube Videos ── */}
-        {/* <div>
-          <SectionLabel icon="🎥" label="YouTube Videos" />
-          <div className="mt-3 space-y-3">
-            {local.youtubeVideos?.length > 0 && (
-              <div className="space-y-2">
-                {local.youtubeVideos.map((v, i) => {
-                  const vid = getYoutubeId(v.url);
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50/50"
-                    >
-                      
-                      <div className="w-14 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 relative">
-                        {vid ? (
-                          <img
-                            src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`}
-                            alt={v.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-red-50 flex items-center justify-center">
-                            <svg
-                              className="w-4 h-4 text-red-300"
-                              fill="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-gray-800 truncate">
-                          {v.title || "Untitled"}
-                        </p>
-                        <p className="text-[10px] text-gray-400 truncate">
-                          {v.url}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeVideo(i)}
-                        className="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition"
-                      >
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2.5"
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            
-            <div className="border border-gray-100 rounded-xl overflow-hidden">
-              <div className="px-4 py-2.5 bg-white border-b border-gray-100">
-                <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                  Add Video
-                </h4>
-              </div>
-              <div className="p-3.5 space-y-2.5 bg-gray-50/40">
-                <input
-                  className={inputCls}
-                  placeholder="Video Title (optional)"
-                  value={newVideo.title}
-                  onChange={(e) =>
-                    setNewVideo({ ...newVideo, title: e.target.value })
-                  }
-                />
-                <input
-                  className={`${inputCls} font-mono`}
-                  placeholder="YouTube URL *"
-                  value={newVideo.url}
-                  onChange={(e) =>
-                    setNewVideo({ ...newVideo, url: e.target.value })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") addVideo();
-                  }}
-                />
-                {newVideo.url && (
-                  <p
-                    className={`text-[10px] font-semibold flex items-center gap-1 ${isValidYoutube ? "text-green-500" : "text-red-400"}`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full inline-block ${isValidYoutube ? "bg-green-500" : "bg-red-400"}`}
-                    />
-                    {isValidYoutube
-                      ? "Valid YouTube URL"
-                      : "Invalid YouTube URL"}
-                  </p>
-                )}
-                <input
-                  type="number"
-                  className={inputCls}
-                  placeholder="Display order (e.g. 1)"
-                  value={newVideo.order}
-                  onChange={(e) =>
-                    setNewVideo({ ...newVideo, order: e.target.value })
-                  }
-                />
-                <button
-                  type="button"
-                  onClick={addVideo}
-                  disabled={!isValidYoutube}
-                  className="w-full py-2.5 border-2 border-dashed border-red-200 text-red-500 rounded-xl text-xs font-bold hover:border-red-400 hover:bg-red-50/50 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2.5"
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                  Add Video
-                </button>
-              </div>
-            </div>
-          </div>
-        </div> */}
       </div>
 
       {/* ── Save footer ── */}
@@ -574,7 +668,7 @@ export default function PropertyDetailsEditor({
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              Save Property Details
+              {isLand ? "Save Plot Details" : "Save Property Details"}
             </>
           )}
         </button>
@@ -583,20 +677,100 @@ export default function PropertyDetailsEditor({
   );
 }
 
+function WarningTooltip() {
+  const [open, setOpen] = React.useState(false);
+
+  useEffect(() => {
+    function handleClickOutside() {
+      setOpen(false);
+    }
+
+    if (open) {
+      document.addEventListener("click", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative flex-shrink-0">
+      {/* Warning Icon */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((prev) => !prev);
+        }}
+        className="
+          w-3 h-3
+          rounded-full
+
+          bg-amber-100
+          text-amber-600
+
+          text-[8px]
+          font-bold
+
+          flex items-center justify-center
+
+          cursor-pointer
+
+          hover:bg-amber-200
+          transition
+        "
+      >
+        !
+      </button>
+
+      {/* Tooltip */}
+      {open && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="
+            absolute top-4 left-8
+            -translate-x-1/2
+
+            w-32
+
+            px-2 py-1
+
+            rounded-md
+
+            bg-gray-900
+            text-white
+
+            text-[7px]
+            leading-3
+
+            shadow-lg
+            z-50
+          "
+        >
+          ⚠ Use correct spelling.
+          <br />
+          Use pincode autofill.
+        </div>
+      )}
+    </div>
+  );
+}
 /* ── Helpers ── */
 const inputCls =
   "w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30 focus:border-[#27AE60] transition bg-gray-50/50";
 
-function FieldGroup({ label, hint, children }) {
+function FieldGroup({ label, hint, children, warning }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-center gap-1">
         <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
           {label}
         </label>
-        {hint && (
-          <span className="text-[10px] text-[#27AE60] font-medium">{hint}</span>
-        )}
+
+        {warning && <WarningTooltip />}
+
+        
       </div>
       {children}
     </div>
@@ -610,6 +784,7 @@ function SectionLabel({ icon, label }) {
       <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
         {label}
       </span>
+      
       <div className="flex-1 h-px bg-gray-100" />
     </div>
   );

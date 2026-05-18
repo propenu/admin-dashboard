@@ -1046,13 +1046,13 @@ const RevenueByPlanPage = () => {
               accent="#3b82f6"
               icon={null}
             />
-            <SummaryCard
+            {/* <SummaryCard
               label="Avg Rev / Plan"
               value={`₹${avgRevPerPlan.toLocaleString()}`}
               sub="mean per plan"
               accent="#f59e0b"
               icon={null}
-            />
+            /> */}
             {topPlan && (
               <SummaryCard
                 label="Top Plan"

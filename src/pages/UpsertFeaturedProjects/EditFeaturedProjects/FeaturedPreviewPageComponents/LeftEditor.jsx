@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 
 export default function LeftEditor({ formData, setFormData, setLivePreviewData, onSave, saving }) {
-  if (!formData) return null;
+   
 
   const [local, setLocal] = useState({});
 
@@ -11,6 +11,8 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
   useEffect(() => {
     setLocal(formData || {});
   }, [formData]);
+  
+  if (!formData) return null;
 
   function changeLocal(name, value) {
     const updated = { ...local, [name]: value };

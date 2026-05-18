@@ -4,6 +4,38 @@ import { SERVICES } from "../../config/services";
 import { ENV } from "../../config/env";
 import axios from "axios";
 
+///////////////////////////////////////////////////////////////////////////////
+///      User Services                   
+///////////////////////////////////////////////////////////////////////////////
+export const requestOtp = async (email) => {
+  try {
+    const res = await apiClient.post(
+      `${SERVICES.USER}/auth/request-otp`,
+      { email },
+    );
+    return res.data;
+  } catch (err) {
+    throw err.response?.data || { message: "OTP sending failed" };
+  } 
+}
+
+export const verifyOtpService = async ({otp, email}) => {
+  try {
+    const res = await apiClient.post(
+      `${SERVICES.USER}/auth/verify-otp`,
+      { otp, email },
+    );
+    return res.data;
+  } catch (err) {
+    throw err.response?.data || { message: "Invalid OTP" };
+  } 
+}
+
+
+/////////////////////////////////////////////////////////////////////
+// Super admin create role user For dash board 
+/////////////////////////////////////////////////////////////////////
+
 export const createRequestOtp = async (email) => {
   try {
     const res = await apiClient.post(

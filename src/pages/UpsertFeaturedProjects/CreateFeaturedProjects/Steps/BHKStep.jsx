@@ -1,4 +1,5 @@
-// src/pages/post-property/featured-create/steps/BHKStep.jsx
+
+
 import { useRef, useImperativeHandle, forwardRef, useState } from "react";
 import { Plus, Trash2, Upload, LayoutGrid } from "lucide-react";
 import imageCompression from "browser-image-compression";
@@ -10,7 +11,6 @@ const compressImage = async (file) => {
     maxWidthOrHeight: 1920,
     useWebWorker: true,
   };
-
   try {
     return await imageCompression(file, options);
   } catch (error) {
@@ -28,64 +28,162 @@ const fileToBase64 = (file) => {
   });
 };
 
-const inp = (err) => `w-full px-3 py-2.5 bg-white border-2 rounded-xl text-gray-900 text-sm font-semibold
+const inp = (err) =>
+  `w-full px-3 py-2.5 bg-white border-2 rounded-xl text-gray-900 text-sm font-semibold
   outline-none placeholder:text-gray-400 transition-all duration-200
   ${err ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10"}`;
 
-const LABEL = "block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5";
+const LABEL =
+  "block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5";
+
+const AREA_UNITS = [
+  "sqft",
+  "sqm",
+  "sqyd",
+  "acre",
+  "hectare",
+  "gunta",
+  "cent",
+  "bigha",
+  "ankanam",
+  "marla",
+  "kanal",
+];
+
+const convertToSqft = (value, unit) => {
+  const conversions = {
+    sqft: 1,
+    sqm: 10.7639,
+    sqyd: 9,
+    acre: 43560,
+    hectare: 107639,
+    gunta: 1089,
+    cent: 435.6,
+    bigha: 27225,
+    ankanam: 72,
+    marla: 272.25,
+    kanal: 5445,
+  };
+  return Number(value || 0) * (conversions[unit] || 1);
+};
+
+const formatIndianPrice = (value) => {
+  if (!value) return "";
+  return Number(value.toString().replace(/,/g, "")).toLocaleString("en-IN");
+};
+
+const parsePrice = (value) => value.replace(/,/g, "");
+
+const LAND_FACING_OPTIONS = [
+  "East Facing",
+  "West Facing",
+  "North Facing",
+  "South Facing",
+  "North East Facing",
+  "North West Facing",
+  "South East Facing",
+  "South West Facing",
+];
+
+const RESIDENTIAL_OPTIONS = [
+  "1 BHK",
+  "2 BHK",
+  "3 BHK",
+  "4 BHK",
+  "5 BHK",
+  "6 BHK",
+  // "Villa",
+  // "Duplex",
+  // "Triplex",
+  // "Farmhouse",
+];
 
 const BHKStep = forwardRef(({ payload, update }, ref) => {
-  const bhkSummary = payload.bhkSummary || [];
-  const sqftRange  = payload.sqftRange  || { min: "", max: "" };
+  const projectSummary = payload.projectSummary || [];
   const [errors, setErrors] = useState({});
-  const bhkSummaryRef = useRef(null);
-  const sqftRangeRef  = useRef(null);
+  const projectSummaryRef = useRef(null);
+  const sqftRangeRef = useRef(null);
 
-  // useImperativeHandle(ref, () => ({
-  //   validate() {
-  //     const e = {};
-  //     if (!bhkSummary.length) e.bhkSummary = "At least one BHK is required";
-  //     bhkSummary.forEach((b, bi) => {
-  //       if (!b.units?.length) e[`bhk-${bi}`] = "At least one unit is required";
-  //       b.units?.forEach((u, ui) => {
-  //         if (!u.minSqft)       e[`bhk-${bi}-unit-${ui}-minSqft`]  = "Required";
-  //         if (!u.maxPrice)      e[`bhk-${bi}-unit-${ui}-maxPrice`]  = "Required";
-  //         if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`]   = "Required";
-  //       });
-  //     });
-  //     if (!sqftRange.min || !sqftRange.max) e.sqftRange = "Overall sqft range required";
-  //     setErrors(e);
-  //     if (Object.keys(e).length) {
-  //       (e.bhkSummary ? bhkSummaryRef : sqftRangeRef).current?.scrollIntoView({ behavior:"smooth" });
-  //       return false;
-  //     }
-  //     return true;
-  //   },
-  // }));
+
+
  
+
+  
+
+  const clearError = (key) => {
+    setErrors((prev) => {
+      const n = { ...prev };
+      delete n[key];
+      return n;
+    });
+  };
+
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
 
-      if (!bhkSummary.length) e.bhkSummary = "At least one BHK is required";
+      if (!projectSummary.length)
+        e.projectSummary =
+          payload.categoryType === "land"
+            ? "At least one facing is required"
+            : "At least one BHK is required";
 
-      bhkSummary.forEach((b, bi) => {
+      projectSummary.forEach((b, bi) => {
+
+        const label = (b.label || "").trim();
+
+        if (payload.categoryType === "land") {
+          if (
+            !LAND_FACING_OPTIONS.some(
+              (item) => item.toLowerCase() === label.toLowerCase(),
+            )
+          ) {
+            e[`label-${bi}`] = "Only valid facing directions allowed";
+          }
+        }
+
+        if (payload.categoryType === "residential") {
+          if (
+            !RESIDENTIAL_OPTIONS.some(
+              (item) => item.toLowerCase() === label.toLowerCase(),
+            )
+          ) {
+            e[`label-${bi}`] = "Only valid BHK types allowed";
+          }
+        }
+        
         if (!b.units?.length) e[`bhk-${bi}`] = "At least one unit is required";
 
         b.units?.forEach((u, ui) => {
-          if (!u.minSqft) e[`bhk-${bi}-unit-${ui}-minSqft`] = "Required";
-          if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
-          if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";
+          if (payload.categoryType === "residential") {
+            if (!u.minSqft) e[`bhk-${bi}-unit-${ui}-minSqft`] = "Required";
+            if (!u.maxSqft) e[`bhk-${bi}-unit-${ui}-maxSqft`] = "Required";
+            if (!u.minPrice) e[`bhk-${bi}-unit-${ui}-minPrice`] = "Required";
+            if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
+            if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";if (!u.planFileName)
+              e[`bhk-${bi}-unit-${ui}-plan`] = "Floor plan required";
+          } else if (payload.categoryType === "land") {
+            if (!String(u.area?.value || "").trim())
+              e[`bhk-${bi}-unit-${ui}-area`] = "Plot area required";
+            if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
+            if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
+            if (!u.minPrice) e[`bhk-${bi}-unit-${ui}-minPrice`] = "Required";
+            if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";
+            if (!u.planFileName)
+              e[`bhk-${bi}-unit-${ui}-plan`] = "Floor plan required";
+          }
         });
       });
 
-      if (!sqftRange.min || !sqftRange.max)
-        e.sqftRange = "Overall sqft range required";
+      
 
       setErrors(e);
 
       if (Object.keys(e).length) {
-        (e.bhkSummary ? bhkSummaryRef : sqftRangeRef).current?.scrollIntoView({
+        (e.projectSummary
+          ? projectSummaryRef
+          : sqftRangeRef
+        ).current?.scrollIntoView({
           behavior: "smooth",
         });
         return false;
@@ -94,84 +192,224 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
       return true;
     },
 
-    // ✅ ADD THIS (IMPORTANT)
     isValid() {
-      if (!bhkSummary.length) return false;
+      if (!projectSummary.length) return false;
 
-      for (let b of bhkSummary) {
+      for (let b of projectSummary) {
         if (!b.units?.length) return false;
 
         for (let u of b.units) {
-          if (!u.minSqft || !u.maxPrice || !u.availableCount) {
-            return false;
+          if (payload.categoryType === "residential") {
+            if (!u.minSqft || !u.maxSqft || !u.minPrice || !u.maxPrice || !u.availableCount || !u.planFileName) return false;
+          } else if (payload.categoryType === "land") {
+            if (
+              !String(u.area?.value || "").trim() ||
+              !u.maxPrice ||
+              !u.minPrice ||
+              !u.availableCount || !u.planFileName
+            )
+              return false;
           }
         }
       }
-
-      if (!sqftRange.min || !sqftRange.max) return false;
 
       return true;
     },
   }));
 
+  const addProjectSummary = () =>
+    update({
+      projectSummary: [
+        ...projectSummary,
+        {
+          bhk: payload.categoryType === "land" ? 0 : projectSummary.length + 1,
+          label:
+            payload.categoryType === "land"
+              ? "East Facing"
+              : `${projectSummary.length + 1} BHK`,
+          units: [
+            {
+              minSqft: "",
+              maxSqft: "",
+              availableCount: "",
+              minPrice: "",
+              maxPrice: "",
+              area: { value: "", unit: "sqft", sqftValue: "" },
+            },
+          ],
+        },
+      ],
+    });
 
-  const addBhk = () => update({
-    bhkSummary: [...bhkSummary, {
-      bhk: bhkSummary.length + 1,
-      bhkLabel: `${bhkSummary.length + 1} BHK`,
-      units: [{ minSqft:"", maxPrice:"", availableCount:"" }],
-    }],
-  });
+  const updProject = (i, patch) => {
+    const n = [...projectSummary];
+    n[i] = { ...n[i], ...patch };
+    update({ projectSummary: n });
+  };
 
-  const updBhk  = (i, patch) => { const n=[...bhkSummary]; n[i]={...n[i],...patch}; update({bhkSummary:n}); };
-  const remBhk  = (i) => { const n=[...bhkSummary]; n.splice(i,1); update({bhkSummary:n}); };
-  const addUnit = (i) => { const n=[...bhkSummary]; n[i].units.push({minSqft:"",maxPrice:"",availableCount:""}); update({bhkSummary:n}); };
-  const updUnit = (bi,ui,patch) => { const n=[...bhkSummary]; n[bi].units[ui]={...n[bi].units[ui],...patch}; update({bhkSummary:n}); };
-  const remUnit = (bi,ui) => { const n=[...bhkSummary]; n[bi].units.splice(ui,1); update({bhkSummary:n}); };
+  const remProject = (i) => {
+    const n = [...projectSummary];
+    n.splice(i, 1);
+    update({ projectSummary: n });
+  };
+
+  const addUnit = (i) => {
+    const n = [...projectSummary];
+    n[i].units.push({
+      minSqft: "",
+      maxSqft: "",
+      availableCount: "",
+      minPrice: "",
+      maxPrice: "",
+      area: { value: "", unit: "sqft", sqftValue: "" },
+    });
+    update({ projectSummary: n });
+  };
+
+  const updUnit = (bi, ui, patch) => {
+    const n = [...projectSummary];
+    const old = n[bi].units[ui];
+    const updated = { ...old, ...patch };
+
+    if (patch.area) {
+      updated.area = { ...old.area, ...patch.area };
+      updated.area.sqftValue = convertToSqft(
+        updated.area.value,
+        updated.area.unit,
+      );
+    }
+
+    n[bi].units[ui] = updated;
+    update({ projectSummary: n });
+  };
+
+  const remUnit = (bi, ui) => {
+    const n = [...projectSummary];
+    n[bi].units.splice(ui, 1);
+    update({ projectSummary: n });
+  };
+
+  const isLand = payload.categoryType === "land";
+  const isResidential = payload.categoryType === "residential";
+
+  const propertyType = payload.propertyType?.trim().toLowerCase();
+
+  const dynamicConfig = {
+    land: {
+      summaryTitle: "Plot Facing Summary",
+      addButtonText: "Add Facing",
+      emptyText: "No facing types added",
+      placeholderText: "e.g. East Facing",
+      unitLabel: "Facing",
+      planLabel: "Layout Plan Image",
+      uploadText: "Upload Layout Plan",
+    },
+
+    villa: {
+      summaryTitle: "Villa Configuration",
+      addButtonText: "Add Villa Type",
+      emptyText: "No villa types added",
+      placeholderText: "e.g. 4BHK Villa",
+      unitLabel: "Villa",
+      planLabel: "Villa Floor Plan",
+      uploadText: "Upload Villa Plan",
+    },
+
+    duplex: {
+      summaryTitle: "Duplex Configuration",
+      addButtonText: "Add Duplex",
+      emptyText: "No duplex types added",
+      placeholderText: "e.g. 3BHK Duplex",
+      unitLabel: "Duplex",
+      planLabel: "Duplex Floor Plan",
+      uploadText: "Upload Duplex Plan",
+    },
+
+    farmhouse: {
+      summaryTitle: "Farmhouse Configuration",
+      addButtonText: "Add Farmhouse",
+      emptyText: "No farmhouse types added",
+      placeholderText: "e.g. Luxury Farmhouse",
+      unitLabel: "Farmhouse",
+      planLabel: "Farmhouse Plan",
+      uploadText: "Upload Farmhouse Plan",
+    },
+
+    default: {
+      summaryTitle: "BHK Summary",
+      addButtonText: "Add BHK",
+      emptyText: "No BHK types added",
+      placeholderText: "e.g. 2 BHK",
+      unitLabel: "Unit",
+      planLabel: "Floor Plan Image",
+      uploadText: "Upload Floor Plan",
+    },
+  };
+
+  const uiText =
+    dynamicConfig[propertyType] ||
+    (isLand ? dynamicConfig.land : dynamicConfig.default);
+
+  const {
+    summaryTitle,
+    addButtonText,
+    emptyText,
+    placeholderText,
+    unitLabel,
+    planLabel,
+    uploadText,
+  } = uiText;
+
+  // const summaryTitle = isLand ? "Facing Summary" : "BHK Summary";
+  // const addButtonText = isLand ? "Add Facing" : "Add BHK";
+  // const emptyText = isLand ? "No facing types added" : "No BHK types added";
+  // const placeholderText = isLand ? "e.g. East Facing" : "e.g. 2 BHK";
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div ref={bhkSummaryRef} className="flex items-center justify-between">
+      <div
+        ref={projectSummaryRef}
+        className="flex items-center justify-between"
+      >
         <div>
           <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
             Configuration
           </p>
-          <h3 className="text-lg font-black text-gray-900">BHK Summary</h3>
+          <h3 className="text-lg font-black text-gray-900">{summaryTitle}</h3>
         </div>
         <button
-          onClick={addBhk}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-black
-            hover:opacity-90 transition-all shadow-md"
+          onClick={addProjectSummary}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-black hover:opacity-90 transition-all shadow-md"
           style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
         >
-          <Plus size={15} strokeWidth={3} /> Add BHK
+          <Plus size={15} strokeWidth={3} /> {addButtonText}
         </button>
       </div>
 
-      {errors.bhkSummary && (
+      {errors.projectSummary && (
         <div className="px-4 py-3 bg-red-50 border-2 border-red-200 rounded-xl text-red-600 text-sm font-semibold">
-          ⚠ {errors.bhkSummary}
+          ⚠ {errors.projectSummary}
         </div>
       )}
 
       {/* Empty state */}
-      {bhkSummary.length === 0 && (
+      {projectSummary.length === 0 && (
         <div className="flex flex-col items-center py-16 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
           <LayoutGrid size={40} className="mb-3 opacity-40" />
-          <p className="font-bold text-sm">No BHK types added</p>
-          <p className="text-xs mt-1">Click "Add BHK" to get started</p>
+          <p className="font-bold text-sm">{emptyText}</p>
+          <p className="text-xs mt-1">Click "{addButtonText}" to get started</p>
         </div>
       )}
 
-      {/* BHK Cards */}
-      {bhkSummary.map((b, bi) => (
+      {/* Cards */}
+      {projectSummary.map((b, bi) => (
         <div
           key={bi}
           className="border-2 border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm"
         >
-          {/* BHK header */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50">
+          {/* Card Header */}
+          {/* <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50">
             <div
               className="w-8 h-8 rounded-lg text-white font-black text-xs flex items-center justify-center"
               style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
@@ -179,18 +417,128 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
               {bi + 1}
             </div>
             <input
-              className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900
-              outline-none focus:border-[#27AE60] bg-white"
-              value={b.bhkLabel}
-              onChange={(e) => updBhk(bi, { bhkLabel: e.target.value })}
-              placeholder="e.g. 2 BHK"
+              className={`
+                        flex-1 px-3 py-2 border-2 rounded-xl
+                        text-sm font-bold text-gray-900
+                        outline-none bg-white
+
+                        ${
+                          errors[`label-${bi}`]
+                            ? "border-red-400"
+                            : "border-gray-200 focus:border-[#27AE60]"
+                        }
+                      `}
+              value={b.label}
+              onChange={(e) => updProject(bi, { label: e.target.value })}
+              placeholder={placeholderText}
             />
+            {errors[`label-${bi}`] && (
+              <p className="text-xs text-red-500 font-semibold mt-1">
+                ⚠ {errors[`label-${bi}`]}
+              </p>
+            )}
             <button
-              onClick={() => remBhk(bi)}
+              onClick={() => remProject(bi)}
               className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all border-2 border-red-100"
             >
               <Trash2 size={15} />
             </button>
+          </div> */}
+          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50">
+            {/* Top Row */}
+            <div className="flex items-center gap-3">
+              <div
+                className="w-8 h-8 rounded-lg text-white font-black text-xs flex items-center justify-center"
+                style={{
+                  background: "linear-gradient(135deg,#27AE60,#1e8449)",
+                }}
+              >
+                {bi + 1}
+              </div>
+
+              {/* <input
+                className={`
+                          flex-1 px-3 py-2 border-2 rounded-xl
+                          text-sm font-bold text-gray-900
+                          outline-none bg-white
+
+                          ${
+                            errors[`label-${bi}`]
+                              ? "border-red-400"
+                              : "border-gray-200 focus:border-[#27AE60]"
+                          }
+                        `}
+                value={b.label}
+                onChange={(e) => {
+                  updProject(bi, {
+                    label: e.target.value,
+                  });
+
+                  clearError(`label-${bi}`);
+                }}
+                placeholder={placeholderText}
+              /> */}
+              {isLand ? (
+                <select
+                  className={inp(errors[`label-${bi}`])}
+                  value={b.label}
+                  onChange={(e) => {
+                    updProject(bi, {
+                      label: e.target.value,
+                    });
+
+                    clearError(`label-${bi}`);
+                  }}
+                >
+                  <option value="">Select Facing</option>
+
+                  {LAND_FACING_OPTIONS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <select
+                  className={inp(errors[`label-${bi}`])}
+                  value={b.label}
+                  onChange={(e) => {
+                    updProject(bi, {
+                      label: e.target.value,
+                    });
+
+                    clearError(`label-${bi}`);
+                  }}
+                >
+                  <option value="">Select Configuration</option>
+
+                  {RESIDENTIAL_OPTIONS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <button
+                onClick={() => remProject(bi)}
+                className="
+                  p-2 text-red-500
+                  hover:bg-red-50
+                  rounded-xl transition-all
+                  border-2 border-red-100
+                "
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+
+            {/* Error */}
+            {errors[`label-${bi}`] && (
+              <p className="text-xs text-red-500 font-semibold mt-2 ml-11">
+                ⚠ {errors[`label-${bi}`]}
+              </p>
+            )}
           </div>
 
           <div className="p-5 space-y-4">
@@ -201,7 +549,8 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#27AE60]">
-                    Unit {ui + 1}
+                    {/* Unit {ui + 1} */}
+                    {unitLabel} {ui + 1}
                   </span>
                   {b.units.length > 1 && (
                     <button
@@ -212,101 +561,222 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+
+                <div
+                  className={`grid grid-cols-1 gap-3 ${isLand ? "md:grid-cols-3" : "md:grid-cols-4"}`}
+                >
+                  {/* RESIDENTIAL ONLY: Min Sqft + Max Sqft */}
+                  {isResidential && (
+                    <>
+                      <div>
+                        <label className={LABEL}>Min Sqft *</label>
+                        <input
+                          type="number"
+                          className={inp(
+                            errors[`bhk-${bi}-unit-${ui}-minSqft`],
+                          )}
+                          placeholder="1200"
+                          value={u.minSqft || ""}
+                          onChange={(e) => {
+                            updUnit(bi, ui, { minSqft: e.target.value });
+                            clearError(`bhk-${bi}-unit-${ui}-minSqft`);
+                          }}
+                        />
+                        {errors[`bhk-${bi}-unit-${ui}-minSqft`] && (
+                          <p className="text-xs text-red-500 font-semibold">
+                            ⚠ {errors[`bhk-${bi}-unit-${ui}-minSqft`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className={LABEL}>Max Sqft</label>
+                        <input
+                          type="number"
+                          className={inp(
+                            errors[`bhk-${bi}-unit-${ui}-maxSqft`],
+                          )}
+                          placeholder="1800"
+                          value={u.maxSqft || ""}
+                          onChange={(e) =>
+                            updUnit(bi, ui, { maxSqft: e.target.value })
+                          }
+                        />
+                        {errors[`bhk-${bi}-unit-${ui}-maxSqft`] && (
+                          <p className="text-xs text-red-500 font-semibold">
+                            ⚠ {errors[`bhk-${bi}-unit-${ui}-maxSqft`]}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* MIN PRICE */}
                   <div>
-                    <label className={LABEL}>Min Sqft *</label>
+                    <label className={LABEL}>Min Price</label>
                     <input
-                      type="number"
-                      className={inp(errors[`bhk-${bi}-unit-${ui}-minSqft`])}
-                      placeholder="1200"
-                      value={u.minSqft}
-                      onChange={(e) =>
-                        updUnit(bi, ui, { minSqft: e.target.value })
-                      }
+                      type="text"
+                      className={inp()}
+                      placeholder="5000000"
+                      value={formatIndianPrice(u.minPrice)}
+                      onChange={(e) => {
+                        updUnit(bi, ui, {
+                          minPrice: parsePrice(e.target.value),
+                        });
+                        clearError(`bhk-${bi}-unit-${ui}-minPrice`);
+                      }}
                     />
-                    {errors[`bhk-${bi}-unit-${ui}-minSqft`] && (
-                      <p className="text-xs text-red-500 mt-1 font-semibold">
-                        ⚠ Required
+                    {errors[`bhk-${bi}-unit-${ui}-minPrice`] && (
+                      <p className="text-xs text-red-500 font-semibold">
+                        ⚠ {errors[`bhk-${bi}-unit-${ui}-minPrice`]}
                       </p>
                     )}
                   </div>
+
+                  {/* MAX PRICE */}
                   <div>
                     <label className={LABEL}>Max Price *</label>
                     <input
-                      type="number"
+                      type="text"
                       className={inp(errors[`bhk-${bi}-unit-${ui}-maxPrice`])}
-                      placeholder="5000000"
-                      value={u.maxPrice}
-                      onChange={(e) =>
-                        updUnit(bi, ui, { maxPrice: e.target.value })
-                      }
+                      placeholder="7000000"
+                      value={formatIndianPrice(u.maxPrice)}
+                      onChange={(e) => {
+                        updUnit(bi, ui, {
+                          maxPrice: parsePrice(e.target.value),
+                        });
+                        clearError(`bhk-${bi}-unit-${ui}-maxPrice`);
+                      }}
                     />
                     {errors[`bhk-${bi}-unit-${ui}-maxPrice`] && (
-                      <p className="text-xs text-red-500 mt-1 font-semibold">
-                        ⚠ Required
+                      <p className="text-xs text-red-500 font-semibold">
+                        ⚠ {errors[`bhk-${bi}-unit-${ui}-maxPrice`]}
                       </p>
                     )}
                   </div>
+
+                  {/* LAND ONLY: Plot Area + Converted Sqft */}
+                  {isLand && (
+                    <>
+                      <div className="md:col-span-1">
+                        <label className={LABEL}>Plot Area *</label>
+                        <div
+                          className={`flex items-center border-2 rounded-xl overflow-hidden bg-white
+                            ${
+                              errors[`bhk-${bi}-unit-${ui}-area`]
+                                ? "border-red-400"
+                                : "border-gray-200 focus-within:border-[#27AE60] focus-within:ring-4 focus-within:ring-[#27AE60]/10"
+                            }`}
+                        >
+                          <input
+                            type="number"
+                            className="flex-1 px-3 py-2.5 text-sm font-semibold outline-none bg-transparent"
+                            placeholder="2"
+                            value={u.area?.value || ""}
+                            onChange={(e) => {
+                              updUnit(bi, ui, {
+                                area: { ...u.area, value: e.target.value },
+                              });
+                              clearError(`bhk-${bi}-unit-${ui}-area`);
+                            }}
+                          />
+                          <div className="w-px self-stretch bg-gray-200" />
+                          <select
+                            className="w-32 px-3 py-2.5 text-sm font-semibold outline-none bg-transparent"
+                            value={u.area?.unit || "sqft"}
+                            onChange={(e) =>
+                              updUnit(bi, ui, {
+                                area: { ...u.area, unit: e.target.value },
+                              })
+                            }
+                          >
+                            {AREA_UNITS.map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {errors[`bhk-${bi}-unit-${ui}-area`] && (
+                          <p className="text-xs text-red-500 font-semibold">
+                            ⚠ {errors[`bhk-${bi}-unit-${ui}-area`]}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className={LABEL}>Converted Sqft</label>
+                        <input
+                          type="number"
+                          disabled
+                          className={inp()}
+                          value={u.area?.sqftValue || ""}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* COUNT */}
                   <div>
                     <label className={LABEL}>Count *</label>
                     <input
                       type="number"
                       className={inp(errors[`bhk-${bi}-unit-${ui}-count`])}
                       placeholder="24"
-                      value={u.availableCount}
-                      onChange={(e) =>
-                        updUnit(bi, ui, { availableCount: e.target.value })
-                      }
+                      value={u.availableCount || ""}
+                      onChange={(e) => {
+                        updUnit(bi, ui, { availableCount: e.target.value });
+                        clearError(`bhk-${bi}-unit-${ui}-count`);
+                      }}
                     />
                     {errors[`bhk-${bi}-unit-${ui}-count`] && (
-                      <p className="text-xs text-red-500 mt-1 font-semibold">
-                        ⚠ Required
+                      <p className="text-xs text-red-500 font-semibold">
+                        ⚠ {errors[`bhk-${bi}-unit-${ui}-count`]}
                       </p>
                     )}
                   </div>
                 </div>
-                {/* Plan Upload */}
+
+                {/* Floor Plan Upload */}
                 <div>
-                  <label className={LABEL}>Floor Plan Image</label>
+                  {/* <label className={LABEL}>FloorPlan Image</label> */}
+                  <label className={LABEL}>{planLabel}</label>
+                  {/* <label className="flex items-center gap-3 px-4 py-3 bg-white border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#27AE60] hover:bg-[#f0fdf6] transition-all group"> */}
                   <label
-                    className="flex items-center gap-3 px-4 py-3 bg-white border-2 border-dashed border-gray-200
-                    rounded-xl cursor-pointer hover:border-[#27AE60] hover:bg-[#f0fdf6] transition-all group"
+                    className={`flex items-center gap-3 px-4 py-3 bg-white border-2 border-dashed rounded-xl cursor-pointer transition-all group
+  ${
+    errors[`bhk-${bi}-unit-${ui}-plan`]
+      ? "border-red-400 bg-red-50"
+      : "border-gray-200 hover:border-[#27AE60] hover:bg-[#f0fdf6]"
+  }`}
                   >
                     <Upload
                       size={16}
                       className="text-gray-400 group-hover:text-[#27AE60] transition-colors"
                     />
                     <span className="text-sm text-gray-500 group-hover:text-[#27AE60] font-semibold transition-colors">
-                      {u.planFileName || "Upload floor plan"}
+                      {u.planFileName || uploadText}
                     </span>
                     <input
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      
-
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-
                         const compressed = await compressImage(file);
                         const base64 = await fileToBase64(compressed);
-
-                        //const key = await saveImage(compressed, "other");
                         const key = await saveImage(
                           compressed,
                           "other",
                           `bhk_${bi}_${ui}`,
                         );
-
                         updUnit(bi, ui, {
-                          planFile: {
-                            file: compressed,
-                            key: key,
-                          },
+                          planFile: { file: compressed, key },
                           planFileName: file.name,
                           planPreview: base64,
                         });
+                        clearError(`bhk-${bi}-unit-${ui}-plan`);
                       }}
                     />
                   </label>
@@ -318,8 +788,14 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                     />
                   )}
                 </div>
+                {errors[`bhk-${bi}-unit-${ui}-plan`] && (
+                  <p className="text-xs text-red-500 font-semibold mt-1">
+                    ⚠ {errors[`bhk-${bi}-unit-${ui}-plan`]}
+                  </p>
+                )}
               </div>
             ))}
+
             <div className="flex items-center justify-between gap-3">
               <button
                 onClick={() => addUnit(bi)}
@@ -328,71 +804,18 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                 <Plus size={14} strokeWidth={3} /> Add Unit
               </button>
               <button
-                onClick={addBhk}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-black
-            hover:opacity-90 transition-all shadow-md"
+                onClick={addProjectSummary}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-black hover:opacity-90 transition-all shadow-md"
                 style={{
                   background: "linear-gradient(135deg,#27AE60,#1e8449)",
                 }}
               >
-                <Plus size={15} strokeWidth={3} /> Add BHK
+                <Plus size={15} strokeWidth={3} /> {addButtonText}
               </button>
             </div>
           </div>
         </div>
       ))}
-
-      {/* Sqft Range */}
-      <div
-        ref={sqftRangeRef}
-        className="border-2 border-gray-200 rounded-2xl p-5 bg-white"
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <div
-            className="w-2 h-6 rounded-full"
-            style={{ background: "#27AE60" }}
-          />
-          <div>
-            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
-              Project Wide
-            </p>
-            <h3 className="text-base font-black text-gray-900">
-              Overall Sqft Range
-            </h3>
-          </div>
-        </div>
-        {errors.sqftRange && (
-          <p className="text-xs text-red-500 font-semibold mb-3">
-            ⚠ {errors.sqftRange}
-          </p>
-        )}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={LABEL}>Min Sqft *</label>
-            <input
-              type="number"
-              className={inp(errors.sqftRange)}
-              placeholder="800"
-              value={sqftRange.min}
-              onChange={(e) =>
-                update({ sqftRange: { ...sqftRange, min: e.target.value } })
-              }
-            />
-          </div>
-          <div>
-            <label className={LABEL}>Max Sqft *</label>
-            <input
-              type="number"
-              className={inp(errors.sqftRange)}
-              placeholder="3500"
-              value={sqftRange.max}
-              onChange={(e) =>
-                update({ sqftRange: { ...sqftRange, max: e.target.value } })
-              }
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 });
