@@ -730,6 +730,7 @@ const PROPERTY_TYPES = {
 
 /* ─── Floating Input ───── */
 
+
 const FloatingInput = ({
   label,
   value,
@@ -806,24 +807,38 @@ const FloatingInput = ({
           />
         </div>
       </div>
+
+      {error && (
+        <p className="flex items-center gap-1 text-[11px] text-red-500 font-semibold mt-1.5 pl-2">
+          ⚠ Please enter {label.toLowerCase()}
+        </p>
+      )}
     </div>
   );
 };
-
 /* ─── Floating Select ───────── */
 
-const FloatingSelect = ({ label, value, onChange, options, required,warning }) => {
+const FloatingSelect = ({ label, value, onChange, options, required,warning , error,}) => {
   const [focused, setFocused] = useState(false);
 
   return (
     <div className="relative">
       <div
+        // className={[
+        //   "relative rounded-2xl border-2 bg-white transition-all duration-300",
+
+        //   focused
+        //     ? "border-[#27AE60] shadow-lg shadow-[#27AE60]/10"
+        //     : "border-gray-100 hover:border-gray-200 shadow-sm",
+        // ].join(" ")}
         className={[
           "relative rounded-2xl border-2 bg-white transition-all duration-300",
 
-          focused
-            ? "border-[#27AE60] shadow-lg shadow-[#27AE60]/10"
-            : "border-gray-100 hover:border-gray-200 shadow-sm",
+          error
+            ? "border-red-400 shadow-sm shadow-red-100"
+            : focused
+              ? "border-[#27AE60] shadow-lg shadow-[#27AE60]/10"
+              : "border-gray-100 hover:border-gray-200 shadow-sm",
         ].join(" ")}
       >
         <label
@@ -861,6 +876,11 @@ const FloatingSelect = ({ label, value, onChange, options, required,warning }) =
           ))}
         </select>
       </div>
+      {error && (
+        <p className="flex items-center gap-1 text-[11px] text-red-500 font-semibold mt-1.5 pl-2">
+          ⚠ Please enter {label.toLowerCase()}
+        </p>
+      )}
     </div>
   );
 };
@@ -1267,6 +1287,7 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
           required
           warning
           label="State"
+          error={errors.state}
           value={payload?.state || ""}
           onChange={(e) =>
             update({
@@ -1299,6 +1320,7 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
           required
           warning
           label="City"
+          error={errors.city}
           value={payload?.city || ""}
           onChange={(e) =>
             update({
@@ -1330,11 +1352,11 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
         <FloatingInput
           required
           label="Locality"
+          error={errors.locality}
           warning
           placeholder="e.g. Gachibowli"
           icon="📌"
           value={payload?.locality}
-          error={errors.locality}
           inputRef={localityRef}
           onChange={(e) => {
             update({
