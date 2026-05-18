@@ -98,6 +98,20 @@ const shouldHideTowerFields =
   });
 
   useEffect(() => {
+    const stillExists = filteredBuilders.some(
+      (b) => b._id === payload.createdBy,
+    );
+
+    if (!stillExists) {
+      update({
+        createdBy: "",
+      });
+
+      setSelectedBuilderId("");
+    }
+  }, [filters, searchQuery, builders]);
+
+  useEffect(() => {
     async function loadBuilders() {
       try {
         const res = await getUserSearch("builder");
