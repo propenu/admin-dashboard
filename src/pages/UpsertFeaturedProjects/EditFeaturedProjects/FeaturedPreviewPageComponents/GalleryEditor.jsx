@@ -13,12 +13,13 @@ export default function GalleryEditor({
   onSave,
   setLivePreviewData,
 }) {
-  if (!formData) return null;
+   
 
   const gallery = formData.gallerySummary || [];
   const fileMapRef = useRef({});
   const addingRef = useRef(false);
 
+  if (!formData) return null;
   
 
 

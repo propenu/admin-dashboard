@@ -43,10 +43,6 @@ const TYPE_RANK_ACCENT = {
   sponsored: { ring: "#A855F7", bg: "#FAF5FF", text: "#6B21A8" },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Portal-based dropdown menu — renders directly into document.body so it is
-// never clipped by any ancestor's overflow:hidden or z-index context.
-// ─────────────────────────────────────────────────────────────────────────────
 function PortalMenu({ anchorRef, open, onClose, children }) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
@@ -128,6 +124,8 @@ export default function PropertyCard({
   const menuBtnRef = useRef(null);
   const inputRef   = useRef(null);
 
+  const routinSupport = (p.promotion?.type === "normal" || p.promotion?.type === "featured" || p.promotion?.type === "sponsored");
+
   // ── States ────────────────────────────────────────────────────────────────
   const [menuOpen,    setMenuOpen]    = useState(false);
   const [rankOpen,    setRankOpen]    = useState(false);
@@ -194,6 +192,8 @@ export default function PropertyCard({
       {label}
     </button>
   );
+
+
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -454,14 +454,32 @@ export default function PropertyCard({
           </span>
 
           <button
+            // onClick={(e) => {
+            //   e.stopPropagation();
+            //   window.open(
+            //     `http://localhost:3000/${p.promotion?.type}/${p.slug}`,
+            //     "_blank",
+            //     "noopener,noreferrer",
+            //   );
+            // }}
+
+
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/featured-project/${p._id}`);
+
+              const routeType =
+                p?.promotion?.type === "prime" ? "prime" : "project";
+
+              window.open(
+                `https://propenu.com/${routeType}/${p.slug}`,
+                "_blank",
+                "noopener,noreferrer",
+              );
             }}
             className="flex items-center gap-1 text-xs text-[#27AE60] font-medium hover:underline"
             data-action
           >
-            View <ChevronRight className="w-3.5 h-3.5" />
+            Visit Microsite <ChevronRight className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={(e) => {

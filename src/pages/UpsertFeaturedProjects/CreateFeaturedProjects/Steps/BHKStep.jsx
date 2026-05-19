@@ -50,6 +50,38 @@ const AREA_UNITS = [
   "kanal",
 ];
 
+const AREA_CONVERSIONS = {
+  sqft: 1,
+  sqm: 10.7639,
+  sqyd: 9,
+  acre: 43560,
+  hectare: 107639,
+  gunta: 1089,
+  cent: 435.6,
+  bigha: 27225,
+  ankanam: 72,
+  marla: 272.25,
+  kanal: 5445,
+};
+
+const calculatePricePerUnit = (totalPrice, areaValue, areaUnit) => {
+  if (!totalPrice || !areaValue || !areaUnit) return "";
+
+  // total area in sqft
+  const totalSqft = Number(areaValue) * AREA_CONVERSIONS[areaUnit];
+
+  // price per sqft
+  const pricePerSqft = Number(totalPrice) / totalSqft;
+
+  // selected unit size in sqft
+  const selectedUnitSqft = AREA_CONVERSIONS[areaUnit];
+
+  // final price for 1 selected unit
+  return Math.round(pricePerSqft * selectedUnitSqft);
+};
+
+
+
 const convertToSqft = (value, unit) => {
   const conversions = {
     sqft: 1,
@@ -658,7 +690,7 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                   </div>
 
                   {/* MAX PRICE */}
-                  <div>
+                  {/* <div>
                     <label className={LABEL}>Max Price *</label>
                     <input
                       type="text"
@@ -677,7 +709,33 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                         ⚠ {errors[`bhk-${bi}-unit-${ui}-maxPrice`]}
                       </p>
                     )}
-                  </div>
+                  </div> */}
+                  {/* MAX PRICE */}
+                  {!isLand && (
+                    <div>
+                      <label className={LABEL}>Max Price *</label>
+
+                      <input
+                        type="text"
+                        className={inp(errors[`bhk-${bi}-unit-${ui}-maxPrice`])}
+                        placeholder="7000000"
+                        value={formatIndianPrice(u.maxPrice)}
+                        onChange={(e) => {
+                          updUnit(bi, ui, {
+                            maxPrice: parsePrice(e.target.value),
+                          });
+
+                          clearError(`bhk-${bi}-unit-${ui}-maxPrice`);
+                        }}
+                      />
+
+                      {errors[`bhk-${bi}-unit-${ui}-maxPrice`] && (
+                        <p className="text-xs text-red-500 font-semibold">
+                          ⚠ {errors[`bhk-${bi}-unit-${ui}-maxPrice`]}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* LAND ONLY: Plot Area + Converted Sqft */}
                   {isLand && (
@@ -708,9 +766,17 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                           <select
                             className="w-32 px-3 py-2.5 text-sm font-semibold outline-none bg-transparent"
                             value={u.area?.unit || "sqft"}
+                            // onChange={(e) =>
+                            //   updUnit(bi, ui, {
+                            //     area: { ...u.area, unit: e.target.value },
+                            //   })
+                            // }
                             onChange={(e) =>
                               updUnit(bi, ui, {
-                                area: { ...u.area, unit: e.target.value },
+                                area: {
+                                  ...u.area,
+                                  unit: e.target.value,
+                                },
                               })
                             }
                           >
@@ -727,6 +793,24 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                           </p>
                         )}
                       </div>
+                      <div>
+                        <label className={LABEL}>Price / {u.area?.unit}</label>
+
+                        <input
+                          type="text"
+                          disabled
+                          className={inp()}
+                          value={
+                            formatIndianPrice(
+                              calculatePricePerUnit(
+                                u.minPrice,
+                                u.area?.value,
+                                u.area?.unit,
+                              ),
+                            ) || ""
+                          }
+                        />
+                      </div>
 
                       <div>
                         <label className={LABEL}>Converted Sqft</label>
@@ -742,7 +826,7 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
 
                   {/* COUNT */}
                   <div>
-                    <label className={LABEL}>Count *</label>
+                    <label className={LABEL}>Units *</label>
                     <input
                       type="number"
                       className={inp(errors[`bhk-${bi}-unit-${ui}-count`])}
@@ -768,11 +852,11 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                   {/* <label className="flex items-center gap-3 px-4 py-3 bg-white border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#27AE60] hover:bg-[#f0fdf6] transition-all group"> */}
                   <label
                     className={`flex items-center gap-3 px-4 py-3 bg-white border-2 border-dashed rounded-xl cursor-pointer transition-all group
-  ${
-    errors[`bhk-${bi}-unit-${ui}-plan`]
-      ? "border-red-400 bg-red-50"
-      : "border-gray-200 hover:border-[#27AE60] hover:bg-[#f0fdf6]"
-  }`}
+                    ${
+                      errors[`bhk-${bi}-unit-${ui}-plan`]
+                        ? "border-red-400 bg-red-50"
+                        : "border-gray-200 hover:border-[#27AE60] hover:bg-[#f0fdf6]"
+                    }`}
                   >
                     <Upload
                       size={16}

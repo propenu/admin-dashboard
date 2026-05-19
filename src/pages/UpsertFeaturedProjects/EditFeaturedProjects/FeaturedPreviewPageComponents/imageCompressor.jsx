@@ -1,0 +1,1 @@
+// pages/UpsertFeaturedProjects/EditFeaturedProjects/FeaturedPreviewPageComponents/imageCompressor.jsx
