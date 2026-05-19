@@ -1,6 +1,6 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/BHKEditor.jsx
-import React, { useState } from "react";
-
+import React, { useState, useEffect } from "react";
+import imageCompression from "browser-image-compression";
 
 const AREA_UNITS = [
   "sqft",
@@ -18,25 +18,15 @@ const AREA_UNITS = [
 
 const AREA_CONVERSION_TO_SQFT = {
   sqft: 1,
-
   sqm: 10.7639,
-
   sqyd: 9,
-
   acre: 43560,
-
   hectare: 107639,
-
   gunta: 1089,
-
   cent: 435.6,
-
   bigha: 27225,
-
   ankanam: 72,
-
   marla: 272.25,
-
   kanal: 5445,
 };
 
@@ -64,10 +54,34 @@ const RESIDENTIAL_OPTIONS = [
   "4 BHK",
   "5 BHK",
   "6 BHK",
-  // "Villa",
-  // "Duplex",
-  // "Triplex",
-  // "Farmhouse",
+  "Villa",
+  "Duplex",
+  "Triplex",
+  "Farmhouse",
+  "1 BHK East Facing",
+  "1 BHK West Facing",
+  "1 BHK North Facing",
+  "1 BHK South Facing",
+  "2 BHK East Facing",
+  "2 BHK West Facing",
+  "2 BHK North Facing",
+  "2 BHK South Facing",
+  "3 BHK East Facing",
+  "3 BHK West Facing",
+  "3 BHK North Facing",
+  "3 BHK South Facing",
+  "4 BHK East Facing",
+  "4 BHK West Facing",
+  "4 BHK North Facing",
+  "4 BHK South Facing",
+  "5 BHK East Facing",
+  "5 BHK West Facing",
+  "5 BHK North Facing",
+  "5 BHK South Facing",
+  "6 BHK East Facing",
+  "6 BHK West Facing",
+  "6 BHK North Facing",
+  "6 BHK South Facing",
 ];
 export default function BHKEditor({
   formData,
@@ -80,6 +94,19 @@ export default function BHKEditor({
 }) {
   const projectSummary = formData?.projectSummary || [];
   const [openUnitIndex, setOpenUnitIndex] = useState(null);
+  
+
+  useEffect(() => {
+    if (
+      projectSummary?.length > 0 &&
+      (selectedProjectIndex === null || selectedProjectIndex === undefined)
+    ) {
+      setSelectedProjectIndex(0);
+
+      setOpenUnitIndex(0);
+    }
+  }, [projectSummary, selectedProjectIndex]);
+  
 
   function addProject() {
     const existingNumbers = projectSummary

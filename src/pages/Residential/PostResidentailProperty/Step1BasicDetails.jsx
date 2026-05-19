@@ -61,7 +61,7 @@ const PROPERTY_TYPES = {
     { label: "Commercial Plot", value: "commercial-plot" },
     { label: "Investment Plot", value: "investment-plot" },
     { label: "Corner Plot", value: "corner-plot" },
-    { label: "NA Plot", value: "na-plot" },
+    //{ label: "NA Plot", value: "na-plot" },
   ],
   agricultural: [
     { label: "Dry Land", value: "dry-land" },
