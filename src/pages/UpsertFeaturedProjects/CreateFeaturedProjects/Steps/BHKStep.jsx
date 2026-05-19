@@ -67,17 +67,50 @@ const AREA_CONVERSIONS = {
 const calculatePricePerUnit = (totalPrice, areaValue, areaUnit) => {
   if (!totalPrice || !areaValue || !areaUnit) return "";
 
-  // total area in sqft
+  // convert selected area to sqft
   const totalSqft = Number(areaValue) * AREA_CONVERSIONS[areaUnit];
 
-  // price per sqft
+  // price for 1 sqft
   const pricePerSqft = Number(totalPrice) / totalSqft;
 
-  // selected unit size in sqft
-  const selectedUnitSqft = AREA_CONVERSIONS[areaUnit];
+  // convert 1 sqft price into selected unit
+  switch (areaUnit) {
+    case "sqft":
+      return Math.round(pricePerSqft);
 
-  // final price for 1 selected unit
-  return Math.round(pricePerSqft * selectedUnitSqft);
+    case "sqyd":
+      return Math.round(pricePerSqft * 9);
+
+    case "cent":
+      return Math.round(pricePerSqft * 435.6);
+
+    case "gunta":
+      return Math.round(pricePerSqft * 1089);
+
+    case "acre":
+      return Math.round(pricePerSqft * 43560);
+
+    case "sqm":
+      return Math.round(pricePerSqft * 10.7639);
+
+    case "hectare":
+      return Math.round(pricePerSqft * 107639);
+
+    case "bigha":
+      return Math.round(pricePerSqft * 27225);
+
+    case "ankanam":
+      return Math.round(pricePerSqft * 72);
+
+    case "marla":
+      return Math.round(pricePerSqft * 272.25);
+
+    case "kanal":
+      return Math.round(pricePerSqft * 5445);
+
+    default:
+      return Math.round(pricePerSqft);
+  }
 };
 
 
@@ -322,21 +355,51 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
     update({ projectSummary: n });
   };
 
+  // const updUnit = (bi, ui, patch) => {
+  //   const n = [...projectSummary];
+  //   const old = n[bi].units[ui];
+  //   const updated = { ...old, ...patch };
+
+  //   if (patch.area) {
+  //     updated.area = { ...old.area, ...patch.area };
+  //     updated.area.sqftValue = convertToSqft(
+  //       updated.area.value,
+  //       updated.area.unit,
+  //     );
+  //   }
+
+  //   n[bi].units[ui] = updated;
+  //   update({ projectSummary: n });
+  // };
+
+
   const updUnit = (bi, ui, patch) => {
     const n = [...projectSummary];
+
     const old = n[bi].units[ui];
-    const updated = { ...old, ...patch };
 
-    if (patch.area) {
-      updated.area = { ...old.area, ...patch.area };
-      updated.area.sqftValue = convertToSqft(
-        updated.area.value,
-        updated.area.unit,
-      );
-    }
+    const updated = {
+      ...old,
+      ...patch,
 
-    n[bi].units[ui] = updated;
-    update({ projectSummary: n });
+      area: {
+        ...old.area,
+        ...(patch.area || {}),
+      },
+    };
+
+    updated.area.sqftValue = convertToSqft(
+      updated.area.value,
+      updated.area.unit,
+    );
+
+    n[bi].units[ui] = {
+      ...updated,
+    };
+
+    update({
+      projectSummary: [...n],
+    });
   };
 
   const remUnit = (bi, ui) => {
@@ -771,14 +834,23 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                             //     area: { ...u.area, unit: e.target.value },
                             //   })
                             // }
-                            onChange={(e) =>
+                            // onChange={(e) => {
+                            //   updUnit(bi, ui, {
+                            //     area: {
+                            //       ...u.area,
+                            //       unit: e.target.value,
+                            //       value: u.area?.value,
+                            //     },
+                            //   });
+                            // }}
+
+                            onChange={(e) => {
                               updUnit(bi, ui, {
                                 area: {
-                                  ...u.area,
                                   unit: e.target.value,
                                 },
-                              })
-                            }
+                              });
+                            }}
                           >
                             {AREA_UNITS.map((unit) => (
                               <option key={unit} value={unit}>
