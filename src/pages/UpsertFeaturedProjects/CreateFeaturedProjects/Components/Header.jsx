@@ -18,7 +18,7 @@ export const Header = ({ current }) => {
             </div>
             <div>
               <h1 className="text-xs sm:text-sm font-bold text-[#27AE60] leading-none whitespace-nowrap">
-                Create Featured Project
+                Create Project
               </h1>
               {/* Mobile step indicator in topbar */}
               <p className="text-[10px] text-gray-400 mt-0.5 sm:hidden">

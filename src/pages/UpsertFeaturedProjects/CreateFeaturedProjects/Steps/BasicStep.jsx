@@ -705,30 +705,30 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
         />
 
         <FloatingSelect
-          required
-          label="Currency"
-          error={errors.currency}
-          value={payload?.currency || ""}
-          onChange={(e) => {
-            update({
-              currency: e.target.value,
-            });
+  required
+  label="Currency"
+  error={errors.currency}
+  value={payload?.currency || ""}
+  onChange={(e) => {
+    update({
+      currency: e.target.value,
+    });
 
-            clr("currency");
-          }}
-          options={[
-            { label: "🇮🇳 INR - Indian Rupee", value: "INR" },
-            { label: "🇺🇸 USD - US Dollar", value: "USD" },
-            { label: "🇪🇺 EUR - Euro", value: "EUR" },
-            { label: "🇦🇪 AED - UAE Dirham", value: "AED" },
-            { label: "🇬🇧 GBP - British Pound", value: "GBP" },
-            { label: "🇨🇦 CAD - Canadian Dollar", value: "CAD" },
-            { label: "🇦🇺 AUD - Australian Dollar", value: "AUD" },
-            { label: "🇸🇬 SGD - Singapore Dollar", value: "SGD" },
-            { label: "🇯🇵 JPY - Japanese Yen", value: "JPY" },
-            { label: "🇨🇳 CNY - Chinese Yuan", value: "CNY" },
-          ]}
-        />
+    clr("currency");
+  }}
+  options={[
+    { label: "🇮🇳 INR - Indian Rupee", value: "INR" },
+    { label: "🇺🇸 USD - US Dollar", value: "USD" },
+    { label: "🇪🇺 EUR - Euro", value: "EUR" },
+    { label: "🇦🇪 AED - UAE Dirham", value: "AED" },
+    { label: "🇬🇧 GBP - British Pound", value: "GBP" },
+    { label: "🇨🇦 CAD - Canadian Dollar", value: "CAD" },
+    { label: "🇦🇺 AUD - Australian Dollar", value: "AUD" },
+    { label: "🇸🇬 SGD - Singapore Dollar", value: "SGD" },
+    { label: "🇯🇵 JPY - Japanese Yen", value: "JPY" },
+    { label: "🇨🇳 CNY - Chinese Yuan", value: "CNY" },
+  ]}
+/>
       </div>
     </div>
   );
