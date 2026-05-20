@@ -38,7 +38,7 @@ const PaymentCard = ({ p }) => (
           letterSpacing: "-0.4px",
         }}
       >
-        ₹{fmt(p.amount)}
+        {/* ₹{fmt(p.amount)} */}₹{p.amount}
       </p>
       <p
         style={{
@@ -128,12 +128,12 @@ const PaymentsContent = ({ userId }) => {
               color={C.info}
               icon="🧾"
             />
-            <StatPill
+            {/* <StatPill
               label="Avg Amount"
               value={`₹${fmt(Math.round(total / payments.length))}`}
               color={C.purple}
               icon="📊"
-            />
+            /> */}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {payments.map((p) => (

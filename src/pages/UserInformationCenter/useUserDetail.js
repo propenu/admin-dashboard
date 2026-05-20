@@ -29,14 +29,7 @@ export const useUserById = (userId) =>
   });
 
 // ── User Payments ─────────────────────────────────────────────────────────────
-// export const useUserPayments = (userId, status = "paid") =>
-//   useQuery({
-//     queryKey: ["user-payments", userId, status],
-//     queryFn: () =>
-//       getUserPayments(userId, status).then((r) => r.data?.data || r.data || []),
-//     enabled: !!userId,
-//     staleTime: 2 * 60 * 1000,
-//   });
+
 export const useUserPayments = (userId, status = "paid") =>
   useQuery({
     queryKey: ["user-payments", userId, status],
@@ -66,23 +59,78 @@ export const useUserPayments = (userId, status = "paid") =>
 
 
 // ── User Subscriptions ────────────────────────────────────────────────────────
+// export const useUserSubscriptions = (userId) =>
+//   useQuery({
+//     queryKey: ["user-subscriptions", userId],
+//     queryFn: () =>
+//       getUserSubscriptions(userId).then((r) => r.data?.data || r.data || []),
+//     enabled: !!userId,
+//     staleTime: 2 * 60 * 1000,
+//   });
+
+// // ── Subscription History ──────────────────────────────────────────────────────
+// export const useUserSubscriptionHistory = (userId) =>
+//   useQuery({
+//     queryKey: ["user-subscription-history", userId],
+//     queryFn: () =>
+//       getUserSubscriptionHistory(userId).then(
+//         (r) => r.data?.data || r.data || [],
+//       ),
+//     enabled: !!userId,
+//     staleTime: 5 * 60 * 1000,
+//   });
+
+// ── User Subscriptions ────────────────────────────────────────────────────────
 export const useUserSubscriptions = (userId) =>
   useQuery({
     queryKey: ["user-subscriptions", userId],
-    queryFn: () =>
-      getUserSubscriptions(userId).then((r) => r.data?.data || r.data || []),
+
+    queryFn: async () => {
+      const res = await getUserSubscriptions(userId);
+
+      const raw = res.data?.data || res.data || [];
+
+      const subscriptions = Array.isArray(raw) ? raw : [];
+
+      // ✅ FILTER CURRENT USER ONLY
+      return subscriptions.filter((s) => {
+        const subscriptionUserId = s.userId?._id || s.userId;
+
+        return (
+          subscriptionUserId &&
+          String(subscriptionUserId) === String(userId)
+        );
+      });
+    },
+
     enabled: !!userId,
     staleTime: 2 * 60 * 1000,
   });
+
 
 // ── Subscription History ──────────────────────────────────────────────────────
 export const useUserSubscriptionHistory = (userId) =>
   useQuery({
     queryKey: ["user-subscription-history", userId],
-    queryFn: () =>
-      getUserSubscriptionHistory(userId).then(
-        (r) => r.data?.data || r.data || [],
-      ),
+
+    queryFn: async () => {
+      const res = await getUserSubscriptionHistory(userId);
+
+      const raw = res.data?.data || res.data || [];
+
+      const history = Array.isArray(raw) ? raw : [];
+
+      // ✅ FILTER CURRENT USER ONLY
+      return history.filter((h) => {
+        const historyUserId = h.userId?._id || h.userId;
+
+        return (
+          historyUserId &&
+          String(historyUserId) === String(userId)
+        );
+      });
+    },
+
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
   });
