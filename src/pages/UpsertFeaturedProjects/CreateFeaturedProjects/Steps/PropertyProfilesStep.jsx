@@ -72,6 +72,8 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
 
   const [selectedBuilderId, setSelectedBuilderId] = useState("");
 
+  const [buildersLoaded, setBuildersLoaded] = useState(false);
+
   
     const HIDE_TOWER_TYPES = [
   "villa",
@@ -97,29 +99,67 @@ const shouldHideTowerFields =
     locality: "",
   });
 
-  useEffect(() => {
-    const stillExists = filteredBuilders.some(
-      (b) => b._id === payload.createdBy,
-    );
+  // useEffect(() => {
+  //   const stillExists = filteredBuilders.some(
+  //     (b) => b._id === payload.createdBy,
+  //   );
 
-    if (!stillExists) {
-      update({
-        createdBy: "",
-      });
+  //   if (!stillExists) {
+  //     update({
+  //       createdBy: "",
+  //     });
 
-      setSelectedBuilderId("");
-    }
-  }, [filters, searchQuery, builders]);
+  //     setSelectedBuilderId("");
+  //   }
+  // }, [filters, searchQuery, builders]);
+ 
+
+ useEffect(() => {
+   // wait until API finished
+   if (!buildersLoaded) return;
+
+   // no builder selected
+   if (!payload.createdBy) return;
+
+   // check existence
+   const existsInAllBuilders = builders.some(
+     (b) => String(b._id) === String(payload.createdBy),
+   );
+
+   console.log("========== BUILDER VALIDATION ==========");
+   console.log("buildersLoaded =>", buildersLoaded);
+   console.log("payload.createdBy =>", payload.createdBy);
+   console.log(
+     "builder IDs =>",
+     builders.map((b) => b._id),
+   );
+   console.log("existsInAllBuilders =>", existsInAllBuilders);
+
+   // clear ONLY if truly deleted
+   if (!existsInAllBuilders) {
+     console.log("❌ Builder actually deleted from API");
+
+     update({
+       createdBy: "",
+     });
+
+     setSelectedBuilderId("");
+   }
+ }, [buildersLoaded, builders, payload.createdBy]);
 
   useEffect(() => {
     async function loadBuilders() {
       try {
         const res = await getUserSearch("builder");
         console.log("BUILDER API RESPONSE =>", res);
+        //setBuilders(res?.data?.results || []);
         setBuilders(res?.data?.results || []);
+        setBuildersLoaded(true);
       } catch (err) {
         console.error("Failed to load builders", err);
+        // setBuilders([]);
         setBuilders([]);
+        setBuildersLoaded(true);
       }
     }
 
@@ -352,6 +392,15 @@ const shouldHideTowerFields =
 
     return null;
   };
+
+  const selectedBuilder = builders.find((b) => b._id === payload.createdBy);
+
+  const visibleBuilders = selectedBuilder
+    ? [
+        selectedBuilder,
+        ...filteredBuilders.filter((b) => b._id !== selectedBuilder._id),
+      ]
+    : filteredBuilders;
 
   /* ── Render ── */
   return (
@@ -1061,7 +1110,7 @@ const shouldHideTowerFields =
                   ? "No builders found"
                   : "Select Builder"}
               </option>
-              {filteredBuilders.map((builder) => (
+              {visibleBuilders.map((builder) => (
                 <option key={builder._id} value={builder._id}>
                   {builder.name.charAt(0).toUpperCase() + builder.name.slice(1)}{" "}
                   — {builder.city}, {builder.state}
