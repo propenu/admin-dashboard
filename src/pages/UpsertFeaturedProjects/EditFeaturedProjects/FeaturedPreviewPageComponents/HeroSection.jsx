@@ -1,5 +1,6 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/HeroSection.jsx
 import React, { useState, useMemo } from "react";
+import { compressImage } from "./imageCompressor";
 
 function HeroSectionBase({ data }) {
   if (!data) return null;

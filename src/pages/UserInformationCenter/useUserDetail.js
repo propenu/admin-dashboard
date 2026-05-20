@@ -29,14 +29,41 @@ export const useUserById = (userId) =>
   });
 
 // ── User Payments ─────────────────────────────────────────────────────────────
+// export const useUserPayments = (userId, status = "paid") =>
+//   useQuery({
+//     queryKey: ["user-payments", userId, status],
+//     queryFn: () =>
+//       getUserPayments(userId, status).then((r) => r.data?.data || r.data || []),
+//     enabled: !!userId,
+//     staleTime: 2 * 60 * 1000,
+//   });
 export const useUserPayments = (userId, status = "paid") =>
   useQuery({
     queryKey: ["user-payments", userId, status],
-    queryFn: () =>
-      getUserPayments(userId, status).then((r) => r.data?.data || r.data || []),
+
+    queryFn: async () => {
+      const res = await getUserPayments(userId, status);
+
+      const raw = res.data?.data || res.data?.items || res.data || [];
+
+      const payments = Array.isArray(raw) ? raw : [];
+
+      // ✅ FILTER CURRENT USER ONLY
+      return payments.filter((p) => {
+        const paymentUserId = p.userId?._id || p.userId;
+
+        return (
+          paymentUserId &&
+          String(paymentUserId) === String(userId) &&
+          p.status === status
+        );
+      });
+    },
+
     enabled: !!userId,
     staleTime: 2 * 60 * 1000,
   });
+
 
 // ── User Subscriptions ────────────────────────────────────────────────────────
 export const useUserSubscriptions = (userId) =>

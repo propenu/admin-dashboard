@@ -1,5 +1,6 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/LeftEditor.jsx
 import { useState, useEffect } from "react";
+import { compressImage } from "./imageCompressor";
 
 export default function LeftEditor({ formData, setFormData, setLivePreviewData, onSave, saving }) {
    
@@ -15,6 +16,10 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
   if (!formData) return null;
 
   function changeLocal(name, value) {
+    console.log("🔥 changeLocal()");
+    console.log("FIELD:", name);
+    console.log("VALUE:", value);
+    console.log("IS FILE:", value instanceof File);
     const updated = { ...local, [name]: value };
     setLocal(updated);
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -25,6 +30,13 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
   }
 
   function handleSaveClick() {
+    console.log("🚀 SAVE CLICK");
+
+    console.log("LOCAL HERO:", local.heroImage);
+    console.log("LOCAL HERO IS FILE:", local.heroImage instanceof File);
+
+    console.log("FORM HERO:", formData.heroImage);
+    console.log("FORM HERO IS FILE:", formData.heroImage instanceof File);
     onSave({ ...formData, ...local });
   }
 
@@ -36,19 +48,30 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
       <div className="bg-gradient-to-r from-[#27AE60]/8 to-transparent px-5 py-4 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-[#27AE60] rounded-lg flex items-center justify-center">
-            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            <svg
+              className="w-3.5 h-3.5 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2.5"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
             </svg>
           </div>
           <div>
             <h3 className="text-sm font-bold text-gray-800">Hero Editor</h3>
-            <p className="text-[10px] text-gray-400">Live preview updates instantly</p>
+            <p className="text-[10px] text-gray-400">
+              Live preview updates instantly
+            </p>
           </div>
         </div>
       </div>
 
       <div className="p-5 space-y-5 max-h-[600px] overflow-y-auto">
-
         {/* Tagline */}
         <FieldGroup label="Tagline" hint="Bold colored tagline">
           <input
@@ -81,7 +104,7 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
 
         {/* File Uploads */}
         <div className="grid grid-cols-2 gap-3">
-          <FileUploadBox
+          {/* <FileUploadBox
             label="Hero Image"
             preview={typeof local.heroImage === "string" ? local.heroImage : local.heroImage?.url}
             onChange={(file) => changeLocal("heroImage", file)}
@@ -90,6 +113,45 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
             label="Logo"
             preview={typeof local.logo === "string" ? local.logo : local.logo?.url}
             onChange={(file) => changeLocal("logo", file)}
+          /> */}
+          <FileUploadBox
+            label="Hero Image"
+            preview={
+              typeof local.heroImage === "string"
+                ? local.heroImage
+                : local.heroImage?.url
+            }
+            onChange={async (file) => {
+              if (!file) return;
+
+              // ✅ Compress Hero Image
+              const compressedHero = await compressImage(
+                file,
+                "hero",
+                "Hero Image",
+              );
+
+              console.log("✅ COMPRESSED HERO:", compressedHero);
+              console.log("✅ IS FILE:", compressedHero instanceof File);
+              console.log("✅ HERO SIZE:", compressedHero.size);
+
+              changeLocal("heroImage", compressedHero);
+            }}
+          />
+
+          <FileUploadBox
+            label="Logo"
+            preview={
+              typeof local.logo === "string" ? local.logo : local.logo?.url
+            }
+            onChange={async (file) => {
+              if (!file) return;
+
+              // ✅ Compress Logo
+              const compressedLogo = await compressImage(file, "logo", "Logo");
+
+              changeLocal("logo", compressedLogo);
+            }}
           />
         </div>
 
@@ -153,16 +215,41 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
         >
           {saving ? (
             <>
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              <svg
+                className="w-4 h-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
               </svg>
               Saving…
             </>
           ) : (
             <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2.5"
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Save Changes
             </>
@@ -189,26 +276,54 @@ function FieldGroup({ label, hint, children }) {
 function FileUploadBox({ label, preview, onChange }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">{label}</label>
+      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+        {label}
+      </label>
       <label className="block cursor-pointer">
         <div className="relative h-20 rounded-xl border-2 border-dashed border-gray-200 hover:border-[#27AE60] overflow-hidden transition group bg-gray-50/50">
           {preview ? (
             <>
-              <img src={preview} alt={label} className="w-full h-full object-cover" />
+              {/* <img src={preview} alt={label} className="w-full h-full object-cover" /> */}
+              <img
+                src={
+                  preview instanceof File
+                    ? URL.createObjectURL(preview)
+                    : preview
+                }
+                alt={label}
+                className="w-full h-full object-cover"
+              />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                <span className="text-white text-[10px] font-bold">Replace</span>
+                <span className="text-white text-[10px] font-bold">
+                  Replace
+                </span>
               </div>
             </>
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-1">
-              <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4v16m8-8H4" />
+              <svg
+                className="w-5 h-5 text-gray-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               <span className="text-[10px] text-gray-400">Upload</span>
             </div>
           )}
         </div>
-        <input type="file" accept="image/*" className="hidden" onChange={(e) => onChange(e.target.files[0])} />
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => onChange(e.target.files[0])}
+        />
       </label>
     </div>
   );
