@@ -855,7 +855,7 @@ useImperativeHandle(ref, () => ({
 
         <div className="p-5 space-y-4">
           {/* Address search */}
-          {/* <div className="flex gap-2">
+          <div className="flex gap-2">
             <div className="relative flex-1">
               <Search
                 size={15}
@@ -886,7 +886,7 @@ useImperativeHandle(ref, () => ({
               )}
               {searching ? "Searching…" : "Search"}
             </button>
-          </div> */}
+          </div>
 
           {/* Hint */}
           <div className="flex items-start gap-2 px-4 py-3 bg-[#f0fdf6] border border-[#27AE60]/20 rounded-xl">
