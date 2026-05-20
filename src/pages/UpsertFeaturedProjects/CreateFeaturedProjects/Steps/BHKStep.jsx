@@ -1124,7 +1124,7 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
             if (!String(u.area?.value || "").trim())
               e[`bhk-${bi}-unit-${ui}-area`] = "Plot area required";
             if (!u.minPrice) e[`bhk-${bi}-unit-${ui}-minPrice`] = "Required";
-            if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
+            //if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
             if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";
             if (!u.planFileName)
               e[`bhk-${bi}-unit-${ui}-plan`] = "Floor plan required";
