@@ -43,7 +43,10 @@ export async function buildFormData(payload) {
               // ✅ PRICE
               minPrice: Number(u.minPrice || 0),
 
-              maxPrice: Number(u.maxPrice || 0),
+              //maxPrice: Number(u.maxPrice || 0),
+              ...(payload.categoryType !== "land" && {
+                maxPrice: Number(u.maxPrice || 0),
+              }),
 
               // ✅ COUNT
               availableCount: Number(u.availableCount || 0),

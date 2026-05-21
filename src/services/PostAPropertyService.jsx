@@ -63,7 +63,10 @@ export const updateFeaturedProperty = async (id, payload) => {
           // ✅ PRICE
           minPrice: Number(u.minPrice || 0),
 
-          maxPrice: Number(u.maxPrice || 0),
+          //maxPrice: Number(u.maxPrice || 0),
+          ...(payload.categoryType !== "land" && {
+            maxPrice: Number(u.maxPrice || 0),
+          }),
 
           // ✅ AVAILABLE UNITS
           availableCount: Number(u.availableCount || 0),
