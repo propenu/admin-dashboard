@@ -630,8 +630,7 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
               }}
             /> */}
             <MapplsPinMap
-              //coordinates={pinnedCoords || location.coordinates}
-              coordinates={pinnedCoords}
+              coordinates={pinnedCoords || location.coordinates}
               onPinChange={async ({ coordinates }) => {
                 if (
                   !coordinates ||

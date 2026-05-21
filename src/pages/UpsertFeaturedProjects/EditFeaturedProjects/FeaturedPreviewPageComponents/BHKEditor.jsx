@@ -600,27 +600,26 @@ export default function BHKEditor({
                     />
                   </div>
 
-                  {formData?.categoryType == "land" && (
-                    <> 
+                  {formData?.categoryType == "residential" && (
+                    <>
+                      {/* Max Price */}
+                      <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
+                          Max Price
+                        </label>
 
-                  {/* Max Price */}
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
-                      Max Price
-                    </label>
-
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl"
-                      value={formatIndianPrice(u?.maxPrice)}
-                      onChange={(e) =>
-                        updateUnit(ui, {
-                          maxPrice: e.target.value.replace(/,/g, ""),
-                        })
-                      }
-                      placeholder="9,50,00,000"
-                    />
-                  </div>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl"
+                          value={formatIndianPrice(u?.maxPrice)}
+                          onChange={(e) =>
+                            updateUnit(ui, {
+                              maxPrice: e.target.value.replace(/,/g, ""),
+                            })
+                          }
+                          placeholder="9,50,00,000"
+                        />
+                      </div>
                     </>
                   )}
 
@@ -692,12 +691,11 @@ export default function BHKEditor({
                 </div>
 
                 {formData?.categoryType == "land" && (
-                    <>
-
-                <div className="grid grid-cols-2 gap-1 w-full">
-                  {/* Price Per Unit */}
-                  <div
-                    className="
+                  <>
+                    <div className="grid grid-cols-2 gap-1 w-full">
+                      {/* Price Per Unit */}
+                      <div
+                        className="
       min-h-[58px]
       rounded-md
       border border-[#27AE60]/10
@@ -705,9 +703,9 @@ export default function BHKEditor({
       px-2 py-1.5
       flex flex-col justify-between
     "
-                  >
-                    <p
-                      className="
+                      >
+                        <p
+                          className="
         text-[6px]
         font-bold
         uppercase
@@ -715,57 +713,57 @@ export default function BHKEditor({
         text-[#27AE60]
         leading-none
       "
-                    >
-                      Price Per Unit
-                    </p>
+                        >
+                          Price Per Unit
+                        </p>
 
-                    <div className="flex items-end gap-[2px] mt-[2px] flex-wrap">
-                      <span
-                        className="
+                        <div className="flex items-end gap-[2px] mt-[2px] flex-wrap">
+                          <span
+                            className="
           text-[15px]
           font-black
           text-[#27AE60]
           leading-none
         "
-                      >
-                        ₹
-                        {u?.minPrice && u?.area?.value
-                          ? formatShortPrice(
-                              Math.round(
-                                Number(u.minPrice) / Number(u.area.value),
-                              ),
-                            )
-                          : 0}
-                      </span>
+                          >
+                            ₹
+                            {u?.minPrice && u?.area?.value
+                              ? formatShortPrice(
+                                  Math.round(
+                                    Number(u.minPrice) / Number(u.area.value),
+                                  ),
+                                )
+                              : 0}
+                          </span>
 
-                      <span
-                        className="
+                          <span
+                            className="
           text-[8px]
           font-semibold
           text-gray-500
           mb-[1px]
           leading-none
         "
-                      >
-                        / {u?.area?.unit || "sqft"}
-                      </span>
-                    </div>
+                          >
+                            / {u?.area?.unit || "sqft"}
+                          </span>
+                        </div>
 
-                    <p
-                      className="
+                        <p
+                          className="
         text-[7px]
         text-gray-500
         leading-none
         mt-[2px]
       "
-                    >
-                      Auto calculated
-                    </p>
-                  </div>
+                        >
+                          Auto calculated
+                        </p>
+                      </div>
 
-                  {/* Converted Sqft */}
-                  <div
-                    className="
+                      {/* Converted Sqft */}
+                      <div
+                        className="
       min-h-[58px]
       rounded-md
       border border-blue-100
@@ -773,9 +771,9 @@ export default function BHKEditor({
       px-2 py-1.5
       flex flex-col justify-between
     "
-                  >
-                    <p
-                      className="
+                      >
+                        <p
+                          className="
         text-[6px]
         font-bold
         uppercase
@@ -783,51 +781,50 @@ export default function BHKEditor({
         text-blue-600
         leading-none
       "
-                    >
-                      Converted Sqft
-                    </p>
+                        >
+                          Converted Sqft
+                        </p>
 
-                    <div className="flex items-end gap-[2px] mt-[2px] flex-wrap">
-                      <span
-                        className="
+                        <div className="flex items-end gap-[2px] mt-[2px] flex-wrap">
+                          <span
+                            className="
           text-[15px]
           font-black
           text-blue-700
           leading-none
         "
-                      >
-                        {Number(u?.area?.sqftValue || 0).toLocaleString(
-                          "en-IN",
-                        )}
-                      </span>
+                          >
+                            {Number(u?.area?.sqftValue || 0).toLocaleString(
+                              "en-IN",
+                            )}
+                          </span>
 
-                      <span
-                        className="
+                          <span
+                            className="
           text-[8px]
           font-semibold
           text-gray-500
           mb-[1px]
           leading-none
         "
-                      >
-                        sqft
-                      </span>
-                    </div>
+                          >
+                            sqft
+                          </span>
+                        </div>
 
-                    <p
-                      className="
+                        <p
+                          className="
         text-[7px]
         text-gray-500
         leading-none
         mt-[2px]
       "
-                    >
-                      Auto converted
-                    </p>
-                  </div>
-                </div>
-
-                </>
+                        >
+                          Auto converted
+                        </p>
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 <div>
