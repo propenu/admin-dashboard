@@ -1,6 +1,6 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/BHKEditor.jsx
 import React, { useState, useEffect } from "react";
-import imageCompression from "browser-image-compression";
+import { compressImage } from "./imageCompressor";
 
 const AREA_UNITS = [
   "sqft",
@@ -34,6 +34,24 @@ function formatIndianPrice(value) {
   if (!value) return "";
 
   return Number(value).toLocaleString("en-IN");
+}
+
+function formatShortPrice(value) {
+  const num = Number(value || 0);
+
+  if (num >= 10000000) {
+    return (num / 10000000).toFixed(1).replace(".0", "") + " Cr";
+  }
+
+  if (num >= 100000) {
+    return (num / 100000).toFixed(1).replace(".0", "") + " L";
+  }
+
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1).replace(".0", "") + " K";
+  }
+
+  return num.toString();
 }
 
 const LAND_FACING_OPTIONS = [
@@ -582,6 +600,9 @@ export default function BHKEditor({
                     />
                   </div>
 
+                  {formData?.categoryType == "land" && (
+                    <> 
+
                   {/* Max Price */}
                   <div>
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
@@ -600,6 +621,8 @@ export default function BHKEditor({
                       placeholder="9,50,00,000"
                     />
                   </div>
+                    </>
+                  )}
 
                   {formData?.categoryType == "land" && (
                     <>
@@ -613,15 +636,16 @@ export default function BHKEditor({
                           {/* AREA VALUE */}
                           <input
                             type="number"
-                            className="flex-1 px-3 py-2.5 text-sm outline-none border-none"
+                            className="flex-1 px-3 w-[70px] py-2.5 text-sm outline-none border-none"
                             value={u?.area?.value ?? ""}
                             onChange={(e) => {
-                              const value = Number(e.target.value || 0);
+                              const value = e.target.value;
 
                               const unit = u?.area?.unit || "sqft";
 
                               const sqftValue =
-                                value * (AREA_CONVERSION_TO_SQFT[unit] || 1);
+                                Number(value || 0) *
+                                (AREA_CONVERSION_TO_SQFT[unit] || 1);
 
                               updateUnit(ui, {
                                 area: {
@@ -663,23 +687,148 @@ export default function BHKEditor({
                           </select>
                         </div>
                       </div>
-
-                      {/* Sqft Value */}
-                      <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
-                          Converted Sqft
-                        </label>
-
-                        <div className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-100 text-gray-700 font-semibold">
-                          {Number(u?.area?.sqftValue || 0).toLocaleString(
-                            "en-IN",
-                          )}{" "}
-                          sqft
-                        </div>
-                      </div>
                     </>
                   )}
                 </div>
+
+                {formData?.categoryType == "land" && (
+                    <>
+
+                <div className="grid grid-cols-2 gap-1 w-full">
+                  {/* Price Per Unit */}
+                  <div
+                    className="
+      min-h-[58px]
+      rounded-md
+      border border-[#27AE60]/10
+      bg-[#27AE60]/5
+      px-2 py-1.5
+      flex flex-col justify-between
+    "
+                  >
+                    <p
+                      className="
+        text-[6px]
+        font-bold
+        uppercase
+        tracking-[1px]
+        text-[#27AE60]
+        leading-none
+      "
+                    >
+                      Price Per Unit
+                    </p>
+
+                    <div className="flex items-end gap-[2px] mt-[2px] flex-wrap">
+                      <span
+                        className="
+          text-[15px]
+          font-black
+          text-[#27AE60]
+          leading-none
+        "
+                      >
+                        ₹
+                        {u?.minPrice && u?.area?.value
+                          ? formatShortPrice(
+                              Math.round(
+                                Number(u.minPrice) / Number(u.area.value),
+                              ),
+                            )
+                          : 0}
+                      </span>
+
+                      <span
+                        className="
+          text-[8px]
+          font-semibold
+          text-gray-500
+          mb-[1px]
+          leading-none
+        "
+                      >
+                        / {u?.area?.unit || "sqft"}
+                      </span>
+                    </div>
+
+                    <p
+                      className="
+        text-[7px]
+        text-gray-500
+        leading-none
+        mt-[2px]
+      "
+                    >
+                      Auto calculated
+                    </p>
+                  </div>
+
+                  {/* Converted Sqft */}
+                  <div
+                    className="
+      min-h-[58px]
+      rounded-md
+      border border-blue-100
+      bg-blue-50
+      px-2 py-1.5
+      flex flex-col justify-between
+    "
+                  >
+                    <p
+                      className="
+        text-[6px]
+        font-bold
+        uppercase
+        tracking-[1px]
+        text-blue-600
+        leading-none
+      "
+                    >
+                      Converted Sqft
+                    </p>
+
+                    <div className="flex items-end gap-[2px] mt-[2px] flex-wrap">
+                      <span
+                        className="
+          text-[15px]
+          font-black
+          text-blue-700
+          leading-none
+        "
+                      >
+                        {Number(u?.area?.sqftValue || 0).toLocaleString(
+                          "en-IN",
+                        )}
+                      </span>
+
+                      <span
+                        className="
+          text-[8px]
+          font-semibold
+          text-gray-500
+          mb-[1px]
+          leading-none
+        "
+                      >
+                        sqft
+                      </span>
+                    </div>
+
+                    <p
+                      className="
+        text-[7px]
+        text-gray-500
+        leading-none
+        mt-[2px]
+      "
+                    >
+                      Auto converted
+                    </p>
+                  </div>
+                </div>
+
+                </>
+                )}
 
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
@@ -762,14 +911,47 @@ export default function BHKEditor({
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => {
+                        // onChange={(e) => {
+                        //   const file = e.target.files?.[0];
+                        //   if (!file) return;
+                        //   // ✅ FIX: Store planFile as raw File (instanceof File check in updateFeaturedProperty works)
+                        //   updateUnit(ui, {
+                        //     planFile: file,
+                        //     planFileName: file.name,
+                        //     planPreview: URL.createObjectURL(file),
+                        //   });
+                        // }}
+
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
+
                           if (!file) return;
-                          // ✅ FIX: Store planFile as raw File (instanceof File check in updateFeaturedProperty works)
+
+                          console.log(
+                            "📸 ORIGINAL:",
+                            (file.size / 1024 / 1024).toFixed(2),
+                            "MB",
+                          );
+
+                          // ✅ Compress Image
+                          const compressed = await compressImage(
+                            file,
+                            "gallery",
+                            formData?.categoryType === "land"
+                              ? "Plot Image"
+                              : "Floor Plan",
+                          );
+
+                          console.log(
+                            "✅ COMPRESSED:",
+                            (compressed.size / 1024 / 1024).toFixed(2),
+                            "MB",
+                          );
+
                           updateUnit(ui, {
-                            planFile: file,
-                            planFileName: file.name,
-                            planPreview: URL.createObjectURL(file),
+                            planFile: compressed,
+                            planFileName: compressed.name,
+                            planPreview: URL.createObjectURL(compressed),
                           });
                         }}
                       />

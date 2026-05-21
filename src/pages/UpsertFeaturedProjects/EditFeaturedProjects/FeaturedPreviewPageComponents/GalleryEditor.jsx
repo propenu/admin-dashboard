@@ -1,6 +1,7 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/GalleryEditor.jsx
 import React, { useRef } from "react";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
+import { compressImage } from "./imageCompressor";
 
 import { deleteFeaturedProjectGalleryImage } from "../../../../features/property/propertyService";
 
@@ -88,34 +89,141 @@ export default function GalleryEditor({
     });
   }
 
-  function handleFileUpload(id, file) {
+  // function handleFileUpload(id, file) {
+  //   if (!file) return;
+
+  //   const blobUrl = URL.createObjectURL(file);
+  //   fileMapRef.current[id] = file;
+
+  //   setFormData((prev) => {
+  //     const updatedGallery = (prev.gallerySummary || []).map((item) => {
+  //       if (uid(item) !== id) return item;
+  //       if (item.url?.startsWith("blob:")) URL.revokeObjectURL(item.url);
+  //       return {
+  //         ...item,
+  //         url: blobUrl,
+  //         isVideo: file.type.startsWith("video/"),
+  //         isDirty: true,
+  //       };
+  //     });
+  //     const next = { ...prev, gallerySummary: updatedGallery };
+  //     setLivePreviewData(next);
+  //     return next;
+  //   });
+  // }
+
+  async function handleFileUpload(id, file) {
     if (!file) return;
 
-    const blobUrl = URL.createObjectURL(file);
-    fileMapRef.current[id] = file;
+    let finalFile = file;
+
+    // ✅ Compress only images
+    if (file.type.startsWith("image/")) {
+      console.log("📸 ORIGINAL:", (file.size / 1024 / 1024).toFixed(2), "MB");
+
+      finalFile = await compressImage(file, "gallery", "Gallery Image");
+
+      console.log(
+        "✅ COMPRESSED:",
+        (finalFile.size / 1024 / 1024).toFixed(2),
+        "MB",
+      );
+    }
+
+    const blobUrl = URL.createObjectURL(finalFile);
+
+    fileMapRef.current[id] = finalFile;
 
     setFormData((prev) => {
       const updatedGallery = (prev.gallerySummary || []).map((item) => {
         if (uid(item) !== id) return item;
-        if (item.url?.startsWith("blob:")) URL.revokeObjectURL(item.url);
+
+        if (item.url?.startsWith("blob:")) {
+          URL.revokeObjectURL(item.url);
+        }
+
         return {
           ...item,
           url: blobUrl,
-          isVideo: file.type.startsWith("video/"),
+          isVideo: finalFile.type.startsWith("video/"),
           isDirty: true,
         };
       });
-      const next = { ...prev, gallerySummary: updatedGallery };
+
+      const next = {
+        ...prev,
+        gallerySummary: updatedGallery,
+      };
+
       setLivePreviewData(next);
+
       return next;
     });
   }
 
-  function handleNewFiles(e) {
+  // function handleNewFiles(e) {
+  //   if (addingRef.current) return;
+  //   addingRef.current = true;
+
+  //   const files = Array.from(e.target.files);
+  //   e.target.value = "";
+
+  //   if (!files.length) {
+  //     addingRef.current = false;
+  //     return;
+  //   }
+
+  //   const prepared = files.map((file) => {
+  //     const newId = crypto.randomUUID();
+  //     fileMapRef.current[newId] = file;
+  //     return {
+  //       id: newId,
+  //       title: autoTitle(file),
+  //       category: autoCategory(file),
+  //       url: URL.createObjectURL(file),
+  //       thumbUrl: "",
+  //       isVideo: file.type.startsWith("video/"),
+  //       isDirty: true,
+  //     };
+  //   });
+
+  //   setFormData((prev) => {
+  //     const existingGallery = prev.gallerySummary || [];
+  //     const existingIds = new Set(existingGallery.map(uid));
+  //     const newOnes = prepared.filter((e) => !existingIds.has(e.id));
+
+  //     if (!newOnes.length) {
+  //       addingRef.current = false;
+  //       return prev;
+  //     }
+
+  //     const withOrder = newOnes.map((entry, i) => ({
+  //       ...entry,
+  //       order: existingGallery.length + i + 1,
+  //     }));
+
+  //     const next = {
+  //       ...prev,
+  //       gallerySummary: [...existingGallery, ...withOrder],
+  //     };
+  //     setLivePreviewData(next);
+  //     return next;
+  //   });
+
+  //   setTimeout(() => {
+  //     addingRef.current = false;
+  //   }, 100);
+  // }
+
+  // ✅ FIXED: Cleaned up the double logic and properly ordered execution
+
+  async function handleNewFiles(e) {
     if (addingRef.current) return;
+
     addingRef.current = true;
 
     const files = Array.from(e.target.files);
+
     e.target.value = "";
 
     if (!files.length) {
@@ -123,23 +231,48 @@ export default function GalleryEditor({
       return;
     }
 
-    const prepared = files.map((file) => {
-      const newId = crypto.randomUUID();
-      fileMapRef.current[newId] = file;
-      return {
-        id: newId,
-        title: autoTitle(file),
-        category: autoCategory(file),
-        url: URL.createObjectURL(file),
-        thumbUrl: "",
-        isVideo: file.type.startsWith("video/"),
-        isDirty: true,
-      };
-    });
+    const prepared = await Promise.all(
+      files.map(async (file) => {
+        let finalFile = file;
+
+        // ✅ Compress only images
+        if (file.type.startsWith("image/")) {
+          console.log(
+            "📸 ORIGINAL:",
+            (file.size / 1024 / 1024).toFixed(2),
+            "MB",
+          );
+
+          finalFile = await compressImage(file, "gallery", "Gallery Image");
+
+          console.log(
+            "✅ COMPRESSED:",
+            (finalFile.size / 1024 / 1024).toFixed(2),
+            "MB",
+          );
+        }
+
+        const newId = crypto.randomUUID();
+
+        fileMapRef.current[newId] = finalFile;
+
+        return {
+          id: newId,
+          title: autoTitle(finalFile),
+          category: autoCategory(finalFile),
+          url: URL.createObjectURL(finalFile),
+          thumbUrl: "",
+          isVideo: finalFile.type.startsWith("video/"),
+          isDirty: true,
+        };
+      }),
+    );
 
     setFormData((prev) => {
       const existingGallery = prev.gallerySummary || [];
+
       const existingIds = new Set(existingGallery.map(uid));
+
       const newOnes = prepared.filter((e) => !existingIds.has(e.id));
 
       if (!newOnes.length) {
@@ -156,7 +289,9 @@ export default function GalleryEditor({
         ...prev,
         gallerySummary: [...existingGallery, ...withOrder],
       };
+
       setLivePreviewData(next);
+
       return next;
     });
 
@@ -164,19 +299,19 @@ export default function GalleryEditor({
       addingRef.current = false;
     }, 100);
   }
-
-  // ✅ FIXED: Cleaned up the double logic and properly ordered execution
+  
+  
   async function handleDelete(item, index) {
+
+    const toastId = toast.loading("Deleting...");
     try {
-      if (!window.confirm("Delete this item?")) return;
+      //if (!window.confirm("Delete this item?")) return;
+      
 
       const propertyId = formData._id || formData.id;
 
       // 🔥 FINAL FIX: backend uses index
       const correctIndex = index 
-
-      
-
       await deleteFeaturedProjectGalleryImage(propertyId, correctIndex);
 
       // update UI
@@ -192,10 +327,12 @@ export default function GalleryEditor({
         setLivePreviewData(next);
         return next;
       });
+      toast.dismiss(toastId);
 
       toast.success("Deleted successfully");
     } catch (err) {
-      console.error("DELETE ERROR:", err.response?.data);
+      //console.error("DELETE ERROR:", err.response?.data);
+      toast.dismiss(toastId);
       toast.error("Delete failed");
     }
   }

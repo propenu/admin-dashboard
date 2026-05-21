@@ -336,9 +336,12 @@ function MapplsPinMap({ coordinates, onPinChange }) {
 ══════════════════════════════════════════════════════════════ */
 function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
   const [query,         setQuery]         = useState("");
+  const [manualMapOpen, setManualMapOpen] = useState(false);
   const [photonResults, setPhotonResults] = useState([]);
   const [photonLoading, setPhotonLoading] = useState(false);
   const [photonMsg,     setPhotonMsg]     = useState(null);
+
+  
 
   const photonTimer = useRef(null);
   const dropRef     = useRef(null);
@@ -441,12 +444,12 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
 
   return (
     <div className="space-y-4">
-
       {/* Info strip */}
       <div className="flex items-center gap-2 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl px-4 py-2.5">
         <MapPin size={12} className="text-[#27AE60] shrink-0" />
         <p className="text-xs text-[#166534] font-medium">
-          Live search within <span className="font-bold">{SEARCH_RADIUS_KM} km</span> of your
+          Live search within{" "}
+          <span className="font-bold">{SEARCH_RADIUS_KM} km</span> of your
           pinned location — results appear as you type.
         </p>
       </div>
@@ -455,9 +458,15 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
       <div ref={dropRef} className="relative">
         <div className="relative">
           {photonLoading ? (
-            <Loader2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
+            <Loader2
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 animate-spin"
+            />
           ) : (
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+            />
           )}
           <input
             value={query}
@@ -470,7 +479,11 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
           {query && (
             <button
               type="button"
-              onClick={() => { setQuery(""); setPhotonResults([]); setPhotonMsg(null); }}
+              onClick={() => {
+                setQuery("");
+                setPhotonResults([]);
+                setPhotonMsg(null);
+              }}
               className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-700"
             >
               <X size={15} />
@@ -478,14 +491,15 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
           )}
         </div>
         <p className="text-[10px] text-gray-400 mt-1.5">
-          Type 3+ characters — results appear instantly within {SEARCH_RADIUS_KM} km · Click to add
+          Type 3+ characters — results appear instantly within{" "}
+          {SEARCH_RADIUS_KM} km · Click to add
         </p>
 
         {/* Photon dropdown */}
         {(photonResults.length > 0 || photonMsg) && (
           <div className="relative z-10 w-full mt-1.5 bg-white border-2 border-gray-200  rounded-xl shadow-xl overflow-hidden">
             {photonResults.map((p, i) => {
-              const name  = p.address ? `${p.title}, ${p.address}` : p.title;
+              const name = p.address ? `${p.title}, ${p.address}` : p.title;
               const added = isAdded(name, p.type);
               return (
                 <button
@@ -502,9 +516,13 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
                     className={`mt-0.5 shrink-0 ${added ? "text-[#27AE60]" : "text-gray-400"}`}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-gray-900 font-semibold line-clamp-1">{p.title}</span>
+                    <span className="block text-gray-900 font-semibold line-clamp-1">
+                      {p.title}
+                    </span>
                     {p.address && (
-                      <span className="block text-xs text-gray-400 mt-0.5 line-clamp-1">{p.address}</span>
+                      <span className="block text-xs text-gray-400 mt-0.5 line-clamp-1">
+                        {p.address}
+                      </span>
                     )}
                     <span className="flex items-center gap-2 mt-0.5">
                       {p.type && (
@@ -520,7 +538,10 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
                     </span>
                   </span>
                   {added ? (
-                    <Check size={14} className="text-[#27AE60] shrink-0 mt-0.5" />
+                    <Check
+                      size={14}
+                      className="text-[#27AE60] shrink-0 mt-0.5"
+                    />
                   ) : (
                     <Plus size={14} className="text-gray-400 shrink-0 mt-0.5" />
                   )}
@@ -537,6 +558,137 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
         )}
       </div>
 
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setManualMapOpen(!manualMapOpen)}
+          className="px-4 py-2 rounded-xl text-sm font-bold text-white
+    bg-[#27AE60] hover:opacity-90 transition-all"
+        >
+          {manualMapOpen ? "Close Manual Map" : "Add Manually From Map"}
+        </button>
+      </div>
+
+      {manualMapOpen && (
+        <div className="mt-4 border-2 border-[#27AE60] rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 bg-[#f0fdf4] border-b border-[#bbf7d0]">
+            <p className="text-sm font-bold text-[#166534]">
+              Select Nearby Place From Map
+            </p>
+          </div>
+
+          <div style={{ height: 320 }}>
+            {/* <MapplsPinMap
+              coordinates={pinnedCoords}
+              onPinChange={async ({ coordinates }) => {
+                if (
+                  !coordinates ||
+                  !Array.isArray(coordinates) ||
+                  coordinates.length !== 2
+                ) {
+                  return;
+                }
+
+                const lat = Number(coordinates[1]);
+                const lng = Number(coordinates[0]);
+
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                  return;
+                }
+
+                let placeName = "Manual Nearby Place";
+
+                try {
+                  const geo = await reverseGeocode(
+                    lat,
+                    lng,
+                    new AbortController().signal,
+                  );
+
+                  placeName =
+                    [geo?.locality, geo?.city].filter(Boolean).join(", ") ||
+                    geo?.state ||
+                    `Nearby Place (${lat.toFixed(5)})`;
+                } catch (err) {
+                  console.error("Reverse geocode failed:", err);
+                }
+
+                onAdd({
+                  name: placeName,
+                  type: geo?.locality
+                    ? "locality"
+                    : geo?.city
+                      ? "city"
+                      : "place",
+                  coordinates: [lng, lat],
+                  distanceText: pinnedCoords
+                    ? fmtKm(haversineKm(pinnedCoords, [lng, lat]))
+                    : "",
+                });
+
+                setManualMapOpen(false);
+              }}
+            /> */}
+            <MapplsPinMap
+              //coordinates={pinnedCoords || location.coordinates}
+              coordinates={pinnedCoords}
+              onPinChange={async ({ coordinates }) => {
+                if (
+                  !coordinates ||
+                  !Array.isArray(coordinates) ||
+                  coordinates.length !== 2
+                ) {
+                  return;
+                }
+
+                const lat = Number(coordinates[1]);
+                const lng = Number(coordinates[0]);
+
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                  return;
+                }
+
+                let placeName = "Manual Nearby Place";
+
+                let placeType = "place";
+
+                try {
+                  const geo = await reverseGeocode(
+                    lat,
+                    lng,
+                    new AbortController().signal,
+                  );
+
+                  placeName =
+                    [geo?.locality, geo?.city].filter(Boolean).join(", ") ||
+                    geo?.state ||
+                    `Nearby Place (${lat.toFixed(5)})`;
+
+                  placeType = geo?.locality
+                    ? "Nearby Place"
+                    : geo?.city
+                      ? "city"
+                      : "place";
+                } catch (err) {
+                  console.error("Reverse geocode failed:", err);
+                }
+
+                onAdd({
+                  name: placeName,
+                  type: placeType,
+                  coordinates: [lng, lat],
+                  distanceText: pinnedCoords
+                    ? fmtKm(haversineKm(pinnedCoords, [lng, lat]))
+                    : "",
+                });
+
+                setManualMapOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Added chips */}
       {selectedPlaces.length > 0 && (
         <div>
@@ -551,9 +703,13 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
                   rounded-lg flex items-center gap-1.5 border border-[#bbf7d0]"
               >
                 <MapPin size={10} className="shrink-0" />
-                <span className="max-w-[140px] truncate">{place.name.split(",")[0]}</span>
+                <span className="max-w-[140px] truncate">
+                  {place.name.split(",")[0]}
+                </span>
                 {place.distanceText && (
-                  <span className="text-green-400 font-normal">· {place.distanceText}</span>
+                  <span className="text-green-400 font-normal">
+                    · {place.distanceText}
+                  </span>
                 )}
                 <X
                   size={11}
@@ -583,6 +739,7 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
   const [locatingUser, setLocatingUser] = useState(false);
   const [searchQuery,  setSearchQuery]  = useState("");
   const [searching,    setSearching]    = useState(false);
+  const [openMapIndex, setOpenMapIndex] = useState(null);
 
   // const [addrFields, setAddrFields] = useState({
   //   pincode:  payload.pincode  || "",
@@ -598,6 +755,22 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
 
   const clr = (key) =>
     setErrors((p) => { const c = { ...p }; delete c[key]; return c; });
+
+  const handleUpdatePlaceCoords = useCallback(
+    (index, coordinates) => {
+      const updatedPlaces = [...places];
+
+      updatedPlaces[index] = {
+        ...updatedPlaces[index],
+        coordinates: [String(coordinates[0]), String(coordinates[1])],
+      };
+
+      update({
+        nearbyPlaces: updatedPlaces,
+      });
+    },
+    [places, update],
+  );
 
   // const setAddr = useCallback((key, value) => {
   //   setAddrFields((prev) => ({ ...prev, [key]: value }));
@@ -620,7 +793,9 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
   //     return true;
   //   },
   // }));
-useImperativeHandle(ref, () => ({
+
+
+  useImperativeHandle(ref, () => ({
   validate() {
     const e = {};
 
@@ -902,7 +1077,6 @@ useImperativeHandle(ref, () => ({
           <div
             className="rounded-2xl overflow-hidden border-2   border-gray-200 shadow-sm"
             style={{ position: "relative", height: 360, width: "90%" }}
-            
           >
             <MapplsPinMap
               coordinates={mapCoords}
@@ -1068,7 +1242,9 @@ useImperativeHandle(ref, () => ({
                 >
                   <Trash2 size={14} />
                 </button>
+                
               </div>
+              
             </div>
           ))}
         </div>
@@ -1086,6 +1262,7 @@ useImperativeHandle(ref, () => ({
           >
             <Search size={17} style={{ color: "#27AE60" }} />
           </div>
+
           <div className="flex-1">
             <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
               Photon · OpenStreetMap · {SEARCH_RADIUS_KM} km radius
@@ -1115,6 +1292,7 @@ useImperativeHandle(ref, () => ({
           />
         </div>
       </div>
+      
     </div>
   );
 });

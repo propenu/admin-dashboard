@@ -1,6 +1,7 @@
 
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/AboutUsEditor.jsx
 import React, { useState, useEffect } from "react";
+import { compressImage } from "./imageCompressor";
 import TiptapEditor from "../../CreateFeaturedProjects/Components/TiptapEditor";
 
 export default function AboutUsEditor({ formData, setFormData, setLivePreviewData, saving, onSave }) {
@@ -38,14 +39,54 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
     });
   };
 
-  function handleImageChange(e) {
+  // function handleImageChange(e) {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
+  //   const previewUrl = URL.createObjectURL(file);
+  //   setLocalState((p) => ({ ...p, imageFile: file, imagePreview: previewUrl }));
+  //   setLivePreviewData({
+  //     ...formData,
+  //     aboutSummary: [{ aboutDescription: localState.aboutDescription, rightContent: localState.rightContent, url: previewUrl }],
+  //   });
+  // }
+
+  async function handleImageChange(e) {
     const file = e.target.files[0];
+
     if (!file) return;
-    const previewUrl = URL.createObjectURL(file);
-    setLocalState((p) => ({ ...p, imageFile: file, imagePreview: previewUrl }));
+
+    console.log("📸 ORIGINAL:", (file.size / 1024 / 1024).toFixed(2), "MB");
+
+    // ✅ Compress About Section Image
+    const compressed = await compressImage(
+      file,
+      "gallery",
+      "About Section Image",
+    );
+
+    console.log(
+      "✅ COMPRESSED:",
+      (compressed.size / 1024 / 1024).toFixed(2),
+      "MB",
+    );
+
+    const previewUrl = URL.createObjectURL(compressed);
+
+    setLocalState((p) => ({
+      ...p,
+      imageFile: compressed,
+      imagePreview: previewUrl,
+    }));
+
     setLivePreviewData({
       ...formData,
-      aboutSummary: [{ aboutDescription: localState.aboutDescription, rightContent: localState.rightContent, url: previewUrl }],
+      aboutSummary: [
+        {
+          aboutDescription: localState.aboutDescription,
+          rightContent: localState.rightContent,
+          url: previewUrl,
+        },
+      ],
     });
   }
 

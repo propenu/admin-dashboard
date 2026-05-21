@@ -1,6 +1,9 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/PropertyDetailsEditor.jsx
 
 import React, { useState, useEffect, useRef } from "react";
+import { compressPdfAdvanced } from "../../CreateFeaturedProjects/utils/compressPdfAdvanced";
+import { compressImage } from "./imageCompressor";
+import { toast } from "sonner";
 
 /* ─── PINCODE AUTOFILL ───── */
 
@@ -231,26 +234,91 @@ export default function PropertyDetailsEditor({
   }
 
   /* ── Brochure ── */
-  function handleBrochure(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setBrochureFile(file);
-    //setFormData((prev) => ({ ...prev, brochureFile: file }));
-    setFormData((prev) => ({
-      ...prev,
-      brochure: {
-        file: file,
-        filename: file.name,
-      },
-    }));
+  // function handleBrochure(e) {
+  //   const file = e.target.files?.[0];
+  //   if (!file) return;
+  //   setBrochureFile(file);
+  //   //setFormData((prev) => ({ ...prev, brochureFile: file }));
+  //   setFormData((prev) => ({
+  //     ...prev,
+  //     brochure: {
+  //       file: file,
+  //       filename: file.name,
+  //     },
+  //   }));
     
-    setLivePreviewData((prev) => ({
-      ...prev,
-      brochureUrl: URL.createObjectURL(file),
-      brochure: {
-        filename: file.name,
-      },
-    }));
+  //   setLivePreviewData((prev) => ({
+  //     ...prev,
+  //     brochureUrl: URL.createObjectURL(file),
+  //     brochure: {
+  //       filename: file.name,
+  //     },
+  //   }));
+  // }
+
+  async function handleBrochure(e) {
+    let file = e.target.files?.[0];
+
+    if (!file) return;
+
+    console.log(
+      "📦 ORIGINAL FILE:",
+      file.name,
+      (file.size / 1024 / 1024).toFixed(2),
+      "MB",
+    );
+
+    try {
+      // ✅ PDF Compression
+      if (file.type === "application/pdf") {
+        toast.loading("Compressing PDF... ⏳");
+
+        file = await compressPdfAdvanced(file);
+
+        toast.dismiss();
+
+        console.log(
+          "✅ COMPRESSED PDF:",
+          (file.size / 1024 / 1024).toFixed(2),
+          "MB",
+        );
+      }
+
+      // ✅ Image Compression
+      else if (file.type.startsWith("image/")) {
+        file = await compressImage(file, "gallery", "Brochure Image");
+
+        console.log(
+          "✅ COMPRESSED IMAGE:",
+          (file.size / 1024 / 1024).toFixed(2),
+          "MB",
+        );
+      }
+
+      setBrochureFile(file);
+
+      setFormData((prev) => ({
+        ...prev,
+        brochure: {
+          file,
+          filename: file.name,
+        },
+      }));
+
+      setLivePreviewData((prev) => ({
+        ...prev,
+        brochureUrl: URL.createObjectURL(file),
+        brochure: {
+          filename: file.name,
+        },
+      }));
+
+      toast.success("Brochure optimized successfully ✅");
+    } catch (err) {
+      console.error("❌ Brochure compression failed:", err);
+
+      toast.error("Compression failed ❌");
+    }
   }
 
   

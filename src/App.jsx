@@ -183,7 +183,14 @@ const RoleUsersPage = lazy(() =>
 function App() {
   return (
     <Router>
-      <Toaster position="top-right" richColors />
+      {/* <Toaster position="top-right" richColors /> */}
+      <Toaster
+        position="top-right"
+        richColors
+        expand={true}
+        visibleToasts={10}
+        
+      />
       <ErrorBoundary>
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
