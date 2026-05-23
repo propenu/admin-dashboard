@@ -146,3 +146,6 @@ export const projectAnalytics = (id) => {
   return apiClient.get(`${SERVICES.PROPERTY}/leads/project/${id}/leads`);
 };
 
+export const propertiesAnalytics = (id) =>{
+  return apiClient.get(`${SERVICES.PROPERTY}/leads?projectId=${id}`);
+}

@@ -77,24 +77,88 @@ export const useFeaturedProject = (projectType) => {
   };
 
 
+  // useEffect(() => {
+  //   const safePayload = {
+  //     ...payload,
+  //     galleryFiles: [],
+
+  //     // ✅ FIX brochure storage
+  //     brochure:
+  //       typeof payload.brochure === "object"
+  //         ? payload.brochure?.key
+  //         : payload.brochure,
+
+  //     // 🔥 REMOVE HEAVY FIELDS
+  //     heroImagePreview: "",
+  //     logoPreview: "",
+  //     aboutImagePreview: "",
+  //   };
+
+  //   localStorage.setItem("featuredPayload", JSON.stringify(safePayload));
+  // }, [payload]);
+
   useEffect(() => {
+    // ✅ REMOVE HEAVY DATA
+    const cleanedProjectSummary = (payload.projectSummary || []).map((b) => ({
+      ...b,
+
+      units: (b.units || []).map((u) => ({
+        ...u,
+
+        // ❌ REMOVE BASE64 PREVIEW
+        planPreview: "",
+
+        // ✅ STORE ONLY KEY
+        planFile:
+          typeof u.planFile === "object"
+            ? { key: u.planFile?.key }
+            : u.planFile,
+      })),
+    }));
+
     const safePayload = {
       ...payload,
+
+      // ✅ CLEANED SUMMARY
+      projectSummary: cleanedProjectSummary,
+
+      // ❌ DO NOT STORE FILE ARRAY
       galleryFiles: [],
 
-      // ✅ FIX brochure storage
-      brochure:
-        typeof payload.brochure === "object"
-          ? payload.brochure?.key
-          : payload.brochure,
-
-      // 🔥 REMOVE HEAVY FIELDS
+      // ❌ REMOVE BASE64 IMAGES
       heroImagePreview: "",
       logoPreview: "",
       aboutImagePreview: "",
+
+      // ✅ STORE ONLY IMAGE KEYS
+      heroImage:
+        typeof payload.heroImage === "object"
+          ? { key: payload.heroImage?.key }
+          : payload.heroImage,
+
+      logo:
+        typeof payload.logo === "object"
+          ? { key: payload.logo?.key }
+          : payload.logo,
+
+      aboutImage:
+        typeof payload.aboutImage === "object"
+          ? { key: payload.aboutImage?.key }
+          : payload.aboutImage,
+
+      brochure:
+        typeof payload.brochure === "object"
+          ? { key: payload.brochure?.key }
+          : payload.brochure,
     };
 
-    localStorage.setItem("featuredPayload", JSON.stringify(safePayload));
+    try {
+      localStorage.setItem("featuredPayload", JSON.stringify(safePayload));
+    } catch (err) {
+      console.error("❌ LocalStorage Full:", err);
+
+      toast.error("Storage limit exceeded. Large previews removed.");
+    }
   }, [payload]);
 
   const updatePayload = (patch) => {
