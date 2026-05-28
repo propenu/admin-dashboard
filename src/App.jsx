@@ -34,7 +34,7 @@ const LandPropertyVerification = lazy(() =>
 );
 
 const ProjectLeadsDetilas = lazy(
-  () => import("./pages/FeaturedProperties/FeaturedPropertyDetails"),
+  () => import("./pages/features/property/components/shared/IndetialsPage"),
 );
 
 const HighlightedProject = lazy(() =>

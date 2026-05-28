@@ -21,6 +21,39 @@ import PropertyCard from "./PropertyCard";
 import PromoteModal from "./PromoteModal";
 import ConfirmModal from "./ConfirmModal";
 
+
+const CATEGORY_TYPES = [
+  {
+    value: "residential",
+    label: "Residential",
+    icon: "🏠",
+  },
+
+  {
+    value: "land",
+    label: "Land",
+    icon: "🌍",
+  },
+];
+
+const PROPERTY_TYPES = {
+  residential: [
+    { label: "Flat / Apartment", value: "apartment", icon: "🏗" },
+    { label: "Villa", value: "villa", icon: "🏰" },
+    { label: "Duplex", value: "duplex", icon: "🏘" },
+    { label: "Triplex", value: "triplex", icon: "🏚" },
+    { label: "Farmhouse", value: "farmhouse", icon: "🌿" },
+  ],
+
+  land: [
+    { label: "Plot", value: "plot", icon: "📌" },
+    { label: "Residential Plot", value: "residential-plot", icon: "🏠" },
+    { label: "Industrial Plot", value: "industrial-plot", icon: "🏭" },
+    { label: "Agricultural Plot", value: "agricultural-plot", icon: "🌾" },
+    { label: "Commercial Plot", value: "commercial-plot", icon: "🏢" },
+  ],
+};
+
 export default function PropertyListPage({
   type,
   title,
@@ -55,6 +88,9 @@ export default function PropertyListPage({
 
   // ── Status filter ──────────────────────────────────────────────────────────
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedPropertyType, setSelectedPropertyType] = useState("all");
 
   // Build location list from properties
   useEffect(() => {
@@ -99,6 +135,30 @@ export default function PropertyListPage({
       (p) => p.status === statusFilter,
     );
   }
+
+  if (selectedCategory !== "all") {
+  visibleProperties = visibleProperties.filter(
+    (p) => p.categoryType === selectedCategory
+  );
+}
+
+if (selectedPropertyType !== "all") {
+  visibleProperties = visibleProperties.filter(
+    (p) => p.propertyType === selectedPropertyType
+  );
+}
+
+if (selectedCategory !== "all") {
+  visibleProperties = visibleProperties.filter(
+    (p) => p.categoryType === selectedCategory,
+  );
+}
+
+if (selectedPropertyType !== "all") {
+  visibleProperties = visibleProperties.filter(
+    (p) => p.propertyType === selectedPropertyType,
+  );
+}
 
   const activeCount = properties.filter((p) => p.status === "active").length;
   const inactiveCount = properties.filter(
@@ -402,6 +462,93 @@ export default function PropertyListPage({
                     </Droppable>
                   </DragDropContext>
                 )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── CATEGORY FILTERS ───────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+        <div className="flex flex-col gap-5">
+          {/* CATEGORY TYPES */}
+          <div>
+            <h3 className="text-sm font-bold text-slate-700 mb-3">
+              Category Type
+            </h3>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => {
+                  setSelectedCategory("all");
+                  setSelectedPropertyType("all");
+                }}
+                className={`px-4 py-2 rounded-xl border text-sm font-semibold transition
+          ${
+            selectedCategory === "all"
+              ? "bg-[#27AE60] text-white border-[#27AE60]"
+              : "bg-white text-slate-600 border-slate-200 hover:border-[#27AE60]"
+          }`}
+              >
+                All
+              </button>
+
+              {CATEGORY_TYPES.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => {
+                    setSelectedCategory(cat.value);
+                    setSelectedPropertyType("all");
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold transition
+            ${
+              selectedCategory === cat.value
+                ? "bg-[#27AE60] text-white border-[#27AE60]"
+                : "bg-white text-slate-600 border-slate-200 hover:border-[#27AE60]"
+            }`}
+                >
+                  <span>{cat.icon}</span>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* PROPERTY TYPES */}
+          {selectedCategory !== "all" && PROPERTY_TYPES[selectedCategory] && (
+            <div>
+              <h3 className="text-sm font-bold text-slate-700 mb-3">
+                Property Type
+              </h3>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => setSelectedPropertyType("all")}
+                  className={`px-4 py-2 rounded-xl border text-sm font-semibold transition
+              ${
+                selectedPropertyType === "all"
+                  ? "bg-[#27AE60] text-white border-green-600"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-green-500"
+              }`}
+                >
+                  All
+                </button>
+
+                {PROPERTY_TYPES[selectedCategory].map((type) => (
+                  <button
+                    key={type.value}
+                    onClick={() => setSelectedPropertyType(type.value)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold transition
+                ${
+                  selectedPropertyType === type.value
+                    ? "bg-[#27AE60] text-white border-green-600"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-green-500"
+                }`}
+                  >
+                    <span>{type.icon}</span>
+                    {type.label}
+                  </button>
+                ))}
               </div>
             </div>
           )}

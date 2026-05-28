@@ -2,6 +2,10 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
 import {
   MapPin,
   Trash2,
@@ -17,8 +21,17 @@ import {
   X,
   Minus,
   Plus,
+  Download,
+  Phone,
+  Mail,
+  User,
+  CalendarDays,
+  MessageSquare,
+  BadgeCheck,
+  BarChart3,
 } from "lucide-react";
 import { updateProjectRank } from "../../../../../features/property/propertyService";
+import { projectAnalytics } from "../../../../../features/property/propertyService";
 import { toast } from "sonner";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -123,6 +136,74 @@ export default function PropertyCard({
   const navigate   = useNavigate();
   const menuBtnRef = useRef(null);
   const inputRef   = useRef(null);
+
+  const [openLeads, setOpenLeads] = useState(false);
+
+  const { data: leadsData, isLoading: leadsLoading } = useQuery({
+    queryKey: ["projectLeads", p?._id],
+
+    queryFn: async () => {
+      const res = await projectAnalytics(p?._id);
+      return res.data;
+    },
+
+    enabled: !!p?._id,
+  });
+
+  const leads = Array.isArray(leadsData?.data) ? leadsData.data : [];
+
+  const totalLeads =
+    typeof leadsData?.count === "number" ? leadsData.count : leads.length;
+
+    const downloadCSV = () => {
+      const rows = leads.map((lead, index) => ({
+        SNo: index + 1,
+        Name: lead.name,
+        Phone: lead.phone,
+        Email: lead.email,
+        Status: lead.status,
+        Date: new Date(lead.createdAt).toLocaleString("en-IN"),
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+
+      const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+      const blob = new Blob([csv], {
+        type: "text/csv;charset=utf-8;",
+      });
+
+      saveAs(blob, `project-leads-${p?._id}.csv`);
+    };
+
+
+    const downloadExcel = () => {
+      const rows = leads.map((lead, index) => ({
+        SNo: index + 1,
+        Name: lead.name,
+        Phone: lead.phone,
+        Email: lead.email,
+        Status: lead.status,
+        Date: new Date(lead.createdAt).toLocaleString("en-IN"),
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+
+      const workbook = XLSX.utils.book_new();
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Project Leads");
+
+      const excelBuffer = XLSX.write(workbook, {
+        bookType: "xlsx",
+        type: "array",
+      });
+
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
+      });
+
+      saveAs(blob, `project-leads-${p?._id}.xlsx`);
+    };
 
   const routinSupport = (p.promotion?.type === "normal" || p.promotion?.type === "featured" || p.promotion?.type === "sponsored");
 
@@ -454,16 +535,6 @@ export default function PropertyCard({
           </span>
 
           <button
-            // onClick={(e) => {
-            //   e.stopPropagation();
-            //   window.open(
-            //     `http://localhost:3000/${p.promotion?.type}/${p.slug}`,
-            //     "_blank",
-            //     "noopener,noreferrer",
-            //   );
-            // }}
-
-
             onClick={(e) => {
               e.stopPropagation();
 
@@ -491,7 +562,155 @@ export default function PropertyCard({
           >
             Edit <ChevronRight className="w-3.5 h-3.5" />
           </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenLeads(true);
+            }}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#27AE60]/20 bg-green-50 text-[#27AE60] text-xs font-bold hover:bg-green-100 transition"
+          >
+            <BarChart3 className="w-4 h-4" />
+            Leads ({leadsLoading ? "..." : totalLeads})
+          </button>
         </div>
+        {openLeads && (
+          <div
+            className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden">
+              {/* HEADER */}
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">
+                    Project Leads
+                  </h2>
+
+                  <p className="text-sm text-slate-400 mt-1">
+                    Total Leads: {totalLeads}
+                  </p>
+
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={downloadCSV}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 border border-green-100 text-[#27AE60] text-xs font-bold"
+                    >
+                      <Download className="w-4 h-4" />
+                      CSV
+                    </button>
+
+                    <button
+                      onClick={downloadExcel}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold"
+                    >
+                      <Download className="w-4 h-4" />
+                      Excel
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setOpenLeads(false)}
+                  className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* BODY */}
+              <div className="p-6 max-h-[70vh] overflow-y-auto">
+                {leadsLoading ? (
+                  <div className="py-10 text-center text-slate-400">
+                    Loading leads...
+                  </div>
+                ) : leads.length === 0 ? (
+                  <div className="py-10 text-center text-slate-400">
+                    No leads found
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                    <table className="w-full min-w-[1000px]">
+                      <thead>
+                        <tr className="bg-slate-50 border-b">
+                          <th className="px-4 py-3 text-left text-xs font-bold">
+                            #
+                          </th>
+
+                          <th className="px-4 py-3 text-left text-xs font-bold">
+                            Name
+                          </th>
+
+                          <th className="px-4 py-3 text-left text-xs font-bold">
+                            Contact
+                          </th>
+
+                          <th className="px-4 py-3 text-left text-xs font-bold">
+                            Status
+                          </th>
+
+                          <th className="px-4 py-3 text-left text-xs font-bold">
+                            Date
+                          </th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {leads.map((lead, index) => (
+                          <tr
+                            key={lead._id}
+                            className="border-b hover:bg-slate-50"
+                          >
+                            <td className="px-4 py-4">{index + 1}</td>
+
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                                  <User className="w-4 h-4 text-[#27AE60]" />
+                                </div>
+
+                                <div>
+                                  <p className="font-semibold text-slate-700">
+                                    {lead.name}
+                                  </p>
+
+                                  <p className="text-xs text-slate-400">
+                                    {lead.email}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-4">
+                              <a
+                                href={`tel:${lead.phone}`}
+                                className="flex items-center gap-2 text-slate-700"
+                              >
+                                <Phone className="w-4 h-4 text-[#27AE60]" />
+                                {lead.phone}
+                              </a>
+                            </td>
+
+                            <td className="px-4 py-4">
+                              <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 capitalize">
+                                {lead.status}
+                              </span>
+                            </td>
+
+                            <td className="px-4 py-4 text-sm text-slate-500">
+                              {new Date(lead.createdAt).toLocaleString("en-IN")}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

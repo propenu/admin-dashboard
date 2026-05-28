@@ -9,7 +9,6 @@ import { propertiesAnalytics } from "../../features/property/propertyService";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import { Download } from "lucide-react";
 
 import {
   MapPin,
@@ -22,6 +21,8 @@ import {
   AlertCircle,
   Image as ImageIcon,
   ChevronRight,
+  Download, 
+  Home,
   X,
   Phone,
   User,
@@ -32,22 +33,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 
-// import {
-//   MapPin,
-//   Bed,
-//   Bath,
-//   Move,
-//   Eye,
-//   FileCheck,
-//   Clock,
-//   AlertCircle,
-//   Image as ImageIcon,
-//   ChevronRight,
-//   X,
-//   Phone,
-//   User,
-//   BarChart3,
-// } from "lucide-react";
+
 import FALLBACK from "../../assets/fallback.svg";
 
 // ✅ Indian Price Formatter
@@ -128,7 +114,7 @@ export default function ResidentialCard({ property }) {
 
     const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Project Leads");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Property Leads");
 
     const excelBuffer = XLSX.write(workbook, {
       bookType: "xlsx",
@@ -286,7 +272,7 @@ export default function ResidentialCard({ property }) {
           <div className="flex gap-2">
             {isPendingReview ? (
               <>
-              <button
+                <button
                   onClick={() => setOpenLeads(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#27AE60]/20 bg-green-50 text-[#27AE60] text-sm font-bold hover:bg-green-100 transition"
                 >
@@ -294,14 +280,16 @@ export default function ResidentialCard({ property }) {
                   {/* Leads ({totalLeads}) */}
                   Leads ({leadsLoading ? "..." : totalLeads})
                 </button>
-              <button
-                onClick={() =>
-                  navigate(`/residential-property-verification/${property._id}`)
-                }
-                className="flex-1 sm:flex-none px-5 py-2 rounded-xl text-sm font-bold bg-[#27AE60] text-white shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-1 active:scale-95"
-              >
-                Review Docs <ChevronRight className="w-4 h-4" />
-              </button>
+                <button
+                  onClick={() =>
+                    navigate(
+                      `/residential-property-verification/${property._id}`,
+                    )
+                  }
+                  className="flex-1 sm:flex-none px-5 py-2 rounded-xl text-sm font-bold bg-[#27AE60] text-white shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-1 active:scale-95"
+                >
+                  Review Docs <ChevronRight className="w-4 h-4" />
+                </button>
               </>
             ) : (
               <>
@@ -353,7 +341,7 @@ export default function ResidentialCard({ property }) {
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <div>
                 <h2 className="text-xl font-bold text-slate-800">
-                  Project Leads
+                  Property Leads
                 </h2>
 
                 <div className="flex gap-2 mt-3">
@@ -388,7 +376,7 @@ export default function ResidentialCard({ property }) {
             </div>
 
             {/* Body */}
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
               {leadsLoading ? (
                 <div className="py-10 text-center text-slate-400">
                   Loading leads...
@@ -399,73 +387,6 @@ export default function ResidentialCard({ property }) {
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-2xl border border-slate-100">
-                  {/* <table className="w-full">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">
-                          #
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">
-                          Name
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">
-                          Phone
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">
-                          Status
-                        </th>
-
-                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">
-                          Date
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {leads.map((lead, index) => (
-                        <tr
-                          key={lead._id}
-                          className="border-b border-slate-50 hover:bg-slate-50 transition"
-                        >
-                          <td className="px-4 py-4 text-sm text-slate-400">
-                            {index + 1}
-                          </td>
-
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                                <User className="w-4 h-4 text-[#27AE60]" />
-                              </div>
-
-                              <span className="font-semibold text-slate-700">
-                                {lead.name}
-                              </span>
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-4">
-                            <div className="flex items-center gap-2 text-slate-600">
-                              <Phone className="w-4 h-4 text-[#27AE60]" />
-                              {lead.phone}
-                            </div>
-                          </td>
-
-                          <td className="px-4 py-4">
-                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 capitalize">
-                              {lead.status}
-                            </span>
-                          </td>
-
-                          <td className="px-4 py-4 text-sm text-slate-500">
-                            {new Date(lead.createdAt).toLocaleString("en-IN")}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table> */}
                   <table className="w-full min-w-[1200px]">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-100">
@@ -521,12 +442,8 @@ export default function ResidentialCard({ property }) {
                           {/* PROFILE */}
                           <td className="px-4 py-5">
                             <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#27AE60] to-green-500 flex items-center justify-center text-white font-bold text-lg shadow">
-                                {lead.name?.charAt(0)?.toUpperCase()}
-                              </div>
-
                               <div>
-                                <h3 className="font-bold text-slate-800 text-sm">
+                                <h3 className="font-bold text-nowrap text-slate-800 text-sm">
                                   {lead.name}
                                 </h3>
 
@@ -561,21 +478,36 @@ export default function ResidentialCard({ property }) {
 
                           {/* PROPERTY */}
                           <td className="px-4 py-5">
-                            <div className="space-y-1">
-                              <span className="px-2 py-1 rounded-lg bg-green-50 text-[#27AE60] text-xs font-bold">
-                                {lead.propertyModel}
-                              </span>
+                            <div className="flex flex-col gap-2 min-w-[180px]">
+                              {/* Property Model */}
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                                  <Home className="w-4 h-4 text-[#27AE60]" />
+                                </div>
 
-                              <p className="text-xs text-slate-500 capitalize">
-                                {lead.propertyType}
-                              </p>
+                                <div>
+                                  <p className="text-sm font-bold text-slate-800">
+                                    {lead.propertyModel || "Residential"}
+                                  </p>
 
-                              <p className="text-xs text-slate-400 capitalize">
-                                {lead.listingType}
-                              </p>
+                                  <p className="text-[11px] text-slate-400">
+                                    Property Model
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Property Type */}
+                              <div className="flex items-center gap-2">
+                                <div className="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-semibold capitalize">
+                                  {lead.propertyType || "N/A"}
+                                </div>
+
+                                <div className="px-2 py-1 rounded-lg bg-blue-50 text-blue-600 text-[11px] font-semibold capitalize">
+                                  {lead.listingType || "sale"}
+                                </div>
+                              </div>
                             </div>
                           </td>
-
                           {/* STATUS */}
                           <td className="px-4 py-5">
                             <span
