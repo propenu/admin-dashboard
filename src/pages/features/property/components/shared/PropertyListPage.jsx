@@ -78,6 +78,7 @@ export default function PropertyListPage({
     expiredCount,
     fetchNextPage,
     hasNextPage,
+    isFetchingNextPage,
   } = hook;
 
   // ── Location filter ────────────────────────────────────────────────────────
@@ -121,7 +122,7 @@ export default function PropertyListPage({
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isLoading) {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
       },
@@ -632,7 +633,16 @@ if (selectedPropertyType !== "all") {
         )}
       </div>
       <div ref={loadMoreRef} className="h-20 flex justify-center items-center">
-        {hasNextPage && <LoadingSpinner size="sm" />}
+        {isFetchingNextPage && (
+          <div className="flex flex-col items-center gap-2">
+            <LoadingSpinner size="sm" />
+            <p className="text-xs text-slate-500">Loading more projects...</p>
+          </div>
+        )}
+
+        {!hasNextPage && properties.length > 0 && (
+          <p className="text-sm text-slate-400">All projects loaded</p>
+        )}
       </div>
     </div>
   );

@@ -19,20 +19,27 @@ export function useFeaturedProjects(type) {
   
 const queryKey = ["featured-projects", type];
 
-const { data, fetchNextPage, hasNextPage, isLoading, isError, refetch } =
-  useInfiniteQuery({
-    queryKey,
+const {
+  data,
+  fetchNextPage,
+  hasNextPage,
+  isLoading,
+  isError,
+  refetch,
+  isFetchingNextPage,
+} = useInfiniteQuery({
+  queryKey,
 
-    initialPageParam: 1,
+  initialPageParam: 1,
 
-    queryFn: ({ pageParam }) => getFeaturedProjectsByType(type, pageParam, 20),
+  queryFn: ({ pageParam }) => getFeaturedProjectsByType(type, pageParam, 20),
 
-    getNextPageParam: (lastPage) => {
-      const { page, pages } = lastPage.data.meta;
+  getNextPageParam: (lastPage) => {
+    const { page, pages } = lastPage.data.meta;
 
-      return page < pages ? page + 1 : undefined;
-    },
-  });
+    return page < pages ? page + 1 : undefined;
+  },
+});
 
 const properties =
   data?.pages?.flatMap((page) => page?.data?.items || []) || [];
@@ -49,9 +56,9 @@ const invalidate = () =>
     return rankA - rankB;
   });
 
-  
-  //const totalCount = data?.pages?.[0]?.data?.meta?.total || 0;
-  const totalCount = properties.length;
+
+  const totalCount = data?.pages?.[0]?.data?.meta?.total || 0;
+  // const totalCount = properties.length;
 
   const activeCount = properties.filter((p) => p.status === "active").length;
 
@@ -60,13 +67,6 @@ const invalidate = () =>
   ).length;
 
   const expiredCount = properties.filter((p) => p.status === "expired").length;
-
-  
-
-
-
-
-
 
 
   // ── DELETE ─────────────────────────────────────────────────────────────────
@@ -84,11 +84,6 @@ const invalidate = () =>
     onError: () => toast.error("Failed to delete property"),
   });
 
-  
-
-  
-
-  
 
   const promoteMutation = useMutation({
     mutationFn: async ({ id, newType }) => {
@@ -194,5 +189,6 @@ const invalidate = () =>
     expiredCount,
     fetchNextPage,
     hasNextPage,
+    isFetchingNextPage,
   };
 }
