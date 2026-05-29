@@ -50,6 +50,7 @@ const invalidate = () =>
   });
 
   
+  const totalCount = data?.pages?.[0]?.data?.meta?.total || 0;
 
 
 
@@ -177,6 +178,7 @@ const invalidate = () =>
     expireMutation,
     resetMutation,
     rankMutation,
+    totalCount,
     fetchNextPage,
     hasNextPage,
   };

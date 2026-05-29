@@ -72,6 +72,7 @@ export default function PropertyListPage({
     promoteMutation,
     expireMutation,
     resetMutation,
+    totalCount,
     fetchNextPage,
     hasNextPage,
   } = hook;
@@ -354,9 +355,7 @@ if (selectedPropertyType !== "all") {
         </div>
 
         <div className="p-4 sm:p-6 flex flex-col text-center bg-white rounded-2xl shadow-sm border">
-          <h2 className={`text-2xl font-bold ${accentColor}`}>
-            {properties.length}
-          </h2>
+          <h2 className={`text-2xl font-bold ${accentColor}`}>{totalCount}</h2>
           <p className="text-slate-500 text-xs mt-0.5">Total {title}</p>
         </div>
       </div>
