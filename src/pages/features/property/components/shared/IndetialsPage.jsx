@@ -38,7 +38,10 @@ import {
   Users,
 } from "lucide-react";
 import { projectAnalytics } from "../../../../../features/property/propertyService";
-import { fetchFeaturedProperties } from "../../../../../services/PropertyService";
+import {
+  fetchFeaturedProperties,
+} from "../../../../../services/PropertyService";
+import { getFeaturedProjectById } from "../../../../../features/property/propertyService";
 import LoadingSpinner from "../../../../../components/common/LoadingSpinner";
 import Fallback from "../../../../../assets/fallback.svg";
 
@@ -703,12 +706,18 @@ export default function FeaturedPropertyDetails() {
   const [activeTab, setActiveTab] = useState("overview");
 
   const { data: listData, isLoading: listLoading } = useQuery({
-    queryKey: ["featuredProperties"],
-    queryFn: fetchFeaturedProperties,
+    queryKey: ["getFeaturedProjectById", id],
+    queryFn: () => getFeaturedProjectById(id),
+    enabled: !!id,
   });
 
-  //const property = listData?.items?.find((p) => p._id === id) || null;
-  const property = listData?.items?.find((p) => p._id === id) || null;
+
+  console.log("params id",id)
+  console.log(listData?.data?.data?._id);
+
+  const property = listData?.data?.data || null;
+  
+  console.log(property);
 
   const {
     data: analyticsData,
