@@ -73,6 +73,9 @@ export default function PropertyListPage({
     expireMutation,
     resetMutation,
     totalCount,
+    activeCount,
+    inactiveCount,
+    expiredCount,
     fetchNextPage,
     hasNextPage,
   } = hook;
@@ -190,11 +193,11 @@ if (selectedPropertyType !== "all") {
 //   );
 // }
 
-  const activeCount = properties.filter((p) => p.status === "active").length;
-  const inactiveCount = properties.filter(
-    (p) => p.status === "inactive",
-  ).length;
-  const expiredCount = properties.filter((p) => p.status === "expired").length;
+  // const activeCount = properties.filter((p) => p.status === "active").length;
+  // const inactiveCount = properties.filter(
+  //   (p) => p.status === "inactive",
+  // ).length;
+  // const expiredCount = properties.filter((p) => p.status === "expired").length;
 
   const stats = [
     // {

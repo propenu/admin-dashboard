@@ -50,8 +50,18 @@ const invalidate = () =>
   });
 
   
-  const totalCount = data?.pages?.[0]?.data?.meta?.total || 0;
+  //const totalCount = data?.pages?.[0]?.data?.meta?.total || 0;
+  const totalCount = properties.length;
 
+  const activeCount = properties.filter((p) => p.status === "active").length;
+
+  const inactiveCount = properties.filter(
+    (p) => p.status === "inactive",
+  ).length;
+
+  const expiredCount = properties.filter((p) => p.status === "expired").length;
+
+  
 
 
 
@@ -179,6 +189,9 @@ const invalidate = () =>
     resetMutation,
     rankMutation,
     totalCount,
+    activeCount,
+    inactiveCount,
+    expiredCount,
     fetchNextPage,
     hasNextPage,
   };
