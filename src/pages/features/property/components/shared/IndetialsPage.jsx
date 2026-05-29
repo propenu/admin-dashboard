@@ -416,8 +416,8 @@ function UpdateHistoryTimeline({ history, updateCount }) {
           {updateCount ?? history.length} updates
         </span>
       </div>
-      <div className="p-5 overflow-x-auto">
-        <div className="flex items-start gap-0 min-w-max">
+      <div className="p-5 overflow-x-auto scrollbar-thin scrollbar-thumb-green-500 scrollbar-track-slate-100">
+        <div className="flex items-start gap-2 w-max pr-10">
           {history.map((h, i) => {
             const isLast = i === history.length - 1;
             return (
@@ -712,12 +712,10 @@ export default function FeaturedPropertyDetails() {
   });
 
 
-  console.log("params id",id)
-  console.log(listData?.data?.data?._id);
+  
 
   const property = listData?.data?.data || null;
   
-  console.log(property);
 
   const {
     data: analyticsData,
