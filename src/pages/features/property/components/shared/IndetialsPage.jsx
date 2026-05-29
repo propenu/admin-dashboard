@@ -417,7 +417,7 @@ function UpdateHistoryTimeline({ history, updateCount }) {
         </span>
       </div>
       <div className="p-5 overflow-x-auto scrollbar-thin scrollbar-thumb-green-500 scrollbar-track-slate-100">
-        <div className="flex items-start gap-2 w-max pr-10">
+        <div className="flex items-start gap-2 w-max min-w-[700px] pr-10">
           {history.map((h, i) => {
             const isLast = i === history.length - 1;
             return (
