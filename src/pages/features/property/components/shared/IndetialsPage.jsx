@@ -407,7 +407,7 @@ function UpdateHistoryTimeline({ history, updateCount }) {
   if (!Array.isArray(history) || history.length === 0) return null;
   return (
     <SectionCard>
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-50">
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-50 ">
         <div className="p-2 rounded-xl bg-slate-100">
           <History className="w-4 h-4 text-slate-500" />
         </div>
@@ -416,8 +416,8 @@ function UpdateHistoryTimeline({ history, updateCount }) {
           {updateCount ?? history.length} updates
         </span>
       </div>
-      <div className="p-5 overflow-x-auto scrollbar-thin scrollbar-thumb-green-500 scrollbar-track-slate-100">
-        <div className="flex items-start gap-2 w-max min-w-[700px] pr-10">
+      <div className="p-5 overflow-x-auto custom-scrollbar w-full">
+        <div className="flex items-start gap-0 min-w-max ">
           {history.map((h, i) => {
             const isLast = i === history.length - 1;
             return (
@@ -715,6 +715,7 @@ export default function FeaturedPropertyDetails() {
   
 
   const property = listData?.data?.data || null;
+  
   
 
   const {
