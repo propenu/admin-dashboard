@@ -30,9 +30,8 @@ import { SERVICES } from "../../config/services";
 
 const BASE = `${SERVICES.PROPERTY}/featured-project`;
 
-// ── GET ──────────────────────────────────────────────────────────────────────
-export const getFeaturedProjectsByType = (type) =>
-  apiClient.get(`${BASE}?type=${type}`);
+export const getFeaturedProjectsByType = (type, page = 1, limit = 20) =>
+  apiClient.get(`${BASE}?type=${type}&page=${page}&limit=${limit}`);
 
 export const getFeaturedProjectById = (id) => apiClient.get(`${BASE}/${id}`);
 

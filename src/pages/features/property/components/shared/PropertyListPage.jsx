@@ -1,5 +1,5 @@
 // src/features/property/components/shared/PropertyListPage.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -72,6 +72,8 @@ export default function PropertyListPage({
     promoteMutation,
     expireMutation,
     resetMutation,
+    fetchNextPage,
+    hasNextPage,
   } = hook;
 
   // ── Location filter ────────────────────────────────────────────────────────
@@ -92,6 +94,8 @@ export default function PropertyListPage({
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedPropertyType, setSelectedPropertyType] = useState("all");
 
+  const loadMoreRef = useRef(null);
+
   // Build location list from properties
   useEffect(() => {
     if (!properties.length) {
@@ -109,6 +113,31 @@ export default function PropertyListPage({
       Array.from(cityMap.entries()).map(([name, count]) => ({ name, count })),
     );
   }, [properties]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isLoading) {
+          fetchNextPage();
+        }
+      },
+      {
+        threshold: 0.5,
+      },
+    );
+
+    const current = loadMoreRef.current;
+
+    if (current) {
+      observer.observe(current);
+    }
+
+    return () => {
+      if (current) {
+        observer.unobserve(current);
+      }
+    };
+  }, [fetchNextPage, hasNextPage, isLoading]);
 
   const filteredLocations = locations.filter((loc) =>
     loc.name.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -148,17 +177,17 @@ if (selectedPropertyType !== "all") {
   );
 }
 
-if (selectedCategory !== "all") {
-  visibleProperties = visibleProperties.filter(
-    (p) => p.categoryType === selectedCategory,
-  );
-}
+// if (selectedCategory !== "all") {
+//   visibleProperties = visibleProperties.filter(
+//     (p) => p.categoryType === selectedCategory,
+//   );
+// }
 
-if (selectedPropertyType !== "all") {
-  visibleProperties = visibleProperties.filter(
-    (p) => p.propertyType === selectedPropertyType,
-  );
-}
+// if (selectedPropertyType !== "all") {
+//   visibleProperties = visibleProperties.filter(
+//     (p) => p.propertyType === selectedPropertyType,
+//   );
+// }
 
   const activeCount = properties.filter((p) => p.status === "active").length;
   const inactiveCount = properties.filter(
@@ -599,6 +628,9 @@ if (selectedPropertyType !== "all") {
             ))}
           </div>
         )}
+      </div>
+      <div ref={loadMoreRef} className="h-20 flex justify-center items-center">
+        {hasNextPage && <LoadingSpinner size="sm" />}
       </div>
     </div>
   );

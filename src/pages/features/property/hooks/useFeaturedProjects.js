@@ -1,5 +1,5 @@
 // src/features/property/hooks/useFeaturedProjects.js
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import {
   getFeaturedProjectsByType,
   deleteFeaturedProject,
@@ -16,16 +16,32 @@ import { toast } from "sonner";
  */
 export function useFeaturedProjects(type) {
   const queryClient = useQueryClient();
-  const queryKey = ["featuredProjects", type];
+  
+const queryKey = ["featured-projects", type];
 
-  // ── FETCH ──────────────────────────────────────────────────────────────────
-  const { data, isLoading, isError, refetch } = useQuery({
+const { data, fetchNextPage, hasNextPage, isLoading, isError, refetch } =
+  useInfiniteQuery({
     queryKey,
-    queryFn: () => getFeaturedProjectsByType(type),
-    select: (res) => res?.data?.items ?? [],
+
+    initialPageParam: 1,
+
+    queryFn: ({ pageParam }) => getFeaturedProjectsByType(type, pageParam, 20),
+
+    getNextPageParam: (lastPage) => {
+      const { page, pages } = lastPage.data.meta;
+
+      return page < pages ? page + 1 : undefined;
+    },
   });
 
-  const properties = data ?? [];
+const properties =
+  data?.pages?.flatMap((page) => page?.data?.items || []) || [];
+
+const invalidate = () =>
+  queryClient.invalidateQueries({
+    queryKey,
+  });
+  
 
   const sortedProperties = [...properties].sort((a, b) => {
     const rankA = a.rank ?? Infinity;
@@ -33,7 +49,14 @@ export function useFeaturedProjects(type) {
     return rankA - rankB;
   });
 
-  const invalidate = () => queryClient.invalidateQueries(queryKey);
+  
+
+
+
+
+
+
+
 
   // ── DELETE ─────────────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
@@ -43,158 +66,15 @@ export function useFeaturedProjects(type) {
       invalidate();
 
       // Refresh all property lists
-      queryClient.invalidateQueries(["featuredProjects"]);
+      queryClient.invalidateQueries({
+        queryKey: ["featured-projects"],
+      });
     },
     onError: () => toast.error("Failed to delete property"),
   });
 
   
 
-  //  const promoteMutation = useMutation({
-  //    mutationFn: async ({ id, newType }) => {
-  //      const res = await getFeaturedProjectsByType(newType);
-
-  //      const targetProjects = res?.data?.items || [];
-
-  //      const maxRank = Math.max(
-  //        0,
-  //        ...targetProjects.map((p) => Number(p.rank) || 0),
-  //      );
-
-  //      const nextRank = maxRank + 1;
-
-  //      return promoteProjectWithRank(id, {
-  //        type: newType,
-  //        rank: nextRank,
-  //      });
-  //    },
-
-  //    onSuccess: () => {
-  //      toast.success("Property promoted successfully");
-
-  //      invalidate();
-
-  //      queryClient.invalidateQueries({
-  //        queryKey: ["featuredProjects"],
-  //      });
-  //    },
-
-  //    onError: (error) => {
-  //      toast.error(
-  //        error?.response?.data?.message || "Failed to promote property",
-  //      );
-  //    },
-  //  });
-
-  // ── EXPIRE ─────────────────────────────────────────────────────────────────
-  
-
-  // const promoteMutation = useMutation({
-  //   mutationFn: async ({ id, newType }) => {
-  //     try {
-  //       console.log("=================================");
-  //       console.log("PROMOTION START");
-  //       console.log("Project ID:", id);
-  //       console.log("Target Type:", newType);
-
-  //       // STEP 1 — Fetch target type projects
-  //       const res = await getFeaturedProjectsByType(newType);
-
-  //       console.log("Fetched Projects Response:", res);
-
-  //       const targetProjects = res?.data?.items || [];
-
-  //       console.log("Target Projects:", targetProjects);
-
-  //       // STEP 2 — Debug ranks
-  //       const rankList = targetProjects.map((p) => ({
-  //         id: p._id,
-  //         title: p.title,
-  //         rank: p.rank,
-  //         type: p?.promotion?.type,
-  //       }));
-
-  //       console.table(rankList);
-
-  //       // STEP 3 — Calculate max rank
-  //       const maxRank = Math.max(
-  //         0,
-  //         ...targetProjects.map((p) => Number(p.rank) || 0),
-  //       );
-
-  //       console.log("Calculated Max Rank:", maxRank);
-
-  //       // STEP 4 — Next rank
-  //       const nextRank = maxRank + 1;
-
-  //       console.log("Calculated Next Rank:", nextRank);
-
-  //       // STEP 5 — Final payload
-  //       const payload = {
-  //         type: newType,
-  //         rank: nextRank,
-  //       };
-
-  //       console.log("Final Payload:", payload);
-
-  //       // STEP 6 — Promote API call
-  //       const promoteRes = await promoteProjectWithRank(id, payload);
-
-  //       console.log("Promotion API Full Response:", promoteRes);
-
-  //       console.log("Promotion API Response Data:", promoteRes?.data);
-
-  //       console.log("Updated Project From Backend:", promoteRes?.data?.data);
-
-  //       console.log("Updated Project Rank:", promoteRes?.data?.data?.rank);
-
-  //       console.log(
-  //         "Updated Project Promotion:",
-  //         promoteRes?.data?.data?.promotion,
-  //       );
-
-  //       console.log("PROMOTION END");
-  //       console.log("=================================");
-
-  //       return promoteRes;
-  //     } catch (error) {
-  //       console.log("=================================");
-  //       console.log("PROMOTION ERROR");
-
-  //       console.error("Full Error:", error);
-
-  //       console.error("Backend Error Data:", error?.response?.data);
-
-  //       console.error("Backend Error Status:", error?.response?.status);
-
-  //       console.error("Backend Error Message:", error?.response?.data?.message);
-
-  //       console.log("=================================");
-
-  //       throw error;
-  //     }
-  //   },
-
-  //   onSuccess: (data) => {
-  //     console.log("Mutation Success:", data);
-
-  //     toast.success("Property promoted successfully");
-
-  //     invalidate();
-
-  //     queryClient.invalidateQueries({
-  //       queryKey: ["featuredProjects"],
-  //     });
-  //   },
-
-  //   onError: (error) => {
-  //     console.log("Mutation Error:", error);
-
-  //     toast.error(
-  //       error?.response?.data?.message || "Failed to promote property",
-  //     );
-  //   },
-  // });
   
 
   
@@ -241,8 +121,9 @@ export function useFeaturedProjects(type) {
 
       invalidate();
 
+      // Refresh all property lists
       queryClient.invalidateQueries({
-        queryKey: ["featuredProjects"],
+        queryKey: ["featured-projects"],
       });
     },
 
@@ -296,5 +177,7 @@ export function useFeaturedProjects(type) {
     expireMutation,
     resetMutation,
     rankMutation,
+    fetchNextPage,
+    hasNextPage,
   };
 }
