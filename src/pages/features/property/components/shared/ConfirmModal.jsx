@@ -1,4 +1,3 @@
-// src/features/property/components/shared/ConfirmModal.jsx
 
 export default function ConfirmModal({
   open,

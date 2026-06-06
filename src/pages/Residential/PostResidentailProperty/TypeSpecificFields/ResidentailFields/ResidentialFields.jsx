@@ -91,7 +91,7 @@ export default function ResidentialFields({ back, next }) {
     dispatch(savePropertyData({ category: "residential", id: propertyId, step: "details" }))
       .unwrap()
       .then(() => { toast.success("Property details saved successfully"); next(); })
-      .catch((err) => { console.error("Save error:", err); toast.error(err?.message || "Failed to save details"); })
+      .catch((err) => { console.error("Save error:", err); toast.error(err?.message || err?.error); })
       .finally(() => setIsSubmitting(false));
   };
 

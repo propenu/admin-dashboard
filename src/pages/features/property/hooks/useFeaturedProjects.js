@@ -34,8 +34,20 @@ const {
 
   queryFn: ({ pageParam }) => getFeaturedProjectsByType(type, pageParam, 20),
 
+  // getNextPageParam: (lastPage) => {
+  //   const { page, pages } = lastPage.data.meta;
+
+  //   return page < pages ? page + 1 : undefined;
+  // },
+  // getNextPageParam: (lastPage) => {
+  //   console.log("LAST PAGE =", lastPage);
+
+  //   return undefined;
+  // },
+
   getNextPageParam: (lastPage) => {
-    const { page, pages } = lastPage.data.meta;
+    const page = lastPage?.data?.data?.meta?.page ?? 1;
+    const pages = lastPage?.data?.data?.meta?.pages ?? 1;
 
     return page < pages ? page + 1 : undefined;
   },

@@ -1,5 +1,3 @@
-
-
 //import { useRef, useImperativeHandle, forwardRef, useState } from "react";
 import {
   useRef,
@@ -120,6 +118,8 @@ const LAND_FACING_OPTIONS = [
   "North West Facing",
   "South East Facing",
   "South West Facing",
+  "Corner Facing",
+  "Plot",
 ];
 
 const RESIDENTIAL_OPTIONS = [
@@ -216,7 +216,7 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
             if (!u.maxSqft) e[`bhk-${bi}-unit-${ui}-maxSqft`] = "Required";
             if (!u.minPrice) e[`bhk-${bi}-unit-${ui}-minPrice`] = "Required";
             if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
-            if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";
+            //if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";
             if (!u.planFileName)
               e[`bhk-${bi}-unit-${ui}-plan`] = "Floor plan required";
           } else if (payload.categoryType === "land") {
@@ -224,7 +224,7 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
               e[`bhk-${bi}-unit-${ui}-area`] = "Plot area required";
             if (!u.minPrice) e[`bhk-${bi}-unit-${ui}-minPrice`] = "Required";
             //if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
-            if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";
+            //if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";
             if (!u.planFileName)
               e[`bhk-${bi}-unit-${ui}-plan`] = "Floor plan required";
           }

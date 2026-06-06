@@ -1,37 +1,7 @@
-// import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
-// const RoadWidthFt = ({error}) => {
-//   const { form, updateFieldValue } = useActivePropertySlice();
-
-//   return (
-//     <div className="space-y-2">
-//       <p className="text-[13px] font-weight-bold text-[#000000] uppercase font-poppins">
-//         Road Width
-//       </p>
-
-//       <div className="flex border border-[#27AD75] rounded-lg overflow-hidden bg-white">
-//         {/* Road Width Input */}
-//         <input
-//           type="number"
-//           placeholder="0"
-//           value={form.roadWidthFt || ""}
-//           onChange={(e) => updateFieldValue("roadWidthFt", e.target.value)}
-//           className="w-full p-3 outline-none placeholder:text-[#524d4d] text-sm font-semibold"
-//         />
-
-        
-//       </div>
-//       {error && <p className="text-red-500 text-xs">{error}</p>}
-//     </div>
-//   );
-// };
-
-// export default RoadWidthFt;
-
-
-//ci 
 
 // RoadWidthFt.jsx
+import { Info } from "lucide-react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
 const RoadWidthFt = ({ error }) => {
@@ -39,10 +9,25 @@ const RoadWidthFt = ({ error }) => {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">Road Width</p>
-      <div className={`flex border-2 rounded-xl overflow-hidden bg-white transition-all ${
-        error ? "border-red-300" : "border-[#e5e7eb] focus-within:border-[#27AE60] focus-within:ring-2 focus-within:ring-[#27AE60]/10"
-      }`}>
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">
+          Road Width(ft)
+        </p>
+
+        <div className="relative group">
+          <Info size={14} className="text-gray-400 cursor-pointer" />
+          <div className="absolute left-5 top-0 hidden group-hover:block w-60 p-3 rounded-xl bg-gray-800 text-white text-xs shadow-xl z-50">
+            Road width is the width of the road in front of the property.
+          </div>
+        </div>
+      </div>
+      <div
+        className={`flex border-2 rounded-xl overflow-hidden bg-white transition-all ${
+          error
+            ? "border-red-300"
+            : "border-[#e5e7eb] focus-within:border-[#27AE60] focus-within:ring-2 focus-within:ring-[#27AE60]/10"
+        }`}
+      >
         <input
           type="number"
           placeholder="0"

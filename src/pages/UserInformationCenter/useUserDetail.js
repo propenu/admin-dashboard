@@ -58,27 +58,6 @@ export const useUserPayments = (userId, status = "paid") =>
   });
 
 
-// ── User Subscriptions ────────────────────────────────────────────────────────
-// export const useUserSubscriptions = (userId) =>
-//   useQuery({
-//     queryKey: ["user-subscriptions", userId],
-//     queryFn: () =>
-//       getUserSubscriptions(userId).then((r) => r.data?.data || r.data || []),
-//     enabled: !!userId,
-//     staleTime: 2 * 60 * 1000,
-//   });
-
-// // ── Subscription History ──────────────────────────────────────────────────────
-// export const useUserSubscriptionHistory = (userId) =>
-//   useQuery({
-//     queryKey: ["user-subscription-history", userId],
-//     queryFn: () =>
-//       getUserSubscriptionHistory(userId).then(
-//         (r) => r.data?.data || r.data || [],
-//       ),
-//     enabled: !!userId,
-//     staleTime: 5 * 60 * 1000,
-//   });
 
 // ── User Subscriptions ────────────────────────────────────────────────────────
 export const useUserSubscriptions = (userId) =>
@@ -154,13 +133,6 @@ export const useUserFeaturedProjectCounts = (userId) => {
   const normal = useUserFeaturedProjects(userId, "normal");
   const sponsored = useUserFeaturedProjects(userId, "sponsored");
 
-  // const getCount = (data) => {
-  //   if (Array.isArray(data)) return data.length;
-  //   if (Array.isArray(data?.data)) return data.data.length;
-  //   if (Array.isArray(data?.items)) return data.items.length;
-  //   if (Array.isArray(data?.projects)) return data.projects.length;
-  //   return 0;
-  // };
 
   const getCount = (data) => {
     const items = Array.isArray(data)
@@ -171,8 +143,8 @@ export const useUserFeaturedProjectCounts = (userId) => {
           ? data.data
           : [];
 
-    return items.filter((p) => String(p.createdBy) === String(userId))
-      .length;
+    return items.filter((p) => String(p.createdBy?._id || p.createdBy) === String(userId))
+.length;
   };
 
   return {
@@ -210,12 +182,7 @@ export const useUserPropertyCounts = (userId) => {
   const land = useUserProperties(userId, "land");
   const agricultural = useUserProperties(userId, "agricultural");
 
-  // const getCount = (data) => {
-  //   if (Array.isArray(data)) return data.length;
-  //   if (Array.isArray(data?.items)) return data.items.length;
-  //   if (Array.isArray(data?.data)) return data.data.length;
-  //   return 0;
-  // };
+  
   const getCount = (data) => {
     const items = Array.isArray(data)
       ? data
@@ -225,7 +192,7 @@ export const useUserPropertyCounts = (userId) => {
           ? data.data
           : [];
 
-    return items.filter((p) => String(p.createdBy?._id) === String(userId))
+    return items.filter((p) => String(p.createdBy?._id || p.createdBy) === String(userId))
       .length;
   };
 

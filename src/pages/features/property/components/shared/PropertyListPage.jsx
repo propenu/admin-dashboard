@@ -21,6 +21,15 @@ import PropertyCard from "./PropertyCard";
 import PromoteModal from "./PromoteModal";
 import ConfirmModal from "./ConfirmModal";
 
+import {usePendingProjects} from "../../hooks/usePendingProjects"
+import { useQuery } from "@tanstack/react-query";
+import { getUserInDetails } from "./userInDetails";
+
+
+
+
+
+
 
 const CATEGORY_TYPES = [
   {
@@ -63,6 +72,20 @@ export default function PropertyListPage({
   hook,
 }) {
   const navigate = useNavigate();
+
+  const { data: user } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: getUserInDetails,
+  });
+
+  const isSalesManager = user?.user?.roleName === "sales_manager";
+
+  const { data: pendingProjectsData } = usePendingProjects({
+    enabled: isSalesManager && type === "normal",
+  });
+
+  const pendingProjects = pendingProjectsData?.data || [];
+
   const {
     properties,
     sortedProperties,
@@ -95,6 +118,8 @@ export default function PropertyListPage({
 
   // ── Status filter ──────────────────────────────────────────────────────────
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const [activeSource, setActiveSource] = useState(null);  // "card" | "category" | null
 
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedPropertyType, setSelectedPropertyType] = useState("all");
@@ -164,41 +189,69 @@ export default function PropertyListPage({
     ? sortedProperties.filter((p) => p.city?.trim() === selectedLocation)
     : sortedProperties;
 
-  if (statusFilter !== "all") {
+  //  if (statusFilter === "pending") {
+  //    visibleProperties = pendingProjects;
+
+  //    if (selectedLocation) {
+  //      visibleProperties = visibleProperties.filter(
+  //        (p) => p.city?.trim() === selectedLocation,
+  //      );
+  //    }
+  //  }
+
+  // if (statusFilter !== "all") {
+  //   visibleProperties = visibleProperties.filter(
+  //     (p) => p.status === statusFilter,
+  //   );
+  // }
+
+  // if (statusFilter === "pending") {
+  //   visibleProperties = pendingProjects;
+
+  //   if (selectedLocation) {
+  //     visibleProperties = visibleProperties.filter(
+  //       (p) => p.city?.trim() === selectedLocation,
+  //     );
+  //   }
+  // } else if (statusFilter !== "all") {
+  //   visibleProperties = visibleProperties.filter(
+  //     (p) => p.status === statusFilter,
+  //   );
+  // }
+
+  if (statusFilter === "pending" && isSalesManager && type === "normal") {
+    visibleProperties = pendingProjects;
+
+    if (selectedLocation) {
+      visibleProperties = visibleProperties.filter(
+        (p) => p.city?.trim() === selectedLocation,
+      );
+    }
+  } else if (statusFilter !== "all") {
     visibleProperties = visibleProperties.filter(
       (p) => p.status === statusFilter,
     );
   }
 
-  if (selectedCategory !== "all") {
-  visibleProperties = visibleProperties.filter(
-    (p) => p.categoryType === selectedCategory
-  );
-}
+  // if (selectedCategory !== "all") {
+  //   visibleProperties = visibleProperties.filter(
+  //     (p) => p.categoryType === selectedCategory,
+  //   );
+  // }
 
-if (selectedPropertyType !== "all") {
-  visibleProperties = visibleProperties.filter(
-    (p) => p.propertyType === selectedPropertyType
-  );
-}
+  if (selectedCategory !== "all" && selectedCategory !== "pending") {
+    visibleProperties = visibleProperties.filter(
+      (p) => p.categoryType === selectedCategory,
+    );
+  }
 
-// if (selectedCategory !== "all") {
-//   visibleProperties = visibleProperties.filter(
-//     (p) => p.categoryType === selectedCategory,
-//   );
-// }
+  if (selectedPropertyType !== "all") {
+    visibleProperties = visibleProperties.filter(
+      (p) => p.propertyType === selectedPropertyType,
+    );
+  }
 
-// if (selectedPropertyType !== "all") {
-//   visibleProperties = visibleProperties.filter(
-//     (p) => p.propertyType === selectedPropertyType,
-//   );
-// }
-
-  // const activeCount = properties.filter((p) => p.status === "active").length;
-  // const inactiveCount = properties.filter(
-  //   (p) => p.status === "inactive",
-  // ).length;
-  // const expiredCount = properties.filter((p) => p.status === "expired").length;
+  const pendingCount = pendingProjects.length;
 
   const stats = [
     // {
@@ -248,6 +301,18 @@ if (selectedPropertyType !== "all") {
       textColor: "text-red-500",
       filterVal: "expired",
     },
+    ...(isSalesManager && type === "normal"
+      ? [
+          {
+            label: "Pending Projects",
+            icon: Clock,
+            value: pendingCount,
+            bg: "from-yellow-50 to-yellow-100",
+            textColor: "text-yellow-600",
+            filterVal: "pending",
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -365,19 +430,41 @@ if (selectedPropertyType !== "all") {
       </div>
 
       {/* ── STATS GRID ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div
+        className={`grid grid-cols-2 sm:grid-cols-3 ${
+          isSalesManager && type === "normal"
+            ? "lg:grid-cols-6"
+            : "lg:grid-cols-5"
+        } gap-3`}
+      >
         {stats.map((stat, index) => {
           const Icon = stat.icon;
-          const isActiveFilter = statusFilter === stat.filterVal;
+          //const isActiveFilter = statusFilter === stat.filterVal;
+
+          const isActiveFilter =
+            stat.filterVal === "pending"
+              ? statusFilter === "pending" && activeSource === "card"
+              : statusFilter === stat.filterVal;
           return (
             <div
               key={index}
               onClick={() => {
                 if (stat.route) navigate(stat.route, { state: { type } });
                 else if (stat.filterVal)
-                  setStatusFilter((prev) =>
-                    prev === stat.filterVal ? "all" : stat.filterVal,
-                  );
+                  if (stat.filterVal === "pending") {
+                    // setStatusFilter((prev) =>
+                    //   prev === stat.filterVal ? "all" : stat.filterVal,
+                    // );
+                    setStatusFilter("pending");
+                    setActiveSource("card");
+                    setSelectedPropertyType("all");
+                    setActiveSource("card");
+                  } else {
+                    setStatusFilter((prev) =>
+                      prev === stat.filterVal ? "all" : stat.filterVal,
+                    );
+                    setActiveSource(null);
+                  }
               }}
               className={`bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition cursor-pointer border
                 ${isActiveFilter ? "ring-2 ring-[#27AE60]" : ""}`}
@@ -514,6 +601,14 @@ if (selectedPropertyType !== "all") {
                 onClick={() => {
                   setSelectedCategory("all");
                   setSelectedPropertyType("all");
+
+                  if (
+                    statusFilter === "pending" &&
+                    activeSource === "category"
+                  ) {
+                    setStatusFilter("all");
+                    setActiveSource(null);
+                  }
                 }}
                 className={`px-4 py-2 rounded-xl border text-sm font-semibold transition
           ${
@@ -531,6 +626,9 @@ if (selectedPropertyType !== "all") {
                   onClick={() => {
                     setSelectedCategory(cat.value);
                     setSelectedPropertyType("all");
+                    if (statusFilter === "pending") {
+                      setStatusFilter("all");
+                    }
                   }}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold transition
             ${
@@ -543,6 +641,25 @@ if (selectedPropertyType !== "all") {
                   {cat.label}
                 </button>
               ))}
+
+              {isSalesManager && type === "normal" && (
+                <button
+                  onClick={() => {
+                    setStatusFilter("pending");
+                    setSelectedCategory("pending");
+                    setSelectedPropertyType("all");
+                    setActiveSource("category");
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold transition
+                                ${
+                                  statusFilter === "pending" && activeSource === "category"
+                                    ? "bg-[#27AE60] text-white border-[#27AE60]"
+                                    : "bg-white text-slate-600 border-slate-200 hover:border-yellow-500"
+                                }`}
+                      >
+                        ⏳ Pending Projects
+                      </button>
+              )}
             </div>
           </div>
 
@@ -617,7 +734,7 @@ if (selectedPropertyType !== "all") {
             <p>No properties found.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
             {visibleProperties.map((p) => (
               <PropertyCard
                 key={p._id}

@@ -274,6 +274,9 @@ const AmenitiesStep = forwardRef(({ payload, update }, ref) => {
   const specsRef     = useRef(null);
   const leadsRef     = useRef(null);
 
+
+  const residential = payload?.categoryType === "residential";
+
   
   useImperativeHandle(ref, () => ({
     validate() {
@@ -310,16 +313,7 @@ const AmenitiesStep = forwardRef(({ payload, update }, ref) => {
 
   const selectedKeys = useMemo(() => new Set(amenities.map((a) => a.key)), [amenities]);
 
-  // const toggleAmenity = (title) => {
-  //   if (!title.trim()) return;
-  //   const key = title.toLowerCase().replace(/\s+/g,"-");
-  //   if (selectedKeys.has(key)) {
-  //     update({ amenities: amenities.filter((a) => a.key !== key) });
-  //   } else {
-  //     update({ amenities: [...amenities, { key, title:title.trim() }] });
-  //     setErrors({});
-  //   }
-  // };
+  
   
   const toggleAmenity = (item) => {
     if (!item?.title) return;
@@ -412,68 +406,6 @@ const AmenitiesStep = forwardRef(({ payload, update }, ref) => {
 
       {/* Categories */}
       <div className="space-y-8">
-        {/* {Object.entries(AMENITIES_MASTER).map(([cat, items]) => {
-          //const visible = items.filter((i) => i.toLowerCase().includes(search.toLowerCase()));
-          const visible = items.filter((i) =>
-            i.title.toLowerCase().includes(search.toLowerCase()),
-          );
-          if (search && visible.length === 0) return null;
-          //const selCount = visible.filter((i) => selectedKeys.has(i.toLowerCase().replace(/\s+/g,"-"))).length;
-          const selCount = visible.filter((i) =>
-            selectedKeys.has(i.key),
-          ).length;
-          return (
-            <div key={cat}>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-lg">{CAT_ICONS[cat] || "🏠"}</span>
-                <h4 className="text-xs font-black uppercase tracking-widest text-gray-600">
-                  {cat}
-                </h4>
-                <div className="flex-1 h-px bg-gray-200" />
-                {selCount > 0 && (
-                  <span
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-black text-white"
-                    style={{ background: "#27AE60" }}
-                  >
-                    {selCount} selected
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {visible.map((item) => {
-                  // const key = item.toLowerCase().replace(/\s+/g,"-");
-                  // const sel = selectedKeys.has(key);
-                  const key = item.key;
-                  const sel = selectedKeys.has(key);
-
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => toggleAmenity(item)}
-                      className="px-3 py-2 text-xs font-bold rounded-xl border-2 transition-all duration-200"
-                      style={{
-                        background: sel
-                          ? "linear-gradient(135deg,#27AE60,#1e8449)"
-                          : "white",
-                        borderColor: sel ? "#27AE60" : "#e5e7eb",
-                        color: sel ? "white" : "#4b5563",
-                        boxShadow: sel
-                          ? "0 2px 8px rgba(39,174,96,0.3)"
-                          : "none",
-                        transform: sel ? "translateY(-1px)" : "none",
-                      }}
-                    >
-                      
-                      {sel ? "✓ " : ""}
-                      {item.title}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })} */}
         {(AMENITIES[payload.categoryType] || []).map((section) => {
           const cat = section.category;
 
@@ -538,10 +470,13 @@ const AmenitiesStep = forwardRef(({ payload, update }, ref) => {
       </div>
 
       {/* Specs + Leads */}
-      <div className="border-t-2 border-gray-100 pt-8 space-y-8">
+
+      
+      {residential && (      <div className="border-t-2 border-gray-100 pt-8 space-y-8">
         <SpecificationsStep ref={specsRef} payload={payload} update={update} />
         {/* <LeadsStep ref={leadsRef} payload={payload} update={update} /> */}
       </div>
+    )}
     </div>
   );
 });

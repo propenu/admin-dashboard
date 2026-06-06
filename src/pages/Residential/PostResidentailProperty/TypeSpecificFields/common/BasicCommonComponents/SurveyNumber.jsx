@@ -1,33 +1,6 @@
-// import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
-
-// const SurveyNumber = ({ error }) => {
-//   const { form, updateFieldValue } = useActivePropertySlice();
-
-//   return (
-//     <div className="space-y-2">
-//       <p className="text-[13px] font-weight-bold text-[#000000] uppercase font-poppins">
-//         Survey Number
-//       </p>
-
-//       <input
-//         type="text"
-//         value={form.surveyNumber || ""}
-//         onChange={(e) => updateFieldValue("surveyNumber", e.target.value)}
-//         placeholder="e.g. 123/45A"
-//         className="w-full p-3 border text-sm outline-none font-weight-bold placeholder:text-[#524d4d] text-[#000000] border-[#27AD75] rounded-lg"
-//       />
-
-//       {error && <p className="text-red-500 text-xs">{error}</p>}
-//     </div>
-//   );
-// };
-
-// export default SurveyNumber;
-
-
-// ci
 
 // SurveyNumber.jsx
+import { Info } from "lucide-react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
 const SurveyNumber = ({ error }) => {
@@ -35,7 +8,19 @@ const SurveyNumber = ({ error }) => {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">Survey Number</p>
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">
+          Survey Number
+        </p>
+
+        <div className="relative group">
+          <Info size={14} className="text-gray-400 cursor-pointer" />
+
+          <div className="absolute left-5 top-0 hidden group-hover:block w-60 p-3 rounded-xl bg-gray-800 text-white text-xs shadow-xl z-50">
+            Official survay or plot indentification number recorded in land revenue or registration documents of the property.
+          </div>
+        </div>
+      </div>
       <input
         type="text"
         value={form.surveyNumber || ""}

@@ -52,12 +52,12 @@
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
 const PROPERTY_AGE_OPTS = [
-  { label: "Under Construction", value: "under-construction" },
+  // { label: "Under Construction", value: "under-construction" },
   { label: "0–1 Year", value: "0-1-year" },
   { label: "1–5 Years", value: "1-5-years" },
   { label: "5–10 Years", value: "5-10-years" },
-  { label: "10–20 Years", value: "10-20-years" },
-  { label: "20+ Years", value: "20-plus-years" },
+  { label: "10+ Years", value: "10-20-years" },
+  //{ label: "20+ Years", value: "20-plus-years" },
 ];
 
 const AgeOfProperty = ({ error }) => {

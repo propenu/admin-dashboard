@@ -46,12 +46,32 @@ import LoadingSpinner from "../../../../../components/common/LoadingSpinner";
 import Fallback from "../../../../../assets/fallback.svg";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-export const formatPrice = (price) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(price);
+// export const formatPrice = (price) =>
+//   new Intl.NumberFormat("en-IN", {
+//     style: "currency",
+//     currency: "INR",
+//     maximumFractionDigits: 0,
+//   }).format(price);
+
+export const formatPrice = (price) => {
+  const num = Number(price);
+
+  if (!num || isNaN(num)) return "N/A";
+
+  if (num >= 10000000) {
+    return `₹${(num / 10000000).toFixed()} Cr`;
+  }
+
+  if (num >= 100000) {
+    return `₹${(num / 100000).toFixed()} L`;
+  }
+
+  if (num >= 1000) {
+    return `₹${(num / 1000).toFixed()} T`;
+  }
+
+  return `₹${num}`;
+};
 
 const formatDate = (iso) =>
   iso
@@ -835,7 +855,7 @@ export default function FeaturedPropertyDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-5">
           {/* Image column */}
           <div className="lg:col-span-2 relative">
-            <div className="h-64 sm:h-80 lg:h-full min-h-[300px] bg-slate-100 relative overflow-hidden">
+            <div className="h-64 sm:h-80 lg:h-full min-h-[100px] max-h-[400px] bg-slate-100 relative overflow-hidden">
               <img
                 src={displayImage}
                 alt={property.title}

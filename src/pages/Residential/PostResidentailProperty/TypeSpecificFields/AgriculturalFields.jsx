@@ -28,7 +28,7 @@ import StatePurchaseRestrictions from "./common/BasicCommonComponents/StatePurch
 import UploadGallery from "./common/BasicCommonComponents/UploadGallery";
 
 const STEPS = [
-  { label: "Land & Area Details" },
+  { label: "Add Property Details" },
   { label: "Water & Infrastructure" },
   { label: "Pricing & Legal" },
 ];
@@ -56,7 +56,7 @@ export default function AgriculturalFields({ back, next }) {
 
   const validateStep1 = () => {
     const e = {};
-    if (!form.areaUnit) e.areaUnit = "Area unit is required";
+    //if (!form.areaUnit) e.areaUnit = "Area unit is required";
     if (!form.landShape) e.landShape = "Land shape is required";
     if (!form.soilType) e.soilType = "Soil type is required";
    
@@ -73,7 +73,7 @@ export default function AgriculturalFields({ back, next }) {
 
   const validateStep3 = () => {
     const e = {};
-    if (!form.currency) e.currency = "Currency is required";
+    //if (!form.currency) e.currency = "Currency is required";
      if (!form.galleryFiles || form.galleryFiles.length < 5)
        e.galleryFiles = "Upload at least Five image";
     return e;
@@ -119,7 +119,7 @@ export default function AgriculturalFields({ back, next }) {
       dispatch(savePropertyData({ category: "agricultural", id: propertyId, step: "details" }))
         .unwrap()
         .then(() => { toast.success("Agricultural details saved successfully"); next(); })
-        .catch((err) => toast.error(err?.message || "Failed to save details"))
+        .catch((err) => toast.error(err?.message || err?.error))
         .finally(() => setIsSubmitting(false));
     }
   };
@@ -147,7 +147,9 @@ export default function AgriculturalFields({ back, next }) {
               {STEPS[subStep - 1].label}
             </span>
           </div>
-          <span className="text-xs font-bold text-[#27AE60]">{progressPct}%</span>
+          <span className="text-xs font-bold text-[#27AE60]">
+            {progressPct}%
+          </span>
         </div>
         <div className="w-full bg-[#f0fdf4] h-2 rounded-full overflow-hidden">
           <div
@@ -158,8 +160,12 @@ export default function AgriculturalFields({ back, next }) {
         <div className="flex justify-between mt-3">
           {STEPS.map((s, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
-              <div className={`w-2 h-2 rounded-full transition-colors ${i + 1 <= subStep ? "bg-[#27AE60]" : "bg-[#e5e7eb]"}`} />
-              <span className={`text-[10px] font-bold hidden sm:block ${i + 1 === subStep ? "text-[#27AE60]" : "text-[#9ca3af]"}`}>
+              <div
+                className={`w-2 h-2 rounded-full transition-colors ${i + 1 <= subStep ? "bg-[#27AE60]" : "bg-[#e5e7eb]"}`}
+              />
+              <span
+                className={`text-[10px] font-bold hidden sm:block ${i + 1 === subStep ? "text-[#27AE60]" : "text-[#9ca3af]"}`}
+              >
                 {s.label}
               </span>
             </div>
@@ -172,7 +178,7 @@ export default function AgriculturalFields({ back, next }) {
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <AreaUnit error={errors.areaUnit} />
+              {/* <AreaUnit error={errors.areaUnit} /> */}
               <LandShape error={errors.landShape} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -204,12 +210,14 @@ export default function AgriculturalFields({ back, next }) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <WaterSource error={errors.waterSource} />
               <AccessRoadType error={errors.accessRoadType} />
-              <StatePurchaseRestrictions error={errors.statePurchaseRestrictions} />
+              <StatePurchaseRestrictions
+                error={errors.statePurchaseRestrictions}
+              />
             </div>
           </SectionCard>
           <SectionCard>
             <Amenities error={errors.amenities} />
-            <Specifications error={errors.specifications} />
+            {/* <Specifications error={errors.specifications} /> */}
           </SectionCard>
         </div>
       )}
@@ -217,17 +225,18 @@ export default function AgriculturalFields({ back, next }) {
       {/* Step 3 — Pricing & Legal */}
       {subStep === 3 && (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <SectionCard>
+          {/* <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Currency error={errors.currency} />
               <BanksApproved error={errors.banksApproved} />
             </div>
+          </SectionCard> */}
+
+          <SectionCard>
+            <AgricuturalBooleanFeatures error={errors.agriculturalFeatures} />
           </SectionCard>
           <SectionCard>
             <DescriptionMain error={errors.description} />
-          </SectionCard>
-          <SectionCard>
-            <AgricuturalBooleanFeatures error={errors.agriculturalFeatures} />
           </SectionCard>
           <div ref={galleryRef}>
             <SectionCard>
@@ -254,7 +263,11 @@ export default function AgriculturalFields({ back, next }) {
               : "bg-gradient-to-r from-[#27AE60] to-[#52D689] hover:opacity-90 active:scale-[0.98]"
           }`}
         >
-          {isSubmitting ? "Saving…" : subStep === totalSubSteps ? "Save & Continue →" : "Continue →"}
+          {isSubmitting
+            ? "Saving…"
+            : subStep === totalSubSteps
+              ? "Save & Continue →"
+              : "Continue →"}
         </button>
       </div>
     </div>

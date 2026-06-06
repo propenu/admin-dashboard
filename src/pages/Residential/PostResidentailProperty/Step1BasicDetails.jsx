@@ -22,6 +22,7 @@ import WallFinishStatus from "./TypeSpecificFields/common/BasicCommonComponents/
 import LandDimensions from "./TypeSpecificFields/common/BasicCommonComponents/LandDimensions";
 import RoadWidthFt from "./TypeSpecificFields/common/BasicCommonComponents/RoadWidthFt";
 import PlotArea from "./TypeSpecificFields/common/BasicCommonComponents/PlotArea";
+import PossessionDate from "./TypeSpecificFields/common/BasicCommonComponents/PossessionDate";
 import TotalArea from "./TypeSpecificFields/common/BasicCommonComponents/TotalArea";
 import RoadWidth from "./TypeSpecificFields/common/BasicCommonComponents/RoadWidth";
 import CreatedBy from "./TypeSpecificFields/common/BasicCommonComponents/CreatedBy";
@@ -30,15 +31,15 @@ import FurnishedStatus from "./TypeSpecificFields/common/BasicCommonComponents/F
 
 const PROPERTY_TYPES = {
   residential: [
-    { label: "Flat / Apartment", value: "apartment" },
+    { label: "Apartment", value: "apartment" },
     { label: "Independent House", value: "independent-house" },
     { label: "Villa", value: "villa" },
     { label: "Penthouse", value: "penthouse" },
-    { label: "Studio", value: "studio" },
-    { label: "Duplex", value: "duplex" },
-    { label: "Triplex", value: "triplex" },
+    //{ label: "Studio", value: "studio" },
+    //{ label: "Duplex", value: "duplex" },
+    //{ label: "Triplex", value: "triplex" },
     { label: "Farmhouse", value: "farmhouse" },
-    { label: "Independent Builder Floor", value: "independent-builder-floor" },
+    //{ label: "Independent Builder Floor", value: "independent-builder-floor" },
   ],
   commercial: [
     { label: "Office", value: "office" },
@@ -50,48 +51,33 @@ const PROPERTY_TYPES = {
     { label: "Co-working Space", value: "coworking" },
     { label: "Restaurant", value: "restaurant" },
     { label: "Clinic", value: "clinic" },
-    { label: "Land", value: "land" },
-    { label: "Other", value: "other" },
+    //{ label: "Land", value: "land" },
+    //{ label: "Other", value: "other" },
   ],
   land: [
-    { label: "Plot", value: "plot" },
+    //{ label: "Plot", value: "plot" },
     { label: "Residential Plot", value: "residential-plot" },
     { label: "Industrial Plot", value: "industrial-plot" },
-    { label: "Agricultural Plot", value: "agricultural-plot" },
+    //{ label: "Agricultural Plot", value: "agricultural-plot" },
     { label: "Commercial Plot", value: "commercial-plot" },
-    { label: "Investment Plot", value: "investment-plot" },
-    { label: "Corner Plot", value: "corner-plot" },
+    //{ label: "Investment Plot", value: "investment-plot" },
+    //{ label: "Corner Plot", value: "corner-plot" },
     //{ label: "NA Plot", value: "na-plot" },
   ],
   agricultural: [
     { label: "Dry Land", value: "dry-land" },
     { label: "Wet Land", value: "wet-land" },
     { label: "Farm Land", value: "farm-land" },
-    { label: "Orchard Land", value: "orchard-land" },
-    { label: "Plantation", value: "plantation" },
-    { label: "Agricultural Land", value: "agricultural-land" },
+    //{ label: "Orchard Land", value: "orchard-land" },
+   // { label: "Plantation", value: "plantation" },
+    //{ label: "Agricultural Land", value: "agricultural-land" },
     { label: "Dairy Farm", value: "dairy-farm" },
-    { label: "Ranch", value: "ranch" },
+    //{ label: "Ranch", value: "ranch" },
   ],
 };
 
 const PROPERTY_SUB_TYPES = {
-  // commercial: [
-  //   { label: "Bare Shell", value: "bare-shell" },
-  //   { label: "Warm Shell", value: "warm-shell" },
-  //   { label: "Business Center", value: "business-center" },
-  //   { label: "High Street Shop", value: "high-street-shop" },
-  //   { label: "Mall Shop", value: "mall-shop" },
-  //   { label: "Kiosk", value: "kiosk" },
-  //   { label: "Food Court Unit", value: "food-court-unit" },
-  //   { label: "Shutter Shop", value: "shutter-shop" },
-  //   { label: "Showroom Space", value: "showroom-space" },
-  //   { label: "Warehouse / Godown", value: "warehouse-godown" },
-  //   { label: "Logistics Hub", value: "logistics-hub" },
-  //   { label: "Cold Storage", value: "cold-storage" },
-  //   { label: "Industrial Shed", value: "industrial-shed" },
-  // ],
-
+  
   commercial: {
     office: [
       { label: "Bare Shell", value: "bare-shell" },
@@ -144,13 +130,13 @@ const PROPERTY_SUB_TYPES = {
 
 },
   land: [
-    { label: "Gated Community", value: "gated-community" },
-    { label: "Non Gated", value: "non-gated" },
+   //{ label: "Gated Community", value: "gated-community" },
+   // { label: "Non Gated", value: "non-gated" },
     { label: "Road Facing", value: "road-facing" },
     { label: "Two Side Open", value: "two-side-open" },
     { label: "Three Side Open", value: "three-side-open" },
-    { label: "Resale", value: "resale" },
-    { label: "New Plot", value: "new-plot" },
+   // { label: "Resale", value: "resale" },
+   // { label: "New Plot", value: "new-plot" },
     { label: "Corner", value: "corner" },
   ],
   agricultural: [
@@ -226,29 +212,52 @@ function CommonHeader({ form, setValue, category, errors, listingRef, categoryRe
             />
           ))}
         </div>
-        {errors.listingType && <p className="text-red-500 text-xs mt-2 font-medium">{errors.listingType}</p>}
+        {errors.listingType && (
+          <p className="text-red-500 text-xs mt-2 font-medium">
+            {errors.listingType}
+          </p>
+        )}
       </CardWrapper>
 
       {/* Category */}
       <CardWrapper>
         <SectionLabel>Property Category</SectionLabel>
-        <div ref={categoryRef} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {CATEGORIES.map((cat) => (
-            <label
-              key={cat.key}
-              className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all duration-150 ${
-                category === cat.key
-                  ? "border-[#27AE60] bg-[#f0fdf4]"
-                  : "border-[#e5e7eb] hover:border-[#bbf7d0]"
-              }`}
-            >
-              <input type="radio" name="category" checked={category === cat.key} onChange={() => setValue("__category__", cat.key)} className="sr-only" />
-              <span className="text-xl">{cat.emoji}</span>
-              <span className={`text-xs font-bold ${category === cat.key ? "text-[#27AE60]" : "text-[#6b7280]"}`}>{cat.label}</span>
-            </label>
-          ))}
+        <div
+          ref={categoryRef}
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+        >
+          {CATEGORIES.filter((cat) => !category || cat.key === category).map(
+            (cat) => (
+              <label
+                key={cat.key}
+                className={`flex  items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all duration-150 ${
+                  category === cat.key
+                    ? "border-[#27AE60] bg-[#f0fdf4]"
+                    : "border-[#e5e7eb] hover:border-[#bbf7d0]"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="category"
+                  checked={category === cat.key}
+                  onChange={() => setValue("__category__", cat.key)}
+                  className="sr-only"
+                />
+                <span className="text-xl">{cat.emoji}</span>
+                <span
+                  className={`text-xs font-bold ${category === cat.key ? "text-[#27AE60]" : "text-[#6b7280]"}`}
+                >
+                  {cat.label}
+                </span>
+              </label>
+            ),
+          )}
         </div>
-        {errors.category && <p className="text-red-500 text-xs mt-2 font-medium">{errors.category}</p>}
+        {errors.category && (
+          <p className="text-red-500 text-xs mt-2 font-medium">
+            {errors.category}
+          </p>
+        )}
       </CardWrapper>
 
       {/* Property Type */}
@@ -264,7 +273,11 @@ function CommonHeader({ form, setValue, category, errors, listingRef, categoryRe
             />
           ))}
         </div>
-        {errors.propertyType && <p className="text-red-500 text-xs mt-2 font-medium">{errors.propertyType}</p>}
+        {errors.propertyType && (
+          <p className="text-red-500 text-xs mt-2 font-medium">
+            {errors.propertyType}
+          </p>
+        )}
       </CardWrapper>
 
       {/* Property Sub Type */}
@@ -273,11 +286,10 @@ function CommonHeader({ form, setValue, category, errors, listingRef, categoryRe
           <SectionLabel>Property Sub Type</SectionLabel>
           <div ref={subTypeRef} className="flex flex-wrap gap-2">
             {/* {(PROPERTY_SUB_TYPES[category] || []).map((type) => ( */}
-           { (
-  category === "commercial"
-    ? PROPERTY_SUB_TYPES.commercial?.[form.propertyType] || []
-    : PROPERTY_SUB_TYPES[category] || []
-).map((type) => (
+            {(category === "commercial"
+              ? PROPERTY_SUB_TYPES.commercial?.[form.propertyType] || []
+              : PROPERTY_SUB_TYPES[category] || []
+            ).map((type) => (
               <ChoiceChip
                 key={type.value}
                 label={type.label}
@@ -286,7 +298,11 @@ function CommonHeader({ form, setValue, category, errors, listingRef, categoryRe
               />
             ))}
           </div>
-          {errors.propertySubType && <p className="text-red-500 text-xs mt-2 font-medium">{errors.propertySubType}</p>}
+          {errors.propertySubType && (
+            <p className="text-red-500 text-xs mt-2 font-medium">
+              {errors.propertySubType}
+            </p>
+          )}
         </CardWrapper>
       )}
     </>
@@ -294,6 +310,8 @@ function CommonHeader({ form, setValue, category, errors, listingRef, categoryRe
 }
 
 // ─── Main Component ── //
+
+
 
 
 
@@ -349,7 +367,18 @@ export default function Step1BasicDetails({ next }) {
       if (!form.pricePerSqft) e.pricePerSqft = "Price per sqft required";
       if (!form.facing) e.facing = "Facing required";
       if (!form.furnishing) e.furnishing = "Furnishing required";
-      if (!form.propertyAge) e.propertyAge = "Property age required";
+      //if (!form.propertyAge) e.propertyAge = "Property age required";
+      if (form.constructionStatus === "ready-to-move") {
+        if (!form.propertyAge) {
+          e.propertyAge = "Property age required";
+        }
+      }
+
+      if (form.constructionStatus === "under-construction") {
+        if (!form.possessionDate) {
+          e.possessionDate = "Possession date required";
+        }
+      }
       if (!form.constructionStatus)
         e.constructionStatus = "Construction status required";
       if (!form.transactionType)
@@ -451,8 +480,19 @@ const buildPayloadByCategory = (category, data) => {
         balconies: Number(data.balconies) || 0,
         furnishing: data.furnishing,
         facing: data.facing,
-        propertyAge: data.propertyAge,
+        //propertyAge: data.propertyAge,
+
         constructionStatus: data.constructionStatus,
+        propertyAge:
+      data.constructionStatus === "ready-to-move"
+        ? data.propertyAge
+        : null,
+
+    possessionDate:
+      data.constructionStatus === "under-construction"
+        ? data.possessionDate
+        : null,
+       
         transactionType: data.transactionType,
       };
 
@@ -518,7 +558,7 @@ const buildPayloadByCategory = (category, data) => {
       next(); // This moves you to Step 2 (Location)
     } catch (err) {
       console.error("🔥 API SAVE ERROR:", err);
-      toast.error("Failed to save basic details");
+      toast.error(err?.message || err?.error);
     }
   };
 
@@ -538,6 +578,48 @@ const buildPayloadByCategory = (category, data) => {
   }, [form]);
 
   const sharedProps = { form, setValue, category, errors, listingRef, categoryRef, propertyTypeRef, subTypeRef };
+
+
+
+  useEffect(() => {
+    let area = 0;
+
+    switch (category) {
+      case "residential":
+      case "commercial":
+        area = Number(form.carpetArea);
+        break;
+
+      case "land":
+        area = Number(form.plotArea);
+        break;
+
+      case "agricultural":
+        area = Number(form.totalArea?.value);
+        break;
+
+      default:
+        area = 0;
+    }
+
+    if (Number(form.price) > 0 && area > 0) {
+      const pricePerSqft = Math.round(Number(form.price) / area);
+
+      dispatch(
+        actions[category].updateField({
+          key: "pricePerSqft",
+          value: pricePerSqft,
+        }),
+      );
+    }
+  }, [
+    form.price,
+    form.carpetArea,
+    form.plotArea,
+    form.totalArea,
+    category,
+    dispatch,
+  ]);
 
   return (
     <div className="space-y-5">
@@ -591,7 +673,7 @@ const buildPayloadByCategory = (category, data) => {
               <BuiltUpArea error={errors.builtUpArea} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-              <Price  error={errors.price} />
+              <Price error={errors.price} />
               <PricePerSqft error={errors.pricePerSqft} />
               <Facing error={errors.facing} />
             </div>
@@ -602,11 +684,17 @@ const buildPayloadByCategory = (category, data) => {
               <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
                 <Furnishing error={errors.furnishing} />
               </div>
-              <AgeOfProperty error={errors.propertyAge} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <AvailabilityStatus error={errors.constructionStatus} />
                 <TransactionTypes error={errors.transactionType} />
               </div>
+              {form.constructionStatus === "ready-to-move" && (
+                <AgeOfProperty error={errors.propertyAge} />
+              )}
+
+              {form.constructionStatus === "under-construction" && (
+                <PossessionDate error={errors.possessionDate} />
+              )}
 
               <CreatedBy error={errors.createdBy} />
             </div>
@@ -642,8 +730,15 @@ const buildPayloadByCategory = (category, data) => {
           <CardWrapper>
             <SectionLabel>Property Details</SectionLabel>
             <div className="space-y-5">
-              <AgeOfProperty error={errors.propertyAge} />
               <AvailabilityStatus error={errors.constructionStatus} />
+              {form.constructionStatus === "ready-to-move" && (
+                <AgeOfProperty error={errors.propertyAge} />
+              )}
+
+              {form.constructionStatus === "under-construction" && (
+                <PossessionDate error={errors.possessionDate} />
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <TransactionTypes error={errors.transactionType} />
               </div>
@@ -660,13 +755,14 @@ const buildPayloadByCategory = (category, data) => {
             <div className="space-y-5">
               <LandDimensions error={errors.dimensions} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <PlotArea error={errors.plotArea} />
+                  <RoadWidthFt error={errors.roadWidthFt} />
+                </div>
                 <Price error={errors.price} />
                 <PricePerSqft error={errors.pricePerSqft} />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <RoadWidthFt error={errors.roadWidthFt} />
-                <PlotArea error={errors.plotArea} />
-              </div>
+
               <CreatedBy error={errors.createdBy} />
             </div>
           </CardWrapper>
@@ -679,12 +775,12 @@ const buildPayloadByCategory = (category, data) => {
             <SectionLabel>Agricultural Details</SectionLabel>
             <div className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Price error={errors.price} />
-                <PricePerSqft error={errors.pricePerSqft} />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <TotalArea error={errors.totalArea} />
                 <RoadWidth error={errors.roadWidth} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Price error={errors.price} />
+                <PricePerSqft error={errors.pricePerSqft} />
               </div>
               <CreatedBy error={errors.createdBy} />
             </div>

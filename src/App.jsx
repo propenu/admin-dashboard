@@ -20,6 +20,15 @@ const NormalProjectsPage = lazy(() => import("./pages/features/property/pages/No
 
 const SponsoredProjectsPage = lazy(() => import("./pages/features/property/pages/SponsoredProjects/SponsoredProjectsPage"));
 
+
+const ProjectsDashboardPage = lazy(() =>
+  import("./pages/features/property/components/shared/ProjectsDashboardPage")
+);
+
+const PropertiesDashboardPageduplicate = lazy(() =>
+  import("./pages/features/property/components/shared/DuplicateProjectDashBoardPage.jsx")
+);
+
 const FeaturedProperties = lazy(() =>
   import("./pages/FeaturedProperties/FeatureProperties")
 );
@@ -33,8 +42,12 @@ const LandPropertyVerification = lazy(() =>
   import("./pages/Land/LandPropertyVerification")
 );
 
-const ProjectLeadsDetilas = lazy(
-  () => import("./pages/features/property/components/shared/IndetialsPage"),
+const ProjectInDetilas = lazy(
+  () => import("./pages/features/property/components/shared/IndetialsPage")
+);
+
+const PropertyInDetilas = lazy(
+  () => import("./pages/UpsertProperties/components/UpsertIndetailsProject/PropertyIndetails")
 );
 
 const HighlightedProject = lazy(() =>
@@ -179,6 +192,11 @@ const RoleUsersPage = lazy(() =>
 );
 
 
+const Blogs = lazy(() =>
+  import("./pages/blogs/Blogs")
+);
+
+
 
 function App() {
   return (
@@ -189,7 +207,6 @@ function App() {
         richColors
         expand={true}
         visibleToasts={10}
-        
       />
       <ErrorBoundary>
         <Suspense fallback={<LoadingSpinner />}>
@@ -213,6 +230,13 @@ function App() {
                 <Route path="/sponsored" element={<SponsoredProjectsPage />} />
                 <Route path="/normal" element={<NormalProjectsPage />} />
 
+                <Route path="/projects" element={<ProjectsDashboardPage />} />
+
+                <Route
+                  path="/datta"
+                  element={<PropertiesDashboardPageduplicate />}
+                />
+
                 {/* Featured Property */}
                 <Route
                   path="/featured-properties"
@@ -220,7 +244,11 @@ function App() {
                 />
                 <Route
                   path="/featured-project/:id"
-                  element={<ProjectLeadsDetilas />}
+                  element={<ProjectInDetilas />}
+                />
+                <Route
+                  path="/property/:category/:id"
+                  element={<PropertyInDetilas />}
                 />
 
                 <Route
@@ -411,6 +439,9 @@ function App() {
 
                 {/* Team Managers */}
                 <Route path="/team-management" element={<TeamManagement />} />
+
+                {/* Blogs */}
+                <Route path="/blogs" element={<Blogs />} />
               </Route>
             </Route>
 

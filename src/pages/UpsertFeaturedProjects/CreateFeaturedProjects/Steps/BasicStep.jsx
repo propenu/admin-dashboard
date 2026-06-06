@@ -8,7 +8,8 @@ import {
   useEffect,
 } from "react";
 
-import { State, City } from "country-state-city";
+//import { State, City } from "country-state-city";
+import { INDIAN_STATES, getCitiesByState } from "../../../../Utils/countryStateCity";
 
 /* ─── data ──────────────────────────────────────────────────────── */
 
@@ -146,7 +147,7 @@ const FloatingInput = ({
 
       {error && (
         <p className="flex items-center gap-1 text-[11px] text-red-500 font-semibold mt-1.5 pl-2">
-          ⚠ Please enter {label.toLowerCase()}
+          ⚠ Please enter Correct {label.toLowerCase()}
         </p>
       )}
     </div>
@@ -324,15 +325,19 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
 
   /* INDIA STATES */
 
-  const states = State.getStatesOfCountry("IN");
+  //const states = State.getStatesOfCountry("IN");
+  const states = INDIAN_STATES;
 
   /* INDIA CITIES */
 
-  const selectedState = states.find((s) => s.name === payload?.state);
+  // const selectedState = states.find((s) => s.name === payload?.state);
 
-  const cities = selectedState
-    ? City.getCitiesOfState("IN", selectedState.isoCode)
-    : [];
+  // const cities = selectedState
+  //   ? City.getCitiesOfState("IN", selectedState.isoCode)
+  //   : [];
+
+
+  const cities = getCitiesByState(payload?.state);
 
   /* ─── PINCODE AUTOFILL ───── */
 
@@ -704,30 +709,30 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
         />
 
         <FloatingSelect
-  required
-  label="Currency"
-  error={errors.currency}
-  value={payload?.currency || ""}
-  onChange={(e) => {
-    update({
-      currency: e.target.value,
-    });
+          required
+          label="Currency"
+          error={errors.currency}
+          value={payload?.currency || ""}
+          onChange={(e) => {
+            update({
+              currency: e.target.value,
+            });
 
-    clr("currency");
-  }}
-  options={[
-    { label: "🇮🇳 INR - Indian Rupee", value: "INR" },
-    { label: "🇺🇸 USD - US Dollar", value: "USD" },
-    { label: "🇪🇺 EUR - Euro", value: "EUR" },
-    { label: "🇦🇪 AED - UAE Dirham", value: "AED" },
-    { label: "🇬🇧 GBP - British Pound", value: "GBP" },
-    { label: "🇨🇦 CAD - Canadian Dollar", value: "CAD" },
-    { label: "🇦🇺 AUD - Australian Dollar", value: "AUD" },
-    { label: "🇸🇬 SGD - Singapore Dollar", value: "SGD" },
-    { label: "🇯🇵 JPY - Japanese Yen", value: "JPY" },
-    { label: "🇨🇳 CNY - Chinese Yuan", value: "CNY" },
-  ]}
-/>
+            clr("currency");
+          }}
+          options={[
+            { label: "🇮🇳 INR - Indian Rupee", value: "INR" },
+            { label: "🇺🇸 USD - US Dollar", value: "USD" },
+            { label: "🇪🇺 EUR - Euro", value: "EUR" },
+            { label: "🇦🇪 AED - UAE Dirham", value: "AED" },
+            { label: "🇬🇧 GBP - British Pound", value: "GBP" },
+            { label: "🇨🇦 CAD - Canadian Dollar", value: "CAD" },
+            { label: "🇦🇺 AUD - Australian Dollar", value: "AUD" },
+            { label: "🇸🇬 SGD - Singapore Dollar", value: "SGD" },
+            { label: "🇯🇵 JPY - Japanese Yen", value: "JPY" },
+            { label: "🇨🇳 CNY - Chinese Yuan", value: "CNY" },
+          ]}
+        />
       </div>
     </div>
   );

@@ -216,8 +216,9 @@ const FeaturedContent = ({ userId }) => {
           : [];
 
           
+    
     const filteredProperties = projects.filter(
-      (p) => String(p.createdBy) === String(userId),
+      (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
     );
 
     const counts = useUserFeaturedProjectCounts(userId);
@@ -303,7 +304,7 @@ const FeaturedProjectsSection = ({ userId, flat }) => {
       : [];
 
       const filteredProjects = projects.filter(
-        (p) => String(p.createdBy) === String(userId),
+        (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
       );
 
   if (flat) return <FeaturedContent userId={userId} />;

@@ -71,7 +71,14 @@ export default function Land() {
     [data?.pages],
   );
 
+  console.log(
+    "INACTIVE PROPERTIES =>",
+    properties.filter((p) => p.status === "inactive").length,
+  );
+
   const allProperties = data?.pages[0]?.meta || { total: 0 };
+  
+  
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -267,7 +274,8 @@ export default function Land() {
         </div>
         <div className="p-6 flex flex-col text-center">
           <h2 className="text-xl text-[#27AE60] font-bold">
-            {allProperties.total}
+            {/* {allProperties.total} */}
+            {verifiedCount}
           </h2>
           <p className="text-slate-500 text-sm">Total Properties</p>
         </div>
@@ -278,13 +286,13 @@ export default function Land() {
           <div
             key={index}
             className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition border cursor-pointer max-sm:text-center"
-             onClick={() => {
-                          // 🔥 force new draft
-                          localStorage.removeItem("propertyId");
-            
-                          dispatch(setActiveCategory("land"));
-                          navigate(stat.route);
-                        }}
+            onClick={() => {
+              // 🔥 force new draft
+              localStorage.removeItem("propertyId");
+
+              dispatch(setActiveCategory("land"));
+              navigate(stat.route);
+            }}
           >
             <div className="flex items-center justify-between mb-4 max-sm:justify-center">
               <div
@@ -483,7 +491,7 @@ export default function Land() {
             <p className="text-slate-500">No properties found.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-3 sm:grid-cols-1 max-sm:grid-cols-1 lg:grid-cols-3 xl:grid-cols-3 gap-6">
             {visibleProperties.map((p) => (
               <div key={p._id} className="relative group">
                 <LandCard activeTab={activeTab} property={p} />

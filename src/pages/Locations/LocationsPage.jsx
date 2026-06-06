@@ -1,6 +1,7 @@
 // pages/locations/LocationsPage.jsx
 import { useState } from "react";
-import { State, City } from "country-state-city";
+//import { State, City } from "country-state-city";
+import { INDIAN_STATES, getCitiesByState } from "../../Utils/countryStateCity";
 
 import useLocations from "./hooks/useLocations";
 import { buildPayload, groupByState, getPopularCities } from "./utils/locationHelpers";
@@ -38,12 +39,15 @@ export default function LocationsPage() {
   const locations = data.locations || [];
   const groupedData = groupByState(locations);
   const popularCities = getPopularCities(locations);
-  const indianStates = State.getStatesOfCountry("IN");
+  //const indianStates = State.getStatesOfCountry("IN");
+  const indianStates = INDIAN_STATES;
 
-  const getCities = (stateName) => {
-    const st = indianStates.find((s) => s.name === stateName);
-    return st ? City.getCitiesOfState("IN", st.isoCode) : [];
-  };
+  // const getCities = (stateName) => {
+  //   const st = indianStates.find((s) => s.name === stateName);
+  //   return st ? City.getCitiesOfState("IN", st.isoCode) : [];
+  // };
+
+  const getCities = getCitiesByState; 
 
   // ADD HANDLERS
   const handleAddNew = () => {

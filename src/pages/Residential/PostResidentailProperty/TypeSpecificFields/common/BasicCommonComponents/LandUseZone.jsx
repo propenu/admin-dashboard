@@ -1,40 +1,25 @@
-// import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
-
-// const LandUseZone = ({error}) => {
-//   const { form, updateFieldValue } = useActivePropertySlice();
-
-//   return (
-//     <div className="space-y-3">
-//       <p className="text-[13px] font-weight-bold text-[#000000] uppercase font-poppins">
-//         Land Use Zone
-//       </p>
-
-//       <input
-//         type="text"
-//         value={form.landUseZone || ""}
-//         onChange={(e) => updateFieldValue("landUseZone", e.target.value)}
-//         placeholder="Ex. Residential/Commercial/Agricultural"
-//         className="w-full font-weight-bold text-sm placeholder:text-[#524d4d] outline-none p-3 border border-[#27AD75] rounded-lg"
-//       />
-
-//       {error && <p className="text-red-500 text-xs">{error}</p>}
-//     </div>
-//   );
-// };
-
-// export default LandUseZone;
-
-
-// ci 
 
 // LandUseZone.jsx
+import { Info } from "lucide-react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
 const LandUseZone = ({ error }) => {
   const { form, updateFieldValue } = useActivePropertySlice();
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">Land Use Zone</p>
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">
+          Land Use Zone
+        </p>
+
+        <div className="relative group">
+          <Info size={14} className="text-gray-400 cursor-pointer" />
+
+          <div className="absolute left-5 top-0 hidden group-hover:block w-60 p-3 rounded-xl bg-gray-800 text-white text-xs shadow-xl z-50">
+            Zonining classification assigned to the land, such as residential, commercial, agricultural, or mixed use. 
+          </div>
+        </div>
+      </div>
       <input
         type="text"
         value={form.landUseZone || ""}

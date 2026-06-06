@@ -129,13 +129,30 @@ async function reverseGeocode(lat, lng, signal) {
   const data = await res.json();
   const a    = data?.address || {};
   return {
-    pincode:  a.postcode || "",
-    locality: titleCase(stripWard(
-      a.suburb || a.neighbourhood || a.hamlet ||
-      a.village || a.town || a.city_district || a.county || ""
-    )),
-    city:  titleCase(a.city || a.town || a.village || a.city_district || a.state_district || a.county || ""),
+    pincode: a.postcode || "",
+    locality: titleCase(
+      stripWard(
+        a.suburb ||
+          a.neighbourhood ||
+          a.hamlet ||
+          a.village ||
+          a.town ||
+          a.city_district ||
+          a.county ||
+          "",
+      ),
+    ),
+    city: titleCase(
+      a.city ||
+        a.town ||
+        a.village ||
+        a.city_district ||
+        a.state_district ||
+        a.county ||
+        "",
+    ),
     state: titleCase(a.state || ""),
+    fullAddress: data.display_name || "",
   };
 }
 
@@ -341,6 +358,9 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
   const [photonLoading, setPhotonLoading] = useState(false);
   const [photonMsg,     setPhotonMsg]     = useState(null);
 
+
+  const [manualPlaceName, setManualPlaceName] = useState("");
+
   
 
   const photonTimer = useRef(null);
@@ -422,12 +442,16 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
   const addPhoton = (place) => {
     const name = place.address ? `${place.title}, ${place.address}` : place.title;
     if (selectedPlaces.some((p) => p.name === name)) return;
+
     onAdd({
       name,
       type:         place.type,
       coordinates:  place.coordinates || [],
       distanceText: fmtKm(place.distanceKm),
     });
+    console.log("addPhoton", place);
+    console.log("selectedPlaces", selectedPlaces);
+    console.log("onAdd", onAdd);
     setQuery(""); setPhotonResults([]); setPhotonMsg(null);
   };
 
@@ -441,6 +465,8 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
       </div>
     );
   }
+
+
 
   return (
     <div className="space-y-4">
@@ -577,7 +603,8 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
             </p>
           </div>
 
-          <div style={{ height: 320 }}>
+          <div className=" rounded-3xl  border-[#27AE60]/20 w-full mx-auto"  
+          style={{ height: 500, width: "95%" }}>
             {/* <MapplsPinMap
               coordinates={pinnedCoords}
               onPinChange={async ({ coordinates }) => {
@@ -629,7 +656,52 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
                 setManualMapOpen(false);
               }}
             /> */}
+            
+            <div className="p-4 bg-white border-b border-[#bbf7d0]">
+              <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wider">
+                Nearby Place Name
+              </label>
+
+              <div className="relative">
+                <MapPin
+                  size={18}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-[#27AE60]"
+                />
+
+                <input
+                  type="text"
+                  value={manualPlaceName}
+                  onChange={(e) => setManualPlaceName(e.target.value)}
+                  placeholder="Enter place name (e.g. Metro Station, School, Hospital)"
+                  className="
+        w-[50%]
+        pl-12
+        pr-4
+        py-3
+        rounded-xl
+        border-2
+        border-gray-200
+        bg-white
+        text-sm
+        font-semibold
+        text-gray-800
+        placeholder:text-gray-400
+        focus:outline-none
+        focus:border-[#27AE60]
+        focus:ring-4
+        focus:ring-[#27AE60]/10
+        transition-all
+      "
+                />
+              </div>
+
+              <p className="mt-2 text-xs text-gray-500">
+                Enter a custom name, then click on the map to pin the exact
+                location.
+              </p>
+            </div>
             <MapplsPinMap
+              
               coordinates={pinnedCoords || location.coordinates}
               onPinChange={async ({ coordinates }) => {
                 if (
@@ -647,21 +719,29 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
                   return;
                 }
 
-                let placeName = "Manual Nearby Place";
+                //let placeName = "Manual Nearby Place";
+                let placeName = "Selected Nearby Place";
 
                 let placeType = "place";
 
+                let geo = null;
+
                 try {
-                  const geo = await reverseGeocode(
+                  geo = await reverseGeocode(
                     lat,
                     lng,
                     new AbortController().signal,
                   );
 
+                  console.log("REVERSE GEO", geo);
+
+                  //placeName = `Selected Point (${lat.toFixed(6)}, ${lng.toFixed(6)})`;
+
                   placeName =
-                    [geo?.locality, geo?.city].filter(Boolean).join(", ") ||
-                    geo?.state ||
-                    `Nearby Place (${lat.toFixed(5)})`;
+                    manualPlaceName?.trim() ||
+                    geo?.locality ||
+                    geo?.city ||
+                    `Selected Point (${lat.toFixed(6)}, ${lng.toFixed(6)})`;
 
                   placeType = geo?.locality
                     ? "Nearby Place"
@@ -672,14 +752,40 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
                   console.error("Reverse geocode failed:", err);
                 }
 
+                // onAdd({
+                //   name: placeName,
+                //   type: placeType,
+                //   coordinates: [lng, lat],
+
+                //   distanceText: pinnedCoords
+                //     ? fmtKm(haversineKm(pinnedCoords, [lng, lat]))
+                //     : "",
+                // });
+                
+                
                 onAdd({
                   name: placeName,
+
+                  fullAddress: geo?.fullAddress || "",
+
+                  locality: geo?.locality || "",
+
+                  city: geo?.city || "",
+
+                  latitude: lat,
+
+                  longitude: lng,
+
                   type: placeType,
+
                   coordinates: [lng, lat],
+
                   distanceText: pinnedCoords
                     ? fmtKm(haversineKm(pinnedCoords, [lng, lat]))
                     : "",
                 });
+
+                console.log("SAVED COORDS", [lng, lat]);
 
                 setManualMapOpen(false);
               }}
@@ -953,12 +1059,33 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
       update({
         nearbyPlaces: [
           ...places,
+          // {
+          //   name:         place.name,
+          //   type:         place.type,
+          //   distanceText: place.distanceText || "",
+          //   coordinates:  place.coordinates  || location.coordinates || [0, 0],
+          //   order:        places.length,
+          // },
           {
-            name:         place.name,
-            type:         place.type,
+            name: place.name,
+
+            fullAddress: place.fullAddress || "",
+
+            locality: place.locality || "",
+
+            city: place.city || "",
+
+            latitude: place.latitude,
+
+            longitude: place.longitude,
+
+            type: place.type,
+
             distanceText: place.distanceText || "",
-            coordinates:  place.coordinates  || location.coordinates || [0, 0],
-            order:        places.length,
+
+            coordinates: place.coordinates || location.coordinates,
+
+            order: places.length,
           },
         ],
       });

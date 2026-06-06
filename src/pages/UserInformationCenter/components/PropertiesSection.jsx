@@ -289,21 +289,22 @@ const PropertiesContent = ({ userId }) => {
         ? data.data
         : [];
 
+        
         const filteredProperties = properties.filter(
-          (p) => String(p.createdBy?._id) === String(userId),
+          (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
         );
 
-        console.log("USER ID =>", userId);
+        // console.log("USER ID =>", userId);
 
-        console.log("FILTERED PROPERTIES =>", filteredProperties);
+        // console.log("FILTERED PROPERTIES =>", filteredProperties);
 
-        console.log(
-          "ALL PROPERTY CREATED BY IDS =>",
-          properties.map((p) => ({
-            propertyId: p._id,
-            createdBy: p.createdBy?._id,
-          })),
-        );
+        // console.log(
+        //   "ALL PROPERTY CREATED BY IDS =>",
+        //   properties.map((p) => ({
+        //     propertyId: p._id,
+        //     createdBy: p.createdBy?._id,
+        //   })),
+        // );
 
         const counts = useUserPropertyCounts(userId);
 

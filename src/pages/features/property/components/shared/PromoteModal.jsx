@@ -1,4 +1,4 @@
-// src/features/property/components/shared/PromoteModal.jsx
+
 import { useState } from "react";
 import { TrendingUp } from "lucide-react";
 

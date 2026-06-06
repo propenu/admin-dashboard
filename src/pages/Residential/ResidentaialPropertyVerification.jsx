@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "react-hot-toast";
+import { toast } from "sonner";
 
 import {
   fetchResidentialById,
@@ -120,7 +120,16 @@ const PropertyVerification = () => {
         setTimeout(() => navigate("/residential"), 1500);
       }
     },
-    onError: () => toast.error("Failed to update status"),
+    onError: (err) => {
+      console.error(err);
+
+      toast.error(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.message ||
+          "Failed to update document",
+      );
+    },
   });
 
   if (isLoading)

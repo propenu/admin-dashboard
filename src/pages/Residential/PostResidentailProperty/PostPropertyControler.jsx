@@ -196,11 +196,11 @@ export default function PropertyController() {
         <div className="mb-1">
          
           <h1 className="text-[22px] font-bold text-[#27AE60] leading-tight">
-            Post Your Property
+            Create Property
           </h1>
-          <p className="text-xs text-[#000000] mt-1.5">
+          {/* <p className="text-xs text-[#000000] mt-1.5">
             Sell or rent your property
-          </p>
+          </p> */}
         </div>
 
         {/* Progress bar */}

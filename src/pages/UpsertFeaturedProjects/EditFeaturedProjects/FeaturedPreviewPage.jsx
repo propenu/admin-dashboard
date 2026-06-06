@@ -225,7 +225,8 @@ export default function FeaturedPreviewPage() {
       toast.success("Saved successfully!");
     } catch (err) {
       console.error("Backend Error:", err.response?.data);
-      toast.error("Save failed");
+      toast.error(err.response?.data?.message || err.response?.data?.error);
+      //toast.error(err.response?.data?.error);
     } finally {
       setSaving(false);
     }

@@ -16,12 +16,12 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
-      if (!specs.length) e.specifications = "At least one specification is required";
+      // if (!specs.length) e.specifications = "At least one specification is required";
       specs.forEach((cat, i) => {
-        if (!cat.category) e[`spec-${i}-category`] = "Category required";
+        // if (!cat.category) e[`spec-${i}-category`] = "Category required";
         cat.items.forEach((item, j) => {
-          if (!item.title)       e[`spec-${i}-item-${j}-title`] = "Required";
-          if (!item.description) e[`spec-${i}-item-${j}-desc`]  = "Required";
+          // if (!item.title)       e[`spec-${i}-item-${j}-title`] = "Required";
+          // if (!item.description) e[`spec-${i}-item-${j}-desc`]  = "Required";
         });
       });
       setErrors(e);

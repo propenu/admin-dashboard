@@ -46,6 +46,9 @@ export default function LandFields({ back, next }) {
 
   const scrollToTop = () => topRef.current?.scrollIntoView({ behavior: "smooth" });
 
+  const category = form.propertyCategory;
+  console.log("category", category);
+
   /* ─── Validation ─────────────────────────────────────────── */
 
   const validateStep1 = () => {
@@ -60,10 +63,10 @@ export default function LandFields({ back, next }) {
 
   const validateStep2 = () => {
     const e = {};
-    if (!form.landName || form.landName.trim().length < 3) e.landName = "Land name required (min 3 chars)";
-    if (!form.dimensions?.length || Number(form.dimensions.length) <= 0) e.length = "Length is required";
-    if (!form.dimensions?.width || Number(form.dimensions.width) <= 0) e.width = "Width is required";
-    if (!form.approvedByAuthority?.length) e.approvedByAuthority = "Select at least one authority";
+    //if (!form.landName || form.landName.trim().length < 3) e.landName = "Land name required (min 3 chars)";
+    //if (!form.dimensions?.length || Number(form.dimensions.length) <= 0) e.length = "Length is required";
+   // if (!form.dimensions?.width || Number(form.dimensions.width) <= 0) e.width = "Width is required";
+    //if (!form.approvedByAuthority?.length) e.approvedByAuthority = "Select at least one authority";
     if (!form.amenities?.length) e.amenities = "Select at least one amenity";
     return e;
   };
@@ -116,7 +119,7 @@ export default function LandFields({ back, next }) {
       dispatch(savePropertyData({ category: "land", id: propertyId, step: "details" }))
         .unwrap()
         .then(() => { toast.success("Land details saved successfully!"); next(); })
-        .catch((err) => toast.error(err?.message || "Failed to save land details"))
+        .catch((err) => toast.error(err?.message || err?.error))
         .finally(() => setIsSubmitting(false));
     }
   };
@@ -127,6 +130,9 @@ export default function LandFields({ back, next }) {
   };
 
   const progressPct = Math.round((subStep / totalSubSteps) * 100);
+
+
+  
 
   return (
     <div ref={topRef} className="w-full max-w-3xl mx-auto space-y-6">
@@ -144,7 +150,9 @@ export default function LandFields({ back, next }) {
               {STEPS[subStep - 1].label}
             </span>
           </div>
-          <span className="text-xs font-bold text-[#27AE60]">{progressPct}%</span>
+          <span className="text-xs font-bold text-[#27AE60]">
+            {progressPct}%
+          </span>
         </div>
         <div className="w-full bg-[#f0fdf4] h-2 rounded-full overflow-hidden">
           <div
@@ -155,8 +163,12 @@ export default function LandFields({ back, next }) {
         <div className="flex justify-between mt-3">
           {STEPS.map((s, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
-              <div className={`w-2 h-2 rounded-full transition-colors ${i + 1 <= subStep ? "bg-[#27AE60]" : "bg-[#e5e7eb]"}`} />
-              <span className={`text-[10px] font-bold hidden sm:block ${i + 1 === subStep ? "text-[#27AE60]" : "text-[#9ca3af]"}`}>
+              <div
+                className={`w-2 h-2 rounded-full transition-colors ${i + 1 <= subStep ? "bg-[#27AE60]" : "bg-[#e5e7eb]"}`}
+              />
+              <span
+                className={`text-[10px] font-bold hidden sm:block ${i + 1 === subStep ? "text-[#27AE60]" : "text-[#9ca3af]"}`}
+              >
                 {s.label}
               </span>
             </div>
@@ -170,28 +182,26 @@ export default function LandFields({ back, next }) {
           <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <LandUseZone error={errors.landUseZone} />
-              <Facing error={errors.facing} />
+              <Facing category={category} error={errors.facing} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <SurveyNumber error={errors.surveyNumber} />
               <LayoutType error={errors.layoutType} />
             </div>
-           
           </SectionCard>
-          
         </div>
       )}
 
       {/* Step 2 — Legal & Dimensions */}
       {subStep === 2 && (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <SectionCard>
-            <LandName error={errors.landName} />
-            <ApprovedByAuthority error={errors.approvedByAuthority} />
-          </SectionCard>
+          {/* <SectionCard> */}
+            {/* <LandName error={errors.landName} /> */}
+            {/* <ApprovedByAuthority error={errors.approvedByAuthority} /> */}
+          {/* </SectionCard> */}
           <SectionCard>
             <Amenities error={errors.amenities} />
-            <Specifications error={errors.specifications} />
+            {/* <Specifications error={errors.specifications} /> */}
           </SectionCard>
         </div>
       )}
@@ -201,10 +211,9 @@ export default function LandFields({ back, next }) {
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Currency error={errors.currency} />
-              <BanksApproved error={errors.banksApproved} />
+              {/* <Currency error={errors.currency} /> */}
+              {/* <BanksApproved error={errors.banksApproved} /> */}
             </div>
-            
           </SectionCard>
           <SectionCard>
             <DescriptionMain error={errors.description} />
@@ -237,7 +246,11 @@ export default function LandFields({ back, next }) {
               : "bg-gradient-to-r from-[#27AE60] to-[#52D689] hover:opacity-90 active:scale-[0.98]"
           }`}
         >
-          {isSubmitting ? "Saving…" : subStep === totalSubSteps ? "Save & Continue →" : "Continue →"}
+          {isSubmitting
+            ? "Saving…"
+            : subStep === totalSubSteps
+              ? "Save & Continue →"
+              : "Continue →"}
         </button>
       </div>
     </div>

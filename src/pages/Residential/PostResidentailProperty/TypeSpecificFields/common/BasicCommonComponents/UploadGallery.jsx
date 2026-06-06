@@ -6,7 +6,7 @@ import { useActivePropertySlice } from "../../UsePropertySlice/useActiveProperty
 import { deletePropertyGalleryImagesIndex } from "../../../../../../features/property/propertyService";
 import { toast } from "sonner";
 
-const MAX_FILES = 20;
+const MAX_FILES = 5;
 const TARGET_KB = 200; // Each image will be compressed to ~200KB max
 const TARGET_BYTES = TARGET_KB * 1024;
 

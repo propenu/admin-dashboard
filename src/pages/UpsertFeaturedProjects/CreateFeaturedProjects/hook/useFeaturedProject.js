@@ -6,7 +6,7 @@ import {getAllFeaturedProjects,  createFeaturedProject } from "../../../../featu
 import { getUploadProgressConfig } from "../utils/uploadWithProgress";
 import { INITIAL_PAYLOAD } from "../Constants/constants";
 import { buildFormData } from "../utils/buildFormData";
-import {
+import { 
   clearAllImages,
   getAllGalleryImages,
   getAllOtherImages,
@@ -75,27 +75,6 @@ export const useFeaturedProject = (projectType) => {
       toast.error("Failed to clear draft ❌");
     }
   };
-
-
-  // useEffect(() => {
-  //   const safePayload = {
-  //     ...payload,
-  //     galleryFiles: [],
-
-  //     // ✅ FIX brochure storage
-  //     brochure:
-  //       typeof payload.brochure === "object"
-  //         ? payload.brochure?.key
-  //         : payload.brochure,
-
-  //     // 🔥 REMOVE HEAVY FIELDS
-  //     heroImagePreview: "",
-  //     logoPreview: "",
-  //     aboutImagePreview: "",
-  //   };
-
-  //   localStorage.setItem("featuredPayload", JSON.stringify(safePayload));
-  // }, [payload]);
 
   useEffect(() => {
     // ✅ REMOVE HEAVY DATA
@@ -177,7 +156,6 @@ export const useFeaturedProject = (projectType) => {
       console.log("PROJECTS =>", projectsRes);
 
       // ✅ TOTAL PROJECT COUNT
-      //const totalProjects = projectsRes?.data?.items?.length || 0;
       const totalProjects =
         projectsRes?.data?.items?.filter(
           (item) => item?.promotion?.type === "normal",
@@ -213,38 +191,6 @@ export const useFeaturedProject = (projectType) => {
       const about = getKey(payload.aboutImage)
         ? otherImages[getKey(payload.aboutImage)]
         : null;
-
-      // const updatedBhkSummary = (payload.bhkSummary || []).map((b) => ({
-      //     const updatedProjectSummary = (payload.projectSummary || []).map(
-      //       (b) => ({
-      //         ...b,
-      //         units: (b.units || []).map((u) => {
-      //           const key =
-      //             typeof u.planFile === "string" ? u.planFile : u.planFile?.key;
-
-      //           return {
-      //             ...u,
-      //             planFile: key
-      //               ? {
-      //                   key,
-      //                   file: otherImages[key],
-      //                 }
-      //               : null,
-      //           };
-      //         }),
-      //       }),
-      //     );
-
-      // const updatedPayload = {
-      //   ...payload,
-      //   galleryFiles,
-      //   heroImage: hero,
-      //   logo,
-      //   aboutImage: about,
-      //   //bhkSummary: updatedBhkSummary,
-      //   projectSummary: updatedProjectSummary,
-      //   brochure: brochureFile,
-      // };
 
       const updatedProjectSummary = (payload.projectSummary || []).map((b) => ({
         ...b,

@@ -4,7 +4,7 @@
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { UploadCloud, Phone, X, FileText, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { UploadCloud, Phone, X, FileText, ShieldCheck, CheckCircle2 , Info } from "lucide-react";
 import { actions } from "../../../store/newIndex";
 import { savePropertyData } from "../../../store/common/propertyThunks";
 import { useState, useEffect } from "react";
@@ -40,10 +40,27 @@ export default function Step4VerifyPublish({ back }) {
   }, [form?.documentsFiles]);
 
   const docOptions = [
-    { id: "ec", label: "Encumbrance Certificate (EC)", desc: "Official document of ownership history" },
-    { id: "tax", label: "Municipal Tax Receipt", desc: "Latest property tax payment receipt" },
-    { id: "utility", label: "Water or Electricity Bill", desc: "Recent utility bill in owner's name" },
-    { id: "sale_deed", label: "Sale Deed", desc: "Registered sale deed document" },
+    {
+      id: "ec",
+      label: "Encumbrance Certificate (EC)",
+      desc: "Official document of ownership history",
+    },
+    {
+      id: "sale_deed",
+      label: "Sale Deed",
+      desc: "Registered sale deed document",
+    },
+
+    {
+      id: "tax",
+      label: "Municipal Tax Receipt",
+      desc: "Latest property tax payment receipt",
+    },
+    {
+      id: "utility",
+      label: "Water or Electricity Bill",
+      desc: "Recent utility bill in owner's name",
+    },
   ];
 
   const handleDocTypeSelect = (id) => {
@@ -168,9 +185,14 @@ export default function Step4VerifyPublish({ back }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-[#27AE60]">Verify & Publish</h2>
-          <p className="text-xs text-[#000000] mt-0.5">Final step to list your property</p>
+          <p className="text-xs text-[#000000] mt-0.5">
+            Final step to list your property
+          </p>
         </div>
-        <button type="button" className="flex items-center gap-2 text-sm bg-[#f0fdf4] border border-[#bbf7d0] text-[#27AE60] font-semibold px-2 py-2 rounded-xl hover:bg-[#dcfce7] transition-colors  max-sm:text-[12px]  max-sm:justify-between">
+        <button
+          type="button"
+          className="flex items-center gap-2 text-sm bg-[#f0fdf4] border border-[#bbf7d0] text-[#27AE60] font-semibold px-2 py-2 rounded-xl hover:bg-[#dcfce7] transition-colors  max-sm:text-[12px]  max-sm:justify-between"
+        >
           <Phone size={13} />
           Get a callback
         </button>
@@ -182,8 +204,13 @@ export default function Step4VerifyPublish({ back }) {
           <ShieldCheck size={18} className="text-[#27AE60]" />
         </div>
         <div>
-          <p className="text-sm font-bold text-[#27AE60]">Why verify your property?</p>
-          <p className="text-xs text-[#6b7280] mt-1 leading-relaxed">Upload ownership proofs to verify your property, boost credibility with buyers, and prevent duplicate listings on Propenu.</p>
+          <p className="text-sm font-bold text-[#27AE60]">
+            Why verify your property?
+          </p>
+          <p className="text-xs text-[#6b7280] mt-1 leading-relaxed">
+            Upload ownership proofs to verify your property, boost credibility
+            with buyers, and prevent duplicate listings on Propenu.
+          </p>
         </div>
       </div>
 
@@ -200,16 +227,53 @@ export default function Step4VerifyPublish({ back }) {
                   : "border-[#e5e7eb] hover:border-[#bbf7d0] hover:bg-[#fafafa]"
               }`}
             >
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 transition-all ${
-                form.verificationDocumentType === doc.id ? "border-[#27AE60] bg-[#27AE60]" : "border-[#d1d5db]"
-              }`}>
+              <div
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 flex-shrink-0 transition-all ${
+                  form.verificationDocumentType === doc.id
+                    ? "border-[#27AE60] bg-[#27AE60]"
+                    : "border-[#d1d5db]"
+                }`}
+              >
                 {form.verificationDocumentType === doc.id && (
                   <div className="w-2 h-2 rounded-full bg-white" />
                 )}
               </div>
-              <input type="radio" checked={form.verificationDocumentType === doc.id} onChange={() => handleDocTypeSelect(doc.id)} className="sr-only" />
-              <div>
+              <input
+                type="radio"
+                checked={form.verificationDocumentType === doc.id}
+                onChange={() => handleDocTypeSelect(doc.id)}
+                className="sr-only"
+              />
+              {/* <div>
                 <p className={`text-sm font-semibold ${form.verificationDocumentType === doc.id ? "text-[#27AE60]" : "text-[#374151]"}`}>{doc.label}</p>
+                <p className="text-xs text-[#9ca3af] mt-0.5">{doc.desc}</p>
+              </div> */}
+              <div>
+                <div className="flex items-center gap-1">
+                  <p
+                    className={`text-sm font-semibold ${
+                      form.verificationDocumentType === doc.id
+                        ? "text-[#27AE60]"
+                        : "text-[#374151]"
+                    }`}
+                  >
+                    {doc.label}
+                  </p>
+
+                  {(doc.id === "ec" || doc.id === "sale_deed") && (
+                    <div className="relative group">
+                      <Info
+                        size={14}
+                        className="text-gray-400 cursor-pointer"
+                      />
+
+                      <div className="absolute left-5 top-0 hidden group-hover:block w-52 p-2 rounded-lg bg-gray-800 text-white text-xs shadow-xl z-50">
+                        Upload only PDF files.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <p className="text-xs text-[#9ca3af] mt-0.5">{doc.desc}</p>
               </div>
             </label>
@@ -225,13 +289,22 @@ export default function Step4VerifyPublish({ back }) {
         {previews.length > 0 && (
           <div className="grid  grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             {previews.map((file, index) => (
-              <div key={index} className="relative group border border-[#e6f4ec] rounded-xl overflow-hidden bg-white shadow-sm h-28">
+              <div
+                key={index}
+                className="relative group border border-[#e6f4ec] rounded-xl overflow-hidden bg-white shadow-sm h-28"
+              >
                 {file.url ? (
-                  <img src={file.url} alt="preview" className="w-full h-full object-cover" />
+                  <img
+                    src={file.url}
+                    alt="preview"
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-[#f0fdf4] p-2">
                     <FileText className="text-[#27AE60] mb-1" size={22} />
-                    <p className="text-[10px] text-center text-[#6b7280] truncate w-full px-1">{file.name}</p>
+                    <p className="text-[10px] text-center text-[#6b7280] truncate w-full px-1">
+                      {file.name}
+                    </p>
                   </div>
                 )}
                 <button
@@ -246,21 +319,45 @@ export default function Step4VerifyPublish({ back }) {
         )}
 
         {/* Drop Zone */}
-        <label className={`relative flex flex-col items-center justify-center py-10 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-200 ${
-          form.documentsFiles?.length
-            ? "border-[#27AE60] bg-[#f0fdf4]"
-            : "border-[#d1d5db] bg-[#fafafa] hover:border-[#27AE60] hover:bg-[#f0fdf4]"
-        }`}>
-          <input type="file" id="doc-upload" hidden multiple accept="image/*,.pdf" onChange={handleFileChange} />
-          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 ${
-            form.documentsFiles?.length ? "bg-[#27AE60]/10 border border-[#bbf7d0]" : "bg-white border border-[#e5e7eb]"
-          }`}>
-            <UploadCloud size={26} className={form.documentsFiles?.length ? "text-[#27AE60]" : "text-[#9ca3af]"} />
+        <label
+          className={`relative flex flex-col items-center justify-center py-10 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-200 ${
+            form.documentsFiles?.length
+              ? "border-[#27AE60] bg-[#f0fdf4]"
+              : "border-[#d1d5db] bg-[#fafafa] hover:border-[#27AE60] hover:bg-[#f0fdf4]"
+          }`}
+        >
+          <input
+            type="file"
+            id="doc-upload"
+            hidden
+            multiple
+            accept="image/*,.pdf"
+            onChange={handleFileChange}
+          />
+          <div
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 ${
+              form.documentsFiles?.length
+                ? "bg-[#27AE60]/10 border border-[#bbf7d0]"
+                : "bg-white border border-[#e5e7eb]"
+            }`}
+          >
+            <UploadCloud
+              size={26}
+              className={
+                form.documentsFiles?.length
+                  ? "text-[#27AE60]"
+                  : "text-[#9ca3af]"
+              }
+            />
           </div>
           <p className="text-sm font-semibold text-[#374151]">
-            {form.documentsFiles?.length ? "Add more files" : "Upload your document"}
+            {form.documentsFiles?.length
+              ? "Add more files"
+              : "Upload your document"}
           </p>
-          <p className="text-xs text-[#9ca3af] mt-1">JPG, PNG or PDF · Max 10MB each</p>
+          <p className="text-xs text-[#9ca3af] mt-1">
+            JPG, PNG or PDF · Max 10MB each
+          </p>
         </label>
       </CardWrapper>
 
@@ -268,7 +365,9 @@ export default function Step4VerifyPublish({ back }) {
       {canPublish && (
         <div className="flex items-center gap-2 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl px-4 py-3">
           <CheckCircle2 size={16} className="text-[#27AE60] flex-shrink-0" />
-          <p className="text-xs font-semibold text-[#27AE60]">All set! Your property is ready to be published.</p>
+          <p className="text-xs font-semibold text-[#27AE60]">
+            All set! Your property is ready to be published.
+          </p>
         </div>
       )}
 

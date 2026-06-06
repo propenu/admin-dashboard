@@ -58,7 +58,7 @@ export default function CommercialFields({ back, next }) {
   const validateStep1 = () => {
     const e = {};
     if (!form.amenities?.length) e.amenities = "Select at least one amenity";
-    if (!form.specifications?.length) e.specifications = "Enter at least one specification";
+   // if (!form.specifications?.length) e.specifications = "Enter at least one specification";
     
     if (!form.pantry) e.pantry = "Select pantry type";
     return e;
@@ -67,7 +67,7 @@ export default function CommercialFields({ back, next }) {
   const validateStep2 = () => {
     const e = {};
     if (!form.constructionStatus) e.constructionStatus = "Select availability status";
-    if (!form.powerCapacityKw) e.powerCapacityKw = "Enter power capacity";
+    //if (!form.powerCapacityKw) e.powerCapacityKw = "Enter power capacity";
     if (!form.propertyAge) e.propertyAge = "Select age of property";
     if (!form.zoning) e.zoning = "Enter zoning";
     return e;
@@ -76,7 +76,7 @@ export default function CommercialFields({ back, next }) {
   const validateStep3 = () => {
     const e = {};
     if (!form.price || Number(form.price) <= 0) e.price = "Enter a valid price";
-    if (!form.currency) e.currency = "Select currency";
+    //if (!form.currency) e.currency = "Select currency";
     if (!form.description) e.description = "Enter a description";
     if (!form.status) e.status = "Select property status";
     if (!form.galleryFiles?.length) e.galleryFiles = "Upload at least one image";
@@ -122,7 +122,7 @@ export default function CommercialFields({ back, next }) {
       dispatch(savePropertyData({ category: "commercial", id: propertyId, step: "details" }))
         .unwrap()
         .then(() => { toast.success("Commercial details saved successfully"); next(); })
-        .catch((err) => toast.error(err?.message || "Failed to save details"))
+        .catch((err) => toast.error(err?.message || err?.error))
         .finally(() => setIsSubmitting(false));
     }
   };
@@ -176,7 +176,7 @@ export default function CommercialFields({ back, next }) {
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <SectionCard>
             <div ref={amenitiesRef}><Amenities error={errors.amenities} /></div>
-            <div><Specifications error={errors.specifications} /></div>
+            {/* <div><Specifications error={errors.specifications} /></div> */}
           </SectionCard>
           <SectionCard>
             <ParkingDetails errors={errors} />
@@ -192,7 +192,7 @@ export default function CommercialFields({ back, next }) {
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <PowerCapacity error={errors.powerCapacityKw} />
+              {/* <PowerCapacity error={errors.powerCapacityKw} /> */}
               <Zoning error={errors.zoning} />
             </div>
             <FireSafety error={errors.fireSafety} />
@@ -208,21 +208,21 @@ export default function CommercialFields({ back, next }) {
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Currency error={errors.currency} />
-              <PossessionDate error={errors.possessionDate} />
+              {/* <Currency error={errors.currency} /> */}
+              {/* <PossessionDate error={errors.possessionDate} /> */}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <MaintenanceCharges error={errors.maintenanceCharges} />
+            <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
+              {/* <MaintenanceCharges error={errors.maintenanceCharges} /> */}
               <IsPriceNegotiable />
             </div>
-            <BanksApproved error={errors.banksApproved} />
+            {/* <BanksApproved error={errors.banksApproved} /> */}
           </SectionCard>
           <SectionCard>
             <DescriptionMain error={errors.description} />
           </SectionCard>
-          <SectionCard>
+          {/* <SectionCard>
             <TenantInfo error={errors.tenantInfo} />
-          </SectionCard>
+          </SectionCard> */}
           <div ref={galleryRef}>
             <SectionCard>
               <UploadGallery error={errors.galleryFiles} />

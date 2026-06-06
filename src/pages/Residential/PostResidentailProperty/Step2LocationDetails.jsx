@@ -571,7 +571,7 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
       </div>
 
       {/* Category chips */}
-      <div>
+      {/* <div>
         <p className="text-[11px] font-bold text-[#6b7280] uppercase tracking-widest mb-2">Browse by category</p>
         <div className="flex flex-wrap gap-2">
           {PLACE_CATEGORIES.map((cat) => {
@@ -588,7 +588,7 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
             );
           })}
         </div>
-      </div>
+      </div> */}
 
       {/* Auto-add banner */}
       {autoAdded && (
@@ -1028,18 +1028,18 @@ export default function Step2LocationDetails({ next, back, category }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {(form.propertyCategory === "residential" || form.propertyCategory === "commercial") && (
-              <FieldWrapper label="Apartment / Society" error={errors.buildingName}>
+              <FieldWrapper label="Building Name / Society" error={errors.buildingName}>
                 <input value={form.buildingName || ""} onChange={(e) => setValue("buildingName", e.target.value)}
                   placeholder="Society / Building name" className={inputCls} />
               </FieldWrapper>
             )}
             {(form.propertyCategory === "land" || form.propertyCategory === "agricultural") && (
-              <FieldWrapper label="Land Name / Society" error={errors.landName}>
+              <FieldWrapper label="Land Name / Land Name" error={errors.landName}>
                 <input value={form.landName || ""} onChange={(e) => setValue("landName", e.target.value)}
                   placeholder="Land Name / Society Name" className={inputCls} />
               </FieldWrapper>
             )}
-            <FieldWrapper label="Pincode" error={errors.pincode}>
+            <FieldWrapper label="PIN Code" error={errors.pincode}>
               <input
                 value={form.pincode || ""}
                 onChange={(e) => setValue("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}

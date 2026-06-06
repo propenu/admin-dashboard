@@ -63,6 +63,7 @@ const LAND_FACING_OPTIONS = [
   "North West Facing",
   "South East Facing",
   "South West Facing",
+  "Corner Facing",
 ];
 
 const RESIDENTIAL_OPTIONS = [

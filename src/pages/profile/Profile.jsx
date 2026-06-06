@@ -15,8 +15,19 @@ import {
 /* ─────────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────────── */
+// function formatRole(raw = "") {
+//   return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+// }
+
 function formatRole(raw = "") {
-  return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const roleMap = {
+    sales_agent: "Sales Executive",
+  };
+
+  return (
+    roleMap[raw] ||
+    raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  );
 }
 
 const STATUS_COLOR = {

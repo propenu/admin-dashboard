@@ -266,7 +266,8 @@ export default function Agricultural() {
         </div>
         <div className="p-6 flex flex-col text-center">
           <h2 className="text-xl text-[#27AE60] font-bold">
-            {allProperties.total}
+            {/* {allProperties.total} */}
+            {verifiedCount}
           </h2>
           <p className="text-slate-500 text-sm">Total Properties</p>
         </div>
@@ -482,7 +483,7 @@ export default function Agricultural() {
             <p className="text-slate-500">No properties found.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-3 sm:grid-cols-1 max-sm:grid-cols-1 lg:grid-cols-3 xl:grid-cols-3 gap-6">
             {visibleProperties.map((p) => (
               <div key={p._id} className="relative group">
                 <AgriculturalCard activeTab={activeTab} property={p} />

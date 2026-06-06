@@ -4,12 +4,12 @@ import { useActivePropertySlice } from "../../UsePropertySlice/useActiveProperty
 import { getUserSearch } from "../../../../../../features/user/userService";
 
 const ROLES = [
-  { label: "All",           value: ""              },
-  { label: "User",          value: "user"          },
-  // { label: "Builder",       value: "builder"       },
-  //{ label: "Agent",         value: "agent"         },
-  { label: "Sales Manager", value: "sales_manager" },
-  { label: "Sales Agent",   value: "sales_agent"   },
+  //{ label: "All",           value: ""              },
+  { label: "Owners",          value: "user"          },
+   //{ label: "Builder",       value: "builder"       },
+  { label: "Agent",         value: "agent"         },
+  //{ label: "Sales Manager", value: "sales_manager" },
+  //{ label: "Sales Agent",   value: "sales_agent"   },
   // { label: "Super Admin",   value: "super_admin"   },
   // { label: "Admin",         value: "admin"         },
   // { label: "Customer Care", value: "customer_care" },
@@ -78,6 +78,9 @@ const CreatedBy = forwardRef(({ error }, ref) => {
   const base = allUsers.filter((u) =>
     !activeRole || u.role === activeRole
   );
+
+  
+
 
   const uniqueStates = [...new Set(base.map((u) => u.state).filter(Boolean))].sort();
 
@@ -155,7 +158,7 @@ const CreatedBy = forwardRef(({ error }, ref) => {
   /* ── render ── */
   return (
     <div ref={ref} className="space-y-2">
-      <p className={LABEL}>Posted By</p>
+      <p className={LABEL}>Assigned to</p>
 
       {/* ── Trigger / Selected display ── */}
       <div ref={wrapperRef} className="relative">

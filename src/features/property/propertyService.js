@@ -2,32 +2,6 @@
 import { apiClient } from "../../api/apiClient";
 import { SERVICES } from "../../config/services";
 
-// //Featured Projects
-// // Only API call (no progress logic)
-// export const createFeaturedProperty = (formData, config = {}) => {
-//   return apiClient.post(
-//     `${SERVICES.PROPERTY}/featured-project`,
-//     formData,
-//     config
-//   );
-// };
-
-// export const getFeaturedProjects = (id) => {
-//   return apiClient.get(`${SERVICES.PROPERTY}/featured-project/${id}`);
-// }
-
-
-// export const editFeaturedProject = (id, formData) => {
-//   return apiClient.patch(`${SERVICES.PROPERTY}/featured-project/${id}`, formData);
-// }
-
-// export const deleteFeaturedProjectGallery = (id,index) => {
-//   return apiClient.delete(
-//     `${SERVICES.PROPERTY}/featured-project/${id}/gallery/${index}`,
-//   );
-// }
-
-
 const BASE = `${SERVICES.PROPERTY}/featured-project`;
 
 export const getFeaturedProjectsByType = (type, page = 1, limit = 20) =>
@@ -118,6 +92,10 @@ export const deletePropertyGalleryImagesIndex = (category, id, index) => {
   );
 }
 
+export const getPropertyById = (category, id) => {
+  return apiClient.get(`${SERVICES.PROPERTY}/${category}/${id}`);
+};
+
 
 // Roles Analytics
 export const getSuperAdimnAnalytics = () => {
@@ -148,3 +126,61 @@ export const projectAnalytics = (id) => {
 export const propertiesAnalytics = (id) =>{
   return apiClient.get(`${SERVICES.PROPERTY}/leads?projectId=${id}`);
 }
+
+// Sales Manager
+export const getSalesManagerPeddingProjects = () => {
+  return apiClient.get(`${SERVICES.PROPERTY}/pending-projects`);
+}
+
+export const salesmanagerApproveAProject = (id) => {
+  return apiClient.patch(`${SERVICES.PROPERTY}/${id}/approve`);
+}
+
+export const salesmanagerRejectAProject = (id) => {
+  return apiClient.patch(`${SERVICES.PROPERTY}/${id}/reject`);
+}
+
+
+
+export const getAllProjectsAnalytics = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.state) query.set("state", params.state);
+  if (params.city) query.set("city", params.city);
+  if (params.locality) query.set("locality", params.locality);
+  const qs = query.toString();
+  return apiClient.get(
+    `${SERVICES.PROPERTY}/analytics/project${qs ? `?${qs}` : ""}`,
+  );
+};
+
+//src/features/property/propertyService.js
+{/* Blogs */ }
+export const getBlogs = () => {
+  return apiClient.get(`${SERVICES.PROPERTY}/blogs`);
+};
+
+export const getBlogById = (id) => {
+  return apiClient.get(`${SERVICES.PROPERTY}/blogs/${id}`);
+};
+
+export const getBlogBySlug = (slug) => {
+  return apiClient.get(`${SERVICES.PROPERTY}/blogs/slug/${slug}`);
+};
+
+export const deleteBlog = (id) => {
+  return apiClient.delete(`${SERVICES.PROPERTY}/blogs/${id}`);
+};
+
+export const createBlog = (payload) => {
+  return apiClient.post(`${SERVICES.PROPERTY}/blogs`, payload);
+};
+
+export const updateBlog = (id, payload) => {
+  return apiClient.patch(`${SERVICES.PROPERTY}/blogs/${id}`, payload);
+};
+
+export const shareBlog = (id, payload) => {
+  return apiClient.post(`${SERVICES.PROPERTY}/blogs/${id}/share`, payload);
+};
+
+export const likesBlog = (id) => apiClient.post(`${SERVICES.PROPERTY}/blogs/${id}/like`);
