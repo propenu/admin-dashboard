@@ -442,6 +442,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           label: "Automations",
           icon: aumattionnotifications,
         },
+        {
+          path: "/blogs",
+          label: "Blogs",
+          icon: mailnotifications,
+        },
       ],
       admin: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
