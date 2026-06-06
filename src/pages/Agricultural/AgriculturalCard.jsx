@@ -704,6 +704,17 @@ export default function AgriculturalCard({ property }) {
   const dispatch = useDispatch();
   const [openLeads, setOpenLeads] = useState(false);
 
+
+  const { data: userData, isLoading: userLoading } = useQuery({
+    queryKey: ["userDetails"],
+    queryFn: async () => {
+      const res = await getUserDetails();
+      return res.data;
+    },
+  });
+
+  const UserRoleName = userData?.user?.roleName;
+
   const { data: leadsData, isLoading: leadsLoading } = useQuery({
     queryKey: ["projectLeads", property?._id],
     queryFn: async () => {
@@ -719,17 +730,7 @@ export default function AgriculturalCard({ property }) {
   const totalLeads = typeof leadsData?.count === "number" ? leadsData.count : leads.length;
 
 
-  const { data: userData, isLoading: userLoading } = useQuery({
-    queryKey: ["userDetails"],
-    queryFn: async () => {
-      const res = await getUserDetails();
-      return res.data;
-    },
-  });
-
-
-
-  const UserRoleName = userData?.user?.roleName;
+  
   
 
   const downloadCSV = () => {
