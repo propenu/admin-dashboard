@@ -681,21 +681,13 @@ const formatPrice = (price) => {
   return `₹${price.toLocaleString("en-IN")}`;
 };
 
-export default function ResidentialCard({ property }) {
+export default function ResidentialCard({ property, userRole }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [openLeads, setOpenLeads] = useState(false);
 
-
-  const { data: userData, isLoading: userLoading } = useQuery({
-    queryKey: ["userDetails"],
-    queryFn: async () => {
-      const res = await getUserDetails();
-      return res.data;
-    },
-  });
-
-  const UserRoleName = userData?.user?.roleName;
+  
+  const UserRoleName = userRole
 
   const { data: leadsData, isLoading: leadsLoading } = useQuery({
     queryKey: ["projectLeads", property?._id],
@@ -707,46 +699,78 @@ export default function ResidentialCard({ property }) {
   });
 
   const leads = Array.isArray(leadsData?.data) ? leadsData.data : [];
-  const totalLeads = typeof leadsData?.count === "number" ? leadsData.count : leads.length;
+  const totalLeads =
+    typeof leadsData?.count === "number" ? leadsData.count : leads.length;
 
   const getDocStatus = () => {
     const docs = property?.verificationDocuments || [];
-    if (docs.length === 0) return { label: "No Docs", color: "text-slate-500 bg-slate-100", icon: AlertCircle };
-    if (docs.some((d) => d.status === "rejected")) return { label: "Rejected", color: "text-red-600 bg-red-50", icon: AlertCircle };
-    if (docs.some((d) => d.status === "pending")) return { label: "Pending", color: "text-amber-600 bg-amber-50", icon: Clock };
-    if (docs.every((d) => d.status === "verified")) return { label: "Verified", color: "text-green-600 bg-green-50", icon: FileCheck };
+    if (docs.length === 0)
+      return {
+        label: "No Docs",
+        color: "text-slate-500 bg-slate-100",
+        icon: AlertCircle,
+      };
+    if (docs.some((d) => d.status === "rejected"))
+      return {
+        label: "Rejected",
+        color: "text-red-600 bg-red-50",
+        icon: AlertCircle,
+      };
+    if (docs.some((d) => d.status === "pending"))
+      return {
+        label: "Pending",
+        color: "text-amber-600 bg-amber-50",
+        icon: Clock,
+      };
+    if (docs.every((d) => d.status === "verified"))
+      return {
+        label: "Verified",
+        color: "text-green-600 bg-green-50",
+        icon: FileCheck,
+      };
     return { label: "Draft", color: "text-blue-600 bg-blue-50", icon: Clock };
   };
 
   const statusInfo = getDocStatus();
   const completion = property?.completion?.percent || 0;
-  const isPendingReview = property?.verificationDocuments?.some((d) => d.status === "pending");
-
-  
-    
-    
+  const isPendingReview = property?.verificationDocuments?.some(
+    (d) => d.status === "pending",
+  );
 
   const downloadCSV = () => {
     const rows = leads.map((lead, i) => ({
-      SNo: i + 1, Name: lead.name, Phone: lead.phone,
-      Status: lead.status, Date: new Date(lead.createdAt).toLocaleString("en-IN"),
+      SNo: i + 1,
+      Name: lead.name,
+      Phone: lead.phone,
+      Status: lead.status,
+      Date: new Date(lead.createdAt).toLocaleString("en-IN"),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    saveAs(new Blob([XLSX.utils.sheet_to_csv(ws)], { type: "text/csv;charset=utf-8;" }), `project-leads-${property?._id}.csv`);
+    saveAs(
+      new Blob([XLSX.utils.sheet_to_csv(ws)], {
+        type: "text/csv;charset=utf-8;",
+      }),
+      `project-leads-${property?._id}.csv`,
+    );
   };
 
   const downloadExcel = () => {
     const rows = leads.map((lead, i) => ({
-      SNo: i + 1, Name: lead.name, Phone: lead.phone,
-      Status: lead.status, Date: new Date(lead.createdAt).toLocaleString("en-IN"),
+      SNo: i + 1,
+      Name: lead.name,
+      Phone: lead.phone,
+      Status: lead.status,
+      Date: new Date(lead.createdAt).toLocaleString("en-IN"),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Property Leads");
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     saveAs(
-      new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8" }),
-      `project-leads-${property?._id}.xlsx`
+      new Blob([buf], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
+      }),
+      `project-leads-${property?._id}.xlsx`,
     );
   };
 

@@ -3,6 +3,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import { setActiveCategory } from "../../store/Ui/uiSlice";
 
+import { useCurrentUser } from "../../store/properties/useCurrentUser";
+
 import {
   ChevronDown,
   ChevronUp,
@@ -47,6 +49,8 @@ export default function Commercial() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [activeTab, setActiveTab] = useState("verified");
+
+  const { data: userData } = useCurrentUser();
 
   const {
     data,
@@ -487,7 +491,11 @@ export default function Commercial() {
           <div className="grid grid-cols-3 sm:grid-cols-1 max-sm:grid-cols-1 lg:grid-cols-3 xl:grid-cols-3 gap-6">
             {visibleProperties.map((p) => (
               <div key={p._id} className="relative group">
-                <CommercialCard activeTab={activeTab} property={p} />
+                <CommercialCard
+                  activeTab={activeTab}
+                  property={p}
+                  userRole={userData?.user?.roleName}
+                />
                 <button
                   onClick={() => {
                     setDeleteId(p._id);

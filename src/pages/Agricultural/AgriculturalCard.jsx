@@ -699,21 +699,15 @@ const formatPrice = (price) => {
   return `₹${price.toLocaleString("en-IN")}`;
 };
 
-export default function AgriculturalCard({ property }) {
+export default function AgriculturalCard({ property, userRole }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [openLeads, setOpenLeads] = useState(false);
 
 
-  const { data: userData, isLoading: userLoading } = useQuery({
-    queryKey: ["userDetails"],
-    queryFn: async () => {
-      const res = await getUserDetails();
-      return res.data;
-    },
-  });
+  
 
-  const UserRoleName = userData?.user?.roleName;
+  const UserRoleName = userRole
 
   const { data: leadsData, isLoading: leadsLoading } = useQuery({
     queryKey: ["projectLeads", property?._id],
