@@ -202,6 +202,7 @@ function SelectDropdown({ label, value, options, onChange, placeholder = "Select
 
 function InlineLocationSelector({
   properties,
+  analytics,
   selectedLocation,
   onLocationChange,
   analyticsSearch,
@@ -918,11 +919,7 @@ export default function ProjectsDashboardPage() {
 
   const loadMoreRef = useRef(null);
 
-  // ── Analytics query — reactive to location + debounced search ────────────
-  // const analyticsParams = useMemo(
-  //   () => buildAnalyticsParams(selectedLocation, debouncedSearch),
-  //   [selectedLocation, debouncedSearch],
-  // );
+  
 
   const analyticsParams = useMemo(
     () => buildAnalyticsParams(selectedLocation, debouncedAnalyticsSearch),
@@ -936,44 +933,8 @@ export default function ProjectsDashboardPage() {
     staleTime: 60_000,
   });
 
-  const analytics = analyticsData?.data?.data || analyticsData?.data || null;
+ const analytics = analyticsData?.data?.data || analyticsData?.data || null;
 
-  
-// useEffect(() => {
-//   const el = loadMoreRef.current;
-
-//   if (!el) return;
-
-//   const observer = new IntersectionObserver(
-//     ([entry]) => {
-//       if (!entry.isIntersecting) return;
-
-//       if (normalHook.hasNextPage && !normalHook.isFetchingNextPage) {
-//         normalHook.fetchNextPage();
-//       }
-
-//       if (featuredHook.hasNextPage && !featuredHook.isFetchingNextPage) {
-//         featuredHook.fetchNextPage();
-//       }
-
-//       if (primeHook.hasNextPage && !primeHook.isFetchingNextPage) {
-//         primeHook.fetchNextPage();
-//       }
-
-//       if (sponsoredHook.hasNextPage && !sponsoredHook.isFetchingNextPage) {
-//         sponsoredHook.fetchNextPage();
-//       }
-//     },
-//     {
-//       rootMargin: "200px",
-//       threshold: 0,
-//     },
-//   );
-
-//   observer.observe(el);
-
-//   return () => observer.disconnect();
-// }, [normalHook, featuredHook, primeHook, sponsoredHook]);
 
 useEffect(() => {
   const el = loadMoreRef.current;
@@ -1040,16 +1001,6 @@ useEffect(() => {
         list = list.filter((p) => p.locality?.trim() === value);
     }
 
-    // Search filter
-    // if (searchTerm.trim()) {
-    //   const q = searchTerm.toLowerCase().trim();
-    //   list = list.filter((p) =>
-    //     p.title?.toLowerCase().includes(q)    || p.slug?.toLowerCase().includes(q)  ||
-    //     p._id?.toLowerCase().includes(q)      || p.city?.toLowerCase().includes(q)  ||
-    //     p.locality?.toLowerCase().includes(q) || p.address?.toLowerCase().includes(q)
-    //   );
-    // }
-
     if (projectSearch.trim()) {
       const q = projectSearch.toLowerCase().trim();
 
@@ -1075,7 +1026,6 @@ useEffect(() => {
     categoryFilter,
     propertyTypeFilter,
     selectedLocation,
-
     projectSearch,
     isSalesManager,
   ]);
@@ -1194,6 +1144,7 @@ useEffect(() => {
           <div className="flex items-center  gap-2 flex-shrink-0">
             <InlineLocationSelector
               properties={allProperties}
+              analytics={analytics}
               selectedLocation={selectedLocation}
               onLocationChange={setSelectedLocation}
               analyticsSearch={analyticsSearch}
@@ -1484,7 +1435,7 @@ useEffect(() => {
           Projects
           <span className="text-slate-400 font-normal text-sm ml-2">
             {/* ({visibleProperties.length}) */}
-          { ( analytics?.overview?.totalProjects)}
+            {analytics?.overview?.totalProjects}
           </span>
         </h2>
         <div className="flex items-center gap-2 text-xs text-slate-500">
