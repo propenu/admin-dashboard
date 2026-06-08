@@ -937,59 +937,42 @@ export default function ProjectsDashboardPage() {
 
   const analytics = analyticsData?.data?.data || analyticsData?.data || null;
 
-  // ── Infinite scroll ───────────────────────────────────────────────────────
-  // useEffect(() => {
-  //   const observer = new IntersectionObserver((entries) => {
-  //     if (!entries[0].isIntersecting) return;
-  //     if (normalHook.hasNextPage    && !normalHook.isFetchingNextPage)    normalHook.fetchNextPage();
-  //     if (featuredHook.hasNextPage  && !featuredHook.isFetchingNextPage)  featuredHook.fetchNextPage();
-  //     if (primeHook.hasNextPage     && !primeHook.isFetchingNextPage)     primeHook.fetchNextPage();
-  //     if (sponsoredHook.hasNextPage && !sponsoredHook.isFetchingNextPage) sponsoredHook.fetchNextPage();
-  //   }, { threshold: 0.5 });
-  //   const el = loadMoreRef.current;
-  //   if (el) observer.observe(el);
-  //   return () => { if (el) observer.unobserve(el); };
-  // }, [normalHook, featuredHook, primeHook, sponsoredHook]);
-
+  
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0].isIntersecting) return;
-
-        if (normalHook.hasNextPage && !normalHook.isFetchingNextPage)
-          normalHook.fetchNextPage();
-
-        if (featuredHook.hasNextPage && !featuredHook.isFetchingNextPage)
-          featuredHook.fetchNextPage();
-
-        if (primeHook.hasNextPage && !primeHook.isFetchingNextPage)
-          primeHook.fetchNextPage();
-
-        if (sponsoredHook.hasNextPage && !sponsoredHook.isFetchingNextPage)
-          sponsoredHook.fetchNextPage();
-      },
-      { threshold: 0.5 },
-    );
-
     const el = loadMoreRef.current;
 
-    if (el) observer.observe(el);
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+
+        if (normalHook.hasNextPage && !normalHook.isFetchingNextPage) {
+          normalHook.fetchNextPage();
+        }
+
+        if (featuredHook.hasNextPage && !featuredHook.isFetchingNextPage) {
+          featuredHook.fetchNextPage();
+        }
+
+        if (primeHook.hasNextPage && !primeHook.isFetchingNextPage) {
+          primeHook.fetchNextPage();
+        }
+
+        if (sponsoredHook.hasNextPage && !sponsoredHook.isFetchingNextPage) {
+          sponsoredHook.fetchNextPage();
+        }
+      },
+      {
+        threshold: 1,
+      },
+    );
+
+    observer.observe(el);
 
     return () => observer.disconnect();
-  }, [
-    normalHook.hasNextPage,
-    normalHook.isFetchingNextPage,
-
-    featuredHook.hasNextPage,
-    featuredHook.isFetchingNextPage,
-
-    primeHook.hasNextPage,
-    primeHook.isFetchingNextPage,
-
-    sponsoredHook.hasNextPage,
-    sponsoredHook.isFetchingNextPage,
-  ]); 
+  }, []);
 
   console.log("isFetchingNextPage:", normalHook.isFetchingNextPage);
   console.log("hasNextPage:", normalHook.hasNextPage);

@@ -32,13 +32,19 @@ const {
   initialPageParam: 1,
 
   queryFn: async ({ pageParam }) => {
+    console.log("REQUEST PAGE:", pageParam);
+
     const res = await getFeaturedProjectsByType(type, pageParam, 20);
+
+    console.log("RESPONSE PAGE:", res?.data?.data?.meta?.page);
+    console.log("TOTAL PAGES:", res?.data?.data?.meta?.pages);
+
     return res;
   },
 
   getNextPageParam: (lastPage) => {
     const page = lastPage?.data?.data?.meta?.page ?? 1;
-    const pages = lastPage?.data?.meta?.pages ?? 1;
+    const pages = lastPage?.data?.data?.meta?.pages ?? 1;
 
     console.log("PAGE:", page);
     console.log("PAGES:", pages);
@@ -51,7 +57,7 @@ console.log("DATA:", data);
 
 const properties =
   data?.pages?.flatMap((page) => {
-    return page?.data?.items || [];
+    return page?.data?.data?.items || [];
   }) || [];
 
   console.log("PROPERTIES:", properties);
