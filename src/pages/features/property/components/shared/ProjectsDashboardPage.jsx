@@ -861,6 +861,20 @@ export default function ProjectsDashboardPage() {
   const { data: pendingProjectsData } = usePendingProjects({ enabled: isSalesManager });
   const pendingProjects = pendingProjectsData?.data || [];
 
+  useEffect(() => {
+    console.log({
+      prime: primeHook.totalCount,
+      featured: featuredHook.totalCount,
+      sponsored: sponsoredHook.totalCount,
+      normal: normalHook.totalCount,
+    });
+  }, [
+    primeHook.totalCount,
+    featuredHook.totalCount,
+    sponsoredHook.totalCount,
+    normalHook.totalCount,
+  ]);
+
   const allProperties = useMemo(() => {
     const merged = [
       ...primeHook.properties, ...featuredHook.properties,
@@ -924,18 +938,61 @@ export default function ProjectsDashboardPage() {
   const analytics = analyticsData?.data?.data || analyticsData?.data || null;
 
   // ── Infinite scroll ───────────────────────────────────────────────────────
+  // useEffect(() => {
+  //   const observer = new IntersectionObserver((entries) => {
+  //     if (!entries[0].isIntersecting) return;
+  //     if (normalHook.hasNextPage    && !normalHook.isFetchingNextPage)    normalHook.fetchNextPage();
+  //     if (featuredHook.hasNextPage  && !featuredHook.isFetchingNextPage)  featuredHook.fetchNextPage();
+  //     if (primeHook.hasNextPage     && !primeHook.isFetchingNextPage)     primeHook.fetchNextPage();
+  //     if (sponsoredHook.hasNextPage && !sponsoredHook.isFetchingNextPage) sponsoredHook.fetchNextPage();
+  //   }, { threshold: 0.5 });
+  //   const el = loadMoreRef.current;
+  //   if (el) observer.observe(el);
+  //   return () => { if (el) observer.unobserve(el); };
+  // }, [normalHook, featuredHook, primeHook, sponsoredHook]);
+
+
   useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries[0].isIntersecting) return;
-      if (normalHook.hasNextPage    && !normalHook.isFetchingNextPage)    normalHook.fetchNextPage();
-      if (featuredHook.hasNextPage  && !featuredHook.isFetchingNextPage)  featuredHook.fetchNextPage();
-      if (primeHook.hasNextPage     && !primeHook.isFetchingNextPage)     primeHook.fetchNextPage();
-      if (sponsoredHook.hasNextPage && !sponsoredHook.isFetchingNextPage) sponsoredHook.fetchNextPage();
-    }, { threshold: 0.5 });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+
+        if (normalHook.hasNextPage && !normalHook.isFetchingNextPage)
+          normalHook.fetchNextPage();
+
+        if (featuredHook.hasNextPage && !featuredHook.isFetchingNextPage)
+          featuredHook.fetchNextPage();
+
+        if (primeHook.hasNextPage && !primeHook.isFetchingNextPage)
+          primeHook.fetchNextPage();
+
+        if (sponsoredHook.hasNextPage && !sponsoredHook.isFetchingNextPage)
+          sponsoredHook.fetchNextPage();
+      },
+      { threshold: 0.5 },
+    );
+
     const el = loadMoreRef.current;
+
     if (el) observer.observe(el);
-    return () => { if (el) observer.unobserve(el); };
-  }, [normalHook, featuredHook, primeHook, sponsoredHook]);
+
+    return () => observer.disconnect();
+  }, [
+    normalHook.hasNextPage,
+    normalHook.isFetchingNextPage,
+
+    featuredHook.hasNextPage,
+    featuredHook.isFetchingNextPage,
+
+    primeHook.hasNextPage,
+    primeHook.isFetchingNextPage,
+
+    sponsoredHook.hasNextPage,
+    sponsoredHook.isFetchingNextPage,
+  ]); 
+
+  console.log("isFetchingNextPage:", normalHook.isFetchingNextPage);
+  console.log("hasNextPage:", normalHook.hasNextPage);
 
   // ── Project list filtering — uses all filter state ────────────────────────
   const visibleProperties = useMemo(() => {

@@ -29,32 +29,34 @@ const {
   isFetchingNextPage,
 } = useInfiniteQuery({
   queryKey,
-
   initialPageParam: 1,
 
-  queryFn: ({ pageParam }) => getFeaturedProjectsByType(type, pageParam, 20),
-
-  // getNextPageParam: (lastPage) => {
-  //   const { page, pages } = lastPage.data.meta;
-
-  //   return page < pages ? page + 1 : undefined;
-  // },
-  // getNextPageParam: (lastPage) => {
-  //   console.log("LAST PAGE =", lastPage);
-
-  //   return undefined;
-  // },
+  queryFn: async ({ pageParam }) => {
+    const res = await getFeaturedProjectsByType(type, pageParam, 20);
+    return res;
+  },
 
   getNextPageParam: (lastPage) => {
     const page = lastPage?.data?.data?.meta?.page ?? 1;
-    const pages = lastPage?.data?.data?.meta?.pages ?? 1;
+    const pages = lastPage?.data?.meta?.pages ?? 1;
+
+    console.log("PAGE:", page);
+    console.log("PAGES:", pages);
 
     return page < pages ? page + 1 : undefined;
   },
 });
 
+console.log("DATA:", data);
+
 const properties =
-  data?.pages?.flatMap((page) => page?.data?.items || []) || [];
+  data?.pages?.flatMap((page) => {
+    return page?.data?.items || [];
+  }) || [];
+
+  console.log("PROPERTIES:", properties);
+
+  
 
 const invalidate = () =>
   queryClient.invalidateQueries({
@@ -69,8 +71,8 @@ const invalidate = () =>
   });
 
 
-  const totalCount = data?.pages?.[0]?.data?.meta?.total || 0;
-  // const totalCount = properties.length;
+  const totalCount = data?.pages?.[0]?.data?.data?.meta?.total || 0;
+  
 
   const activeCount = properties.filter((p) => p.status === "active").length;
 
@@ -104,6 +106,8 @@ const invalidate = () =>
 
       const targetProjects = res?.data?.items || [];
 
+      
+
       // STEP 2 — calculate next rank
       const maxRank = Math.max(
         0,
@@ -112,19 +116,19 @@ const invalidate = () =>
 
       const nextRank = maxRank + 1;
 
-      console.log("Next Rank:", nextRank);
+      
 
       // STEP 3 — update promotion type
       await promoteProjectWithRank(id, {
         type: newType,
       });
 
-      console.log("Promotion Updated");
+      
 
       // STEP 4 — update rank separately
       await updateProjectRank(id, nextRank);
 
-      console.log("Rank Updated");
+      
 
       return {
         success: true,
@@ -133,7 +137,7 @@ const invalidate = () =>
     },
 
     onSuccess: (data) => {
-      console.log("FINAL SUCCESS:", data);
+      
 
       toast.success("Property promoted successfully");
 
