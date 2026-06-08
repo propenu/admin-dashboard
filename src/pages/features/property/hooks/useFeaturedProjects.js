@@ -36,15 +36,16 @@ const {
 
     const res = await getFeaturedProjectsByType(type, pageParam, 20);
 
-    console.log("RESPONSE PAGE:", res?.data?.data?.meta?.page);
-    console.log("TOTAL PAGES:", res?.data?.data?.meta?.pages);
+    console.log("RESPONSE PAGE:", res?.data?.meta?.page);
+    console.log("TOTAL PAGES:", res?.data?.meta?.pages);
 
     return res;
   },
 
   getNextPageParam: (lastPage) => {
-    const page = lastPage?.data?.data?.meta?.page ?? 1;
-    const pages = lastPage?.data?.data?.meta?.pages ?? 1;
+    const page = lastPage?.data?.meta?.page ?? 1;
+    const pages = lastPage?.data?.meta?.pages ?? 1;
+
 
     console.log("PAGE:", page);
     console.log("PAGES:", pages);
@@ -57,7 +58,7 @@ console.log("DATA:", data);
 
 const properties =
   data?.pages?.flatMap((page) => {
-    return page?.data?.data?.items || [];
+    return page?.data?.items || [];
   }) || [];
 
   console.log("PROPERTIES:", properties);
@@ -77,7 +78,7 @@ const invalidate = () =>
   });
 
 
-  const totalCount = data?.pages?.[0]?.data?.data?.meta?.total || 0;
+  const totalCount = data?.pages?.[0]?.data?.meta?.total || 0;
   
 
   const activeCount = properties.filter((p) => p.status === "active").length;
