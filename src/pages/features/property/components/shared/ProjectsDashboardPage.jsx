@@ -484,7 +484,8 @@ function InlineLocationSelector({
             <Globe className="w-3.5 h-3.5" />
             All India
             <span className="ml-auto text-[10px] bg-[#27AE60] text-white px-1.5 py-0.5 rounded-full">
-              {properties.length}
+              {/* {properties.length} */}
+              {analytics?.overview?.totalProjects || 0}
             </span>
           </button>
 
