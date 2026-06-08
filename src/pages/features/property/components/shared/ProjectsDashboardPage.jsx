@@ -938,41 +938,76 @@ export default function ProjectsDashboardPage() {
   const analytics = analyticsData?.data?.data || analyticsData?.data || null;
 
   
+// useEffect(() => {
+//   const el = loadMoreRef.current;
 
-  useEffect(() => {
-    const el = loadMoreRef.current;
+//   if (!el) return;
 
-    if (!el) return;
+//   const observer = new IntersectionObserver(
+//     ([entry]) => {
+//       if (!entry.isIntersecting) return;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
+//       if (normalHook.hasNextPage && !normalHook.isFetchingNextPage) {
+//         normalHook.fetchNextPage();
+//       }
 
-        if (normalHook.hasNextPage && !normalHook.isFetchingNextPage) {
-          normalHook.fetchNextPage();
+//       if (featuredHook.hasNextPage && !featuredHook.isFetchingNextPage) {
+//         featuredHook.fetchNextPage();
+//       }
+
+//       if (primeHook.hasNextPage && !primeHook.isFetchingNextPage) {
+//         primeHook.fetchNextPage();
+//       }
+
+//       if (sponsoredHook.hasNextPage && !sponsoredHook.isFetchingNextPage) {
+//         sponsoredHook.fetchNextPage();
+//       }
+//     },
+//     {
+//       rootMargin: "200px",
+//       threshold: 0,
+//     },
+//   );
+
+//   observer.observe(el);
+
+//   return () => observer.disconnect();
+// }, [normalHook, featuredHook, primeHook, sponsoredHook]);
+
+useEffect(() => {
+  const el = loadMoreRef.current;
+
+  if (!el) return;
+
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      if (!entry.isIntersecting) return;
+
+      [normalHook, featuredHook, primeHook, sponsoredHook].forEach((hook) => {
+        if (hook.hasNextPage && !hook.isFetchingNextPage) {
+          hook.fetchNextPage();
         }
+      });
+    },
+    {
+      rootMargin: "200px",
+      threshold: 0,
+    },
+  );
 
-        if (featuredHook.hasNextPage && !featuredHook.isFetchingNextPage) {
-          featuredHook.fetchNextPage();
-        }
+  observer.observe(el);
 
-        if (primeHook.hasNextPage && !primeHook.isFetchingNextPage) {
-          primeHook.fetchNextPage();
-        }
-
-        if (sponsoredHook.hasNextPage && !sponsoredHook.isFetchingNextPage) {
-          sponsoredHook.fetchNextPage();
-        }
-      },
-      {
-        threshold: 1,
-      },
-    );
-
-    observer.observe(el);
-
-    return () => observer.disconnect();
-  }, []);
+  return () => observer.disconnect();
+}, [
+  normalHook.hasNextPage,
+  normalHook.isFetchingNextPage,
+  featuredHook.hasNextPage,
+  featuredHook.isFetchingNextPage,
+  primeHook.hasNextPage,
+  primeHook.isFetchingNextPage,
+  sponsoredHook.hasNextPage,
+  sponsoredHook.isFetchingNextPage,
+]);
 
   console.log("isFetchingNextPage:", normalHook.isFetchingNextPage);
   console.log("hasNextPage:", normalHook.hasNextPage);
