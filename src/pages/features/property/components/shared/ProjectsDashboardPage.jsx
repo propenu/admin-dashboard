@@ -1253,7 +1253,8 @@ useEffect(() => {
             )}
             {analyticsSearch && (
               <span className="inline-flex items-center gap-1.5 text-xs bg-slate-50 border border-slate-200 text-slate-700 rounded-full px-2.5 py-1 font-medium">
-                <Search className="w-3 h-3" />{analyticsSearch}
+                <Search className="w-3 h-3" />
+                {analyticsSearch}
                 <button onClick={() => setAnalyticsSearch("")}>
                   <X className="w-3 h-3 hover:text-red-500" />
                 </button>
@@ -1481,7 +1482,8 @@ useEffect(() => {
         <h2 className="text-lg font-bold text-slate-800">
           Projects
           <span className="text-slate-400 font-normal text-sm ml-2">
-            ({visibleProperties.length})
+            {/* ({visibleProperties.length}) */}
+          { ( analytics?.overview?.totalProjects)}
           </span>
         </h2>
         <div className="flex items-center gap-2 text-xs text-slate-500">
