@@ -99,32 +99,64 @@ function useDebounce(value, delay = 400) {
   return debounced;
 }
 
-// Build analytics query params from location + search
 const buildAnalyticsParams = (selectedLocation, analyticsSearch) => {
   const params = {};
-  if (selectedLocation) {
-    if (selectedLocation.type === "state")
-      params.state = selectedLocation.value;
-    if (selectedLocation.type === "city") params.city = selectedLocation.value;
-    if (selectedLocation.type === "locality")
-      params.locality = selectedLocation.value;
+
+  if (selectedLocation?.value?.state) {
+    params.state = selectedLocation.value.state;
   }
-  if (analyticsSearch?.trim()) params.search = analyticsSearch.trim();
+
+  if (selectedLocation?.value?.city) {
+    params.city = selectedLocation.value.city;
+  }
+
+  if (selectedLocation?.value?.locality) {
+    params.locality = selectedLocation.value.locality;
+  }
+
+  if (analyticsSearch?.trim()) {
+    params.search = analyticsSearch.trim();
+  }
+
   return params;
 };
 
-// Resolve which location breakdown rows to display contextually
+
+
 const resolveLocationRows = (analytics, locationType) => {
   if (!analytics) return { rows: [], label: "Location" };
-  if (locationType === "locality" && analytics.localityWise?.length > 0)
-    return { rows: analytics.localityWise, label: "Locality" };
-  if ((locationType === "city" || locationType === "locality") && analytics.cityWise?.length > 0)
-    return { rows: analytics.cityWise, label: "City" };
-  if (locationType === "state" && analytics.stateWise?.length > 0)
-    return { rows: analytics.stateWise, label: "State" };
-  if (!locationType && analytics.cityWise?.length > 1)
-    return { rows: analytics.cityWise, label: "City" };
-  return { rows: [], label: "Location" };
+
+  // state selected -> show cities
+  if (locationType === "state" && analytics.cityWise?.length > 0) {
+    return {
+      rows: analytics.cityWise,
+      label: "City",
+    };
+  }
+
+  // city selected -> show localities
+  if (
+    (locationType === "city" || locationType === "locality") &&
+    analytics.localityWise?.length > 0
+  ) {
+    return {
+      rows: analytics.localityWise,
+      label: "Locality",
+    };
+  }
+
+  // All India
+  if (!locationType && analytics.stateWise?.length > 0) {
+    return {
+      rows: analytics.stateWise,
+      label: "State",
+    };
+  }
+
+  return {
+    rows: [],
+    label: "Location",
+  };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -203,19 +235,14 @@ function SelectDropdown({ label, value, options, onChange, placeholder = "Select
 function InlineLocationSelector({
   properties,
   analytics,
+  masterAnalytics,
   selectedLocation,
   onLocationChange,
   analyticsSearch,
   setAnalyticsSearch,
 }) {
   const [open, setOpen] = useState(false);
-  //const [searchTerm, setSearchTerm] = useState("");
-  // Analytics Search
-  //const [analyticsSearch, setAnalyticsSearch] = useState("");
-
-  // Property List Search
-  //const [projectSearch, setProjectSearch] = useState("");
-
+  
   const [openZones, setOpenZones] = useState({});
   const [openStates, setOpenStates] = useState({});
   const ref = useRef(null);
@@ -228,45 +255,41 @@ function InlineLocationSelector({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const hierarchy = useMemo(() => {
-    const map = {};
-    properties.forEach((p) => {
-      const state = p.state?.trim();
-      const city = p.city?.trim();
-      const locality = p.locality?.trim();
-      if (!state) return;
-      if (!map[state]) map[state] = {};
-      if (city) {
-        if (!map[state][city]) map[state][city] = new Set();
-        if (locality) map[state][city].add(locality);
-      }
-    });
-    return map;
-  }, [properties]);
+ 
+ const hierarchy = useMemo(() => {
+   const map = {};
 
-  const countFor = useCallback(
-    (type, ...keys) => {
-      return properties.filter((p) => {
-        if (type === "state") return p.state?.trim() === keys[0];
-        if (type === "city")
-          return p.state?.trim() === keys[0] && p.city?.trim() === keys[1];
-        if (type === "locality")
-          return (
-            p.state?.trim() === keys[0] &&
-            p.city?.trim() === keys[1] &&
-            p.locality?.trim() === keys[2]
-          );
-        return false;
-      }).length;
-    },
-    [properties],
-  );
+   properties.forEach((p) => {
+     const state = p.state?.trim();
+     const city = p.city?.trim();
+     const locality = p.locality?.trim();
+
+     if (!state) return;
+
+     if (!map[state]) map[state] = {};
+
+     if (city) {
+       if (!map[state][city]) {
+         map[state][city] = new Set();
+       }
+
+       if (locality) {
+         map[state][city].add(locality);
+       }
+     }
+   });
+
+   return map;
+ }, [properties]);
 
   const q = analyticsSearch.toLowerCase().trim();
   const toggle = (setter, key) =>
     setter((prev) => ({ ...prev, [key]: !prev[key] }));
+  
+
   const isActive = (type, val) =>
-    selectedLocation?.type === type && selectedLocation?.value === val;
+    selectedLocation?.type === type &&
+    JSON.stringify(selectedLocation?.value) === JSON.stringify(val);
 
   const selectItem = (type, value, label) => {
     onLocationChange(isActive(type, value) ? null : { type, value, label });
@@ -297,15 +320,35 @@ function InlineLocationSelector({
   );
 
   const renderState = (state) => {
-    const cities = Object.keys(hierarchy[state] || {});
-    const stateCount = countFor("state", state);
-    const isStateOpen = openStates[state];
+    
+
+    const cities = Object.keys(hierarchy[state] || {}).map((city) => ({
+      name: city,
+      count: masterAnalytics?.cityWise?.find((x) => x._id === city)?.total || 0,
+    }));
+    
+   
+
+  const stateCount =
+    masterAnalytics?.stateWise?.find((x) => x._id === state)?.total || 0;
+
+   
+   const isStateOpen = openStates[state];
 
     return (
       <div key={state} className="border-b  border-slate-50">
         <div className="flex items-center">
           <button
-            onClick={() => selectItem("state", state, state)}
+            
+            onClick={() =>
+              selectItem(
+                "state",
+                {
+                  state,
+                },
+                state,
+              )
+            }
             className={`flex-1 flex items-center gap-2 pl-7 pr-2 py-2 text-xs transition
               ${isActive("state", state) ? "bg-[#27AE60]/10 text-[#27AE60] font-semibold" : "text-slate-600 hover:bg-green-50"}`}
           >
@@ -331,75 +374,103 @@ function InlineLocationSelector({
           <div className="bg-slate-50/70 border-t border-slate-100 px-3 py-2 space-y-2">
             <SelectDropdown
               label="City"
+              
               value={
-                isActive("city", selectedLocation?.value) &&
-                cities.includes(selectedLocation?.value)
-                  ? selectedLocation.value
+                selectedLocation?.type === "city"
+                  ? selectedLocation.value.city
                   : ""
               }
               options={[
                 { value: "", label: "All Cities" },
                 ...cities
-                  .filter((c) => !q || c.toLowerCase().includes(q))
+                  .filter((c) => !q || c.name.toLowerCase().includes(q))
                   .map((c) => ({
-                    value: c,
-                    label: `${c} (${countFor("city", state, c)})`,
+                    value: c.name,
+                    label: `${c.name} (${c.count})`,
                   })),
               ]}
               onChange={(val) => {
-                if (!val) selectItem("state", state, state);
-                else selectItem("city", val, `${val}, ${state}`);
+                if (!val) {
+                  selectItem(
+                    "state",
+                    {
+                      state,
+                    },
+                    state,
+                  );
+                } else {
+                  selectItem(
+                    "city",
+                    {
+                      state,
+                      city: val,
+                    },
+                    `${val}, ${state}`,
+                  );
+                }
               }}
               placeholder="Select city…"
             />
             {(() => {
               const activeCity =
-                isActive("city", selectedLocation?.value) &&
-                cities.includes(selectedLocation?.value)
-                  ? selectedLocation.value
+                selectedLocation?.type === "city"
+                  ? selectedLocation.value.city
                   : null;
               const activeCityFromLocality =
                 selectedLocation?.type === "locality"
-                  ? cities.find((c) =>
-                      Array.from(hierarchy[state][c] || []).includes(
-                        selectedLocation?.value,
-                      ),
-                    )
+                  ? selectedLocation.value.city
                   : null;
               const cityForLocalities = activeCity || activeCityFromLocality;
               if (!cityForLocalities) return null;
+              
               const localities = Array.from(
                 hierarchy[state][cityForLocalities] || [],
-              );
+              ).map((locality) => ({
+                name: locality,
+                count:
+                  masterAnalytics?.localityWise?.find((x) => x._id === locality)
+                    ?.total || 0,
+              }));
               if (!localities.length) return null;
               return (
                 <SelectDropdown
                   label="Locality"
+                  
                   value={
-                    isActive("locality", selectedLocation?.value)
-                      ? selectedLocation.value
+                    selectedLocation?.type === "locality"
+                      ? selectedLocation.value.locality
                       : ""
                   }
+                  
                   options={[
                     { value: "", label: "All Localities" },
                     ...localities
-                      .filter((l) => !q || l.toLowerCase().includes(q))
+                      .filter((l) => !q || l.name.toLowerCase().includes(q))
                       .map((l) => ({
-                        value: l,
-                        label: `${l} (${countFor("locality", state, cityForLocalities, l)})`,
+                        value: l.name,
+                        label: `${l.name} (${l.count})`,
                       })),
                   ]}
                   onChange={(val) => {
                     if (!val)
+                      
                       selectItem(
                         "city",
-                        cityForLocalities,
+                        {
+                          state,
+                          city: cityForLocalities,
+                        },
                         `${cityForLocalities}, ${state}`,
                       );
                     else
+                      
                       selectItem(
                         "locality",
-                        val,
+                        {
+                          state,
+                          city: cityForLocalities,
+                          locality: val,
+                        },
                         `${val}, ${cityForLocalities}`,
                       );
                   }}
@@ -486,7 +557,7 @@ function InlineLocationSelector({
             All India
             <span className="ml-auto text-[10px] bg-[#27AE60] text-white px-1.5 py-0.5 rounded-full">
               {/* {properties.length} */}
-              {analytics?.overview?.totalProjects || 0}
+              {masterAnalytics?.overview?.totalProjects || 0}
             </span>
           </button>
 
@@ -595,20 +666,10 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
             className={`${c.bg} flex items-center justify-center gap-2 rounded-2xl border ${c.border} p-2 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 shadow-sm
               ${isActive ? "ring-2 ring-[#27AE60] shadow-md -translate-y-0.5" : ""}`}
           >
-            {/* <div className="flex items-center justify-between mb-3">
-              <div className={`w-9 h-9 rounded-xl ${c.iconBg} flex items-center justify-center`}>
-                <Icon className={c.color} style={{ width: 18, height: 18 }} />
-              </div>
-              <span className="text-[10px] text-slate-400 font-medium">{pct(c.value, total)}%</span>
-            </div> */}
             <p className="text-xl text-nowrap text-[#000456]">{c.label}</p>
             <p className="text-xl font-bold text-slate-900 leading-none">
               {c.value}
             </p>
-
-            {/* <div className="mt-2">
-              <MiniBar value={c.value} max={total} color={c.bar} height="h-1.5" />
-            </div> */}
           </div>
         );
       })}
@@ -635,10 +696,10 @@ function AnalyticsCategoryBlock({ categoryWise, total }) {
               </span>
               <span className="text-sm font-bold text-slate-800">
                 {cat.total}
-                {/* <span className="text-xs text-slate-400 font-normal ml-1">({pct(cat.total, total)}%)</span> */}
+                
               </span>
             </div>
-            {/* <MiniBar value={cat.total} max={total} color={cat._id === "residential" ? "bg-emerald-400" : "bg-amber-400"} height="h-2" /> */}
+
             <div className="flex flex-wrap gap-1.5 mt-2">
               <PromoBadge label="Normal"      value={cat.normal}   color="bg-slate-100 text-slate-600" />
               <PromoBadge label="Top Selling" value={cat.featured} color="bg-blue-50 text-blue-600" />
@@ -679,66 +740,170 @@ function AnalyticsPropertyTypeBlock({ propertyTypeWise }) {
 }
 
 function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
+ 
+   const [search, setSearch] = useState("");
+
   const { rows, label } = resolveLocationRows(analytics, locationType);
-  if (!rows.length) return null;
-  const maxVal = rows.reduce((m, r) => Math.max(m, r.total), 1);
-  const isSingleRow = rows.length === 1;
+  
+  const filteredRows = rows
+    .filter((row) => row?._id)
+    .filter((row) => row._id.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => (b?.total || 0) - (a?.total || 0));
+
+   
+
+  if (!rows?.length) {
+    return (
+      <div className="bg-white rounded-2xl p-6 text-center text-slate-400">
+        No {label} data available
+      </div>
+    );
+  }
+  
+ // const maxVal = rows.reduce((m, r) => Math.max(m, r.total), 1);
+ const maxVal =
+   rows?.length > 0 ? rows.reduce((m, r) => Math.max(m, r?.total || 0), 1) : 1;
+  
+   const isSingleRow = rows.length === 1;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm h-full">
+    <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm custom-scrollbar overflow-y-auto h-[300px]">
+      
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5 text-[#27AE60]" />
           By {label}
         </p>
-        {locationLabel && locationLabel !== "All India" && (
-          <span className="text-[10px] bg-[#27AE60]/10 text-[#27AE60] px-2 py-0.5 rounded-full font-semibold border border-[#27AE60]/20">
-            📍 {locationLabel}
-          </span>
-        )}
+      </div>
+
+      <div className="mb-4">
+        <div className="flex items-center gap-2 border border-[#27AE60] rounded-xl px-3 py-2 bg-slate-50">
+          <Search className="w-4 h-4 text-slate-400" />
+
+          <input
+            type="text"
+            placeholder={`Search ${label}...`}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 bg-transparent outline-none  text-sm  text-[#000000] placeholder:text-[#000000]/50"
+          />
+
+          {search && (
+            <button onClick={() => setSearch("")}>
+              <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
+            </button>
+          )}
+        </div>
       </div>
       {isSingleRow ? (
         <div className="space-y-3">
           {rows.map((row) => (
-            <div key={row._id} className="bg-[#27AE60]/5 rounded-xl p-3 border border-[#27AE60]/10">
+            <div
+              key={row._id}
+              className="bg-[#27AE60]/5 rounded-xl p-3 border border-[#27AE60]/10"
+            >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-[#27AE60]">{row._id}</span>
-                <span className="text-sm font-bold text-slate-800">{row.total} projects</span>
+                <span className="text-sm font-bold text-[#27AE60]">
+                  {row._id}
+                </span>
+                <span className="text-sm font-bold text-slate-800">
+                  {row.total} projects
+                </span>
               </div>
               <div className="grid grid-cols-8 gap-2">
                 {[
-                  { label: "Active",    value: row.active    ?? 0, color: "text-emerald-700", bg: "bg-emerald-50" },
-                  { label: "Normal",    value: row.normal    ?? 0, color: "text-slate-600",   bg: "bg-slate-50"   },
-                  { label: "TopSelling",value: row.featured  ?? 0, color: "text-blue-700",    bg: "bg-blue-50"    },
-                  { label: "Prime",     value: row.prime     ?? 0, color: "text-yellow-700",  bg: "bg-yellow-50"  },
-                  { label: "Sponsored", value: row.sponsored ?? 0, color: "text-purple-700",  bg: "bg-purple-50"  },
-                ].filter((t) => t.value > 0).map((tile) => (
-                  <div key={tile.label} className={`${tile.bg} rounded-lg p-2 text-center`}>
-                    <p className={`text-base font-bold ${tile.color}`}>{tile.value}</p>
-                    <p className="text-[10px] text-slate-500">{tile.label}</p>
-                  </div>
-                ))}
+                  {
+                    label: "Active",
+                    value: row.active ?? 0,
+                    color: "text-emerald-700",
+                    bg: "bg-emerald-50",
+                  },
+                  {
+                    label: "Normal",
+                    value: row.normal ?? 0,
+                    color: "text-slate-600",
+                    bg: "bg-slate-50",
+                  },
+                  {
+                    label: "TopSelling",
+                    value: row.featured ?? 0,
+                    color: "text-blue-700",
+                    bg: "bg-blue-50",
+                  },
+                  {
+                    label: "Prime",
+                    value: row.prime ?? 0,
+                    color: "text-yellow-700",
+                    bg: "bg-yellow-50",
+                  },
+                  {
+                    label: "Sponsored",
+                    value: row.sponsored ?? 0,
+                    color: "text-purple-700",
+                    bg: "bg-purple-50",
+                  },
+                ]
+                  .filter((t) => t.value > 0)
+                  .map((tile) => (
+                    <div
+                      key={tile.label}
+                      className={`${tile.bg} rounded-lg p-2 text-center`}
+                    >
+                      <p className={`text-base font-bold ${tile.color}`}>
+                        {tile.value}
+                      </p>
+                      <p className="text-[10px] text-slate-500">{tile.label}</p>
+                    </div>
+                  ))}
               </div>
             </div>
           ))}
         </div>
       ) : (
         <div className="space-y-3">
-          {[...rows].sort((a, b) => b.total - a.total).slice(0, 8).map((row) => (
-            <div key={row._id}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-slate-700 truncate max-w-[160px]">{row._id}</span>
-                <span className="text-xs font-bold text-slate-800 ml-2 flex-shrink-0">{row.total}</span>
-              </div>
-              {/* <MiniBar value={row.total} max={maxVal} color="bg-[#27AE60]" height="h-2" /> */}
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                <PromoBadge label="Nornal" value={row.normal}   color="bg-slate-100 text-slate-500" />
-                <PromoBadge label="Top Selling" value={row.featured} color="bg-blue-50 text-blue-600" />
-                <PromoBadge label="Prime" value={row.prime}    color="bg-yellow-50 text-yellow-700" />
-                <PromoBadge label="Sponsored" value={row.sponsored}color="bg-purple-50 text-purple-600" />
-              </div>
+          {filteredRows.length === 0 ? (
+            <div className="text-center text-slate-400 py-5">
+              No {label} found
             </div>
-          ))}
+          ) : (
+            [...filteredRows]
+              .sort((a, b) => (b?.total || 0) - (a?.total || 0))
+              .map((row) => (
+                <div key={row._id}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-slate-700 truncate max-w-[160px]">
+                      {row._id}
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 ml-2 flex-shrink-0">
+                      {row?.total ?? 0}
+                    </span>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    <PromoBadge
+                      label="Nornal"
+                      value={row?.normal ?? 0}
+                      color="bg-slate-100 text-slate-500"
+                    />
+                    <PromoBadge
+                      label="Top Selling"
+                      value={row?.featured ?? 0}
+                      color="bg-blue-50 text-blue-600"
+                    />
+                    <PromoBadge
+                      label="Prime"
+                      value={row?.prime ?? 0}
+                      color="bg-yellow-50 text-yellow-700"
+                    />
+                    <PromoBadge
+                      label="Sponsored"
+                      value={row?.sponsored ?? 0}
+                      color="bg-purple-50 text-purple-600"
+                    />
+                  </div>
+                </div>
+              ))
+          )}
         </div>
       )}
     </div>
@@ -822,7 +987,10 @@ function AnalyticsDashboard({
       {/* Row 3 — Category + Property type */}
       {(analytics.categoryWise?.length > 0 || analytics.propertyTypeWise?.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <AnalyticsCategoryBlock     categoryWise={analytics.categoryWise}         total={total} />
+          <AnalyticsCategoryBlock     
+          categoryWise={analytics.categoryWise}         
+          total={total}
+           />
           <AnalyticsPropertyTypeBlock propertyTypeWise={analytics.propertyTypeWise} />
         </div>
       )}
@@ -860,6 +1028,9 @@ export default function ProjectsDashboardPage() {
   const sponsoredHook = useFeaturedProjects("sponsored");
   const normalHook    = useFeaturedProjects("normal");
 
+  
+
+
   const { data: pendingProjectsData } = usePendingProjects({ enabled: isSalesManager });
   const pendingProjects = pendingProjectsData?.data || [];
 
@@ -895,10 +1066,7 @@ export default function ProjectsDashboardPage() {
   const [analyticsSearch, setAnalyticsSearch] = useState("");
   const [projectSearch, setProjectSearch] = useState("");
 
-  // Debounce search for analytics query (400ms) — prevents excessive API calls
-  //const debouncedSearch = useDebounce(searchTerm, 400);
-
-  //const debouncedAnalyticsSearch = useDebounce(searchTerm, 400);
+  
   const debouncedAnalyticsSearch = useDebounce(analyticsSearch, 400);
 
   // ── Project list filter state (independent of analytics) ─────────────────
@@ -906,6 +1074,7 @@ export default function ProjectsDashboardPage() {
   const [statusFilter,       setStatusFilter]       = useState("all");
   const [categoryFilter,     setCategoryFilter]     = useState("all");
   const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("rank");
 
   // ── UI toggles ────────────────────────────────────────────────────────────
   const [showAnalytics, setShowAnalytics] = useState(true);
@@ -918,6 +1087,16 @@ export default function ProjectsDashboardPage() {
   const [promoteCurrentType, setPromoteCurrentType] = useState("normal");
 
   const loadMoreRef = useRef(null);
+
+
+
+  const { data: masterAnalyticsData } = useQuery({
+    queryKey: ["master-project-analytics"],
+    queryFn: () => getAllProjectsAnalytics({}),
+    staleTime: Infinity,
+  });
+
+  const masterAnalytics = masterAnalyticsData?.data?.data || null;
 
   
 
@@ -934,6 +1113,11 @@ export default function ProjectsDashboardPage() {
   });
 
  const analytics = analyticsData?.data?.data || analyticsData?.data || null;
+
+ useEffect(() => {
+   console.log("selectedLocation", selectedLocation);
+   console.log("analytics", analytics);
+ }, [selectedLocation, analytics]);
 
 
 useEffect(() => {
@@ -993,12 +1177,24 @@ useEffect(() => {
     // Location filter — same as analytics scope
     if (selectedLocation) {
       const { type, value } = selectedLocation;
-      if (type === "state")
-        list = list.filter((p) => p.state?.trim() === value);
-      else if (type === "city")
-        list = list.filter((p) => p.city?.trim() === value);
-      else if (type === "locality")
-        list = list.filter((p) => p.locality?.trim() === value);
+
+      if (selectedLocation?.value?.state) {
+        list = list.filter(
+          (p) => p.state?.trim() === selectedLocation.value.state,
+        );
+      }
+
+      if (selectedLocation?.value?.city) {
+        list = list.filter(
+          (p) => p.city?.trim() === selectedLocation.value.city,
+        );
+      }
+
+      if (selectedLocation?.value?.locality) {
+        list = list.filter(
+          (p) => p.locality?.trim() === selectedLocation.value.locality,
+        );
+      }
     }
 
     if (projectSearch.trim()) {
@@ -1015,9 +1211,82 @@ useEffect(() => {
       );
     }
 
-    return [...list].sort(
-      (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity),
-    );
+    // return [...list].sort(
+    //   (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity),
+    // );
+    let filteredList = [...list];
+
+    switch (sortBy) {
+      case "0-1L":
+        filteredList = filteredList.filter((p) => (p.priceFrom || 0) <= 100000);
+        break;
+
+      case "1L-5L":
+        filteredList = filteredList.filter(
+          (p) => (p.priceFrom || 0) >= 100000 && (p.priceFrom || 0) <= 500000,
+        );
+        break;
+
+      case "5L-10L":
+        filteredList = filteredList.filter(
+          (p) => (p.priceFrom || 0) >= 500000 && (p.priceFrom || 0) <= 1000000,
+        );
+        break;
+
+      case "10L-25L":
+        filteredList = filteredList.filter(
+          (p) => (p.priceFrom || 0) >= 1000000 && (p.priceFrom || 0) <= 2500000,
+        );
+        break;
+
+      case "25L-50L":
+        filteredList = filteredList.filter(
+          (p) => (p.priceFrom || 0) >= 2500000 && (p.priceFrom || 0) <= 5000000,
+        );
+        break;
+
+      case "50L-1Cr":
+        filteredList = filteredList.filter(
+          (p) =>
+            (p.priceFrom || 0) >= 5000000 && (p.priceFrom || 0) <= 10000000,
+        );
+        break;
+
+      case "1Cr-2Cr":
+        filteredList = filteredList.filter(
+          (p) =>
+            (p.priceFrom || 0) >= 10000000 && (p.priceFrom || 0) <= 20000000,
+        );
+        break;
+
+      case "2Cr-5Cr":
+        filteredList = filteredList.filter(
+          (p) =>
+            (p.priceFrom || 0) >= 20000000 && (p.priceFrom || 0) <= 50000000,
+        );
+        break;
+
+      case "5Cr+":
+        filteredList = filteredList.filter(
+          (p) => (p.priceFrom || 0) >= 50000000,
+        );
+        break;
+
+      case "lowToHigh":
+        filteredList.sort((a, b) => (a.priceFrom || 0) - (b.priceFrom || 0));
+        break;
+
+      case "highToLow":
+        filteredList.sort((a, b) => (b.priceFrom || 0) - (a.priceFrom || 0));
+        break;
+
+      default:
+        filteredList.sort(
+          (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity),
+        );
+    }
+
+    return filteredList;
   }, [
     allProperties,
     pendingProjects,
@@ -1028,7 +1297,33 @@ useEffect(() => {
     selectedLocation,
     projectSearch,
     isSalesManager,
+    sortBy,
   ]);
+
+  const displayedCount = useMemo(() => {
+    if (promotionFilter === "prime")
+      return analytics?.overview?.primeProjects ?? 0;
+
+    if (promotionFilter === "featured")
+      return analytics?.overview?.featuredProjects ?? 0;
+
+    if (promotionFilter === "sponsored")
+      return analytics?.overview?.sponsoredProjects ?? 0;
+
+    if (promotionFilter === "normal")
+      return analytics?.overview?.normalProjects ?? 0;
+
+    if (statusFilter === "active")
+      return analytics?.overview?.activeProjects ?? 0;
+
+    if (statusFilter === "inactive")
+      return analytics?.overview?.inactiveProjects ?? 0;
+
+    if (statusFilter === "pending")
+      return analytics?.overview?.pendingProjects ?? 0;
+
+    return analytics?.overview?.totalProjects ?? 0;
+  }, [promotionFilter, statusFilter, analytics]);
 
   // ── Mutation helpers — fully decoupled per action ─────────────────────────
   const getHook = useCallback((id) => {
@@ -1138,43 +1433,19 @@ useEffect(() => {
       </div>
 
       {/* ── TOP BAR: Location selector + Search — both drive analytics ──── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      <div className="bg-white w-1/3   rounded-2xl border border-[#27AE60] shadow-[0_0_0_1px_#27AE60] p-4">
+        <div className="flex  flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {/* Location selector (left) */}
           <div className="flex items-center  gap-2 flex-shrink-0">
             <InlineLocationSelector
               properties={allProperties}
               analytics={analytics}
+              masterAnalytics={masterAnalytics}
               selectedLocation={selectedLocation}
               onLocationChange={setSelectedLocation}
               analyticsSearch={analyticsSearch}
               setAnalyticsSearch={setAnalyticsSearch}
             />
-          </div>
-
-          {/* Divider */}
-          <div className="hidden  sm:block w-px h-8 bg-slate-200" />
-
-          {/* Search bar (right, fills remaining space) */}
-          <div className="flex-1  flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 min-w-0 focus-within:border-[#27AE60]/50 focus-within:bg-white transition">
-            <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
-            <input
-              type="text"
-              placeholder="Search projects by title, city, slug, ID, address…"
-              //value={searchTerm}
-              //onChange={(e) => setSearchTerm(e.target.value)}
-              value={analyticsSearch}
-              onChange={(e) => setAnalyticsSearch(e.target.value)}
-              className="flex-1 bg-transparent text-sm outline-none text-slate-700 placeholder:text-slate-400 min-w-0"
-            />
-            {analyticsSearch && (
-              <button
-                onClick={() => setAnalyticsSearch("")}
-                className="flex-shrink-0"
-              >
-                <X className="w-4 h-4 text-slate-400 hover:text-red-500 transition" />
-              </button>
-            )}
           </div>
 
           {/* Clear all (shown only when something is active) */}
@@ -1431,25 +1702,47 @@ useEffect(() => {
 
       {/* ── RESULTS HEADER ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
+        
         <h2 className="text-lg font-bold text-slate-800">
-          Projects
-          <span className="text-slate-400 font-normal text-sm ml-2">
-            {/* ({visibleProperties.length}) */}
-            {analytics?.overview?.totalProjects}
+          Projects datta
+          <span className="text-slate-500 text-sm ml-2">
+            ({displayedCount})
           </span>
         </h2>
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <ArrowUpDown className="w-3.5 h-3.5" />
-          Sorted by rank
-          {(activeFiltersCount > 0 || selectedLocation || analyticsSearch) && (
-            <span className="flex items-center gap-1 bg-[#27AE60]/10 text-[#27AE60] px-2.5 py-1 rounded-full font-semibold">
-              <Filter className="w-3 h-3" />
-              {activeFiltersCount +
-                (selectedLocation ? 1 : 0) +
-                (analyticsSearch ? 1 : 0)}{" "}
-              active
-            </span>
-          )}
+
+        <div className="flex items-center gap-2">
+          <ArrowUpDown className="w-4 h-4 text-slate-500" />
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none bg-white"
+          >
+            <option value="rank">Price Short</option>
+
+            <optgroup label="Low Budget">
+              <option value="0-1L">₹0 - ₹1L</option>
+              <option value="1L-5L">₹1L - ₹5L</option>
+              <option value="5L-10L">₹5L - ₹10L</option>
+            </optgroup>
+
+            <optgroup label="Mid Budget">
+              <option value="10L-25L">₹10L - ₹25L</option>
+              <option value="25L-50L">₹25L - ₹50L</option>
+              <option value="50L-1Cr">₹50L - ₹1Cr</option>
+            </optgroup>
+
+            <optgroup label="Premium">
+              <option value="1Cr-2Cr">₹1Cr - ₹2Cr</option>
+              <option value="2Cr-5Cr">₹2Cr - ₹5Cr</option>
+              <option value="5Cr+">₹5Cr+</option>
+            </optgroup>
+
+            <optgroup label="Sort">
+              <option value="lowToHigh">Price: Low → High</option>
+              <option value="highToLow">Price: High → Low</option>
+            </optgroup>
+          </select>
         </div>
       </div>
 
