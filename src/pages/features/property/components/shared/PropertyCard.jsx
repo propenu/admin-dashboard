@@ -248,6 +248,37 @@ export default function PropertyCard({
     </button>
   );
 
+  const startDate = p?.promotion?.startDate
+    ? new Date(p.promotion.startDate)
+    : null;
+
+  const expiryDate = p?.promotion?.boostExpiry
+    ? new Date(p.promotion.boostExpiry)
+    : null;
+
+  const today = new Date();
+
+  const daysLeft = expiryDate
+    ? Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  const promotionStatus =
+    !startDate || !expiryDate
+      ? null
+      : today < startDate
+        ? "scheduled"
+        : today > expiryDate
+          ? "expired"
+          : daysLeft <= 3
+            ? "expiringSoon"
+            : "active";
+
+  const formatDate = (date) =>
+    date?.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+    });
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div
@@ -405,6 +436,39 @@ export default function PropertyCard({
                     }).format(p.priceTo)}`
                   : ""}
               </span>
+            </div>
+          )}
+          {(p?.promotion && p.promotion.type !== "normal") && (
+            <div className="mt-1 text-[9px] space-y-0.5">
+              <div className="text-slate-500">
+                Started: {formatDate(startDate)}
+              </div>
+
+              <div className="text-slate-500">
+                Ends: {formatDate(expiryDate)}
+              </div>
+
+              {promotionStatus === "active" && (
+                <div className="text-green-600 font-semibold">
+                  🟢 {daysLeft} days left
+                </div>
+              )}
+
+              {promotionStatus === "expiringSoon" && (
+                <div className="text-orange-600 font-semibold">
+                  ⚠ Expires in {daysLeft} day{daysLeft > 1 ? "s" : ""}
+                </div>
+              )}
+
+              {promotionStatus === "expired" && (
+                <div className="text-red-600 font-semibold">
+                  🔴 Promotion expired
+                </div>
+              )}
+
+              {promotionStatus === "scheduled" && (
+                <div className="text-blue-600 font-semibold">🔵 Scheduled</div>
+              )}
             </div>
           )}
 

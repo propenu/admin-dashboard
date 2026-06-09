@@ -1057,16 +1057,19 @@ export default function ProjectsDashboardPage() {
     return merged.filter((p) => { if (seen.has(p._id)) return false; seen.add(p._id); return true; });
   }, [primeHook.properties, featuredHook.properties, sponsoredHook.properties, normalHook.properties]);
 
-  const isLoading = primeHook.isLoading || featuredHook.isLoading || sponsoredHook.isLoading || normalHook.isLoading;
+  console.log("Prime:", primeHook.properties.length);
+  console.log("Featured:", featuredHook.properties.length);
+  console.log("Sponsored:", sponsoredHook.properties.length);
+  console.log("Normal:", normalHook.properties.length);
+  console.log("All Properties:", allProperties.length);
+  
 
+  const isLoading = primeHook.isLoading || featuredHook.isLoading || sponsoredHook.isLoading || normalHook.isLoading;
   // ── Unified top-bar state (location + search) — drives analytics ─────────
   const [selectedLocation, setSelectedLocation] = useState(null);
   //const [searchTerm, setSearchTerm] = useState("");
-
   const [analyticsSearch, setAnalyticsSearch] = useState("");
   const [projectSearch, setProjectSearch] = useState("");
-
-  
   const debouncedAnalyticsSearch = useDebounce(analyticsSearch, 400);
 
   // ── Project list filter state (independent of analytics) ─────────────────
@@ -1085,10 +1088,7 @@ export default function ProjectsDashboardPage() {
   const [expireTarget,       setExpireTarget]       = useState(null);
   const [resetTarget,        setResetTarget]        = useState(null);
   const [promoteCurrentType, setPromoteCurrentType] = useState("normal");
-
   const loadMoreRef = useRef(null);
-
-
 
   const { data: masterAnalyticsData } = useQuery({
     queryKey: ["master-project-analytics"],
@@ -1097,8 +1097,6 @@ export default function ProjectsDashboardPage() {
   });
 
   const masterAnalytics = masterAnalyticsData?.data?.data || null;
-
-  
 
   const analyticsParams = useMemo(
     () => buildAnalyticsParams(selectedLocation, debouncedAnalyticsSearch),
@@ -1155,24 +1153,37 @@ useEffect(() => {
   sponsoredHook.isFetchingNextPage,
 ]);
 
-  console.log("isFetchingNextPage:", normalHook.isFetchingNextPage);
-  console.log("hasNextPage:", normalHook.hasNextPage);
+
 
   // ── Project list filtering — uses all filter state ────────────────────────
   const visibleProperties = useMemo(() => {
+
+    
     let list =
       promotionFilter === "pending" && isSalesManager
         ? pendingProjects
         : allProperties;
 
-    if (promotionFilter !== "all" && promotionFilter !== "pending")
+        console.log("Initial", list.length);
+
+    if (promotionFilter !== "all" && promotionFilter !== "pending"){
       list = list.filter((p) => p.promotion?.type === promotionFilter);
-    if (statusFilter !== "all")
+      console.log("After promotion", list.length);
+    }
+    if (statusFilter !== "all"){
       list = list.filter((p) => p.status === statusFilter);
-    if (categoryFilter !== "all")
+      console.log("After status", list.length);
+    }
+    if (categoryFilter !== "all"){
       list = list.filter((p) => p.categoryType === categoryFilter);
-    if (propertyTypeFilter !== "all")
+      console.log("After category", list.length);
+    }
+    if (propertyTypeFilter !== "all"){
       list = list.filter((p) => p.propertyType === propertyTypeFilter);
+      console.log("After propertyType", list.length);
+    }
+
+    console.log("Before price filters", list.length);
 
     // Location filter — same as analytics scope
     if (selectedLocation) {
@@ -1210,6 +1221,8 @@ useEffect(() => {
           p.address?.toLowerCase().includes(q),
       );
     }
+
+    
 
     // return [...list].sort(
     //   (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity),
@@ -1300,6 +1313,11 @@ useEffect(() => {
     sortBy,
   ]);
 
+  console.log(normalHook.properties.length);
+  console.log(visibleProperties.length);
+
+  console.log("visibleProperties", visibleProperties);
+
   const displayedCount = useMemo(() => {
     if (promotionFilter === "prime")
       return analytics?.overview?.primeProjects ?? 0;
@@ -1325,11 +1343,15 @@ useEffect(() => {
     return analytics?.overview?.totalProjects ?? 0;
   }, [promotionFilter, statusFilter, analytics]);
 
+
+
   // ── Mutation helpers — fully decoupled per action ─────────────────────────
   const getHook = useCallback((id) => {
     const type = allProperties.find((p) => p._id === id)?.promotion?.type || "normal";
     return { prime: primeHook, featured: featuredHook, sponsored: sponsoredHook, normal: normalHook }[type] ?? normalHook;
   }, [allProperties, primeHook, featuredHook, sponsoredHook, normalHook]);
+
+  
 
   const handleDelete  = useCallback((id) => getHook(id).deleteMutation.mutate(id,  { onSettled: () => setDeleteTarget(null)  }), [getHook]);
   const handleExpire  = useCallback((id) => getHook(id).expireMutation.mutate(id,  { onSettled: () => setExpireTarget(null)  }), [getHook]);
@@ -1361,6 +1383,18 @@ useEffect(() => {
     setAnalyticsSearch("");
     setProjectSearch("");
   }, [clearListFilters]);
+
+
+  const promotionLabel =
+    promotionFilter === "featured"
+      ? "Top Selling"
+      : promotionFilter === "prime"
+        ? "Prime"
+        : promotionFilter === "sponsored"
+          ? "Sponsored"
+          : promotionFilter === "normal"
+            ? "Normal"
+            : promotionFilter;
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -1666,7 +1700,7 @@ useEffect(() => {
           <div className="flex flex-wrap gap-1.5 pt-1">
             {promotionFilter !== "all" && (
               <span className="inline-flex items-center gap-1.5 text-xs bg-blue-50 border border-blue-200 text-blue-700 rounded-full px-2.5 py-1 font-medium capitalize">
-                {promotionFilter}
+                {promotionLabel} 
                 <button onClick={() => setPromotionFilter("all")}>
                   <X className="w-3 h-3 hover:text-red-500" />
                 </button>
@@ -1702,13 +1736,41 @@ useEffect(() => {
 
       {/* ── RESULTS HEADER ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        
-        <h2 className="text-lg font-bold text-slate-800">
-          Projects datta
+        {/* <h2 className="text-lg font-bold text-slate-800">
+          Projects
+          <span className="text-[#000000] font-normal text-sm ml-2">
+           ({analytics?.overview?.totalProjects})
+          </span>
+        </h2> */}
+
+        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+          Projects
+          <span className="text-slate-500 text-sm font-normal">
+            ({visibleProperties.length})
+          </span>
+          {categoryFilter !== "all" && (
+            <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs">
+              {categoryFilter}
+            </span>
+          )}
+          {statusFilter !== "all" && (
+            <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
+              {statusFilter}
+            </span>
+          )}
+          {propertyTypeFilter !== "all" && (
+            <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs">
+              {propertyTypeFilter}
+            </span>
+          )}
+        </h2>
+
+        {/* <h2 className="text-lg font-bold text-slate-800">
+          Projects
           <span className="text-slate-500 text-sm ml-2">
             ({displayedCount})
           </span>
-        </h2>
+        </h2> */}
 
         <div className="flex items-center gap-2">
           <ArrowUpDown className="w-4 h-4 text-slate-500" />
