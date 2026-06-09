@@ -1743,7 +1743,7 @@ useEffect(() => {
           </span>
         </h2> */}
 
-        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+        {/* <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
           Projects
           <span className="text-slate-500 text-sm font-normal">
             ({visibleProperties.length})
@@ -1763,14 +1763,14 @@ useEffect(() => {
               {propertyTypeFilter}
             </span>
           )}
-        </h2>
+        </h2> */}
 
-        {/* <h2 className="text-lg font-bold text-slate-800">
+        <h2 className="text-lg font-bold text-slate-800">
           Projects
           <span className="text-slate-500 text-sm ml-2">
             ({displayedCount})
           </span>
-        </h2> */}
+        </h2>
 
         <div className="flex items-center gap-2">
           <ArrowUpDown className="w-4 h-4 text-slate-500" />
