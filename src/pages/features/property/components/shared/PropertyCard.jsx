@@ -293,7 +293,7 @@ export default function PropertyCard({
             <img
               src={heroImage}
               alt={p.title}
-              className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-500"
+              className={`w-full h-28 object-cover group-hover:scale-105 transition-transform duration-500`}
             />
           ) : (
             <div className="w-full h-full min-h-[110px] flex items-center justify-center text-slate-300">
@@ -438,8 +438,9 @@ export default function PropertyCard({
               </span>
             </div>
           )}
-          {(p?.promotion && p.promotion.type !== "normal") && (
-            <div className="mt-1 text-[9px] space-y-0.5">
+          
+          {p?.promotion && p.promotion.type !== "normal" && (
+            <div className="flex items-center justify-evenly gap-1 text-[9px] space-y-0.5  ">
               <div className="text-slate-500">
                 Started: {formatDate(startDate)}
               </div>
