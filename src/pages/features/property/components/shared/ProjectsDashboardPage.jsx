@@ -1318,7 +1318,69 @@ useEffect(() => {
 
   console.log("visibleProperties", visibleProperties);
 
+  // const displayedCount = useMemo(() => {
+  //   if (promotionFilter === "prime")
+  //     return analytics?.overview?.primeProjects ?? 0;
+
+  //   if (promotionFilter === "featured")
+  //     return analytics?.overview?.featuredProjects ?? 0;
+
+  //   if (promotionFilter === "sponsored")
+  //     return analytics?.overview?.sponsoredProjects ?? 0;
+
+  //   if (promotionFilter === "normal")
+  //     return analytics?.overview?.normalProjects ?? 0;
+
+  //   if (statusFilter === "active")
+  //     return analytics?.overview?.activeProjects ?? 0;
+
+  //   if (statusFilter === "inactive")
+  //     return analytics?.overview?.inactiveProjects ?? 0;
+
+  //   if (statusFilter === "pending")
+  //     return analytics?.overview?.pendingProjects ?? 0;
+
+  //   if (categoryFilter === "land") {
+  //     return analytics?.categoryWise?.find((c) => c._id === "land")?.total ?? 0;
+  //   }
+
+  //   if (categoryFilter === "residential") {
+  //     return analytics?.categoryWise?.find((c) => c._id === "land")?.total ?? 0;
+  //   }
+
+  //   // Property Type
+  //   if (propertyTypeFilter !== "all") {
+  //     return (
+  //       analytics?.propertyTypeWise?.find((p) => p._id === propertyTypeFilter)
+  //         ?.total ?? 0
+  //     );
+  //   }
+
+  //   return analytics?.overview?.totalProjects ?? 0;
+  // }, [promotionFilter, statusFilter, analytics]);
+
+
+
+  // ── Mutation helpers — fully decoupled per action ─────────────────────────
+  
   const displayedCount = useMemo(() => {
+    // Property Type (highest priority)
+    if (propertyTypeFilter !== "all") {
+      return (
+        analytics?.propertyTypeWise?.find((p) => p._id === propertyTypeFilter)
+          ?.total ?? 0
+      );
+    }
+
+    // Category
+    if (categoryFilter !== "all") {
+      return (
+        analytics?.categoryWise?.find((c) => c._id === categoryFilter)?.total ??
+        0
+      );
+    }
+
+    // Promotion
     if (promotionFilter === "prime")
       return analytics?.overview?.primeProjects ?? 0;
 
@@ -1331,6 +1393,7 @@ useEffect(() => {
     if (promotionFilter === "normal")
       return analytics?.overview?.normalProjects ?? 0;
 
+    // Status
     if (statusFilter === "active")
       return analytics?.overview?.activeProjects ?? 0;
 
@@ -1340,12 +1403,16 @@ useEffect(() => {
     if (statusFilter === "pending")
       return analytics?.overview?.pendingProjects ?? 0;
 
+    // Default
     return analytics?.overview?.totalProjects ?? 0;
-  }, [promotionFilter, statusFilter, analytics]);
-
-
-
-  // ── Mutation helpers — fully decoupled per action ─────────────────────────
+  }, [
+    analytics,
+    promotionFilter,
+    statusFilter,
+    categoryFilter,
+    propertyTypeFilter,
+  ]);
+  
   const getHook = useCallback((id) => {
     const type = allProperties.find((p) => p._id === id)?.promotion?.type || "normal";
     return { prime: primeHook, featured: featuredHook, sponsored: sponsoredHook, normal: normalHook }[type] ?? normalHook;
@@ -1736,34 +1803,9 @@ useEffect(() => {
 
       {/* ── RESULTS HEADER ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        {/* <h2 className="text-lg font-bold text-slate-800">
-          Projects
-          <span className="text-[#000000] font-normal text-sm ml-2">
-           ({analytics?.overview?.totalProjects})
-          </span>
-        </h2> */}
+        
 
-        {/* <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-          Projects
-          <span className="text-slate-500 text-sm font-normal">
-            ({visibleProperties.length})
-          </span>
-          {categoryFilter !== "all" && (
-            <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs">
-              {categoryFilter}
-            </span>
-          )}
-          {statusFilter !== "all" && (
-            <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
-              {statusFilter}
-            </span>
-          )}
-          {propertyTypeFilter !== "all" && (
-            <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs">
-              {propertyTypeFilter}
-            </span>
-          )}
-        </h2> */}
+        
 
         <h2 className="text-lg font-bold text-slate-800">
           Projects

@@ -22,8 +22,19 @@ const compressImage = async (file) => {
   };
 
   try {
-    return await imageCompression(file, options);
+    // return await imageCompression(file, options);
+    const compressedFile = await imageCompression(file, options);
+    const originalMB = (file.size / (1024 * 1024)).toFixed(2);
+    const compressedMB = (compressedFile.size / (1024 * 1024)).toFixed(2);
+    const savedMB = ((file.size - compressedFile.size) / (1024 * 1024)).toFixed(
+      2,
+    )
+    toast.success(
+      `File compressed successfully! ${originalMB} MB → ${compressedMB} MB (Saved ${savedMB} MB)`
+    );
+    return compressedFile;
   } catch {
+    toast.error("Image compression failed");
     return file;
   }
 };

@@ -146,9 +146,32 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
       gallerySummary: [...gallerySummary, ...newSummary],
     });
 
-    toast.success("Images uploaded successfully!", {
-      id: toastId,
-    });
+    // toast.success("Images uploaded successfully!", {
+    //   id: toastId,
+    // });
+    
+    const originalSize = files.reduce((sum, file) => sum + file.size, 0);
+
+    const compressedSize = compressedFiles.reduce(
+      (sum, file) => sum + file.size,
+      0,
+    );
+
+    const originalMB = (originalSize / (1024 * 1024)).toFixed(2);
+
+    const compressedMB = (compressedSize / (1024 * 1024)).toFixed(2);
+
+    const savedMB = ((originalSize - compressedSize) / (1024 * 1024)).toFixed(
+      2,
+    );
+
+    toast.success(
+      `${files.length} image(s) compressed successfully! ${originalMB} MB → ${compressedMB} MB (Saved ${savedMB} MB)`,
+      {
+        id: toastId,
+      },
+    );
+
    }catch(e){
     toast.error("Something went wrong!", {
       id: toastId,

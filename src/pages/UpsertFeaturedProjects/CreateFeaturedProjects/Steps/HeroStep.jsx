@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } f
 import { Upload, ImageIcon } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import { saveImage, getFileFromKey } from "../utils/indexedDB";
+import { toast } from "sonner";
 
 const compressImage = async (file) => {
   const options = {
@@ -13,6 +14,15 @@ const compressImage = async (file) => {
 
   try {
     const compressedFile = await imageCompression(file, options);
+    console.log("Compressed file size Hero Files:", compressedFile.size);
+
+    const originalMB = (file.size / (1024 * 1024)).toFixed(2);
+    const compressedMB = (compressedFile.size / (1024 * 1024)).toFixed(2);
+
+const savedMB = ((file.size - compressedFile.size) / (1024 * 1024)).toFixed(2);
+    toast.success(
+      `Compressed successfully! ${originalMB} MB → ${compressedMB} MB`,
+    );
     return compressedFile;
   } catch (error) {
     console.error("Compression error:", error);
@@ -24,6 +34,8 @@ const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
+
+
 
     reader.onload = () => resolve(reader.result);
     reader.onerror = (error) => reject(error);
@@ -175,7 +187,9 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
     if (!file) return;
 
     const compressed = await compressImage(file);
+    console.log("compressed hero =>", compressed);
     const base64 = await fileToBase64(compressed);
+    console.log(base64);
 
     //const key = await saveImage(compressed, "other");
     const key = await saveImage(compressed, "other", "logo");
@@ -226,6 +240,7 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
    if (!file) return;
 
    const compressed = await compressImage(file);
+   console.log("compressed logo =>", compressed);
    const base64 = await fileToBase64(compressed);
 
    //const key = await saveImage(compressed, "other");

@@ -67,6 +67,8 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
   const [searchQuery, setSearchQuery] = useState("");
   const builderRef = useRef(null);
 
+  const brochureInputRef = useRef(null);
+
   const isLand = payload.categoryType === "land";
 
 
@@ -368,21 +370,45 @@ const shouldHideTowerFields =
   };
 
 
-  const removeBrochure = async () => {
-    const key =
-      typeof payload.brochure === "string"
-        ? payload.brochure
-        : payload.brochure?.key;
+  // const removeBrochure = async () => {
+  //   const key =
+  //     typeof payload.brochure === "string"
+  //       ? payload.brochure
+  //       : payload.brochure?.key;
 
-    if (key) {
-      await deleteImage(key, "other");
-    }
+  //   if (key) {
+  //     await deleteImage(key, "other");
+  //   }
 
-    update({ brochure: null });
+  //   update({ brochure: null });
 
-    toast.success("Brochure removed successfully");
-  };
+  //   toast.success("Brochure removed successfully");
+  // };
   
+
+ const removeBrochure = async () => {
+   const key =
+     typeof payload.brochure === "string"
+       ? payload.brochure
+       : payload.brochure?.key;
+
+   if (key) {
+     await deleteImage(key, "other");
+   }
+
+   update({
+     brochure: null,
+     brochurePreview: "",
+   });
+
+   // VERY IMPORTANT
+   if (brochureInputRef.current) {
+     brochureInputRef.current.value = "";
+   }
+
+   toast.success("Brochure removed successfully");
+ };
+
   const getBrochureName = () => {
     if (payload.brochure?.file) return payload.brochure.file.name;
 
@@ -632,7 +658,7 @@ const shouldHideTowerFields =
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">PDF files only</p>
               </div>
-              {payload.brochure && (
+              {payload.brochure?.file && (
                 <span
                   className="flex-shrink-0 px-2.5 py-1 rounded-lg text-[10px] font-black text-white"
                   style={{ background: "#27AE60" }}
@@ -642,6 +668,7 @@ const shouldHideTowerFields =
               )}
               <input
                 type="file"
+                ref={brochureInputRef}
                 accept="application/pdf"
                 className="hidden"
                 onChange={async (e) => {
@@ -660,9 +687,13 @@ const shouldHideTowerFields =
 
                     const compressed = await compressPdfAdvanced(file);
 
+                    
+
                     toast.dismiss();
 
                     const sizeMB = (compressed.size / 1024 / 1024).toFixed(2);
+
+
 
                     if (compressed.size > MAX_SIZE) {
                       toast.error(
@@ -671,7 +702,24 @@ const shouldHideTowerFields =
                       return;
                     }
 
-                    toast.success(`Compressed ✅`);
+                    const originalMB = (file.size / 1024 / 1024).toFixed(2);
+                    const compressedMB = (
+                      compressed.size /
+                      1024 /
+                      1024
+                    ).toFixed(2);
+
+                    const savedMB = (
+                      (file.size - compressed.size) /
+                      1024 /
+                      1024
+                    ).toFixed(2);
+
+                    toast.success(
+                      `PDF compressed successfully! ${originalMB} MB → ${compressedMB} MB (Saved ${savedMB} MB) ✅`,
+                    );
+
+                    //toast.success(`Compressed ✅`);
 
                     file = compressed;
                   }
@@ -685,7 +733,7 @@ const shouldHideTowerFields =
                   clr("brochure");
                 }}
               />
-              {payload.brochure && (
+              {(payload.brochure &&  payload.brochure.file) && (
                 <button
                   type="button"
                   onClick={removeBrochure}

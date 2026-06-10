@@ -9,6 +9,7 @@ import {
 import { Plus, Trash2, Upload, LayoutGrid } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import { saveImage, getFileFromKey } from "../utils/indexedDB";
+import { toast } from "sonner";
 
 const compressImage = async (file) => {
   const options = {
@@ -17,9 +18,25 @@ const compressImage = async (file) => {
     useWebWorker: true,
   };
   try {
-    return await imageCompression(file, options);
+
+    //return await imageCompression(file, options);
+    const compressedFile = await imageCompression(file, options);
+    const originalMB = (file.size / (1024 * 1024)).toFixed(2);
+    const compressedMB = (compressedFile.size / (1024 * 1024)).toFixed(2);
+    const savedMB = ((file.size - compressedFile.size) / (1024 * 1024)).toFixed(
+      2,
+    );
+
+    toast.success(
+      `File compressed successfully! ${originalMB} MB → ${compressedMB} MB (Saved ${savedMB} MB)`,
+    );
+
+    return compressedFile;
+
+
   } catch (error) {
     console.error("Compression error:", error);
+     toast.error("Image compression failed");
     return file;
   }
 };

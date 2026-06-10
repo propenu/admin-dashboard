@@ -28,44 +28,7 @@ export const getDB = async () => {
   });
 };
 
-//
-// ✅ SAVE IMAGE
-// type = "gallery" | "other"
-//
-// export const saveImage = async (file, type = "gallery") => {
-//   const db = await getDB();
 
-//   if (!file || !(file instanceof Blob)) {
-//     console.error("❌ Invalid file:", file);
-//     return null;
-//   }
-
-//   const storeName = type === "gallery" ? STORES.GALLERY : STORES.OTHER;
-
-//   // 🔥 keep original filename
-//   const fileName = file.name || `image_${Date.now()}.jpg`;
-
-//   const key = `${Date.now()}__${fileName}`;
-
-//   await db.put(storeName, file, key);
-
-//   return key;
-// };
-
-// export const saveImage = async (file, type = "gallery", prefix = "img") => {
-//   const db = await getDB();
-
-//   const storeName = type === "gallery" ? STORES.GALLERY : STORES.OTHER;
-
-//   const fileName = file.name || "image.jpg";
-
-//   // 🔥 UNIQUE KEY
-//   const key = `${prefix}__${Date.now()}__${fileName}`;
-
-//   await db.put(storeName, file, key);
-
-//   return key;
-// };
 export const saveImage = async (file, type = "gallery", prefix = "img") => {
   const db = await getDB();
 
@@ -75,13 +38,19 @@ export const saveImage = async (file, type = "gallery", prefix = "img") => {
 
   const key = `${prefix}__${Date.now()}__${fileName}`;
 
+  // Original file size
+  console.log("File name:", file.name);
+  console.log("Bytes:", file.size);
+  console.log("KB:", (file.size / 1024).toFixed(2), "KB");
+  console.log("MB:", (file.size / (1024 * 1024)).toFixed(2), "MB");
+
   // ✅ FORCE BLOB
   const blob = new Blob([file], { type: file.type });
 
   await db.put(storeName, blob, key);
 
   return key;
-};
+};;
 
 
 //
@@ -91,6 +60,16 @@ export const getImage = async (key, type = "gallery") => {
   const db = await getDB();
 
   const storeName = type === "gallery" ? STORES.GALLERY : STORES.OTHER;
+//error
+  const blob = await db.get(storeName, key);
+
+  if (blob) {
+    console.log("Retrieved image size:");
+    console.log("Bytes:", blob.size);
+    console.log("KB:", (blob.size / 1024).toFixed(2), "KB");
+    console.log("MB:", (blob.size / (1024 * 1024)).toFixed(2), "MB");
+  }
+//error
 
   return db.get(storeName, key);
 };

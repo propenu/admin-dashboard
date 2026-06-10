@@ -265,5 +265,26 @@ export async function buildFormData(payload) {
     fd.append("youtubeVideos", JSON.stringify(payload.youtubeVideos));
   }
   for (const pair of fd.entries());
+
+  let totalBytes = 0;
+
+  for (const [key, value] of fd.entries()) {
+    if (value instanceof File) {
+      totalBytes += value.size;
+
+      console.table({
+        field: key,
+        file: value.name,
+        sizeMB: (value.size / (1024 * 1024)).toFixed(2),
+      });
+    }
+  }
+
+  const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+
+  console.log("================================");
+  console.log(`TOTAL FILES SENT = ${totalMB} MB`);
+  console.log("================================");
+
   return fd;
 }

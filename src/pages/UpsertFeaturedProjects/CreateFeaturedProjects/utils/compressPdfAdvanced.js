@@ -1,5 +1,4 @@
 // utils/compressPdfAdvanced.js
-
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker?url"; // ✅ FIX
 import imageCompression from "browser-image-compression";
@@ -44,6 +43,11 @@ export const compressPdfAdvanced = async (file) => {
         maxWidthOrHeight: 1500,
         useWebWorker: true,
       });
+
+
+
+      console.log("compressedImage", compressedImage);
+     
 
       const imgBytes = await compressedImage.arrayBuffer();
       const img = await newPdf.embedJpg(imgBytes);
