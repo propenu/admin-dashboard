@@ -187,9 +187,24 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
     if (!file) return;
 
     const compressed = await compressImage(file);
+
+
+
     console.log("compressed hero =>", compressed);
     const base64 = await fileToBase64(compressed);
     console.log(base64);
+
+    const compressedMB = (compressed.size / (1024 * 1024)).toFixed(2);
+
+    if (compressed.size > 1024 * 1024) {
+      toast.error(
+        `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
+      );
+
+      e.target.value = "";
+
+      return;
+    }
 
     //const key = await saveImage(compressed, "other");
     const key = await saveImage(compressed, "other", "logo");
@@ -242,6 +257,18 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
    const compressed = await compressImage(file);
    console.log("compressed logo =>", compressed);
    const base64 = await fileToBase64(compressed);
+
+   const compressedMB = (compressed.size / (1024 * 1024)).toFixed(2);
+
+   if (compressed.size > 1024 * 1024) {
+     toast.error(
+       `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
+     );
+
+     e.target.value = "";
+
+     return;
+   }
 
    //const key = await saveImage(compressed, "other");
    const key = await saveImage(compressed, "other", "hero");

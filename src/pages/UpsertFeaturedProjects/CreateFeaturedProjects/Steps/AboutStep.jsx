@@ -179,8 +179,56 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
   // };
 
 
+// const handleImage = async (e) => {
+//   const file = e.target.files[0];
+//   if (!file) return;
+
+//   const toastId = toast.loading("Compressing image... ⏳");
+
+//   try {
+//     const compressedBlob = await compressImage(file);
+
+//     const compressed = new File([compressedBlob], file.name, {
+//       type: compressedBlob.type,
+//     });
+
+//     const compressedMB = (compressed.size / (1024 * 1024)).toFixed(2);
+
+//     if (compressed.size > 1024 * 1024) {
+//       toast.error(
+//         `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
+//       );
+
+//       e.target.value = "";
+
+//       return;
+//     }
+
+//     const key = await saveImage(compressed, "other", "about");
+
+//     update({
+//       aboutImage: {
+//         file: compressed,
+//         key: key,
+//       },
+//     });
+
+//     // ✅ BEST PREVIEW METHOD
+//     const previewUrl = URL.createObjectURL(compressed);
+//     setPreview(previewUrl);
+
+//     clr("aboutImage");
+
+//     toast.success("Image uploaded successfully", { id: toastId });
+//   } catch (err) {
+//     console.error(err);
+//     toast.error("Upload failed", { id: toastId });
+//   }
+// };
+
 const handleImage = async (e) => {
   const file = e.target.files[0];
+
   if (!file) return;
 
   const toastId = toast.loading("Compressing image... ⏳");
@@ -192,25 +240,46 @@ const handleImage = async (e) => {
       type: compressedBlob.type,
     });
 
+    // CHECK AFTER COMPRESSION
+    const compressedMB = (compressed.size / (1024 * 1024)).toFixed(2);
+
+    if (compressed.size > 1024 * 1024) {
+      toast.error(
+        `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
+        {
+          id: toastId,
+        },
+      );
+
+      e.target.value = "";
+
+      return;
+    }
+
     const key = await saveImage(compressed, "other", "about");
 
     update({
       aboutImage: {
         file: compressed,
-        key: key,
+        key,
       },
     });
 
-    // ✅ BEST PREVIEW METHOD
     const previewUrl = URL.createObjectURL(compressed);
+
     setPreview(previewUrl);
 
     clr("aboutImage");
 
-    toast.success("Image uploaded successfully", { id: toastId });
+    toast.success(`Image uploaded successfully (${compressedMB} MB)`, {
+      id: toastId,
+    });
   } catch (err) {
     console.error(err);
-    toast.error("Upload failed", { id: toastId });
+
+    toast.error("Upload failed", {
+      id: toastId,
+    });
   }
 };
 

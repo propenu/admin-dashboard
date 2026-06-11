@@ -13,9 +13,32 @@ const compressImage = async (file) => {
     useWebWorker: true,
   };
 
+  // try {
+  //   return await imageCompression(file, options);
+  // } catch (e) {
+  //   return file;
+  // }
   try {
-    return await imageCompression(file, options);
-  } catch (e) {
+    const compressedFile = await imageCompression(file, options);
+
+    const originalMB = (file.size / (1024 * 1024)).toFixed(2);
+
+    const compressedMB = (compressedFile.size / (1024 * 1024)).toFixed(2);
+
+    const savedMB = ((file.size - compressedFile.size) / (1024 * 1024)).toFixed(
+      2,
+    );
+
+    toast.success(
+      `${file.name}
+${originalMB} MB → ${compressedMB} MB
+Saved ${savedMB} MB`,
+    );
+
+    return compressedFile;
+  } catch {
+    toast.error("Image compression failed");
+
     return file;
   }
 };
@@ -35,18 +58,7 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
   const [errors, setErrors] = useState({});
   const galleryRef = useRef(null);
 
-  // useImperativeHandle(ref, () => ({
-  //   validate() {
-  //     const e = {};
-  //     if (galleryFiles.length < 5) e.gallery = "Minimum 5 images are required";
-  //     setErrors(e);
-  //     if (Object.keys(e).length) {
-  //       galleryRef.current?.scrollIntoView({ behavior:"smooth", block:"center" });
-  //       return false;
-  //     }
-  //     return true;
-  //   },
-  // }));
+  
  
   useImperativeHandle(ref, () => ({
     validate() {
@@ -54,6 +66,10 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
 
       if (galleryFiles.length < 5) {
         e.gallery = "Minimum 5 images are required";
+      }
+
+      if (galleryFiles.length > 50) {
+        e.gallery = "Maximum 50 images are allowed";
       }
 
       setErrors(e);
@@ -114,165 +130,97 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
 
  const handleUpload = async (e) => {
    const files = Array.from(e.target.files);
+
    if (!files.length) return;
+
+   // Maximum 50 images
+   if (galleryFiles.length + files.length > 50) {
+     toast.error(
+       `Maximum 50 images are allowed. You already have ${galleryFiles.length} images.`,
+     );
+
+     e.target.value = "";
+
+     return;
+   }
+
    const toastId = toast.loading("Compressing & uploading images...⏳");
 
-   
-   try{
+   try {
+    
      const compressedFiles = await Promise.all(
        files.map((f) => compressImage(f)),
      );
-    const items = await Promise.all(
-      compressedFiles.map(async (file) => {
-        const key = await saveImage(file, "gallery");
+     // check every image
+     for (const file of compressedFiles) {
+       const compressedMB = (file.size / (1024 * 1024)).toFixed(2);
 
-        return {
-          file,
-          key,
-          name: file.name,
-        };
-      }),
-    );
+       if (file.size > 1024 * 1024) {
+         toast.error(
+           `${file.name} is ${compressedMB} MB.
+Maximum allowed size is 1 MB.`,
+         );
 
-    const newSummary = items.map((item, i) => ({
-      title: item.file.name.replace(/\.[^/.]+$/, ""),
-      category: "Gallery",
-      order: gallerySummary.length + i + 1,
-      filename: item.file.name,
-    }));
+         return;
+       }
+     }
+     const items = await Promise.all(
+       compressedFiles.map(async (file) => {
+         const key = await saveImage(file, "gallery");
 
-    update({
-      galleryFiles: [...galleryFiles, ...items], // ✅ now contains key
-      gallerySummary: [...gallerySummary, ...newSummary],
-    });
+         return {
+           file,
+           key,
+           name: file.name,
+         };
+       }),
+     );
 
-    // toast.success("Images uploaded successfully!", {
-    //   id: toastId,
-    // });
-    
-    const originalSize = files.reduce((sum, file) => sum + file.size, 0);
+     const newSummary = items.map((item, i) => ({
+       title: item.file.name.replace(/\.[^/.]+$/, ""),
+       category: "Gallery",
+       order: gallerySummary.length + i + 1,
+       filename: item.file.name,
+     }));
 
-    const compressedSize = compressedFiles.reduce(
-      (sum, file) => sum + file.size,
-      0,
-    );
+     update({
+       galleryFiles: [...galleryFiles, ...items], // ✅ now contains key
+       gallerySummary: [...gallerySummary, ...newSummary],
+     });
 
-    const originalMB = (originalSize / (1024 * 1024)).toFixed(2);
+     // toast.success("Images uploaded successfully!", {
+     //   id: toastId,
+     // });
 
-    const compressedMB = (compressedSize / (1024 * 1024)).toFixed(2);
+     const originalSize = files.reduce((sum, file) => sum + file.size, 0);
 
-    const savedMB = ((originalSize - compressedSize) / (1024 * 1024)).toFixed(
-      2,
-    );
+     const compressedSize = compressedFiles.reduce(
+       (sum, file) => sum + file.size,
+       0,
+     );
 
-    toast.success(
-      `${files.length} image(s) compressed successfully! ${originalMB} MB → ${compressedMB} MB (Saved ${savedMB} MB)`,
-      {
-        id: toastId,
-      },
-    );
+     const originalMB = (originalSize / (1024 * 1024)).toFixed(2);
 
-   }catch(e){
-    toast.error("Something went wrong!", {
-      id: toastId,
-    });
+     const compressedMB = (compressedSize / (1024 * 1024)).toFixed(2);
+
+     const savedMB = ((originalSize - compressedSize) / (1024 * 1024)).toFixed(
+       2,
+     );
+
+     toast.success(
+       `${files.length} images compressed successfully!
+${originalMB} MB → ${compressedMB} MB
+Saved ${savedMB} MB`,
+       {
+         id: toastId,
+       },
+     );
+   } catch (e) {
+     toast.error("Something went wrong!", {
+       id: toastId,
+     });
    }
-
-  //  const compressedFiles = await Promise.all(
-  //    files.map((f) => compressImage(f)),
-  //  );
-
-  //  const items = await Promise.all(
-  //    compressedFiles.map(async (file) => {
-  //      const key = await saveImage(file, "gallery"); 
-
-  //      return {
-  //        file,
-  //        key,
-  //        name: file.name,
-  //      };
-  //    }),
-  //  );
-
-  //  const newSummary = items.map((item, i) => ({
-  //    title: item.file.name.replace(/\.[^/.]+$/, ""),
-  //    category: "Gallery",
-  //    order: gallerySummary.length + i + 1,
-  //    filename: item.file.name,
-
-  //  }));
-
-  //  update({
-  //    galleryFiles: [...galleryFiles, ...items], // ✅ now contains key
-  //    gallerySummary: [...gallerySummary, ...newSummary],
-  //  });
-
-    
- };
-
-  // const removeImage = (index) => {
-  //   update({
-  //     galleryFiles:   galleryFiles.filter((_,i) => i !== index),
-  //     gallerySummary: gallerySummary.filter((_,i) => i !== index).map((item,idx) => ({ ...item, order:idx+1 })),
-  //   });
-  // };
-
-
-  // const removeImage = (index) => {
-  //   update({
-  //     galleryFiles: galleryFiles.filter((_, i) => i !== index),
-  //     galleryPreviews: (payload.galleryPreviews || []).filter(
-  //       (_, i) => i !== index,
-  //     ),
-  //     gallerySummary: gallerySummary
-  //       .filter((_, i) => i !== index)
-  //       .map((item, idx) => ({ ...item, order: idx + 1 })),
-  //   });
-  // };
-
-  //  const handleUpload = async (e) => {
-  //    const files = Array.from(e.target.files);
-  //    if (!files.length) return;
-
-  //    const toastId = toast.loading("Compressing & uploading images...⏳");
-
-  //    try {
-  //      const compressedFiles = await Promise.all(
-  //        files.map((f) => compressImage(f)),
-  //      );
-
-  //      const items = await Promise.all(
-  //        compressedFiles.map(async (file) => {
-  //          const key = await saveImage(file, "gallery");
-  //          return { file, key, name: file.name };
-  //        }),
-  //      );
-
-  //      const newSummary = items.map((item, i) => ({
-  //        title: item.file.name.replace(/\.[^/.]+$/, ""),
-  //        category: "Gallery",
-  //        order: gallerySummary.length + i + 1,
-  //        filename: item.file.name,
-  //      }));
-
-  //      update({
-  //        galleryFiles: [...galleryFiles, ...items],
-  //        gallerySummary: [...gallerySummary, ...newSummary],
-  //      });
-
-  //      // ✅ Replace loading toast
-  //      toast.success("Images uploaded successfully", {
-  //        id: toastId,
-  //      });
-  //    } catch (err) {
-  //      // ❌ If error → replace loading with error
-  //      toast.error("Upload failed", {
-  //        id: toastId,
-  //      });
-  //    }
-  //  };
-
-
+ };;
 
   const removeImage = async (index) => {
   const item = galleryFiles[index];

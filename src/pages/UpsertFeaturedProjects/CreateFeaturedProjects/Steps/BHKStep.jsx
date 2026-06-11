@@ -900,31 +900,123 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                       type="file"
                       accept="image/*"
                       className="hidden"
+                      // onChange={async (e) => {
+                      //   const file = e.target.files?.[0];
+                      //   if (!file) return;
+                      //   const compressed = await compressImage(file);
+                      //   const base64 = await fileToBase64(compressed);
+                      //   const key = await saveImage(
+                      //     compressed,
+                      //     "other",
+                      //     `bhk_${bi}_${ui}`,
+                      //   );
+                      //   updUnit(bi, ui, {
+                      //     planFile: { file: compressed, key },
+                      //     planFileName: file.name,
+                      //     planPreview: base64,
+                      //   });
+                      //   clearError(`bhk-${bi}-unit-${ui}-plan`);
+                      // }}
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
+
                         if (!file) return;
+
+                        // Maximum 50 floor plans
+                        const totalPlans = projectSummary.reduce(
+                          (count, item) => count + (item.units?.length || 0),
+                          0,
+                        );
+
+                        if (totalPlans >= 50) {
+                          toast.error(
+                            "Maximum 50 floor plan images are allowed.",
+                          );
+
+                          e.target.value = "";
+                          return;
+                        }
+
+                        const loadingToast = toast.loading(
+                          "Compressing image... ⏳",
+                        );
+
+                        // Compress image
                         const compressed = await compressImage(file);
+
+                        toast.dismiss(loadingToast);
+
+                        // // Check compressed size
+                        // if (compressed.size > 1024 * 1024) {
+                        //   toast.error(
+                        //     "Compressed image is still larger than 1 MB. Please upload a smaller image.",
+                        //   );
+
+                        //   e.target.value = "";
+
+                        //   return;
+                        // }
+
+                        const compressedMB = (
+                          compressed.size /
+                          (1024 * 1024)
+                        ).toFixed(2);
+
+                        if (compressed.size > 1024 * 1024) {
+                          updUnit(bi, ui, {
+                            planPreview: "",
+                            planFile: null,
+                            planFileName: "",
+                            // planError: `Image size is ${compressedMB} MB. Please upload an image below 1 MB.`,
+                            planError: `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
+                          });
+
+                          e.target.value = "";
+
+                          return;
+                        }
+
                         const base64 = await fileToBase64(compressed);
+
                         const key = await saveImage(
                           compressed,
                           "other",
                           `bhk_${bi}_${ui}`,
                         );
+
+                        // updUnit(bi, ui, {
+                        //   planFile: {
+                        //     file: compressed,
+                        //     key,
+                        //   },
+                        //   planFileName: file.name,
+                        //   planPreview: base64,
+                        // });
                         updUnit(bi, ui, {
-                          planFile: { file: compressed, key },
+                          planFile: {
+                            file: compressed,
+                            key,
+                          },
                           planFileName: file.name,
                           planPreview: base64,
+                          planError: "",
                         });
+
                         clearError(`bhk-${bi}-unit-${ui}-plan`);
                       }}
                     />
                   </label>
-                  {u.planPreview && (
+                  {u.planPreview && !u.planError && (
                     <img
                       src={u.planPreview}
                       className="mt-2 h-32 object-contain rounded-xl border-2 border-gray-200"
                       alt="Plan"
                     />
+                  )}
+                  {u.planError && (
+                    <p className="mt-2 text-sm font-semibold text-red-500">
+                      ❌ {u.planError}
+                    </p>
                   )}
                   {errors[`bhk-${bi}-unit-${ui}-plan`] && (
                     <p className="text-xs text-red-500 font-semibold mt-1">
