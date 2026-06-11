@@ -515,10 +515,10 @@ const buildPayloadByCategory = (category, data) => {
     }
 
 
-    //const activeCategory = localStorage.getItem("activeCategory");
-    //const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+    const activeCategory = localStorage.getItem("activeCategory");
+    const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
 
-    const propertyId = localStorage.getItem(`${category}_propertyId`);
+    //const propertyId = localStorage.getItem(`${category}_propertyId`);
     
 
     if (!propertyId) {
