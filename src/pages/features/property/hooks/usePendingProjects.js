@@ -1,5 +1,4 @@
 // hooks/usePendingProjects.js
-
 import { useQuery } from "@tanstack/react-query";
 import { getSalesManagerPeddingProjects } from "../../../../features/property/propertyService";
 

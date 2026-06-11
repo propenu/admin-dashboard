@@ -27,7 +27,7 @@ export const useFeaturedProject = (projectType) => {
           galleryFiles: [], // reset files after refresh
         };
       } catch {
-        localStorage.removeItem("featuredPayload");
+        //localStorage.removeItem("featuredPayload");
       }
     }
 
@@ -47,9 +47,9 @@ export const useFeaturedProject = (projectType) => {
       console.log("🧹 Clearing draft...");
 
       // ✅ Clear localStorage
-      localStorage.removeItem("featuredPayload");
-      localStorage.removeItem("featured_step");
-      localStorage.removeItem("featured_max_completed");
+      //localStorage.removeItem("featuredPayload");
+     // localStorage.removeItem("featured_step");
+     // localStorage.removeItem("featured_max_completed");
 
       // ✅ Clear IndexedDB
       await clearAllImages();
@@ -240,14 +240,14 @@ export const useFeaturedProject = (projectType) => {
     onSuccess: async () => {
       toast.success("Property created successfully ✅");
 
-     await clearAllImages();
+   //  await clearAllImages();
 
-      localStorage.removeItem("featuredPayload");
-      localStorage.removeItem("featured_step");
-      localStorage.removeItem("featured_max_completed");
+      //localStorage.removeItem("featuredPayload");
+     // localStorage.removeItem("featured_step");
+     // localStorage.removeItem("featured_max_completed");
       setProgress(0);
 
-      navigate("/normal");
+      navigate("/Projects");
     },
 
     onError: (err) => {

@@ -9,6 +9,7 @@ import {
   Star, TrendingUp, Zap, BarChart3, Filter, RefreshCw, Trash2, ArrowUpDown,
   Navigation, Globe, ChevronUp, Eye, MousePointerClick, MessageSquare, Home,
   Layers, Activity, DollarSign, CheckCircle2, AlertCircle, PieChart,
+  AlertTriangle,
 } from "lucide-react";
 
 import { useFeaturedProjects }     from "../../../../features/property/hooks/useFeaturedProjects";
@@ -56,11 +57,20 @@ const PROPERTY_TYPES = {
   ],
 };
 
+// const STATUS_FILTERS = [
+//   { value: "all",      label: "All Status" },
+//   { value: "active",   label: "Active"     },
+//   { value: "inactive", label: "Inactive"   },
+//   { value: "expired",  label: "Expired"    },
+// ];
+
 const STATUS_FILTERS = [
-  { value: "all",      label: "All Status" },
-  { value: "active",   label: "Active"     },
-  { value: "inactive", label: "Inactive"   },
-  { value: "expired",  label: "Expired"    },
+  { value: "all", label: "All Status" },
+  { value: "active", label: "Active" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "expiringSoon", label: "Expiring Soon" },
+  { value: "expired", label: "Expired" },
+  { value: "inactive", label: "Inactive" },
 ];
 
 const TYPE_COLORS = [
@@ -86,6 +96,76 @@ const fmtNum = (n) => {
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 };
+
+// ───────────────────────────────────────────
+// PROJECT STATUS HELPER
+// ───────────────────────────────────────────
+
+const getProjectStatus = (project) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const type = project?.promotion?.type || "normal";
+
+  if (type === "normal") {
+    return {
+      status: project.status || "inactive",
+      daysLeft: null,
+    };
+  }
+
+  // const startDate = project?.promotion?.startDate
+  //   ? new Date(project.promotion.startDate)
+  //   : null;
+
+  // const expiryDate = project?.promotion?.boostExpiry
+  //   ? new Date(project.promotion.boostExpiry)
+  //   : null;
+
+  const startDate = new Date(project?.promotion?.startDate);
+startDate.setHours(0, 0, 0, 0);
+
+const expiryDate = new Date(project?.promotion?.boostExpiry);
+expiryDate.setHours(23, 59, 59, 999);
+
+  if (!startDate || !expiryDate) {
+    return {
+      status: project.status || "inactive",
+      daysLeft: null,
+    };
+  }
+
+  const daysLeft = Math.ceil(
+    (expiryDate - today) / (1000 * 60 * 60 * 24)
+  );
+
+  if (today < startDate) {
+    return {
+      status: "scheduled",
+      daysLeft,
+    };
+  }
+
+  if (today > expiryDate) {
+    return {
+      status: "expired",
+      daysLeft: 0,
+    };
+  }
+
+  if (daysLeft <= 3) {
+    return {
+      status: "expiringSoon",
+      daysLeft,
+    };
+  }
+
+  return {
+    status: "active",
+    daysLeft,
+  };
+};
+
 
 const pct = (part, total) => (!total ? 0 : Math.round((part / total) * 100));
 
@@ -618,16 +698,129 @@ function KPICard({ label, display, sub, icon: Icon, color, iconBg, border, onCli
   );
 }
 
-function AnalyticsOverviewRow({ ov, total, activeStatusFilter, onStatusFilter }) {
+function AnalyticsOverviewRow({
+  ov,
+  total,
+  activeStatusFilter,
+  onStatusFilter,
+  allProperties,
+}) {
+
+  const properties = allProperties ?? [];
+
+  const activeCount = properties.filter(
+    (p) => getProjectStatus(p).status === "active",
+  ).length;
+
+  properties.forEach((p) => {
+    console.log(
+      p.title,
+      p.promotion?.startDate,
+      p.promotion?.boostExpiry,
+      getProjectStatus(p),
+    );
+  });
+
+  const scheduledCount = properties.filter(
+    (p) => getProjectStatus(p).status === "scheduled",
+  ).length;
+
+  const expiringSoonCount = properties.filter(
+    (p) => getProjectStatus(p).status === "expiringSoon",
+  ).length;
+
+  const expiredCount = properties.filter(
+    (p) => getProjectStatus(p).status === "expired",
+  ).length;
+
+  const inactiveCount = properties.filter(
+    (p) => getProjectStatus(p).status === "inactive",
+  ).length;
   // onStatusFilter — independent action, only updates project list status filter
   const cards = [
-    { label: "Total Projects", display: String(total), icon: Building2, color: "text-slate-700", iconBg: "bg-slate-100", border: "border-slate-200" },
-    { label: "Active",  display: String(ov.activeProjects  ?? 0), sub: `${pct(ov.activeProjects,  total)}% of total`, icon: CheckCircle2, color: "text-emerald-700", iconBg: "bg-emerald-50", border: "border-emerald-100", filter: "active"   },
-    { label: "Pending", display: String(ov.pendingProjects ?? 0), sub: `${pct(ov.pendingProjects, total)}% of total`, icon: Clock,         color: "text-amber-700",   iconBg: "bg-amber-50",   border: "border-amber-100",  filter: "pending"  },
-    { label: "Inactive",display: String(ov.inactiveProjects?? 0), icon: AlertCircle,     color: "text-purple-700",  iconBg: "bg-purple-50",  border: "border-purple-100", filter: "inactive" },
-    { label: "Total Views",    display: fmtNum(ov.totalViews     ?? 0), icon: Eye,              color: "text-blue-700",    iconBg: "bg-blue-50",    border: "border-blue-100"   },
-    { label: "Inquiries",      display: fmtNum(ov.totalInquiries ?? 0), icon: MessageSquare,    color: "text-teal-700",    iconBg: "bg-teal-50",    border: "border-teal-100"   },
-    { label: "Clicks",         display: fmtNum(ov.totalClicks    ?? 0), icon: MousePointerClick,color: "text-indigo-700",  iconBg: "bg-indigo-50",  border: "border-indigo-100" },
+    {
+      label: "Total Projects",
+      display: String(total),
+      icon: Building2,
+      color: "text-slate-700",
+      iconBg: "bg-slate-100",
+      border: "border-slate-200",
+    },
+    {
+      label: "Active",
+      //display: String(ov.activeProjects ?? 0),
+      display: String(activeCount),
+      sub: `${pct(ov.activeProjects, total)}% of total`,
+      icon: CheckCircle2,
+      color: "text-emerald-700",
+      iconBg: "bg-emerald-50",
+      border: "border-emerald-100",
+      filter: "active",
+    },
+    {
+      label: "Scheduled",
+      display: String(scheduledCount),
+      sub: `${pct(ov.scheduledProjects, total)}% of total`,
+      icon: Clock,
+      color: "text-amber-700",
+      iconBg: "bg-amber-50",
+      border: "border-amber-100",
+      filter: "scheduled",
+    },
+
+    {
+      label: "Expiring Soon",
+      display: String(expiringSoonCount),
+      sub: `${pct(ov.expiringSoonProjects, total)}% of total`,
+      icon: AlertTriangle,
+      color: "text-rose-700",
+      iconBg: "bg-rose-50",
+      border: "border-rose-100",
+      filter: "expiringSoon",
+    },
+    {
+      label: "Pending",
+      display: String(ov.pendingProjects ?? 0),
+      sub: `${pct(ov.pendingProjects, total)}% of total`,
+      icon: Clock,
+      color: "text-amber-700",
+      iconBg: "bg-amber-50",
+      border: "border-amber-100",
+      filter: "pending",
+    },
+    {
+      label: "Inactive",
+      display: String(ov.inactiveProjects ?? 0),
+      icon: AlertCircle,
+      color: "text-purple-700",
+      iconBg: "bg-purple-50",
+      border: "border-purple-100",
+      filter: "inactive",
+    },
+    {
+      label: "Total Views",
+      display: fmtNum(ov.totalViews ?? 0),
+      icon: Eye,
+      color: "text-blue-700",
+      iconBg: "bg-blue-50",
+      border: "border-blue-100",
+    },
+    {
+      label: "Inquiries",
+      display: fmtNum(ov.totalInquiries ?? 0),
+      icon: MessageSquare,
+      color: "text-teal-700",
+      iconBg: "bg-teal-50",
+      border: "border-teal-100",
+    },
+    {
+      label: "Clicks",
+      display: fmtNum(ov.totalClicks ?? 0),
+      icon: MousePointerClick,
+      color: "text-indigo-700",
+      iconBg: "bg-indigo-50",
+      border: "border-indigo-100",
+    },
   ];
 
   return (
@@ -635,8 +828,13 @@ function AnalyticsOverviewRow({ ov, total, activeStatusFilter, onStatusFilter })
       {cards.map((c) => (
         <KPICard
           key={c.label}
-          label={c.label} display={c.display} sub={c.sub}
-          icon={c.icon} color={c.color} iconBg={c.iconBg} border={c.border}
+          label={c.label}
+          display={c.display}
+          sub={c.sub}
+          icon={c.icon}
+          color={c.color}
+          iconBg={c.iconBg}
+          border={c.border}
           onClick={c.filter ? () => onStatusFilter(c.filter) : undefined}
           isActive={c.filter && activeStatusFilter === c.filter}
         />
@@ -942,10 +1140,16 @@ function AnalyticsPriceBlock({ priceAnalytics }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AnalyticsDashboard({
-  analytics, isLoading, locationLabel, locationType,
+  analytics,
+  isLoading,
+  locationLabel,
+  locationType,
   // independent callbacks — each updates only its own filter slice
-  onPromotionFilter, onStatusFilter,
-  activePromotionFilter, activeStatusFilter,
+  onPromotionFilter,
+  onStatusFilter,
+  activePromotionFilter,
+  activeStatusFilter,
+  allProperties,
 }) {
   if (isLoading) {
     return (
@@ -965,40 +1169,48 @@ function AnalyticsDashboard({
     );
   }
 
-  const ov    = analytics.overview;
+  const ov = analytics.overview;
   const total = ov.totalProjects || 0;
 
   return (
     <div className="space-y-4">
       {/* Row 1 — Overview KPIs */}
       <AnalyticsOverviewRow
-        ov={ov} total={total}
+        ov={ov}
+        total={total}
         activeStatusFilter={activeStatusFilter}
         onStatusFilter={onStatusFilter}
+        allProperties={allProperties}
       />
 
       {/* Row 2 — Promotion type */}
       <AnalyticsPromotionRow
-        ov={ov} total={total}
+        ov={ov}
+        total={total}
         activePromotionFilter={activePromotionFilter}
         onPromotionFilter={onPromotionFilter}
       />
 
       {/* Row 3 — Category + Property type */}
-      {(analytics.categoryWise?.length > 0 || analytics.propertyTypeWise?.length > 0) && (
+      {(analytics.categoryWise?.length > 0 ||
+        analytics.propertyTypeWise?.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <AnalyticsCategoryBlock     
-          categoryWise={analytics.categoryWise}         
-          total={total}
-           />
-          <AnalyticsPropertyTypeBlock propertyTypeWise={analytics.propertyTypeWise} />
+          <AnalyticsCategoryBlock
+            categoryWise={analytics.categoryWise}
+            total={total}
+          />
+          <AnalyticsPropertyTypeBlock
+            propertyTypeWise={analytics.propertyTypeWise}
+          />
         </div>
       )}
 
       {/* Row 4 — Location + Price */}
       <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
         <AnalyticsLocationBlock
-          analytics={analytics} locationType={locationType} locationLabel={locationLabel}
+          analytics={analytics}
+          locationType={locationType}
+          locationLabel={locationLabel}
         />
         <AnalyticsPriceBlock priceAnalytics={analytics.priceAnalytics} />
       </div>
@@ -1021,6 +1233,8 @@ export default function ProjectsDashboardPage() {
   const isSuperAdmin    = roleName === "super_admin";
   const isAdmin         = roleName === "admin";
   const canViewAnalytics = isSuperAdmin || isAdmin || isSalesManager || isSalesAgent;
+
+  
 
   // ── Property hooks ───────────────────────────────────────────────────────
   const primeHook     = useFeaturedProjects("prime");
@@ -1171,7 +1385,8 @@ useEffect(() => {
       console.log("After promotion", list.length);
     }
     if (statusFilter !== "all"){
-      list = list.filter((p) => p.status === statusFilter);
+      //list = list.filter((p) => p.status === statusFilter);
+      list = list.filter((p) => getProjectStatus(p).status === statusFilter);
       console.log("After status", list.length);
     }
     if (categoryFilter !== "all"){
@@ -1627,6 +1842,7 @@ useEffect(() => {
               onStatusFilter={setStatusFilter}
               activePromotionFilter={promotionFilter}
               activeStatusFilter={statusFilter}
+              allProperties={allProperties}
             />
           )}
         </div>
@@ -1767,7 +1983,7 @@ useEffect(() => {
           <div className="flex flex-wrap gap-1.5 pt-1">
             {promotionFilter !== "all" && (
               <span className="inline-flex items-center gap-1.5 text-xs bg-blue-50 border border-blue-200 text-blue-700 rounded-full px-2.5 py-1 font-medium capitalize">
-                {promotionLabel} 
+                {promotionLabel}
                 <button onClick={() => setPromotionFilter("all")}>
                   <X className="w-3 h-3 hover:text-red-500" />
                 </button>
@@ -1803,10 +2019,6 @@ useEffect(() => {
 
       {/* ── RESULTS HEADER ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        
-
-        
-
         <h2 className="text-lg font-bold text-slate-800">
           Projects
           <span className="text-slate-500 text-sm ml-2">

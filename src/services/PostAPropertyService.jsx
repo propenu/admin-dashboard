@@ -292,7 +292,21 @@ export const updateFeaturedProperty = async (id, payload) => {
     fd.append("youtubeVideos", JSON.stringify(videosJson));
   }
 
-   
+   let totalBytes = 0;
+
+   for (const [key, value] of fd.entries()) {
+     if (value instanceof File) {
+       totalBytes += value.size;
+
+       console.log({
+         field: key,
+         fileName: value.name,
+         sizeMB: (value.size / (1024 * 1024)).toFixed(2),
+       });
+     }
+   }
+
+   console.log("TOTAL MB:", (totalBytes / (1024 * 1024)).toFixed(2));
   
 
   try {
