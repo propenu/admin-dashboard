@@ -158,8 +158,9 @@ export default function Step4VerifyPublish({ back }) {
 
   const handlePublish = async () => {
     if (!category) { toast.error("Property category missing"); return; }
-    const activeCategory = localStorage.getItem("activeCategory");
-    const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+    //const activeCategory = localStorage.getItem("activeCategory");
+    //const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+    const propertyId = localStorage.getItem(`${category}_propertyId`);
     if (!propertyId) { toast.error("Property ID missing"); return; }
     if (!form.verificationDocumentType) { toast.error("Please select a document type"); return; }
     if (!form.documentsFiles?.length) { toast.error("Please upload the required document"); return; }

@@ -87,8 +87,9 @@ export default function MainContainer({ next, back }) {
   /* ─── Save & Next ────────────────────────────────────────── */
 
   const handleSaveAndNext = async () => {
-    const activeCategory = localStorage.getItem("activeCategory");
-    const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+    //const activeCategory = localStorage.getItem("activeCategory");
+    //const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+    const propertyId = localStorage.getItem(`${category}_propertyId`);
     
     if (!propertyId) {
       
