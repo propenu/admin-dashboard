@@ -169,7 +169,8 @@ export default function Step4VerifyPublish({ back }) {
     try {
       await dispatch(savePropertyData({ category, id: propertyId, step: "verification" })).unwrap();
       toast.success("Property Published Successfully!", { id: "publish" });
-      localStorage.removeItem(`${activeCategory}_propertyId`);
+      //localStorage.removeItem(`${activeCategory}_propertyId`);
+      localStorage.removeItem(`${category}_propertyId`);
       localStorage.removeItem("activeCategory");
       setTimeout(() => { navigate(`/${category}`); }, 1500);
     } catch (err) {

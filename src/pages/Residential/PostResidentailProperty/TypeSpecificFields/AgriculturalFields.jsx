@@ -1,6 +1,6 @@
 // AgriculturalFields.jsx
 import { useState, useRef, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useActivePropertySlice } from "./UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../store/common/propertyThunks";
@@ -46,6 +46,8 @@ export default function AgriculturalFields({ back, next }) {
   const [subStep, setSubStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const totalSubSteps = STEPS.length;
+
+  const category = useSelector((state) => state.ui.activeCategory);
 
   const topRef = useRef(null);
   const galleryRef = useRef(null);
@@ -112,8 +114,9 @@ export default function AgriculturalFields({ back, next }) {
       setSubStep(subStep + 1);
       setTimeout(scrollToTop, 50);
     } else {
-      const activeCategory = localStorage.getItem("activeCategory");
-      const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+      //const activeCategory = localStorage.getItem("activeCategory");
+      //const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+      const propertyId = localStorage.getItem(`${category}_propertyId`);
       if (!propertyId) { toast.error("Property ID missing."); return; }
       setIsSubmitting(true);
       dispatch(savePropertyData({ category: "agricultural", id: propertyId, step: "details" }))

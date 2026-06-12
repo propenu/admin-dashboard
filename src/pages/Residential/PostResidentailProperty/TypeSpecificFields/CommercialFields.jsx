@@ -2,7 +2,7 @@
 
 // CommercialFields.jsx
 import { useState, useRef, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useActivePropertySlice } from "./UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../store/common/propertyThunks";
@@ -52,6 +52,8 @@ export default function CommercialFields({ back, next }) {
   const availabilityRef = useRef(null);
   const priceRef = useRef(null);
   const galleryRef = useRef(null);
+
+  const category = useSelector((state) => state.ui.activeCategory);
 
   const scrollToTop = () => topRef.current?.scrollIntoView({ behavior: "smooth" });
 
@@ -115,8 +117,9 @@ export default function CommercialFields({ back, next }) {
       setSubStep(subStep + 1);
       setTimeout(scrollToTop, 50);
     } else {
-      const activeCategory = localStorage.getItem("activeCategory");
-      const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+      //const activeCategory = localStorage.getItem("activeCategory");
+      //const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+      const propertyId = localStorage.getItem(`${category}_propertyId`);
       if (!propertyId) { toast.error("Property ID missing."); return; }
       setIsSubmitting(true);
       dispatch(savePropertyData({ category: "commercial", id: propertyId, step: "details" }))

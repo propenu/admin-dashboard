@@ -2,10 +2,11 @@
 
 // LandFields.jsx
 import { useState, useRef, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useActivePropertySlice } from "./UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../store/common/propertyThunks";
+
 
 import TopHeader from "./common/BasicCommonComponents/TopHeader";
 import Facing from "./common/BasicCommonComponents/Facing";
@@ -34,6 +35,8 @@ const SectionCard = ({ children, className = "" }) => (
   </div>
 );
 
+
+
 export default function LandFields({ back, next }) {
   const dispatch = useDispatch();
   const { form } = useActivePropertySlice();
@@ -44,19 +47,24 @@ export default function LandFields({ back, next }) {
   const topRef = useRef(null);
   const galleryRef = useRef(null);
 
-  const scrollToTop = () => topRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToTop = () =>
+    topRef.current?.scrollIntoView({ behavior: "smooth" });
 
-  const category = form.propertyCategory;
-  console.log("category", category);
+  const category = useSelector((state) => state.ui.activeCategory);
+
+  // const category = form.propertyCategory;
+  // console.log("category", category);
 
   /* ─── Validation ─────────────────────────────────────────── */
 
   const validateStep1 = () => {
     const e = {};
-    if (!form.roadWidthFt || Number(form.roadWidthFt) <= 0) e.roadWidthFt = "Road width is required";
+    if (!form.roadWidthFt || Number(form.roadWidthFt) <= 0)
+      e.roadWidthFt = "Road width is required";
     if (!form.landUseZone) e.landUseZone = "Land use zone is required";
     if (!form.facing) e.facing = "Select facing direction";
-    if (!form.surveyNumber || form.surveyNumber.trim().length < 3) e.surveyNumber = "Survey number is required";
+    if (!form.surveyNumber || form.surveyNumber.trim().length < 3)
+      e.surveyNumber = "Survey number is required";
     if (!form.layoutType) e.layoutType = "Layout type is required";
     return e;
   };
@@ -65,7 +73,7 @@ export default function LandFields({ back, next }) {
     const e = {};
     //if (!form.landName || form.landName.trim().length < 3) e.landName = "Land name required (min 3 chars)";
     //if (!form.dimensions?.length || Number(form.dimensions.length) <= 0) e.length = "Length is required";
-   // if (!form.dimensions?.width || Number(form.dimensions.width) <= 0) e.width = "Width is required";
+    // if (!form.dimensions?.width || Number(form.dimensions.width) <= 0) e.width = "Width is required";
     //if (!form.approvedByAuthority?.length) e.approvedByAuthority = "Select at least one authority";
     if (!form.amenities?.length) e.amenities = "Select at least one amenity";
     return e;
@@ -74,9 +82,12 @@ export default function LandFields({ back, next }) {
   const validateStep3 = () => {
     const e = {};
     if (!form.currency) e.currency = "Currency is required";
-    if (!form.price || Number(form.price) <= 0) e.price = "Price must be greater than 0";
-    if (!form.description || form.description.trim().length < 20) e.description = "Description is too short";
-    if (!form.galleryFiles?.length) e.galleryFiles = "Upload at least one site photo";
+    if (!form.price || Number(form.price) <= 0)
+      e.price = "Price must be greater than 0";
+    if (!form.description || form.description.trim().length < 20)
+      e.description = "Description is too short";
+    if (!form.galleryFiles?.length)
+      e.galleryFiles = "Upload at least one site photo";
     return e;
   };
 
@@ -103,7 +114,11 @@ export default function LandFields({ back, next }) {
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      if (validationErrors.galleryFiles) galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (validationErrors.galleryFiles)
+        galleryRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
       else setTimeout(scrollToTop, 50);
       return;
     }
@@ -112,27 +127,35 @@ export default function LandFields({ back, next }) {
       setSubStep(subStep + 1);
       setTimeout(scrollToTop, 50);
     } else {
-      const activeCategory = localStorage.getItem("activeCategory");
-      const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
-      if (!propertyId) { toast.error("Property ID missing."); return; }
+      //const activeCategory = localStorage.getItem("activeCategory");
+      //const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+      const propertyId = localStorage.getItem(`${category}_propertyId`);
+      if (!propertyId) {
+        toast.error("Property ID missing.");
+        return;
+      }
       setIsSubmitting(true);
-      dispatch(savePropertyData({ category: "land", id: propertyId, step: "details" }))
+      dispatch(
+        savePropertyData({ category: "land", id: propertyId, step: "details" }),
+      )
         .unwrap()
-        .then(() => { toast.success("Land details saved successfully!"); next(); })
+        .then(() => {
+          toast.success("Land details saved successfully!");
+          next();
+        })
         .catch((err) => toast.error(err?.message || err?.error))
         .finally(() => setIsSubmitting(false));
     }
   };
 
   const handleInternalBack = () => {
-    if (subStep > 1) { setSubStep(subStep - 1); setTimeout(scrollToTop, 10); }
-    else back();
+    if (subStep > 1) {
+      setSubStep(subStep - 1);
+      setTimeout(scrollToTop, 10);
+    } else back();
   };
 
   const progressPct = Math.round((subStep / totalSubSteps) * 100);
-
-
-  
 
   return (
     <div ref={topRef} className="w-full max-w-3xl mx-auto space-y-6">
@@ -196,8 +219,8 @@ export default function LandFields({ back, next }) {
       {subStep === 2 && (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           {/* <SectionCard> */}
-            {/* <LandName error={errors.landName} /> */}
-            {/* <ApprovedByAuthority error={errors.approvedByAuthority} /> */}
+          {/* <LandName error={errors.landName} /> */}
+          {/* <ApprovedByAuthority error={errors.approvedByAuthority} /> */}
           {/* </SectionCard> */}
           <SectionCard>
             <Amenities error={errors.amenities} />

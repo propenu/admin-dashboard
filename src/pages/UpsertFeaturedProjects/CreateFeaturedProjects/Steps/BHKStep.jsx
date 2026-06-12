@@ -860,13 +860,26 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                   {/* ── COUNT ── */}
                   <div>
                     <label className={LABEL}>Available Units *</label>
-                    <input
+                    {/* <input
                       type="number"
                       className={inp(errors[`bhk-${bi}-unit-${ui}-count`])}
                       placeholder="24"
                       value={u.availableCount || ""}
                       onChange={(e) => {
                         updUnit(bi, ui, { availableCount: e.target.value });
+                        clearError(`bhk-${bi}-unit-${ui}-count`);
+                      }}
+                    /> */}
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className={inp(errors[`bhk-${bi}-unit-${ui}-count`])}
+                      placeholder="24"
+                      value={u.availableCount || ""}
+                      onChange={(e) => {
+                        updUnit(bi, ui, {
+                          availableCount: e.target.value.replace(/\D/g, ""),
+                        });
                         clearError(`bhk-${bi}-unit-${ui}-count`);
                       }}
                     />

@@ -2,7 +2,7 @@
 
 //frontend/admin-dashboard/src/pages/Residential/PostResidentailProperty/TypeSpecificFields/ResidentailFields/ResidentialFields.jsx
 import { useState, useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useActivePropertySlice } from "../UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../../store/common/propertyThunks";
@@ -25,6 +25,9 @@ const SectionLabel = ({ children }) => (
   <p className="text-[11px] font-bold text-[#6b7280] uppercase tracking-widest mb-4">{children}</p>
 );
 
+
+
+
 export default function ResidentialFields({ back, next }) {
   const dispatch = useDispatch();
   const [errors, setErrors] = useState({});
@@ -37,9 +40,13 @@ export default function ResidentialFields({ back, next }) {
   const totalFloorsRef = useRef(null);
   const descriptionRef = useRef(null);
 
+
+  const category = useSelector((state) => state.ui.activeCategory);
+
   const validateAll = () => {
     const e = {};
-    if (!form.amenities || form.amenities.length === 0) e.amenities = "Select at least one amenity";
+    if (!form.amenities || form.amenities.length === 0)
+      e.amenities = "Select at least one amenity";
     if (!form.parkingType) e.parkingType = "Select parking type";
     if (!form.parkingDetails?.twoWheeler)
       e.twoWheeler = "Enter two wheeler capacity";
@@ -50,7 +57,8 @@ export default function ResidentialFields({ back, next }) {
     if (!form.flooringType) e.flooringType = "Select flooring type";
     if (!form.kitchenType) e.kitchenType = "Select kitchen type";
     if (!form.description) e.description = "Enter property description";
-    if (!form.galleryFiles || form.galleryFiles.length < 5) e.galleryFiles = "Upload at least Five image";
+    if (!form.galleryFiles || form.galleryFiles.length < 5)
+      e.galleryFiles = "Upload at least Five image";
     return e;
   };
 
@@ -75,38 +83,72 @@ export default function ResidentialFields({ back, next }) {
     const validationErrors = validateAll();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      if (validationErrors.amenities) amenitiesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      else if (validationErrors.parkingType) parkingTypeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      else if (validationErrors.totalFloors) totalFloorsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      else if (validationErrors.description) descriptionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (validationErrors.amenities)
+        amenitiesRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      else if (validationErrors.parkingType)
+        parkingTypeRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      else if (validationErrors.totalFloors)
+        totalFloorsRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      else if (validationErrors.description)
+        descriptionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
       else topRef.current?.scrollIntoView({ behavior: "smooth" });
       return;
     }
 
-   const activeCategory = localStorage.getItem("activeCategory");
-   const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
-    if (!propertyId) { toast.error("Property ID missing."); return; }
+    //const activeCategory = localStorage.getItem("activeCategory");
+    //const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+    const propertyId = localStorage.getItem(`${category}_propertyId`);
+    if (!propertyId) {
+      toast.error("Property ID missing.");
+      return;
+    }
 
     setIsSubmitting(true);
-    dispatch(savePropertyData({ category: "residential", id: propertyId, step: "details" }))
+    dispatch(
+      savePropertyData({
+        category: "residential",
+        id: propertyId,
+        step: "details",
+      }),
+    )
       .unwrap()
-      .then(() => { toast.success("Property details saved successfully"); next(); })
-      .catch((err) => { console.error("Save error:", err); toast.error(err?.message || err?.error); })
+      .then(() => {
+        toast.success("Property details saved successfully");
+        next();
+      })
+      .catch((err) => {
+        console.error("Save error:", err);
+        toast.error(err?.message || err?.error);
+      })
       .finally(() => setIsSubmitting(false));
   };
 
-
-  
-  
   return (
     <div ref={topRef} className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-[#27AE60]">Property Profile</h2>
-          <p className="text-xs text-[#000000] mt-0.5">Add detailed information about your property</p>
+          <p className="text-xs text-[#000000] mt-0.5">
+            Add detailed information about your property
+          </p>
         </div>
-        <button type="button" className="flex items-center gap-2 text-sm bg-[#f0fdf4] border border-[#bbf7d0] text-[#27AE60] font-semibold px-4 py-2 rounded-xl hover:bg-[#dcfce7] transition-colors">
+        <button
+          type="button"
+          className="flex items-center gap-2 text-sm bg-[#f0fdf4] border border-[#bbf7d0] text-[#27AE60] font-semibold px-4 py-2 rounded-xl hover:bg-[#dcfce7] transition-colors"
+        >
           <Phone size={13} />
           Get a callback
         </button>

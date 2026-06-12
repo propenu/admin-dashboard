@@ -13,11 +13,6 @@ const compressImage = async (file) => {
     useWebWorker: true,
   };
 
-  // try {
-  //   return await imageCompression(file, options);
-  // } catch (e) {
-  //   return file;
-  // }
   try {
     const compressedFile = await imageCompression(file, options);
 
@@ -133,6 +128,28 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
 
    if (!files.length) return;
 
+   console.log("galleryFiles", galleryFiles);
+
+   const existingImages = galleryFiles
+     .filter((item) => item?.file?.name)
+     .map((item) => item.file.name.toLowerCase());
+
+   const seen = new Set(existingImages);
+
+   const uniqueFiles = [];
+
+   files.forEach((file) => {
+     const key = file.name.toLowerCase();
+
+     if (seen.has(key)) {
+       toast.error(`${file.name} is already added. Please select a new image.`);
+     } else {
+       seen.add(key);
+       uniqueFiles.push(file);
+     }
+   });
+   
+
    // Maximum 50 images
    if (galleryFiles.length + files.length > 50) {
      toast.error(
@@ -144,12 +161,17 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
      return;
    }
 
+   // Stop if all selected images are duplicates
+   if (uniqueFiles.length === 0) {
+     e.target.value = "";
+     return;
+   }
+
    const toastId = toast.loading("Compressing & uploading images...⏳");
 
    try {
-    
      const compressedFiles = await Promise.all(
-       files.map((f) => compressImage(f)),
+       uniqueFiles.map((f) => compressImage(f)),
      );
      // check every image
      for (const file of compressedFiles) {
@@ -164,6 +186,7 @@ Maximum allowed size is 1 MB.`,
          return;
        }
      }
+
      const items = await Promise.all(
        compressedFiles.map(async (file) => {
          const key = await saveImage(file, "gallery");
@@ -184,21 +207,18 @@ Maximum allowed size is 1 MB.`,
      }));
 
      update({
-       galleryFiles: [...galleryFiles, ...items], // ✅ now contains key
+       galleryFiles: [...galleryFiles, ...items],
        gallerySummary: [...gallerySummary, ...newSummary],
      });
 
-     // toast.success("Images uploaded successfully!", {
-     //   id: toastId,
-     // });
+     e.target.value = "";
 
-     const originalSize = files.reduce((sum, file) => sum + file.size, 0);
+     const originalSize = uniqueFiles.reduce((sum, file) => sum + file.size, 0);
 
-     const compressedSize = compressedFiles.reduce(
-       (sum, file) => sum + file.size,
-       0,
-     );
-
+    const compressedSize = compressedFiles.reduce(
+      (sum, file) => sum + file.size,
+      0,
+    );
      const originalMB = (originalSize / (1024 * 1024)).toFixed(2);
 
      const compressedMB = (compressedSize / (1024 * 1024)).toFixed(2);
@@ -220,7 +240,7 @@ Saved ${savedMB} MB`,
        id: toastId,
      });
    }
- };;
+ };;;
 
   const removeImage = async (index) => {
   const item = galleryFiles[index];
