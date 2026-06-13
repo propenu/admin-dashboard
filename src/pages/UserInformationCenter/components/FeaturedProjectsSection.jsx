@@ -206,8 +206,10 @@ const FeaturedContent = ({ userId }) => {
   const [type, setType] = useState("featured");
   const [page, setPage] = useState(1);
 
+  console.log("Current page =", page); // <-- ADD HERE
+
   const { data, isLoading } = useUserFeaturedProjects(userId, type, page);
-  
+
   // const projects = Array.isArray(data)
   //   ? data
   //   : Array.isArray(data?.data)
@@ -218,17 +220,14 @@ const FeaturedContent = ({ userId }) => {
   //         ? data.items
   //         : [];
 
-
   const projects = data?.items || [];
-  const totalPages = data?.totalPages || 1;
+  const totalPages = data?.meta?.pages || 1;
 
-          
-    
-    const filteredProperties = projects.filter(
-      (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
-    );
+  const filteredProperties = projects.filter(
+    (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
+  );
 
-    const counts = useUserFeaturedProjectCounts(userId);
+  const counts = useUserFeaturedProjectCounts(userId);
 
   return (
     <>
@@ -345,7 +344,10 @@ const FeaturedContent = ({ userId }) => {
         </div>
 
         <button
-          onClick={() => setPage(page + 1)}
+          onClick={() => {
+            console.log("Next button clicked");
+            setPage((prev) => prev + 1);
+          }}
           disabled={page === totalPages}
           style={{
             padding: "8px 16px",
@@ -395,7 +397,7 @@ const FeaturedProjectsSection = ({ userId, flat }) => {
       icon={Star}
       accent={C.warn}
       // badge={filteredProjects.length || undefined}
-      badge={data?.totalItems || undefined}
+      badge={data?.meta?.total || undefined}
     >
       <FeaturedContent userId={userId} />
     </AccordionSection>

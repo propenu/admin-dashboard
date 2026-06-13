@@ -292,7 +292,7 @@ const PropertiesContent = ({ userId }) => {
   //       ? data.data
   //       : [];
 
-  const properties = data?.items || [];
+  const properties = data?items || [];
   const totalPages = data?.totalPages || 1;
 
         

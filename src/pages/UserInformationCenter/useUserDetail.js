@@ -114,17 +114,7 @@ export const useUserSubscriptionHistory = (userId) =>
     staleTime: 5 * 60 * 1000,
   });
 
-// ── Featured Projects ─────────────────────────────────────────────────────────
-// export const useUserFeaturedProjects = (userId, type = "featured") =>
-//   useQuery({
-//     queryKey: ["user-featured-projects", userId, type],
-//     queryFn: () =>
-//       getUserFeaturedProjects(userId, type).then(
-//         (r) => r.data.items || [],
-//       ),
-//     enabled: !!userId,
-//     staleTime: 5 * 60 * 1000,
-//   });
+
 
 export const useUserFeaturedProjects = (
   userId,
@@ -134,18 +124,20 @@ export const useUserFeaturedProjects = (
 ) =>
   useQuery({
     queryKey: ["user-featured-projects", userId, type, page],
+
     queryFn: async () => {
       const res = await getUserFeaturedProjects(userId, type, page, limit);
 
+      console.log("PAGE =", page);
+      console.log("API RESPONSE =", res.data);
+
       return res.data;
     },
-
-    enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
   });
 
 // ── Featured Project Counts ─────────────────────────────────────────
 export const useUserFeaturedProjectCounts = (userId) => {
+  
   const featured = useUserFeaturedProjects(userId, "featured");
   const prime = useUserFeaturedProjects(userId, "prime");
   const normal = useUserFeaturedProjects(userId, "normal");

@@ -29,8 +29,13 @@ export const getUserFeaturedProjects = (
   page = 1,
   limit = 20,
 ) =>
+  // apiClient.get(
+  //   `${PROPERTY_BASE}?type=${type}&createdBy=${userId}&page=${page}&limit=${limit}`,
+  // );
   apiClient.get(
-    `${PROPERTY_BASE}?type=${type}&createdBy=${userId}&page=${page}&limit=${limit}`,
+    `${PROPERTY_BASE}?${
+      type ? `type=${type}&` : ""
+    }createdBy=${userId}&page=${page}&limit=${limit}`,
   );
 
 // ── Properties (residential / commercial / land / agricultural) ───────────────
