@@ -284,33 +284,14 @@ const PropertiesContent = ({ userId }) => {
 
   const { data, isLoading } = useUserProperties(userId, cat, page);
 
-  // const properties = Array.isArray(data)
-  //   ? data
-  //   : Array.isArray(data?.items)
-  //     ? data.items
-  //     : Array.isArray(data?.data)
-  //       ? data.data
-  //       : [];
-
-  const properties = data?items || [];
-  const totalPages = data?.totalPages || 1;
+  const properties = data?.items || [];
+  const totalPages = data?.meta?.totalPages || 1;
 
         
         const filteredProperties = properties.filter(
           (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
         );
 
-        // console.log("USER ID =>", userId);
-
-        // console.log("FILTERED PROPERTIES =>", filteredProperties);
-
-        // console.log(
-        //   "ALL PROPERTY CREATED BY IDS =>",
-        //   properties.map((p) => ({
-        //     propertyId: p._id,
-        //     createdBy: p.createdBy?._id,
-        //   })),
-        // );
 
         const counts = useUserPropertyCounts(userId);
 

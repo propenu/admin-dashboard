@@ -210,15 +210,7 @@ const FeaturedContent = ({ userId }) => {
 
   const { data, isLoading } = useUserFeaturedProjects(userId, type, page);
 
-  // const projects = Array.isArray(data)
-  //   ? data
-  //   : Array.isArray(data?.data)
-  //     ? data.data
-  //     : Array.isArray(data?.projects)
-  //       ? data.projects
-  //       : Array.isArray(data?.items)
-  //         ? data.items
-  //         : [];
+  
 
   const projects = data?.items || [];
   const totalPages = data?.meta?.pages || 1;

@@ -136,32 +136,52 @@ export const useUserFeaturedProjects = (
   });
 
 // ── Featured Project Counts ─────────────────────────────────────────
-export const useUserFeaturedProjectCounts = (userId) => {
+// export const useUserFeaturedProjectCounts = (userId) => {
   
+//   const featured = useUserFeaturedProjects(userId, "featured");
+//   const prime = useUserFeaturedProjects(userId, "prime");
+//   const normal = useUserFeaturedProjects(userId, "normal");
+//   const sponsored = useUserFeaturedProjects(userId, "sponsored");
+
+
+//   const getCount = (data) => {
+//     const items = Array.isArray(data)
+//       ? data
+//       : Array.isArray(data?.items)
+//         ? data.items
+//         : Array.isArray(data?.data)
+//           ? data.data
+//           : [];
+
+//     return items.filter((p) => String(p.createdBy?._id || p.createdBy) === String(userId))
+// .length;
+//   };
+
+//   return {
+//     featured: getCount(featured.data),
+//     prime: getCount(prime.data),
+//     normal: getCount(normal.data),
+//     sponsored: getCount(sponsored.data),
+
+//     isLoading:
+//       featured.isLoading ||
+//       prime.isLoading ||
+//       normal.isLoading ||
+//       sponsored.isLoading,
+//   };
+// };
+
+export const useUserFeaturedProjectCounts = (userId) => {
   const featured = useUserFeaturedProjects(userId, "featured");
   const prime = useUserFeaturedProjects(userId, "prime");
   const normal = useUserFeaturedProjects(userId, "normal");
   const sponsored = useUserFeaturedProjects(userId, "sponsored");
 
-
-  const getCount = (data) => {
-    const items = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.items)
-        ? data.items
-        : Array.isArray(data?.data)
-          ? data.data
-          : [];
-
-    return items.filter((p) => String(p.createdBy?._id || p.createdBy) === String(userId))
-.length;
-  };
-
   return {
-    featured: getCount(featured.data),
-    prime: getCount(prime.data),
-    normal: getCount(normal.data),
-    sponsored: getCount(sponsored.data),
+    featured: featured.data?.meta?.promotionCounts?.featured ?? 0,
+    prime: prime.data?.meta?.promotionCounts?.prime ?? 0,
+    normal: normal.data?.meta?.promotionCounts?.normal ?? 0,
+    sponsored: sponsored.data?.meta?.promotionCounts?.sponsored ?? 0,
 
     isLoading:
       featured.isLoading ||
@@ -205,31 +225,53 @@ export const useUserProperties = (
 
 
   // ── Property Counts (All Categories) ─────────────────────────────────────────
+// export const useUserPropertyCounts = (userId) => {
+//   const residential = useUserProperties(userId, "residential");
+//   const commercial = useUserProperties(userId, "commercial");
+//   const land = useUserProperties(userId, "land");
+//   const agricultural = useUserProperties(userId, "agricultural");
+
+  
+//   const getCount = (data) => {
+//     const items = Array.isArray(data)
+//       ? data
+//       : Array.isArray(data?.items)
+//         ? data.items
+//         : Array.isArray(data?.data)
+//           ? data.data
+//           : [];
+
+//     return items.filter((p) => String(p.createdBy?._id || p.createdBy) === String(userId))
+//       .length;
+//   };
+
+//   return {
+//     residential: getCount(residential.data),
+//     commercial: getCount(commercial.data),
+//     land: getCount(land.data),
+//     agricultural: getCount(agricultural.data),
+
+//     isLoading:
+//       residential.isLoading ||
+//       commercial.isLoading ||
+//       land.isLoading ||
+//       agricultural.isLoading,
+//   };
+// }; 
+
+
+// ── Property Counts (All Categories) ─────────────────────────────────────────
 export const useUserPropertyCounts = (userId) => {
   const residential = useUserProperties(userId, "residential");
   const commercial = useUserProperties(userId, "commercial");
   const land = useUserProperties(userId, "land");
   const agricultural = useUserProperties(userId, "agricultural");
 
-  
-  const getCount = (data) => {
-    const items = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.items)
-        ? data.items
-        : Array.isArray(data?.data)
-          ? data.data
-          : [];
-
-    return items.filter((p) => String(p.createdBy?._id || p.createdBy) === String(userId))
-      .length;
-  };
-
   return {
-    residential: getCount(residential.data),
-    commercial: getCount(commercial.data),
-    land: getCount(land.data),
-    agricultural: getCount(agricultural.data),
+    residential: residential.data?.meta?.total ?? 0,
+    commercial: commercial.data?.meta?.total ?? 0,
+    land: land.data?.meta?.total ?? 0,
+    agricultural: agricultural.data?.meta?.total ?? 0,
 
     isLoading:
       residential.isLoading ||
