@@ -58,7 +58,7 @@ export default function ResidentialFields({ back, next }) {
     if (!form.kitchenType) e.kitchenType = "Select kitchen type";
     if (!form.description) e.description = "Enter property description";
     if (!form.galleryFiles || form.galleryFiles.length < 5)
-      e.galleryFiles = "Upload at least Five image";
+      e.galleryFiles = "Upload at least 12 image";
     return e;
   };
 
@@ -80,6 +80,9 @@ export default function ResidentialFields({ back, next }) {
   }, [form]);
 
   const handleSubmit = async () => {
+
+    
+
     const validationErrors = validateAll();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -133,6 +136,11 @@ export default function ResidentialFields({ back, next }) {
         toast.error(err?.message || err?.error);
       })
       .finally(() => setIsSubmitting(false));
+
+
+      console.log("STEP 3 PROPERTY ID =", propertyId);
+      console.log("CATEGORY =", category);
+      console.log("FORM _ID =", form._id);
   };
 
   return (

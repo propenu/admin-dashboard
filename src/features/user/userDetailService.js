@@ -23,9 +23,23 @@ export const getUserSubscriptionHistory = (userId) =>
 
 // ── Featured Projects by createdBy userId ─────────────────────────────────────
 // types: featured | prime | normal | sponsored
-export const getUserFeaturedProjects = (userId, type = "featured") =>
-  apiClient.get(`${PROPERTY_BASE}?type=${type}&createdBy=${userId}`);
+export const getUserFeaturedProjects = (
+  userId,
+  type = "featured",
+  page = 1,
+  limit = 20,
+) =>
+  apiClient.get(
+    `${PROPERTY_BASE}?type=${type}&createdBy=${userId}&page=${page}&limit=${limit}`,
+  );
 
 // ── Properties (residential / commercial / land / agricultural) ───────────────
-export const getUserProperties = (userId, category = "residential") =>
-  apiClient.get(`${SERVICES.PROPERTY}/${category}?createdBy=${userId}`);
+export const getUserProperties = (
+  userId,
+  category = "residential",
+  page = 1,
+  limit = 20,
+) =>
+  apiClient.get(
+    `${SERVICES.PROPERTY}/${category}?createdBy=${userId}&page=${page}&limit=${limit}`,
+  );

@@ -279,15 +279,21 @@ const PropertyCard = ({ p, catColor, category }) => {
 
 const PropertiesContent = ({ userId }) => {
   const [cat, setCat] = useState("residential");
+  const [page, setPage] = useState(1);
   const catObj = CATEGORIES.find((c) => c.key === cat);
-  const { data, isLoading } = useUserProperties(userId, cat);
-  const properties = Array.isArray(data)
-    ? data
-    : Array.isArray(data?.items)
-      ? data.items
-      : Array.isArray(data?.data)
-        ? data.data
-        : [];
+
+  const { data, isLoading } = useUserProperties(userId, cat, page);
+
+  // const properties = Array.isArray(data)
+  //   ? data
+  //   : Array.isArray(data?.items)
+  //     ? data.items
+  //     : Array.isArray(data?.data)
+  //       ? data.data
+  //       : [];
+
+  const properties = data?.items || [];
+  const totalPages = data?.totalPages || 1;
 
         
         const filteredProperties = properties.filter(
@@ -321,7 +327,11 @@ const PropertiesContent = ({ userId }) => {
         {CATEGORIES.map(({ key, label, color }) => (
           <button
             key={key}
-            onClick={() => setCat(key)}
+            // onClick={() => setCat(key)}
+            onClick={() => {
+              setCat(key);
+              setPage(1);
+            }}
             style={{
               padding: "6px 13px",
               borderRadius: "99px",
@@ -383,6 +393,69 @@ const PropertiesContent = ({ userId }) => {
           ))}
         </div>
       )}
+      <div
+        style={{
+          marginTop: "24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "14px",
+        }}
+      >
+        <button
+          onClick={() => setPage(page - 1)}
+          disabled={page === 1}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "10px",
+            border: "1px solid #e5e7eb",
+            background: page === 1 ? "#f3f4f6" : "#fff",
+            color: page === 1 ? "#9ca3af" : "#374151",
+            fontSize: "13px",
+            fontWeight: "700",
+            cursor: page === 1 ? "not-allowed" : "pointer",
+            transition: "all .2s ease",
+          }}
+        >
+          ← Previous
+        </button>
+
+        <div
+          style={{
+            minWidth: "80px",
+            padding: "8px 14px",
+            borderRadius: "10px",
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            textAlign: "center",
+            fontSize: "13px",
+            fontWeight: "800",
+            color: "#475569",
+          }}
+        >
+          {page} / {totalPages}
+        </div>
+
+        <button
+          onClick={() => setPage(page + 1)}
+          disabled={page === totalPages}
+          style={{
+            padding: "8px 16px",
+            borderRadius: "10px",
+            border: "1px solid #e5e7eb",
+            background: page === totalPages ? "#f3f4f6" : "#27AE60",
+            color: page === totalPages ? "#9ca3af" : "#fff",
+            fontSize: "13px",
+            fontWeight: "700",
+            cursor: page === totalPages ? "not-allowed" : "pointer",
+            transition: "all .2s ease",
+            boxShadow:
+              page === totalPages ? "none" : "0 4px 12px rgba(39,174,96,.25)",
+          }}
+        >
+          Next →
+        </button>
+      </div>
     </>
   );
 };

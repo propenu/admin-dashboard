@@ -77,7 +77,7 @@ export default function AgriculturalFields({ back, next }) {
     const e = {};
     //if (!form.currency) e.currency = "Currency is required";
      if (!form.galleryFiles || form.galleryFiles.length < 5)
-       e.galleryFiles = "Upload at least Five image";
+       e.galleryFiles = "Upload at least 12 image";
     return e;
   };
 

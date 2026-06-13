@@ -6,7 +6,8 @@ import { useActivePropertySlice } from "../../UsePropertySlice/useActiveProperty
 import { deletePropertyGalleryImagesIndex } from "../../../../../../features/property/propertyService";
 import { toast } from "sonner";
 
-const MAX_FILES = 5;
+const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+const MAX_FILES = 12;
 const TARGET_KB = 200; // Each image will be compressed to ~200KB max
 const TARGET_BYTES = TARGET_KB * 1024;
 
@@ -108,25 +109,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
   
 
-// useEffect(() => {
-//   if (!form.gallery || !form.gallery.length) return;
 
-//   // 🔥 prevent overwrite if already user modified
-//   if (form.galleryFiles && form.galleryFiles.length > 0) return;
-
-//   // const serverImages = form.gallery.map((img) => ({
-//   //   ...img,
-//   // }));
-
-//   const serverImages = form.gallery.map((img) => ({
-//     preview: img.url,
-//     name: img.filename,
-//     key: img.key,
-//     source: "server", // 🔥 IMPORTANT
-//   }));
-
-//   updateFieldValue("galleryFiles", serverImages);
-// }, [form.gallery]);
 
 useEffect(() => {
   if (!form.gallery || !form.gallery.length) return;
@@ -144,48 +127,9 @@ useEffect(() => {
 }, [form.gallery]);
 
 
-  /* ── UPLOAD & COMPRESS ── */
-  // const handlePhotoUpload = async (e) => {
-  //   const files = Array.from(e.target.files || []);
-  //   if (!files.length) return;
+  
 
-  //   // Check slot availability
-  //   const existing = form.galleryFiles || [];
-  //   const slotsLeft = MAX_FILES - existing.length;
-  //   if (slotsLeft <= 0) {
-  //     alert(`Maximum ${MAX_FILES} photos allowed.`);
-  //     e.target.value = "";
-  //     return;
-  //   }
-
-  //   const filesToProcess = files.slice(0, slotsLeft);
-
-  //   setCompressing(true);
-  //   setProgress({ done: 0, total: filesToProcess.length });
-
-  //   const compressedFiles = [];
-
-  //   for (const file of filesToProcess) {
-  //     setCurrentFileName(file.name);
-  //     try {
-  //       const compressed = await compressImageToTarget(file);
-  //       compressedFiles.push(compressed);
-  //     } catch (err) {
-  //       console.error(`❌ Failed: ${file.name}`, err);
-  //       // Skip failed files — do NOT push originals (they may be huge)
-  //     }
-  //     setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
-  //   }
-
-  //   const updated = [...existing, ...compressedFiles].slice(0, MAX_FILES);
-
-
-  //   updateFieldValue("galleryFiles", updated);
-  //   setCompressing(false);
-  //   setCurrentFileName("");
-  //   setProgress({ done: 0, total: 0 });
-  //   e.target.value = "";
-  // };
+  
 
   const handlePhotoUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -207,21 +151,112 @@ useEffect(() => {
 
     const newItems = [];
 
+    // for (const file of filesToProcess) {
+    //   setCurrentFileName(file.name);
+
+    //   try {
+    //     const compressed = await compressImageToTarget(file);
+
+    //     // 🔥 IMPORTANT: store as structured object (like Next.js)
+    //     newItems.push({
+    //       file: compressed,
+    //       source: "local", // ✅ identify as new
+    //       name: compressed.name,
+    //       preview: URL.createObjectURL(compressed),
+    //     });
+    //   } catch (err) {
+    //     console.error(`❌ Failed: ${file.name}`, err);
+    //   }
+
+    //   setProgress((prev) => ({
+    //     ...prev,
+    //     done: prev.done + 1,
+    //   }));
+    // }
+
+    // 🔥 Keep existing + new structured items
+    
+
     for (const file of filesToProcess) {
+
+      // =========================
+      // DUPLICATE CHECK
+      // =========================
+      const duplicate = existing.some((item) => {
+
+  if (item.source === "server") {
+    return item.name === file.name;
+  }
+
+  if (item.source === "local") {
+    return (
+      item.originalName === file.name &&
+      item.originalSize === file.size &&
+      item.originalLastModified === file.lastModified
+    );
+  }
+
+  return false;
+});
+
+if (duplicate) {
+  toast.error(
+    `${file.name} has already been uploaded.`
+  );
+  continue;
+}
+
       setCurrentFileName(file.name);
 
       try {
-        const compressed = await compressImageToTarget(file);
 
-        // 🔥 IMPORTANT: store as structured object (like Next.js)
+
+        //const compressed = await compressImageToTarget(file);
+        const compressed = await compressImageToTarget(file);
+        // toast.success(
+        //   `${file.name}
+        //   ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`,
+        // );
+
+        // final size check
+        if (compressed.size > MAX_FILE_SIZE) {
+
+          toast.error(
+            `${file.name} could not be compressed below 1MB. Please choose another image.`
+          );
+
+          continue;
+        }
+
+        toast.success(
+          `${file.name}
+${(file.size / 1024).toFixed(0)} KB → ${(compressed.size / 1024).toFixed(0)} KB`,
+        );
+        // newItems.push({
+        //   file: compressed,
+        //   source: "local",
+        //   name: compressed.name,
+        //   preview: URL.createObjectURL(compressed),
+        // });
+        // newItems.push({
+        //   file: compressed,
+        //   source: "local",
+        //   name: compressed.name,
+        //   preview: URL.createObjectURL(compressed),
+        // });
+
         newItems.push({
           file: compressed,
-          source: "local", // ✅ identify as new
+          source: "local",
           name: compressed.name,
+          originalName: file.name,
+          originalSize: file.size,
+          originalLastModified: file.lastModified,
           preview: URL.createObjectURL(compressed),
         });
       } catch (err) {
-        console.error(`❌ Failed: ${file.name}`, err);
+        console.error(err);
+        toast.error(`Failed to compress ${file.name}`);
       }
 
       setProgress((prev) => ({
@@ -229,8 +264,8 @@ useEffect(() => {
         done: prev.done + 1,
       }));
     }
-
-    // 🔥 Keep existing + new structured items
+    
+    
     const updated = [...existing, ...newItems].slice(0, MAX_FILES);
 
     console.log("🔥 UPDATED galleryFiles:", updated);
@@ -419,11 +454,7 @@ const handleRemovePhoto = async (index) => {
                 key={index}
                 className="relative h-24 rounded-xl overflow-hidden border border-gray-200 shadow-sm"
               >
-                {/* <img
-                  src={url}
-                  alt={`preview-${index}`}
-                  className="w-full h-full object-cover"
-                /> */}
+                
 
                 {url ? (
                   <img

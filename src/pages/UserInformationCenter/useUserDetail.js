@@ -115,13 +115,31 @@ export const useUserSubscriptionHistory = (userId) =>
   });
 
 // ── Featured Projects ─────────────────────────────────────────────────────────
-export const useUserFeaturedProjects = (userId, type = "featured") =>
+// export const useUserFeaturedProjects = (userId, type = "featured") =>
+//   useQuery({
+//     queryKey: ["user-featured-projects", userId, type],
+//     queryFn: () =>
+//       getUserFeaturedProjects(userId, type).then(
+//         (r) => r.data.items || [],
+//       ),
+//     enabled: !!userId,
+//     staleTime: 5 * 60 * 1000,
+//   });
+
+export const useUserFeaturedProjects = (
+  userId,
+  type = "featured",
+  page = 1,
+  limit = 20,
+) =>
   useQuery({
-    queryKey: ["user-featured-projects", userId, type],
-    queryFn: () =>
-      getUserFeaturedProjects(userId, type).then(
-        (r) => r.data?.data || r.data || [],
-      ),
+    queryKey: ["user-featured-projects", userId, type, page],
+    queryFn: async () => {
+      const res = await getUserFeaturedProjects(userId, type, page, limit);
+
+      return res.data;
+    },
+
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
   });
@@ -162,17 +180,36 @@ export const useUserFeaturedProjectCounts = (userId) => {
 };
 
 // ── Properties (all categories) ──────────────────────────────────────────────
-export const useUserProperties = (userId, category = "residential") =>
+// export const useUserProperties = (userId, category = "residential") =>
+//   useQuery({
+//     queryKey: ["user-properties", userId, category],
+//     queryFn: () =>
+//       getUserProperties(userId, category).then(
+//         (r) => r.data?.items || r.data?.data || r.data || [],
+//       ),
+//     enabled: !!userId,
+//     staleTime: 5 * 60 * 1000,
+//   });
+
+
+export const useUserProperties = (
+  userId,
+  category = "residential",
+  page = 1,
+  limit = 20,
+) =>
   useQuery({
-    queryKey: ["user-properties", userId, category],
-    queryFn: () =>
-      getUserProperties(userId, category).then(
-        (r) => r.data?.items || r.data?.data || r.data || [],
-      ),
+    queryKey: ["user-properties", userId, category, page],
+
+    queryFn: async () => {
+      const res = await getUserProperties(userId, category, page, limit);
+
+      return res.data;
+    },
+
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
   });
-
 
 
   // ── Property Counts (All Categories) ─────────────────────────────────────────
