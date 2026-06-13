@@ -368,16 +368,24 @@ const FeaturedContent = ({ userId }) => {
 };
 
 const FeaturedProjectsSection = ({ userId, flat }) => {
-  const { data, isLoading } = useUserFeaturedProjects(userId, "featured");
-  const projects = Array.isArray(data)
-    ? data
-    : Array.isArray(data?.data)
-      ? data.data
-      : [];
 
-      const filteredProjects = projects.filter(
-        (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
-      );
+  // const { data, isLoading } = useUserFeaturedProjects(userId, "featured");
+  // const projects = Array.isArray(data)
+  //   ? data
+  //   : Array.isArray(data?.data)
+  //     ? data.data
+  //     : [];
+
+  //     const filteredProjects = projects.filter(
+  //       (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
+  //     );
+  const { data } = useUserFeaturedProjects(userId, "featured");
+
+  const projects = data?.items || [];
+
+  const filteredProjects = projects.filter(
+    (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
+  );
 
   if (flat) return <FeaturedContent userId={userId} />;
 
@@ -386,7 +394,8 @@ const FeaturedProjectsSection = ({ userId, flat }) => {
       title="Featured Projects"
       icon={Star}
       accent={C.warn}
-      badge={filteredProjects.length || undefined}
+      // badge={filteredProjects.length || undefined}
+      badge={data?.totalItems || undefined}
     >
       <FeaturedContent userId={userId} />
     </AccordionSection>
