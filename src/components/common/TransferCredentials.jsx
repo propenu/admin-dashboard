@@ -43,7 +43,7 @@ const ROLES = [
     icon: "💼",
   },
   {
-    label: "Sales Agent",
+    label: "Sales Executive",
     value: "sales_agent",
     color: "#3b82f6",
     bg: "#dbeafe",

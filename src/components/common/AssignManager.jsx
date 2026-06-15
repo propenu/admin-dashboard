@@ -753,7 +753,7 @@ export default function AssignManagerModal({ onClose }) {
 
               {/* Sales Agent field — has location filter inside dropdown */}
               <SearchField
-                label="Sales Agent"
+                label="Sales Exiutive"
                 roleQuery="sales_agent"
                 value={selectedAgent}
                 onChange={setSelectedAgent}

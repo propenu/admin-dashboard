@@ -344,7 +344,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               action: "openTranforCredentialsModal",
             },
             {
-              label: "Assign Agent",
+              label: "Assign Executive",
               icon: AgentIcon,
               key: "assign-agent",
               action: "openAssignAgentModal",
