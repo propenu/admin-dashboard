@@ -10,7 +10,7 @@ import {useUsers, useSearchUsers} from "./hook/useUserData";
 import { MobileCardView } from "./components/MobileCardView";
 import { DesktopTable } from "./components/DesktopTable";
 
-export default function Users() {
+export default function PropenuTeam() {
   // General filters
   const [search, setSearch] = useState("");
   const [filterAccountStatus, setFilterAccountStatus] = useState("");
@@ -21,7 +21,6 @@ export default function Users() {
   const { data: allUsers = [], isLoading, refetch } = useUsers();
   const { data: searchData = {} } = useSearchUsers(search);
   const [locationFilter, setLocationFilter] = useState(null);
-  const [selectedDate, setSelectedDate] = useState("");
 
   useEffect(() => {
     refetch();
@@ -33,7 +32,13 @@ export default function Users() {
 //const users = allUsers.filter((u) => u.roleName === "user");
 const users = allUsers.filter((u) => {
   if (filterRole === "all") {
-    return ["user", "builder","agent"].includes(u.roleName);
+    return [
+      "sales_manager",
+      "sales_agent",
+      "admin",
+      "accounts",
+      "customer_care",
+    ].includes(u.roleName);
   }
 
   return u.roleName === filterRole;
@@ -43,27 +48,11 @@ const filtered = useMemo(() => {
   const q = search.trim().toLowerCase();
 
   return users.filter((u) => {
-    // if (
-    //   q &&
-    //   !u.name?.toLowerCase().includes(q) &&
-    //   !u.phone?.includes(q) &&
-    //   !u.email?.toLowerCase().includes(q)
-    // )
     if (
       q &&
       !u.name?.toLowerCase().includes(q) &&
       !u.phone?.includes(q) &&
-      !u.email?.toLowerCase().includes(q) &&
-      !String(u._id || "")
-        .toLowerCase()
-        .includes(q) &&
-      !String(u.id || "")
-        .toLowerCase()
-        .includes(q) &&
-      !String(u.userId || "")
-        .toLowerCase()
-        .includes(q) &&
-      !new Date(u.createdAt).toLocaleDateString("en-CA").includes(q)
+      !u.email?.toLowerCase().includes(q)
     )
       return false;
 
@@ -145,8 +134,10 @@ const filtered = useMemo(() => {
         onRefresh={refetch}
       />
 
+     
       <StatCards stats={stats} />
 
+      
       <SearchFiltersPanel
         search={search}
         setSearch={setSearch}
@@ -164,7 +155,6 @@ const filtered = useMemo(() => {
         filterRole={filterRole}
         setFilterRole={setFilterRole}
         hasFilters={hasFilters}
-        selectedDate={selectedDate}
         clearAll={clearAll}
       />
 
@@ -177,7 +167,7 @@ const filtered = useMemo(() => {
           hasFilters={hasFilters}
           formatLocation={formatLocation}
           locQuery={locQuery}
-        />
+        /> 
         {/* ── Mobile Card View ── */}
         <MobileCardView
           filtered={filtered}

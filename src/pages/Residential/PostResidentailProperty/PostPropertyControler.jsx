@@ -16,12 +16,12 @@ import { getPropertyById } from "../../../services/Common/AllPropertyServices";
 import { getMyPropertyDrafts } from "../../../features/property/propertyService";
 import { Toaster } from "sonner";
 
-const STEPS = [
-  { label: "Basic Details", icon: "01" },
-  { label: "Location", icon: "02" },
-  { label: "Property Profile", icon: "03" },
-  { label: "Verify & Publish", icon: "04" },
-];
+// const STEPS = [
+//   { label: "Basic Details", icon: "01" },
+//   { label: "Location", icon: "02" },
+//   { label: "Property Profile", icon: "03" },
+//   { label: "Verify & Publish", icon: "04" },
+// ];
 
 export default function PropertyController() {
   const { id } = useParams();
@@ -33,7 +33,25 @@ export default function PropertyController() {
   const [isFetching, setIsFetching] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
 
-  
+
+
+  const userRole = localStorage.getItem("createdByBasedUserRole");
+
+
+  const STEPS =
+    userRole === "agent"
+      ? [
+          { label: "Basic Details", icon: "01" },
+          { label: "Location", icon: "02" },
+          { label: "Property Profile", icon: "03" },
+        ]
+      : [
+          { label: "Basic Details", icon: "01" },
+          { label: "Location", icon: "02" },
+          { label: "Property Profile", icon: "03" },
+          { label: "Verify & Publish", icon: "04" },
+        ];
+
 
 
   const setStepFromDraft = (draft) => {
@@ -359,7 +377,7 @@ export default function PropertyController() {
               next={handleNext}
             />
           )}
-          {step === 3 && (
+          {step === 3 &&  userRole !== "agent" && (
             <Step4VerifyPublish
               category={activeCategory}
               back={handleBack}

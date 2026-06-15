@@ -71,7 +71,8 @@ const HighlightProjectDetails = lazy(() =>
 );
 
 // Users
-const Users = lazy(() => import("./pages/users/users/Users.jsx"));
+const Partners = lazy(() => import("./pages/users/users/Users.jsx"));
+const PropenuTeamMembers = lazy(() => import("./pages/users/propenuTeam/PropenuTeam.jsx"));
 const Locations = lazy(() => import("./pages/Locations/LocationsPage.jsx"))
 const NotFound = lazy(() => import("./pages/NotFound"));
 const SignIn = lazy(() => import("./Auth/SignIn"));
@@ -284,7 +285,11 @@ function App() {
                 />
 
                 {/* Users */}
-                <Route path="/users" element={<Users />} />
+                <Route path="/partners" element={<Partners />} />
+                <Route
+                  path="/propenu-team-members"
+                  element={<PropenuTeamMembers />}
+                />
 
                 <Route path="/locations" element={<Locations />} />
 

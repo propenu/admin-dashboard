@@ -14,8 +14,14 @@ const PANTRY_TYPES = [
 
 const Pantry = ({ error }) => {
   const { form, updateFieldValue } = useActivePropertySlice();
-  const pantry = form.pantry || { type: "none", insidePremises: true, shared: false };
-
+  //const pantry = form.pantry || { type: "none", insidePremises: true, shared: false };
+  const pantry = form.pantry || {
+    type: "",
+    insidePremises: true,
+    shared: false,
+  };
+  const selectedLabel =
+    PANTRY_TYPES.find((o) => o.value === pantry.type)?.label || "Select Pantry";
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -36,7 +42,7 @@ const Pantry = ({ error }) => {
     updateFieldValue("pantry", { ...pantry, insidePremises: !pantry.insidePremises });
   };
 
-  const selectedLabel = PANTRY_TYPES.find((o) => o.value === pantry.type)?.label || "Select Pantry";
+  //const selectedLabel = PANTRY_TYPES.find((o) => o.value === pantry.type)?.label || "Select Pantry";
 
   return (
     <div className="space-y-3">

@@ -281,20 +281,47 @@ export default function CreateUserModal({ onClose }) {
   
 
   /* ── Handlers ── */
+  // const handleRequestOtp = async () => {
+  //   const ok = await trigger(["name", "email", "role"]);
+  //   if (!ok) return;
+  //   try {
+  //     setLoading(true);
+  //     await createRequestOtp(formData.email);
+  //     toast.success(`OTP sent to ${formData.email}`);
+  //     setStep(2);
+  //   } catch (err) {
+  //     toast.error(err.message || "Failed to send OTP");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+ 
+
   const handleRequestOtp = async () => {
     const ok = await trigger(["name", "email", "role"]);
     if (!ok) return;
+
     try {
       setLoading(true);
+
       await createRequestOtp(formData.email);
+
       toast.success(`OTP sent to ${formData.email}`);
       setStep(2);
     } catch (err) {
-      toast.error(err.message || "Failed to send OTP");
+      if (err?.message === "Account already registered. Please login.") {
+        toast.error(
+          "This email is already registered as an Owner, Builder, or Agent. Please use a new email address to create this role.",
+        );
+      } else {
+        toast.error(err.message || "Failed to send OTP");
+      }
     } finally {
       setLoading(false);
     }
   };
+
+
 
   const handleVerifyOtp = async () => {
     const finalOtp = otp.join("");

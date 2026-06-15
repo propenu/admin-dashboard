@@ -60,7 +60,7 @@ const ROLE_CONFIG = {
     statBorder: "border-[#27AE60]/08",
   },
   sales_agent: {
-    label: "Sales Agent",
+    label: "Sales Executive",
     shortLabel: "SA",
     icon: UserCheck,
     // accent: "#2563EB",

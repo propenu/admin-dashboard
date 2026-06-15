@@ -22,7 +22,6 @@ export const SearchFiltersPanel = ({
     filterRole, 
     setFilterRole,
     hasFilters,
-    
     clearAll
 }) => {
     return (
@@ -90,10 +89,11 @@ export const SearchFiltersPanel = ({
             onChange={setFilterRole}
             placeholder="Select Role"
             options={[
-              { value: "all", label: "All Users" },
-              { value: "user", label: "Owners" },
-              { value: "builder", label: "Builders" },
-              { value: "agent", label: "Agents" },
+              { value: "all", label: "All Team Members" },
+              { value: "sales_manager", label: "Sales Managers" },
+              { value: "sales_agent", label: "Sales Executives" },
+              { value: "accounts", label: "Accounts" },
+              { value: "customer_care", label: "Customer Care" },
             ]}
           />
 

@@ -299,11 +299,15 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         },
 
         {
-          label: "Users",
+          label: "Operations",
           icon: UserIcon,
-          key: "users",
+          key: "Operations",
           children: [
-            { path: "/users", label: "All Users", icon: AllUsersIcon },
+            {
+              path: "/propenu-team-members",
+              label: "All Team Members",
+              icon: AllUsersIcon,
+            },
             {
               path: "/dashboard/team-management",
               label: "Team Management",
@@ -316,11 +320,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
             },
             {
               path: "/sales-agents",
-              label: "Sales Executive",
+              label: "Sales Executives",
               icon: SalesAgentIcon,
             },
-            { path: "/builders", label: "Builders", icon: BuilderIcon },
-            { path: "/all-agents", label: "Agents", icon: AgentIcon },
+            // { path: "/builders", label: "Builders", icon: BuilderIcon },
+            // { path: "/all-agents", label: "Agents", icon: AgentIcon },
             { path: "/accounts", label: "Accounts", icon: AccountsIcon },
             {
               path: "/customercare",
@@ -347,6 +351,18 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
             },
           ],
         },
+
+        {
+          label: "Partners",
+          icon: UserIcon,
+          key: "partners",
+          children: [
+            { path: "/partners", label: "Partners", icon: AllUsersIcon },
+            { path: "/builders", label: "Builders", icon: BuilderIcon },
+            { path: "/all-agents", label: "Agents", icon: AgentIcon },
+          ],
+        },
+
         {
           label: "Subscriptions",
           icon: SubcriptinIcon,

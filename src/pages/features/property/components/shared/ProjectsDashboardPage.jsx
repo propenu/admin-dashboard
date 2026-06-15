@@ -757,27 +757,27 @@ function AnalyticsOverviewRow({
       border: "border-emerald-100",
       filter: "active",
     },
-    {
-      label: "Scheduled",
-      display: String(scheduledCount),
-      sub: `${pct(ov.scheduledProjects, total)}% of total`,
-      icon: Clock,
-      color: "text-amber-700",
-      iconBg: "bg-amber-50",
-      border: "border-amber-100",
-      filter: "scheduled",
-    },
+    // {
+    //   label: "Scheduled",
+    //   display: String(scheduledCount),
+    //   sub: `${pct(ov.scheduledProjects, total)}% of total`,
+    //   icon: Clock,
+    //   color: "text-amber-700",
+    //   iconBg: "bg-amber-50",
+    //   border: "border-amber-100",
+    //   filter: "scheduled",
+    // },
 
-    {
-      label: "Expiring Soon",
-      display: String(expiringSoonCount),
-      sub: `${pct(ov.expiringSoonProjects, total)}% of total`,
-      icon: AlertTriangle,
-      color: "text-rose-700",
-      iconBg: "bg-rose-50",
-      border: "border-rose-100",
-      filter: "expiringSoon",
-    },
+    // {
+    //   label: "Expiring Soon",
+    //   display: String(expiringSoonCount),
+    //   sub: `${pct(ov.expiringSoonProjects, total)}% of total`,
+    //   icon: AlertTriangle,
+    //   color: "text-rose-700",
+    //   iconBg: "bg-rose-50",
+    //   border: "border-rose-100",
+    //   filter: "expiringSoon",
+    // },
     {
       label: "Pending",
       display: String(ov.pendingProjects ?? 0),
@@ -1919,7 +1919,7 @@ useEffect(() => {
           </div>
 
           {/* Status */}
-          <div>
+          {/* <div>
             <p className="text-xs font-bold text-slate-600 mb-2">Status</p>
             <div className="flex flex-wrap gap-2">
               {STATUS_FILTERS.map((sf) => (
@@ -1933,7 +1933,7 @@ useEffect(() => {
                 </button>
               ))}
             </div>
-          </div>
+          </div> */}
 
           {/* Clear list filters */}
           {activeFiltersCount > 0 && (

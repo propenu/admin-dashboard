@@ -128,11 +128,20 @@ const CreatedBy = forwardRef(({ error }, ref) => {
   const hasActiveFilter =
     searchQuery || filters.state || filters.city || filters.pincode || filters.locality;
 
+  // const selectUser = (user) => {
+  //   setSelectedUser(user);
+  //   updateFieldValue("createdBy", user._id);
+  //   setDropdownOpen(false);
+  // };
+
   const selectUser = (user) => {
-    setSelectedUser(user);
-    updateFieldValue("createdBy", user._id);
-    setDropdownOpen(false);
-  };
+  setSelectedUser(user);
+  updateFieldValue("createdBy", user._id);
+  
+  localStorage.setItem("createdByBasedUserRole", user.role);
+
+  setDropdownOpen(false);
+};
 
   const clearSelection = () => {
     setSelectedUser(null);

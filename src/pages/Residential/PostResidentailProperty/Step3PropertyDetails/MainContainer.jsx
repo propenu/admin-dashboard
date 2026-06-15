@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { actions } from "../../../../store/newIndex";
 import { savePropertyData } from "../../../../store/common/propertyThunks";
+import { useNavigate } from "react-router-dom";
 
 import ResidentialFields from "../TypeSpecificFields/ResidentailFields/ResidentialFields";
 import AgriculturalFields from "../TypeSpecificFields/AgriculturalFields";
@@ -12,6 +13,7 @@ import { toast } from "sonner";
 
 export default function MainContainer({ next, back }) {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const category = useSelector((state) => state.ui.activeCategory);
 
   // Safety guard
@@ -98,7 +100,17 @@ export default function MainContainer({ next, back }) {
     }
     try {
       await dispatch(savePropertyData({ category, id: propertyId, step: "details" })).unwrap();
-      next();
+      const userRole = localStorage.getItem("createdByBasedUserRole");
+
+      if (userRole === "agent") {
+        localStorage.removeItem(`${category}_propertyId`);
+        localStorage.removeItem("activeCategory");
+        navigate(`/${category}`);
+
+      } else {
+        next(); 
+      }
+      // next();
     } catch (err) {
       toast.error("Failed to save property details");
     }
