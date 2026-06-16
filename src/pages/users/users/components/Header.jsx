@@ -11,7 +11,7 @@ export const Header = ({ IsLoading, users, filtered, onRefresh }) => {
           </div>
           <div>
             <h1 className="text-2xl font-extrabold text-[#27AE60] tracking-tight">
-              Parteners
+              User Management
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
               Monitor and manage your platform users

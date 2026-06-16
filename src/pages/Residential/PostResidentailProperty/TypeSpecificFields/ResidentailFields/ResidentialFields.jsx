@@ -81,8 +81,6 @@ export default function ResidentialFields({ back, next }) {
 
   const handleSubmit = async () => {
 
-    
-
     const validationErrors = validateAll();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -119,6 +117,8 @@ export default function ResidentialFields({ back, next }) {
     }
 
     setIsSubmitting(true);
+    
+    
     dispatch(
       savePropertyData({
         category: "residential",
@@ -138,9 +138,6 @@ export default function ResidentialFields({ back, next }) {
       .finally(() => setIsSubmitting(false));
 
 
-      console.log("STEP 3 PROPERTY ID =", propertyId);
-      console.log("CATEGORY =", category);
-      console.log("FORM _ID =", form._id);
   };
 
   return (

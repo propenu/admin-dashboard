@@ -285,7 +285,7 @@ function App() {
                 />
 
                 {/* Users */}
-                <Route path="/partners" element={<Partners />} />
+                <Route path="/users" element={<Partners />} />
                 <Route
                   path="/propenu-team-members"
                   element={<PropenuTeamMembers />}

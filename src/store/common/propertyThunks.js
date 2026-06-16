@@ -100,11 +100,21 @@ export const savePropertyData = createAsyncThunk(
         if (value !== "") { fd.append(key, value); }
       });
 
+      // console.log("📤 PROPERTY PATCH:", fd);
+
+      // console.log("STEP =", step);
+      // console.log("CATEGORY =", category);
+      // console.log("PROPERTY ID =", id);
+
       /* 3️⃣ STEP-BASED API ROUTING */
       let response;
       switch (step) {
         case "basic":
           response = await editPropertyBasic(category, id, stateForm);
+          console.log("//////////////// details ///////////////////////////");
+          console.log("DETAIL RESPONSE =", response.data);
+          console.log("completion.step =", response?.data?.data.completion?.step);
+          console.log("///////////////////////////////////////////");
           break;
 
         case "location": {
@@ -120,6 +130,10 @@ export const savePropertyData = createAsyncThunk(
             nearbyPlaces : stateForm.nearbyPlaces,
           };
           response = await editPropertyLocation(category, id, locationPayload);
+          console.log("//////////////// location ///////////////////////////");
+          console.log("DETAIL RESPONSE =", response.data);
+          console.log("completion.step =", response?.data?.data?.completion?.step);
+          console.log("///////////////////////////////////////////");
           break;
         }
 
@@ -128,18 +142,26 @@ export const savePropertyData = createAsyncThunk(
           if (!stateForm.status || !["active", "inactive", "archived"].includes(stateForm.status)) {
             fd.delete("status");
           }
-          for (let pair of fd.entries()) { console.log("FD =>", pair[0], pair[1]); }
+         // for (let pair of fd.entries()) { console.log("FD =>", pair[0], pair[1]); }
           response = await editPropertyDetails(category, id, fd);
+          console.log("//////////////// details ///////////////////////////")
+          console.log("DETAIL RESPONSE =", response.data);
+          console.log("completion.step =", response?.data?.data?.completion?.step);
+          console.log("///////////////////////////////////////////")
           break;
         }
 
         case "verification":
           // Debug — confirm what's being sent
-          console.log("📤 VERIFICATION PATCH:");
-          console.log("  verificationType →", resolvedDocType.toUpperCase());
-          for (let pair of fd.entries()) { console.log(" ", pair[0], "→", pair[1]); }
+         // console.log("📤 VERIFICATION PATCH:");
+         // console.log("  verificationType →", resolvedDocType.toUpperCase());
+          //for (let pair of fd.entries()) { console.log(" ", pair[0], "→", pair[1]); }
 
           response = await editPropertyVerification(category, id, fd);
+          console.log("//////////////// verification ///////////////////////////");
+          console.log("DETAIL RESPONSE =", response.data);
+          console.log("completion.step =", response?.data?.data?.completion?.step);
+          console.log("///////////////////////////////////////////");
           break;
 
         default:

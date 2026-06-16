@@ -22,6 +22,8 @@ export const SearchFiltersPanel = ({
     filterRole, 
     setFilterRole,
     hasFilters,
+    selectedDate,
+    setSelectedDate,
     clearAll
 }) => {
     return (
@@ -62,9 +64,9 @@ export const SearchFiltersPanel = ({
           </div>
         </div>
         {/* Row 3: Dropdown filters */}
-        <div className="flex flex-wrap gap-2.5 items-center">
-          <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
-            <Filter className="w-3.5 h-3.5" /> Filters
+        <div className="flex flex-wrap gap-1 items-center">
+          <div className="flex items-center gap-1 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+            <Filter className="w-3 h-3.5" /> Filters
           </div>
 
           {/* <FilterSelect
@@ -136,6 +138,17 @@ export const SearchFiltersPanel = ({
             ]}
           />
 
+          <div className="relative">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm
+               focus:outline-none focus:border-[#27AE60]
+               focus:ring-4 focus:ring-[#27AE60]/10"
+            />
+          </div>
+
           {hasFilters && (
             <button
               onClick={clearAll}
@@ -146,6 +159,14 @@ export const SearchFiltersPanel = ({
             </button>
           )}
         </div>
+
+        {selectedDate && (
+          <Tag
+            label={`Date: ${selectedDate}`}
+            onRemove={() => setSelectedDate("")}
+            color="green"
+          />
+        )}
 
         {/* Active filter tags summary */}
         {hasFilters && (

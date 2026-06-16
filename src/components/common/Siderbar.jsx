@@ -353,11 +353,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         },
 
         {
-          label: "Partners",
+          label: "Users",
           icon: UserIcon,
-          key: "partners",
+          key: "Users",
           children: [
-            { path: "/partners", label: "Partners", icon: AllUsersIcon },
+            { path: "/users", label: "All Users", icon: AllUsersIcon },
             { path: "/builders", label: "Builders", icon: BuilderIcon },
             { path: "/all-agents", label: "Agents", icon: AgentIcon },
           ],

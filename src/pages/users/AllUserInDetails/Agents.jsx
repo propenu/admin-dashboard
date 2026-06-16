@@ -12,6 +12,25 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+// const isProfileCompleted = (agent) => {
+//   const d = agent.agentDetails;
+
+//   return d && Object.keys(d).length > 0 && d.agencyName && d.avatar?.url;
+// };
+
+const isProfileCompleted = (agent) => {
+  const d = agent.agentDetails || {};
+
+  return (
+    Object.keys(d).length > 0 &&
+    d.name &&
+    d.agencyName &&
+    d.avatar?.url &&
+    d.city &&
+    d.locality
+  );
+};
+
 // ─── helpers ──────────────────────────────────────────────────────────────
 const getInitials = (name = "") =>
   name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -55,6 +74,8 @@ const STATUS_CONFIG = {
 
 const getStatusConfig = (status) =>
   STATUS_CONFIG[status?.toLowerCase()] || STATUS_CONFIG["pending"];
+
+
 
 // ─── Verification Modal ────────────────────────────────────────────────────
 const VerificationModal = ({ agent, onClose, onSave }) => {
@@ -137,24 +158,42 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus }) => {
   const statusCfg = getStatusConfig(agent.verificationStatus);
   const StatusIcon = statusCfg.icon;
   const palette = avatarShades[0];
+  const profileCompleted = isProfileCompleted(agent);
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)" }}
+      style={{
+        backgroundColor: "rgba(0,0,0,0.5)",
+        backdropFilter: "blur(6px)",
+      }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[92vh] flex flex-col" style={{ animation: "modalIn 0.3s ease both" }}>
-
+      <div
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[92vh] flex flex-col"
+        style={{ animation: "modalIn 0.3s ease both" }}
+      >
         {/* Cover Image */}
         <div className="relative h-36 shrink-0 overflow-hidden bg-gradient-to-br from-[#27AE60] to-[#1a9e54]">
           {d.coverImage?.url ? (
-            <img src={d.coverImage.url} alt="cover" className="w-full h-full object-cover" />
+            <img
+              src={d.coverImage.url}
+              alt="cover"
+              className="w-full h-full object-cover"
+            />
           ) : (
-            <div className="w-full h-full" style={{ background: "linear-gradient(135deg,#27AE60,#1a9e54,#2ecc71)" }} />
+            <div
+              className="w-full h-full"
+              style={{
+                background: "linear-gradient(135deg,#27AE60,#1a9e54,#2ecc71)",
+              }}
+            />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-          <button onClick={onClose} className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 flex items-center justify-center transition-all">
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 flex items-center justify-center transition-all"
+          >
             <X size={15} />
           </button>
         </div>
@@ -166,23 +205,35 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus }) => {
             <div className="flex items-end  gap-4 z-20 -mt-0">
               <div className="w-20 h-20  rounded-2xl border-4 border-white shadow-xl overflow-hidden shrink-0 bg-white">
                 {d.avatar?.url ? (
-                  <img src={d.avatar.url} alt="avatar" className="w-full h-full object-cover" />
+                  <img
+                    src={d.avatar.url}
+                    alt="avatar"
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <div className={`w-full h-full ${palette.bg} ${palette.text} flex items-center justify-center text-2xl font-bold`}>
+                  <div
+                    className={`w-full h-full ${palette.bg} ${palette.text} flex items-center justify-center text-2xl font-bold`}
+                  >
                     {getInitials(agent.name)}
                   </div>
                 )}
               </div>
               <div className="pb-2 flex-1 min-w-0">
-                <h2 className="text-gray-800 font-black text-xl leading-tight truncate">{capitalize(agent.name)}</h2>
+                <h2 className="text-gray-800 font-black text-xl leading-tight truncate">
+                  {capitalize(agent.name)}
+                </h2>
                 {d.agencyName && (
                   <div className="flex items-center gap-1.5 mt-1">
                     <Building2 size={12} className="text-[#27AE60]" />
-                    <span className="text-[#27AE60] text-xs font-semibold">{d.agencyName}</span>
+                    <span className="text-[#27AE60] text-xs font-semibold">
+                      {d.agencyName}
+                    </span>
                   </div>
                 )}
               </div>
-              <div className={`shrink-0 mb-2 inline-flex items-center gap-1.5 ${statusCfg.badgeBg} border ${statusCfg.badgeBorder} ${statusCfg.badgeText} text-[10px] font-black tracking-widest uppercase px-3 py-1.5 rounded-full`}>
+              <div
+                className={`shrink-0 mb-2 inline-flex items-center gap-1.5 ${statusCfg.badgeBg} border ${statusCfg.badgeBorder} ${statusCfg.badgeText} text-[10px] font-black tracking-widest uppercase px-3 py-1.5 rounded-full`}
+              >
                 <StatusIcon size={11} />
                 {statusCfg.label}
               </div>
@@ -192,7 +243,9 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus }) => {
           <div className="px-6 space-y-5 pb-6">
             {/* Bio */}
             {d.bio && (
-              <p className="text-gray-500 text-sm leading-relaxed border-l-2 border-[#27AE60]/30 pl-3">{d.bio}</p>
+              <p className="text-gray-500 text-sm leading-relaxed border-l-2 border-[#27AE60]/30 pl-3">
+                {d.bio}
+              </p>
             )}
 
             <div className="h-px bg-gradient-to-r from-[#27AE60]/20 to-transparent" />
@@ -200,14 +253,35 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus }) => {
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { icon: <TrendingUp size={14} />, label: "Experience", value: d.experienceYears ? `${d.experienceYears} yrs` : "—" },
-                { icon: <Star size={14} />, label: "Deals Closed", value: d.dealsClosed ?? "—" },
-                { icon: <Home size={14} />, label: "Properties", value: d.stats?.totalProperties ?? "—" },
+                {
+                  icon: <TrendingUp size={14} />,
+                  label: "Experience",
+                  value: d.experienceYears ? `${d.experienceYears} yrs` : "—",
+                },
+                {
+                  icon: <Star size={14} />,
+                  label: "Deals Closed",
+                  value: d.dealsClosed ?? "—",
+                },
+                {
+                  icon: <Home size={14} />,
+                  label: "Properties",
+                  value: d.stats?.totalProperties ?? "—",
+                },
               ].map((s) => (
-                <div key={s.label} className="bg-[#f0fdf4] border border-[#27AE60]/12 rounded-2xl p-3 text-center">
-                  <div className="w-7 h-7 rounded-xl bg-white border border-[#27AE60]/15 flex items-center justify-center text-[#27AE60] mx-auto mb-2">{s.icon}</div>
-                  <p className="text-lg font-black text-[#27AE60] leading-none">{s.value}</p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">{s.label}</p>
+                <div
+                  key={s.label}
+                  className="bg-[#f0fdf4] border border-[#27AE60]/12 rounded-2xl p-3 text-center"
+                >
+                  <div className="w-7 h-7 rounded-xl bg-white border border-[#27AE60]/15 flex items-center justify-center text-[#27AE60] mx-auto mb-2">
+                    {s.icon}
+                  </div>
+                  <p className="text-lg font-black text-[#27AE60] leading-none">
+                    {s.value}
+                  </p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                    {s.label}
+                  </p>
                 </div>
               ))}
             </div>
@@ -217,21 +291,56 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus }) => {
             {/* Contact & location */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
-                { icon: <Mail size={13} />, label: "Email", value: agent.email },
-                { icon: <Phone size={13} />, label: "Phone", value: agent.phone },
-                { icon: <MapPin size={13} />, label: "City", value: agent.city || d.city },
-                { icon: <Hash size={13} />, label: "Pincode", value: agent.pincode },
-                { icon: <MapPin size={13} />, label: "Locality", value: agent.locality },
-                { icon: <MapPin size={13} />, label: "State", value: agent.state },
-              ].filter((r) => r.value).map((row) => (
-                <div key={row.label} className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
-                  <div className="w-7 h-7 rounded-lg bg-white border border-[#27AE60]/15 text-[#27AE60] flex items-center justify-center shrink-0">{row.icon}</div>
-                  <div>
-                    <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{row.label}</p>
-                    <p className="text-sm font-semibold text-gray-700 truncate">{row.value}</p>
+                {
+                  icon: <Mail size={13} />,
+                  label: "Email",
+                  value: agent.email,
+                },
+                {
+                  icon: <Phone size={13} />,
+                  label: "Phone",
+                  value: agent.phone,
+                },
+                {
+                  icon: <MapPin size={13} />,
+                  label: "City",
+                  value: agent.city || d.city,
+                },
+                {
+                  icon: <Hash size={13} />,
+                  label: "Pincode",
+                  value: agent.pincode,
+                },
+                {
+                  icon: <MapPin size={13} />,
+                  label: "Locality",
+                  value: agent.locality,
+                },
+                {
+                  icon: <MapPin size={13} />,
+                  label: "State",
+                  value: agent.state,
+                },
+              ]
+                .filter((r) => r.value)
+                .map((row) => (
+                  <div
+                    key={row.label}
+                    className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100"
+                  >
+                    <div className="w-7 h-7 rounded-lg bg-white border border-[#27AE60]/15 text-[#27AE60] flex items-center justify-center shrink-0">
+                      {row.icon}
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
+                        {row.label}
+                      </p>
+                      <p className="text-sm font-semibold text-gray-700 truncate">
+                        {row.value}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
 
             <div className="h-px bg-gradient-to-r from-[#27AE60]/20 to-transparent" />
@@ -242,11 +351,17 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus }) => {
                 <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Award size={13} className="text-blue-500" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">License</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">
+                      License
+                    </p>
                   </div>
-                  <p className="text-sm font-black text-gray-700">{d.licenseNumber}</p>
+                  <p className="text-sm font-black text-gray-700">
+                    {d.licenseNumber}
+                  </p>
                   {d.licenseValidTill && (
-                    <p className="text-[10px] text-gray-400 mt-1">Valid till {formatDate(d.licenseValidTill)}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Valid till {formatDate(d.licenseValidTill)}
+                    </p>
                   )}
                 </div>
               )}
@@ -254,10 +369,20 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus }) => {
                 <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Shield size={13} className="text-purple-500" />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-purple-500">RERA</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-purple-500">
+                      RERA
+                    </p>
                   </div>
-                  <p className="text-sm font-black text-gray-700">{d.rera.reraAgentId}</p>
-                  <p className="text-[10px] mt-1 font-bold">{d.rera.isVerified ? <span className="text-[#27AE60]">✓ Verified</span> : <span className="text-amber-500">Unverified</span>}</p>
+                  <p className="text-sm font-black text-gray-700">
+                    {d.rera.reraAgentId}
+                  </p>
+                  <p className="text-[10px] mt-1 font-bold">
+                    {d.rera.isVerified ? (
+                      <span className="text-[#27AE60]">✓ Verified</span>
+                    ) : (
+                      <span className="text-amber-500">Unverified</span>
+                    )}
+                  </p>
                 </div>
               )}
             </div>
@@ -269,11 +394,18 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus }) => {
                   <div>
                     <div className="flex items-center gap-1.5 mb-2">
                       <Languages size={12} className="text-[#27AE60]" />
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Languages</p>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        Languages
+                      </p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {d.languages.map((l) => (
-                        <span key={l} className="px-2.5 py-1 rounded-full bg-[#f0fdf4] border border-[#27AE60]/20 text-[#27AE60] text-[10px] font-bold uppercase tracking-wider">{l}</span>
+                        <span
+                          key={l}
+                          className="px-2.5 py-1 rounded-full bg-[#f0fdf4] border border-[#27AE60]/20 text-[#27AE60] text-[10px] font-bold uppercase tracking-wider"
+                        >
+                          {l}
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -282,11 +414,18 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus }) => {
                   <div>
                     <div className="flex items-center gap-1.5 mb-2">
                       <MapPin size={12} className="text-[#27AE60]" />
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Areas Served</p>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        Areas Served
+                      </p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {d.areasServed.map((a) => (
-                        <span key={a} className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold">{a}</span>
+                        <span
+                          key={a}
+                          className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-bold"
+                        >
+                          {a}
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -304,12 +443,35 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus }) => {
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 flex gap-3 shrink-0">
-          <button onClick={onClose} className="flex-1 py-3 rounded-2xl border-2 border-gray-200 text-gray-500 text-sm font-bold hover:bg-gray-50 transition-all">Close</button>
           <button
+            onClick={onClose}
+            className="flex-1 py-3 rounded-2xl border-2 border-gray-200 text-gray-500 text-sm font-bold hover:bg-gray-50 transition-all"
+          >
+            Close
+          </button>
+          {/* <button
             onClick={() => { onClose(); setTimeout(() => onEditStatus(agent), 150); }}
             className="flex-1 py-3 rounded-2xl bg-[#27AE60] text-white text-sm font-black shadow-[0_6px_20px_rgba(39,174,96,0.3)] hover:bg-[#219653] active:scale-95 transition-all flex items-center justify-center gap-2"
           >
             <Shield size={14} /> Edit Verification
+          </button> */}
+          <button
+            disabled={!profileCompleted}
+            onClick={() => {
+              onClose();
+              setTimeout(() => onEditStatus(agent), 150);
+            }}
+            className={`flex-1 py-3 rounded-2xl text-white text-sm font-black
+
+    ${
+      profileCompleted
+        ? "bg-[#27AE60] hover:bg-[#219653]"
+        : "bg-gray-300 cursor-not-allowed"
+    }
+  `}
+          >
+            <Shield size={14} />
+            {profileCompleted ? "Edit Verification" : "Profile Incomplete"}
           </button>
         </div>
       </div>
@@ -323,23 +485,36 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
   const palette = avatarShades[index % avatarShades.length];
   const statusCfg = getStatusConfig(agent.verificationStatus);
   const StatusIcon = statusCfg.icon;
+  const profileCompleted = isProfileCompleted(agent);
 
   return (
     <div
       className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_12px_40px_rgba(39,174,96,0.13)] hover:-translate-y-1.5 hover:border-[#27AE60]/25 transition-all duration-300 ease-out  group flex flex-col"
-      style={{ animation: "cardIn 0.45s ease both", animationDelay: `${index * 80}ms` }}
+      style={{
+        animation: "cardIn 0.45s ease both",
+        animationDelay: `${index * 80}ms`,
+      }}
     >
       {/* Cover */}
       <div className="relative h-28 overflow-hidden shrink-0">
         {d.coverImage?.url ? (
-          <img src={d.coverImage.url} alt="cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <img
+            src={d.coverImage.url}
+            alt="cover"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
         ) : (
-          <div className="w-full h-full" style={{ background: `linear-gradient(135deg, #27AE60${index % 2 ? "cc" : "99"}, #1a9e54)` }} />
+          <div
+            className="w-full h-full"
+            
+          />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
 
         {/* Status badge top-right */}
-        <div className={`absolute top-2.5 right-2.5 inline-flex items-center gap-1 ${statusCfg.badgeBg} backdrop-blur-sm border ${statusCfg.badgeBorder} ${statusCfg.badgeText} text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-full`}>
+        <div
+          className={`absolute top-2.5 right-2.5 inline-flex items-center gap-1 ${statusCfg.badgeBg} backdrop-blur-sm border ${statusCfg.badgeBorder} ${statusCfg.badgeText} text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-full`}
+        >
           <StatusIcon size={9} />
           {statusCfg.label}
         </div>
@@ -350,19 +525,29 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
         <div className="flex items-center gap-3 z-20 -mt-10">
           <div className="w-14 h-14 rounded-xl border-[3px] border-white shadow-md overflow-hidden shrink-0 bg-white">
             {d.avatar?.url ? (
-              <img src={d.avatar.url} alt="avatar" className="w-full h-full object-cover" />
+              <img
+                src={d.avatar.url}
+                alt="avatar"
+                className="w-full h-full object-cover"
+              />
             ) : (
-              <div className={`w-full h-full ${palette.bg} ${palette.text} flex items-center justify-center text-base font-black`}>
+              <div
+                className={`w-full h-full ${palette.bg} ${palette.text} flex items-center justify-center text-base font-black`}
+              >
                 {getInitials(agent.name)}
               </div>
             )}
           </div>
           <div className="min-w-0 pt-7">
-            <h2 className="text-gray-800 font-black text-[14px] truncate leading-tight">{capitalize(agent.name)}</h2>
+            <h2 className="text-gray-800 font-black text-[14px] truncate leading-tight">
+              {capitalize(agent.name)}
+            </h2>
             {d.agencyName && (
               <div className="flex items-center gap-1 mt-0.5">
                 <Building2 size={10} className="text-[#27AE60] shrink-0" />
-                <span className="text-[#27AE60] text-[10px] font-bold truncate">{d.agencyName}</span>
+                <span className="text-[#27AE60] text-[10px] font-bold truncate">
+                  {d.agencyName}
+                </span>
               </div>
             )}
           </div>
@@ -373,14 +558,35 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
         {/* Quick stats */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { icon: <Briefcase size={10} />, label: "Exp", value: d.experienceYears ? `${d.experienceYears}y` : "—" },
-            { icon: <Star size={10} />, label: "Deals", value: d.dealsClosed ?? "—" },
-            { icon: <Home size={10} />, label: "Props", value: d.stats?.publishedCount ?? "—" },
+            {
+              icon: <Briefcase size={10} />,
+              label: "Exp",
+              value: d.experienceYears ? `${d.experienceYears}y` : "—",
+            },
+            {
+              icon: <Star size={10} />,
+              label: "Deals",
+              value: d.dealsClosed ?? "—",
+            },
+            {
+              icon: <Home size={10} />,
+              label: "Props",
+              value: d.stats?.publishedCount ?? "—",
+            },
           ].map((s) => (
-            <div key={s.label} className="text-center bg-[#f8fffe] border border-[#27AE60]/08 rounded-xl py-2">
-              <div className="flex items-center justify-center gap-0.5 text-[#27AE60] mb-0.5">{s.icon}</div>
-              <p className="text-xs font-black text-gray-700 leading-none">{s.value}</p>
-              <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{s.label}</p>
+            <div
+              key={s.label}
+              className="text-center bg-[#f8fffe] border border-[#27AE60]/08 rounded-xl py-2"
+            >
+              <div className="flex items-center justify-center gap-0.5 text-[#27AE60] mb-0.5">
+                {s.icon}
+              </div>
+              <p className="text-xs font-black text-gray-700 leading-none">
+                {s.value}
+              </p>
+              <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                {s.label}
+              </p>
             </div>
           ))}
         </div>
@@ -392,7 +598,9 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
               <div className="w-6 h-6 rounded-lg bg-[#f0faf5] border border-[#27AE60]/12 text-[#27AE60] flex items-center justify-center shrink-0">
                 <Mail size={11} />
               </div>
-              <span className="text-gray-500 text-[11px] truncate">{agent.email}</span>
+              <span className="text-gray-500 text-[11px] truncate">
+                {agent.email}
+              </span>
             </div>
           )}
           {agent.phone && (
@@ -409,7 +617,9 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
                 <MapPin size={11} />
               </div>
               <span className="text-gray-500 text-[11px] truncate">
-                {[agent.locality, agent.city, agent.state].filter(Boolean).join(", ")}
+                {[agent.locality, agent.city, agent.state]
+                  .filter(Boolean)
+                  .join(", ")}
               </span>
             </div>
           )}
@@ -419,11 +629,29 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
         {d.languages?.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {d.languages.slice(0, 3).map((l) => (
-              <span key={l} className="px-2 py-0.5 rounded-full bg-[#f0fdf4] border border-[#27AE60]/15 text-[#27AE60] text-[9px] font-bold uppercase">{l}</span>
+              <span
+                key={l}
+                className="px-2 py-0.5 rounded-full bg-[#f0fdf4] border border-[#27AE60]/15 text-[#27AE60] text-[9px] font-bold uppercase"
+              >
+                {l}
+              </span>
             ))}
             {d.languages.length > 3 && (
-              <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold">+{d.languages.length - 3}</span>
+              <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-400 text-[9px] font-bold">
+                +{d.languages.length - 3}
+              </span>
             )}
+          </div>
+        )}
+        {!profileCompleted && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <h3 className="text-amber-700 text-sm font-bold">
+              Profile Incomplete
+            </h3>
+
+            <p className="text-xs text-amber-600 mt-1">
+              Contact agent to fill profile details before approval.
+            </p>
           </div>
         )}
 
@@ -437,10 +665,29 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
           </button>
 
           {/* Edit status */}
-          <button
+          {/* <button
             onClick={() => onEditStatus(agent)}
             className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 hover:text-[#27AE60] hover:bg-[#f0faf5] hover:border-[#27AE60]/20 flex items-center justify-center transition-all active:scale-90"
             title="Edit verification status"
+          >
+            <Shield size={13} />
+          </button> */}
+          <button
+            disabled={!profileCompleted}
+            onClick={() => onEditStatus(agent)}
+            className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all
+
+    ${
+      profileCompleted
+        ? "bg-gray-50 text-gray-400 hover:text-[#27AE60] hover:bg-[#f0faf5]"
+        : "bg-gray-200 text-gray-300 cursor-not-allowed"
+    }
+  `}
+            title={
+              profileCompleted
+                ? "Edit verification status"
+                : "Profile incomplete"
+            }
           >
             <Shield size={13} />
           </button>

@@ -702,40 +702,66 @@ export default function ResidentialCard({ property, userRole }) {
   const totalLeads =
     typeof leadsData?.count === "number" ? leadsData.count : leads.length;
 
+  // const getDocStatus = () => {
+  //   const docs = property?.verificationDocuments || [];
+  //   if (docs.length === 0)
+  //     return {
+  //       label: "No Docs",
+  //       color: "text-slate-500 bg-slate-100",
+  //       icon: AlertCircle,
+  //     };
+  //   if (docs.some((d) => d.status === "rejected"))
+  //     return {
+  //       label: "Rejected",
+  //       color: "text-red-600 bg-red-50",
+  //       icon: AlertCircle,
+  //     };
+  //   if (docs.some((d) => d.status === "pending"))
+  //     return {
+  //       label: "Pending",
+  //       color: "text-amber-600 bg-amber-50",
+  //       icon: Clock,
+  //     };
+  //   if (docs.every((d) => d.status === "verified"))
+  //     return {
+  //       label: "Verified",
+  //       color: "text-green-600 bg-green-50",
+  //       icon: FileCheck,
+  //     };
+  //   return { label: "Draft", color: "text-blue-600 bg-blue-50", icon: Clock };
+  // };
+
   const getDocStatus = () => {
-    const docs = property?.verificationDocuments || [];
-    if (docs.length === 0)
-      return {
-        label: "No Docs",
-        color: "text-slate-500 bg-slate-100",
-        icon: AlertCircle,
-      };
-    if (docs.some((d) => d.status === "rejected"))
-      return {
-        label: "Rejected",
-        color: "text-red-600 bg-red-50",
-        icon: AlertCircle,
-      };
-    if (docs.some((d) => d.status === "pending"))
-      return {
-        label: "Pending",
-        color: "text-amber-600 bg-amber-50",
-        icon: Clock,
-      };
-    if (docs.every((d) => d.status === "verified"))
-      return {
-        label: "Verified",
-        color: "text-green-600 bg-green-50",
-        icon: FileCheck,
-      };
-    return { label: "Draft", color: "text-blue-600 bg-blue-50", icon: Clock };
+    switch (property?.status) {
+      case "active":
+        return {
+          label: "Verified",
+          color: "text-green-600 bg-green-50",
+          icon: FileCheck,
+        };
+
+      case "pending":
+        return {
+          label: "Pending",
+          color: "text-amber-600 bg-amber-50",
+          icon: Clock,
+        };
+
+      case "draft":
+      default:
+        return {
+          label: "Draft",
+          color: "text-slate-600 bg-slate-100",
+          icon: AlertCircle,
+        };
+    }
   };
 
   const statusInfo = getDocStatus();
   const completion = property?.completion?.percent || 0;
-  const isPendingReview = property?.verificationDocuments?.some(
-    (d) => d.status === "pending",
-  );
+  const isCompleted = property?.completion?.percent
+
+  const isPendingReview = property?.status === "pending";
 
   const downloadCSV = () => {
     const rows = leads.map((lead, i) => ({
@@ -789,7 +815,13 @@ export default function ResidentialCard({ property, userRole }) {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             style={{ minHeight: "120px" }}
           />
-
+          {isCompleted === 70 && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <span className="text-[#27AE60] text-xs font-bold rotate-[-20deg]">
+                This is aget property 
+              </span>
+            </div>
+          )}
           {/* Doc status badge */}
           <div
             className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase flex items-center gap-0.5 ${statusInfo.color}`}
@@ -924,7 +956,9 @@ export default function ResidentialCard({ property, userRole }) {
                 {leadsLoading ? "..." : totalLeads}
               </button>
 
-              {isPendingReview && UserRoleName === "super_admin" ? (
+              {isPendingReview &&
+              UserRoleName === "super_admin" &&
+              isCompleted === 80 ? (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

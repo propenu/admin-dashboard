@@ -21,6 +21,7 @@ export default function PropenuTeam() {
   const { data: allUsers = [], isLoading, refetch } = useUsers();
   const { data: searchData = {} } = useSearchUsers(search);
   const [locationFilter, setLocationFilter] = useState(null);
+  const [selectedDate, setSelectedDate] = useState("");
 
   useEffect(() => {
     refetch();
@@ -68,6 +69,15 @@ const filtered = useMemo(() => {
 
     if (filterKycStatus && u.kyc?.status !== filterKycStatus) return false;
 
+
+    if (selectedDate) {
+      const userDate = new Date(u.createdAt).toISOString().split("T")[0];
+
+      if (userDate !== selectedDate) return false;
+    }
+
+
+
     return true;
   });
 }, [
@@ -102,7 +112,9 @@ const filtered = useMemo(() => {
     filterKycStatus ||
     filterPhoneVerified ||
     filterIsActive ||
-    locationFilter;
+    locationFilter || 
+    selectedDate;
+
 
   const clearAll = () => {
     setSearch("");
@@ -112,6 +124,7 @@ const filtered = useMemo(() => {
     setFilterIsActive("");
     setLocationFilter(null);
     setFilterRole("user"); 
+    setSelectedDate("");
   }; 
 
   
@@ -155,6 +168,8 @@ const filtered = useMemo(() => {
         filterRole={filterRole}
         setFilterRole={setFilterRole}
         hasFilters={hasFilters}
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
         clearAll={clearAll}
       />
 

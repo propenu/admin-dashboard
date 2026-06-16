@@ -137,7 +137,6 @@ const CreatedBy = forwardRef(({ error }, ref) => {
   const selectUser = (user) => {
   setSelectedUser(user);
   updateFieldValue("createdBy", user._id);
-  
   localStorage.setItem("createdByBasedUserRole", user.role);
 
   setDropdownOpen(false);

@@ -101,12 +101,11 @@ export default function MainContainer({ next, back }) {
     try {
       await dispatch(savePropertyData({ category, id: propertyId, step: "details" })).unwrap();
       const userRole = localStorage.getItem("createdByBasedUserRole");
-
       if (userRole === "agent") {
         localStorage.removeItem(`${category}_propertyId`);
         localStorage.removeItem("activeCategory");
         navigate(`/${category}`);
-
+      
       } else {
         next(); 
       }

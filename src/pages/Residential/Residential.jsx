@@ -94,14 +94,16 @@ export default function Commercial() {
     return () => observer.disconnect();
   }, [hasNextPage, fetchNextPage, isFetchingNextPage]);
 
-  const getVerificationStatus = (property) => {
-    const docs = property.verificationDocuments || [];
-    if (docs.length === 0) return "none";
-    if (docs.some((doc) => doc.status === "rejected")) return "rejected";
-    if (docs.some((doc) => doc.status === "pending")) return "pending";
-    if (docs.every((doc) => doc.status === "verified")) return "verified";
-    return "none";
-  };
+  // const getVerificationStatus = (property) => {
+  //   const docs = property.verificationDocuments || [];
+  //   if (docs.length === 0) return "none";
+  //   if (docs.some((doc) => doc.status === "rejected")) return "rejected";
+  //   if (docs.some((doc) => doc.status === "pending")) return "pending";
+  //   if (docs.every((doc) => doc.status === "verified")) return "verified";
+  //   return "none";
+  // };
+
+
 
   useEffect(() => {
     if (!properties || properties.length === 0) {
@@ -145,37 +147,69 @@ export default function Commercial() {
     setLocations(items);
   };
 
+  // const { verifiedCount, pendingCount, draftCount } = useMemo(() => {
+  //   let verified = 0,
+  //     pending = 0,
+  //     draft = 0;
+  //   properties.forEach((p) => {
+  //     const s = getVerificationStatus(p);
+  //     if (s === "verified") verified++;
+  //     else if (s === "pending") pending++;
+  //     else draft++;
+  //   });
+  //   return {
+  //     verifiedCount: verified,
+  //     pendingCount: pending,
+  //     draftCount: draft,
+  //   };
+  // }, [properties]);
+
+  // const visibleProperties = useMemo(() => {
+  //   return properties.filter((p) => {
+  //     const status = getVerificationStatus(p);
+  //     let matchesTab = false;
+  //     if (activeTab === "verified") matchesTab = status === "verified";
+  //     else if (activeTab === "pending") matchesTab = status === "pending";
+  //     else matchesTab = status === "none" || status === "rejected";
+
+  //     const matchesLocation = selectedLocation
+  //       ? p.city?.trim() === selectedLocation
+  //       : true;
+  //     return matchesTab && matchesLocation;
+  //   });
+  // }, [properties, activeTab, selectedLocation]);
+
+
   const { verifiedCount, pendingCount, draftCount } = useMemo(() => {
-    let verified = 0,
-      pending = 0,
-      draft = 0;
-    properties.forEach((p) => {
-      const s = getVerificationStatus(p);
-      if (s === "verified") verified++;
-      else if (s === "pending") pending++;
-      else draft++;
-    });
     return {
-      verifiedCount: verified,
-      pendingCount: pending,
-      draftCount: draft,
+      verifiedCount: properties.filter((p) => p.status === "active").length,
+
+      pendingCount: properties.filter((p) => p.status === "pending").length,
+
+      draftCount: properties.filter((p) => p.status === "draft").length,
     };
   }, [properties]);
 
   const visibleProperties = useMemo(() => {
     return properties.filter((p) => {
-      const status = getVerificationStatus(p);
       let matchesTab = false;
-      if (activeTab === "verified") matchesTab = status === "verified";
-      else if (activeTab === "pending") matchesTab = status === "pending";
-      else matchesTab = status === "none" || status === "rejected";
+
+      if (activeTab === "verified") {
+        matchesTab = p.status === "active";
+      } else if (activeTab === "pending") {
+        matchesTab = p.status === "pending";
+      } else {
+        matchesTab = p.status === "draft";
+      }
 
       const matchesLocation = selectedLocation
         ? p.city?.trim() === selectedLocation
         : true;
+
       return matchesTab && matchesLocation;
     });
   }, [properties, activeTab, selectedLocation]);
+
 
   const deleteMutation = useMutation({
     mutationFn: (id) => deleteResidential(id),

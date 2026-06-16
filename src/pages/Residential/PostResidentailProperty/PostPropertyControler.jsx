@@ -33,10 +33,7 @@ export default function PropertyController() {
   const [isFetching, setIsFetching] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
 
-
-
   const userRole = localStorage.getItem("createdByBasedUserRole");
-
 
   const STEPS =
     userRole === "agent"
@@ -51,8 +48,6 @@ export default function PropertyController() {
           { label: "Property Profile", icon: "03" },
           { label: "Verify & Publish", icon: "04" },
         ];
-
-
 
   const setStepFromDraft = (draft) => {
     const backendStep = draft?.completion?.step ?? 1;

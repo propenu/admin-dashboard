@@ -79,6 +79,12 @@ const filtered = useMemo(() => {
 
     if (filterKycStatus && u.kyc?.status !== filterKycStatus) return false;
 
+    if (selectedDate) {
+      const userDate = new Date(u.createdAt).toISOString().split("T")[0];
+
+      if (userDate !== selectedDate) return false;
+    }
+
     return true;
   });
 }, [
@@ -113,7 +119,8 @@ const filtered = useMemo(() => {
     filterKycStatus ||
     filterPhoneVerified ||
     filterIsActive ||
-    locationFilter;
+    locationFilter ||
+    selectedDate
 
   const clearAll = () => {
     setSearch("");
@@ -123,6 +130,7 @@ const filtered = useMemo(() => {
     setFilterIsActive("");
     setLocationFilter(null);
     setFilterRole("user"); 
+    setSelectedDate("");
   }; 
 
   
@@ -144,9 +152,7 @@ const filtered = useMemo(() => {
         filtered={filtered}
         onRefresh={refetch}
       />
-
       <StatCards stats={stats} />
-
       <SearchFiltersPanel
         search={search}
         setSearch={setSearch}
@@ -165,6 +171,7 @@ const filtered = useMemo(() => {
         setFilterRole={setFilterRole}
         hasFilters={hasFilters}
         selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
         clearAll={clearAll}
       />
 
