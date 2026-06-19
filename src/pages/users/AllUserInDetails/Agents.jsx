@@ -1427,7 +1427,18 @@ const AllAgents = () => {
     const q = filters.search.toLowerCase();
     return agents.filter((a) => {
       if (q && !`${a.name} ${a.email} ${a.phone}`.toLowerCase().includes(q)) return false;
-      if (filters.status && a.verificationStatus?.toLowerCase() !== filters.status) return false;
+     // if (filters.status && a.verificationStatus?.toLowerCase() !== filters.status) return false;
+     if (
+       filters.status &&
+       !(
+         (filters.status === "pending" &&
+           (a.verificationStatus === null ||
+             a.verificationStatus?.toLowerCase() === "pending")) ||
+         a.verificationStatus?.toLowerCase() === filters.status
+       )
+     ) {
+       return false;
+     }
       if (filters.state && a.state !== filters.state) return false;
       if (filters.city && a.city !== filters.city) return false;
       if (filters.locality && a.locality !== filters.locality) return false;
