@@ -1581,70 +1581,69 @@ const analyticsLoading = isLoading;
           {/* Meta column */}
           <div className="lg:col-span-3 p-6 flex flex-col gap-4">
             <div className="flex items-center gap-2">
-            {completion === 70 && (
-              <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-bold text-blue-700">
-                    This property is listed by an Agent
-                  </p>
+              {completion === 70 && (
+                <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-bold text-blue-700">
+                      This property is listed by an Agent
+                    </p>
 
-                  <p className="text-xs text-blue-500 mt-1">
-                    Please check all details and approve verification.
-                  </p>
+                    <p className="text-xs text-blue-500 mt-1">
+                      Please check all details and approve verification.
+                    </p>
+                  </div>
+
+                  <BadgeCheck className="w-8 h-8 text-blue-600" />
                 </div>
+              )}
 
-                <BadgeCheck className="w-8 h-8 text-blue-600" />
-              </div>
-            )}
-            
-            {completion === 70 && (
+              {completion === 70 && (
+                <button
+                  onClick={async () => {
+                    try {
+                      // if (category === "residential"){
+                      //   await verifyAgentPropertyVerification(
+                      //     category,
+                      //     property._id,
+                      //     {
+                      //       // documentIndex: 0,
+                      //       status: "verified",
+                      //     },
+                      //   );
+                      // }else if(category === "commercial"){
+                      //   await updateCommercialDocumentStatus(property._id, {
+                      //     documentIndex: 0,
+                      //     status: "verified",
+                      //   });
+                      // }else if(category === "land"){
+                      //   await updateLandDocumentStatus(property._id, {
+                      //     documentIndex: 0,
+                      //     status: "verified",
+                      //   });
+                      // }else if(category === "agricutural"){
+                      //   await updateAgriculturalDocumentStatus(property._id, {
+                      //     documentIndex: 0,
+                      //     status: "verified",
+                      //   });
+                      // }
 
-              <button
-                onClick={async () => {
-                  try {
-                    // if (category === "residential"){
-                    //   await verifyAgentPropertyVerification(
-                    //     category,
-                    //     property._id,
-                    //     {
-                    //       // documentIndex: 0,
-                    //       status: "verified",
-                    //     },
-                    //   );
-                    // }else if(category === "commercial"){
-                    //   await updateCommercialDocumentStatus(property._id, {
-                    //     documentIndex: 0,
-                    //     status: "verified",
-                    //   });
-                    // }else if(category === "land"){
-                    //   await updateLandDocumentStatus(property._id, {
-                    //     documentIndex: 0,
-                    //     status: "verified",
-                    //   });
-                    // }else if(category === "agricutural"){
-                    //   await updateAgriculturalDocumentStatus(property._id, {
-                    //     documentIndex: 0,
-                    //     status: "verified",
-                    //   });
-                    // }
+                      await verifyAgentPropertyVerification(
+                        category,
+                        property._id,
+                        {
+                          status: "verified",
+                        },
+                      );
 
-                    await verifyAgentPropertyVerification(
-                      category,
-                      property._id,
-                      {
-                        status: "verified",
-                      },
-                    );
-
-                    toast.success(
-                      "Property verified successfully and published live",
-                    );
-                    navigate(`/${category}`);
-                  } catch (err) {
-                    toast.error("Verification failed");
-                  }
-                }}
-                className="
+                      toast.success(
+                        "Property verified successfully and published live",
+                      );
+                      navigate(`/${category}`);
+                    } catch (err) {
+                      toast.error("Verification failed");
+                    }
+                  }}
+                  className="
                     mt-4
                     flex items-center gap-2
                     rounded-xl
@@ -1656,11 +1655,11 @@ const analyticsLoading = isLoading;
                     hover:bg-green-700
                     transition
                   "
-              >
-                <BadgeCheck className="w-5 h-5" />
-                Approve Verification
-              </button>
-            )}
+                >
+                  <BadgeCheck className="w-5 h-5" />
+                  Approve Verification
+                </button>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -1689,14 +1688,20 @@ const analyticsLoading = isLoading;
                 <span>
                   {[
                     property.address,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                  {property.pincode && ` - ${property.pincode}`}
+                </span>
+                {/* <span>
+                  {[
                     property.locality,
                     property.city,
                     property.state,
                   ]
                     .filter(Boolean)
                     .join(", ")}
-                  {property.pincode && ` - ${property.pincode}`}
-                </span>
+                </span> */}
               </div>
             </div>
 
