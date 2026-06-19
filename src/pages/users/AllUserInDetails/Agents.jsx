@@ -1098,6 +1098,15 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
   const StatusIcon = statusCfg.icon;
   const profileCompleted = isProfileCompleted(agent);
 
+  const badgeClass =
+    agent.kycStatus === "approved"
+      ? "px-3 py-1 rounded-full text-[10px] font-bold border bg-green-100 text-green-700 border-green-300"
+      : agent.kycStatus === "rejected"
+        ? "px-3 py-1 rounded-full text-[10px] font-bold border bg-red-100 text-red-700 border-red-300"
+        : agent.kycStatus === "pending"
+          ? "px-3 py-1 rounded-full text-[10px] font-bold border bg-yellow-100 text-yellow-700 border-yellow-300"
+          : "px-3 py-1 rounded-full text-[10px] font-bold border bg-gray-100 text-gray-700 border-gray-300";
+
   return (
     <div
       className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.05)] hover:shadow-[0_12px_40px_rgba(39,174,96,0.13)] hover:-translate-y-1.5 hover:border-[#27AE60]/25 transition-all duration-300 ease-out group flex flex-col"
