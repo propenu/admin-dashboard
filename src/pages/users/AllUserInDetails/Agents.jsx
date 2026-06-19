@@ -1177,59 +1177,33 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
 
         {(!agent.verificationStatus ||
           agent.verificationStatus?.toLowerCase() === "pending") && (
-          <div
-            className={`mt-2 rounded-xl border p-3 space-y-2
-      ${
-        agent.kycStatus === "approved"
-          ? "bg-green-50 border-green-200"
-          : agent.kycStatus === "rejected"
-            ? "bg-red-50 border-red-200"
-            : agent.kycStatus === "pending"
-              ? "bg-yellow-50 border-yellow-200"
-              : "bg-gray-50 border-gray-200"
-      }`}
-          >
-            {/* Header */}
+          <div className="mt-2 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-gray-700">
-                KYC Verification
-              </p>
+              <span className="text-[11px] font-bold text-gray-500">
+                KYC Status
+              </span>
 
-              <span
-                className={`px-3 py-1 rounded-full text-[10px] font-bold border
-          ${
-            agent.kycStatus === "approved"
-              ? "bg-green-100 text-green-700 border-green-300"
-              : agent.kycStatus === "rejected"
-                ? "bg-red-100 text-red-700 border-red-300"
-                : agent.kycStatus === "pending"
-                  ? "bg-yellow-100 text-yellow-700 border-yellow-300"
-                  : "bg-gray-100 text-gray-700 border-gray-300"
-          }`}
-              >
+              <span className={badgeClass}>
                 {agent.kycStatus?.replace("_", " ").toUpperCase()}
               </span>
             </div>
 
-            {/* Reason */}
             {agent.kycReason?.trim() && (
-              <div className="border-t pt-2">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
-                  Reason
-                </p>
+              <div className="flex gap-2 rounded-lg bg-amber-50 border border-amber-200 p-2">
+                <AlertTriangle
+                  size={14}
+                  className="text-amber-600 mt-0.5 shrink-0"
+                />
 
-                <p
-                  className={`text-[11px] mt-1
-            ${
-              agent.kycStatus === "rejected"
-                ? "text-red-600"
-                : agent.kycStatus === "pending"
-                  ? "text-yellow-700"
-                  : "text-green-700"
-            }`}
-                >
-                  {agent.kycReason}
-                </p>
+                <div>
+                  <p className="text-[10px] font-bold text-amber-700">
+                    Action Required
+                  </p>
+
+                  <p className="text-[11px] text-amber-600">
+                    {agent.kycReason}
+                  </p>
+                </div>
               </div>
             )}
           </div>
