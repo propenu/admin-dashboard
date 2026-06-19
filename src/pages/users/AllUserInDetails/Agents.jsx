@@ -1448,7 +1448,9 @@ const AllAgents = () => {
       ).length,
 
       pending: agents.filter(
-        (a) => a.verificationStatus?.toLowerCase() === "pending",
+        (a) =>
+          a.verificationStatus === null ||
+          a.verificationStatus?.toLowerCase() === "pending",
       ).length,
 
       rejected: agents.filter(
