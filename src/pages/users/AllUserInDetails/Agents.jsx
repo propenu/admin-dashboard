@@ -1175,29 +1175,63 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
 
         <div className="h-px bg-gradient-to-r from-gray-100 via-[#27AE60]/10 to-transparent" />
 
-        {/* KYC Status */}
-        <div className="flex flex-wrap gap-2 mt-2">
-          <span
-            className={`px-3 py-1 rounded-full text-[10px] font-bold border
+        {(!agent.verificationStatus ||
+          agent.verificationStatus?.toLowerCase() === "pending") && (
+          <div
+            className={`mt-2 rounded-xl border p-3 space-y-2
       ${
         agent.kycStatus === "approved"
-          ? "bg-green-100 text-green-700 border-green-300"
+          ? "bg-green-50 border-green-200"
           : agent.kycStatus === "rejected"
-            ? "bg-red-100 text-red-700 border-red-300"
+            ? "bg-red-50 border-red-200"
             : agent.kycStatus === "pending"
-              ? "bg-yellow-100 text-yellow-700 border-yellow-300"
-              : "bg-gray-100 text-gray-700 border-gray-300"
+              ? "bg-yellow-50 border-yellow-200"
+              : "bg-gray-50 border-gray-200"
       }`}
           >
-            KYC : {agent.kycStatus?.replace("_", " ").toUpperCase()}
-          </span>
-        </div>
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-gray-700">
+                KYC Verification
+              </p>
 
-        {agent.kycReason && (
-          <div className="mt-2 p-2 rounded-xl bg-red-50 border border-red-200">
-            <p className="text-[11px] font-semibold text-red-700">Reason:</p>
+              <span
+                className={`px-3 py-1 rounded-full text-[10px] font-bold border
+          ${
+            agent.kycStatus === "approved"
+              ? "bg-green-100 text-green-700 border-green-300"
+              : agent.kycStatus === "rejected"
+                ? "bg-red-100 text-red-700 border-red-300"
+                : agent.kycStatus === "pending"
+                  ? "bg-yellow-100 text-yellow-700 border-yellow-300"
+                  : "bg-gray-100 text-gray-700 border-gray-300"
+          }`}
+              >
+                {agent.kycStatus?.replace("_", " ").toUpperCase()}
+              </span>
+            </div>
 
-            <p className="text-[11px] text-red-600">{agent.kycReason}</p>
+            {/* Reason */}
+            {agent.kycReason?.trim() && (
+              <div className="border-t pt-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                  Reason
+                </p>
+
+                <p
+                  className={`text-[11px] mt-1
+            ${
+              agent.kycStatus === "rejected"
+                ? "text-red-600"
+                : agent.kycStatus === "pending"
+                  ? "text-yellow-700"
+                  : "text-green-700"
+            }`}
+                >
+                  {agent.kycReason}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
