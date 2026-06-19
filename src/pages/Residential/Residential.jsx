@@ -32,7 +32,6 @@ import {
 import ResidentialCard from "./ResidentialCard";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { useNavigate } from "react-router-dom";
-
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 export default function Commercial() {
@@ -147,68 +146,77 @@ export default function Commercial() {
     setLocations(items);
   };
 
+  
+
   // const { verifiedCount, pendingCount, draftCount } = useMemo(() => {
-  //   let verified = 0,
-  //     pending = 0,
-  //     draft = 0;
-  //   properties.forEach((p) => {
-  //     const s = getVerificationStatus(p);
-  //     if (s === "verified") verified++;
-  //     else if (s === "pending") pending++;
-  //     else draft++;
-  //   });
   //   return {
-  //     verifiedCount: verified,
-  //     pendingCount: pending,
-  //     draftCount: draft,
+  //     verifiedCount: properties.filter((p) => p.status === "active").length,
+
+  //     pendingCount: properties.filter((p) => p.status === "pending").length,
+
+  //     draftCount: properties.filter((p) => p.status === "draft").length,
   //   };
   // }, [properties]);
 
   // const visibleProperties = useMemo(() => {
   //   return properties.filter((p) => {
-  //     const status = getVerificationStatus(p);
   //     let matchesTab = false;
-  //     if (activeTab === "verified") matchesTab = status === "verified";
-  //     else if (activeTab === "pending") matchesTab = status === "pending";
-  //     else matchesTab = status === "none" || status === "rejected";
+
+  //     if (activeTab === "verified") {
+  //       matchesTab = p.status === "active";
+  //     } else if (activeTab === "pending") {
+  //       matchesTab = p.status === "pending";
+  //     } else {
+  //       matchesTab = p.status === "draft";
+  //     }
 
   //     const matchesLocation = selectedLocation
   //       ? p.city?.trim() === selectedLocation
   //       : true;
+
   //     return matchesTab && matchesLocation;
   //   });
   // }, [properties, activeTab, selectedLocation]);
 
+  const { verifiedCount, pendingCount, rejectedCount, draftCount } =
+    useMemo(() => {
+      return {
+        verifiedCount: properties.filter((p) => p.status === "active").length,
 
-  const { verifiedCount, pendingCount, draftCount } = useMemo(() => {
-    return {
-      verifiedCount: properties.filter((p) => p.status === "active").length,
+        pendingCount: properties.filter((p) => p.status === "pending").length,
 
-      pendingCount: properties.filter((p) => p.status === "pending").length,
+        rejectedCount: properties.filter(
+          (p) => p.status === "draft" && p.rejectedReason,
+        ).length,
 
-      draftCount: properties.filter((p) => p.status === "draft").length,
-    };
-  }, [properties]);
+        draftCount: properties.filter(
+          (p) => p.status === "draft" && !p.rejectedReason,
+        ).length,
+      };
+    }, [properties]);
 
-  const visibleProperties = useMemo(() => {
-    return properties.filter((p) => {
-      let matchesTab = false;
 
-      if (activeTab === "verified") {
-        matchesTab = p.status === "active";
-      } else if (activeTab === "pending") {
-        matchesTab = p.status === "pending";
-      } else {
-        matchesTab = p.status === "draft";
-      }
+    const visibleProperties = useMemo(() => {
+      return properties.filter((p) => {
+        let matchesTab = false;
 
-      const matchesLocation = selectedLocation
-        ? p.city?.trim() === selectedLocation
-        : true;
+        if (activeTab === "verified") {
+          matchesTab = p.status === "active";
+        } else if (activeTab === "pending") {
+          matchesTab = p.status === "pending";
+        } else if (activeTab === "rejected") {
+          matchesTab = p.status === "draft" && !!p.rejectedReason;
+        } else {
+          matchesTab = p.status === "draft" && !p.rejectedReason;
+        }
 
-      return matchesTab && matchesLocation;
-    });
-  }, [properties, activeTab, selectedLocation]);
+        const matchesLocation = selectedLocation
+          ? p.city?.trim() === selectedLocation
+          : true;
+
+        return matchesTab && matchesLocation;
+      });
+    }, [properties, activeTab, selectedLocation]);
 
 
   const deleteMutation = useMutation({
@@ -430,72 +438,73 @@ export default function Commercial() {
         </div>
       </div>
 
-      {/* TABS */}
-      <div
-        className="
-  flex items-center gap-3 max-sm:gap-0
-  border-b border-slate-200
-  overflow-x-auto
-  whitespace-nowrap
-  scrollbar-hide
-  px-1 max-sm:px-0
-"
-      >
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
         {/* VERIFIED */}
         <button
           onClick={() => setActiveTab("verified")}
-          className={`relative flex items-center gap-2 px-2 pb-3
-      text-xs sm:text-sm font-medium transition-colors
-      ${activeTab === "verified" ? "text-green-600" : "text-slate-500 hover:text-slate-700"}
-    `}
+          className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all
+      ${
+        activeTab === "verified"
+          ? "bg-green-100 text-green-700"
+          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+      }`}
         >
-          <FileCheck className="w-4 h-4 shrink-0" />
+          <FileCheck className="w-4 h-4" />
           <span>Verified</span>
-          <span className="bg-green-100 text-green-600 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold">
+          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold">
             {verifiedCount}
           </span>
-
-          {activeTab === "verified" && (
-            <span className="absolute left-0 right-0 bottom-0 h-0.5 bg-green-600 rounded-full" />
-          )}
         </button>
 
         {/* PENDING */}
         <button
           onClick={() => setActiveTab("pending")}
-          className={`relative flex items-center gap-2 px-2 pb-3
-      text-xs sm:text-sm font-medium transition-colors
-      ${activeTab === "pending" ? "text-amber-600" : "text-slate-500 hover:text-slate-700"}
-    `}
+          className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all
+      ${
+        activeTab === "pending"
+          ? "bg-amber-100 text-amber-700"
+          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+      }`}
         >
-          <Clock className="w-4 h-4 shrink-0" />
+          <Clock className="w-4 h-4" />
           <span>Pending</span>
-          <span className="bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold">
+          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold">
             {pendingCount}
           </span>
-
-          {activeTab === "pending" && (
-            <span className="absolute left-0 right-0 bottom-0 h-0.5 bg-amber-600 rounded-full" />
-          )}
         </button>
 
         {/* DRAFTS */}
         <button
           onClick={() => setActiveTab("drafts")}
-          className={`relative flex items-center gap-2 px-2 pb-3
-      text-xs sm:text-sm font-medium transition-colors
-      ${activeTab === "drafts" ? "text-slate-700" : "text-slate-500 hover:text-slate-700"}
-    `}
+          className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all
+      ${
+        activeTab === "drafts"
+          ? "bg-slate-200 text-slate-700"
+          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+      }`}
         >
-          <AlertCircle className="w-4 h-4 shrink-0" />
+          <AlertCircle className="w-4 h-4" />
           <span>Drafts</span>
-          <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold">
+          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold">
             {draftCount}
           </span>
+        </button>
 
-          {activeTab === "drafts" && (
-            <span className="absolute left-0 right-0 bottom-0 h-0.5 bg-slate-600 rounded-full" />
-          )}
+        {/* REJECTED */}
+        <button
+          onClick={() => setActiveTab("rejected")}
+          className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all
+      ${
+        activeTab === "rejected"
+          ? "bg-red-100 text-red-700"
+          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+      }`}
+        >
+          <AlertCircle className="w-4 h-4" />
+          <span>Rejected</span>
+          <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold">
+            {rejectedCount}
+          </span>
         </button>
       </div>
 

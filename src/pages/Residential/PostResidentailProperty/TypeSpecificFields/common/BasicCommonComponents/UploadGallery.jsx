@@ -111,8 +111,26 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
 
 
+// useEffect(() => {
+//   if (!form.gallery || !form.gallery.length) return;
+
+//   const serverImages = form.gallery.map((img) => ({
+//     preview: img.url,
+//     name: img.filename,
+//     key: img.key,
+//     source: "server",
+//   }));
+
+//   console.log("🔥 RESET galleryFiles from backend:", serverImages);
+
+//   updateFieldValue("galleryFiles", serverImages);
+// }, [form.gallery]);
+
+const [initialized, setInitialized] = useState(false);
+
 useEffect(() => {
-  if (!form.gallery || !form.gallery.length) return;
+  if (initialized) return;
+  if (!form.gallery?.length) return;
 
   const serverImages = form.gallery.map((img) => ({
     preview: img.url,
@@ -121,14 +139,9 @@ useEffect(() => {
     source: "server",
   }));
 
-  console.log("🔥 RESET galleryFiles from backend:", serverImages);
-
   updateFieldValue("galleryFiles", serverImages);
-}, [form.gallery]);
-
-
-  
-
+  setInitialized(true);
+}, [form.gallery, initialized]);
   
 
   const handlePhotoUpload = async (e) => {
@@ -150,32 +163,6 @@ useEffect(() => {
     setProgress({ done: 0, total: filesToProcess.length });
 
     const newItems = [];
-
-    // for (const file of filesToProcess) {
-    //   setCurrentFileName(file.name);
-
-    //   try {
-    //     const compressed = await compressImageToTarget(file);
-
-    //     // 🔥 IMPORTANT: store as structured object (like Next.js)
-    //     newItems.push({
-    //       file: compressed,
-    //       source: "local", // ✅ identify as new
-    //       name: compressed.name,
-    //       preview: URL.createObjectURL(compressed),
-    //     });
-    //   } catch (err) {
-    //     console.error(`❌ Failed: ${file.name}`, err);
-    //   }
-
-    //   setProgress((prev) => ({
-    //     ...prev,
-    //     done: prev.done + 1,
-    //   }));
-    // }
-
-    // 🔥 Keep existing + new structured items
-    
 
     for (const file of filesToProcess) {
 
@@ -232,18 +219,6 @@ if (duplicate) {
           `${file.name}
 ${(file.size / 1024).toFixed(0)} KB → ${(compressed.size / 1024).toFixed(0)} KB`,
         );
-        // newItems.push({
-        //   file: compressed,
-        //   source: "local",
-        //   name: compressed.name,
-        //   preview: URL.createObjectURL(compressed),
-        // });
-        // newItems.push({
-        //   file: compressed,
-        //   source: "local",
-        //   name: compressed.name,
-        //   preview: URL.createObjectURL(compressed),
-        // });
 
         newItems.push({
           file: compressed,
@@ -279,40 +254,119 @@ ${(file.size / 1024).toFixed(0)} KB → ${(compressed.size / 1024).toFixed(0)} K
     e.target.value = "";
   };
 
+// const handleRemovePhoto = async (index) => {
+//   console.log("BEFORE REMOVE", form.galleryFiles);
+
+//   const updated = currentFiles.filter((_, i) => i !== index);
+
+//   console.log("AFTER REMOVE", updated);
+//   try {
+//     const currentFiles = form.galleryFiles || [];
+//     const fileToRemove = currentFiles[index];
+
+//     const isNewFile = fileToRemove?.source === "local";
+
+//     // 🔥 SCENARIO 1: BEFORE SAVE (NEW FILE)
+//     if (isNewFile) {
+//       const updated = currentFiles.filter((_, i) => i !== index);
+//       updateFieldValue("galleryFiles", updated);
+//       return;
+//     }
+
+//     // 🔥 SCENARIO 2: AFTER SAVE (EXISTING FILE)
+//     const propertyId = form._id || form.id;
+//     const category = form.propertyCategory;
+
+//     await deletePropertyGalleryImagesIndex(category, propertyId, index);
+
+//     const updated = currentFiles.filter((_, i) => i !== index);
+//     updateFieldValue("galleryFiles", updated);
+
+//     toast.success("Image deleted!");
+//   } catch (err) {
+//     console.error("DELETE ERROR:", err.response?.data || err);
+//     toast.error("Delete failed");
+//   }
+// };
+   
+
+// const handleRemovePhoto = async (index) => {
+//   try {
+//     const currentFiles = form.galleryFiles || [];
+
+//     console.log("BEFORE REMOVE", currentFiles);
+
+//     const updated = currentFiles.filter((_, i) => i !== index);
+
+//     console.log("AFTER REMOVE", updated);
+
+//     const fileToRemove = currentFiles[index];
+
+//     const isNewFile = fileToRemove?.source === "local";
+
+//     if (isNewFile) {
+//       updateFieldValue("galleryFiles", updated);
+//       return;
+//     }
+
+//     const propertyId = form._id || form.id;
+//     const category = form.propertyCategory;
+
+//     await deletePropertyGalleryImagesIndex(category, propertyId, index);
+
+//     updateFieldValue("galleryFiles", updated);
+
+//     toast.success("Image deleted!");
+//   } catch (err) {
+//     console.error("DELETE ERROR:", err.response?.data || err);
+//     toast.error("Delete failed");
+//   }
+// };
+
+
 const handleRemovePhoto = async (index) => {
   try {
     const currentFiles = form.galleryFiles || [];
+
+    console.log("BEFORE REMOVE", currentFiles);
+
     const fileToRemove = currentFiles[index];
 
-    //const isNewFile = fileToRemove instanceof File;
+    const updated = currentFiles.filter((_, i) => i !== index);
+
+    console.log("AFTER REMOVE", updated);
 
     const isNewFile = fileToRemove?.source === "local";
 
-    // 🔥 SCENARIO 1: BEFORE SAVE (NEW FILE)
+    // ===== BEFORE SAVE =====
     if (isNewFile) {
-      const updated = currentFiles.filter((_, i) => i !== index);
+      // Revoke ONLY the deleted image
+      if (fileToRemove?.preview && fileToRemove.preview.startsWith("blob:")) {
+        URL.revokeObjectURL(fileToRemove.preview);
+      }
+
       updateFieldValue("galleryFiles", updated);
+
       return;
     }
 
-    // 🔥 SCENARIO 2: AFTER SAVE (EXISTING FILE)
+    // ===== AFTER SAVE =====
     const propertyId = form._id || form.id;
     const category = form.propertyCategory;
 
-    
-
     await deletePropertyGalleryImagesIndex(category, propertyId, index);
 
-    const updated = currentFiles.filter((_, i) => i !== index);
     updateFieldValue("galleryFiles", updated);
 
     toast.success("Image deleted!");
   } catch (err) {
-    console.error("DELETE ERROR:", err.response?.data || err);
+    console.error("DELETE ERROR:", err?.response?.data || err);
+
     toast.error("Delete failed");
   }
 };
-  /* ── PREVIEW URLs ── */
+
+
   useEffect(() => {
     if (!form.galleryFiles?.length) {
       setPreviewUrls([]);
@@ -321,27 +375,31 @@ const handleRemovePhoto = async (index) => {
 
     const urls = form.galleryFiles
       .map((item) => {
-        if (item?.source === "local" && item.preview) return item.preview;
-        if (item?.source === "server" && item.preview) return item.preview;
+        // Local image preview
+        if (item?.source === "local" && item.preview) {
+          return item.preview;
+        }
 
-        // 🔥 fallback safety
-        if (item?.url) return item.url;
+        // Server image preview
+        if (item?.source === "server" && item.preview) {
+          return item.preview;
+        }
+
+        // Fallback
+        if (item?.url) {
+          return item.url;
+        }
 
         console.error("❌ INVALID PREVIEW ITEM:", item);
         return null;
       })
-      .filter(Boolean); // 🔥 remove null/empty
+      .filter(Boolean);
 
     setPreviewUrls(urls);
 
-    return () => {
-      urls.forEach((url) => {
-        if (url.startsWith("blob:")) {
-          URL.revokeObjectURL(url);
-        }
-      });
-    };
+    // ❌ DO NOT revoke blob URLs here
   }, [form.galleryFiles]);
+
 
   const photoCount = form.galleryFiles?.length || 0;
 

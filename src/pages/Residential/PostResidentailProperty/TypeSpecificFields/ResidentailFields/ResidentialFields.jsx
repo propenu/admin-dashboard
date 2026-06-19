@@ -58,7 +58,7 @@ export default function ResidentialFields({ back, next }) {
     if (!form.kitchenType) e.kitchenType = "Select kitchen type";
     if (!form.description) e.description = "Enter property description";
     if (!form.galleryFiles || form.galleryFiles.length < 5)
-      e.galleryFiles = "Upload at least 12 image";
+      e.galleryFiles = "Upload at least 5 image";
     return e;
   };
 

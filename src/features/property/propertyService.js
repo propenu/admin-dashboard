@@ -97,6 +97,15 @@ export const getPropertyById = (category, id) => {
 };
 
 
+
+export const verifyAgentPropertyVerification = (category, id, payload) => {
+  return apiClient.patch(
+    `${SERVICES.PROPERTY}/${category}/${id}/verify-document`,
+    payload,
+  );
+};
+
+
 // Roles Analytics
 export const getSuperAdimnAnalytics = () => {
   return apiClient.get(`${SERVICES.PROPERTY}/analytics/superadmin`);

@@ -709,18 +709,48 @@ export default function CommercialCard({ property, userRole }) {
   const leads = Array.isArray(leadsData?.data) ? leadsData.data : [];
   const totalLeads = typeof leadsData?.count === "number" ? leadsData.count : leads.length;
 
+  // const getDocStatus = () => {
+  //   const docs = property?.verificationDocuments || [];
+  //   if (docs.length === 0) return { label: "No Docs", color: "text-slate-500 bg-slate-100", icon: AlertCircle };
+  //   if (docs.some((d) => d.status === "rejected")) return { label: "Rejected", color: "text-red-600 bg-red-50", icon: AlertCircle };
+  //   if (docs.some((d) => d.status === "pending")) return { label: "Pending", color: "text-amber-600 bg-amber-50", icon: Clock };
+  //   if (docs.every((d) => d.status === "verified")) return { label: "Verified", color: "text-green-600 bg-green-50", icon: FileCheck };
+  //   return { label: "Draft", color: "text-blue-600 bg-blue-50", icon: Clock };
+  // };
+
   const getDocStatus = () => {
-    const docs = property?.verificationDocuments || [];
-    if (docs.length === 0) return { label: "No Docs", color: "text-slate-500 bg-slate-100", icon: AlertCircle };
-    if (docs.some((d) => d.status === "rejected")) return { label: "Rejected", color: "text-red-600 bg-red-50", icon: AlertCircle };
-    if (docs.some((d) => d.status === "pending")) return { label: "Pending", color: "text-amber-600 bg-amber-50", icon: Clock };
-    if (docs.every((d) => d.status === "verified")) return { label: "Verified", color: "text-green-600 bg-green-50", icon: FileCheck };
-    return { label: "Draft", color: "text-blue-600 bg-blue-50", icon: Clock };
+    switch (property?.status) {
+      case "active":
+        return {
+          label: "Verified",
+          color: "text-green-600 bg-green-50",
+          icon: FileCheck,
+        };
+
+      case "pending":
+        return {
+          label: "Pending",
+          color: "text-amber-600 bg-amber-50",
+          icon: Clock,
+        };
+
+      case "draft":
+      default:
+        return {
+          label: "Draft",
+          color: "text-slate-600 bg-slate-100",
+          icon: AlertCircle,
+        };
+    }
   };
+
+
 
   const statusInfo = getDocStatus();
   const completion = property?.completion?.percent || 0;
-  const isPendingReview = property?.verificationDocuments?.some((d) => d.status === "pending");
+  const isCompleted = property?.completion?.percent;
+
+  const isPendingReview = property?.status === "pending";
 
   
      
@@ -758,13 +788,40 @@ export default function CommercialCard({ property, userRole }) {
       {/* ── HORIZONTAL FLEX ─────────────────────────────────────────────── */}
       <div className="flex flex-row">
         {/* ── LEFT: IMAGE ─────────────────────────────────────────────── */}
-        <div className="relative w-28 flex-shrink-0 overflow-hidden bg-slate-100">
+        <div className="relative w-28 max-h-[140px] flex-shrink-0 overflow-hidden bg-slate-100">
           <img
             src={property?.gallery?.[0]?.url || FALLBACK}
             alt={property?.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             style={{ minHeight: "120px" }}
           />
+
+          {/* Agent badge */}
+          {isCompleted === 70 && (
+            <div
+              className="
+      absolute -left-5 bottom-3 rotate-45
+      bg-white
+      border-2 border-[#27AE60]
+      px-5 py-0.5
+      rounded-sm
+      shadow-[0_0_20px_rgba(255,255,255,1),0_0_12px_rgba(39,174,96,0.9)]
+    "
+            >
+              <span
+                className="
+        block text-center
+        text-[#27AE60]
+        text-[7px]
+        font-black
+        uppercase
+        tracking-[2px]
+      "
+              >
+                AGENT
+              </span>
+            </div>
+          )}
 
           {/* Doc status badge */}
           <div
@@ -899,7 +956,9 @@ export default function CommercialCard({ property, userRole }) {
                 {leadsLoading ? "..." : totalLeads}
               </button>
 
-              {isPendingReview && UserRoleName === "super_admin" ? (
+              {isPendingReview &&
+              UserRoleName === "super_admin" &&
+              isCompleted === 80 ? (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

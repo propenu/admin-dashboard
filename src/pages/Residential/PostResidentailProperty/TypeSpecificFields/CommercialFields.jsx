@@ -93,7 +93,7 @@ export default function CommercialFields({ back, next }) {
       if (form.constructionStatus) delete updated.constructionStatus;
       if (form.price > 0) delete updated.price;
        if (!form.galleryFiles || form.galleryFiles.length < 5)
-        updated.galleryFiles = "Upload at least 12 image";
+        updated.galleryFiles = "Upload at least 5 image";
       return updated;
     });
   }, [form]);

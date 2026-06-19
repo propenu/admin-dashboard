@@ -114,6 +114,18 @@ export const editAgentVerificationStatus = (id, formData) => {
   return apiClient.patch(`${SERVICES.USER}/agent/admin/verify/${id}`, formData);
 };
 
+
+
+/* agentedit */
+export const editAgent = (id, formData) => {
+  return apiClient.patch(`${SERVICES.USER}/agent/${id}`, formData);
+};
+
+export const postRegisteredAgent = (formData) => {
+  return apiClient.post(`${SERVICES.USER}/agent`, formData);
+};
+
+
 //Manage Team Members
 export const getManagerAndTeamMembers = (id) => {
   return apiClient.get(`${SERVICES.USER}/auth/manager-team-details/${id}`);
@@ -251,6 +263,8 @@ export const getEmailCampaignStatus = (campaignId) => {
     },
   );
 };
+
+
 
 
 

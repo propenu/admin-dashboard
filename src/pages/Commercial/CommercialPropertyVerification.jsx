@@ -156,9 +156,20 @@ const PropertyVerification = () => {
       </div>
     );
 
+    const REJECTION_REASONS = [
+      "Uploaded document is unclear or unreadable",
+      "Selected document type does not match the uploaded document",
+      "Uploaded document is incomplete or missing pages",
+      "Property details do not match the uploaded document",
+      "Uploaded document appears altered or tampered with",
+      "Property photos are unclear or of poor quality",
+      "This property is already listed on Propenu",
+      "Property information is incomplete or inconsistent",
+      "Property ownership details do not match the submitted verification documents",
+    ];
+
   return (
     <div className="flex  bg-[#020617] text-slate-200 overflow-hidden rounded-3xl font-sans">
-      
       <aside className="w-[350px] border-r border-slate-800 flex flex-col bg-[#0b0f1a]">
         <div className="p-6 border-b border-slate-800">
           <button
@@ -307,13 +318,26 @@ const PropertyVerification = () => {
             <div className="p-6 bg-[#0f172a] border-t border-slate-800">
               {showRejectionInput ? (
                 <div className="flex flex-col gap-4">
-                  <textarea
+                  {/* <textarea
                     placeholder="Provide a reason for rejection..."
                     className="w-full bg-slate-900 border border-slate-700 rounded-2xl p-4 text-sm text-white focus:ring-2 ring-red-500/50 outline-none transition"
                     onChange={(e) => setRejectionReason(e.target.value)}
                     value={rejectionReason}
                     rows={3}
-                  />
+                  /> */}
+                  <select
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"
+                  >
+                    <option value="">Select rejection reason</option>
+
+                    {REJECTION_REASONS.map((reason, index) => (
+                      <option key={index} value={reason}>
+                        {reason}
+                      </option>
+                    ))}
+                  </select>
                   <div className="flex justify-end gap-3">
                     <button
                       onClick={() => setShowRejectionInput(false)}
@@ -327,7 +351,7 @@ const PropertyVerification = () => {
                           documentIndex:
                             property.verificationDocuments.indexOf(selectedDoc),
                           status: "rejected",
-                          reason: rejectionReason,
+                          rejectedReason: rejectionReason,
                         })
                       }
                       className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-widest transition"

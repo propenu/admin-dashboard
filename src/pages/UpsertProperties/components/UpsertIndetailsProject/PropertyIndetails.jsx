@@ -2,6 +2,11 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { updateResidentialDocumentStatus } from "../../../../services/ResidentialServices/ResidentialServices";
+import { updateCommercialDocumentStatus } from "../../../../services/CommercialServices/CommercialServices";
+import { updateAgriculturalDocumentStatus } from "../../../../services/AgricuturalServices/AgricuturalServices";
+import { updateLandDocumentStatus } from "../../../../services/LandServices/LandServices";
+import { verifyAgentPropertyVerification } from "../../../../features/property/propertyService";
 import {
   MapPin,
   ArrowLeft,
@@ -52,6 +57,7 @@ import LoadingSpinner from "../../../../components/common/LoadingSpinner";
 import Fallback from "../../../../assets/fallback.svg";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { toast } from "sonner";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatPrice = (price) => {
@@ -127,6 +133,10 @@ const detectCategory = (property) => {
     return "commercial";
   return "residential";
 };
+
+
+const isAgentProperty =
+  localStorage.getItem("LitsedByAgentResidentailProperty") === "true";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function SectionCard({ children, className = "" }) {
@@ -1570,6 +1580,88 @@ const analyticsLoading = isLoading;
 
           {/* Meta column */}
           <div className="lg:col-span-3 p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+            {completion === 70 && (
+              <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                <div>
+                  <p className="text-sm font-bold text-blue-700">
+                    This property is listed by an Agent
+                  </p>
+
+                  <p className="text-xs text-blue-500 mt-1">
+                    Please check all details and approve verification.
+                  </p>
+                </div>
+
+                <BadgeCheck className="w-8 h-8 text-blue-600" />
+              </div>
+            )}
+            
+            {completion === 70 && (
+
+              <button
+                onClick={async () => {
+                  try {
+                    // if (category === "residential"){
+                    //   await verifyAgentPropertyVerification(
+                    //     category,
+                    //     property._id,
+                    //     {
+                    //       // documentIndex: 0,
+                    //       status: "verified",
+                    //     },
+                    //   );
+                    // }else if(category === "commercial"){
+                    //   await updateCommercialDocumentStatus(property._id, {
+                    //     documentIndex: 0,
+                    //     status: "verified",
+                    //   });
+                    // }else if(category === "land"){
+                    //   await updateLandDocumentStatus(property._id, {
+                    //     documentIndex: 0,
+                    //     status: "verified",
+                    //   });
+                    // }else if(category === "agricutural"){
+                    //   await updateAgriculturalDocumentStatus(property._id, {
+                    //     documentIndex: 0,
+                    //     status: "verified",
+                    //   });
+                    // }
+
+                    await verifyAgentPropertyVerification(
+                      category,
+                      property._id,
+                      {
+                        status: "verified",
+                      },
+                    );
+
+                    toast.success(
+                      "Property verified successfully and published live",
+                    );
+                    navigate(`/${category}`);
+                  } catch (err) {
+                    toast.error("Verification failed");
+                  }
+                }}
+                className="
+                    mt-4
+                    flex items-center gap-2
+                    rounded-xl
+                    bg-green-600
+                    px-5
+                    py-3
+                    text-white
+                    font-bold
+                    hover:bg-green-700
+                    transition
+                  "
+              >
+                <BadgeCheck className="w-5 h-5" />
+                Approve Verification
+              </button>
+            )}
+            </div>
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <CategoryBadge category={category} />
@@ -1591,6 +1683,7 @@ const analyticsLoading = isLoading;
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800 leading-tight">
                 {property.title || "Untitled Property"}
               </h1>
+
               <div className="flex items-start gap-1.5 text-sm text-slate-500 mt-2">
                 <MapPin className="w-4 h-4 text-[#27AE60] flex-shrink-0 mt-0.5" />
                 <span>

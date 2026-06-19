@@ -142,6 +142,20 @@ const PropertyVerification = () => {
       </div>
     );
 
+
+  const REJECTION_REASONS = [
+      "Uploaded document is unclear or unreadable",
+      "Selected document type does not match the uploaded document",
+      "Uploaded document is incomplete or missing pages",
+      "Property details do not match the uploaded document",
+      "Uploaded document appears altered or tampered with",
+      "Property photos are unclear or of poor quality",
+      "This property is already listed on Propenu",
+      "Property information is incomplete or inconsistent",
+      "Property ownership details do not match the submitted verification documents",]
+  
+  
+
   return (
     <div className="flex flex-col lg:flex-row h-screen bg-[#020617] text-slate-200 overflow-hidden font-sans">
       {/* MOBILE TOP BAR */}
@@ -304,13 +318,19 @@ const PropertyVerification = () => {
             <div className="p-4 lg:p-6 bg-[#0f172a] border-t border-slate-800">
               {showRejectionInput ? (
                 <div className="flex flex-col gap-3">
-                  <textarea
-                    placeholder="Reason..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white focus:ring-1 ring-red-500 outline-none"
-                    onChange={(e) => setRejectionReason(e.target.value)}
+                  <select
                     value={rejectionReason}
-                    rows={2}
-                  />
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm text-white"
+                  >
+                    <option value="">Select rejection reason</option>
+
+                    {REJECTION_REASONS.map((reason, index) => (
+                      <option key={index} value={reason}>
+                        {reason}
+                      </option>
+                    ))}
+                  </select>
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => setShowRejectionInput(false)}
@@ -324,7 +344,7 @@ const PropertyVerification = () => {
                           documentIndex:
                             property.verificationDocuments.indexOf(selectedDoc),
                           status: "rejected",
-                          reason: rejectionReason,
+                          rejectedReason: rejectionReason,
                         })
                       }
                       className="px-4 py-2 bg-red-600 text-white rounded-lg text-[10px] font-bold uppercase"
