@@ -1448,10 +1448,7 @@ const AllAgents = () => {
       ).length,
 
       pending: agents.filter(
-        (a) =>
-          isProfileCompleted(a) &&
-          (!a.verificationStatus ||
-            a.verificationStatus?.toLowerCase() === "pending"),
+        (a) => a.verificationStatus?.toLowerCase() === "pending",
       ).length,
 
       rejected: agents.filter(
