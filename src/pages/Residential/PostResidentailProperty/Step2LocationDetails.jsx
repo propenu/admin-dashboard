@@ -795,7 +795,7 @@ function MapplsPinMap({ coordinates, onPinChange }) {
     );
   }
 
-  return <div id={containerId} key={containerId} ref={containerRef} className="h-full w-full" />;
+  return <div id={containerId} key={containerId} ref={containerRef} className="h-full w-full max-w-[750px] " />;
 }
 
 // ─────────────────────────────────────────────
@@ -872,6 +872,32 @@ export default function Step2LocationDetails({ next, back, category }) {
       { enableHighAccuracy: true, timeout: 10_000 }
     );
   }, [handlePinChange]);
+
+
+  useEffect(() => {
+    const coords = form.location?.coordinates;
+
+    if (!coords || coords.length !== 2) return;
+
+    const [lng, lat] = coords;
+
+    const ctrl = new AbortController();
+
+    reverseGeocode(lat, lng, ctrl.signal)
+      .then((geo) => {
+        if (geo.pincode) setValue("pincode", geo.pincode);
+        if (geo.locality) setValue("locality", geo.locality);
+        if (geo.city) setValue("city", geo.city);
+        if (geo.state) setValue("state", geo.state);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.error(err);
+        }
+      });
+
+    return () => ctrl.abort();
+  }, [form.location?.coordinates]);
 
   // ── Pincode auto-fill via Nominatim ───────────────────────────────────────
   // Fires when user types a complete 6-digit pincode.
@@ -997,14 +1023,16 @@ export default function Step2LocationDetails({ next, back, category }) {
   // ─────────────────────────────────────────────
   return (
     <div ref={topRef} className="space-y-5">
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-[#27AE60]">Location Details</h2>
-          <p className="text-xs text-[#000000] mt-0.5">Where is your property located?</p>
+          <p className="text-xs text-[#000000] mt-0.5">
+            Where is your property located?
+          </p>
         </div>
-        <button type="button"
+        <button
+          type="button"
           className="flex items-center gap-2 text-sm bg-[#f0fdf4] border border-[#bbf7d0] text-[#27AE60] font-semibold px-4 py-2 rounded-xl hover:bg-[#dcfce7] transition-colors"
         >
           <Phone size={13} />
@@ -1016,7 +1044,6 @@ export default function Step2LocationDetails({ next, back, category }) {
       <CardWrapper>
         <SectionLabel>Address Information</SectionLabel>
         <div className="space-y-4">
-
           <FieldWrapper label="Address Line" error={errors.address}>
             <textarea
               rows={3}
@@ -1028,24 +1055,90 @@ export default function Step2LocationDetails({ next, back, category }) {
           </FieldWrapper>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {(form.propertyCategory === "residential" || form.propertyCategory === "commercial") && (
-              <FieldWrapper label="Building Name / Society" error={errors.buildingName}>
-                <input value={form.buildingName || ""} onChange={(e) => setValue("buildingName", e.target.value)}
-                  placeholder="Society / Building name" className={inputCls} />
+            {(form.propertyCategory === "residential" ||
+              form.propertyCategory === "commercial") && (
+              <FieldWrapper
+                label="Building Name / Society"
+                error={errors.buildingName}
+              >
+                <input
+                  value={form.buildingName || ""}
+                  onChange={(e) => setValue("buildingName", e.target.value)}
+                  placeholder="Society / Building name"
+                  className={inputCls}
+                />
               </FieldWrapper>
             )}
-            {(form.propertyCategory === "land" || form.propertyCategory === "agricultural") && (
-              <FieldWrapper label="Land Name / Land Name" error={errors.landName}>
-                <input value={form.landName || ""} onChange={(e) => setValue("landName", e.target.value)}
-                  placeholder="Land Name / Society Name" className={inputCls} />
+            {(form.propertyCategory === "land" ||
+              form.propertyCategory === "agricultural") && (
+              <FieldWrapper
+                label="Land Name / Land Name"
+                error={errors.landName}
+              >
+                <input
+                  value={form.landName || ""}
+                  onChange={(e) => setValue("landName", e.target.value)}
+                  placeholder="Land Name / Society Name"
+                  className={inputCls}
+                />
               </FieldWrapper>
             )}
             <FieldWrapper label="PIN Code" error={errors.pincode}>
               <input
                 value={form.pincode || ""}
-                onChange={(e) => setValue("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onChange={(e) =>
+                  setValue(
+                    "pincode",
+                    e.target.value.replace(/\D/g, "").slice(0, 6),
+                  )
+                }
                 placeholder="6-digit pincode"
                 maxLength={6}
+                className={inputCls}
+              />
+            </FieldWrapper>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FieldWrapper label="Latitude">
+              <input
+                type="number"
+                step="any"
+                value={form.location?.coordinates?.[1] || ""}
+                onChange={(e) => {
+                  const lat = parseFloat(e.target.value);
+                  const lng = form.location?.coordinates?.[0];
+
+                  if (!isNaN(lat) && Number.isFinite(lng)) {
+                    setValue("location", {
+                      type: "Point",
+                      coordinates: [lng, lat],
+                    });
+                    setMarkerPlaced(true);
+                  }
+                }}
+                placeholder="Enter latitude"
+                className={inputCls}
+              />
+            </FieldWrapper>
+
+            <FieldWrapper label="Longitude">
+              <input
+                type="number"
+                step="any"
+                value={form.location?.coordinates?.[0] || ""}
+                onChange={(e) => {
+                  const lng = parseFloat(e.target.value);
+                  const lat = form.location?.coordinates?.[1];
+
+                  if (!isNaN(lng) && Number.isFinite(lat)) {
+                    setValue("location", {
+                      type: "Point",
+                      coordinates: [lng, lat],
+                    });
+                    setMarkerPlaced(true);
+                  }
+                }}
+                placeholder="Enter longitude"
                 className={inputCls}
               />
             </FieldWrapper>
@@ -1054,13 +1147,28 @@ export default function Step2LocationDetails({ next, back, category }) {
           {/* Read-only auto-filled fields */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FieldWrapper label="Locality" error={errors.locality}>
-              <input value={form.locality || ""} readOnly placeholder="Auto-filled from map / pincode" className={readonlyCls} />
+              <input
+                value={form.locality || ""}
+                readOnly
+                placeholder="Auto-filled from map / pincode"
+                className={readonlyCls}
+              />
             </FieldWrapper>
             <FieldWrapper label="City" error={errors.city}>
-              <input value={form.city || ""} readOnly placeholder="Auto-filled from map / pincode" className={readonlyCls} />
+              <input
+                value={form.city || ""}
+                readOnly
+                placeholder="Auto-filled from map / pincode"
+                className={readonlyCls}
+              />
             </FieldWrapper>
             <FieldWrapper label="State" error={errors.state}>
-              <input value={form.state || ""} readOnly placeholder="Auto-filled from map / pincode" className={readonlyCls} />
+              <input
+                value={form.state || ""}
+                readOnly
+                placeholder="Auto-filled from map / pincode"
+                className={readonlyCls}
+              />
             </FieldWrapper>
           </div>
         </div>
@@ -1076,19 +1184,30 @@ export default function Step2LocationDetails({ next, back, category }) {
             <div>
               <SectionLabel>Pin Property Location</SectionLabel>
               <p className="text-[10px] text-[#9ca3af] -mt-2">
-                Click the map → pincode + locality + city + state auto-filled via OpenStreetMap
+                Click the map → pincode + locality + city + state auto-filled
+                via OpenStreetMap
               </p>
             </div>
           </div>
-          <button type="button" onClick={handleUseMyLocation} disabled={locatingUser}
+          <button
+            type="button"
+            onClick={handleUseMyLocation}
+            disabled={locatingUser}
             className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border border-[#27AE60] text-[#27AE60] bg-[#f0fdf4] hover:bg-[#dcfce7] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {locatingUser ? <Loader2 size={13} className="animate-spin" /> : <LocateFixed size={13} />}
+            {locatingUser ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <LocateFixed size={13} />
+            )}
             {locatingUser ? "Locating…" : "Use My Location"}
           </button>
         </div>
 
-        <div className="relative z-10 rounded-xl overflow-hidden border border-[#e6f4ec] shadow-inner" style={{ height: 320 }}>
+        <div
+          className="relative z-10  rounded-xl overflow-hidden border border-[#e6f4ec] shadow-inner"
+          style={{ height: 320,  }}
+        >
           <MapplsPinMap
             coordinates={form.location?.coordinates}
             onPinChange={handlePinChange}
@@ -1098,7 +1217,9 @@ export default function Step2LocationDetails({ next, back, category }) {
         {!markerPlaced && (
           <div className="mt-2 flex items-center gap-1.5 text-[#f59e0b]">
             <Navigation size={12} />
-            <p className="text-xs font-medium">Click the map or use "Use My Location" to pin your property</p>
+            <p className="text-xs font-medium">
+              Click the map or use "Use My Location" to pin your property
+            </p>
           </div>
         )}
         {markerPlaced && (
@@ -1106,40 +1227,68 @@ export default function Step2LocationDetails({ next, back, category }) {
             <Check size={12} />
             <p className="text-xs font-medium">
               Location pinned — click map to re-pin
-              {(form.locality || form.city) ? ` · ${[form.locality, form.city].filter(Boolean).join(", ")}` : ""}
+              {form.locality || form.city
+                ? ` · ${[form.locality, form.city].filter(Boolean).join(", ")}`
+                : ""}
               {form.pincode ? ` · ${form.pincode}` : ""}
             </p>
           </div>
         )}
-        {errors.location && <p className="text-red-500 text-xs mt-1 font-medium">{errors.location}</p>}
+        {errors.location && (
+          <p className="text-red-500 text-xs mt-1 font-medium">
+            {errors.location}
+          </p>
+        )}
 
         {/* Nearby-marker popup */}
         {mapPopup && (
           <div className="mt-3 flex items-center justify-between bg-white border border-[#e5e7eb] rounded-xl px-4 py-3 shadow-sm">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-[#111827] truncate">{mapPopup.place.name}</p>
+              <p className="text-sm font-semibold text-[#111827] truncate">
+                {mapPopup.place.name}
+              </p>
               <p className="text-xs text-[#6b7280] mt-0.5 flex items-center gap-1">
                 <span className="capitalize">{mapPopup.place.type}</span>
                 {mapPopup.place.distanceText && (
                   <span className="text-[#27AE60] font-semibold">
-                    · <Navigation size={9} className="inline" /> {mapPopup.place.distanceText}
+                    · <Navigation size={9} className="inline" />{" "}
+                    {mapPopup.place.distanceText}
                   </span>
                 )}
               </p>
             </div>
             <div className="flex items-center gap-2 ml-3">
-              {(form.nearbyPlaces || []).some((p) => p.name === mapPopup.place.name && p.type === mapPopup.place.type) ? (
-                <button type="button" onClick={() => { handleRemovePlace(mapPopup.place); setMapPopup(null); }}
+              {(form.nearbyPlaces || []).some(
+                (p) =>
+                  p.name === mapPopup.place.name &&
+                  p.type === mapPopup.place.type,
+              ) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleRemovePlace(mapPopup.place);
+                    setMapPopup(null);
+                  }}
                   className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border bg-[#f0fdf4] text-[#27AE60] border-[#bbf7d0]"
-                ><Check size={11} /> Added</button>
+                >
+                  <Check size={11} /> Added
+                </button>
               ) : (
-                <button type="button" onClick={() => handleAddPlace(mapPopup.place)}
+                <button
+                  type="button"
+                  onClick={() => handleAddPlace(mapPopup.place)}
                   className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border bg-[#27AE60] text-white hover:bg-[#219150] transition-colors"
-                ><Plus size={11} /> Add Place</button>
+                >
+                  <Plus size={11} /> Add Place
+                </button>
               )}
-              <button type="button" onClick={() => setMapPopup(null)}
+              <button
+                type="button"
+                onClick={() => setMapPopup(null)}
                 className="text-[#9ca3af] hover:text-[#374151] transition-colors"
-              ><X size={14} /></button>
+              >
+                <X size={14} />
+              </button>
             </div>
           </div>
         )}
@@ -1154,7 +1303,8 @@ export default function Step2LocationDetails({ next, back, category }) {
           <div>
             <SectionLabel>Nearby Places</SectionLabel>
             <p className="text-[10px] text-[#9ca3af] -mt-2">
-              Live Photon search · Browse categories · Name search — all via OpenStreetMap
+              Live Photon search · Browse categories · Name search — all via
+              OpenStreetMap
             </p>
           </div>
         </div>
@@ -1168,12 +1318,18 @@ export default function Step2LocationDetails({ next, back, category }) {
 
       {/* Navigation */}
       <div className="flex gap-3">
-        <button onClick={back}
+        <button
+          onClick={back}
           className="flex-1 py-4 border-2 border-[#e5e7eb] text-[#6b7280] font-bold rounded-2xl hover:border-[#27AE60] hover:text-[#27AE60] transition-all duration-200 text-sm"
-        >← Back</button>
-        <button onClick={handleContinue}
+        >
+          ← Back
+        </button>
+        <button
+          onClick={handleContinue}
           className="flex-1 py-4 bg-gradient-to-r from-[#27AE60] to-[#52D689] text-white font-bold rounded-2xl hover:from-[#219150] hover:to-[#27AE60] transition-all duration-200 shadow-lg shadow-green-200/60 text-sm"
-        >Continue →</button>
+        >
+          Continue →
+        </button>
       </div>
     </div>
   );

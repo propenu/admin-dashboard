@@ -4,135 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { X, ChevronDown, Check, Search } from "lucide-react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
-/* ─── Amenity Data by Category & Property Type ───────────────── */
-// const AMENITIES = {
-//   residential: [
-//     {
-//       category: "Sports",
-//       items: ["Gym", "Swimming Pool", "Jogging Track", "Kid's Play Area"],
-//     },
-//     {
-//       category: "Convenience",
-//       items: ["Elevator", "Power Backup", "Club House", "Visitor Parking"],
-//     },
-//     {
-//       category: "Safety",
-//       items: [
-//         "24x7 Security",
-//         "CCTV Video Surveillance",
-//         "Fire Fighting Systems",
-//         "Video Intercom",
-//       ],
-//     },
-//     {
-//       category: "Environment",
-//       items: ["Park", "Rain Water Harvesting", "Solar Lighting"],
-//     },
-//   ],
-
-//   commercial: [
-//     {
-//       category: "Sports",
-//       items: ["Gym", "Swimming Pool"],
-//     },
-//     {
-//       category: "Convenience",
-//       items: [
-//         "Elevator",
-//         "Power Backup",
-//         "Visitor Parking",
-//         "ATMs",
-//         "AC Waiting Lobby",
-//         "Parking",
-//         "Valet Parking",
-//         "Podium Parking",
-//         "Multi Level Parking",
-//         "Front Desk Service",
-//         "Centralized AC",
-//         "24x7 Water Supply",
-//         "Separate Entry or Exit Gates",
-//         "Automatic Boom Barriers",
-//         "Cafe or Coffee Bar",
-//       ],
-//     },
-//     {
-//       category: "Safety",
-//       items: [
-//         "24x7 Security",
-//         "CCTV Video Surveillance",
-//         "Fire Fighting Systems",
-//         "Smoke or Heat Sensors",
-//         "Smart Card Access",
-//         "Emergency Rescue Alarms",
-//       ],
-//     },
-//     {
-//       category: "Environment",
-//       items: ["Solar Lighting", "IGBC Certified Building"],
-//     },
-//   ],
-
-//   land: [
-//     {
-//       category: "Land",
-//       items: ["24x7 Water Supply"],
-//     },
-//     {
-//       category: "Water",
-//       items: ["Borewell Open Well"],
-//     },
-//     {
-//       category: "Power",
-//       items: ["Electricity Connection", "Solar Power Provision"],
-//     },
-//     {
-//       category: "Connectivity",
-//       items: ["Near Highway", "Close to Village"],
-//     },
-//     {
-//       category: "Safety",
-//       items: ["CCTV Video Surveillance"],
-//     },
-//   ],
-
-//   agricultural: [
-//     {
-//       category: "Land",
-//       items: ["Levelled or Semi-Levelled Land"],
-//     },
-//     {
-//       category: "Water",
-//       items: [
-//         "River Harvesting System",
-//         "Drip Irrigation Facility",
-//         "Sprinkler Irrigation System",
-//         "Canal River Water Access",
-//       ],
-//     },
-//     {
-//       category: "Power",
-//       items: [
-//         "Water Pump Set",
-//         "Solar Power Provision",
-//         "Electricity Connection",
-//       ],
-//     },
-//     {
-//       category: "Infrastructure",
-//       items: [
-//         "Cattle Shed",
-//         "Motor Shed",
-//         "Greenhouse",
-//         "Watchman Room",
-//         "Toilets and Wash Area",
-//       ],
-//     },
-//     {
-//       category: "Safety",
-//       items: ["CCTV Video Surveillance"],
-//     },
-//   ],
-// };
 
 const AMENITIES = {
   residential: [
@@ -148,7 +19,7 @@ const AMENITIES = {
     {
       category: "Convenience",
       items: [
-        { key: "Elevator", title: "Elevator", icon: "🛗" },
+        { key: "elevator", title: "Elevator", icon: "🛗" },
         { key: "power_backup", title: "Power Backup", icon: "⚡" },
         { key: "club_house", title: "Club House", icon: "🏛️" },
         { key: "visitor_parking", title: "Visitor Parking", icon: "🅿️" },
@@ -397,7 +268,8 @@ const AMENITIES = {
 /* ─── Component ───────────────────────────────────────────────── */
 
 const Amenities = ({ error }) => {
-  const { form, toggleArrayValue, activeCategory } = useActivePropertySlice();
+  const { form, toggleArrayValue, activeCategory, updateFieldValue } =
+    useActivePropertySlice();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef(null);
@@ -434,7 +306,9 @@ const Amenities = ({ error }) => {
     <div className="space-y-2" ref={dropdownRef}>
       {/* Label */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">Amenities</p>
+        <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">
+          Amenities
+        </p>
         {selectedCount > 0 && (
           <span className="text-[11px] font-bold text-[#27AE60] bg-[#f0fdf4] px-2 py-0.5 rounded-full border border-[#bbf7d0]">
             {selectedCount} selected
@@ -449,8 +323,8 @@ const Amenities = ({ error }) => {
           error
             ? "border-red-300"
             : isOpen
-            ? "border-[#27AE60] ring-2 ring-[#27AE60]/10"
-            : "border-[#e5e7eb] hover:border-[#bbf7d0]"
+              ? "border-[#27AE60] ring-2 ring-[#27AE60]/10"
+              : "border-[#e5e7eb] hover:border-[#bbf7d0]"
         }`}
       >
         {selectedCount > 0 ? (
@@ -507,7 +381,10 @@ const Amenities = ({ error }) => {
                 <X
                   size={12}
                   className="text-[#9ca3af] cursor-pointer hover:text-[#374151] flex-shrink-0"
-                  onClick={(e) => { e.stopPropagation(); setSearch(""); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearch("");
+                  }}
                 />
               )}
             </div>
@@ -528,9 +405,7 @@ const Amenities = ({ error }) => {
                     </p>
                   </div>
                   {group.items.map((item) => {
-                       const isSelected = selected.some(
-                         (a) => a.key === item.key,
-                       );
+                    const isSelected = selected.some((a) => a.key === item.key);
                     return (
                       <div
                         key={item.key || item.title}
@@ -568,14 +443,14 @@ const Amenities = ({ error }) => {
           {selectedCount > 0 && (
             <div className="px-4 py-3 border-t border-[#f0f0f0] bg-[#f9fafb] flex items-center justify-between">
               <span className="text-xs font-semibold text-[#6b7280]">
-                {selectedCount} amenit{selectedCount === 1 ? "y" : "ies"} selected
+                {selectedCount} amenit{selectedCount === 1 ? "y" : "ies"}{" "}
+                selected
               </span>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // Clear all by updating each one — parent toggle handles it
-                  // For a direct clear, use updateFieldValue if available
+                  updateFieldValue("amenities", []);
                 }}
                 className="text-xs font-bold text-red-400 hover:text-red-600 transition-colors"
               >

@@ -25,19 +25,44 @@ export const useActivePropertySlice = () => {
     );
   };
 
-  const toggleArrayValue = (key, value) => {
-    const existing = Array.isArray(form[key]) ? form[key] : [];
+  // const toggleArrayValue = (key, value) => {
+  //   const existing = Array.isArray(form[key]) ? form[key] : [];
 
-    const updated = existing.some((item) =>
-      typeof item === "object" ? item.title === value : item === value,
-    )
-      ? existing.filter((item) =>
-          typeof item === "object" ? item.title !== value : item !== value,
-        )
-      : [...existing, typeof value === "string" ? { title: value } : value];
+  //   const updated = existing.some((item) =>
+  //     typeof item === "object" ? item.title === value : item === value,
+  //   )
+  //     ? existing.filter((item) =>
+  //         typeof item === "object" ? item.title !== value : item !== value,
+  //       )
+  //     : [...existing, typeof value === "string" ? { title: value } : value];
 
-    updateFieldValue(key, updated);
-  };
+  //   updateFieldValue(key, updated);
+  // };
+
+const toggleArrayValue = (key, value) => {
+  const existing = Array.isArray(form[key]) ? form[key] : [];
+
+  const target =
+    typeof value === "object"
+      ? value
+      : {
+          key: value.toLowerCase().replace(/\s+/g, "_"),
+          title: value,
+        };
+
+  const exists = existing.some(
+    (item) => typeof item === "object" && item.key === target.key,
+  );
+
+  const updated = exists
+    ? existing.filter(
+        (item) => !(typeof item === "object" && item.key === target.key),
+      )
+    : [...existing, target];
+
+  updateFieldValue(key, updated);
+};
+
 
   const toggleStringArrayValue = (key, value) => {
     const existing = Array.isArray(form[key]) ? form[key] : [];
