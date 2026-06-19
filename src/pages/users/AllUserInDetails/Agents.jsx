@@ -1185,39 +1185,76 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
 
         <div className="h-px bg-gradient-to-r from-gray-100 via-[#27AE60]/10 to-transparent" />
 
-        {(!agent.verificationStatus ||
-          agent.verificationStatus?.toLowerCase() === "pending") && (
-          <div className="mt-2 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-gray-500">
-                KYC Status
-              </span>
+        <div className="mt-2 flex flex-col gap-2">
+          {/* KYC Status */}
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-gray-500">
+              KYC Status
+            </span>
 
-              <span className={badgeClass}>
-                {agent.kycStatus?.replace("_", " ").toUpperCase()}
-              </span>
-            </div>
-
-            {agent.kycReason?.trim() && (
-              <div className="flex gap-2 rounded-lg bg-amber-50 border border-amber-200 p-2">
-                <AlertTriangle
-                  size={14}
-                  className="text-amber-600 mt-0.5 shrink-0"
-                />
-
-                <div>
-                  <p className="text-[10px] font-bold text-amber-700">
-                    Action Required
-                  </p>
-
-                  <p className="text-[11px] text-amber-600">
-                    {agent.kycReason}
-                  </p>
-                </div>
-              </div>
-            )}
+            <span className={badgeClass}>
+              {agent.kycStatus?.replace("_", " ").toUpperCase()}
+            </span>
           </div>
-        )}
+
+          {/* KYC Reason */}
+          {agent.kycReason?.trim() && (
+            <div
+              className={`flex gap-2 rounded-lg border p-2
+      ${
+        agent.kycStatus === "verified"
+          ? "bg-green-50 border-green-200"
+          : agent.kycStatus === "rejected"
+            ? "bg-red-50 border-red-200"
+            : "bg-amber-50 border-amber-200"
+      }`}
+            >
+              <AlertTriangle
+                size={14}
+                className={`mt-0.5 shrink-0
+        ${
+          agent.kycStatus === "verified"
+            ? "text-green-600"
+            : agent.kycStatus === "rejected"
+              ? "text-red-600"
+              : "text-amber-600"
+        }`}
+              />
+
+              <div>
+                <p
+                  className={`text-[10px] font-bold
+          ${
+            agent.kycStatus === "verified"
+              ? "text-green-700"
+              : agent.kycStatus === "rejected"
+                ? "text-red-700"
+                : "text-amber-700"
+          }`}
+                >
+                  {agent.kycStatus === "verified"
+                    ? "Verification Success"
+                    : agent.kycStatus === "rejected"
+                      ? "Verification Failed"
+                      : "Action Required"}
+                </p>
+
+                <p
+                  className={`text-[11px]
+          ${
+            agent.kycStatus === "verified"
+              ? "text-green-600"
+              : agent.kycStatus === "rejected"
+                ? "text-red-600"
+                : "text-amber-600"
+          }`}
+                >
+                  {agent.kycReason}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Quick stats */}
         <div className="grid grid-cols-3 gap-2">
