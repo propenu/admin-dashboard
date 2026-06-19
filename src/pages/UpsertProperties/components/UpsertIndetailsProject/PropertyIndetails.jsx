@@ -1691,7 +1691,7 @@ const analyticsLoading = isLoading;
                   ]
                     .filter(Boolean)
                     .join(", ")}
-                  {property.pincode && ` - ${property.pincode}`}
+                  {/* {property.pincode && ` - ${property.pincode}`} */}
                 </span>
                 {/* <span>
                   {[
