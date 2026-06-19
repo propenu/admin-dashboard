@@ -19,8 +19,8 @@ import { toast } from "sonner";
 const MAPPLS_SCRIPT_ID       = "mappls-sdk-script";
 const DEFAULT_POSITION       = { lat: 20.5937, lng: 78.9629 }; // India centre
 const MAP_CLICK_ZOOM         = 15;
-const SEARCH_RADIUS_KM       = 5;
-const SEARCH_RESULT_LIMIT    = 5;
+const SEARCH_RADIUS_KM       = 30;
+const SEARCH_RESULT_LIMIT    = 30;
 const PHOTON_CANDIDATE_LIMIT = 15;
 const MAX_NEARBY_RADIUS_M    = 10_000;
 
@@ -507,7 +507,7 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
       <div className="flex items-center gap-2 bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl px-4 py-2.5">
         <MapPin size={12} className="text-[#27AE60] shrink-0" />
         <p className="text-xs text-[#166534] font-medium">
-          Places within <span className="font-bold">10 km</span> shown nearest first.
+          {/* Places within <span className="font-bold">10 km</span> shown nearest first. */}
           Live suggestions limited to <span className="font-bold">{SEARCH_RADIUS_KM} km</span>.
         </p>
       </div>
@@ -1302,10 +1302,10 @@ export default function Step2LocationDetails({ next, back, category }) {
           </div>
           <div>
             <SectionLabel>Nearby Places</SectionLabel>
-            <p className="text-[10px] text-[#9ca3af] -mt-2">
+            {/* <p className="text-[10px] text-[#9ca3af] -mt-2">
               Live Photon search · Browse categories · Name search — all via
               OpenStreetMap
-            </p>
+            </p> */}
           </div>
         </div>
         <NearbyPlacesPanel
