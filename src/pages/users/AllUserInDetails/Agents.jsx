@@ -1436,11 +1436,30 @@ const AllAgents = () => {
     });
   }, [agents, filters]);
 
-  const counts = useMemo(() => ({
-    approved: agents.filter((a) => a.verificationStatus?.toLowerCase() === "approved").length,
-    pending:  agents.filter((a) => a.verificationStatus?.toLowerCase() === "pending").length,
-    rejected: agents.filter((a) => a.verificationStatus?.toLowerCase() === "rejected").length,
-  }), [agents]);
+  // const counts = useMemo(() => ({
+  //   approved: agents.filter((a) => a.verificationStatus?.toLowerCase() === "approved").length,
+  //   pending:  agents.filter((a) => a.verificationStatus?.toLowerCase() === "pending").length,
+  //   rejected: agents.filter((a) => a.verificationStatus?.toLowerCase() === "rejected").length,
+  // }), [agents]);
+  const counts = useMemo(
+    () => ({
+      approved: agents.filter(
+        (a) => a.verificationStatus?.toLowerCase() === "approved",
+      ).length,
+
+      pending: agents.filter(
+        (a) =>
+          isProfileCompleted(a) &&
+          (!a.verificationStatus ||
+            a.verificationStatus?.toLowerCase() === "pending"),
+      ).length,
+
+      rejected: agents.filter(
+        (a) => a.verificationStatus?.toLowerCase() === "rejected",
+      ).length,
+    }),
+    [agents],
+  );
 
   return (
     <>
