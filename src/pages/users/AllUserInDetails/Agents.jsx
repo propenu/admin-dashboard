@@ -1175,6 +1175,32 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
 
         <div className="h-px bg-gradient-to-r from-gray-100 via-[#27AE60]/10 to-transparent" />
 
+        {/* KYC Status */}
+        <div className="flex flex-wrap gap-2 mt-2">
+          <span
+            className={`px-3 py-1 rounded-full text-[10px] font-bold border
+      ${
+        agent.kycStatus === "approved"
+          ? "bg-green-100 text-green-700 border-green-300"
+          : agent.kycStatus === "rejected"
+            ? "bg-red-100 text-red-700 border-red-300"
+            : agent.kycStatus === "pending"
+              ? "bg-yellow-100 text-yellow-700 border-yellow-300"
+              : "bg-gray-100 text-gray-700 border-gray-300"
+      }`}
+          >
+            KYC : {agent.kycStatus?.replace("_", " ").toUpperCase()}
+          </span>
+        </div>
+
+        {agent.kycReason && (
+          <div className="mt-2 p-2 rounded-xl bg-red-50 border border-red-200">
+            <p className="text-[11px] font-semibold text-red-700">Reason:</p>
+
+            <p className="text-[11px] text-red-600">{agent.kycReason}</p>
+          </div>
+        )}
+
         {/* Quick stats */}
         <div className="grid grid-cols-3 gap-2">
           {[
