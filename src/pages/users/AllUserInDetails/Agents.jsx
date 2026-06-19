@@ -12,6 +12,7 @@ import {
   Star, Briefcase, Award, Languages, Search, Filter, SlidersHorizontal,
   Hash, CalendarDays, TrendingUp, Home, ChevronRight, Eye, User,
   FileText, Globe, Image, LinkIcon, BadgeCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
