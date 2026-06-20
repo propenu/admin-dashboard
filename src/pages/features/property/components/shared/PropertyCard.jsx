@@ -9,6 +9,7 @@ import { saveAs } from "file-saver";
 import {
   salesmanagerApproveAProject,
   salesmanagerRejectAProject,
+  editFeaturedProject,
 } from "../../../../../features/property/propertyService";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -279,6 +280,30 @@ export default function PropertyCard({
       month: "short",
     });
 
+
+    const handleRenew = async () => {
+      try {
+        const currentExpiry = p?.promotion?.boostExpiry
+          ? new Date(p.promotion.boostExpiry)
+          : new Date();
+
+        currentExpiry.setDate(currentExpiry.getDate() + 10);
+
+        await editFeaturedProject(p._id, {
+          promotion: {
+            type: p.promotion.type,
+            boostExpiry: currentExpiry,
+          },
+        });
+
+        toast.success("Promotion extended by 10 days");
+
+        onRankUpdated?.();
+      } catch (err) {
+        toast.error("Failed to renew promotion");
+      }
+    };
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div
@@ -438,7 +463,7 @@ export default function PropertyCard({
               </span>
             </div>
           )}
-          
+
           {p?.promotion && p.promotion.type !== "normal" && (
             <div className="flex items-center justify-evenly gap-1 text-[9px] space-y-0.5  ">
               <div className="text-slate-500">
@@ -455,15 +480,52 @@ export default function PropertyCard({
                 </div>
               )}
 
-              {promotionStatus === "expiringSoon" && (
+              {/* {promotionStatus === "expiringSoon" && (
                 <div className="text-orange-600 font-semibold">
                   ⚠ Expires in {daysLeft} day{daysLeft > 1 ? "s" : ""}
                 </div>
+              )} */}
+
+              {promotionStatus === "expiringSoon" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-orange-600 font-semibold">
+                    ⚠ Expires in {daysLeft} day{daysLeft > 1 ? "s" : ""}
+                  </span>
+
+                  {daysLeft <= 2 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRenew();
+                      }}
+                      className="px-2 py-1 rounded bg-green-600 text-white text-[9px] font-bold"
+                    >
+                      Renew +10 Days
+                    </button>
+                  )}
+                </div>
               )}
 
-              {promotionStatus === "expired" && (
+              {/* {promotionStatus === "expired" && (
                 <div className="text-red-600 font-semibold">
                   🔴 Promotion expired
+                </div>
+              )} */}
+              {promotionStatus === "expired" && (
+                <div className="flex items-center gap-2">
+                  <span className="text-red-600 font-semibold">
+                    🔴 Promotion expired
+                  </span>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRenew();
+                    }}
+                    className="px-2 py-1 rounded bg-green-600 text-white text-[9px] font-bold"
+                  >
+                    Renew +10 Days
+                  </button>
                 </div>
               )}
 
