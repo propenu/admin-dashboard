@@ -386,8 +386,8 @@ export default function Step1BasicDetails({ next }) {
     }
 
     if (category === "commercial") {
-      if (!form.cabins) e.cabins = "Cabins required";
-      if (!form.seats) e.seats = "Seats required";
+      if (!form.cabins <=0) e.cabins = "Cabins required";
+      if (!form.seats <=0) e.seats = "Seats required";
       if (!form.carpetArea) e.carpetArea = "Carpet area required";
       if (!form.builtUpArea) e.builtUpArea = "Built-up area required";
       const carpet = Number(form.carpetArea);
