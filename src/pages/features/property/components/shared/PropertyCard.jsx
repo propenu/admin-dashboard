@@ -493,15 +493,15 @@ export default function PropertyCard({
                   </span>
 
                   {daysLeft <= 2 && (
-                    // <button
-                    //   onClick={(e) => {
-                    //     e.stopPropagation();
-                    //     handleRenew();
-                    //   }}
-                    //   className="px-2 py-1 rounded bg-green-600 text-white text-[9px] font-bold"
-                    // >
-                    //   Renew +10 Days
-                    // </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRenew();
+                      }}
+                      className="px-2 py-1 rounded bg-green-600 text-white text-[9px] font-bold"
+                    >
+                      Renew +10 Days
+                    </button>
                   )}
                 </div>
               )}
