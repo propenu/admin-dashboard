@@ -1,6 +1,6 @@
 // src/pages/features/property/components/shared/ProjectsDashboardPage.jsx
 import {
-  useState, useEffect, useRef, useMemo, useCallback, useReducer,
+  useState, useEffect, useRef, useMemo, useCallback,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -314,7 +314,6 @@ function SelectDropdown({ label, value, options, onChange, placeholder = "Select
 
 function InlineLocationSelector({
   properties,
-  analytics,
   masterAnalytics,
   selectedLocation,
   onLocationChange,
@@ -565,11 +564,11 @@ function InlineLocationSelector({
   };
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative w-full sm:w-auto">
       {/* Trigger button */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition min-w-[180px]
+        className={`flex w-full sm:w-auto items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition min-w-0 sm:min-w-[180px]
           ${
             selectedLocation
               ? "bg-[#27AE60]/10 border-[#27AE60]/40 text-[#27AE60]"
@@ -577,7 +576,7 @@ function InlineLocationSelector({
           }`}
       >
         <Navigation className="w-4 h-4 flex-shrink-0" />
-        <span className="flex-1 text-left truncate max-w-[160px]">
+        <span className="flex-1 text-left truncate sm:max-w-[160px]">
           {selectedLocation ? selectedLocation.label : "All India"}
         </span>
         {selectedLocation && (
@@ -603,7 +602,7 @@ function InlineLocationSelector({
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute z-50 top-full mt-2 left-0 min-w-[360px]  bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+        <div className="absolute z-50 top-full mt-2 left-0 w-[calc(100vw-2rem)] max-w-[360px] sm:w-[360px] bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
           {/* Search */}
           <div className="p-3 border-b bg-green-200 border-slate-100">
             <div className="flex  items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
@@ -642,7 +641,7 @@ function InlineLocationSelector({
           </button>
 
           {/* Zone tree */}
-          <div className="min-h-[400px] overflow-y-auto">
+          <div className="max-h-[70vh] sm:max-h-[400px] overflow-y-auto">
             {zonesWithData.map((zone) => {
               const zoneStates = zone.states.filter((s) => hierarchy[s]);
               const childMatch = zoneStates.some(stateVisible);
@@ -680,19 +679,19 @@ function InlineLocationSelector({
 // ANALYTICS COMPONENTS — each fully standalone, no inter-dependency
 // ─────────────────────────────────────────────────────────────────────────────
 
-function KPICard({ label, display, sub, icon: Icon, color, iconBg, border, onClick, isActive }) {
+function KPICard({ label, display, border, onClick, isActive }) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white flex items-center justify-center gap-2 rounded-2xl border ${border} p-2 shadow-sm transition-all duration-200 
+      className={`bg-white flex min-h-[58px] items-center justify-between gap-2 rounded-2xl border ${border} p-3 shadow-sm transition-all duration-200 
         ${onClick ? "cursor-pointer hover:shadow-md hover:-translate-y-0.5" : ""}
         ${isActive ? "ring-2 ring-[#27AE60] shadow-md -translate-y-0.5" : ""}`}
     >
       {/* <div className={`w-9 h-9 rounded-xl ${iconBg} flex items-center justify-center mb-3`}>
         <Icon className={color} style={{ width: 18, height: 18 }} />
       </div> */}
-      <p className="text-[15px] lg:text-nowrap xl:text-nowrap text-[#27AE60]  leading-tight">{label}</p>
-      <p className="text-xs  text-slate-900 leading-none">{display}</p>
+      <p className="min-w-0 text-xs sm:text-sm text-[#27AE60] leading-tight">{label}</p>
+      <p className="shrink-0 text-sm font-bold text-slate-900 leading-none">{display}</p>
       {/* {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>} */}
     </div>
   );
@@ -721,21 +720,6 @@ function AnalyticsOverviewRow({
     );
   });
 
-  const scheduledCount = properties.filter(
-    (p) => getProjectStatus(p).status === "scheduled",
-  ).length;
-
-  const expiringSoonCount = properties.filter(
-    (p) => getProjectStatus(p).status === "expiringSoon",
-  ).length;
-
-  const expiredCount = properties.filter(
-    (p) => getProjectStatus(p).status === "expired",
-  ).length;
-
-  const inactiveCount = properties.filter(
-    (p) => getProjectStatus(p).status === "inactive",
-  ).length;
   // onStatusFilter — independent action, only updates project list status filter
   const cards = [
     {
@@ -824,7 +808,7 @@ function AnalyticsOverviewRow({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 xl:grid-cols-8 gap-3">
+    <div className="grid grid-cols-1 min-[420px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
       {cards.map((c) => (
         <KPICard
           key={c.label}
@@ -843,7 +827,7 @@ function AnalyticsOverviewRow({
   );
 }
 
-function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFilter }) {
+function AnalyticsPromotionRow({ ov, activePromotionFilter, onPromotionFilter }) {
   // onPromotionFilter — independent action, only updates project list promotion filter
   const cards = [
     { key: "prime",     label: "Prime",       value: ov.primeProjects     ?? 0, icon: Star,       color: "text-yellow-700", bg: "bg-yellow-50",  border: "border-yellow-100", iconBg: "bg-yellow-100", bar: "bg-yellow-400" },
@@ -853,7 +837,7 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3">
       {cards.map((c) => {
         const Icon = c.icon;
         const isActive = activePromotionFilter === c.key;
@@ -861,11 +845,11 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
           <div
             key={c.key}
             onClick={() => onPromotionFilter(c.key)}
-            className={`${c.bg} flex items-center justify-center gap-2 rounded-2xl border ${c.border} p-2 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 shadow-sm
+            className={`${c.bg} flex min-h-[58px] items-center justify-between gap-2 rounded-2xl border ${c.border} p-3 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 shadow-sm
               ${isActive ? "ring-2 ring-[#27AE60] shadow-md -translate-y-0.5" : ""}`}
           >
-            <p className="text-xl text-nowrap text-[#000456]">{c.label}</p>
-            <p className="text-xl font-bold text-slate-900 leading-none">
+            <p className="min-w-0 text-sm sm:text-base text-[#000456] leading-tight">{c.label}</p>
+            <p className="shrink-0 text-lg sm:text-xl font-bold text-slate-900 leading-none">
               {c.value}
             </p>
           </div>
@@ -875,7 +859,7 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
   );
 }
 
-function AnalyticsCategoryBlock({ categoryWise, total }) {
+function AnalyticsCategoryBlock({ categoryWise }) {
   const filtered = (categoryWise || []).filter((c) => c._id && c._id !== "unknown");
   if (!filtered.length) return null;
   return (
@@ -937,7 +921,7 @@ function AnalyticsPropertyTypeBlock({ propertyTypeWise }) {
   );
 }
 
-function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
+function AnalyticsLocationBlock({ analytics, locationType }) {
  
    const [search, setSearch] = useState("");
 
@@ -959,9 +943,6 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
   }
   
  // const maxVal = rows.reduce((m, r) => Math.max(m, r.total), 1);
- const maxVal =
-   rows?.length > 0 ? rows.reduce((m, r) => Math.max(m, r?.total || 0), 1) : 1;
-  
    const isSingleRow = rows.length === 1;
 
   return (
@@ -1000,15 +981,15 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
               key={row._id}
               className="bg-[#27AE60]/5 rounded-xl p-3 border border-[#27AE60]/10"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-[#27AE60]">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-2">
+                <span className="text-sm font-bold text-[#27AE60] break-words">
                   {row._id}
                 </span>
-                <span className="text-sm font-bold text-slate-800">
+                <span className="text-sm font-bold text-slate-800 shrink-0">
                   {row.total} projects
                 </span>
               </div>
-              <div className="grid grid-cols-8 gap-2">
+              <div className="grid grid-cols-2 min-[420px]:grid-cols-3 sm:grid-cols-5 gap-2">
                 {[
                   {
                     label: "Active",
@@ -1045,12 +1026,12 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
                   .map((tile) => (
                     <div
                       key={tile.label}
-                      className={`${tile.bg} rounded-lg p-2 text-center`}
+                      className={`${tile.bg} rounded-lg p-2 text-center min-w-0`}
                     >
                       <p className={`text-base font-bold ${tile.color}`}>
                         {tile.value}
                       </p>
-                      <p className="text-[10px] text-slate-500">{tile.label}</p>
+                      <p className="text-[10px] text-slate-500 break-words">{tile.label}</p>
                     </div>
                   ))}
               </div>
@@ -1142,7 +1123,6 @@ function AnalyticsPriceBlock({ priceAnalytics }) {
 function AnalyticsDashboard({
   analytics,
   isLoading,
-  locationLabel,
   locationType,
   // independent callbacks — each updates only its own filter slice
   onPromotionFilter,
@@ -1184,12 +1164,11 @@ function AnalyticsDashboard({
       />
 
       {/* Row 2 — Promotion type */}
-      <AnalyticsPromotionRow
-        ov={ov}
-        total={total}
-        activePromotionFilter={activePromotionFilter}
-        onPromotionFilter={onPromotionFilter}
-      />
+        <AnalyticsPromotionRow
+          ov={ov}
+          activePromotionFilter={activePromotionFilter}
+          onPromotionFilter={onPromotionFilter}
+        />
 
       {/* Row 3 — Category + Property type */}
       {(analytics.categoryWise?.length > 0 ||
@@ -1197,7 +1176,6 @@ function AnalyticsDashboard({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <AnalyticsCategoryBlock
             categoryWise={analytics.categoryWise}
-            total={total}
           />
           <AnalyticsPropertyTypeBlock
             propertyTypeWise={analytics.propertyTypeWise}
@@ -1210,7 +1188,6 @@ function AnalyticsDashboard({
         <AnalyticsLocationBlock
           analytics={analytics}
           locationType={locationType}
-          locationLabel={locationLabel}
         />
         <AnalyticsPriceBlock priceAnalytics={analytics.priceAnalytics} />
       </div>
@@ -1246,7 +1223,10 @@ export default function ProjectsDashboardPage() {
 
 
   const { data: pendingProjectsData } = usePendingProjects({ enabled: isSalesManager });
-  const pendingProjects = pendingProjectsData?.data || [];
+  const pendingProjects = useMemo(
+    () => pendingProjectsData?.data || [],
+    [pendingProjectsData],
+  );
 
   useEffect(() => {
     console.log({
@@ -1359,12 +1339,16 @@ useEffect(() => {
 }, [
   normalHook.hasNextPage,
   normalHook.isFetchingNextPage,
+  normalHook,
   featuredHook.hasNextPage,
   featuredHook.isFetchingNextPage,
+  featuredHook,
   primeHook.hasNextPage,
   primeHook.isFetchingNextPage,
+  primeHook,
   sponsoredHook.hasNextPage,
   sponsoredHook.isFetchingNextPage,
+  sponsoredHook,
 ]);
 
 
@@ -1402,8 +1386,6 @@ useEffect(() => {
 
     // Location filter — same as analytics scope
     if (selectedLocation) {
-      const { type, value } = selectedLocation;
-
       if (selectedLocation?.value?.state) {
         list = list.filter(
           (p) => p.state?.trim() === selectedLocation.value.state,
@@ -1749,13 +1731,12 @@ useEffect(() => {
       </div>
 
       {/* ── TOP BAR: Location selector + Search — both drive analytics ──── */}
-      <div className="bg-white w-1/3   rounded-2xl border border-[#27AE60] shadow-[0_0_0_1px_#27AE60] p-4">
-        <div className="flex  flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      <div className="bg-white w-full lg:w-fit rounded-2xl border border-[#27AE60] shadow-[0_0_0_1px_#27AE60] p-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {/* Location selector (left) */}
-          <div className="flex items-center  gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <InlineLocationSelector
               properties={allProperties}
-              analytics={analytics}
               masterAnalytics={masterAnalytics}
               selectedLocation={selectedLocation}
               onLocationChange={setSelectedLocation}
@@ -1805,17 +1786,17 @@ useEffect(() => {
 
       {/* ── ANALYTICS DASHBOARD (role-gated, driven by location + search) ── */}
       {canViewAnalytics && (
-        <div className="bg-gradient-to-br from-[#27AE60]/5 via-emerald-50/50 to-white rounded-2xl border border-[#27AE60]/15 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#27AE60]/10 rounded-xl flex items-center justify-center">
+        <div className="bg-gradient-to-br from-[#27AE60]/5 via-emerald-50/50 to-white rounded-2xl border border-[#27AE60]/15 p-4 sm:p-5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 bg-[#27AE60]/10 rounded-xl flex items-center justify-center shrink-0">
                 <BarChart3 className="w-5 h-5 text-[#27AE60]" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-base font-bold text-slate-800">
                   Live Analytics Dashboard
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 break-words">
                   {selectedLocation || analyticsSearch
                     ? `Filtered · ${[selectedLocation?.label, analyticsSearch ? `"${analyticsSearch}"` : ""].filter(Boolean).join(" + ")}`
                     : "All India · All Projects"}
@@ -1825,7 +1806,7 @@ useEffect(() => {
             </div>
             <button
               onClick={() => setShowAnalytics((v) => !v)}
-              className="text-xs text-slate-400 hover:text-slate-700 font-semibold transition px-3 py-1.5 rounded-lg hover:bg-slate-100"
+              className="self-start sm:self-auto text-xs text-slate-400 hover:text-slate-700 font-semibold transition px-3 py-1.5 rounded-lg hover:bg-slate-100"
             >
               {showAnalytics ? "Hide" : "Show"}
             </button>
@@ -1835,7 +1816,6 @@ useEffect(() => {
             <AnalyticsDashboard
               analytics={analytics}
               isLoading={analyticsLoading}
-              locationLabel={selectedLocation?.label || "All India"}
               locationType={selectedLocation?.type || null}
               // Independent callbacks — each updates only its respective filter
               onPromotionFilter={setPromotionFilter}
@@ -1856,7 +1836,7 @@ useEffect(() => {
               prev === "pending" ? "all" : "pending",
             )
           }
-          className={`bg-white rounded-2xl border p-4 shadow-sm cursor-pointer hover:shadow-md transition-all flex items-center gap-4
+          className={`bg-white rounded-2xl border p-4 shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-4
             ${promotionFilter === "pending" ? "ring-2 ring-amber-400 border-amber-200" : "border-amber-100"}`}
         >
           <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
@@ -1868,14 +1848,14 @@ useEffect(() => {
             </p>
             <p className="text-sm text-slate-500">Pending Approvals</p>
           </div>
-          <div className="ml-auto text-xs text-amber-600 font-semibold bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
+          <div className="sm:ml-auto text-xs text-amber-600 font-semibold bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
             {promotionFilter === "pending" ? "✓ Viewing now" : "Click to view"}
           </div>
         </div>
       )}
 
       {/* ── PROJECT LIST FILTERS ─────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-4">
         {/* Search bar (right, fills remaining space) */}
         <div className="flex-1  flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 min-w-0 focus-within:border-[#27AE60]/50 focus-within:bg-white transition">
           <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
@@ -1899,7 +1879,7 @@ useEffect(() => {
         </div>
         <div className="flex flex-wrap items-end gap-4">
           {/* Category */}
-          <div>
+          <div className="w-full sm:w-auto">
             <p className="text-xs font-bold text-slate-600 mb-2">Category</p>
             <div className="flex flex-wrap gap-2">
               {CATEGORY_TYPES.map((cat) => (
@@ -1939,7 +1919,7 @@ useEffect(() => {
           {activeFiltersCount > 0 && (
             <button
               onClick={clearListFilters}
-              className="ml-auto flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-semibold px-3 py-2 rounded-xl border border-red-100 hover:border-red-300 bg-red-50 transition"
+              className="w-full sm:w-auto sm:ml-auto flex items-center justify-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-semibold px-3 py-2 rounded-xl border border-red-100 hover:border-red-300 bg-red-50 transition"
             >
               <X className="w-3 h-3" />
               Clear filters
@@ -2018,7 +1998,7 @@ useEffect(() => {
       </div>
 
       {/* ── RESULTS HEADER ───────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-bold text-slate-800">
           Projects
           <span className="text-slate-500 text-sm ml-2">
@@ -2026,13 +2006,13 @@ useEffect(() => {
           </span>
         </h2>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full sm:w-auto items-center gap-2">
           <ArrowUpDown className="w-4 h-4 text-slate-500" />
 
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none bg-white"
+            className="w-full sm:w-auto border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none bg-white"
           >
             <option value="rank">Price Short</option>
 
@@ -2084,7 +2064,7 @@ useEffect(() => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {visibleProperties.map((p) => (
             <PropertyCard
               key={p._id}

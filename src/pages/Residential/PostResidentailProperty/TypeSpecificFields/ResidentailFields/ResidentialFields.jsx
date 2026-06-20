@@ -140,6 +140,8 @@ export default function ResidentialFields({ back, next }) {
 
   };
 
+  const userRole = localStorage.getItem("createdByBasedUserRole");
+
   return (
     <div ref={topRef} className="space-y-5">
       {/* Header */}
@@ -228,7 +230,21 @@ export default function ResidentialFields({ back, next }) {
               : "bg-gradient-to-r from-[#27AE60] to-[#52D689] text-white hover:from-[#219150] hover:to-[#27AE60] shadow-lg shadow-green-200/60"
           }`}
         >
-          {isSubmitting ? "Saving..." : "Save & Continue →"}
+          {/* {isSubmitting ? "Saving..." : "Save & Continue →"} */}
+          {/* <button>
+            {isSubmitting
+              ? "Saving..."
+              : userRole === true
+                ? "Submit Property →"
+                : "Save & Continue →"}
+          </button> */}
+          <button>
+            {isSubmitting
+              ? "Saving..."
+              : userRole === "agent"
+                ? "Submit Property →"
+                : "Save & Continue →"}
+          </button>
         </button>
       </div>
     </div>

@@ -136,6 +136,7 @@ export default function CommercialFields({ back, next }) {
   };
 
   const progressPct = Math.round((subStep / totalSubSteps) * 100);
+  const userRole = localStorage.getItem("createdByBasedUserRole");
 
   return (
     <div ref={topRef} className="w-full max-w-3xl mx-auto space-y-6">
@@ -153,7 +154,9 @@ export default function CommercialFields({ back, next }) {
               {STEPS[subStep - 1].label}
             </span>
           </div>
-          <span className="text-xs font-bold text-[#27AE60]">{progressPct}%</span>
+          <span className="text-xs font-bold text-[#27AE60]">
+            {progressPct}%
+          </span>
         </div>
         <div className="w-full bg-[#f0fdf4] h-2 rounded-full overflow-hidden">
           <div
@@ -165,8 +168,12 @@ export default function CommercialFields({ back, next }) {
         <div className="flex justify-between mt-3">
           {STEPS.map((s, i) => (
             <div key={i} className="flex flex-col items-center gap-1">
-              <div className={`w-2 h-2 rounded-full transition-colors ${i + 1 <= subStep ? "bg-[#27AE60]" : "bg-[#e5e7eb]"}`} />
-              <span className={`text-[10px] font-bold hidden sm:block ${i + 1 === subStep ? "text-[#27AE60]" : "text-[#9ca3af]"}`}>
+              <div
+                className={`w-2 h-2 rounded-full transition-colors ${i + 1 <= subStep ? "bg-[#27AE60]" : "bg-[#e5e7eb]"}`}
+              />
+              <span
+                className={`text-[10px] font-bold hidden sm:block ${i + 1 === subStep ? "text-[#27AE60]" : "text-[#9ca3af]"}`}
+              >
                 {s.label}
               </span>
             </div>
@@ -178,7 +185,9 @@ export default function CommercialFields({ back, next }) {
       {subStep === 1 && (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <SectionCard>
-            <div ref={amenitiesRef}><Amenities error={errors.amenities} /></div>
+            <div ref={amenitiesRef}>
+              <Amenities error={errors.amenities} />
+            </div>
             {/* <div><Specifications error={errors.specifications} /></div> */}
           </SectionCard>
           <SectionCard>
@@ -251,7 +260,14 @@ export default function CommercialFields({ back, next }) {
               : "bg-gradient-to-r from-[#27AE60] to-[#52D689] hover:opacity-90 active:scale-[0.98]"
           }`}
         >
-          {isSubmitting ? "Saving…" : subStep === totalSubSteps ? "Save & Continue →" : "Continue →"}
+          {/* {isSubmitting ? "Saving…" : subStep === totalSubSteps ? "Save & Continue →" : "Continue →"} */}
+          {isSubmitting
+            ? "Saving..."
+            : subStep === totalSubSteps
+              ? userRole === "agent"
+                ? "Submit Property →"
+                : "Save & Continue →"
+              : "Continue →"}
         </button>
       </div>
     </div>

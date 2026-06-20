@@ -156,6 +156,7 @@ export default function LandFields({ back, next }) {
   };
 
   const progressPct = Math.round((subStep / totalSubSteps) * 100);
+  const userRole = localStorage.getItem("createdByBasedUserRole");
 
   return (
     <div ref={topRef} className="w-full max-w-3xl mx-auto space-y-6">
@@ -232,12 +233,12 @@ export default function LandFields({ back, next }) {
       {/* Step 3 — Pricing & Features */}
       {subStep === 3 && (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <SectionCard>
+          {/* <SectionCard>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* <Currency error={errors.currency} /> */}
-              {/* <BanksApproved error={errors.banksApproved} /> */}
+              <Currency error={errors.currency} /> 
+              <BanksApproved error={errors.banksApproved} />
             </div>
-          </SectionCard>
+          </SectionCard> */}
           <SectionCard>
             <DescriptionMain error={errors.description} />
           </SectionCard>
@@ -269,10 +270,17 @@ export default function LandFields({ back, next }) {
               : "bg-gradient-to-r from-[#27AE60] to-[#52D689] hover:opacity-90 active:scale-[0.98]"
           }`}
         >
-          {isSubmitting
+          {/* {isSubmitting
             ? "Saving…"
             : subStep === totalSubSteps
               ? "Save & Continue →"
+              : "Continue →"} */}
+          {isSubmitting
+            ? "Saving…"
+            : subStep === totalSubSteps
+              ? userRole === "agent"
+                ? "Submit Property →"
+                : "Save & Continue →"
               : "Continue →"}
         </button>
       </div>

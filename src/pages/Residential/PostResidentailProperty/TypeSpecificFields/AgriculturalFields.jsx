@@ -133,6 +133,7 @@ export default function AgriculturalFields({ back, next }) {
   };
 
   const progressPct = Math.round((subStep / totalSubSteps) * 100);
+  const userRole = localStorage.getItem("createdByBasedUserRole");
 
   return (
     <div ref={topRef} className="w-full max-w-3xl mx-auto space-y-6">
@@ -266,10 +267,18 @@ export default function AgriculturalFields({ back, next }) {
               : "bg-gradient-to-r from-[#27AE60] to-[#52D689] hover:opacity-90 active:scale-[0.98]"
           }`}
         >
-          {isSubmitting
+          {/* {isSubmitting
             ? "Saving…"
             : subStep === totalSubSteps
               ? "Save & Continue →"
+              : "Continue →"} */}
+
+          {isSubmitting
+            ? "Saving..."
+            : subStep === totalSubSteps
+              ? userRole === "agent"
+                ? "Submit Property →"
+                : "Save & Continue →"
               : "Continue →"}
         </button>
       </div>

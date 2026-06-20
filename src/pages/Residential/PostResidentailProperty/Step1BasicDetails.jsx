@@ -757,10 +757,11 @@ const buildPayloadByCategory = (category, data) => {
             <div className="space-y-5">
               <LandDimensions error={errors.dimensions} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <PlotArea error={errors.plotArea} />
                   <RoadWidthFt error={errors.roadWidthFt} />
-                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Price error={errors.price} />
                 <PricePerSqft error={errors.pricePerSqft} />
               </div>
