@@ -351,8 +351,8 @@ export default function Step1BasicDetails({ next }) {
       e.propertySubType = "Please select property sub type";
 
     if (category === "residential") {
-      if (!form.carpetArea) e.carpetArea = "Carpet area required";
-      if (!form.builtUpArea) e.builtUpArea = "Built-up area required";
+      if (!form.carpetArea <= 0) e.carpetArea = "Carpet area required";
+      if (!form.builtUpArea <= 0) e.builtUpArea = "Built-up area required";
       const carpet = Number(form.carpetArea);
       const builtUp = Number(form.builtUpArea);
 
@@ -388,8 +388,8 @@ export default function Step1BasicDetails({ next }) {
     if (category === "commercial") {
       if (!form.cabins) e.cabins = "Cabins required";
       if (!form.seats) e.seats = "Seats required";
-      if (!form.carpetArea) e.carpetArea = "Carpet area required";
-      if (!form.builtUpArea) e.builtUpArea = "Built-up area required";
+      if (!form.carpetArea <= 0) e.carpetArea = "Carpet area required";
+      if (!form.builtUpArea <= 0) e.builtUpArea = "Built-up area required";
       const carpet = Number(form.carpetArea);
       const builtUp = Number(form.builtUpArea);
 

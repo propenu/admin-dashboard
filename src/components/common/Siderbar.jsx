@@ -466,7 +466,6 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       ],
       admin: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
-        { path: "/Projects", label: "Projects", icon: FeaturedProjetsIcon },
         // {
         //   label: "Projects",
         //   icon: FeaturedProjetsIcon,
@@ -486,6 +485,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         //     },
         //   ],
         // },
+        { path: "/Projects", label: "Projects", icon: FeaturedProjetsIcon },
         {
           label: "Properties",
           icon: PropertiesIcon,
@@ -512,15 +512,37 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         },
 
         {
-          label: "Users",
+          label: "Operations",
           icon: UserIcon,
-          key: "users",
+          key: "Operations",
           children: [
-            { path: "/users", label: "All Users", icon: AllUsersIcon },
             {
-              path: "/team-management",
-              label: "Team Member Details",
+              path: "/propenu-team-members",
+              label: "All Team Members",
+              icon: AllUsersIcon,
+            },
+            {
+              path: "/dashboard/team-management",
+              label: "Team Management",
               icon: TeamManagementIcon,
+            },
+            {
+              path: "/sales-managers",
+              label: "Sales Managers",
+              icon: SalesManagerIcon,
+            },
+            {
+              path: "/sales-agents",
+              label: "Sales Executives",
+              icon: SalesAgentIcon,
+            },
+            // { path: "/builders", label: "Builders", icon: BuilderIcon },
+            // { path: "/all-agents", label: "Agents", icon: AgentIcon },
+            { path: "/accounts", label: "Accounts", icon: AccountsIcon },
+            {
+              path: "/customercare",
+              label: "Customer Care",
+              icon: LocationsIcon,
             },
             {
               label: "Create Credentials",
@@ -528,8 +550,32 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               key: "create-credentials",
               action: "openCreateUserModal",
             },
+            {
+              label: "Transfer Credentials",
+              icon: CreateCredentialsIcon,
+              key: "transfer-credentials",
+              action: "openTranforCredentialsModal",
+            },
+            {
+              label: "Assign Executive",
+              icon: AgentIcon,
+              key: "assign-agent",
+              action: "openAssignAgentModal",
+            },
           ],
         },
+
+        {
+          label: "Users",
+          icon: UserIcon,
+          key: "Users",
+          children: [
+            { path: "/users", label: "All Users", icon: AllUsersIcon },
+            { path: "/builders", label: "Builders", icon: BuilderIcon },
+            { path: "/all-agents", label: "Agents", icon: AgentIcon },
+          ],
+        },
+
         {
           label: "Subscriptions",
           icon: SubcriptinIcon,
@@ -544,7 +590,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                 {
                   path: "/owner-sell-property",
                   label: "Owner-Sell",
-                  icon: PostPropertyIcon,
+                  icon: OwnerIcon,
                 },
                 {
                   path: "/owner-rent-property",
@@ -561,7 +607,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                 {
                   path: "/owner-buy-view",
                   label: "Owner-Buy",
-                  icon: PropertyViewIcon,
+                  icon: PostProprtSellerIcon,
                 },
                 {
                   path: "/owner-rent-view",
@@ -604,6 +650,31 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               icon: RevenueByPlanIcon,
             },
           ],
+        },
+        {
+          path: "/push-notifications",
+          label: "Push Notifications",
+          icon: pushnotification,
+        },
+        {
+          path: "/email-notifications",
+          label: "Email Notifications",
+          icon: mailnotifications,
+        },
+        {
+          path: "/whatsapp-notifications",
+          label: "WhatsApp Notifications",
+          icon: whatsappnotifications,
+        },
+        {
+          path: "/automations",
+          label: "Automations",
+          icon: aumattionnotifications,
+        },
+        {
+          path: "/blogs",
+          label: "Blogs",
+          icon: mailnotifications,
         },
       ],
       sales_manager: [
