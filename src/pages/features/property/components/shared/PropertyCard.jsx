@@ -492,7 +492,7 @@ export default function PropertyCard({
                     ⚠ Expires in {daysLeft} day{daysLeft > 1 ? "s" : ""}
                   </span>
 
-                  {daysLeft <= 2 && (
+                  {/* {daysLeft <= 2 && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -502,7 +502,7 @@ export default function PropertyCard({
                     >
                       Renew +10 Days
                     </button>
-                  )}
+                  )} */}
                 </div>
               )}
 
