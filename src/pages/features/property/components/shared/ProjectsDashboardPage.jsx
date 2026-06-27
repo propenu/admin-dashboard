@@ -1545,47 +1545,8 @@ export default function ProjectsDashboardPage() {
     projectHooks,
   ]);
 
-  // const displayedCount = useMemo(() => {
-  //   if (promotionFilter === "prime")
-  //     return analytics?.overview?.primeProjects ?? 0;
-
-  //   if (promotionFilter === "featured")
-  //     return analytics?.overview?.featuredProjects ?? 0;
-
-  //   if (promotionFilter === "sponsored")
-  //     return analytics?.overview?.sponsoredProjects ?? 0;
-
-  //   if (promotionFilter === "normal")
-  //     return analytics?.overview?.normalProjects ?? 0;
-
-  //   if (statusFilter === "active")
-  //     return analytics?.overview?.activeProjects ?? 0;
-
-  //   if (statusFilter === "inactive")
-  //     return analytics?.overview?.inactiveProjects ?? 0;
-
-  //   if (statusFilter === "pending")
-  //     return analytics?.overview?.pendingProjects ?? 0;
-
-  //   if (categoryFilter === "land") {
-  //     return analytics?.categoryWise?.find((c) => c._id === "land")?.total ?? 0;
-  //   }
-
-  //   if (categoryFilter === "residential") {
-  //     return analytics?.categoryWise?.find((c) => c._id === "land")?.total ?? 0;
-  //   }
-
-  //   // Property Type
-  //   if (propertyTypeFilter !== "all") {
-  //     return (
-  //       analytics?.propertyTypeWise?.find((p) => p._id === propertyTypeFilter)
-  //         ?.total ?? 0
-  //     );
-  //   }
-
-  //   return analytics?.overview?.totalProjects ?? 0;
-  // }, [promotionFilter, statusFilter, analytics]);
-
+  
+  
 
 
   // ── Mutation helpers — fully decoupled per action ─────────────────────────

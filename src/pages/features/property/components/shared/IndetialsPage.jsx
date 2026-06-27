@@ -171,6 +171,14 @@ const formatLeadText = (value) => {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
+const formatRoleName = (role) => {
+  const roles = {
+    sales_agent: "Sales Executive",
+  };
+
+  return roles[role] || role?.replace(/_/g, " ");
+};
+
 const formatLeadDateTime = (value) => {
   if (!value) return "-";
   const date = new Date(value);
@@ -374,7 +382,9 @@ function PersonCard({ type, person, postedAt, role }) {
               {name}
             </p>
             {idTail && (
-              <p className="text-[9px] text-slate-400 font-mono">ID: ...{idTail}</p>
+              <p className="text-[9px] text-slate-400 font-mono">
+                ID: ...{idTail}
+              </p>
             )}
           </div>
         </div>
@@ -384,7 +394,9 @@ function PersonCard({ type, person, postedAt, role }) {
           <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
             Email
           </p>
-          <p className="text-[11px] font-semibold text-slate-700 truncate">{email}</p>
+          <p className="text-[11px] font-semibold text-slate-700 truncate">
+            {email}
+          </p>
         </div>
 
         {/* Phone (created by only) */}
@@ -421,7 +433,7 @@ function PersonCard({ type, person, postedAt, role }) {
           <span
             className={`text-[9px] font-bold px-2 py-1 rounded-full border capitalize ${c.badgeCls}`}
           >
-            {displayRole.replace(/_/g, " ")}
+            {formatRoleName(displayRole)}
           </span>
         )}
         {timestamp && (
@@ -524,7 +536,7 @@ function UpdateHistoryTimeline({ history, updateCount }) {
                       {h.name?.split(" ")[0]} {h.name?.split(" ")[1] ?? ""}
                     </p>
                     <p className="text-[9px] text-slate-400 mt-0.5 capitalize">
-                      {h.roleName?.replace(/_/g, " ")}
+                      {formatRoleName(h.roleName)}
                     </p>
                     <p className="text-[9px] text-slate-400 mt-1 font-mono">
                       {formatDate(h.updatedAt)}

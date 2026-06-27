@@ -97,7 +97,13 @@ const formatTime = (iso) =>
 
 const capitalize = (str) =>
   str ? str.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
+const formatRoleName = (role) => {
+  const roles = {
+    sales_agent: "Sales Executive",
+  };
 
+  return roles[role] || capitalize(role);
+};
 // Detect category from property data
 const detectCategory = (property) => {
   if (!property) return "residential";
@@ -406,7 +412,7 @@ function UpdateHistoryPanel({ property }) {
                   {lastUpdated.name || "Unknown user"}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {lastUpdated.roleName || "Unknown role"}
+                  {formatRoleName(lastUpdated.roleName) || "Unknown role"}
                 </p>
                 {lastUpdated.email && (
                   <p className="truncate text-xs text-slate-400">
@@ -418,14 +424,18 @@ function UpdateHistoryPanel({ property }) {
                 </p>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-slate-400">No update data found</p>
+              <p className="mt-2 text-sm text-slate-400">
+                No update data found
+              </p>
             )}
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-100 bg-white p-4">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-sm font-bold text-slate-700">Activity Timeline</p>
+            <p className="text-sm font-bold text-slate-700">
+              Activity Timeline
+            </p>
             {history.length > 0 && (
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
                 {history.length} records
@@ -446,7 +456,10 @@ function UpdateHistoryPanel({ property }) {
           ) : (
             <div className="max-h-72 space-y-3 overflow-auto pr-1">
               {history.map((item, index) => (
-                <div key={item._id || `${item.updatedAt}-${index}`} className="flex gap-3">
+                <div
+                  key={item._id || `${item.updatedAt}-${index}`}
+                  className="flex gap-3"
+                >
                   <div className="flex flex-col items-center">
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#27AE60]/10 text-[#27AE60]">
                       <PencilLine className="h-3.5 w-3.5" />
@@ -462,7 +475,7 @@ function UpdateHistoryPanel({ property }) {
                           {item.name || "Unknown user"}
                         </p>
                         <p className="text-xs text-slate-500">
-                          {item.roleName || "Unknown role"}
+                          {formatRoleName(item.roleName) || "Unknown role"}
                         </p>
                       </div>
                       <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-500">
