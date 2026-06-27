@@ -4,8 +4,24 @@ import { SERVICES } from "../../config/services";
 
 const BASE = `${SERVICES.PROPERTY}/featured-project`;
 
-export const getFeaturedProjectsByType = (type, page = 1, limit = 20) =>
-  apiClient.get(`${BASE}?type=${type}&page=${page}&limit=${limit}`);
+export const getFeaturedProjectsByType = (
+  type,
+  page = 1,
+  limit = 20,
+  params = {},
+) => {
+  const query = new URLSearchParams();
+
+  if (type) query.set("type", type);
+  if (params.promotionStatus) {
+    query.set("promotionStatus", params.promotionStatus);
+  }
+
+  query.set("page", String(page));
+  query.set("limit", String(limit));
+
+  return apiClient.get(`${BASE}?${query.toString()}`);
+};
 
 export const getFeaturedProjectById = (id) => apiClient.get(`${BASE}/${id}`);
 
@@ -21,6 +37,9 @@ export const editFeaturedProject = (id, formData) =>
 /** Promote a project → set type (prime | featured | normal | sponsored) */
 export const promoteProject = (id, type) =>
   apiClient.patch(`${BASE}/${id}/promote`, { type });
+
+export const RenevaleProject = (id) =>
+  apiClient.patch(`${BASE}/${id}/renew`, { days: 10 });
 
 /** Expire a project */
 export const expireProject = (id) => apiClient.patch(`${BASE}/${id}/expire`);
@@ -132,6 +151,13 @@ export const projectAnalytics = (id) => {
   return apiClient.get(`${SERVICES.PROPERTY}/leads/project/${id}/leads`);
 };
 
+export const projectExternalFileAddLeads = (id, payload) => {
+  return apiClient.post(
+    `${SERVICES.PROPERTY}/leads/project/${id}/leads/import`,
+    payload,
+  );
+}
+
 export const propertiesAnalytics = (id) =>{
   return apiClient.get(`${SERVICES.PROPERTY}/leads?projectId=${id}`);
 }
@@ -161,6 +187,19 @@ export const getAllProjectsAnalytics = (params = {}) => {
     `${SERVICES.PROPERTY}/analytics/project${qs ? `?${qs}` : ""}`,
   );
 };
+
+
+export const getAllPropertiesAnalytics = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.state) query.set("state", params.state);
+  if (params.city) query.set("city", params.city);
+  if (params.locality) query.set("locality", params.locality);
+  const qs = query.toString();
+  return apiClient.get(
+    `${SERVICES.PROPERTY}/analytics/properties${qs ? `?${qs}` : ""}`,
+  );
+};
+
 
 //src/features/property/propertyService.js
 {/* Blogs */ }

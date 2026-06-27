@@ -10,6 +10,19 @@ export const formatDate = (dateString) => {
   });
 };
 
+export const resolveBlogImage = (image) => {
+  if (!image) return "";
+  if (typeof image === "string") return image;
+  return (
+    image.url ||
+    image.location ||
+    image.src ||
+    image.secure_url ||
+    image.path ||
+    ""
+  );
+};
+
 export const truncateText = (text, maxLength = 120) => {
   if (!text || text.length <= maxLength) return text;
   return text.slice(0, maxLength).trim() + "…";

@@ -8,10 +8,6 @@ import PropertiesIcon          from "../../assets/dashboard/Properties.svg";
 import PropertyProgressIcon    from "../../assets/dashboard/property_progress.svg";
 import FeaturedProjetsIcon     from "../../assets/dashboard/prime_projects.svg";
 import HighlightedProjectsIcon from "../../assets/dashboard/top_selling.svg";
-import ResidentialIcon         from "../../assets/dashboard/residential.svg";
-import AgriculturalIcon        from "../../assets/dashboard/agriculture.svg";
-import CommercialIcon          from "../../assets/dashboard/commercial.svg";
-import LandIcon                from "../../assets/dashboard/land.svg";
 import UserIcon                from "../../assets/dashboard/user.svg";
 import AllUsersIcon            from "../../assets/dashboard/all_user.svg";
 import TeamManagementIcon      from "../../assets/dashboard/team_management.svg";
@@ -253,45 +249,9 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     ({
       super_admin: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
-        // {
-        //   label: "Projects",
-        //   icon: FeaturedProjetsIcon,
-        //   key: "projects",
-        //   children: [
-        //     { path: "/normal", label: "Normal Projects", icon: normal },
-        //     { path: "/prime", label: "Prime Projects", icon: prime },
-        //     {
-        //       path: "/featured",
-        //       label: "Top Selling Projects",
-        //       icon: HighlightedProjectsIcon,
-        //     },
-        //     {
-        //       path: "/sponsored",
-        //       label: "Sponsored Projects",
-        //       icon: sponsored,
-        //     },
-        //   ],
-        // },
-        { path: "/Projects", label: "Projects", icon: FeaturedProjetsIcon },
-        {
-          label: "Properties",
-          icon: PropertiesIcon,
-          key: "properties",
-          children: [
-            {
-              path: "/residential",
-              label: "Residential",
-              icon: ResidentialIcon,
-            },
-            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
-            {
-              path: "/agricultural",
-              label: "Agricultural",
-              icon: AgriculturalIcon,
-            },
-            { path: "/land", label: "Land", icon: LandIcon },
-          ],
-        },
+
+        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
+        { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -485,26 +445,8 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         //     },
         //   ],
         // },
-        { path: "/Projects", label: "Projects", icon: FeaturedProjetsIcon },
-        {
-          label: "Properties",
-          icon: PropertiesIcon,
-          key: "properties",
-          children: [
-            {
-              path: "/residential",
-              label: "Residential",
-              icon: ResidentialIcon,
-            },
-            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
-            {
-              path: "/agricultural",
-              label: "Agricultural",
-              icon: AgriculturalIcon,
-            },
-            { path: "/land", label: "Land", icon: LandIcon },
-          ],
-        },
+        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
+        { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -679,7 +621,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       ],
       sales_manager: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
-        { path: "/Projects", label: "Projects", icon: FeaturedProjetsIcon },
+        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         // {
         //   label: "Projects",
         //   icon: FeaturedProjetsIcon,
@@ -699,29 +641,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         //     },
         //   ],
         // },
-        {
-          label: "Properties",
-          icon: PropertiesIcon,
-          key: "properties",
-          children: [
-            {
-              path: "/residential",
-              label: "Residential",
-              icon: ResidentialIcon,
-            },
-            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
-            {
-              path: "/agricultural",
-              label: "Agricultural",
-              icon: AgriculturalIcon,
-            },
-            { path: "/land", label: "Land", icon: LandIcon },
-          ],
-        },
+        { path: "/properties", label: "Properties", icon: PropertiesIcon },
       ],
       sales_agent: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
-        { path: "/Projects", label: "Projects", icon: FeaturedProjetsIcon },
+        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         // {
         //   label: "Projects",
         //   icon: FeaturedProjetsIcon,
@@ -741,25 +665,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         //     },
         //   ],
         // },
-        {
-          label: "Properties",
-          icon: PropertiesIcon,
-          key: "properties",
-          children: [
-            {
-              path: "/residential",
-              label: "Residential",
-              icon: ResidentialIcon,
-            },
-            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
-            {
-              path: "/agricultural",
-              label: "Agricultural",
-              icon: AgriculturalIcon,
-            },
-            { path: "/land", label: "Land", icon: LandIcon },
-          ],
-        },
+        { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -767,25 +673,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         },
       ],
       customer_care: [
-        {
-          label: "Properties",
-          icon: PropertiesIcon,
-          key: "properties",
-          children: [
-            {
-              path: "/residential",
-              label: "Residential",
-              icon: ResidentialIcon,
-            },
-            { path: "/commercial", label: "Commercial", icon: CommercialIcon },
-            {
-              path: "/agricultural",
-              label: "Agricultural",
-              icon: AgriculturalIcon,
-            },
-            { path: "/land", label: "Land", icon: LandIcon },
-          ],
-        },
+        { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -886,6 +774,16 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               icon: RevenueByPlanIcon,
             },
           ],
+        },
+      ],
+      digital_marketing: [
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
+        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
+        { path: "/properties", label: "Properties", icon: PropertiesIcon },
+        {
+          path: "/blogs",
+          label: "Blogs",
+          icon: mailnotifications,
         },
       ],
     })[role] || [];

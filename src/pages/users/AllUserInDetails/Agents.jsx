@@ -13,6 +13,7 @@ import {
   Hash, CalendarDays, TrendingUp, Home, ChevronRight, Eye, User,
   FileText, Globe, Image, LinkIcon, BadgeCheck,
   AlertTriangle,
+  LucideCalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -204,22 +205,6 @@ const AgentDetailModal = ({ agent, onClose, onEditStatus, onEditProfile }) => {
         className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[92vh] flex flex-col"
         style={{ animation: "modalIn 0.3s ease both" }}
       >
-        {/* Cover */}
-        {/* <div className="relative h-36 shrink-0 overflow-hidden">
-          {d.coverImage?.url ? (
-            <img src={d.coverImage.url} alt="cover" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full" style={{ background: "linear-gradient(135deg,#27AE60,#1a9e54,#2ecc71)" }} />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 flex items-center justify-center transition-all"
-          >
-            <X size={15} />
-          </button>
-        </div> */}
-
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1">
           {/* Cover */}
@@ -1091,6 +1076,49 @@ const EditAgentModal = ({ agent, onClose, fetchAgents }) => {
   );
 };
 
+
+const getMemberBadge = (createdAt) => {
+  const created = new Date(createdAt);
+  const now = new Date();
+
+  const diffDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 1)
+    return {
+      label: "New Today",
+      color: "bg-green-100 text-green-700",
+    };
+
+  if (diffDays <= 7)
+    return {
+      label: "Joined This Week",
+      color: "bg-blue-100 text-blue-700",
+    };
+
+  if (diffDays <= 30)
+    return {
+      label: "Joined This Month",
+      color: "bg-yellow-100 text-yellow-700",
+    };
+
+  if (diffDays <= 180)
+    return {
+      label: "Active Member",
+      color: "bg-purple-100 text-purple-700",
+    };
+
+  if (diffDays <= 365)
+    return {
+      label: "Senior Member",
+      color: "bg-orange-100 text-orange-700",
+    };
+
+  return {
+    label: "Veteran Member",
+    color: "bg-indigo-100 text-indigo-700",
+  };
+};
+
 // ─── Agent Card ────────────────────────────────────────────────────────────
 const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
   const d = agent.agentDetails || {};
@@ -1098,6 +1126,11 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
   const statusCfg = getStatusConfig(agent.verificationStatus);
   const StatusIcon = statusCfg.icon;
   const profileCompleted = isProfileCompleted(agent);
+
+
+  const badge = getMemberBadge(agent.createdAt);
+
+
 
   const badgeClass =
     agent.kycStatus === "approved"
@@ -1168,6 +1201,7 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
               </div>
             )}
           </div>
+
           <div className="min-w-0 pt-7">
             <h2 className="text-gray-800 font-black text-[14px] truncate leading-tight">
               {capitalize(agent.name)}
@@ -1180,6 +1214,21 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
                 </span>
               </div>
             )}
+            <div className="flex items-center gap-2">
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-bold ${badge.color}`}
+              >
+                {badge.label}
+              </span>
+
+              <span className="text-xs text-[#27AE60]">
+                {new Date(agent.createdAt).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -1404,38 +1453,104 @@ const FilterBar = ({ agents, filters, setFilters }) => {
   const activeCount = [filters.search, filters.state, filters.city, filters.locality, filters.pincode, filters.status].filter(Boolean).length;
   const clear = () => setFilters({ search: "", state: "", city: "", locality: "", pincode: "", status: "" });
 
+
+  
+
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
       <div className="flex items-center gap-3">
         <div className="flex-1 relative">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search
+            size={14}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+          />
           <input
             type="text"
             placeholder="Search by name, email, phone…"
             value={filters.search}
-            onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
+            onChange={(e) =>
+              setFilters((p) => ({ ...p, search: e.target.value }))
+            }
             className="w-full pl-9 pr-4 py-2.5 text-sm border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#27AE60] transition-colors"
           />
         </div>
         {activeCount > 0 && (
-          <button onClick={clear} className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-50 border border-red-100 text-red-400 text-xs font-bold hover:bg-red-100 transition-all shrink-0">
+          <button
+            onClick={clear}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-red-50 border border-red-100 text-red-400 text-xs font-bold hover:bg-red-100 transition-all shrink-0"
+          >
             <X size={12} /> Clear ({activeCount})
           </button>
         )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-        <Select icon={<Shield size={12} />} placeholder="All Status" value={filters.status} onChange={(v) => setFilters((p) => ({ ...p, status: v }))} options={Object.entries(STATUS_CONFIG).map(([k, c]) => ({ value: k, label: c.label }))} />
-        <Select icon={<MapPin size={12} />} placeholder="All States" value={filters.state} onChange={(v) => setFilters((p) => ({ ...p, state: v, city: "", locality: "" }))} options={states.map((s) => ({ value: s, label: s }))} />
-        <Select icon={<Building2 size={12} />} placeholder="All Cities" value={filters.city} onChange={(v) => setFilters((p) => ({ ...p, city: v, locality: "" }))} options={cities.map((c) => ({ value: c, label: c }))} disabled={!filters.state} />
-        <Select icon={<MapPin size={12} />} placeholder="All Localities" value={filters.locality} onChange={(v) => setFilters((p) => ({ ...p, locality: v }))} options={localities.map((l) => ({ value: l, label: l }))} disabled={!filters.city} />
+        <Select
+          icon={<Shield size={12} />}
+          placeholder="All Status"
+          value={filters.status}
+          onChange={(v) => setFilters((p) => ({ ...p, status: v }))}
+          options={Object.entries(STATUS_CONFIG).map(([k, c]) => ({
+            value: k,
+            label: c.label,
+          }))}
+        />
+        <Select
+          icon={<MapPin size={12} />}
+          placeholder="All States"
+          value={filters.state}
+          onChange={(v) =>
+            setFilters((p) => ({ ...p, state: v, city: "", locality: "" }))
+          }
+          options={states.map((s) => ({ value: s, label: s }))}
+        />
+        <Select
+          icon={<Building2 size={12} />}
+          placeholder="All Cities"
+          value={filters.city}
+          onChange={(v) => setFilters((p) => ({ ...p, city: v, locality: "" }))}
+          options={cities.map((c) => ({ value: c, label: c }))}
+          disabled={!filters.state}
+        />
+        <Select
+          icon={<MapPin size={12} />}
+          placeholder="All Localities"
+          value={filters.locality}
+          onChange={(v) => setFilters((p) => ({ ...p, locality: v }))}
+          options={localities.map((l) => ({ value: l, label: l }))}
+          disabled={!filters.city}
+        />
+        <Select
+          icon={<LucideCalendarDays size={12} />}
+          placeholder="Joined Date"
+          value={filters.joinedDate}
+          onChange={(v) =>
+            setFilters((p) => ({
+              ...p,
+              joinedDate: v,
+            }))
+          }
+          options={[
+            { value: "today", label: "Today" },
+            { value: "week", label: "This Week" },
+            { value: "month", label: "This Month" },
+            { value: "3months", label: "Last 3 Months" },
+            { value: "6months", label: "Last 6 Months" },
+            { value: "year", label: "This Year" },
+          ]}
+        />
         <div className="relative">
-          <Hash size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Hash
+            size={12}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
           <input
             type="text"
             placeholder="Pincode"
             value={filters.pincode}
-            onChange={(e) => setFilters((p) => ({ ...p, pincode: e.target.value }))}
+            onChange={(e) =>
+              setFilters((p) => ({ ...p, pincode: e.target.value }))
+            }
             className="w-full pl-8 pr-3 py-2.5 text-xs border-2 border-gray-200 rounded-xl focus:outline-none focus:border-[#27AE60] transition-colors"
           />
         </div>
@@ -1443,14 +1558,22 @@ const FilterBar = ({ agents, filters, setFilters }) => {
 
       {activeCount > 0 && (
         <div className="flex flex-wrap gap-2 pt-1">
-          {Object.entries(filters).filter(([, v]) => v).map(([k, v]) => (
-            <span key={k} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f0fdf4] border border-[#27AE60]/20 text-[#27AE60] text-[10px] font-bold uppercase tracking-wide">
-              {k}: {v}
-              <button onClick={() => setFilters((p) => ({ ...p, [k]: "" }))} className="hover:text-red-400 transition-colors">
-                <X size={10} />
-              </button>
-            </span>
-          ))}
+          {Object.entries(filters)
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <span
+                key={k}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f0fdf4] border border-[#27AE60]/20 text-[#27AE60] text-[10px] font-bold uppercase tracking-wide"
+              >
+                {k}: {v}
+                <button
+                  onClick={() => setFilters((p) => ({ ...p, [k]: "" }))}
+                  className="hover:text-red-400 transition-colors"
+                >
+                  <X size={10} />
+                </button>
+              </span>
+            ))}
         </div>
       )}
     </div>
@@ -1475,6 +1598,9 @@ const Select = ({ icon, placeholder, value, onChange, options, disabled }) => (
   </div>
 );
 
+
+
+
 // ─── Main Component ────────────────────────────────────────────────────────
 const AllAgents = () => {
   const [agents, setAgents] = useState([]);
@@ -1482,9 +1608,21 @@ const AllAgents = () => {
   const [editingAgent, setEditingAgent] = useState(null);
   const [viewingAgent, setViewingAgent] = useState(null);
   const [editingProfileAgent, setEditingProfileAgent] = useState(null);
-  const [filters, setFilters] = useState({ search: "", state: "", city: "", locality: "", pincode: "", status: "" });
+  const [filters, setFilters] = useState({
+    search: "",
+    state: "",
+    city: "",
+    locality: "",
+    pincode: "",
+    status: "",
+    joinedDate: "",
+  });
 
   useEffect(() => { fetchAgents(); }, []);
+
+
+  
+
 
   const fetchAgents = async () => {
     try {
@@ -1524,6 +1662,24 @@ const AllAgents = () => {
       if (filters.city && a.city !== filters.city) return false;
       if (filters.locality && a.locality !== filters.locality) return false;
       if (filters.pincode && !a.pincode?.includes(filters.pincode)) return false;
+      if (filters.joinedDate) {
+        const created = new Date(a.createdAt);
+        const now = new Date();
+
+        const diffDays = (now - created) / (1000 * 60 * 60 * 24);
+
+        if (
+          (filters.joinedDate === "today" && diffDays > 1) ||
+          (filters.joinedDate === "week" && diffDays > 7) ||
+          (filters.joinedDate === "month" && diffDays > 30) ||
+          (filters.joinedDate === "3months" && diffDays > 90) ||
+          (filters.joinedDate === "6months" && diffDays > 180) ||
+          (filters.joinedDate === "year" && diffDays > 365)
+        ) {
+          return false;
+        }
+      }
+
       return true;
     });
   }, [agents, filters]);
@@ -1627,6 +1783,10 @@ const AllAgents = () => {
             })}
           </div>
         )}
+
+        
+
+        
 
         <div className="h-px bg-gradient-to-r from-[#27AE60]/25 via-[#27AE60]/8 to-transparent mb-5" />
 

@@ -4,6 +4,7 @@ import AdminDashboard from "./AdminDashboard";
 import SalesManagerDashboard from "./SalesManagerDashboard";
 import SalesAgentDashboard from "./SalesAgentDashboard";
 import AccountsDashboard from "./AccountsDashboard";
+import DigitalMarket from "./DigitalMarket";
 
 const DashboardRouter = ({ role }) => {
   switch (role) {
@@ -21,6 +22,9 @@ const DashboardRouter = ({ role }) => {
 
     case "accounts":
       return <AccountsDashboard />;
+
+    case "digital_marketing":
+      return <DigitalMarket />;
 
     default:
       return <div className="p-10">Unauthorized</div>;

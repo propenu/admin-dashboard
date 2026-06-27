@@ -4,6 +4,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Search, X, ChevronDown, ChevronRight, MapPin, Building2, Plus, Clock,
   Star, TrendingUp, Zap, BarChart3, Filter, RefreshCw, Trash2, ArrowUpDown,
@@ -19,7 +20,15 @@ import PropertyCard                from "../../../../features/property/component
 import PromoteModal                from "../../../../features/property/components/shared/PromoteModal";
 import ConfirmModal                from "../../../../features/property/components/shared/ConfirmModal";
 import LoadingSpinner              from "../../../../../components/common/LoadingSpinner";
-import { getAllProjectsAnalytics } from "../../../../../features/property/propertyService";
+import {
+  deleteFeaturedProject,
+  getAllProjectsAnalytics,
+} from "../../../../../features/property/propertyService";
+import {
+  getPromotionTracking,
+  promotionLifecycleClass,
+  promotionLifecycleCopy,
+} from "./promotionTracking";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -36,8 +45,8 @@ const INDIA_ZONES = [
 
 const CATEGORY_TYPES = [
   { value: "all",         label: "All"           },
-  { value: "residential", label: "🏠 Residential" },
-  { value: "land",        label: "🌍 Land"        },
+  { value: "residential", label: "Residential"   },
+  { value: "land",        label: "Land"          },
 ];
 
 const PROPERTY_TYPES = {
@@ -73,10 +82,21 @@ const STATUS_FILTERS = [
   { value: "inactive", label: "Inactive" },
 ];
 
-const TYPE_COLORS = [
-  "bg-[#27AE60]","bg-blue-400","bg-yellow-400","bg-purple-400",
-  "bg-pink-400","bg-orange-400","bg-teal-400","bg-rose-400",
+const TRACKING_FILTERS = [
+  { value: "all", label: "All Tracking" },
+  { value: "promoted", label: "Promoted History" },
+  { value: "active", label: "Live Promotion" },
+  { value: "expiringSoon", label: "Expiring Soon" },
+  { value: "expired", label: "Expired" },
+  { value: "scheduled", label: "Scheduled" },
 ];
+
+const TYPE_COLORS = [
+  "bg-emerald-600","bg-emerald-500","bg-emerald-400","bg-emerald-300",
+  "bg-teal-600","bg-teal-500","bg-teal-400","bg-teal-300",
+];
+
+const PROJECTS_PER_PAGE = 20;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -102,67 +122,16 @@ const fmtNum = (n) => {
 // ───────────────────────────────────────────
 
 const getProjectStatus = (project) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const type = project?.promotion?.type || "normal";
-
-  if (type === "normal") {
+  const tracking = getPromotionTracking(project);
+  if (tracking.currentType === "normal") {
     return {
       status: project.status || "inactive",
       daysLeft: null,
     };
   }
-
-  // const startDate = project?.promotion?.startDate
-  //   ? new Date(project.promotion.startDate)
-  //   : null;
-
-  // const expiryDate = project?.promotion?.boostExpiry
-  //   ? new Date(project.promotion.boostExpiry)
-  //   : null;
-
-  const startDate = new Date(project?.promotion?.startDate);
-startDate.setHours(0, 0, 0, 0);
-
-const expiryDate = new Date(project?.promotion?.boostExpiry);
-expiryDate.setHours(23, 59, 59, 999);
-
-  if (!startDate || !expiryDate) {
-    return {
-      status: project.status || "inactive",
-      daysLeft: null,
-    };
-  }
-
-  const daysLeft = Math.ceil(
-    (expiryDate - today) / (1000 * 60 * 60 * 24)
-  );
-
-  if (today < startDate) {
-    return {
-      status: "scheduled",
-      daysLeft,
-    };
-  }
-
-  if (today > expiryDate) {
-    return {
-      status: "expired",
-      daysLeft: 0,
-    };
-  }
-
-  if (daysLeft <= 3) {
-    return {
-      status: "expiringSoon",
-      daysLeft,
-    };
-  }
-
   return {
-    status: "active",
-    daysLeft,
+    status: tracking.lifecycle === "critical" ? "expiringSoon" : tracking.lifecycle,
+    daysLeft: tracking.daysLeft,
   };
 };
 
@@ -252,10 +221,10 @@ function MiniBar({ value, max, color = "bg-[#27AE60]", height = "h-2" }) {
   );
 }
 
-function PromoBadge({ label, value, color }) {
+function PromoBadge({ label, value }) {
   if (!value) return null;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${color}`}>
+    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
       {label}: {value}
     </span>
   );
@@ -603,10 +572,10 @@ function InlineLocationSelector({
 
       {/* Dropdown panel */}
       {open && (
-        <div className="absolute z-50 top-full mt-2 left-0 min-w-[360px]  bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
+        <div className="absolute left-0 top-full z-50 mt-2 w-[calc(100vw-2rem)] max-w-[420px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:w-[420px]">
           {/* Search */}
-          <div className="p-3 border-b bg-green-200 border-slate-100">
-            <div className="flex  items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+          <div className="border-b border-slate-100 bg-slate-50 p-3">
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10">
               <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
               <input
                 type="text"
@@ -642,7 +611,7 @@ function InlineLocationSelector({
           </button>
 
           {/* Zone tree */}
-          <div className="min-h-[400px] overflow-y-auto">
+          <div className="max-h-[min(60vh,430px)] min-h-[280px] overflow-y-auto">
             {zonesWithData.map((zone) => {
               const zoneStates = zone.states.filter((s) => hierarchy[s]);
               const childMatch = zoneStates.some(stateVisible);
@@ -680,20 +649,25 @@ function InlineLocationSelector({
 // ANALYTICS COMPONENTS — each fully standalone, no inter-dependency
 // ─────────────────────────────────────────────────────────────────────────────
 
-function KPICard({ label, display, sub, icon: Icon, color, iconBg, border, onClick, isActive }) {
+function KPICard({ label, display, icon: Icon, onClick, isActive }) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white flex items-center justify-center gap-2 rounded-2xl border ${border} p-2 shadow-sm transition-all duration-200 
-        ${onClick ? "cursor-pointer hover:shadow-md hover:-translate-y-0.5" : ""}
-        ${isActive ? "ring-2 ring-[#27AE60] shadow-md -translate-y-0.5" : ""}`}
+      className={`group flex min-w-0 items-center gap-3 rounded-xl border bg-white px-3 py-2.5 shadow-[0_4px_14px_rgba(22,163,74,0.10)] transition-all duration-200 sm:px-3.5 sm:py-3
+        ${onClick ? "cursor-pointer hover:border-emerald-300 hover:shadow-md" : "border-slate-200"}
+        ${isActive ? "border-emerald-500 ring-2 ring-emerald-500/15 shadow-md" : "border-slate-200"}`}
     >
-      {/* <div className={`w-9 h-9 rounded-xl ${iconBg} flex items-center justify-center mb-3`}>
-        <Icon className={color} style={{ width: 18, height: 18 }} />
-      </div> */}
-      <p className="text-[15px] lg:text-nowrap xl:text-nowrap text-[#27AE60]  leading-tight">{label}</p>
-      <p className="text-xs  text-slate-900 leading-none">{display}</p>
-      {/* {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>} */}
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-medium leading-tight text-slate-600 sm:text-xs lg:text-[11px] xl:text-xs">
+          {label}
+        </p>
+        <p className="mt-1 text-lg font-bold leading-none tracking-tight text-slate-900">
+          {display}
+        </p>
+      </div>
     </div>
   );
 }
@@ -703,39 +677,7 @@ function AnalyticsOverviewRow({
   total,
   activeStatusFilter,
   onStatusFilter,
-  allProperties,
 }) {
-
-  const properties = allProperties ?? [];
-
-  const activeCount = properties.filter(
-    (p) => getProjectStatus(p).status === "active",
-  ).length;
-
-  properties.forEach((p) => {
-    console.log(
-      p.title,
-      p.promotion?.startDate,
-      p.promotion?.boostExpiry,
-      getProjectStatus(p),
-    );
-  });
-
-  const scheduledCount = properties.filter(
-    (p) => getProjectStatus(p).status === "scheduled",
-  ).length;
-
-  const expiringSoonCount = properties.filter(
-    (p) => getProjectStatus(p).status === "expiringSoon",
-  ).length;
-
-  const expiredCount = properties.filter(
-    (p) => getProjectStatus(p).status === "expired",
-  ).length;
-
-  const inactiveCount = properties.filter(
-    (p) => getProjectStatus(p).status === "inactive",
-  ).length;
   // onStatusFilter — independent action, only updates project list status filter
   const cards = [
     {
@@ -748,8 +690,7 @@ function AnalyticsOverviewRow({
     },
     {
       label: "Active",
-      //display: String(ov.activeProjects ?? 0),
-      display: String(activeCount),
+      display: String(ov.activeProjects ?? 0),
       sub: `${pct(ov.activeProjects, total)}% of total`,
       icon: CheckCircle2,
       color: "text-emerald-700",
@@ -824,13 +765,12 @@ function AnalyticsOverviewRow({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 xl:grid-cols-8 gap-3">
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
       {cards.map((c) => (
         <KPICard
           key={c.label}
           label={c.label}
           display={c.display}
-          sub={c.sub}
           icon={c.icon}
           color={c.color}
           iconBg={c.iconBg}
@@ -853,7 +793,7 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {cards.map((c) => {
         const Icon = c.icon;
         const isActive = activePromotionFilter === c.key;
@@ -861,11 +801,16 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
           <div
             key={c.key}
             onClick={() => onPromotionFilter(c.key)}
-            className={`${c.bg} flex items-center justify-center gap-2 rounded-2xl border ${c.border} p-2 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 shadow-sm
-              ${isActive ? "ring-2 ring-[#27AE60] shadow-md -translate-y-0.5" : ""}`}
+            className={`flex min-w-0 cursor-pointer items-center justify-between gap-3 rounded-xl border bg-white p-4 shadow-[0_4px_14px_rgba(22,163,74,0.10)] transition-all duration-200 hover:border-emerald-300 hover:shadow-md
+              ${isActive ? "border-emerald-500 ring-2 ring-emerald-500/15 shadow-md" : "border-slate-200"}`}
           >
-            <p className="text-xl text-nowrap text-[#000456]">{c.label}</p>
-            <p className="text-xl font-bold text-slate-900 leading-none">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                <Icon className="h-4 w-4" />
+              </span>
+              <p className="truncate text-sm font-semibold text-slate-600">{c.label}</p>
+            </div>
+            <p className="text-xl font-bold leading-none text-slate-900">
               {c.value}
             </p>
           </div>
@@ -879,7 +824,7 @@ function AnalyticsCategoryBlock({ categoryWise, total }) {
   const filtered = (categoryWise || []).filter((c) => c._id && c._id !== "unknown");
   if (!filtered.length) return null;
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm h-full">
+    <div className="h-full rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-5">
       <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
         <Layers className="w-3.5 h-3.5 text-[#27AE60]" />
         By Category
@@ -889,7 +834,6 @@ function AnalyticsCategoryBlock({ categoryWise, total }) {
           <div key={cat._id}>
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-                {cat._id === "residential" ? "🏠" : "🌍"}
                 <span className="capitalize">{cat._id}</span>
               </span>
               <span className="text-sm font-bold text-slate-800">
@@ -916,7 +860,7 @@ function AnalyticsPropertyTypeBlock({ propertyTypeWise }) {
   if (!rows.length) return null;
   const maxVal = rows[0]?.total || 1;
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm h-full">
+    <div className="h-full rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-5">
       <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
         <Home className="w-3.5 h-3.5 text-[#27AE60]" />
         Property Types
@@ -965,7 +909,7 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
    const isSingleRow = rows.length === 1;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm custom-scrollbar overflow-y-auto h-[300px]">
+    <div className="custom-scrollbar h-[300px] overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-5">
       
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -1008,7 +952,7 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
                   {row.total} projects
                 </span>
               </div>
-              <div className="grid grid-cols-8 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {[
                   {
                     label: "Active",
@@ -1117,7 +1061,7 @@ function AnalyticsPriceBlock({ priceAnalytics }) {
     { label: "Avg To",     value: fmt(priceAnalytics.avgPriceTo),   sub: "Avg end",        accent: "text-[#27AE60]" },
   ];
   return (
-    <div className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 rounded-2xl border border-emerald-100 p-5 shadow-sm h-full">
+    <div className="h-full rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-5">
       <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
         <DollarSign className="w-3.5 h-3.5 text-[#27AE60]" />
         Price Analytics
@@ -1149,7 +1093,6 @@ function AnalyticsDashboard({
   onStatusFilter,
   activePromotionFilter,
   activeStatusFilter,
-  allProperties,
 }) {
   if (isLoading) {
     return (
@@ -1180,7 +1123,6 @@ function AnalyticsDashboard({
         total={total}
         activeStatusFilter={activeStatusFilter}
         onStatusFilter={onStatusFilter}
-        allProperties={allProperties}
       />
 
       {/* Row 2 — Promotion type */}
@@ -1194,7 +1136,7 @@ function AnalyticsDashboard({
       {/* Row 3 — Category + Property type */}
       {(analytics.categoryWise?.length > 0 ||
         analytics.propertyTypeWise?.length > 0) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <AnalyticsCategoryBlock
             categoryWise={analytics.categoryWise}
             total={total}
@@ -1206,7 +1148,7 @@ function AnalyticsDashboard({
       )}
 
       {/* Row 4 — Location + Price */}
-      <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
         <AnalyticsLocationBlock
           analytics={analytics}
           locationType={locationType}
@@ -1233,6 +1175,12 @@ export default function ProjectsDashboardPage() {
   const isSuperAdmin    = roleName === "super_admin";
   const isAdmin         = roleName === "admin";
   const canViewAnalytics = isSuperAdmin || isAdmin || isSalesManager || isSalesAgent;
+  const canViewPendingProjects = isSuperAdmin || isSalesManager;
+  const [trackingFilter, setTrackingFilter] = useState("all");
+  const serverPromotionStatus =
+    trackingFilter === "expired" || trackingFilter === "scheduled"
+      ? trackingFilter
+      : null;
 
   
 
@@ -1241,12 +1189,33 @@ export default function ProjectsDashboardPage() {
   const featuredHook  = useFeaturedProjects("featured");
   const sponsoredHook = useFeaturedProjects("sponsored");
   const normalHook    = useFeaturedProjects("normal");
+  const lifecycleHook = useFeaturedProjects(null, {
+    promotionStatus: serverPromotionStatus,
+    enabled: !!serverPromotionStatus,
+  });
 
   
 
 
-  const { data: pendingProjectsData } = usePendingProjects({ enabled: isSalesManager });
+  const { data: pendingProjectsData, refetch: refetchPendingProjects } = usePendingProjects({ enabled: canViewPendingProjects });
   const pendingProjects = pendingProjectsData?.data || [];
+
+  const refreshAllProjects = useCallback(() => {
+    primeHook.refetch();
+    featuredHook.refetch();
+    sponsoredHook.refetch();
+    normalHook.refetch();
+    if (serverPromotionStatus) lifecycleHook.refetch();
+    refetchPendingProjects?.();
+  }, [
+    featuredHook,
+    lifecycleHook,
+    normalHook,
+    primeHook,
+    refetchPendingProjects,
+    serverPromotionStatus,
+    sponsoredHook,
+  ]);
 
   useEffect(() => {
     console.log({
@@ -1263,13 +1232,24 @@ export default function ProjectsDashboardPage() {
   ]);
 
   const allProperties = useMemo(() => {
+    if (serverPromotionStatus) {
+      return lifecycleHook.properties;
+    }
+
     const merged = [
       ...primeHook.properties, ...featuredHook.properties,
       ...sponsoredHook.properties, ...normalHook.properties,
     ];
     const seen = new Set();
     return merged.filter((p) => { if (seen.has(p._id)) return false; seen.add(p._id); return true; });
-  }, [primeHook.properties, featuredHook.properties, sponsoredHook.properties, normalHook.properties]);
+  }, [
+    serverPromotionStatus,
+    lifecycleHook.properties,
+    primeHook.properties,
+    featuredHook.properties,
+    sponsoredHook.properties,
+    normalHook.properties,
+  ]);
 
   console.log("Prime:", primeHook.properties.length);
   console.log("Featured:", featuredHook.properties.length);
@@ -1278,7 +1258,12 @@ export default function ProjectsDashboardPage() {
   console.log("All Properties:", allProperties.length);
   
 
-  const isLoading = primeHook.isLoading || featuredHook.isLoading || sponsoredHook.isLoading || normalHook.isLoading;
+  const isLoading = serverPromotionStatus
+    ? lifecycleHook.isLoading
+    : primeHook.isLoading ||
+      featuredHook.isLoading ||
+      sponsoredHook.isLoading ||
+      normalHook.isLoading;
   // ── Unified top-bar state (location + search) — drives analytics ─────────
   const [selectedLocation, setSelectedLocation] = useState(null);
   //const [searchTerm, setSearchTerm] = useState("");
@@ -1292,17 +1277,18 @@ export default function ProjectsDashboardPage() {
   const [categoryFilter,     setCategoryFilter]     = useState("all");
   const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
   const [sortBy, setSortBy] = useState("rank");
+  const [currentPage, setCurrentPage] = useState(1);
 
   // ── UI toggles ────────────────────────────────────────────────────────────
   const [showAnalytics, setShowAnalytics] = useState(true);
 
   // ── Modal state ───────────────────────────────────────────────────────────
   const [deleteTarget,       setDeleteTarget]       = useState(null);
+  const [deleteLoading,      setDeleteLoading]      = useState(false);
   const [promoteTarget,      setPromoteTarget]      = useState(null);
   const [expireTarget,       setExpireTarget]       = useState(null);
   const [resetTarget,        setResetTarget]        = useState(null);
   const [promoteCurrentType, setPromoteCurrentType] = useState("normal");
-  const loadMoreRef = useRef(null);
 
   const { data: masterAnalyticsData } = useQuery({
     queryKey: ["master-project-analytics"],
@@ -1332,49 +1318,12 @@ export default function ProjectsDashboardPage() {
  }, [selectedLocation, analytics]);
 
 
-useEffect(() => {
-  const el = loadMoreRef.current;
-
-  if (!el) return;
-
-  const observer = new IntersectionObserver(
-    ([entry]) => {
-      if (!entry.isIntersecting) return;
-
-      [normalHook, featuredHook, primeHook, sponsoredHook].forEach((hook) => {
-        if (hook.hasNextPage && !hook.isFetchingNextPage) {
-          hook.fetchNextPage();
-        }
-      });
-    },
-    {
-      rootMargin: "200px",
-      threshold: 0,
-    },
-  );
-
-  observer.observe(el);
-
-  return () => observer.disconnect();
-}, [
-  normalHook.hasNextPage,
-  normalHook.isFetchingNextPage,
-  featuredHook.hasNextPage,
-  featuredHook.isFetchingNextPage,
-  primeHook.hasNextPage,
-  primeHook.isFetchingNextPage,
-  sponsoredHook.hasNextPage,
-  sponsoredHook.isFetchingNextPage,
-]);
-
-
-
   // ── Project list filtering — uses all filter state ────────────────────────
   const visibleProperties = useMemo(() => {
 
     
     let list =
-      promotionFilter === "pending" && isSalesManager
+      promotionFilter === "pending" && canViewPendingProjects
         ? pendingProjects
         : allProperties;
 
@@ -1388,6 +1337,16 @@ useEffect(() => {
       //list = list.filter((p) => p.status === statusFilter);
       list = list.filter((p) => getProjectStatus(p).status === statusFilter);
       console.log("After status", list.length);
+    }
+    if (trackingFilter !== "all" && !serverPromotionStatus) {
+      list = list.filter((p) => {
+        const tracking = getPromotionTracking(p);
+        const lifecycle =
+          tracking.lifecycle === "critical" ? "expiringSoon" : tracking.lifecycle;
+        if (trackingFilter === "promoted") return tracking.hasHistory;
+        return lifecycle === trackingFilter;
+      });
+      console.log("After tracking", list.length);
     }
     if (categoryFilter !== "all"){
       list = list.filter((p) => p.categoryType === categoryFilter);
@@ -1520,11 +1479,13 @@ useEffect(() => {
     pendingProjects,
     promotionFilter,
     statusFilter,
+    trackingFilter,
+    serverPromotionStatus,
     categoryFilter,
     propertyTypeFilter,
     selectedLocation,
     projectSearch,
-    isSalesManager,
+    canViewPendingProjects,
     sortBy,
   ]);
 
@@ -1532,6 +1493,57 @@ useEffect(() => {
   console.log(visibleProperties.length);
 
   console.log("visibleProperties", visibleProperties);
+
+  const paginationStart = (currentPage - 1) * PROJECTS_PER_PAGE;
+  const paginatedProperties = visibleProperties.slice(
+    paginationStart,
+    paginationStart + PROJECTS_PER_PAGE,
+  );
+
+  const projectHooks = serverPromotionStatus
+    ? [lifecycleHook]
+    : [normalHook, featuredHook, primeHook, sponsoredHook];
+  const hasMoreLoadedProjects =
+    paginationStart + PROJECTS_PER_PAGE < visibleProperties.length;
+  const nextPageEnd = (currentPage + 1) * PROJECTS_PER_PAGE;
+  const needsMoreProjectsForNextPage =
+    visibleProperties.length < nextPageEnd;
+  const hasMoreServerProjects =
+    promotionFilter !== "pending" && projectHooks.some((hook) => hook.hasNextPage);
+  const isFetchingMoreProjects = projectHooks.some(
+    (hook) => hook.isFetchingNextPage,
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    promotionFilter,
+    statusFilter,
+    trackingFilter,
+    categoryFilter,
+    propertyTypeFilter,
+    selectedLocation,
+    projectSearch,
+    sortBy,
+  ]);
+
+  const handleNextPage = useCallback(async () => {
+    if (needsMoreProjectsForNextPage && hasMoreServerProjects) {
+      await Promise.all(
+        projectHooks.map((hook) =>
+          hook.hasNextPage && !hook.isFetchingNextPage
+            ? hook.fetchNextPage()
+            : Promise.resolve(),
+        ),
+      );
+    }
+
+    setCurrentPage((page) => page + 1);
+  }, [
+    needsMoreProjectsForNextPage,
+    hasMoreServerProjects,
+    projectHooks,
+  ]);
 
   // const displayedCount = useMemo(() => {
   //   if (promotionFilter === "prime")
@@ -1579,6 +1591,10 @@ useEffect(() => {
   // ── Mutation helpers — fully decoupled per action ─────────────────────────
   
   const displayedCount = useMemo(() => {
+    if (serverPromotionStatus) {
+      return lifecycleHook.totalCount;
+    }
+
     // Property Type (highest priority)
     if (propertyTypeFilter !== "all") {
       return (
@@ -1622,6 +1638,8 @@ useEffect(() => {
     return analytics?.overview?.totalProjects ?? 0;
   }, [
     analytics,
+    serverPromotionStatus,
+    lifecycleHook.totalCount,
     promotionFilter,
     statusFilter,
     categoryFilter,
@@ -1635,12 +1653,28 @@ useEffect(() => {
 
   
 
-  const handleDelete  = useCallback((id) => getHook(id).deleteMutation.mutate(id,  { onSettled: () => setDeleteTarget(null)  }), [getHook]);
-  const handleExpire  = useCallback((id) => getHook(id).expireMutation.mutate(id,  { onSettled: () => setExpireTarget(null)  }), [getHook]);
-  const handleReset   = useCallback((id) => getHook(id).resetMutation.mutate(id,   { onSettled: () => setResetTarget(null)   }), [getHook]);
+  const handleDelete = useCallback(async (id) => {
+    if (!id || deleteLoading) return;
+
+    try {
+      setDeleteLoading(true);
+      await deleteFeaturedProject(id);
+      toast.success("Project deleted successfully");
+      setDeleteTarget(null);
+      await refreshAllProjects();
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Failed to delete project",
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [deleteLoading, refreshAllProjects]);
+  const handleExpire  = useCallback((id) => getHook(id).expireMutation.mutate(id,  { onSuccess: refreshAllProjects, onSettled: () => setExpireTarget(null)  }), [getHook, refreshAllProjects]);
+  const handleReset   = useCallback((id) => getHook(id).resetMutation.mutate(id,   { onSuccess: refreshAllProjects, onSettled: () => setResetTarget(null)   }), [getHook, refreshAllProjects]);
   const handlePromote = useCallback((newType) =>
-    getHook(promoteTarget).promoteMutation.mutate({ id: promoteTarget, newType }, { onSettled: () => setPromoteTarget(null) }),
-  [getHook, promoteTarget]);
+    getHook(promoteTarget).promoteMutation.mutate({ id: promoteTarget, newType }, { onSuccess: refreshAllProjects, onSettled: () => setPromoteTarget(null) }),
+  [getHook, promoteTarget, refreshAllProjects]);
 
   const openPromoteModal = useCallback((id) => {
     setPromoteCurrentType(allProperties.find((p) => p._id === id)?.promotion?.type || "normal");
@@ -1649,12 +1683,12 @@ useEffect(() => {
 
   // ── Active filter count + clear ───────────────────────────────────────────
   const activeFiltersCount = useMemo(() => [
-    promotionFilter !== "all", statusFilter !== "all",
+    promotionFilter !== "all", statusFilter !== "all", trackingFilter !== "all",
     categoryFilter !== "all",  propertyTypeFilter !== "all",
-  ].filter(Boolean).length, [promotionFilter, statusFilter, categoryFilter, propertyTypeFilter]);
+  ].filter(Boolean).length, [promotionFilter, statusFilter, trackingFilter, categoryFilter, propertyTypeFilter]);
 
   const clearListFilters = useCallback(() => {
-    setPromotionFilter("all"); setStatusFilter("all");
+    setPromotionFilter("all"); setStatusFilter("all"); setTrackingFilter("all");
     setCategoryFilter("all");  setPropertyTypeFilter("all");
   }, []);
 
@@ -1682,22 +1716,29 @@ useEffect(() => {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-5">
+    <div
+      className="mx-auto w-full max-w-[1600px] space-y-5 rounded-3xl px-1 pb-8 sm:px-2"
+      style={{
+        backgroundColor: "#effcf5",
+        backgroundImage:
+          "linear-gradient(rgba(39, 174, 96, 0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(39, 174, 96, 0.11) 1px, transparent 1px)",
+        backgroundSize: "24px 24px",
+      }}
+    >
       {/* ── MODALS ──────────────────────────────────────────────────────── */}
       <ConfirmModal
         open={!!deleteTarget}
         title="Delete Property"
         message="Are you sure you want to delete this property? This action cannot be undone."
-        confirmLabel={
-          getHook(deleteTarget)?.deleteMutation?.isPending
-            ? "Deleting…"
-            : "Delete"
-        }
+        confirmLabel={deleteLoading ? "Deleting..." : "Delete"}
         confirmClass="bg-red-600 hover:bg-red-700 text-white"
         icon={<Trash2 className="w-5 h-5" />}
         iconClass="text-red-600"
         onConfirm={() => handleDelete(deleteTarget)}
-        onCancel={() => setDeleteTarget(null)}
+        onCancel={() => {
+          if (!deleteLoading) setDeleteTarget(null);
+        }}
+        isLoading={deleteLoading}
       />
       <ConfirmModal
         open={!!expireTarget}
@@ -1730,9 +1771,9 @@ useEffect(() => {
       />
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_6px_20px_rgba(22,163,74,0.12)] sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
-          <h1 className="text-3xl font-bold text-[#27AE60] max-sm:text-2xl">
+          <h1 className="text-2xl font-bold tracking-tight text-[#27AE60] sm:text-3xl">
             All Projects
           </h1>
           <p className="text-slate-500 mt-0.5 text-sm">
@@ -1741,7 +1782,7 @@ useEffect(() => {
         </div>
         <button
           onClick={() => navigate("/create-featured-project")}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#27AE60] text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition shadow-sm self-start sm:self-auto"
+          className="flex w-full items-center justify-center gap-2 self-start rounded-xl bg-[#27AE60] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 sm:w-auto sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           Create Project
@@ -1749,10 +1790,10 @@ useEffect(() => {
       </div>
 
       {/* ── TOP BAR: Location selector + Search — both drive analytics ──── */}
-      <div className="bg-white w-1/3   rounded-2xl border border-[#27AE60] shadow-[0_0_0_1px_#27AE60] p-4">
+      <div className="w-full rounded-2xl border border-emerald-100 bg-white p-3 shadow-[0_6px_20px_rgba(22,163,74,0.12)] sm:p-4 lg:max-w-2xl">
         <div className="flex  flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {/* Location selector (left) */}
-          <div className="flex items-center  gap-2 flex-shrink-0">
+          <div className="min-w-0 flex-1">
             <InlineLocationSelector
               properties={allProperties}
               analytics={analytics}
@@ -1805,10 +1846,10 @@ useEffect(() => {
 
       {/* ── ANALYTICS DASHBOARD (role-gated, driven by location + search) ── */}
       {canViewAnalytics && (
-        <div className="bg-gradient-to-br from-[#27AE60]/5 via-emerald-50/50 to-white rounded-2xl border border-[#27AE60]/15 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
+        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-green-50/80 to-white p-3 shadow-[0_8px_26px_rgba(22,163,74,0.14)] sm:p-5">
+          <div className="mb-5 flex items-start justify-between gap-3 sm:items-center">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#27AE60]/10 rounded-xl flex items-center justify-center">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-200">
                 <BarChart3 className="w-5 h-5 text-[#27AE60]" />
               </div>
               <div>
@@ -1825,7 +1866,7 @@ useEffect(() => {
             </div>
             <button
               onClick={() => setShowAnalytics((v) => !v)}
-              className="text-xs text-slate-400 hover:text-slate-700 font-semibold transition px-3 py-1.5 rounded-lg hover:bg-slate-100"
+              className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:border-emerald-300 hover:text-emerald-700"
             >
               {showAnalytics ? "Hide" : "Show"}
             </button>
@@ -1842,14 +1883,13 @@ useEffect(() => {
               onStatusFilter={setStatusFilter}
               activePromotionFilter={promotionFilter}
               activeStatusFilter={statusFilter}
-              allProperties={allProperties}
             />
           )}
         </div>
       )}
 
-      {/* ── PENDING APPROVALS (SalesManager only) ───────────────────────── */}
-      {isSalesManager && (
+      {/* ── PENDING APPROVALS ───────────────────────── */}
+      {canViewPendingProjects && (
         <div
           onClick={() =>
             setPromotionFilter((prev) =>
@@ -1875,7 +1915,7 @@ useEffect(() => {
       )}
 
       {/* ── PROJECT LIST FILTERS ─────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+      <div className="space-y-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_6px_20px_rgba(22,163,74,0.12)] sm:p-5">
         {/* Search bar (right, fills remaining space) */}
         <div className="flex-1  flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 min-w-0 focus-within:border-[#27AE60]/50 focus-within:bg-white transition">
           <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
@@ -1897,7 +1937,7 @@ useEffect(() => {
             </button>
           )}
         </div>
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
           {/* Category */}
           <div>
             <p className="text-xs font-bold text-slate-600 mb-2">Category</p>
@@ -1935,11 +1975,47 @@ useEffect(() => {
             </div>
           </div> */}
 
+          {/* Promotion tracking */}
+          <div>
+            <p className="text-xs font-bold text-slate-600 mb-2">
+              Promotion Tracking
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {TRACKING_FILTERS.map((item) => (
+                <button
+                  key={item.value}
+                  onClick={() => {
+                    setTrackingFilter(item.value);
+                    if (
+                      item.value === "expired" ||
+                      item.value === "scheduled"
+                    ) {
+                      setPromotionFilter("all");
+                      setStatusFilter("all");
+                    }
+                  }}
+                  className={`px-3 py-2 rounded-xl border text-xs font-semibold transition
+                    ${
+                      trackingFilter === item.value
+                        ? item.value === "expired"
+                          ? "bg-red-600 text-white border-red-600"
+                          : item.value === "expiringSoon"
+                            ? "bg-amber-500 text-white border-amber-500"
+                            : "bg-slate-700 text-white border-slate-700"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+                    }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Clear list filters */}
           {activeFiltersCount > 0 && (
             <button
               onClick={clearListFilters}
-              className="ml-auto flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 font-semibold px-3 py-2 rounded-xl border border-red-100 hover:border-red-300 bg-red-50 transition"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:ml-auto"
             >
               <X className="w-3 h-3" />
               Clear filters
@@ -1997,6 +2073,18 @@ useEffect(() => {
                 </button>
               </span>
             )}
+            {trackingFilter !== "all" && (
+              <span
+                className={`inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 font-medium capitalize ${promotionLifecycleClass(
+                  trackingFilter === "promoted" ? "active" : trackingFilter,
+                )}`}
+              >
+                {TRACKING_FILTERS.find((item) => item.value === trackingFilter)?.label || trackingFilter}
+                <button onClick={() => setTrackingFilter("all")}>
+                  <X className="w-3 h-3 hover:text-red-500" />
+                </button>
+              </span>
+            )}
             {categoryFilter !== "all" && (
               <span className="inline-flex items-center gap-1.5 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-2.5 py-1 font-medium capitalize">
                 {categoryFilter}
@@ -2018,21 +2106,21 @@ useEffect(() => {
       </div>
 
       {/* ── RESULTS HEADER ───────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-bold text-slate-800">
           Projects
-          <span className="text-slate-500 text-sm ml-2">
+          {/* <span className="text-slate-500 text-sm ml-2">
             ({displayedCount})
-          </span>
+          </span> */}
         </h2>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           <ArrowUpDown className="w-4 h-4 text-slate-500" />
 
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none bg-white"
+            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 sm:flex-none"
           >
             <option value="rank">Price Short</option>
 
@@ -2084,8 +2172,8 @@ useEffect(() => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {visibleProperties.map((p) => (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          {paginatedProperties.map((p) => (
             <PropertyCard
               key={p._id}
               property={p}
@@ -2094,30 +2182,51 @@ useEffect(() => {
               onPromote={() => openPromoteModal(p._id)}
               onExpire={() => setExpireTarget(p._id)}
               onReset={() => setResetTarget(p._id)}
+              onRankUpdated={refreshAllProjects}
             />
           ))}
         </div>
       )}
 
-      {/* ── INFINITE SCROLL SENTINEL ─────────────────────────────────────── */}
-      <div ref={loadMoreRef} className="h-16 flex justify-center items-center">
-        {(normalHook.isFetchingNextPage ||
-          featuredHook.isFetchingNextPage ||
-          primeHook.isFetchingNextPage ||
-          sponsoredHook.isFetchingNextPage) && (
-          <div className="flex flex-col items-center gap-2">
-            <LoadingSpinner size="sm" />
-            <p className="text-xs text-slate-500">Loading more…</p>
+      {/* ── PROJECT PAGINATION ───────────────────────────────────────────── */}
+      {visibleProperties.length > 0 && (
+        <div className="flex flex-col items-center justify-center gap-3 py-4 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            disabled={currentPage === 1 || isFetchingMoreProjects}
+            className="min-w-[110px] rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Previous
+          </button>
+
+          <div className="min-w-[100px] text-center">
+            <p className="text-sm font-semibold text-slate-700">
+              Page {currentPage}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-400">
+              {paginationStart + 1}–
+              {Math.min(
+                paginationStart + PROJECTS_PER_PAGE,
+                visibleProperties.length,
+              )}
+            </p>
           </div>
-        )}
-        {!normalHook.hasNextPage &&
-          !featuredHook.hasNextPage &&
-          !primeHook.hasNextPage &&
-          !sponsoredHook.hasNextPage &&
-          allProperties.length > 0 && (
-            <p className="text-sm text-slate-400">All projects loaded</p>
-          )}
-      </div>
+
+          <button
+            type="button"
+            onClick={handleNextPage}
+            disabled={
+              isFetchingMoreProjects ||
+              (!hasMoreLoadedProjects && !hasMoreServerProjects)
+            }
+            className="flex min-w-[110px] items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+

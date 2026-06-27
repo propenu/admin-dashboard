@@ -11,10 +11,21 @@ import Step2LocationDetails from "./Step2LocationDetails";
 import MainContainer from "./Step3PropertyDetails/MainContainer";
 import Step4VerifyPublish from "./Step4VerifyPublish";
 import Whatup from "../../../assets/whatsuplogo.svg";
-import { actions } from "../../../store/newIndex";
+import { actions, store } from "../../../store/newIndex";
 import { getPropertyById } from "../../../services/Common/AllPropertyServices";
 import { getMyPropertyDrafts } from "../../../features/property/propertyService";
 import { Toaster } from "sonner";
+
+const getAgentProjectConfig = (subType) => {
+  const configs = {
+    apartment: { category: "residential", propertyType: "apartment" },
+    villa: { category: "residential", propertyType: "villa" },
+    "open-plot": { category: "land", propertyType: "residential-plot" },
+    "commercial-plot": { category: "land", propertyType: "commercial-plot" },
+  };
+
+  return configs[subType] || configs.apartment;
+};
 
 // const STEPS = [
 //   { label: "Basic Details", icon: "01" },
@@ -23,7 +34,7 @@ import { Toaster } from "sonner";
 //   { label: "Verify & Publish", icon: "04" },
 // ];
 
-export default function PropertyController() {
+export default function PropertyController({ agentProject = false }) {
   const { id } = useParams();
   const activeCategory = useSelector((state) => state.ui.activeCategory);
   const navigate = useNavigate();
@@ -32,6 +43,7 @@ export default function PropertyController() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
+  const [agentProjectReady, setAgentProjectReady] = useState(!agentProject);
 
   const userRole = localStorage.getItem("createdByBasedUserRole");
 
@@ -50,6 +62,12 @@ export default function PropertyController() {
         ];
 
   const setStepFromDraft = (draft) => {
+    if (agentProject) {
+      setStep(0);
+      setCompletedSteps([]);
+      return;
+    }
+
     const backendStep = draft?.completion?.step ?? 1;
 
     const frontendStep = Math.min(
@@ -62,11 +80,20 @@ export default function PropertyController() {
   };
 
   useEffect(() => {
-    
+    if (agentProject) {
+      if (!agentProjectReady) {
+        localStorage.setItem("agentProjectType", "apartment");
+        localStorage.setItem("activeCategory", "residential");
+        dispatch(setActiveCategory("residential"));
+        setAgentProjectReady(true);
+      }
+      return;
+    }
+
     const storedCategory = localStorage.getItem("activeCategory");
 
     if (storedCategory && !activeCategory) dispatch(setActiveCategory(storedCategory));
-  }, [activeCategory, dispatch]);
+  }, [activeCategory, dispatch, agentProject, agentProjectReady]);
 
 
 
@@ -79,12 +106,26 @@ export default function PropertyController() {
 
   useEffect(() => {
 
-    if (!activeCategory || isInitializing.current) return;
+    if (!activeCategory || !agentProjectReady || isInitializing.current) return;
     isInitializing.current = true;
 
     
    const normalizeDraft = (draft, currentForm) => ({
      ...draft,
+
+     ...(agentProject
+       ? (() => {
+           const subType = localStorage.getItem("agentProjectType") || "apartment";
+           const config = getAgentProjectConfig(subType);
+           return {
+           isAgentProject: true,
+           propertyType: config.propertyType,
+           // Agent-project subtype is represented by propertyType. Keep the
+           // model field inside each property's existing backend enum.
+           propertySubType: config.category === "land" ? "road-facing" : "",
+           };
+         })()
+       : {}),
 
      createdBy:
        typeof draft.createdBy === "object"
@@ -152,12 +193,15 @@ export default function PropertyController() {
         console.error("Initialization failed:", err);
         toast.error("Initialization failed");
         setIsDataLoaded(true);
-      } finally { setIsFetching(false); }
+      } finally {
+        isInitializing.current = false;
+        setIsFetching(false);
+      }
     };
 
     
     run();
-  }, [activeCategory, id, dispatch]);
+  }, [activeCategory, id, dispatch, agentProject, agentProjectReady]);
 
   const handleNext = useCallback(() => {
     setCompletedSteps((prev) => prev.includes(step) ? prev : [...prev, step]);
@@ -356,6 +400,7 @@ export default function PropertyController() {
               category={activeCategory}
               setCategory={setActiveCategory}
               next={handleNext}
+              agentProject={agentProject}
             />
           )}
           {step === 1 && (

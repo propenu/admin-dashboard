@@ -1,7 +1,10 @@
 // src\pages\features\property\components\shared\IndetialsPage.jsx
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import {
   MapPin,
   ArrowLeft,
@@ -36,14 +39,26 @@ import {
   History,
   Building2,
   Users,
+  Upload,
+  Search,
 } from "lucide-react";
-import { projectAnalytics } from "../../../../../features/property/propertyService";
+import {
+  projectAnalytics,
+  projectExternalFileAddLeads,
+} from "../../../../../features/property/propertyService";
 import {
   fetchFeaturedProperties,
 } from "../../../../../services/PropertyService";
 import { getFeaturedProjectById } from "../../../../../features/property/propertyService";
 import LoadingSpinner from "../../../../../components/common/LoadingSpinner";
 import Fallback from "../../../../../assets/fallback.svg";
+import {
+  formatPromotionDate,
+  getPromotionTracking,
+  promotionLifecycleClass,
+  promotionLifecycleCopy,
+  titlePromotionType,
+} from "./promotionTracking";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // export const formatPrice = (price) =>
@@ -137,6 +152,53 @@ const promotionColor = {
   normal: "bg-slate-100 text-slate-600 border-slate-200",
 };
 
+const leadStatusClass = (status = "") => {
+  const normalized = String(status).toLowerCase();
+  if (normalized.includes("new")) return "bg-emerald-50 text-emerald-700 border-emerald-100";
+  if (normalized.includes("contact")) return "bg-blue-50 text-blue-700 border-blue-100";
+  if (normalized.includes("convert") || normalized.includes("closed")) {
+    return "bg-purple-50 text-purple-700 border-purple-100";
+  }
+  return "bg-slate-50 text-slate-600 border-slate-100";
+};
+
+const formatLeadText = (value) => {
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value)
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const formatLeadDateTime = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const getLeadSearchText = (lead) =>
+  [
+    lead.name,
+    lead.phone,
+    lead.email,
+    lead.sourceCreatedAt,
+    lead.createdAt,
+    lead.purchaseTimeline,
+    lead.budgetRange,
+    lead.status,
+  ]
+    .map((value) => formatLeadText(value))
+    .join(" ")
+    .toLowerCase();
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function SectionCard({ children, className = "" }) {
   return (
@@ -199,41 +261,45 @@ function MetaItem({ label, value }) {
   );
 }
 
-function LeadRow({ lead, index }) {
-  const badge = {
-    new: "bg-green-100 text-green-700",
-    contacted: "bg-blue-100 text-blue-700",
-    closed: "bg-slate-100 text-slate-600",
-    converted: "bg-purple-100 text-purple-700",
-  };
+function LeadRow({ lead }) {
   return (
     <tr className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors">
-      <td className="py-3 px-4 text-xs text-slate-400 font-mono">{index + 1}</td>
-      <td className="py-3 px-4">
+      <td className="px-3 py-2.5">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-[#27AE60]/10 flex items-center justify-center flex-shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-[#27AE60]/10 flex items-center justify-center flex-shrink-0">
             <User className="w-3.5 h-3.5 text-[#27AE60]" />
           </div>
-          <span className="text-sm font-semibold text-slate-700">{lead.name}</span>
+          <span className="truncate text-sm font-semibold text-slate-800">
+            {lead.name || "-"}
+          </span>
         </div>
       </td>
-      <td className="py-3 px-4">
-        <div className="flex items-center gap-1.5 text-sm text-slate-600">
+      <td className="px-3 py-2.5">
+        <a href={`tel:${lead.phone}`} className="flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-slate-600">
           <Phone className="w-3.5 h-3.5 text-[#27AE60] flex-shrink-0" />
-          {lead.phone}
-        </div>
+          {lead.phone || "-"}
+        </a>
       </td>
-      <td className="py-3 px-4">
-        <span
-          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full capitalize ${
-            badge[lead.status] || "bg-slate-100 text-slate-600"
-          }`}
-        >
-          {lead.status}
+      <td className="px-3 py-2.5 text-xs text-slate-600">
+        <span className="block truncate">{lead.email || "-"}</span>
+      </td>
+      <td className="px-3 py-2.5 text-xs text-slate-500 whitespace-nowrap">
+        {formatLeadDateTime(lead.sourceCreatedAt || lead.createdAt)}
+      </td>
+      <td className="px-3 py-2.5 text-xs font-medium text-slate-700">
+        {formatLeadText(lead.purchaseTimeline)}
+      </td>
+      <td className="px-3 py-2.5">
+        <span className="inline-flex max-w-full rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+          {formatLeadText(lead.budgetRange)}
         </span>
       </td>
-      <td className="py-3 px-4 text-xs text-slate-400 whitespace-nowrap">
-        {formatDateTime(lead.createdAt)}
+      <td className="px-3 py-2.5">
+        <span
+          className={`inline-flex max-w-full rounded-full border px-2 py-0.5 text-[11px] font-bold ${leadStatusClass(lead.status)}`}
+        >
+          {formatLeadText(lead.status)}
+        </span>
       </td>
     </tr>
   );
@@ -540,8 +606,84 @@ function RecordMeta({ property }) {
 }
 
 // ─── LeadsSection ─────────────────────────────────────────────────────────────
-function LeadsSection({ leads, totalLeads, newLeads, contactedLeads, analyticsError }) {
+function LeadsSection({
+  leads,
+  totalLeads,
+  newLeads,
+  contactedLeads,
+  analyticsError,
+  projectId,
+}) {
   const [activeTab, setActiveTab] = useState("leads");
+  const [leadSearch, setLeadSearch] = useState("");
+  const fileInputRef = useRef(null);
+  const queryClient = useQueryClient();
+  const leadSearchTerm = leadSearch.trim().toLowerCase();
+  const filteredLeads = leadSearchTerm
+    ? leads.filter((lead) => getLeadSearchText(lead).includes(leadSearchTerm))
+    : leads;
+
+  const buildLeadRows = (rows) =>
+    rows.map((lead) => ({
+      "Full Name": lead.name || "",
+      "Phone Number": lead.phone || "",
+      Email: lead.email || "",
+      "Lead Time": formatLeadDateTime(lead.sourceCreatedAt || lead.createdAt),
+      "Planning To Purchase": formatLeadText(lead.purchaseTimeline),
+      "Budget Range": formatLeadText(lead.budgetRange),
+      Status: formatLeadText(lead.status),
+    }));
+
+  const downloadCSV = () => {
+    const ws = XLSX.utils.json_to_sheet(buildLeadRows(filteredLeads));
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    saveAs(
+      new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+      `project-leads-${projectId}.csv`,
+    );
+  };
+
+  const downloadExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(buildLeadRows(filteredLeads));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Project Leads");
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    saveAs(
+      new Blob([buf], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
+      }),
+      `project-leads-${projectId}.xlsx`,
+    );
+  };
+
+  const importLeadsMutation = useMutation({
+    mutationFn: (file) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return projectExternalFileAddLeads(projectId, formData);
+    },
+    onSuccess: async () => {
+      toast.success("Leads imported successfully");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["projectAnalytics", projectId] }),
+        queryClient.invalidateQueries({ queryKey: ["projectLeads", projectId] }),
+        queryClient.invalidateQueries({ queryKey: ["project-analytics"] }),
+        queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] }),
+      ]);
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to import leads");
+    },
+    onSettled: () => {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+  });
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    importLeadsMutation.mutate(file);
+  };
 
   const tabs = [
     { key: "leads", label: `Leads (${totalLeads})` },
@@ -568,27 +710,94 @@ function LeadsSection({ leads, totalLeads, newLeads, contactedLeads, analyticsEr
         ))}
       </div>
 
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         {/* Leads tab */}
         {activeTab === "leads" && (
           <div>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-700">Project leads</p>
+                <p className="text-xs text-slate-400">
+                  Import an external CSV or Excel file, then review the latest leads here.
+                </p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xls,.xlsx"
+                className="hidden"
+                onChange={handleImportFile}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importLeadsMutation.isPending || !projectId}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  {importLeadsMutation.isPending ? "Importing..." : "Import leads"}
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadCSV}
+                  disabled={!filteredLeads.length}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-green-100 bg-green-50 px-3 py-2 text-xs font-bold text-[#27AE60] transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadExcel}
+                  disabled={!filteredLeads.length}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-600 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Excel
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <Search className="h-4 w-4 flex-shrink-0 text-slate-400" />
+              <input
+                value={leadSearch}
+                onChange={(e) => setLeadSearch(e.target.value)}
+                placeholder="Search name, phone, email, status..."
+                className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+              />
+              {leadSearch && (
+                <button
+                  type="button"
+                  onClick={() => setLeadSearch("")}
+                  className="rounded-md px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-white hover:text-slate-700"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
             {/* Mini stats */}
-            <div className="flex gap-3 mb-5">
+            <div className="mb-4 flex flex-wrap gap-2">
               {[
                 { label: "Total", value: totalLeads, color: "text-slate-800" },
                 { label: "New", value: newLeads, color: "text-[#27AE60]" },
                 { label: "Contacted", value: contactedLeads, color: "text-blue-600" },
                 {
                   label: "Converted",
-                  value: leads.filter((l) => l.status === "converted").length,
+                  value: leads.filter((l) => {
+                    const status = String(l.status || "").toLowerCase();
+                    return status.includes("converted") || status.includes("closed");
+                  }).length,
                   color: "text-purple-600",
                 },
               ].map((s) => (
                 <div
                   key={s.label}
-                  className="bg-slate-50 rounded-xl border border-slate-100 px-4 py-3 text-center min-w-[72px]"
+                  className="min-w-[70px] rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-center"
                 >
-                  <p className={`text-xl font-extrabold ${s.color}`}>{s.value}</p>
+                  <p className={`text-lg font-extrabold ${s.color}`}>{s.value}</p>
                   <p className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold mt-0.5">
                     {s.label}
                   </p>
@@ -611,33 +820,38 @@ function LeadsSection({ leads, totalLeads, newLeads, contactedLeads, analyticsEr
                   Leads will appear here once enquiries come in
                 </p>
               </div>
+            ) : filteredLeads.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
+                No leads match your search.
+              </div>
             ) : (
               <>
-                <div className="overflow-x-auto rounded-xl border border-slate-100">
-                  <table className="w-full text-left">
+                <div className="overflow-hidden rounded-xl border border-slate-100">
+                  <div className="max-h-[460px] overflow-auto">
+                  <table className="w-full min-w-[980px] table-fixed text-left">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        {["#", "Name", "Phone", "Status", "Date"].map((h) => (
-                          <th
-                            key={h}
-                            className="py-3 px-4 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap"
-                          >
-                            {h}
-                          </th>
-                        ))}
+                      <tr className="sticky top-0 z-10 bg-slate-50 border-b border-slate-100">
+                        <th className="w-[16%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Full Name</th>
+                        <th className="w-[13%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Phone Number</th>
+                        <th className="w-[20%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Email</th>
+                        <th className="w-[15%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Lead Time</th>
+                        <th className="w-[14%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Planning</th>
+                        <th className="w-[11%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Budget</th>
+                        <th className="w-[11%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {leads.map((lead, i) => (
-                        <LeadRow key={lead._id || i} lead={lead} index={i} />
+                      {filteredLeads.map((lead, i) => (
+                        <LeadRow key={lead._id || i} lead={lead} />
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs text-slate-400 px-1">
                   <span>
-                    Total:{" "}
-                    <span className="font-bold text-slate-600">{leads.length}</span>
+                    Showing:{" "}
+                    <span className="font-bold text-slate-600">{filteredLeads.length}</span>
                   </span>
                   <div className="flex gap-4">
                     <span>
@@ -795,11 +1009,21 @@ export default function FeaturedPropertyDetails() {
     if (Array.isArray(raw.leads)) return raw.leads;
     return [];
   };
-  const leads = extractLeads(analyticsData);
+  const leads = extractLeads(analyticsData)
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   const totalLeads =
-    typeof analyticsData?.count === "number" ? analyticsData.count : leads.length;
-  const newLeads = leads.filter((l) => l.status === "new").length;
-  const contactedLeads = leads.filter((l) => l.status === "contacted").length;
+    typeof analyticsData?.data?.count === "number"
+      ? analyticsData.data.count
+      : typeof analyticsData?.count === "number"
+        ? analyticsData.count
+        : leads.length;
+  const newLeads = leads.filter((l) =>
+    String(l.status || "").toLowerCase().includes("new"),
+  ).length;
+  const contactedLeads = leads.filter((l) =>
+    String(l.status || "").toLowerCase().includes("contact"),
+  ).length;
   const views = property.meta?.views ?? 0;
 
   const tabs = [
@@ -808,6 +1032,7 @@ export default function FeaturedPropertyDetails() {
     { key: "amenities", label: "Amenities" },
     { key: "nearby", label: "Nearby" },
     { key: "specs", label: "Specifications" },
+    { key: "promotion", label: "Promotion History" },
   ];
 
   return (
@@ -1414,6 +1639,10 @@ export default function FeaturedPropertyDetails() {
               )}
             </div>
           )}
+
+          {activeTab === "promotion" && (
+            <PromotionTrackerPanel property={property} />
+          )}
         </div>
       </div>
 
@@ -1424,6 +1653,7 @@ export default function FeaturedPropertyDetails() {
         newLeads={newLeads}
         contactedLeads={contactedLeads}
         analyticsError={analyticsError}
+        projectId={property._id}
       />
 
       {/* ── RECORD META ───────────────────────────────────────────────── */}
@@ -1431,3 +1661,115 @@ export default function FeaturedPropertyDetails() {
     </div>
   );
 }
+
+function PromotionTrackerPanel({ property }) {
+  const tracking = getPromotionTracking(property);
+  const history = tracking.history;
+  const start = tracking.startedAt ? new Date(tracking.startedAt).getTime() : null;
+  const end = tracking.expiresAt ? new Date(tracking.expiresAt).getTime() : null;
+  const now = Date.now();
+  const progress =
+    start && end && end > start
+      ? Math.min(100, Math.max(0, Math.round(((now - start) / (end - start)) * 100)))
+      : tracking.currentType === "normal"
+        ? 0
+        : 100;
+
+  return (
+    <SectionCard>
+      <SectionHeader
+        icon={History}
+        title="Promotion Tracking"
+        sub="Movement, expiry and lifecycle history for this project"
+      />
+      <div className="grid gap-4 p-5 lg:grid-cols-[1fr_1.2fr]">
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs text-slate-400">Current promotion</p>
+              <p className="mt-1 text-lg font-bold text-slate-800">
+                {titlePromotionType(tracking.currentType)}
+              </p>
+            </div>
+            <span
+              className={`rounded-full border px-3 py-1 text-xs font-semibold ${promotionLifecycleClass(
+                tracking.lifecycle,
+              )}`}
+            >
+              {promotionLifecycleCopy(tracking)}
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+            <div className="rounded-xl bg-white p-3">
+              <p className="text-slate-400">Started</p>
+              <p className="mt-1 font-semibold text-slate-700">
+                {formatPromotionDate(tracking.startedAt, true)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-white p-3">
+              <p className="text-slate-400">Expires</p>
+              <p className="mt-1 font-semibold text-slate-700">
+                {formatPromotionDate(tracking.expiresAt, true)}
+              </p>
+            </div>
+          </div>
+
+          {tracking.currentType !== "normal" && (
+            <div className="mt-4">
+              <div className="mb-1 flex justify-between text-[11px] text-slate-500">
+                <span>{titlePromotionType(tracking.previousType)} → {titlePromotionType(tracking.currentType)}</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white">
+                <div
+                  className="h-full rounded-full bg-[#27AE60] transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-white p-4">
+          <p className="mb-3 text-sm font-semibold text-slate-700">Promotion history</p>
+          {history.length === 0 ? (
+            <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-400">
+              No promotion movement recorded yet.
+            </div>
+          ) : (
+            <div className="custom-scrollbar max-h-[360px] space-y-3 overflow-y-auto pr-2">
+              {[...history].reverse().map((item, index) => (
+                <div key={`${item.startedAt}-${index}`} className="relative flex gap-3">
+                  <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#27AE60]/10 text-[#27AE60]">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-slate-700">
+                        {titlePromotionType(item.fromType)} → {titlePromotionType(item.toType)}
+                      </p>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-slate-500">
+                        {item.source || "manual"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {item.reason || "Promotion changed"}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                      <span>Started {formatPromotionDate(item.startedAt, true)}</span>
+                      <span>Expires {formatPromotionDate(item.expiresAt, true)}</span>
+                      {item.changedByRole && <span>By {item.changedByRole}</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+

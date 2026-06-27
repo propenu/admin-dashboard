@@ -844,6 +844,8 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
   const [locatingUser, setLocatingUser] = useState(false);
   const [searchQuery,  setSearchQuery]  = useState("");
   const [searching,    setSearching]    = useState(false);
+  const [nearbyPlaceName, setNearbyPlaceName] = useState("");
+  const [nearbyDistanceText, setNearbyDistanceText] = useState("");
   const [openMapIndex, setOpenMapIndex] = useState(null);
 
   // const [addrFields, setAddrFields] = useState({
@@ -968,7 +970,6 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
     },
     [update],
   );
-
 
   /* ── GPS button ── */
   const handleUseMyLocation = useCallback(() => {
@@ -1105,6 +1106,38 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
     },
     [places, update]
   );
+
+  const handleAddNearbyPlace = useCallback(() => {
+    const name = nearbyPlaceName.trim();
+    const distanceText = nearbyDistanceText.trim();
+    if (!name || !distanceText) return;
+
+    const alreadyAdded = places.some(
+      (place) => place.name?.trim().toLowerCase() === name.toLowerCase(),
+    );
+    if (alreadyAdded) return;
+
+    update({
+      nearbyPlaces: [
+        ...places,
+        {
+          name,
+          fullAddress: "",
+          locality: "",
+          city: "",
+          latitude: "",
+          longitude: "",
+          type: "",
+          distanceText,
+          coordinates: [0, 0],
+          order: places.length,
+        },
+      ],
+    });
+    setNearbyPlaceName("");
+    setNearbyDistanceText("");
+    clr("nearbyPlaces");
+  }, [nearbyDistanceText, nearbyPlaceName, places, update]);
 
   const mapCoords =
     location.coordinates[0] && location.coordinates[1]
@@ -1402,7 +1435,7 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
           )}
         </div>
 
-        <div className="p-5">
+        <div className="p-5 space-y-5">
           <NearbyPlacesPanel
             pinnedCoords={
               location.coordinates[0] && location.coordinates[1]
@@ -1416,6 +1449,62 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
             onAdd={handleAddPlace}
             onRemove={handleRemovePlace}
           />
+
+          <div className="border-t border-gray-200 pt-5 space-y-2">
+            <div>
+              <p className="text-xs font-black text-gray-700">Or add manually</p>
+              <p className="text-[10px] text-gray-400">
+                Enter the place name and distance. Other values remain empty.
+              </p>
+            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2">
+            <div className="relative flex-1">
+              <MapPin
+                size={15}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                value={nearbyPlaceName}
+                onChange={(event) => setNearbyPlaceName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleAddNearbyPlace();
+                  }
+                }}
+                placeholder="Enter nearby place name"
+                className="w-full border-2 border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold
+                  text-gray-900 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10
+                  outline-none transition-all placeholder:text-gray-400 bg-white"
+              />
+            </div>
+            <input
+              value={nearbyDistanceText}
+              onChange={(event) => setNearbyDistanceText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  handleAddNearbyPlace();
+                }
+              }}
+              placeholder="Distance (e.g. 1.2 km)"
+              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold
+                text-gray-900 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10
+                outline-none transition-all placeholder:text-gray-400 bg-white"
+            />
+            <button
+              type="button"
+              onClick={handleAddNearbyPlace}
+              disabled={!nearbyPlaceName.trim() || !nearbyDistanceText.trim()}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-black
+                hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
+            >
+              <Plus size={15} />
+              Add
+            </button>
+          </div>
+          </div>
         </div>
       </div>
       

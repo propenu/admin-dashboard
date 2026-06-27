@@ -9,6 +9,7 @@ export default function ConfirmModal({
   iconClass = "text-red-600",
   onConfirm,
   onCancel,
+  isLoading = false,
 }) {
   if (!open) return null;
 
@@ -24,13 +25,15 @@ export default function ConfirmModal({
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-xl border text-slate-600 hover:bg-slate-50 text-sm font-medium transition"
+            disabled={isLoading}
+            className="px-4 py-2 rounded-xl border text-slate-600 hover:bg-slate-50 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition ${confirmClass}`}
+            disabled={isLoading}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${confirmClass}`}
           >
             {confirmLabel}
           </button>

@@ -363,6 +363,131 @@ function CreatedByCard({ person }) {
 }
 
 // ─── LeadRow ──────────────────────────────────────────────────────────────────
+function UpdateHistoryPanel({ property }) {
+  const history = Array.isArray(property?.updateHistory)
+    ? [...property.updateHistory].sort(
+        (a, b) => new Date(b?.updatedAt || 0) - new Date(a?.updatedAt || 0),
+      )
+    : [];
+  const lastUpdated = property?.lastUpdatedBy || history[0];
+  const updateCount = property?.updateCount ?? history.length;
+
+  return (
+    <SectionCard>
+      <SectionHeader
+        icon={History}
+        title="Update History"
+        sub="Track who changed this property and when"
+      />
+
+      <div className="grid gap-4 p-5 lg:grid-cols-[0.9fr_1.4fr]">
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Total Updates
+              </p>
+              <p className="mt-1 text-3xl font-extrabold text-slate-800">
+                {updateCount || 0}
+              </p>
+            </div>
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#27AE60]/10 text-[#27AE60]">
+              <RefreshCw className="h-5 w-5" />
+            </span>
+          </div>
+
+          <div className="mt-4 rounded-xl bg-white p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Last Updated By
+            </p>
+            {lastUpdated ? (
+              <div className="mt-2 space-y-1">
+                <p className="text-sm font-bold capitalize text-slate-800">
+                  {lastUpdated.name || "Unknown user"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {lastUpdated.roleName || "Unknown role"}
+                </p>
+                {lastUpdated.email && (
+                  <p className="truncate text-xs text-slate-400">
+                    {lastUpdated.email}
+                  </p>
+                )}
+                <p className="pt-1 text-xs font-semibold text-[#27AE60]">
+                  {formatDateTime(lastUpdated.updatedAt)}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-slate-400">No update data found</p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-100 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-slate-700">Activity Timeline</p>
+            {history.length > 0 && (
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
+                {history.length} records
+              </span>
+            )}
+          </div>
+
+          {history.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
+              <History className="mx-auto h-8 w-8 text-slate-300" />
+              <p className="mt-2 text-sm font-semibold text-slate-500">
+                No update history recorded
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                Future edits will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-72 space-y-3 overflow-auto pr-1">
+              {history.map((item, index) => (
+                <div key={item._id || `${item.updatedAt}-${index}`} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#27AE60]/10 text-[#27AE60]">
+                      <PencilLine className="h-3.5 w-3.5" />
+                    </span>
+                    {index !== history.length - 1 && (
+                      <span className="mt-1 h-full min-h-8 w-px bg-slate-100" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold capitalize text-slate-800">
+                          {item.name || "Unknown user"}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {item.roleName || "Unknown role"}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                        Update #{history.length - index}
+                      </span>
+                    </div>
+                    {item.email && (
+                      <p className="mt-1 truncate text-xs text-slate-400">
+                        {item.email}
+                      </p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                      <span>{formatDate(item.updatedAt)}</span>
+                      <span>{formatTime(item.updatedAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
 function LeadRow({ lead, index }) {
   const badge = {
     new: "bg-green-100 text-green-700",
@@ -1877,6 +2002,8 @@ const analyticsLoading = isLoading;
         </div>
       )}
 
+      <UpdateHistoryPanel property={property} />
+
       {/* ── CATEGORY-SPECIFIC DETAILS ─────────────────────────────────── */}
       {category === "residential" && <ResidentialDetails property={property} />}
       {category === "commercial" && <CommercialDetails property={property} />}
@@ -1912,3 +2039,5 @@ const analyticsLoading = isLoading;
     </div>
   );
 }
+
+

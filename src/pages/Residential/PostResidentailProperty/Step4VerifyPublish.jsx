@@ -172,7 +172,7 @@ export default function Step4VerifyPublish({ back }) {
       //localStorage.removeItem(`${activeCategory}_propertyId`);
       localStorage.removeItem(`${category}_propertyId`);
       localStorage.removeItem("activeCategory");
-      setTimeout(() => { navigate(`/${category}`); }, 1500);
+      setTimeout(() => { navigate(`/properties`); }, 1500);
     } catch (err) {
       console.error("Publish Error:", err);
       toast.error(err?.message || "Submission failed.", { id: "publish" });

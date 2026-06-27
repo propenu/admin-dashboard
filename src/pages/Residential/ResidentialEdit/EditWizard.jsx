@@ -214,7 +214,7 @@ export default function EditWizard() {
       const payload = cleanData(currentRef.current);
       await dispatch(savePropertyData({ category, id: propertyId, step: "verification", data: payload })).unwrap();
       toast.success("Property is Live!", { id: tid });
-      navigate(`/${category}`);
+      navigate(`/properties`);
     } catch (err) {
       toast.error(err.message || "Failed to publish", { id: tid });
     }
@@ -240,7 +240,7 @@ export default function EditWizard() {
           </div>
         </div>
         <button
-          onClick={() => navigate(`/${category}`)}
+          onClick={() => navigate(`/properties`)}
           className="px-8 py-3.5 bg-[#27AE60] text-white text-sm font-black rounded-2xl hover:bg-[#219653] transition-all active:scale-95 shadow-xl shadow-[#27AE60]/30"
         >
           ← Return to Dashboard
@@ -286,7 +286,7 @@ export default function EditWizard() {
                 </div>
               )}
               <button
-                onClick={() => navigate(`/${category}`)}
+                onClick={() => navigate(`/properties`)}
                 className="text-xs font-bold text-slate-400 hover:text-slate-700 px-4 py-2 rounded-xl hover:bg-slate-100 transition-all border border-transparent hover:border-slate-200"
               >
                 Exit

@@ -255,6 +255,7 @@ const handleLike = (id) => {
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreate}
         loading={createMutation.isPending}
+        error={createMutation.error}
       />
 
       <BlogFormModal
@@ -263,6 +264,7 @@ const handleLike = (id) => {
         onSubmit={handleUpdate}
         initialData={editData}
         loading={updateMutation.isPending}
+        error={updateMutation.error}
       />
 
       <BlogDetailDrawer

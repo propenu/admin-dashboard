@@ -67,7 +67,9 @@ function normalizeCoords(coords) {
   if (!coords || coords.length < 2) return null;
   const lng = Number(coords[0]);
   const lat = Number(coords[1]);
-  return isFinite(lng) && isFinite(lat) ? [lng, lat] : null;
+  return isFinite(lng) && isFinite(lat) && (lng !== 0 || lat !== 0)
+    ? [lng, lat]
+    : null;
 }
 
 function haversine(a, b) {
@@ -141,7 +143,11 @@ export default function LocateUs(incomingProps) {
   const placesWithDistance = useMemo(() => {
     return normalizedPlaces.map((p) => {
       if (!projectCenter || !p.__coordsTuple)
-        return { p, coords: p.__coordsTuple, distanceText: "—" };
+        return {
+          p,
+          coords: p.__coordsTuple,
+          distanceText: p.distanceText || "—",
+        };
       const meters = haversine(projectCenter, p.__coordsTuple);
       const text   = meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
       return { p, coords: p.__coordsTuple, distanceText: text };
@@ -211,19 +217,7 @@ export default function LocateUs(incomingProps) {
     }
 
     // ── Nearby markers ──────────────────────────────────────────────────────
-    placesWithDistance.forEach((item, index) => {
-      if (!item.coords) return;
-      const [lng, lat] = item.coords;
-      try {
-        const m = new sdk.Marker({ map, position: { lat, lng }, fitbounds: false });
-        m.bindPopup?.(`<strong>${item.p.name}</strong><br/><small style="color:#666">${item.p.type}</small>`);
-        // Pan to marker on click (mirrors File 6's onSelectPlace behaviour)
-        m.addListener?.("click", () => setSelectedIndex(index));
-        m.on?.("click",          () => setSelectedIndex(index));
-        nearbyMarkersRef.current.push(m);
-        bounds.push({ lat, lng });
-      } catch (e) { console.warn("Nearby marker:", e); }
-    });
+    // The live preview map intentionally shows only the main project pin.
 
     // ── Fit bounds ──────────────────────────────────────────────────────────
     if (bounds.length > 1) {
@@ -295,72 +289,30 @@ export default function LocateUs(incomingProps) {
             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
               {placesWithDistance.length} Nearby Places
             </span>
-            {selectedIndex !== null && (
-              <button
-                onClick={() => setSelectedIndex(null)}
-                className="text-xs font-semibold text-gray-400 hover:text-gray-600 transition"
-              >
-                Clear selection
-              </button>
-            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {placesWithDistance.map((item, idx) => {
-              const isActive = idx === selectedIndex;
               return (
-                <button
+                <div
                   key={idx}
-                  onClick={() => onSelectPlace(idx)}
-                  className="flex items-center gap-3 p-3 rounded-xl border text-left transition-all w-full"
-                  style={{
-                    borderColor:     isActive ? primaryColor : "#f0f0f0",
-                    backgroundColor: isActive ? `${primaryColor}08` : "#fafafa",
-                    boxShadow:       isActive ? `0 0 0 2px ${primaryColor}30` : "none",
-                  }}
+                  className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 min-w-0"
                 >
-                  {/* Emoji icon */}
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
-                    style={{ backgroundColor: isActive ? `${primaryColor}18` : "#f3f4f6" }}
-                  >
-                    {typeIcon(item.p.type)}
-                  </div>
-
-                  {/* Text */}
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-sm font-semibold truncate"
-                      style={{ color: isActive ? primaryColor : "#1f2937" }}
-                    >
-                      {item.p.name}
-                    </p>
-                    <p className="text-[11px] text-gray-400 truncate">
-                      {item.p.type}
-                      {item.distanceText !== "—" && (
-                        <>
-                          <span className="mx-1 text-gray-300">•</span>
-                          <span style={{ color: isActive ? primaryColor : undefined }}>
-                            {item.distanceText}
-                          </span>
-                        </>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Distance badge */}
+                  <p className="text-sm font-semibold text-gray-800 truncate min-w-0">
+                    {item.p.name}
+                  </p>
                   {item.distanceText !== "—" && (
                     <span
                       className="flex-shrink-0 text-[10px] font-bold px-2 py-1 rounded-lg"
                       style={{
-                        backgroundColor: isActive ? `${primaryColor}15` : "#f3f4f6",
-                        color:           isActive ? primaryColor : "#9ca3af",
+                        backgroundColor: `${primaryColor}15`,
+                        color: primaryColor,
                       }}
                     >
                       {item.distanceText}
                     </span>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
@@ -369,8 +321,8 @@ export default function LocateUs(incomingProps) {
 
       {/* Map container */}
       <div
-        className="relative rounded-2xl overflow-hidden border border-gray-100 shadow-sm"
-        style={{ height: 340, zIndex: 1 }}
+        className="relative h-[280px] sm:h-[340px] rounded-2xl overflow-hidden border border-gray-100 shadow-sm"
+        style={{ zIndex: 1 }}
       >
         {/* Loading overlay */}
         {!mapReady && !mapError && (

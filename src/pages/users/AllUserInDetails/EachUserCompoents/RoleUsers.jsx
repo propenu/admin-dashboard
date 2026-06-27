@@ -20,6 +20,8 @@ import {
   BookOpenCheck,
   UserCheck,
   TrendingUp,
+  CalendarDays,
+  MessageSquareText,
 } from "lucide-react";
 
 // ─── Role Config ──────────────────────────────────────────────────────────────
@@ -301,6 +303,21 @@ const capitalize = (str = "") =>
     .split(" ")
     .map((n) => n.charAt(0).toUpperCase() + n.slice(1))
     .join(" ");
+
+const formatCreatedAt = (createdAt) => {
+  if (!createdAt) return "Not available";
+
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "Not available";
+
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+};
+
+const formatKycStatus = (status) =>
+  status ? capitalize(status.replace(/_/g, " ")) : "Not available";
 
 // ─── User Detail Modal ────────────────────────────────────────────────────────
 const UserDetailModal = ({ user, role, onClose, onWorkInProgress }) => {
@@ -599,6 +616,57 @@ const UserCard = ({ user, role, index, onViewDetail, onWorkInProgress }) => {
               <span className="text-gray-500 text-[11px]">{user.pincode}</span>
             </div>
           )}
+        </div>
+
+        {/* Account and KYC details */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+            <CalendarDays
+              size={13}
+              className="mt-0.5 shrink-0"
+              style={{ color: cfg.accent }}
+            />
+            <div className="min-w-0">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                Created At
+              </p>
+              <p className="text-[11px] font-semibold text-gray-600">
+                {formatCreatedAt(user.createdAt)}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+            <Shield
+              size={13}
+              className="mt-0.5 shrink-0"
+              style={{ color: cfg.accent }}
+            />
+            <div className="min-w-0">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                KYC Status
+              </p>
+              <p className="text-[11px] font-semibold text-gray-600">
+                {formatKycStatus(user.kycStatus)}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 sm:col-span-2">
+            <MessageSquareText
+              size={13}
+              className="mt-0.5 shrink-0"
+              style={{ color: cfg.accent }}
+            />
+            <div className="min-w-0">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                KYC Reason
+              </p>
+              <p className="text-[11px] font-semibold text-gray-600 break-words">
+                {user.kycReason?.trim() || "No reason provided"}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Buttons */}

@@ -165,6 +165,13 @@ const CATEGORIES = [
   { key: "agricultural", label: "Agricultural", emoji: "🌾" },
 ];
 
+const AGENT_PROJECT_TYPES = [
+  { label: "Apartment", value: "apartment", category: "residential", propertyType: "apartment" },
+  { label: "Villa", value: "villa", category: "residential", propertyType: "villa" },
+  { label: "Open Plot", value: "open-plot", category: "land", propertyType: "residential-plot" },
+  { label: "Commercial Plot", value: "commercial-plot", category: "land", propertyType: "commercial-plot" },
+];
+
 
 const SectionLabel = ({ children }) => (
   <p className="text-[11px] font-bold text-[#6b7280] uppercase tracking-widest mb-3">{children}</p>
@@ -309,13 +316,32 @@ function CommonHeader({ form, setValue, category, errors, listingRef, categoryRe
   );
 }
 
+const ProjectNumberField = ({ label, value, onChange, error, placeholder }) => (
+  <label className="block">
+    <span className="block text-xs font-bold text-[#374151] mb-2">{label}</span>
+    <input
+      type="number"
+      min="0"
+      value={value ?? ""}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors ${
+        error
+          ? "border-red-400 focus:border-red-500"
+          : "border-[#dfe7e2] focus:border-[#27AE60]"
+      }`}
+    />
+    {error && <span className="block text-xs text-red-500 mt-1">{error}</span>}
+  </label>
+);
+
 // ─── Main Component ── //
 
 
 
 
 
-export default function Step1BasicDetails({ next }) {
+export default function Step1BasicDetails({ next, agentProject = false }) {
   const dispatch = useDispatch();
   const category = useSelector((state) => state.ui.activeCategory);
   const form = useSelector((state) => state[category]?.form || {});
@@ -339,6 +365,33 @@ export default function Step1BasicDetails({ next }) {
     setErrors((prev) => { if (!prev[key]) return prev; const u = { ...prev }; delete u[key]; return u; });
   };
 
+  const selectAgentProjectType = (projectType) => {
+    const option = AGENT_PROJECT_TYPES.find((item) => item.value === projectType);
+    if (!option) return;
+
+    if (option.category !== category) {
+      localStorage.setItem("agentProjectType", option.value);
+      localStorage.setItem("activeCategory", option.category);
+      dispatch(setActiveCategory(option.category));
+    } else {
+      localStorage.setItem("agentProjectType", option.value);
+    }
+
+    dispatch(actions[option.category].updateField({ key: "isAgentProject", value: true }));
+    dispatch(actions[option.category].updateField({ key: "propertyType", value: option.propertyType }));
+    dispatch(
+      actions[option.category].updateField({
+        key: "propertySubType",
+        value: option.category === "land" ? "road-facing" : "",
+      }),
+    );
+    setErrors((previous) => {
+      const updated = { ...previous };
+      delete updated.propertySubType;
+      return updated;
+    });
+  };
+
         
   const validateStep1 = () => {
     const e = {};
@@ -349,6 +402,23 @@ export default function Step1BasicDetails({ next }) {
 
     if (PROPERTY_SUB_TYPES[category] && !form.propertySubType)
       e.propertySubType = "Please select property sub type";
+
+    if (agentProject) {
+      if (category === "residential" || category === "land") {
+        if (!form.projectArea || Number(form.projectArea) <= 0)
+          e.projectArea = "Project area is required";
+      }
+      if (category === "residential") {
+        if (form.totalTowers === "" || Number(form.totalTowers) < 0)
+          e.totalTowers = "Number of towers is required";
+      }
+      if (!form.totalUnits || Number(form.totalUnits) <= 0)
+        e.totalUnits = "Total units are required";
+      if (form.availableUnits === "" || Number(form.availableUnits) < 0)
+        e.availableUnits = "Available units are required";
+      if (Number(form.availableUnits) > Number(form.totalUnits))
+        e.availableUnits = "Available units cannot exceed total units";
+    }
 
     if (category === "residential") {
       if (!form.carpetArea) e.carpetArea = "Carpet area required";
@@ -386,8 +456,8 @@ export default function Step1BasicDetails({ next }) {
     }
 
     if (category === "commercial") {
-      if (!form.cabins <=0) e.cabins = "Cabins required";
-      if (!form.seats <=0) e.seats = "Seats required";
+      if (Number(form.cabins) <= 0) e.cabins = "Cabins required";
+      if (Number(form.seats) <= 0) e.seats = "Seats required";
       if (!form.carpetArea) e.carpetArea = "Carpet area required";
       if (!form.builtUpArea) e.builtUpArea = "Built-up area required";
       const carpet = Number(form.carpetArea);
@@ -429,15 +499,30 @@ export default function Step1BasicDetails({ next }) {
 
 
  
-const buildPayloadByCategory = (category, data) => {
+const buildPayloadByCategory = (category, data, agentProject = false) => {
   const base = {
     listingType: data.listingType,
     propertyCategory: data.propertyCategory,
     propertyType: data.propertyType,
-    propertySubType: data.propertySubType,
+    ...(agentProject && category === "land"
+      ? {}
+      : { propertySubType: data.propertySubType }),
     price: Number(data.price) || 0,
     pricePerSqft: Number(data.pricePerSqft),
     createdBy: data.createdBy,
+    ...(agentProject
+      ? {
+          isAgentProject: true,
+          projectArea: Number(data.projectArea) || 0,
+          ...(category === "residential"
+            ? {
+                totalTowers: Number(data.totalTowers) || 0,
+              }
+            : {}),
+          totalUnits: Number(data.totalUnits) || 0,
+          availableUnits: Number(data.availableUnits) || 0,
+        }
+      : {}),
   };
 
   switch (category) {
@@ -541,7 +626,7 @@ const buildPayloadByCategory = (category, data) => {
 
     
 
-    const finalPayload = buildPayloadByCategory(category, cleanData);
+    const finalPayload = buildPayloadByCategory(category, cleanData, agentProject);
 
     
 
@@ -643,7 +728,62 @@ const buildPayloadByCategory = (category, data) => {
       </div>
 
       {/* Common sections */}
-      <CommonHeader {...sharedProps} />
+      {agentProject ? (
+        <>
+          <CardWrapper>
+            <SectionLabel>I want to</SectionLabel>
+            <div ref={listingRef} className="flex gap-3 flex-wrap">
+              {LISTING_TYPES.map((item) => (
+                <ChoiceChip
+                  key={item.value}
+                  label={item.label}
+                  selected={form.listingType === item.value}
+                  onClick={() => setValue("listingType", item.value)}
+                />
+              ))}
+            </div>
+            {errors.listingType && (
+              <p className="text-red-500 text-xs mt-2 font-medium">{errors.listingType}</p>
+            )}
+          </CardWrapper>
+
+          <CardWrapper>
+            <SectionLabel>Project Property Sub Type</SectionLabel>
+            <div className="flex flex-wrap gap-2">
+              {AGENT_PROJECT_TYPES.map((item) => (
+                <ChoiceChip
+                  key={item.value}
+                  label={item.label}
+                  selected={
+                    category === item.category &&
+                    form.propertyType === item.propertyType
+                  }
+                  onClick={() => selectAgentProjectType(item.value)}
+                />
+              ))}
+            </div>
+            {errors.propertySubType && (
+              <p className="text-red-500 text-xs mt-2 font-medium">{errors.propertySubType}</p>
+            )}
+          </CardWrapper>
+
+          <CardWrapper>
+            <SectionLabel>Project Summary</SectionLabel>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {(category === "residential" || category === "land") && (
+                <ProjectNumberField label="Project Area" value={form.projectArea} onChange={(value) => setValue("projectArea", value)} error={errors.projectArea} placeholder="Enter project area" />
+              )}
+              {category === "residential" && (
+                <ProjectNumberField label="No. of Towers" value={form.totalTowers} onChange={(value) => setValue("totalTowers", value)} error={errors.totalTowers} placeholder="Enter number of towers" />
+              )}
+              <ProjectNumberField label="Total Units" value={form.totalUnits} onChange={(value) => setValue("totalUnits", value)} error={errors.totalUnits} placeholder="Enter total units" />
+              <ProjectNumberField label="Available Units" value={form.availableUnits} onChange={(value) => setValue("availableUnits", value)} error={errors.availableUnits} placeholder="Enter available units" />
+            </div>
+          </CardWrapper>
+        </>
+      ) : (
+        <CommonHeader {...sharedProps} />
+      )}
 
       {/* Category-specific fields */}
       {category === "residential" && (

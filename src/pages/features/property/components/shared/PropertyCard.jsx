@@ -8,8 +8,9 @@ import { saveAs } from "file-saver";
 
 import {
   salesmanagerApproveAProject,
+  projectExternalFileAddLeads,
   salesmanagerRejectAProject,
-  editFeaturedProject,
+  RenevaleProject,
 } from "../../../../../features/property/propertyService";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -30,6 +31,8 @@ import {
   Minus,
   Plus,
   Download,
+  Upload,
+  Search,
   Phone,
   User,
   BarChart3,
@@ -37,6 +40,13 @@ import {
 import { updateProjectRank } from "../../../../../features/property/propertyService";
 import { projectAnalytics } from "../../../../../features/property/propertyService";
 import { toast } from "sonner";
+import {
+  formatPromotionDate,
+  getPromotionTracking,
+  promotionLifecycleClass,
+  promotionLifecycleCopy,
+  titlePromotionType,
+} from "./promotionTracking";
 
 // ─────────────────────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
@@ -59,6 +69,53 @@ const TYPE_RANK_ACCENT = {
   normal:    { ring: "#94A3B8", bg: "#F8FAFC", text: "#475569" },
   sponsored: { ring: "#A855F7", bg: "#FAF5FF", text: "#6B21A8" },
 };
+
+const leadStatusClass = (status = "") => {
+  const normalized = String(status).toLowerCase();
+  if (normalized.includes("new")) return "bg-emerald-50 text-emerald-700 border-emerald-100";
+  if (normalized.includes("contact")) return "bg-blue-50 text-blue-700 border-blue-100";
+  if (normalized.includes("convert") || normalized.includes("closed")) {
+    return "bg-purple-50 text-purple-700 border-purple-100";
+  }
+  return "bg-slate-50 text-slate-600 border-slate-100";
+};
+
+const formatLeadText = (value) => {
+  if (value === null || value === undefined || value === "") return "-";
+  return String(value)
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const formatLeadDateTime = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const getLeadSearchText = (lead) =>
+  [
+    lead.name,
+    lead.phone,
+    lead.email,
+    lead.sourceCreatedAt,
+    lead.createdAt,
+    lead.purchaseTimeline,
+    lead.budgetRange,
+    lead.status,
+  ]
+    .map((value) => formatLeadText(value))
+    .join(" ")
+    .toLowerCase();
 
 // ─── Portal Menu ─────────────────────────────────────────────────────────────
 function PortalMenu({ anchorRef, open, onClose, children }) {
@@ -122,8 +179,10 @@ export default function PropertyCard({
 
   const menuBtnRef = useRef(null);
   const inputRef   = useRef(null);
+  const leadFileRef = useRef(null);
 
   const [openLeads, setOpenLeads] = useState(false);
+  const [leadSearch, setLeadSearch] = useState("");
 
   const { data: leadsData, isLoading: leadsLoading } = useQuery({
     queryKey: ["projectLeads", p?._id],
@@ -134,8 +193,44 @@ export default function PropertyCard({
     enabled: !!p?._id,
   });
 
-  const leads = Array.isArray(leadsData?.data) ? leadsData.data : [];
+  const leads = (Array.isArray(leadsData?.data) ? leadsData.data : [])
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   const totalLeads = typeof leadsData?.count === "number" ? leadsData.count : leads.length;
+  const leadSearchTerm = leadSearch.trim().toLowerCase();
+  const filteredLeads = leadSearchTerm
+    ? leads.filter((lead) => getLeadSearchText(lead).includes(leadSearchTerm))
+    : leads;
+
+  const importLeadsMutation = useMutation({
+    mutationFn: (file) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return projectExternalFileAddLeads(p?._id, formData);
+    },
+    onSuccess: async () => {
+      toast.success("Leads imported successfully");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["projectLeads", p?._id] }),
+        queryClient.invalidateQueries({ queryKey: ["projectAnalytics", p?._id] }),
+        queryClient.invalidateQueries({ queryKey: ["project-analytics"] }),
+        queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] }),
+      ]);
+      onRankUpdated?.();
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Failed to import leads");
+    },
+    onSettled: () => {
+      if (leadFileRef.current) leadFileRef.current.value = "";
+    },
+  });
+
+  const handleLeadFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    importLeadsMutation.mutate(file);
+  };
 
 
   const approveMutation = useMutation({
@@ -143,9 +238,11 @@ export default function PropertyCard({
 
     onSuccess: () => {
       toast.success("Project Approved");
-      queryClient.invalidateQueries({
-        queryKey: ["pending-projects"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["pending-projects"] });
+      queryClient.invalidateQueries({ queryKey: ["featured-projects"] });
+      queryClient.invalidateQueries({ queryKey: ["project-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] });
+      onRankUpdated?.();
     },
 
     onError: () => {
@@ -159,9 +256,11 @@ export default function PropertyCard({
 
     onSuccess: () => {
       toast.success("Project Rejected");
-      queryClient.invalidateQueries({
-        queryKey: ["pending-projects"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["pending-projects"] });
+      queryClient.invalidateQueries({ queryKey: ["featured-projects"] });
+      queryClient.invalidateQueries({ queryKey: ["project-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] });
+      onRankUpdated?.();
     },
 
     onError: () => {
@@ -170,10 +269,14 @@ export default function PropertyCard({
   });
 
   const downloadCSV = () => {
-    const rows = leads.map((lead, i) => ({
-      SNo: i + 1, Name: lead.name, Phone: lead.phone,
-      Email: lead.email, Status: lead.status,
-      Date: new Date(lead.createdAt).toLocaleString("en-IN"),
+    const rows = leads.map((lead) => ({
+      "Full Name": lead.name || "",
+      "Phone Number": lead.phone || "",
+      Email: lead.email || "",
+      "Lead Time": formatLeadDateTime(lead.sourceCreatedAt || lead.createdAt),
+      "Planning To Purchase": formatLeadText(lead.purchaseTimeline),
+      "Budget Range": formatLeadText(lead.budgetRange),
+      Status: formatLeadText(lead.status),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const csv = XLSX.utils.sheet_to_csv(ws);
@@ -181,10 +284,14 @@ export default function PropertyCard({
   };
 
   const downloadExcel = () => {
-    const rows = leads.map((lead, i) => ({
-      SNo: i + 1, Name: lead.name, Phone: lead.phone,
-      Email: lead.email, Status: lead.status,
-      Date: new Date(lead.createdAt).toLocaleString("en-IN"),
+    const rows = leads.map((lead) => ({
+      "Full Name": lead.name || "",
+      "Phone Number": lead.phone || "",
+      Email: lead.email || "",
+      "Lead Time": formatLeadDateTime(lead.sourceCreatedAt || lead.createdAt),
+      "Planning To Purchase": formatLeadText(lead.purchaseTimeline),
+      "Budget Range": formatLeadText(lead.budgetRange),
+      Status: formatLeadText(lead.status),
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -201,6 +308,7 @@ export default function PropertyCard({
   const [rankOpen,    setRankOpen]    = useState(false);
   const [rankValue,   setRankValue]   = useState(p.rank ?? "");
   const [rankLoading, setRankLoading] = useState(false);
+  const [renewLoading, setRenewLoading] = useState(false);
 
   const heroImage = p.heroImage || p.gallerySummary?.[0]?.url;
   const accent    = TYPE_RANK_ACCENT[type] || TYPE_RANK_ACCENT.normal;
@@ -249,79 +357,56 @@ export default function PropertyCard({
     </button>
   );
 
-  const startDate = p?.promotion?.startDate
-    ? new Date(p.promotion.startDate)
-    : null;
-
-  const expiryDate = p?.promotion?.boostExpiry
-    ? new Date(p.promotion.boostExpiry)
-    : null;
-
-  const today = new Date();
-
-  const daysLeft = expiryDate
-    ? Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24))
-    : 0;
-
-  const promotionStatus =
-    !startDate || !expiryDate
-      ? null
-      : today < startDate
-        ? "scheduled"
-        : today > expiryDate
-          ? "expired"
-          : daysLeft <= 3
-            ? "expiringSoon"
-            : "active";
-
-  const formatDate = (date) =>
-    date?.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-    });
+  const tracking = getPromotionTracking(p);
+  const hasPromotion = tracking.currentType !== "normal";
+  const canRenewPromotion = hasPromotion;
+  const promotionHeadline =
+    tracking.previousType && tracking.previousType !== tracking.currentType
+      ? `Promoted to ${titlePromotionType(tracking.currentType)}`
+      : `${titlePromotionType(tracking.currentType)} promotion`;
+  const promotionSubline =
+    tracking.previousType && tracking.previousType !== tracking.currentType
+      ? `Was ${titlePromotionType(tracking.previousType)}`
+      : "Promotion running";
 
 
     const handleRenew = async () => {
       try {
-        const currentExpiry = p?.promotion?.boostExpiry
-          ? new Date(p.promotion.boostExpiry)
-          : new Date();
-
-        currentExpiry.setDate(currentExpiry.getDate() + 10);
-
-        await editFeaturedProject(p._id, {
-          promotion: {
-            type: p.promotion.type,
-            boostExpiry: currentExpiry,
-          },
-        });
-
-        toast.success("Promotion extended by 10 days");
-
+        setRenewLoading(true);
+        await RenevaleProject(p._id);
+        toast.success("Project renewed successfully");
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["featured-projects"] }),
+          queryClient.invalidateQueries({ queryKey: ["pending-projects"] }),
+          queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] }),
+          queryClient.invalidateQueries({ queryKey: ["project-analytics"] }),
+        ]);
         onRankUpdated?.();
       } catch (err) {
-        toast.error("Failed to renew promotion");
+        toast.error(err?.response?.data?.message || "Failed to renew project");
+      } finally {
+        setRenewLoading(false);
       }
     };
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div
-      className="relative bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-slate-100 overflow-hidden group cursor-pointer"
+      className="relative min-h-[224px] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-300 group cursor-pointer hover:border-[#27AE60]/30 hover:shadow-md sm:h-[224px]"
       onClick={handleCardClick}
     >
       {/* ── HORIZONTAL FLEX LAYOUT ─────────────────────────────────────── */}
-      <div className="flex flex-row">
+      <div className="flex h-full flex-row">
         {/* ── LEFT: IMAGE (fixed width, full card height) ─────────────── */}
-        <div className="relative w-28  flex-shrink-0 overflow-hidden bg-slate-100">
+        <div className="relative min-h-[224px] w-32 flex-shrink-0 overflow-hidden bg-slate-100 sm:h-full sm:w-40 lg:w-44">
           {heroImage ? (
             <img
               src={heroImage}
               alt={p.title}
-              className={`w-full h-28 object-cover group-hover:scale-105 transition-transform duration-500`}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
-            <div className="w-full h-full min-h-[110px] flex items-center justify-center text-slate-300">
+            <div className="flex h-full w-full items-center justify-center text-slate-300">
               <MapPin className="w-7 h-7" />
             </div>
           )}
@@ -332,7 +417,7 @@ export default function PropertyCard({
               TYPE_STYLES[type] || TYPE_STYLES.normal
             }`}
           >
-            {type === "normal" ? "Sale" : type}
+            {type === "normal" ? "Sale" : titlePromotionType(type)}
           </div>
 
           {/* Rank pill */}
@@ -365,15 +450,15 @@ export default function PropertyCard({
         </div>
 
         {/* ── RIGHT: CONTENT ──────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 p-2.5 flex flex-col justify-between">
+        <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-3.5">
           {/* Top row: title + menu icon */}
-          <div className="flex items-start justify-between gap-1">
+          <div className="flex min-h-[48px] items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-slate-900 text-xs leading-tight line-clamp-1">
+              <h3 className="line-clamp-1 text-sm font-semibold leading-tight text-slate-900 sm:text-[15px]">
                 {p.title}
               </h3>
               {/* Location */}
-              <div className="flex items-center gap-1 text-slate-500 text-[10px] mt-0.5">
+              <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-500">
                 <MapPin className="w-2.5 h-2.5 flex-shrink-0 text-[#27AE60]" />
                 <span className="truncate">
                   {p.address ? `${p.address}, ` : ""}
@@ -421,12 +506,12 @@ export default function PropertyCard({
                   label="Expire"
                   onClick={onExpire}
                 />
-                <MenuItem
+                {/* <MenuItem
                   icon={RefreshCw}
                   iconClass="text-[#27AE60]"
                   label="Reset"
                   onClick={onReset}
-                />
+                /> */}
                 <div className="border-t border-slate-100" />
                 <MenuItem
                   icon={Trash2}
@@ -440,8 +525,9 @@ export default function PropertyCard({
           </div>
 
           {/* Price */}
-          {(p.priceFrom || p.priceTo) && (
-            <div className="flex items-center gap-0.5 text-[10px] text-slate-700 font-bold mt-1">
+          <div className="mt-1.5 min-h-[18px]">
+            {(p.priceFrom || p.priceTo) && (
+            <div className="flex items-center gap-0.5 text-xs font-semibold text-slate-800">
               <IndianRupee className="w-2.5 h-2.5 text-[#27AE60]" />
               <span>
                 {p.priceFrom
@@ -462,82 +548,62 @@ export default function PropertyCard({
                   : ""}
               </span>
             </div>
-          )}
+            )}
+          </div>
 
-          {p?.promotion && p.promotion.type !== "normal" && (
-            <div className="flex items-center justify-evenly gap-1 text-[9px] space-y-0.5  ">
-              <div className="text-slate-500">
-                Started: {formatDate(startDate)}
+          {hasPromotion && (
+            <div className="mt-2 min-h-[74px] rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2 text-[10px]">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-slate-700">
+                    {promotionHeadline}
+                  </p>
+                  <p className="mt-0.5 truncate text-slate-400">
+                    {promotionSubline}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full border px-1.5 py-0.5 ${promotionLifecycleClass(
+                    tracking.lifecycle,
+                  )}`}
+                >
+                  {promotionLifecycleCopy(tracking)}
+                </span>
               </div>
-
-              <div className="text-slate-500">
-                Ends: {formatDate(expiryDate)}
+              <div className="mt-1 flex items-center justify-between gap-2 text-slate-400">
+                <span>Started {formatPromotionDate(tracking.startedAt)}</span>
+                <span>Ends {formatPromotionDate(tracking.expiresAt)}</span>
               </div>
-
-              {promotionStatus === "active" && (
-                <div className="text-green-600 font-semibold">
-                  🟢 {daysLeft} days left
-                </div>
-              )}
-
-              {/* {promotionStatus === "expiringSoon" && (
-                <div className="text-orange-600 font-semibold">
-                  ⚠ Expires in {daysLeft} day{daysLeft > 1 ? "s" : ""}
-                </div>
-              )} */}
-
-              {promotionStatus === "expiringSoon" && (
-                <div className="flex items-center gap-2">
-                  <span className="text-orange-600 font-semibold">
-                    ⚠ Expires in {daysLeft} day{daysLeft > 1 ? "s" : ""}
-                  </span>
-
-                  {/* {daysLeft <= 2 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRenew();
-                      }}
-                      className="px-2 py-1 rounded bg-green-600 text-white text-[9px] font-bold"
-                    >
-                      Renew +10 Days
-                    </button>
-                  )} */}
-                </div>
-              )}
-
-              {/* {promotionStatus === "expired" && (
-                <div className="text-red-600 font-semibold">
-                  🔴 Promotion expired
-                </div>
-              )} */}
-              {promotionStatus === "expired" && (
-                <div className="flex items-center gap-2">
-                  <span className="text-red-600 font-semibold">
-                    🔴 Promotion expired
-                  </span>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRenew();
-                    }}
-                    className="px-2 py-1 rounded bg-green-600 text-white text-[9px] font-bold"
-                  >
-                    Renew +10 Days
-                  </button>
-                </div>
-              )}
-
-              {promotionStatus === "scheduled" && (
-                <div className="text-blue-600 font-semibold">🔵 Scheduled</div>
+              {canRenewPromotion && (
+                <button
+                  type="button"
+                  disabled={renewLoading}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRenew();
+                  }}
+                  className="mt-1 rounded bg-[#27AE60] px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {renewLoading ? "Renewing..." : "Renew now"}
+                </button>
               )}
             </div>
           )}
-
+          {!hasPromotion && (
+            <div className="mt-2 flex min-h-[74px] items-center rounded-xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 text-[10px]">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-600">
+                  Standard listing
+                </p>
+                <p className="mt-1 text-slate-400">
+                  No active promotion
+                </p>
+              </div>
+            </div>
+          )}
           {/* Bottom row: status + action buttons */}
           <div
-            className="flex items-center justify-between gap-1 mt-1.5 flex-wrap"
+            className="mt-auto flex min-h-[32px] flex-wrap items-center justify-between gap-2 pt-2"
             data-action
           >
             <span
@@ -572,7 +638,7 @@ export default function PropertyCard({
               </div>
             )}
 
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-1">
               {/* Visit */}
               <button
                 onClick={(e) => {
@@ -585,7 +651,7 @@ export default function PropertyCard({
                     "noopener,noreferrer",
                   );
                 }}
-                className="text-[9px] text-[#27AE60] font-medium hover:underline flex items-center gap-0.5"
+                className="flex items-center gap-0.5 whitespace-nowrap text-[10px] font-medium text-[#27AE60] hover:underline"
               >
                 Visit Microsite <ChevronRight className="w-2.5 h-2.5" />
               </button>
@@ -596,7 +662,7 @@ export default function PropertyCard({
                   e.stopPropagation();
                   navigate(`/post-property/${p._id}`);
                 }}
-                className="text-[9px] text-[#27AE60] font-medium hover:underline flex items-center gap-0.5"
+                className="flex items-center gap-0.5 whitespace-nowrap text-[10px] font-medium text-[#27AE60] hover:underline"
               >
                 Edit <ChevronRight className="w-2.5 h-2.5" />
               </button>
@@ -607,7 +673,7 @@ export default function PropertyCard({
                   e.stopPropagation();
                   setOpenLeads(true);
                 }}
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg border border-[#27AE60]/20 bg-green-50 text-[#27AE60] text-[9px] font-bold hover:bg-green-100 transition"
+                className="flex items-center gap-1 whitespace-nowrap rounded-lg border border-[#27AE60]/20 bg-green-50 px-2 py-1 text-[10px] font-medium text-[#27AE60] transition hover:bg-green-100"
               >
                 <BarChart3 className="w-2.5 h-2.5" />
                 {leadsLoading ? "..." : totalLeads}
@@ -705,39 +771,56 @@ export default function PropertyCard({
           className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-xl font-bold text-slate-800">
+                <h2 className="text-lg font-bold text-slate-800">
                   Project Leads
                 </h2>
-                <p className="text-sm text-slate-400 mt-1">
-                  Total Leads: {totalLeads}
+                <p className="mt-1 text-xs text-slate-400">
+                  Showing full name, contact details, lead time, purchase plan, budget and status.
                 </p>
-                <div className="flex gap-2 mt-3">
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <input
+                    ref={leadFileRef}
+                    type="file"
+                    accept=".csv,.xls,.xlsx"
+                    className="hidden"
+                    onChange={handleLeadFileChange}
+                  />
+                  <button
+                    onClick={() => leadFileRef.current?.click()}
+                    disabled={importLeadsMutation.isPending}
+                    className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    {importLeadsMutation.isPending ? "Importing..." : "Import leads"}
+                  </button>
                   <button
                     onClick={downloadCSV}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 border border-green-100 text-[#27AE60] text-xs font-bold"
+                    disabled={!leads.length}
+                    className="flex items-center gap-1.5 rounded-lg border border-green-100 bg-green-50 px-2.5 py-1.5 text-xs font-bold text-[#27AE60] disabled:opacity-50"
                   >
-                    <Download className="w-4 h-4" /> CSV
+                    <Download className="h-3.5 w-3.5" /> CSV
                   </button>
                   <button
                     onClick={downloadExcel}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 text-xs font-bold"
+                    disabled={!leads.length}
+                    className="flex items-center gap-1.5 rounded-lg border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-600 disabled:opacity-50"
                   >
-                    <Download className="w-4 h-4" /> Excel
+                    <Download className="h-3.5 w-3.5" /> Excel
                   </button>
                 </div>
               </div>
               <button
                 onClick={() => setOpenLeads(false)}
-                className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-sm hover:bg-slate-200"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
+            <div className="max-h-[72vh] overflow-y-auto p-3 sm:p-4">
               {leadsLoading ? (
                 <div className="py-10 text-center text-slate-400">
                   Loading leads...
@@ -747,70 +830,100 @@ export default function PropertyCard({
                   No leads found
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border border-slate-100">
-                  <table className="w-full min-w-[1000px]">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <Search className="h-4 w-4 flex-shrink-0 text-slate-400" />
+                    <input
+                      value={leadSearch}
+                      onChange={(e) => setLeadSearch(e.target.value)}
+                      placeholder="Search name, phone, email, status..."
+                      className="w-full bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                    />
+                    {leadSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setLeadSearch("")}
+                        className="rounded-md px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-white hover:text-slate-700"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {filteredLeads.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
+                      No leads match your search.
+                    </div>
+                  ) : (
+                <div className="overflow-hidden rounded-xl border border-slate-100">
+                  <div className="max-h-[52vh] overflow-auto">
+                  <table className="w-full min-w-[980px] table-fixed">
                     <thead>
-                      <tr className="bg-slate-50 border-b">
-                        <th className="px-4 py-3 text-left text-xs font-bold">
-                          #
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold">
-                          Name
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold">
-                          Contact
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold">
-                          Status
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-bold">
-                          Date
-                        </th>
+                      <tr className="sticky top-0 z-10 border-b bg-slate-50">
+                        <th className="w-[16%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Full Name</th>
+                        <th className="w-[13%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Phone Number</th>
+                        <th className="w-[20%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Email</th>
+                        <th className="w-[15%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Lead Time</th>
+                        <th className="w-[14%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Planning</th>
+                        <th className="w-[11%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Budget</th>
+                        <th className="w-[11%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {leads.map((lead, index) => (
+                      {filteredLeads.map((lead, index) => (
                         <tr
-                          key={lead._id}
-                          className="border-b hover:bg-slate-50"
+                          key={lead._id || index}
+                          className="border-b border-slate-100 transition hover:bg-slate-50"
                         >
-                          <td className="px-4 py-4">{index + 1}</td>
-                          <td className="px-4 py-4">
+                          <td className="px-3 py-2.5">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                                <User className="w-4 h-4 text-[#27AE60]" />
+                              <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+                                <User className="h-3.5 w-3.5 text-[#27AE60]" />
                               </div>
-                              <div>
-                                <p className="font-semibold text-slate-700">
-                                  {lead.name}
-                                </p>
-                                <p className="text-xs text-slate-400">
-                                  {lead.email}
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-slate-800">
+                                  {lead.name || "-"}
                                 </p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-3 py-2.5">
                             <a
                               href={`tel:${lead.phone}`}
-                              className="flex items-center gap-2 text-slate-700"
+                              className="flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-slate-700"
                             >
-                              <Phone className="w-4 h-4 text-[#27AE60]" />
-                              {lead.phone}
+                              <Phone className="h-3.5 w-3.5 text-[#27AE60]" />
+                              {lead.phone || "-"}
                             </a>
                           </td>
-                          <td className="px-4 py-4">
-                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 capitalize">
-                              {lead.status}
+                          <td className="px-3 py-2.5 text-xs text-slate-600">
+                            <span className="block truncate">
+                              {lead.email || "-"}
                             </span>
                           </td>
-                          <td className="px-4 py-4 text-sm text-slate-500">
-                            {new Date(lead.createdAt).toLocaleString("en-IN")}
+                          <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
+                            {formatLeadDateTime(lead.sourceCreatedAt || lead.createdAt)}
+                          </td>
+                          <td className="px-3 py-2.5 text-xs font-medium text-slate-700">
+                            {formatLeadText(lead.purchaseTimeline)}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className="inline-flex max-w-full rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                              {formatLeadText(lead.budgetRange)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className={`inline-flex max-w-full rounded-full border px-2 py-0.5 text-[11px] font-bold ${leadStatusClass(lead.status)}`}>
+                              {formatLeadText(lead.status)}
+                            </span>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  </div>
+                </div>
+                  )}
                 </div>
               )}
             </div>
@@ -820,3 +933,4 @@ export default function PropertyCard({
     </div>
   );
 }
+

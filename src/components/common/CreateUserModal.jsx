@@ -38,13 +38,15 @@ const schema = z.object({
 
 /* ─── Roles ──────────────────────────────────────────────────── */
 const ROLES = [
-  { value: "customer_care",  label: "Customer Care" },
-  { value: "admin",          label: "Admin" },
-  { value: "sales_manager",  label: "Sales Manager" },
-  { value: "sales_agent",    label: "Sales Executive" },
- // { value: "agent",          label: "Agent" },
- // { value: "user",           label: "User" },
-  { value: "accounts",       label: "Accounts" },
+  { value: "customer_care", label: "Customer Care" },
+  { value: "admin", label: "Admin" },
+  { value: "sales_manager", label: "Sales Manager" },
+  { value: "sales_agent", label: "Sales Executive" },
+  // { value: "agent",          label: "Agent" },
+  // { value: "user",           label: "User" },
+
+  { value: "accounts", label: "Accounts" },
+  { value: "digital_marketing", label: "Digital Marketing" },
 ];
 
 const STEP_LABELS = ["Info", "Verify", "Location"];

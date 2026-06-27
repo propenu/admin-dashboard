@@ -39,6 +39,11 @@ const getBaseState = (category, type) => ({
   parkingDetails: { visitorParking: true, twoWheeler: "", fourWheeler: "" },
   security: { gated: false, cctv: false, guard: false, details: "" },
   verificationDocumentType: "",
+  isAgentProject: false,
+  projectArea: "",
+  totalTowers: "",
+  totalUnits: "",
+  availableUnits: "",
   
 });
 

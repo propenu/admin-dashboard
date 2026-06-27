@@ -1,4 +1,4 @@
-// StepLocationDetails.jsx — FIXED: memoized upd, stable callbacks, no cascade re-renders
+// D:\git_netlify_nunning\admin-dashboard\src\pages\Residential\ResidentialEdit\steps\StepLocationDetails.jsx
 // Map: Mappls SDK | Geocoding: Nominatim (OSM) | Nearby: Photon + Overpass
 import { useEffect, useState, useCallback, useRef, memo } from "react";
 import {
@@ -142,6 +142,18 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
   const handleBuildingChange    = useCallback((v) => upd("buildingName", v), [upd]);
   const handleLandNameChange    = useCallback((v) => upd("landName",     v), [upd]);
   const handleNearbyChange      = useCallback((v) => upd("nearbyPlaces", v), [upd]);
+  const handleLocalityChange = useCallback((value) => {
+    geocodeSourceRef.current = null;
+    upd("locality", value);
+  }, [upd]);
+  const handleCityChange = useCallback((value) => {
+    geocodeSourceRef.current = null;
+    upd("city", value);
+  }, [upd]);
+  const handleStateChange = useCallback((value) => {
+    geocodeSourceRef.current = null;
+    upd("state", value);
+  }, [upd]);
 
   const handlePincodeChange = useCallback((value) => {
     const num = value.replace(/\D/g, "").slice(0, 6);
@@ -311,26 +323,33 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
             />
 
             {/* Locality — auto-filled (read-only) */}
+            <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-xs font-semibold text-amber-700">
+                Use the correct spelling, or enter a pincode to auto-fill
+                Locality, City, and State.
+              </p>
+            </div>
+
             <LocInput
               label="Locality"
-              placeholder="Auto-filled from map / pincode"
+              placeholder="Enter locality"
               value={data.locality}
-              readOnly
+              onChange={handleLocalityChange}
             />
 
             {/* City + State side by side — auto-filled (read-only) */}
             <div className="grid grid-cols-2 gap-3 sm:col-span-2 md:col-span-1">
               <LocInput
                 label="City"
-                placeholder="Auto-filled"
+                placeholder="Enter city"
                 value={data.city}
-                readOnly
+                onChange={handleCityChange}
               />
               <LocInput
                 label="State"
-                placeholder="Auto-filled"
+                placeholder="Enter state"
                 value={data.state}
-                readOnly
+                onChange={handleStateChange}
               />
             </div>
           </div>

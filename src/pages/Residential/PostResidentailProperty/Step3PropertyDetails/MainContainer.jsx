@@ -104,7 +104,7 @@ export default function MainContainer({ next, back }) {
       if (userRole === "agent") {
         localStorage.removeItem(`${category}_propertyId`);
         localStorage.removeItem("activeCategory");
-        navigate(`/${category}`);
+        navigate(`/properties`);
       
       } else {
         next(); 

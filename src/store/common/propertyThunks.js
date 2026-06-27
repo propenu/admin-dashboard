@@ -79,7 +79,15 @@ export const savePropertyData = createAsyncThunk(
           "completion",
         ];
 
-        if (skipKeys.includes(key) || value === null || value === undefined) return;
+        if (
+          skipKeys.includes(key) ||
+          (category === "land" && stateForm.isAgentProject && key === "propertySubType") ||
+          (category === "land" &&
+            stateForm.isAgentProject &&
+            key === "totalTowers") ||
+          value === null ||
+          value === undefined
+        ) return;
 
         if (typeof value === "boolean") { fd.append(key, String(value)); return; }
 
@@ -87,6 +95,7 @@ export const savePropertyData = createAsyncThunk(
           "price", "pricePerSqft", "bhk", "bathrooms", "bedrooms",
           "balconies", "seats", "cabins", "rank", "floorNumber",
           "totalFloors", "builtUpArea", "carpetArea", "powerCapacityKw",
+          "projectArea", "totalTowers", "totalUnits", "availableUnits",
         ];
         if (numericFields.includes(key)) { fd.append(key, String(Number(value || 0))); return; }
 

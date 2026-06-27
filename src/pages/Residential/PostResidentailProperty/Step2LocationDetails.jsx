@@ -338,9 +338,6 @@ const inputCls =
   "w-full border border-[#d1d5db] rounded-xl px-3.5 py-3 text-sm font-medium text-[#111827] " +
   "focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10 outline-none transition-all placeholder:text-[#9ca3af]";
 
-const readonlyCls =
-  "w-full border border-[#e5e7eb] rounded-xl px-3.5 py-3 text-sm font-medium text-[#6b7280] bg-[#f9fafb] outline-none";
-
 // ─────────────────────────────────────────────
 // NearbyPlacesPanel
 //   Photon   → live dropdown as user types (OpenStreetMap-based)
@@ -1144,30 +1141,35 @@ export default function Step2LocationDetails({ next, back, category }) {
             </FieldWrapper>
           </div>
 
-          {/* Read-only auto-filled fields */}
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+            Use the correct spelling, or enter a pincode to auto-fill Locality,
+            City, and State.
+          </p>
+
+          {/* Auto-filled from pincode/map, with manual editing allowed. */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FieldWrapper label="Locality" error={errors.locality}>
               <input
                 value={form.locality || ""}
-                readOnly
-                placeholder="Auto-filled from map / pincode"
-                className={readonlyCls}
+                onChange={(e) => setValue("locality", e.target.value)}
+                placeholder="Enter locality"
+                className={inputCls}
               />
             </FieldWrapper>
             <FieldWrapper label="City" error={errors.city}>
               <input
                 value={form.city || ""}
-                readOnly
-                placeholder="Auto-filled from map / pincode"
-                className={readonlyCls}
+                onChange={(e) => setValue("city", e.target.value)}
+                placeholder="Enter city"
+                className={inputCls}
               />
             </FieldWrapper>
             <FieldWrapper label="State" error={errors.state}>
               <input
                 value={form.state || ""}
-                readOnly
-                placeholder="Auto-filled from map / pincode"
-                className={readonlyCls}
+                onChange={(e) => setValue("state", e.target.value)}
+                placeholder="Enter state"
+                className={inputCls}
               />
             </FieldWrapper>
           </div>

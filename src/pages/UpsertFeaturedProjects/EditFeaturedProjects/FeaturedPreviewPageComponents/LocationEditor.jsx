@@ -528,6 +528,54 @@ function PlaceCard({ place, index, onUpdate, onRemove }) {
     ? [String(place.coordinates[0]), String(place.coordinates[1])]
     : null;
 
+  const isManualPlace = !hasCoords && !place.type;
+
+  if (isManualPlace) {
+    return (
+      <div className="border-2 border-gray-200 rounded-2xl bg-white shadow-sm p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+              Place Name
+            </label>
+            <input
+              className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl
+                focus:outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] bg-white transition font-semibold"
+              placeholder="Place name"
+              value={place.name || ""}
+              onChange={(event) =>
+                onUpdate(index, { ...place, name: event.target.value })
+              }
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+              Distance
+            </label>
+            <input
+              className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl
+                focus:outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] bg-white transition font-semibold"
+              placeholder="e.g. 1.2 km"
+              value={place.distanceText || ""}
+              onChange={(event) =>
+                onUpdate(index, { ...place, distanceText: event.target.value })
+              }
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => onRemove(index)}
+            className="h-[46px] px-3 sm:col-span-2 flex items-center justify-center rounded-xl text-red-500
+              hover:text-red-600 hover:bg-red-50 transition border-2 border-red-100"
+            aria-label={`Remove ${place.name || "nearby place"}`}
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="border-2 border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
       {/* Row header */}
@@ -573,8 +621,8 @@ function PlaceCard({ place, index, onUpdate, onRemove }) {
       {/* Expanded edit area */}
       {open && (
         <div className="border-t-2 border-gray-100 p-4 space-y-4 bg-gray-50/40">
-          {/* Name & Type fields */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Name, distance & type fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
                 Place Name
@@ -585,6 +633,18 @@ function PlaceCard({ place, index, onUpdate, onRemove }) {
                 placeholder="Place Name"
                 value={place.name}
                 onChange={(e) => onUpdate(index, { ...place, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
+                Distance
+              </label>
+              <input
+                className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl
+                  focus:outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] bg-white transition font-semibold"
+                placeholder="e.g. 1.2 km"
+                value={place.distanceText || ""}
+                onChange={(e) => onUpdate(index, { ...place, distanceText: e.target.value })}
               />
             </div>
             <div>
@@ -692,6 +752,8 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
   const [locatingUser, setLocatingUser] = useState(false);
   const [searchQuery,  setSearchQuery]  = useState("");
   const [searching,    setSearching]    = useState(false);
+  const [nearbyPlaceName, setNearbyPlaceName] = useState("");
+  const [nearbyDistanceText, setNearbyDistanceText] = useState("");
 
   const gpsAbortRef = useRef(null);
 
@@ -783,6 +845,39 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
     [setFormData]
   );
 
+  const handleAddManualPlace = useCallback(() => {
+    const name = nearbyPlaceName.trim();
+    const distanceText = nearbyDistanceText.trim();
+    if (!name || !distanceText) return;
+
+    const alreadyAdded = places.some(
+      (place) => place.name?.trim().toLowerCase() === name.toLowerCase(),
+    );
+    if (alreadyAdded) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      nearbyPlaces: [
+        ...(prev.nearbyPlaces || []),
+        {
+          name,
+          fullAddress: "",
+          locality: "",
+          city: "",
+          latitude: "",
+          longitude: "",
+          type: "",
+          distanceText,
+          coordinates: [0, 0],
+          order: (prev.nearbyPlaces || []).length,
+        },
+      ],
+    }));
+
+    setNearbyPlaceName("");
+    setNearbyDistanceText("");
+  }, [nearbyDistanceText, nearbyPlaceName, places, setFormData]);
+
   const handleUpdatePlace = useCallback(
     (index, updatedPlace) => {
       setFormData((prev) => {
@@ -870,7 +965,7 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
           <div className="p-5 space-y-4">
 
             {/* Address search bar */}
-            {/* <div className="flex gap-2">
+            <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
@@ -894,7 +989,7 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
                 {searching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
                 {searching ? "Searching…" : "Search"}
               </button>
-            </div> */}
+            </div>
 
             {/* Hint */}
             <div className="flex items-start gap-2 px-4 py-3 bg-[#f0fdf6] border border-[#27AE60]/20 rounded-xl">
@@ -1009,13 +1104,69 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
             </div>
           </div>
 
-          <div className="p-5">
+          <div className="p-5 space-y-5">
             <NearbySearchPanel
               pinnedCoords={pinnedCoords}
               selectedPlaces={places}
               onAdd={handleAddPlace}
               onRemove={handleRemovePlace}
             />
+
+            <div className="border-t border-gray-200 pt-5 space-y-2">
+              <div>
+                <p className="text-xs font-black text-gray-700">Or add manually</p>
+                <p className="text-[10px] text-gray-400">
+                  Enter the place name and distance. Other values remain empty.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="relative">
+                  <MapPin
+                    size={15}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+                  <input
+                    value={nearbyPlaceName}
+                    onChange={(event) => setNearbyPlaceName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleAddManualPlace();
+                      }
+                    }}
+                    placeholder="Enter nearby place name"
+                    className="w-full border-2 border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold
+                      text-gray-900 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10
+                      outline-none transition-all placeholder:text-gray-400 bg-white"
+                  />
+                </div>
+                <input
+                  value={nearbyDistanceText}
+                  onChange={(event) => setNearbyDistanceText(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleAddManualPlace();
+                    }
+                  }}
+                  placeholder="Distance (e.g. 1.2 km)"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold
+                    text-gray-900 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10
+                    outline-none transition-all placeholder:text-gray-400 bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddManualPlace}
+                  disabled={!nearbyPlaceName.trim() || !nearbyDistanceText.trim()}
+                  className="sm:col-span-2 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-black
+                    hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
+                >
+                  <Plus size={15} />
+                  Add
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

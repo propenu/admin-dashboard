@@ -3,18 +3,17 @@ import React from "react";
 import {
   Clock,
   Tag,
-  Heart,
   Share2,
   Eye,
   Trash2,
   Pencil,
-  Loader2,
 } from "lucide-react";
 import {
   formatDate,
   formatReadTime,
   getBlogStatusConfig,
   getTagColor,
+  resolveBlogImage,
   truncateText,
 } from "../utility/blogHelpers";
 
@@ -28,14 +27,15 @@ const BlogCard = ({
   likeLoading,
 }) => {
   const status = getBlogStatusConfig(blog?.published);
+  const featuredImage = resolveBlogImage(blog?.featuredImage);
 
   return (
     <div className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
       {/* Featured Image */}
       <div className="relative h-44 overflow-hidden bg-gray-100">
-        {blog?.featuredImage ? (
+        {featuredImage ? (
           <img
-            src={blog.featuredImage}
+            src={featuredImage}
             alt={blog?.imageAlt || blog?.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />

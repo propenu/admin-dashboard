@@ -98,7 +98,11 @@ const LinkModal = ({ onConfirm, onCancel, initial }) => {
 /* ── Main Component ────────────────────────────────────────── */
 const CHAR_LIMIT = 5000;
 
-const TiptapEditor = ({ value, onChange }) => {
+const TiptapEditor = ({
+  value,
+  onChange,
+  placeholder = "Start writing your property description here...",
+}) => {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [wordCount, setWordCount] = useState(0);
 
@@ -117,9 +121,7 @@ const TiptapEditor = ({ value, onChange }) => {
         HTMLAttributes: { class: "rounded-xl max-w-full my-2" },
       }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Placeholder.configure({
-        placeholder: "Start writing your property description here…",
-      }),
+      Placeholder.configure({ placeholder }),
       CharacterCount.configure({ limit: CHAR_LIMIT }),
     ],
     content: value || "",

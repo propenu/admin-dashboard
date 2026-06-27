@@ -1,10 +1,53 @@
 // src/features/blogs/components/BlogFormModal.jsx
-import React, { useEffect, useState } from "react";
-import { X, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
-import { buildBlogSlug } from "../utility/blogHelpers";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  X,
+  Plus,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Image as ImageIcon,
+  Upload,
+} from "lucide-react";
+import { toast } from "sonner";
+import { resolveBlogImage } from "../utility/blogHelpers";
+import TiptapEditor from "../../UpsertFeaturedProjects/CreateFeaturedProjects/Components/TiptapEditor";
 
 const EMPTY_SECTION = { heading: "", content: "" };
 const EMPTY_FAQ = { question: "", answer: "" };
+const MAX_FEATURED_IMAGE_SIZE = 1024 * 1024;
+
+const createEmptyForm = () => ({
+  title: "",
+  excerpt: "",
+  featuredImage: "",
+  imageAlt: "",
+  content: "",
+  category: "",
+  tags: "",
+  readTime: "",
+  published: false,
+  featured: false,
+  articleSections: [{ ...EMPTY_SECTION }],
+  faqs: [{ ...EMPTY_FAQ }],
+  author: {
+    name: "",
+    designation: "",
+    description: "",
+    socialLinks: { linkedin: "", twitter: "", website: "" },
+  },
+  metaTitle: "",
+  metaDescription: "",
+  metaKeywords: "",
+  canonicalUrl: "",
+});
+
+const defaultExpandedSections = () => ({
+  sections: true,
+  faqs: false,
+  author: false,
+  meta: false,
+});
 
 const BlogFormModal = ({
   isOpen,
@@ -12,40 +55,20 @@ const BlogFormModal = ({
   onSubmit,
   initialData = null,
   loading = false,
+  error = null,
 }) => {
   const isEdit = !!initialData;
 
-  const [form, setForm] = useState({
-    title: "",
-    excerpt: "",
-    featuredImage: "",
-    imageAlt: "",
-    content: "",
-    category: "",
-    tags: "",
-    readTime: "",
-    published: false,
-    featured: false,
-    articleSections: [{ ...EMPTY_SECTION }],
-    faqs: [{ ...EMPTY_FAQ }],
-    author: {
-      name: "",
-      designation: "",
-      description: "",
-      socialLinks: { linkedin: "", twitter: "", website: "" },
-    },
-    metaTitle: "",
-    metaDescription: "",
-    metaKeywords: "",
-    canonicalUrl: "",
-  });
-
-  const [expandedSections, setExpandedSections] = useState({
-    sections: true,
-    faqs: false,
-    author: false,
-    meta: false,
-  });
+  const [form, setForm] = useState(createEmptyForm);
+  const [expandedSections, setExpandedSections] = useState(
+    defaultExpandedSections,
+  );
+  const [featuredImageFile, setFeaturedImageFile] = useState(null);
+  const [featuredImagePreview, setFeaturedImagePreview] = useState("");
+  const [featuredImageError, setFeaturedImageError] = useState("");
+  const imageInputRef = useRef(null);
+  const backendIssues = getBackendIssues(error);
+  const fieldErrors = getFieldErrors(backendIssues);
 
   useEffect(() => {
     if (initialData) {
@@ -72,8 +95,31 @@ const BlogFormModal = ({
           : [{ ...EMPTY_SECTION }],
         faqs: initialData.faqs?.length ? initialData.faqs : [{ ...EMPTY_FAQ }],
       });
+      setFeaturedImageFile(null);
+      setFeaturedImagePreview(resolveBlogImage(initialData.featuredImage));
+      setFeaturedImageError("");
     }
   }, [initialData]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!initialData) {
+      setForm(createEmptyForm());
+      setExpandedSections(defaultExpandedSections());
+      setFeaturedImageFile(null);
+      setFeaturedImagePreview("");
+      setFeaturedImageError("");
+      if (imageInputRef.current) imageInputRef.current.value = "";
+    }
+  }, [initialData, isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (featuredImagePreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(featuredImagePreview);
+      }
+    };
+  }, [featuredImagePreview]);
 
   const set = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
@@ -81,8 +127,32 @@ const BlogFormModal = ({
     setForm((p) => ({ ...p, title: val, metaTitle: val }));
   };
 
+  const buildMultipartPayload = (payload) => {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (key === "featuredImage") return;
+      if (value === undefined || value === null) return;
+      if (Array.isArray(value) || typeof value === "object") {
+        formData.append(key, JSON.stringify(value));
+        return;
+      }
+      formData.append(key, value);
+    });
+    formData.append("featuredImage", featuredImageFile);
+    return formData;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const currentImage = resolveBlogImage(form.featuredImage);
+    if (!featuredImageFile && !featuredImagePreview && !currentImage) {
+      const message = "Featured image is required.";
+      setFeaturedImageError(message);
+      toast.error(message);
+      imageInputRef.current?.focus();
+      return;
+    }
+
     const payload = {
       ...form,
       tags: form.tags
@@ -97,7 +167,36 @@ const BlogFormModal = ({
     // Remove profileImage from author if present
     const { profileImage, ...authorClean } = payload.author || {};
     payload.author = authorClean;
-    onSubmit(payload);
+    onSubmit(featuredImageFile ? buildMultipartPayload(payload) : payload);
+  };
+
+  const handleFeaturedImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_FEATURED_IMAGE_SIZE) {
+      setFeaturedImageError("Image must be below 1 MB.");
+      toast.error("Image must be below 1 MB.");
+      if (imageInputRef.current) imageInputRef.current.value = "";
+      return;
+    }
+    if (featuredImagePreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(featuredImagePreview);
+    }
+    setFeaturedImageFile(file);
+    setFeaturedImagePreview(URL.createObjectURL(file));
+    setFeaturedImageError("");
+    set("featuredImage", "");
+  };
+
+  const clearFeaturedImage = () => {
+    if (featuredImagePreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(featuredImagePreview);
+    }
+    setFeaturedImageFile(null);
+    setFeaturedImagePreview("");
+    setFeaturedImageError("");
+    set("featuredImage", "");
+    if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
   const toggle = (key) =>
@@ -140,8 +239,25 @@ const BlogFormModal = ({
           </button>
         </div>
 
+        {backendIssues.length > 0 && (
+          <div className="mx-6 mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+            <p className="text-sm font-semibold text-red-700">
+              {error?.response?.data?.message || "Please fix these issues"}
+            </p>
+            <ul className="mt-2 space-y-1 text-xs text-red-600">
+              {backendIssues.map((issue, idx) => (
+                <li key={`${issue.path || "issue"}-${idx}`}>
+                  {issue.path ? `${formatIssuePath(issue.path)}: ` : ""}
+                  {issue.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Form */}
         <form
+          id="blog-form"
           onSubmit={handleSubmit}
           className="flex-1 overflow-y-auto px-6 py-4 space-y-5"
         >
@@ -195,13 +311,75 @@ const BlogFormModal = ({
                   className={inputCls}
                 />
               </Field>
-              <Field label="Featured Image URL">
-                <input
-                  value={form.featuredImage}
-                  onChange={(e) => set("featuredImage", e.target.value)}
-                  placeholder="https://..."
-                  className={inputCls}
-                />
+              <Field label="Featured Image">
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-3">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFeaturedImageChange}
+                  />
+                  {featuredImagePreview ? (
+                    <div className="flex gap-3">
+                      <img
+                        src={featuredImagePreview}
+                        alt={form.imageAlt || "Featured blog preview"}
+                        className="h-24 w-32 flex-shrink-0 rounded-lg border border-gray-200 object-cover"
+                      />
+                      <div className="flex min-w-0 flex-1 flex-col justify-center">
+                        <p className="truncate text-sm font-semibold text-gray-700">
+                          {featuredImageFile?.name || "Current featured image"}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-400">
+                          Upload a new image below 1 MB to replace the current blog image.
+                        </p>
+                        {(featuredImageError || fieldErrors.featuredImage) && (
+                          <p className="mt-2 text-xs font-medium text-red-500">
+                            {featuredImageError || fieldErrors.featuredImage}
+                          </p>
+                        )}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => imageInputRef.current?.click()}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                          >
+                            <Upload size={13} /> Change Image
+                          </button>
+                          <button
+                            type="button"
+                            onClick={clearFeaturedImage}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100"
+                          >
+                            <X size={13} /> Remove
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      className="flex w-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-6 text-center transition hover:border-emerald-300 hover:bg-emerald-50/50"
+                    >
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                        <ImageIcon size={18} />
+                      </span>
+                      <span className="mt-2 text-sm font-semibold text-gray-700">
+                        Upload featured image
+                      </span>
+                      <span className="mt-1 text-xs text-gray-400">
+                        PNG, JPG, JPEG or WebP below 1 MB
+                      </span>
+                      {(featuredImageError || fieldErrors.featuredImage) && (
+                        <span className="mt-2 text-xs font-medium text-red-500">
+                          {featuredImageError || fieldErrors.featuredImage}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                </div>
               </Field>
               <Field label="Image Alt Text">
                 <input
@@ -273,14 +451,10 @@ const BlogFormModal = ({
                   placeholder="Section Heading"
                   className={inputCls}
                 />
-                <textarea
-                  rows={2}
+                <TiptapEditor
                   value={sec.content}
-                  onChange={(e) =>
-                    updateSection(idx, "content", e.target.value)
-                  }
-                  placeholder="Section content..."
-                  className={inputCls}
+                  onChange={(html) => updateSection(idx, "content", html)}
+                  placeholder="Write this section content..."
                 />
               </div>
             ))}
@@ -334,12 +508,10 @@ const BlogFormModal = ({
                   placeholder="Question"
                   className={inputCls}
                 />
-                <textarea
-                  rows={2}
+                <TiptapEditor
                   value={faq.answer}
-                  onChange={(e) => updateFaq(idx, "answer", e.target.value)}
-                  placeholder="Answer"
-                  className={inputCls}
+                  onChange={(html) => updateFaq(idx, "answer", html)}
+                  placeholder="Write this FAQ answer..."
                 />
               </div>
             ))}
@@ -480,7 +652,6 @@ const BlogFormModal = ({
             type="submit"
             form="blog-form"
             disabled={loading}
-            onClick={handleSubmit}
             className="px-5 py-2 text-sm font-semibold text-white rounded-lg transition-all disabled:opacity-60"
             style={{ background: "#27AE60" }}
           >
@@ -546,5 +717,30 @@ const Toggle = ({ label, checked, onChange }) => (
 
 const inputCls =
   "w-full text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 placeholder:text-gray-300 bg-white transition-all";
+
+const getBackendIssues = (error) => {
+  const issues = error?.response?.data?.issues;
+  if (!Array.isArray(issues)) return [];
+  return issues
+    .map((issue) => ({
+      path: issue?.path || "",
+      message: issue?.message || "Invalid value",
+    }))
+    .filter((issue) => issue.message);
+};
+
+const getFieldErrors = (issues) =>
+  issues.reduce((acc, issue) => {
+    if (issue.path && !acc[issue.path]) {
+      acc[issue.path] = issue.message;
+    }
+    return acc;
+  }, {});
+
+const formatIssuePath = (path) =>
+  String(path)
+    .replace(/\./g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^./, (char) => char.toUpperCase());
 
 export default BlogFormModal;

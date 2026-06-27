@@ -12,12 +12,15 @@ import { toast } from "sonner";
 
 /**
  * Central hook for any featured-project type.
- * @param {"prime"|"featured"|"normal"|"sponsored"} type
+ * @param {"prime"|"featured"|"normal"|"sponsored"|null} type
+ * @param {{promotionStatus?: string|null, enabled?: boolean}} options
  */
-export function useFeaturedProjects(type) {
+export function useFeaturedProjects(type, options = {}) {
   const queryClient = useQueryClient();
+  const promotionStatus = options.promotionStatus || null;
+  const enabled = options.enabled ?? true;
   
-const queryKey = ["featured-projects", type];
+const queryKey = ["featured-projects", type || "all", promotionStatus || "all"];
 
 const {
   data,
@@ -29,12 +32,15 @@ const {
   isFetchingNextPage,
 } = useInfiniteQuery({
   queryKey,
+  enabled,
   initialPageParam: 1,
 
   queryFn: async ({ pageParam }) => {
     console.log("REQUEST PAGE:", pageParam);
 
-    const res = await getFeaturedProjectsByType(type, pageParam, 20);
+    const res = await getFeaturedProjectsByType(type, pageParam, 20, {
+      promotionStatus,
+    });
 
     console.log("RESPONSE PAGE:", res?.data?.meta?.page);
     console.log("TOTAL PAGES:", res?.data?.meta?.pages);
@@ -66,9 +72,13 @@ const properties =
   
 
 const invalidate = () =>
-  queryClient.invalidateQueries({
-    queryKey,
-  });
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey }),
+    queryClient.invalidateQueries({ queryKey: ["featured-projects"] }),
+    queryClient.invalidateQueries({ queryKey: ["pending-projects"] }),
+    queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] }),
+    queryClient.invalidateQueries({ queryKey: ["project-analytics"] }),
+  ]);
   
 
   const sortedProperties = [...properties].sort((a, b) => {
@@ -170,6 +180,7 @@ const invalidate = () =>
     onSuccess: () => {
       toast.success("Property expired");
       invalidate();
+      queryClient.refetchQueries({ queryKey: ["featured-projects"] });
     },
     onError: () => toast.error("Failed to expire property"),
   });
@@ -180,6 +191,7 @@ const invalidate = () =>
     onSuccess: () => {
       toast.success("Property reset successfully");
       invalidate();
+      queryClient.refetchQueries({ queryKey: ["featured-projects"] });
     },
     onError: () => toast.error("Failed to reset property"),
   });
@@ -190,6 +202,7 @@ const invalidate = () =>
     onSuccess: () => {
       toast.success("Rank updated");
       invalidate();
+      queryClient.refetchQueries({ queryKey: ["featured-projects"] });
     },
     onError: () => toast.error("Failed to update rank"),
   });

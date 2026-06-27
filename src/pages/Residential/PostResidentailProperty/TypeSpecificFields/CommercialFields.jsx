@@ -26,6 +26,7 @@ import BanksApproved from "./common/BasicCommonComponents/BanksApproved";
 import UploadGallery from "./common/BasicCommonComponents/UploadGallery";
 import FloorDetails from "./common/BasicCommonComponents/FloorDetails";
 import FlooringType from "./common/BasicCommonComponents/FlooringType";
+import Facing from "./common/BasicCommonComponents/Facing";
 
 const STEPS = [
   { label: "Infrastructure & Amenities" },
@@ -194,6 +195,7 @@ export default function CommercialFields({ back, next }) {
             <ParkingDetails errors={errors} />
             <FloorDetails errors={errors} />
             <FlooringType error={errors.flooringType} />
+            <Facing error={errors.facing} />
             <Pantry error={errors.pantry} />
           </SectionCard>
         </div>

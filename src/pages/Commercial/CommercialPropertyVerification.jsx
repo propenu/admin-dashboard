@@ -140,7 +140,7 @@ const PropertyVerification = () => {
         setSelectedDoc(docs[currentIndex + 1]);
       } else {
         toast.success("All documents processed!");
-        setTimeout(() => navigate("/commercial"), 1500);
+        setTimeout(() => navigate("/properties"), 1500);
       }
     },
     onError: () => toast.error("Failed to update status"),

@@ -184,8 +184,18 @@ export async function buildFormData(payload) {
     fd.append("amenities", JSON.stringify(payload.amenities));
   if (payload.specifications?.length)
     fd.append("specifications", JSON.stringify(payload.specifications));
-  if (payload.nearbyPlaces?.length)
-    fd.append("nearbyPlaces", JSON.stringify(payload.nearbyPlaces));
+  if (payload.nearbyPlaces?.length) {
+    const nearbyPlaces = payload.nearbyPlaces.map((place) => {
+      const hasCoordinates =
+        Array.isArray(place.coordinates) && place.coordinates.length >= 2;
+
+      if (hasCoordinates) return place;
+
+      return { ...place, coordinates: [0, 0] };
+    });
+
+    fd.append("nearbyPlaces", JSON.stringify(nearbyPlaces));
+  }
   if (payload.banksApproved?.length)
     fd.append("banksApproved", JSON.stringify(payload.banksApproved));
 

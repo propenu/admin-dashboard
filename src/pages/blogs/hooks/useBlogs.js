@@ -13,6 +13,23 @@ import {
 } from "../../../features/property/propertyService";
 import { blogKeys } from "../utility/blogKeys";
 
+const getBlogErrorMessage = (err, fallback) => {
+  const data = err?.response?.data;
+  const issueMessages = Array.isArray(data?.issues)
+    ? data.issues
+        .map((issue) =>
+          [issue?.path, issue?.message].filter(Boolean).join(": "),
+        )
+        .filter(Boolean)
+    : [];
+
+  if (issueMessages.length) {
+    return [data?.message, ...issueMessages].filter(Boolean).join(" - ");
+  }
+
+  return data?.message || fallback;
+};
+
 // ─── GET ALL BLOGS ────────────────────────────────────────────────────────────
 export const useGetBlogs = (filters = {}) => {
   return useQuery({
@@ -55,7 +72,7 @@ export const useCreateBlog = () => {
       toast.success("Blog created successfully!");
     },
     onError: (err) => {
-      toast.error(err?.response?.data?.message || "Failed to create blog.");
+      toast.error(getBlogErrorMessage(err, "Failed to create blog."));
     },
   });
 };
@@ -71,7 +88,7 @@ export const useUpdateBlog = () => {
       toast.success("Blog updated successfully!");
     },
     onError: (err) => {
-      toast.error(err?.response?.data?.message || "Failed to update blog.");
+      toast.error(getBlogErrorMessage(err, "Failed to update blog."));
     },
   });
 };
