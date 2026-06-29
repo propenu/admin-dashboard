@@ -27,6 +27,7 @@ const isProfileCompleted = (agent) => {
     d.experienceYears,
     d.dealsClosed,
     d.avatar?.url,
+    d.areasServed,
   ];
   return requiredFields.every(
     (field) => field !== undefined && field !== null && field !== ""

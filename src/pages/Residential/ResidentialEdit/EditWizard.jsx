@@ -74,7 +74,13 @@ export default function EditWizard() {
   //    never capture a stale snapshot.
   const { form: current, loading } = useSelector((s) => s[category] || {});
 
-  const isAgentProperty = current?.createdBy?.roleId?.name === "agent";
+  const isAgentProperty =
+    current?.createdBy?.roleId?.name?.toLowerCase() === "agent";
+  const completionPercent = Number(
+    current?.completion?.percent ?? current?.completion ?? 0,
+  );
+  const canShowVerification =
+    isAgentProperty && completionPercent >= 70;
 
   const currentRef = useRef(current);
   useEffect(() => { currentRef.current = current; }, [current]);
@@ -321,7 +327,7 @@ export default function EditWizard() {
               onSave={() => handleStepSave("details")}
             />
           </WizardSection>
-{isAgentProperty && (
+{canShowVerification && (
           <WizardSection step="04" title="Compliance & Publish" icon={<ShieldCheck className="w-4 h-4" />} accentColor="#27AE60">
             <StepVerifyPublish
               data={current}
