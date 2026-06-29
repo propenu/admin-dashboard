@@ -62,20 +62,16 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
       
 
       hydrateForm: (state, action) => {
-  const {
-    approval,
-    rank,
-    listingSource,
-    isPublished,
-    // __v,
-    completion,
-    meta,
-    ...cleanPayload
-  } = action.payload;
+  const cleanPayload = { ...action.payload };
+  delete cleanPayload.approval;
+  delete cleanPayload.rank;
+  delete cleanPayload.listingSource;
+  delete cleanPayload.isPublished;
+  delete cleanPayload.meta;
 
   state.form = {
     ...initialState.form,
-    ...cleanPayload, 
+    ...cleanPayload,
 
     // 🔑 keep uploaded files if they exist
     galleryFiles:
@@ -99,10 +95,20 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
         .addCase(savePropertyData.fulfilled, (state, action) => {
           if (action.payload?.data) {
             const payload = action.payload.data;
+            const previousCreatedBy = state.form.createdBy;
+            const responseCreatedBy = payload.createdBy;
+            const shouldKeepPopulatedCreatedBy =
+              previousCreatedBy &&
+              typeof previousCreatedBy === "object" &&
+              (!responseCreatedBy ||
+                typeof responseCreatedBy === "string");
 
             state.form = {
               ...initialState.form,
               ...payload,
+              createdBy: shouldKeepPopulatedCreatedBy
+                ? previousCreatedBy
+                : responseCreatedBy,
 
               // 🔥 IMPORTANT FIX
               galleryFiles:
