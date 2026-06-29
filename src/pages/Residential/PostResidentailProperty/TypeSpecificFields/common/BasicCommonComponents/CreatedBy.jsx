@@ -15,18 +15,10 @@ const ROLES = [
   // { label: "Customer Care", value: "customer_care" },
 ];
 
-const inp = (err) =>
-  `w-full px-4 py-3 bg-white border-2 rounded-xl text-gray-900 text-sm font-semibold
-   outline-none placeholder:text-gray-400 transition-all duration-200
-   ${err
-     ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10"
-     : "border-gray-200 focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10"
-   }`;
-
 const LABEL = "block text-[10px] font-black  uppercase tracking-widest text-[#27AE60] mb-1.5";
 const ERR   = "text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1";
 
-const CreatedBy = forwardRef(({ error }, ref) => {
+const CreatedBy = forwardRef(({ error, onChange }, ref) => {
   const { form, updateFieldValue } = useActivePropertySlice();
 
   const [allUsers,       setAllUsers]       = useState([]);
@@ -69,7 +61,13 @@ const CreatedBy = forwardRef(({ error }, ref) => {
   /* ── if form already has a createdBy id, find the user label ── */
   useEffect(() => {
     if (form?.createdBy && allUsers.length) {
-      const found = allUsers.find((u) => u?._id === form?.createdBy);
+      const createdById =
+        typeof form.createdBy === "object"
+          ? form.createdBy._id || form.createdBy.id
+          : form.createdBy;
+      const found = allUsers.find(
+        (u) => (u?._id || u?.userId) === createdById,
+      );
       if (found) setSelectedUser(found);
     }
   }, [form?.createdBy, allUsers]);
@@ -135,18 +133,31 @@ const CreatedBy = forwardRef(({ error }, ref) => {
   // };
 
   const selectUser = (user) => {
-  setSelectedUser(user);
-  updateFieldValue("createdBy", user._id);
-  console.log("user id",user._id);
-  localStorage.setItem("createdByBasedUserRole", user.role);
-  console.log("user role",user.role);
+    const userId = user._id || user.userId;
+    if (!userId) return;
 
-  setDropdownOpen(false);
-};
+    setSelectedUser(user);
+    const createdByValue = {
+      ...user,
+      _id: userId,
+      roleName: user.roleName || user.role || "",
+    };
+    if (onChange) {
+      onChange("createdBy", createdByValue);
+    } else {
+      updateFieldValue("createdBy", createdByValue);
+    }
+    localStorage.setItem("createdByBasedUserRole", user.role || "");
+    setDropdownOpen(false);
+  };
 
   const clearSelection = () => {
     setSelectedUser(null);
-    updateFieldValue("createdBy", "");
+    if (onChange) {
+      onChange("createdBy", "");
+    } else {
+      updateFieldValue("createdBy", "");
+    }
     setSearchQuery("");
     setFilters({ state: "", city: "", pincode: "", locality: "" });
   };
@@ -414,7 +425,12 @@ const CreatedBy = forwardRef(({ error }, ref) => {
                 </li>
               ) : (
                 filteredUsers.map((user) => {
-                  const isSelected = form?.createdBy === user?._id;
+                  const createdById =
+                    typeof form?.createdBy === "object"
+                      ? form.createdBy._id || form.createdBy.id
+                      : form?.createdBy;
+                  const isSelected =
+                    createdById === (user?._id || user?.userId);
                   return (
                     <li
                       key={user._id}

@@ -447,7 +447,7 @@ export default function StepBasicDetails({ data, onChange, onSave }) {
         </FinCard>
       )}
 
-      <CreatedBy data={data} />
+      <CreatedBy data={data} onChange={upd} />
 
       {/* Footer */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-6 border-t border-slate-100">

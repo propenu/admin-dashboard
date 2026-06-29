@@ -120,11 +120,7 @@ export const savePropertyData = createAsyncThunk(
       let response;
       switch (step) {
         case "basic":
-          {
-            const basicPayload = { ...stateForm };
-            delete basicPayload.createdBy;
-            response = await editPropertyBasic(category, id, basicPayload);
-          }
+          response = await editPropertyBasic(category, id, stateForm);
           console.log("//////////////// details ///////////////////////////");
           console.log("DETAIL RESPONSE =", response.data);
           console.log("completion.step =", response?.data?.data.completion?.step);

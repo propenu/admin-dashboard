@@ -61,6 +61,10 @@ import {
   deleteLand,
   fetchLand,
 } from "../../services/LandServices/LandServices";
+import {
+  getPropertyCreatorTag,
+  isAgentCreatedProperty,
+} from "../../utils/propertyCreatorRole";
 
 const CATEGORIES = [
   { value: "all", label: "All properties" },
@@ -327,35 +331,6 @@ const getStatus = (property) => {
   return property?.status || "draft";
 };
 
-const isAgentProperty = (property) => {
-  const roles = [
-    property?.createdBy?.roleName,
-    property?.createdBy?.role,
-    property?.createdBy?.roleId?.name,
-    property?.createdBy?.roleId?.roleName,
-    property?.postedBy?.roleName,
-    property?.postedBy?.role,
-    property?.createdByRole,
-    property?.postedByRole,
-  ];
-
-  const hasAgentRole = roles.some((role) =>
-    String(role || "").toLowerCase().includes("agent"),
-  );
-
-  const hasAgentFlag =
-    property?.isAgentProject === true ||
-    property?.isAgentProperty === true ||
-    property?.listedByAgent === true;
-
-  // Existing agent-property flow finishes at 70% because agents do not
-  // complete the final verification/publish step.
-  const isLegacyAgentCompletion =
-    Number(property?.completion?.percent) === 70;
-
-  return hasAgentRole || hasAgentFlag || isLegacyAgentCompletion;
-};
-
 function PropertyCard({
   property,
   category,
@@ -368,8 +343,7 @@ function PropertyCard({
 }) {
   const [openLeads, setOpenLeads] = useState(false);
   const status = getStatus(property);
-  const agentProperty = isAgentProperty(property);
-  const completion = property?.completion?.percent || 0;
+  const creatorTag = getPropertyCreatorTag(property);
   const creator = property?.createdBy?.name || property?.postedBy?.name || "Unknown user";
   const location = [property?.locality, property?.city, property?.state]
     .filter(Boolean)
@@ -454,9 +428,9 @@ function PropertyCard({
             {status}
           </span>
         </div>
-        {agentProperty && (
+        {creatorTag && (
           <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-slate-800/90 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white">
-            <ShieldCheck className="h-2.5 w-2.5 text-emerald-400" /> Agent
+            <ShieldCheck className="h-2.5 w-2.5 text-emerald-400" /> {creatorTag}
           </span>
         )}
       </div>
@@ -495,7 +469,7 @@ function PropertyCard({
             <span className="flex min-w-0 items-center gap-1.5 truncate text-[10px] font-medium text-amber-700 sm:col-span-2">
               <ShieldCheck className="h-3 w-3 shrink-0" />
               <span className="truncate">
-                Document verification pending • {completion}% completed
+                Document verification pending
               </span>
             </span>
           )}
@@ -918,6 +892,7 @@ export default function PropertiesDashboard() {
   const canReviewProperty = (property) =>
     property?.status === "pending" &&
     property?.completion?.percent === 80 &&
+    !isAgentCreatedProperty(property) &&
     userRoleName === "super_admin";
 
   const reviewProperty = (property) => {
@@ -1542,4 +1517,3 @@ export default function PropertiesDashboard() {
     </main>
   );
 }
-

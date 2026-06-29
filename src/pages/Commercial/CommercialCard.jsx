@@ -679,7 +679,10 @@ import {
 } from "lucide-react";
 
 import FALLBACK from "../../assets/fallback.svg";
-import { getUserDetails } from "../../features/user/userService";
+import {
+  getPropertyCreatorTag,
+  isAgentCreatedProperty,
+} from "../../utils/propertyCreatorRole";
 
 const formatPrice = (price) => {
   if (!price || isNaN(price)) return "Price on Request";
@@ -747,8 +750,8 @@ export default function CommercialCard({ property, userRole }) {
 
 
   const statusInfo = getDocStatus();
-  const completion = property?.completion?.percent || 0;
   const isCompleted = property?.completion?.percent;
+  const creatorTag = getPropertyCreatorTag(property);
 
   const isPendingReview = property?.status === "pending";
 
@@ -797,7 +800,7 @@ export default function CommercialCard({ property, userRole }) {
           />
 
           {/* Agent badge */}
-          {isCompleted === 70 && (
+          {creatorTag && (
             <div
               className="
       absolute -left-5 bottom-3 rotate-45
@@ -818,7 +821,7 @@ export default function CommercialCard({ property, userRole }) {
         tracking-[2px]
       "
               >
-                AGENT
+                {creatorTag}
               </span>
             </div>
           )}
@@ -847,17 +850,9 @@ export default function CommercialCard({ property, userRole }) {
                 <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 uppercase">
                   {property?.status || "Unknown"}
                 </span>
-                <div className="flex items-center gap-1">
-                  <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-orange-500 rounded-full"
-                      style={{ width: `${completion}%` }}
-                    />
-                  </div>
-                  <span className="text-[8px] text-slate-400">
-                    {completion}%
-                  </span>
-                </div>
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 uppercase">
+                  {creatorTag}
+                </span>
               </div>
               <h3 className="font-bold text-slate-800 text-xs leading-tight line-clamp-1 group-hover:text-[#27AE60] transition-colors">
                 {property?.title || "Unnamed Property"}
@@ -958,6 +953,7 @@ export default function CommercialCard({ property, userRole }) {
 
               {isPendingReview &&
               UserRoleName === "super_admin" &&
+              !isAgentCreatedProperty(property) &&
               isCompleted === 80 ? (
                 <button
                   onClick={(e) => {

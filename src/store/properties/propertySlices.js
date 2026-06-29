@@ -31,16 +31,7 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
       updateField: (state, action) => {
         const { key, value } = action.payload;
 
-        // Auto-extract ID if an object is passed to createdBy
-        if (
-          key === "createdBy" &&
-          typeof value === "object" &&
-          value !== null
-        ) {
-          state.form.createdBy = value._id || value.id || "";
-        } else {
-          state.form[key] = value;
-        }
+        state.form[key] = value;
       },
 
       updateNestedField: (state, action) => {
@@ -102,13 +93,29 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
               typeof previousCreatedBy === "object" &&
               (!responseCreatedBy ||
                 typeof responseCreatedBy === "string");
+            const shouldMergeCreatedBy =
+              previousCreatedBy &&
+              typeof previousCreatedBy === "object" &&
+              responseCreatedBy &&
+              typeof responseCreatedBy === "object";
+            const mergedCreatedBy = shouldMergeCreatedBy
+              ? {
+                  ...previousCreatedBy,
+                  ...responseCreatedBy,
+                  roleName:
+                    responseCreatedBy.roleName ||
+                    responseCreatedBy.role ||
+                    previousCreatedBy.roleName ||
+                    previousCreatedBy.role,
+                }
+              : responseCreatedBy;
 
             state.form = {
               ...initialState.form,
               ...payload,
               createdBy: shouldKeepPopulatedCreatedBy
                 ? previousCreatedBy
-                : responseCreatedBy,
+                : mergedCreatedBy,
 
               // 🔥 IMPORTANT FIX
               galleryFiles:

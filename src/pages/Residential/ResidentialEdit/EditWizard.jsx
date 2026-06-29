@@ -13,6 +13,7 @@ import StepPropertyDetails from "./steps/StepPropertyDetails";
 import StepVerifyPublish from "./steps/StepVerifyPublish";
 import { getPropertyById } from "../../../services/Common/AllPropertyServices";
 import { setActiveCategory } from "../../../store/Ui/uiSlice";
+import { isAgentCreatedProperty } from "../../../utils/propertyCreatorRole";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // cleanData — strips empty values, resolves createdBy._id, preserves File/Date
@@ -74,13 +75,12 @@ export default function EditWizard() {
   //    never capture a stale snapshot.
   const { form: current, loading } = useSelector((s) => s[category] || {});
 
-  const isAgentProperty =
-    current?.createdBy?.roleId?.name?.toLowerCase() === "agent";
+  const isAgentProperty = isAgentCreatedProperty(current);
   const completionPercent = Number(
     current?.completion?.percent ?? current?.completion ?? 0,
   );
   const canShowVerification =
-    isAgentProperty && completionPercent >= 70;
+    !isAgentProperty && completionPercent >= 70;
 
   const currentRef = useRef(current);
   useEffect(() => { currentRef.current = current; }, [current]);
