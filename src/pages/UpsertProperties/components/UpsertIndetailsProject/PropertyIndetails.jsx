@@ -1776,7 +1776,7 @@ const analyticsLoading = isLoading;
                       toast.success(
                         "Property verified successfully and published live",
                       );
-                      navigate(`/${category}`);
+                      navigate(`/properties`);
                     } catch (err) {
                       toast.error("Verification failed");
                     }
