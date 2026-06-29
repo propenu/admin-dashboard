@@ -552,9 +552,21 @@ function ParkingCounter({ label, icon, value, onUpdate }) {
     <div className="bg-white rounded-xl border border-amber-100 p-4 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-2.5"><span className="text-xl">{icon}</span><span className="text-xs font-black text-slate-600 uppercase tracking-tight">{label}</span></div>
       <div className="flex items-center gap-2 bg-slate-50 rounded-xl p-1 border border-slate-100">
-        <button onClick={() => onUpdate(Math.max(0, value - 1))} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-slate-200 hover:bg-red-50 hover:text-red-500 transition-all"><Minus className="w-3.5 h-3.5" /></button>
-        <span className="w-7 text-center font-black text-slate-800 text-sm tabular-nums">{value}</span>
-        <button onClick={() => onUpdate(value + 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-slate-200 hover:bg-[#27AE60]/10 hover:text-[#27AE60] transition-all"><Plus className="w-3.5 h-3.5" /></button>
+        <button type="button" onClick={() => onUpdate(Math.max(0, Number(value || 0) - 1))} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-slate-200 hover:bg-red-50 hover:text-red-500 transition-all"><Minus className="w-3.5 h-3.5" /></button>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          inputMode="numeric"
+          value={value}
+          onFocus={(event) => event.target.select()}
+          onChange={(event) =>
+            onUpdate(Math.max(0, Math.trunc(Number(event.target.value) || 0)))
+          }
+          className="w-12 bg-transparent text-center font-black text-slate-800 text-sm tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          aria-label={label}
+        />
+        <button type="button" onClick={() => onUpdate(Number(value || 0) + 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-slate-200 hover:bg-[#27AE60]/10 hover:text-[#27AE60] transition-all"><Plus className="w-3.5 h-3.5" /></button>
       </div>
     </div>
   );

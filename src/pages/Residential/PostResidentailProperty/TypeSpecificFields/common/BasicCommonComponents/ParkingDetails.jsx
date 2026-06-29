@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
-export const PARKING_TYPES = [
+const PARKING_TYPES = [
   { label: "Closed", value: "covered" },
   { label: "Open", value: "open" },
   { label:"Both",value:"both"},
@@ -14,7 +14,7 @@ export const PARKING_TYPES = [
   //{ label: "Shared", value: "shared" },
 ];
 
-const CounterField = ({ label, value, onDecrement, onIncrement, error }) => (
+const CounterField = ({ label, value, onChange, onDecrement, onIncrement, error }) => (
   <div className="space-y-2">
     <p className="text-xs font-bold text-[#374151]">{label}</p>
     <div className="flex items-center border-2 border-[#e5e7eb] rounded-xl overflow-hidden hover:border-[#bbf7d0] transition-colors">
@@ -25,7 +25,19 @@ const CounterField = ({ label, value, onDecrement, onIncrement, error }) => (
       >
         −
       </button>
-      <span className="flex-1 text-center text-sm font-bold text-[#111827]">{value}</span>
+      <input
+        type="number"
+        min="0"
+        step="1"
+        inputMode="numeric"
+        value={value}
+        onFocus={(event) => event.target.select()}
+        onChange={(event) =>
+          onChange(Math.max(0, Math.trunc(Number(event.target.value) || 0)))
+        }
+        className="min-w-0 flex-1 bg-transparent text-center text-sm font-bold text-[#111827] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        aria-label={label}
+      />
       <button
         type="button"
         onClick={onIncrement}
@@ -84,7 +96,7 @@ const ParkingDetails = ({ errors = {} }) => {
         {open && (
           <div className="absolute top-full left-0 mt-2 w-full rounded-xl border border-[#e5e7eb] bg-white shadow-xl z-50 overflow-hidden">
             <div className="max-h-48 overflow-y-auto">
-              {PARKING_TYPES.map((opt, idx) => {
+              {PARKING_TYPES.map((opt) => {
                 const isSelected = form.parkingType === opt.value;
                 return (
                   <div
@@ -114,6 +126,9 @@ const ParkingDetails = ({ errors = {} }) => {
         <CounterField
           label="Two-Wheeler Parking"
           value={form.parkingDetails?.twoWheeler || 0}
+          onChange={(value) =>
+            updateNestedFieldValue("parkingDetails", "twoWheeler", value)
+          }
           onDecrement={() =>
             updateNestedFieldValue(
               "parkingDetails",
@@ -133,6 +148,9 @@ const ParkingDetails = ({ errors = {} }) => {
         <CounterField
           label="Four-Wheeler Parking"
           value={form.parkingDetails?.fourWheeler || 0}
+          onChange={(value) =>
+            updateNestedFieldValue("parkingDetails", "fourWheeler", value)
+          }
           onDecrement={() =>
             updateNestedFieldValue(
               "parkingDetails",

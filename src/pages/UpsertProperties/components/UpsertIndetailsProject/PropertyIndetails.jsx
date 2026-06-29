@@ -1821,6 +1821,13 @@ const analyticsLoading = isLoading;
                 {property.title || "Untitled Property"}
               </h1>
 
+              {property.buildingName?.trim() && (
+                <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 mt-2">
+                  <Building2 className="w-4 h-4 text-[#27AE60] flex-shrink-0" />
+                  <span className="truncate">{property.buildingName.trim()}</span>
+                </div>
+              )}
+
               <div className="flex items-start gap-1.5 text-sm text-slate-500 mt-2">
                 <MapPin className="w-4 h-4 text-[#27AE60] flex-shrink-0 mt-0.5" />
                 <span>

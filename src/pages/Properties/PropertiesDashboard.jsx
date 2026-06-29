@@ -345,6 +345,10 @@ function PropertyCard({
   const status = getStatus(property);
   const creatorTag = getPropertyCreatorTag(property);
   const creator = property?.createdBy?.name || property?.postedBy?.name || "Unknown user";
+  const propertyName =
+    category === "residential" || category === "commercial"
+      ? property?.buildingName
+      : property?.landName;
   const location = [property?.locality, property?.city, property?.state]
     .filter(Boolean)
     .join(", ");
@@ -441,6 +445,12 @@ function PropertyCard({
             <h3 className="truncate text-[13px] font-medium text-slate-800 group-hover:text-emerald-700 sm:text-sm">
               {property?.title || "Unnamed property"}
             </h3>
+            {propertyName?.trim() && (
+              <p className="mt-1 flex items-center gap-1 truncate text-[11px] font-medium text-slate-600">
+                <Building2 className="h-3 w-3 shrink-0 text-emerald-600" />
+                <span className="truncate">{propertyName.trim()}</span>
+              </p>
+            )}
             <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-slate-500">
               <MapPin className="h-3 w-3 shrink-0 text-emerald-600" />
               {location || "Location unavailable"}

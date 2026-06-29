@@ -287,7 +287,7 @@ const ROLE_CONFIG = {
   },
 };
 
-const getRoleCfg = (role) => ROLE_CONFIG[role] || ROLE_CONFIG["sales_manager" || "sales_agent"];
+const getRoleCfg = (role) => ROLE_CONFIG[role] || ROLE_CONFIG.sales_manager;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getInitials = (name = "") =>
@@ -318,6 +318,9 @@ const formatCreatedAt = (createdAt) => {
 
 const formatKycStatus = (status) =>
   status ? capitalize(status.replace(/_/g, " ")) : "Not available";
+
+const getCompanyName = (user) =>
+  user?.companyName?.trim() || "Builder not added or Backend not added";
 
 // ─── User Detail Modal ────────────────────────────────────────────────────────
 const UserDetailModal = ({ user, role, onClose, onWorkInProgress }) => {
@@ -418,6 +421,15 @@ const UserDetailModal = ({ user, role, onClose, onWorkInProgress }) => {
                   label: "Pincode",
                   value: user.pincode,
                 },
+                ...(role === "builder"
+                  ? [
+                      {
+                        icon: <Building2 size={13} />,
+                        label: "Company Name",
+                        value: getCompanyName(user),
+                      },
+                    ]
+                  : []),
               ]
                 .filter((r) => r.value)
                 .map((row) => (
@@ -616,6 +628,24 @@ const UserCard = ({ user, role, index, onViewDetail, onWorkInProgress }) => {
               <span className="text-gray-500 text-[11px]">{user.pincode}</span>
             </div>
           )}
+          {role === "builder" && (
+            <div className="flex items-center gap-2">
+              <div
+                className={`w-6 h-6 rounded-lg ${cfg.iconBg} border ${cfg.iconBorder} flex items-center justify-center shrink-0`}
+                style={{ color: cfg.accent }}
+              >
+                <Building2 size={11} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                  Company Name
+                </p>
+                <p className="text-gray-500 text-[11px] truncate">
+                  {getCompanyName(user)}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Account and KYC details */}
@@ -636,37 +666,41 @@ const UserCard = ({ user, role, index, onViewDetail, onWorkInProgress }) => {
             </div>
           </div>
 
-          <div className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
-            <Shield
-              size={13}
-              className="mt-0.5 shrink-0"
-              style={{ color: cfg.accent }}
-            />
-            <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
-                KYC Status
-              </p>
-              <p className="text-[11px] font-semibold text-gray-600">
-                {formatKycStatus(user.kycStatus)}
-              </p>
-            </div>
-          </div>
+          {role !== "builder" && (
+            <>
+              <div className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                <Shield
+                  size={13}
+                  className="mt-0.5 shrink-0"
+                  style={{ color: cfg.accent }}
+                />
+                <div className="min-w-0">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                    KYC Status
+                  </p>
+                  <p className="text-[11px] font-semibold text-gray-600">
+                    {formatKycStatus(user.kycStatus)}
+                  </p>
+                </div>
+              </div>
 
-          <div className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 sm:col-span-2">
-            <MessageSquareText
-              size={13}
-              className="mt-0.5 shrink-0"
-              style={{ color: cfg.accent }}
-            />
-            <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
-                KYC Reason
-              </p>
-              <p className="text-[11px] font-semibold text-gray-600 break-words">
-                {user.kycReason?.trim() || "No reason provided"}
-              </p>
-            </div>
-          </div>
+              <div className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 sm:col-span-2">
+                <MessageSquareText
+                  size={13}
+                  className="mt-0.5 shrink-0"
+                  style={{ color: cfg.accent }}
+                />
+                <div className="min-w-0">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                    KYC Reason
+                  </p>
+                  <p className="text-[11px] font-semibold text-gray-600 break-words">
+                    {user.kycReason?.trim() || "No reason provided"}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Buttons */}
@@ -895,21 +929,21 @@ const RoleUsers = ({ role = "sales_manager" }) => {
   });
 
   useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        const response = await getUserSearch(role);
+        setUsers(response?.data?.results || []);
+      } catch (err) {
+        console.error(`Failed to fetch ${role}:`, err);
+        setUsers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchUsers();
   }, [role]);
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const response = await getUserSearch(role);
-      setUsers(response?.data?.results || []);
-    } catch (err) {
-      console.error(`Failed to fetch ${role}:`, err);
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleWorkInProgress = (id) => navigate(`/dashboard/users/${id}`);
 

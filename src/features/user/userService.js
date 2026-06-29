@@ -266,6 +266,11 @@ export const getEmailCampaignStatus = (campaignId) => {
 
 
 
+export const editBuilderProfile = (id, formData) => {
+  return apiClient.patch(`${SERVICES.USER}/builder/profile/${id}`, formData);
+};
+
+
 
 
 

@@ -22,6 +22,13 @@ const Counter = forwardRef(({ label, reduxKey, isNested = false, parentKey = "",
     isNested ? updateFieldValue(parentKey, { ...form[parentKey], [reduxKey]: newVal }) : updateFieldValue(reduxKey, newVal);
   };
 
+  const handleManualChange = (event) => {
+    const newVal = Math.max(0, Math.trunc(Number(event.target.value) || 0));
+    isNested
+      ? updateFieldValue(parentKey, { ...form[parentKey], [reduxKey]: newVal })
+      : updateFieldValue(reduxKey, newVal);
+  };
+
   return (
     <div ref={ref} className="flex flex-col gap-2">
       <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">{label}</p>
@@ -33,7 +40,17 @@ const Counter = forwardRef(({ label, reduxKey, isNested = false, parentKey = "",
         >
           <Minus size={14} />
         </button>
-        <span className="flex-1 text-center text-base font-bold text-[#111827]">{value}</span>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          inputMode="numeric"
+          value={value}
+          onFocus={(event) => event.target.select()}
+          onChange={handleManualChange}
+          className="min-w-0 flex-1 bg-transparent text-center text-base font-bold text-[#111827] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          aria-label={label}
+        />
         <button
           type="button"
           onClick={handleIncrement}

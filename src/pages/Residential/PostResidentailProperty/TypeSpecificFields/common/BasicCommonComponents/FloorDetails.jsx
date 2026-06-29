@@ -103,7 +103,7 @@
 import { forwardRef } from "react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
-const CounterBox = ({ label, value, onDecrement, onIncrement, error }) => (
+const CounterBox = ({ label, value, onChange, onDecrement, onIncrement, error }) => (
   <div className="space-y-2">
     <p className="text-xs font-bold text-[#374151]">{label}</p>
     <div className="flex items-center border-2 border-[#e5e7eb] rounded-xl overflow-hidden hover:border-[#bbf7d0] transition-colors">
@@ -114,7 +114,19 @@ const CounterBox = ({ label, value, onDecrement, onIncrement, error }) => (
       >
         −
       </button>
-      <span className="flex-1 text-center text-sm font-bold text-[#111827]">{value}</span>
+      <input
+        type="number"
+        min="0"
+        step="1"
+        inputMode="numeric"
+        value={value}
+        onFocus={(event) => event.target.select()}
+        onChange={(event) =>
+          onChange(Math.max(0, Math.trunc(Number(event.target.value) || 0)))
+        }
+        className="min-w-0 flex-1 bg-transparent text-center text-sm font-bold text-[#111827] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        aria-label={label}
+      />
       <button
         type="button"
         onClick={onIncrement}
@@ -135,15 +147,17 @@ const FloorDetails = forwardRef(({ errors = {} }, ref) => {
       <CounterBox
         label="Total Floors"
         value={form.totalFloors || 0}
+        onChange={(value) => updateFieldValue("totalFloors", value)}
         onDecrement={() => updateFieldValue("totalFloors", Math.max(0, (form.totalFloors || 0) - 1))}
-        onIncrement={() => updateFieldValue("totalFloors", (form.totalFloors || 0) + 1)}
+        onIncrement={() => updateFieldValue("totalFloors", Number(form.totalFloors || 0) + 1)}
         error={errors.totalFloors}
       />
       <CounterBox
         label="Floor Number"
         value={form.floorNumber || 0}
+        onChange={(value) => updateFieldValue("floorNumber", value)}
         onDecrement={() => updateFieldValue("floorNumber", Math.max(0, (form.floorNumber || 0) - 1))}
-        onIncrement={() => updateFieldValue("floorNumber", (form.floorNumber || 0) + 1)}
+        onIncrement={() => updateFieldValue("floorNumber", Number(form.floorNumber || 0) + 1)}
         error={errors.floorNumber}
       />
     </div>
