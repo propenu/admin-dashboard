@@ -80,7 +80,7 @@ export default function EditWizard() {
     current?.completion?.percent ?? current?.completion ?? 0,
   );
   const canShowVerification =
-    isAgentProperty && completionPercent === 70;
+    isAgentProperty && completionPercent >= 70;
 
   const currentRef = useRef(current);
   useEffect(() => { currentRef.current = current; }, [current]);
