@@ -1,6 +1,3 @@
-
-
-
 // frontend/admin-dashboard/src/pages/Residential/PostResidentailProperty/Step2LocationDetails.jsx
 import { useDispatch, useSelector } from "react-redux";
 import { actions } from "../../../store/newIndex";
@@ -127,26 +124,59 @@ async function reverseGeocode(lat, lng, signal) {
  * Forward geocode a 6-digit pincode → { lat, lng, locality, city, state }
  * Called when user manually types pincode.
  */
-async function geocodePincode(pincode, signal) {
-  const url =
-    `https://nominatim.openstreetmap.org/search` +
-    `?postalcode=${pincode}&country=India&format=json&addressdetails=1&limit=1&accept-language=en`;
-  const res = await fetch(url, { signal, headers: { "Accept-Language": "en" } });
-  if (!res.ok) throw new Error("Pincode geocode failed.");
-  const data = await res.json();
-  if (!Array.isArray(data) || !data.length) return null;
+async function lookupPostalPin(pincode, signal) {
+  try {
+    const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal });
+    if (!res.ok) return { city: "", state: "" };
 
-  const best = data[0];
-  const a    = best?.address || {};
+    const data = await res.json();
+    const firstOffice = data?.[0]?.PostOffice?.[0] || {};
+
+    return {
+      city: titleCase(firstOffice.District || ""),
+      state: titleCase(firstOffice.State || ""),
+    };
+  } catch (err) {
+    if (err?.name !== "AbortError") console.error("Postal PIN lookup error:", err);
+    return { city: "", state: "" };
+  }
+}
+
+async function lookupNominatimPincode(pincode, signal) {
+  const urls = [
+    `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=India&format=json&addressdetails=1&limit=1&accept-language=en`,
+    `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&accept-language=en&q=${encodeURIComponent(`${pincode}, India`)}`,
+  ];
+
+  for (const url of urls) {
+    const res = await fetch(url, { signal, headers: { "Accept-Language": "en" } });
+    if (!res.ok) continue;
+
+    const data = await res.json();
+    if (Array.isArray(data) && data.length) return data[0];
+  }
+
+  return null;
+}
+
+async function geocodePincode(pincode, signal) {
+  const [postal, best] = await Promise.all([
+    lookupPostalPin(pincode, signal),
+    lookupNominatimPincode(pincode, signal),
+  ]);
+
+  if (!best) return null;
+
+  const a = best?.address || {};
   return {
-    lat:      parseFloat(best.lat),
-    lng:      parseFloat(best.lon),
+    lat: parseFloat(best.lat),
+    lng: parseFloat(best.lon),
     locality: titleCase(stripWard(
       a.suburb || a.neighbourhood || a.hamlet ||
       a.village || a.town || a.city_district || a.county || ""
     )),
-    city:  titleCase(a.city || a.town || a.village || a.city_district || a.state_district || a.county || ""),
-    state: titleCase(a.state || ""),
+    city: postal.city || titleCase(a.city || a.town || a.village || a.city_district || a.state_district || a.county || ""),
+    state: postal.state || titleCase(a.state || ""),
   };
 }
 
@@ -361,6 +391,8 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
   const [ovSearched,  setOvSearched]  = useState(false);
   const [ovError,     setOvError]     = useState(null);
   const [autoAdded,   setAutoAdded]   = useState(null);
+  const [manualPlaceName, setManualPlaceName] = useState("");
+  const [manualDistance,  setManualDistance]  = useState("");
 
   const photonTimer = useRef(null);
   const abortRef    = useRef(null);
@@ -484,16 +516,77 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
     setQuery(""); setPhotonResults([]); setPhotonMsg(null);
   };
 
+  const addManualPlace = () => {
+    const name = manualPlaceName.trim();
+    if (!name || selectedPlaces.some((p) => p.name.toLowerCase() === name.toLowerCase())) return;
+
+    const rawDistance = manualDistance.trim();
+    const distanceText = rawDistance
+      ? /\b(km|m)\b/i.test(rawDistance)
+        ? rawDistance.toUpperCase()
+        : `${rawDistance} KM`
+      : "";
+
+    onAdd({
+      name,
+      type: "manual",
+      distanceText,
+      isManual: true,
+    });
+
+    setManualPlaceName("");
+    setManualDistance("");
+  };
+
   const displayResults = activeCat ? catResults : ovResults;
   const anyLoading     = loadingCat !== null || ovSearching;
 
+  const manualPlaceForm = (
+    <div className="border border-[#e5e7eb] rounded-xl p-4 bg-[#f9fafb]">
+      <p className="text-[11px] font-bold text-[#6b7280] uppercase tracking-widest mb-3">
+        Add place manually
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px_auto] gap-2">
+        <input
+          value={manualPlaceName}
+          onChange={(e) => setManualPlaceName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addManualPlace()}
+          placeholder="Place name"
+          className="w-full border border-[#d1d5db] rounded-xl px-3.5 py-2.5 text-sm font-medium text-[#111827] focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10 outline-none transition-all placeholder:text-[#9ca3af]"
+        />
+        <input
+          value={manualDistance}
+          onChange={(e) => setManualDistance(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addManualPlace()}
+          placeholder="2 KM"
+          className="w-full border border-[#d1d5db] rounded-xl px-3.5 py-2.5 text-sm font-medium text-[#111827] focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10 outline-none transition-all placeholder:text-[#9ca3af]"
+        />
+        <button
+          type="button"
+          onClick={addManualPlace}
+          disabled={!manualPlaceName.trim()}
+          className="px-4 py-2.5 bg-white text-[#374151] border border-[#d1d5db] text-sm font-bold rounded-xl hover:border-[#27AE60] hover:text-[#27AE60] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 whitespace-nowrap"
+        >
+          <Plus size={13} />
+          Add
+        </button>
+      </div>
+      <p className="text-[10px] text-[#9ca3af] mt-1.5">
+        Manual places save name and distance only. Coordinates are not sent.
+      </p>
+    </div>
+  );
+
   if (!pinnedCoords) {
     return (
-      <div className="flex items-center gap-2 bg-[#fffbeb] border border-[#fde68a] rounded-xl px-4 py-3">
-        <Navigation size={13} className="text-[#f59e0b] shrink-0" />
-        <p className="text-xs text-[#92400e] font-medium">
-          Pin your property on the map first to search nearby places.
-        </p>
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 bg-[#fffbeb] border border-[#fde68a] rounded-xl px-4 py-3">
+          <Navigation size={13} className="text-[#f59e0b] shrink-0" />
+          <p className="text-xs text-[#92400e] font-medium">
+            Pin your property on the map first to search nearby places, or add a place manually below.
+          </p>
+        </div>
+        {manualPlaceForm}
       </div>
     );
   }
@@ -566,6 +659,8 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
           </div>
         )}
       </div>
+
+      {manualPlaceForm}
 
       {/* Category chips */}
       {/* <div>
@@ -804,16 +899,26 @@ export default function Step2LocationDetails({ next, back, category }) {
   const form     = useSelector((state) => state[category]?.form || {});
 
   const [errors,       setErrors]       = useState({});
-  const [markerPlaced, setMarkerPlaced] = useState(false);
+  const [markerPlaced, setMarkerPlaced] = useState(() => {
+    const coordinates = form.location?.coordinates;
+    return (
+      Array.isArray(coordinates) &&
+      coordinates.length === 2 &&
+      coordinates.every(Number.isFinite)
+    );
+  });
   const [locatingUser, setLocatingUser] = useState(false);
   const [mapPopup,     setMapPopup]     = useState(null);
 
   const topRef               = useRef(null);
   const gpsAbortRef          = useRef(null);   // GPS reverse geocode
   const pincodeAbortRef      = useRef(null);   // pincode forward geocode
+  const coordinatesAbortRef  = useRef(null);   // coordinate reverse geocode
   const fieldGeocodeAbortRef = useRef(null);   // field-watch forward geocode
+  const pincodeCacheRef      = useRef(new Map());
   const pinPlacedByUserRef   = useRef(false);  // true after manual map click or GPS
   const skipFieldGeocodeRef  = useRef(false);  // prevents field-watch loop after pin
+  const skipCoordinateReverseRef = useRef(false);
 
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -828,6 +933,7 @@ export default function Step2LocationDetails({ next, back, category }) {
   const handlePinChange = useCallback(({ coordinates, pincode, locality, city, state }) => {
     pinPlacedByUserRef.current  = true;
     skipFieldGeocodeRef.current = true; // map click fills fields → don't re-geocode them
+    skipCoordinateReverseRef.current = true;
     setMarkerPlaced(true);
 
     setValue("location", { type: "Point", coordinates });
@@ -874,11 +980,24 @@ export default function Step2LocationDetails({ next, back, category }) {
   useEffect(() => {
     const coords = form.location?.coordinates;
 
-    if (!coords || coords.length !== 2) return;
+    if (
+      !Array.isArray(coords) ||
+      coords.length !== 2 ||
+      !coords.every(Number.isFinite)
+    ) {
+      return;
+    }
+
+    if (skipCoordinateReverseRef.current) {
+      skipCoordinateReverseRef.current = false;
+      return;
+    }
 
     const [lng, lat] = coords;
 
+    coordinatesAbortRef.current?.abort();
     const ctrl = new AbortController();
+    coordinatesAbortRef.current = ctrl;
 
     reverseGeocode(lat, lng, ctrl.signal)
       .then((geo) => {
@@ -909,8 +1028,10 @@ export default function Step2LocationDetails({ next, back, category }) {
 
     const tid = setTimeout(async () => {
       try {
-        const geo = await geocodePincode(pin, ctrl.signal);
+        const cachedGeo = pincodeCacheRef.current.get(pin);
+        const geo = cachedGeo || await geocodePincode(pin, ctrl.signal);
         if (!geo) return;
+        if (!cachedGeo) pincodeCacheRef.current.set(pin, geo);
 
         const { lat, lng, locality, city, state } = geo;
 
@@ -919,9 +1040,12 @@ export default function Step2LocationDetails({ next, back, category }) {
         if (city)     setValue("city",     city);
         if (state)    setValue("state",    state);
 
-        // Place map marker only if user hasn't pinned manually
-        if (!pinPlacedByUserRef.current && Number.isFinite(lat) && Number.isFinite(lng)) {
+        // A typed pincode is the latest location choice, so always move the
+        // marker even when the user previously clicked the map or used GPS.
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          pinPlacedByUserRef.current = false;
           skipFieldGeocodeRef.current = true;
+          skipCoordinateReverseRef.current = true;
           setValue("location", { type: "Point", coordinates: [lng, lat] });
           setMarkerPlaced(true);
         }
@@ -947,6 +1071,7 @@ export default function Step2LocationDetails({ next, back, category }) {
     geocodeText(`${form.locality}, ${form.city}, ${form.state}`, ctrl.signal)
       .then((geo) => {
         if (!geo) return;
+        skipCoordinateReverseRef.current = true;
         setValue("location", { type: "Point", coordinates: [geo.lng, geo.lat] });
         setMarkerPlaced(true);
       })
@@ -960,6 +1085,7 @@ export default function Step2LocationDetails({ next, back, category }) {
     return () => {
       gpsAbortRef.current?.abort();
       pincodeAbortRef.current?.abort();
+      coordinatesAbortRef.current?.abort();
       fieldGeocodeAbortRef.current?.abort();
     };
   }, []);
@@ -968,17 +1094,22 @@ export default function Step2LocationDetails({ next, back, category }) {
   const handleAddPlace = useCallback((place) => {
     const current = form.nearbyPlaces || [];
     if (current.some((p) => p.name === place.name && p.type === place.type)) return;
+    const nextPlace = {
+      name:         place.name,
+      type:         place.type,
+      distanceText: place.distanceText || "",
+      order:        current.length,
+    };
+
+    if (Array.isArray(place.coordinates) && place.coordinates.length === 2) {
+      nextPlace.coordinates = place.coordinates;
+    }
+
     setValue("nearbyPlaces", [
       ...current,
-      {
-        name:         place.name,
-        type:         place.type,
-        distanceText: place.distanceText || "",
-        coordinates:  place.coordinates || form.location?.coordinates || [0, 0],
-        order:        current.length,
-      },
+      nextPlace,
     ]);
-  }, [form.nearbyPlaces, form.location, setValue]);
+  }, [form.nearbyPlaces, setValue]);
 
   const handleRemovePlace = useCallback((place) => {
     setValue("nearbyPlaces",
@@ -991,7 +1122,14 @@ export default function Step2LocationDetails({ next, back, category }) {
     const e = {};
     if (!form.address)                               e.address  = "Address is required";
     if (!form.pincode || form.pincode.length !== 6)  e.pincode  = "Valid 6-digit pincode required";
-    if (!form.location)                              e.location = "Please pin property location on map";
+    const coordinates = form.location?.coordinates;
+    if (
+      !Array.isArray(coordinates) ||
+      coordinates.length !== 2 ||
+      !coordinates.every(Number.isFinite)
+    ) {
+      e.location = "Please pin property location on map";
+    }
     if (!form.locality)                              e.locality = "Locality is required";
     if (!form.city)                                  e.city     = "City is required";
     if (!form.state)                                 e.state    = "State is required";
@@ -1083,12 +1221,17 @@ export default function Step2LocationDetails({ next, back, category }) {
             <FieldWrapper label="PIN Code" error={errors.pincode}>
               <input
                 value={form.pincode || ""}
-                onChange={(e) =>
-                  setValue(
-                    "pincode",
-                    e.target.value.replace(/\D/g, "").slice(0, 6),
-                  )
-                }
+                onChange={(e) => {
+                  const nextPincode = e.target.value
+                    .replace(/\D/g, "")
+                    .slice(0, 6);
+
+                  // Stop an older coordinate lookup from overwriting fields
+                  // while the user is choosing a new pincode.
+                  coordinatesAbortRef.current?.abort();
+                  pinPlacedByUserRef.current = false;
+                  setValue("pincode", nextPincode);
+                }}
                 placeholder="6-digit pincode"
                 maxLength={6}
                 className={inputCls}
