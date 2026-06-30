@@ -682,7 +682,7 @@ import FALLBACK from "../../assets/fallback.svg";
 import {
   getPropertyCreatorTag,
   isAgentCreatedProperty,
-} from "../../utils/propertyCreatorRole";
+} from "../../Utils/propertyCreatorRole";
 
 const formatPrice = (price) => {
   if (!price || isNaN(price)) return "Price on Request";

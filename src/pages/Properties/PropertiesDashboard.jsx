@@ -64,7 +64,7 @@ import {
 import {
   getPropertyCreatorTag,
   isAgentCreatedProperty,
-} from "../../utils/propertyCreatorRole";
+} from "../../Utils/propertyCreatorRole";
 
 const CATEGORIES = [
   { value: "all", label: "All properties" },

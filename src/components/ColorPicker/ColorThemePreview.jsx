@@ -1,7 +1,7 @@
 import {
   generateColorPalette,
   getContrastTextColor,
-} from "../../utils/colorUtils";
+} from "../../Utils/colorUtils";
 
 export default function ColorThemePreview({ color }) {
   const palette = generateColorPalette(color);

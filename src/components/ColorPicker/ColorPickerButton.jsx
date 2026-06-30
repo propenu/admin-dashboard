@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { HexColorPicker } from "react-colorful";
 import { Palette, Check, X } from "lucide-react";
-import { getContrastTextColor } from "../../utils/colorUtils";
+import { getContrastTextColor } from "../../Utils/colorUtils";
 
 export default function ColorPickerButton({
   color = "#ff6600",

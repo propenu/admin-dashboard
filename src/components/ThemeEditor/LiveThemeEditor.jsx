@@ -18,7 +18,7 @@ import {
 import {
   getContrastTextColor,
   generateColorPalette,
-} from "../../utils/colorUtils";
+} from "../../Utils/colorUtils";
 
 export default function LiveThemeEditor({
   initialColor = "#ff6600",

@@ -1,7 +1,11 @@
 // frontend/admin-dashboard/src/pages/users/AllUserInDetails/EachUserCompoents/RoleUsers.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getUserSearch } from "../../../../features/user/userService";
+import {
+  editBuilderProfile,
+  getUserSearch,
+} from "../../../../features/user/userService";
+import { toast } from "sonner";
 import {
   Mail,
   Phone,
@@ -22,6 +26,9 @@ import {
   TrendingUp,
   CalendarDays,
   MessageSquareText,
+  Pencil,
+  Loader2,
+  Save,
 } from "lucide-react";
 
 // ─── Role Config ──────────────────────────────────────────────────────────────
@@ -506,7 +513,190 @@ const UserDetailModal = ({ user, role, onClose, onWorkInProgress }) => {
 };
 
 // ─── User Card ────────────────────────────────────────────────────────────────
-const UserCard = ({ user, role, index, onViewDetail, onWorkInProgress }) => {
+const BUILDER_EDIT_FIELDS = [
+  { name: "name", label: "Builder Name", icon: UserCheck, span: false },
+  { name: "companyName", label: "Company Name", icon: Building2, span: false },
+  { name: "email", label: "Email", icon: Mail, type: "email", span: false },
+  { name: "phone", label: "Phone", icon: Phone, span: false },
+  { name: "address", label: "Address", icon: MapPin, span: true },
+  { name: "locality", label: "Locality", icon: MapPin, span: false },
+  { name: "city", label: "City", icon: Building2, span: false },
+  { name: "state", label: "State", icon: MapPin, span: false },
+  { name: "pincode", label: "Pincode", icon: Hash, span: false },
+];
+
+const getBuilderEditPayload = (user = {}) =>
+  BUILDER_EDIT_FIELDS.reduce((payload, field) => {
+    payload[field.name] =
+      user?.[field.name] === undefined || user?.[field.name] === null
+        ? ""
+        : String(user[field.name]);
+    return payload;
+  }, {});
+
+const BuilderEditModal = ({ user, cfg, onClose, onSave }) => {
+  const [formData, setFormData] = useState(() => getBuilderEditPayload(user));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleChange = (name, value) => {
+    setFormData((previous) => ({ ...previous, [name]: value }));
+    if (error) setError("");
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const payload = Object.fromEntries(
+      Object.entries(formData).map(([key, value]) => [
+        key,
+        String(value || "").trim(),
+      ]),
+    );
+
+    if (!payload.name || !payload.companyName || !payload.email || !payload.phone) {
+      setError("Name, company name, email and phone are required.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      await editBuilderProfile(user.userId || user._id, payload);
+      onSave(user.userId || user._id, payload);
+      toast.success("Builder profile updated");
+      onClose();
+    } catch (err) {
+      const message =
+        err?.response?.data?.message || "Failed to update builder profile";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
+      style={{
+        backgroundColor: "rgba(15,23,42,0.55)",
+        backdropFilter: "blur(8px)",
+      }}
+      onClick={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+        style={{ animation: "modalIn 0.25s ease both" }}
+      >
+        <div
+          className="h-1.5 w-full"
+          style={{
+            background: `linear-gradient(to right, ${cfg.gradientFrom}, ${cfg.gradientTo}, ${cfg.gradientFrom}66)`,
+          }}
+        />
+
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p
+              className="text-[10px] font-black uppercase tracking-[2px]"
+              style={{ color: cfg.accent }}
+            >
+              Edit Builder Profile
+            </p>
+            <h2 className="mt-1 truncate text-xl font-black text-gray-800">
+              {capitalize(user.name || "Builder")}
+            </h2>
+            <p className="mt-1 text-xs font-medium text-gray-400">
+              Update only approved builder profile fields.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-gray-50 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:opacity-50"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="max-h-[68vh] overflow-y-auto px-5 py-5 sm:px-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {BUILDER_EDIT_FIELDS.map((field) => {
+              const Icon = field.icon;
+              return (
+                <label
+                  key={field.name}
+                  className={field.span ? "sm:col-span-2" : ""}
+                >
+                  <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    <Icon size={12} style={{ color: cfg.accent }} />
+                    {field.label}
+                  </span>
+                  <input
+                    type={field.type || "text"}
+                    value={formData[field.name]}
+                    onChange={(event) =>
+                      handleChange(field.name, event.target.value)
+                    }
+                    className={`w-full rounded-xl border-2 border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-700 outline-none transition-all placeholder:text-gray-300 ${cfg.inputFocus} focus:ring-2 focus:ring-[#27AE60]/10`}
+                    placeholder={`Enter ${field.label.toLowerCase()}`}
+                  />
+                </label>
+              );
+            })}
+          </div>
+
+          {error && (
+            <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-3 py-2">
+              <p className="text-xs font-semibold text-red-500">{error}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-4 sm:flex-row sm:px-6">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="flex-1 rounded-2xl border-2 border-gray-200 py-3 text-sm font-bold text-gray-500 transition-all hover:bg-gray-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-2xl py-3 text-sm font-black text-white transition-all active:scale-95 disabled:opacity-60 ${cfg.saveBg} ${cfg.saveHover} ${cfg.saveShadow}`}
+          >
+            {saving ? (
+              <>
+                <Loader2 size={15} className="animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save size={15} />
+                Save Profile
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+const UserCard = ({
+  user,
+  role,
+  index,
+  onViewDetail,
+  onWorkInProgress,
+  onEditBuilder,
+}) => {
   const cfg = getRoleCfg(role);
   const RoleIcon = cfg.icon;
 
@@ -711,6 +901,14 @@ const UserCard = ({ user, role, index, onViewDetail, onWorkInProgress }) => {
           >
             <Eye size={12} /> View Profile
           </button>
+          {role === "builder" && (
+            <button
+              onClick={() => onEditBuilder(user)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-[11px] font-black transition-all active:scale-95 ${cfg.saveBg} ${cfg.saveHover} ${cfg.saveShadow}`}
+            >
+              <Pencil size={12} /> Edit Profile
+            </button>
+          )}
           <button
             onClick={() => onWorkInProgress(user.userId || user._id)}
             className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 hover:border-opacity-50 flex items-center justify-center transition-all active:scale-90"
@@ -920,6 +1118,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewingUser, setViewingUser] = useState(null);
+  const [editingBuilder, setEditingBuilder] = useState(null);
   const [filters, setFilters] = useState({
     search: "",
     state: "",
@@ -946,6 +1145,15 @@ const RoleUsers = ({ role = "sales_manager" }) => {
   }, [role]);
 
   const handleWorkInProgress = (id) => navigate(`/dashboard/users/${id}`);
+
+  const handleBuilderUpdated = (id, payload) => {
+    setUsers((currentUsers) =>
+      currentUsers.map((user) => {
+        const userId = user.userId || user._id;
+        return userId === id ? { ...user, ...payload } : user;
+      }),
+    );
+  };
 
   const filtered = useMemo(() => {
     const q = filters.search.toLowerCase();
@@ -985,6 +1193,15 @@ const RoleUsers = ({ role = "sales_manager" }) => {
           role={role}
           onClose={() => setViewingUser(null)}
           onWorkInProgress={handleWorkInProgress}
+        />
+      )}
+
+      {role === "builder" && editingBuilder && (
+        <BuilderEditModal
+          user={editingBuilder}
+          cfg={cfg}
+          onClose={() => setEditingBuilder(null)}
+          onSave={handleBuilderUpdated}
         />
       )}
 
@@ -1121,6 +1338,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
                   index={idx}
                   onViewDetail={setViewingUser}
                   onWorkInProgress={handleWorkInProgress}
+                  onEditBuilder={setEditingBuilder}
                 />
               ))}
             </div>

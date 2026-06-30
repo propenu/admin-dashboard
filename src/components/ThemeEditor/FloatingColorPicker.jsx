@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { HexColorPicker } from "react-colorful";
 import { Check, X, Pipette, Copy, Sparkles } from "lucide-react";
-import { getContrastTextColor } from "../../utils/colorUtils";
+import { getContrastTextColor } from "../../Utils/colorUtils";
 
 export default function FloatingColorPicker({
   position,

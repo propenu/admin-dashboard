@@ -11,7 +11,7 @@ import { saveAs } from "file-saver";
 import {
   getPropertyCreatorTag,
   isAgentCreatedProperty,
-} from "../../utils/propertyCreatorRole";
+} from "../../Utils/propertyCreatorRole";
 
 import {
   MapPin,
