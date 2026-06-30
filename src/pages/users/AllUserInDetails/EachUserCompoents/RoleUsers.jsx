@@ -327,7 +327,7 @@ const formatKycStatus = (status) =>
   status ? capitalize(status.replace(/_/g, " ")) : "Not available";
 
 const getCompanyName = (user) =>
-  user?.companyName?.trim() || "Builder not added or Backend not added";
+  user?.companyName?.trim() || "Please add company name";
 
 // ─── User Detail Modal ────────────────────────────────────────────────────────
 const UserDetailModal = ({ user, role, onClose, onWorkInProgress }) => {
