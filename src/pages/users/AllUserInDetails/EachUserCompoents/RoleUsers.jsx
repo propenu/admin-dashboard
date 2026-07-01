@@ -3,7 +3,12 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   editBuilderProfile,
+  editUserProfile,
   getUserSearch,
+  requestOtpBuilderPhoneNumber,
+  verifyBuilderPhoneNumberOTP,
+  requestOtpUserPhoneNumber,
+  verifyUserPhoneNumberOTP,
 } from "../../../../features/user/userService";
 import { toast } from "sonner";
 import {
@@ -34,6 +39,40 @@ import {
 // ─── Role Config ──────────────────────────────────────────────────────────────
 //  Each role gets its own: label, icon, accent colour, avatar palette, badge text
 const ROLE_CONFIG = {
+  user: {
+    label: "Owner",
+    shortLabel: "Ow",
+    icon: TrendingUp,
+    accent: "#27AE60",
+    accentLight: "#f0fdf4",
+    accentBorder: "#27AE60",
+    gradientFrom: "#27AE60",
+    gradientTo: "#1a9e54",
+    avatarBg: "bg-[#e8f8ef]",
+    avatarText: "text-[#27AE60]",
+    avatarBorder: "border-[#27AE60]/25",
+    badgeBg: "bg-[#e8f8ef]",
+    badgeText: "text-[#27AE60]",
+    badgeBorder: "border-[#27AE60]/25",
+    cardHover:
+      "hover:border-[#27AE60]/25 hover:shadow-[0_12px_40px_rgba(39,174,96,0.13)]",
+    btnBorder: "border-[#27AE60]/20",
+    btnText: "text-[#27AE60]",
+    btnHover: "hover:bg-[#f0fdf4]",
+    inputFocus: "focus:border-[#27AE60]",
+    selectActive: "border-[#27AE60]/40 bg-[#f0fdf4] text-[#27AE60]",
+    dotColor: "bg-[#27AE60]",
+    dotShadow: "rgba(39,174,96,0.4)",
+    loadingText: "text-[#27AE60]/50",
+    divider: "from-[#27AE60]/25 via-[#27AE60]/8",
+    saveBg: "bg-[#27AE60]",
+    saveHover: "hover:bg-[#219653]",
+    saveShadow: "shadow-[0_6px_20px_rgba(39,174,96,0.3)]",
+    iconBg: "bg-[#f0faf5]",
+    iconBorder: "border-[#27AE60]/12",
+    statBg: "bg-[#f8fffe]",
+    statBorder: "border-[#27AE60]/08",
+  },
   sales_manager: {
     label: "Sales Manager",
     shortLabel: "SM",
@@ -101,6 +140,40 @@ const ROLE_CONFIG = {
     // iconBorder: "border-[#2563EB]/12",
     // statBg: "bg-[#f0f4ff]",
     // statBorder: "border-[#2563EB]/08",
+    accent: "#27AE60",
+    accentLight: "#f0fdf4",
+    accentBorder: "#27AE60",
+    gradientFrom: "#27AE60",
+    gradientTo: "#1a9e54",
+    avatarBg: "bg-[#e8f8ef]",
+    avatarText: "text-[#27AE60]",
+    avatarBorder: "border-[#27AE60]/25",
+    badgeBg: "bg-[#e8f8ef]",
+    badgeText: "text-[#27AE60]",
+    badgeBorder: "border-[#27AE60]/25",
+    cardHover:
+      "hover:border-[#27AE60]/25 hover:shadow-[0_12px_40px_rgba(39,174,96,0.13)]",
+    btnBorder: "border-[#27AE60]/20",
+    btnText: "text-[#27AE60]",
+    btnHover: "hover:bg-[#f0fdf4]",
+    inputFocus: "focus:border-[#27AE60]",
+    selectActive: "border-[#27AE60]/40 bg-[#f0fdf4] text-[#27AE60]",
+    dotColor: "bg-[#27AE60]",
+    dotShadow: "rgba(39,174,96,0.4)",
+    loadingText: "text-[#27AE60]/50",
+    divider: "from-[#27AE60]/25 via-[#27AE60]/8",
+    saveBg: "bg-[#27AE60]",
+    saveHover: "hover:bg-[#219653]",
+    saveShadow: "shadow-[0_6px_20px_rgba(39,174,96,0.3)]",
+    iconBg: "bg-[#f0faf5]",
+    iconBorder: "border-[#27AE60]/12",
+    statBg: "bg-[#f8fffe]",
+    statBorder: "border-[#27AE60]/08",
+  },
+  agent: {
+    label: "Agent",
+    shortLabel: "AG",
+    icon: UserCheck,
     accent: "#27AE60",
     accentLight: "#f0fdf4",
     accentBorder: "#27AE60",
@@ -294,7 +367,7 @@ const ROLE_CONFIG = {
   },
 };
 
-const getRoleCfg = (role) => ROLE_CONFIG[role] || ROLE_CONFIG.sales_manager;
+const getRoleCfg = (role) => ROLE_CONFIG[role]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getInitials = (name = "") =>
@@ -321,6 +394,31 @@ const formatCreatedAt = (createdAt) => {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+};
+
+const toDateInputValue = (createdAt) => {
+  if (!createdAt) return "";
+
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toISOString().split("T")[0];
+};
+
+const getSearchableUserText = (user) => {
+  const visited = new WeakSet();
+
+  const collectValues = (value) => {
+    if (value === null || value === undefined) return [];
+    if (value instanceof Date) return [value.toISOString()];
+    if (typeof value !== "object") return [String(value)];
+    if (visited.has(value)) return [];
+
+    visited.add(value);
+    return Object.values(value).flatMap(collectValues);
+  };
+
+  return collectValues(user).join(" ").toLowerCase();
 };
 
 const formatKycStatus = (status) =>
@@ -513,20 +611,17 @@ const UserDetailModal = ({ user, role, onClose, onWorkInProgress }) => {
 };
 
 // ─── User Card ────────────────────────────────────────────────────────────────
-const BUILDER_EDIT_FIELDS = [
-  { name: "name", label: "Builder Name", icon: UserCheck, span: false },
-  { name: "companyName", label: "Company Name", icon: Building2, span: false },
+const PROFILE_EDIT_FIELDS = [
+  { name: "name", label: "Name", icon: UserCheck, span: false },
   { name: "email", label: "Email", icon: Mail, type: "email", span: false },
-  { name: "phone", label: "Phone", icon: Phone, span: false },
-  { name: "address", label: "Address", icon: MapPin, span: true },
+  { name: "phone", label: "Phone", icon: Phone, span: true },
   { name: "locality", label: "Locality", icon: MapPin, span: false },
-  { name: "city", label: "City", icon: Building2, span: false },
   { name: "state", label: "State", icon: MapPin, span: false },
   { name: "pincode", label: "Pincode", icon: Hash, span: false },
 ];
 
-const getBuilderEditPayload = (user = {}) =>
-  BUILDER_EDIT_FIELDS.reduce((payload, field) => {
+const getProfileEditPayload = (user = {}) =>
+  PROFILE_EDIT_FIELDS.reduce((payload, field) => {
     payload[field.name] =
       user?.[field.name] === undefined || user?.[field.name] === null
         ? ""
@@ -534,14 +629,141 @@ const getBuilderEditPayload = (user = {}) =>
     return payload;
   }, {});
 
-const BuilderEditModal = ({ user, cfg, onClose, onSave }) => {
-  const [formData, setFormData] = useState(() => getBuilderEditPayload(user));
+const normalizeProfilePhone = (phone = "") => {
+  const value = String(phone || "").trim();
+  if (!value) return "";
+  if (value.startsWith("+")) return `+${value.slice(1).replace(/\D/g, "")}`;
+
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 10) return `+91${digits}`;
+  return digits ? `+${digits}` : "";
+};
+
+const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
+  const isBuilder = role === "builder";
+  const profileLabel = isBuilder ? "Builder" : "Owner";
+  const userId = user.userId || user._id;
+  const [formData, setFormData] = useState(() => getProfileEditPayload(user));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [verifiedPhone, setVerifiedPhone] = useState(() =>
+    normalizeProfilePhone(user?.phone),
+  );
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+
+  const normalizedPhone = normalizeProfilePhone(formData.phone);
+  const originalPhone = normalizeProfilePhone(user?.phone);
+  const phoneChanged = normalizedPhone !== originalPhone;
+  const phoneVerified = !phoneChanged || verifiedPhone === normalizedPhone;
 
   const handleChange = (name, value) => {
     setFormData((previous) => ({ ...previous, [name]: value }));
     if (error) setError("");
+    if (name === "phone") {
+      setOtp("");
+      setOtpSent(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    const phone = normalizeProfilePhone(formData.phone);
+
+    if (!/^\+\d{10,15}$/.test(phone)) {
+      setError("Enter phone number with country code, for example +919876543224.");
+      return;
+    }
+
+    setSendingOtp(true);
+    setError("");
+
+    try {
+      const requestOtp = isBuilder
+        ? requestOtpBuilderPhoneNumber
+        : requestOtpUserPhoneNumber;
+      await requestOtp(userId, { phone });
+      setFormData((previous) => ({ ...previous, phone }));
+      setOtpSent(true);
+      setVerifiedPhone("");
+      toast.success(`OTP sent to ${profileLabel.toLowerCase()} phone`);
+    } catch (err) {
+      const message =
+        err?.response?.data?.message ||
+        `Failed to send ${profileLabel.toLowerCase()} phone OTP`;
+      setError(message);
+      toast.error(message);
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const phone = normalizeProfilePhone(formData.phone);
+    const cleanOtp = String(otp || "").replace(/\D/g, "").slice(0, 4);
+
+    if (!/^\+\d{10,15}$/.test(phone)) {
+      setError("Enter phone number with country code, for example +919876543224.");
+      return;
+    }
+
+    if (!/^\d{4}$/.test(cleanOtp)) {
+      setError("Enter the 4 digit OTP.");
+      return;
+    }
+
+    setVerifyingOtp(true);
+    setError("");
+
+    try {
+      const verifyOtp = isBuilder
+        ? verifyBuilderPhoneNumberOTP
+        : verifyUserPhoneNumberOTP;
+      await verifyOtp(userId, { phone, phoneOtp: cleanOtp });
+      setFormData((previous) => ({ ...previous, phone }));
+      setVerifiedPhone(phone);
+      setOtp(cleanOtp);
+      toast.success(`${profileLabel} phone verified`);
+    } catch (err) {
+      const message =
+        err?.response?.data?.message || "Invalid OTP. Please try again.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const handleOtpDigitChange = (index, value, input) => {
+    const digit = value.replace(/\D/g, "").slice(-1);
+    const digits = otp.padEnd(4, " ").split("");
+    digits[index] = digit || " ";
+    setOtp(digits.join("").trimEnd());
+
+    if (digit && index < 3) {
+      input.parentElement.children[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, event) => {
+    if (event.key === "Backspace" && !otp[index] && index > 0) {
+      event.currentTarget.parentElement.children[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (event) => {
+    const pastedOtp = event.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 4);
+
+    if (!pastedOtp) return;
+
+    event.preventDefault();
+    setOtp(pastedOtp);
+    const inputs = event.currentTarget.querySelectorAll("input");
+    inputs[Math.min(pastedOtp.length, 4) - 1]?.focus();
   };
 
   const handleSubmit = async (event) => {
@@ -554,8 +776,20 @@ const BuilderEditModal = ({ user, cfg, onClose, onSave }) => {
       ]),
     );
 
-    if (!payload.name || !payload.companyName || !payload.email || !payload.phone) {
-      setError("Name, company name, email and phone are required.");
+    if (!payload.name || !payload.email || !payload.phone) {
+      setError("Name, email and phone are required.");
+      return;
+    }
+
+    payload.phone = normalizeProfilePhone(payload.phone);
+
+    if (!/^\+\d{10,15}$/.test(payload.phone)) {
+      setError("Enter phone number with country code, for example +919876543224.");
+      return;
+    }
+
+    if (!phoneVerified) {
+      setError(`Verify the new ${profileLabel.toLowerCase()} phone number before saving.`);
       return;
     }
 
@@ -563,13 +797,15 @@ const BuilderEditModal = ({ user, cfg, onClose, onSave }) => {
     setError("");
 
     try {
-      await editBuilderProfile(user.userId || user._id, payload);
-      onSave(user.userId || user._id, payload);
-      toast.success("Builder profile updated");
+      const editProfile = isBuilder ? editBuilderProfile : editUserProfile;
+      await editProfile(userId, payload);
+      onSave(userId, payload);
+      toast.success(`${profileLabel} profile updated`);
       onClose();
     } catch (err) {
       const message =
-        err?.response?.data?.message || "Failed to update builder profile";
+        err?.response?.data?.message ||
+        `Failed to update ${profileLabel.toLowerCase()} profile`;
       setError(message);
       toast.error(message);
     } finally {
@@ -579,7 +815,7 @@ const BuilderEditModal = ({ user, cfg, onClose, onSave }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
+      className="fixed inset-0 z-50 flex justify-end"
       style={{
         backgroundColor: "rgba(15,23,42,0.55)",
         backdropFilter: "blur(8px)",
@@ -588,8 +824,8 @@ const BuilderEditModal = ({ user, cfg, onClose, onSave }) => {
     >
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl"
-        style={{ animation: "modalIn 0.25s ease both" }}
+        className="flex h-full w-full max-w-xl flex-col overflow-hidden bg-white shadow-2xl sm:rounded-l-3xl"
+        style={{ animation: "drawerIn 0.28s ease both" }}
       >
         <div
           className="h-1.5 w-full"
@@ -604,13 +840,13 @@ const BuilderEditModal = ({ user, cfg, onClose, onSave }) => {
               className="text-[10px] font-black uppercase tracking-[2px]"
               style={{ color: cfg.accent }}
             >
-              Edit Builder Profile
+              Edit {profileLabel} Profile
             </p>
             <h2 className="mt-1 truncate text-xl font-black text-gray-800">
-              {capitalize(user.name || "Builder")}
+              {capitalize(user.name || profileLabel)}
             </h2>
             <p className="mt-1 text-xs font-medium text-gray-400">
-              Update only approved builder profile fields.
+              Update name, email, locality, state, pincode, or phone.
             </p>
           </div>
           <button
@@ -623,10 +859,11 @@ const BuilderEditModal = ({ user, cfg, onClose, onSave }) => {
           </button>
         </div>
 
-        <div className="max-h-[68vh] overflow-y-auto px-5 py-5 sm:px-6">
+        <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {BUILDER_EDIT_FIELDS.map((field) => {
+            {PROFILE_EDIT_FIELDS.map((field) => {
               const Icon = field.icon;
+              const isPhone = field.name === "phone";
               return (
                 <label
                   key={field.name}
@@ -642,9 +879,104 @@ const BuilderEditModal = ({ user, cfg, onClose, onSave }) => {
                     onChange={(event) =>
                       handleChange(field.name, event.target.value)
                     }
+                    onBlur={() => {
+                      if (isPhone) {
+                        setFormData((previous) => ({
+                          ...previous,
+                          phone: normalizeProfilePhone(previous.phone),
+                        }));
+                      }
+                    }}
                     className={`w-full rounded-xl border-2 border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-700 outline-none transition-all placeholder:text-gray-300 ${cfg.inputFocus} focus:ring-2 focus:ring-[#27AE60]/10`}
-                    placeholder={`Enter ${field.label.toLowerCase()}`}
+                    placeholder={isPhone ? "+919876543224" : `Enter ${field.label.toLowerCase()}`}
                   />
+                  {isPhone && (
+                    <div
+                      className="mt-3 rounded-2xl border p-4"
+                      style={{
+                        backgroundColor: cfg.accentLight,
+                        borderColor: `${cfg.accent}25`,
+                      }}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={!phoneChanged || sendingOtp || verifyingOtp || saving}
+                          className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition-all ${
+                            phoneChanged
+                              ? `${cfg.saveBg} ${cfg.saveHover} text-white`
+                              : "bg-gray-200 text-gray-400"
+                          } disabled:cursor-not-allowed disabled:opacity-60`}
+                        >
+                          {sendingOtp ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <MessageSquareText size={13} />
+                          )}
+                          Send WhatsApp OTP
+                        </button>
+                        <span
+                          className={`flex-1 text-[11px] font-bold ${
+                            phoneVerified ? "text-green-600" : "text-gray-400"
+                          }`}
+                        >
+                          {phoneVerified
+                            ? "Phone verified"
+                            : phoneChanged
+                              ? "Verification required for new phone"
+                              : "Current phone already verified"}
+                        </span>
+                      </div>
+
+                      {otpSent && !phoneVerified && (
+                        <div className="mt-4 flex flex-col gap-3 border-t border-black/5 pt-4 sm:flex-row sm:items-center">
+                          <div
+                            className="flex items-center justify-between gap-2 sm:justify-start"
+                            onPaste={handleOtpPaste}
+                          >
+                            {[0, 1, 2, 3].map((index) => (
+                              <input
+                                key={index}
+                                type="text"
+                                inputMode="numeric"
+                                autoComplete={index === 0 ? "one-time-code" : "off"}
+                                maxLength={1}
+                                aria-label={`OTP digit ${index + 1}`}
+                                value={otp[index] || ""}
+                                onChange={(event) =>
+                                  handleOtpDigitChange(
+                                    index,
+                                    event.target.value,
+                                    event.currentTarget,
+                                  )
+                                }
+                                onKeyDown={(event) =>
+                                  handleOtpKeyDown(index, event)
+                                }
+                                className={`h-12 w-12 rounded-xl border-2 border-white bg-white text-center text-lg font-black text-gray-700 shadow-sm outline-none transition-all ${cfg.inputFocus} focus:ring-2 focus:ring-[#27AE60]/10`}
+                              />
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleVerifyOtp}
+                            disabled={
+                              verifyingOtp || saving || !/^\d{4}$/.test(otp)
+                            }
+                            className={`inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-xs font-black text-white transition-all disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none ${cfg.saveBg} ${cfg.saveHover}`}
+                          >
+                            {verifyingOtp ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <Shield size={13} />
+                            )}
+                            Verify OTP
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </label>
               );
             })}
@@ -657,7 +989,7 @@ const BuilderEditModal = ({ user, cfg, onClose, onSave }) => {
           )}
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-4 sm:flex-row sm:px-6">
+        <div className="flex flex-col gap-3 border-t border-gray-100 bg-white px-5 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.04)] sm:flex-row sm:px-7">
           <button
             type="button"
             onClick={onClose}
@@ -695,7 +1027,7 @@ const UserCard = ({
   index,
   onViewDetail,
   onWorkInProgress,
-  onEditBuilder,
+  onEditProfile,
 }) => {
   const cfg = getRoleCfg(role);
   const RoleIcon = cfg.icon;
@@ -765,6 +1097,43 @@ const UserCard = ({
             background: `linear-gradient(to right, #f3f4f6, ${cfg.gradientFrom}1a, transparent)`,
           }}
         />
+
+        {user.userCode && (
+          <div
+            className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5"
+            style={{
+              background: `linear-gradient(135deg, ${cfg.accentLight}, #ffffff)`,
+              borderColor: `${cfg.accent}25`,
+            }}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <div
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white shadow-sm"
+                style={{ backgroundColor: cfg.accent }}
+              >
+                <Hash size={13} />
+              </div>
+              <div className="min-w-0">
+                <p
+                  className="text-[8px] font-black uppercase tracking-[0.18em]"
+                  style={{ color: cfg.accent }}
+                >
+                  Unique User Code
+                </p>
+                <p className="truncate font-mono text-[11px] font-black tracking-wide text-gray-700">
+                  {user.userCode}
+                </p>
+              </div>
+            </div>
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{
+                backgroundColor: cfg.accent,
+                boxShadow: `0 0 0 4px ${cfg.accent}18`,
+              }}
+            />
+          </div>
+        )}
 
         {/* Contact info */}
         <div className="space-y-1.5">
@@ -901,9 +1270,9 @@ const UserCard = ({
           >
             <Eye size={12} /> View Profile
           </button>
-          {role === "builder" && (
+          {(role === "builder" || role === "user") && (
             <button
-              onClick={() => onEditBuilder(user)}
+              onClick={() => onEditProfile(user)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-[11px] font-black transition-all active:scale-95 ${cfg.saveBg} ${cfg.saveHover} ${cfg.saveShadow}`}
             >
               <Pencil size={12} /> Edit Profile
@@ -999,9 +1368,17 @@ const FilterBar = ({ users, filters, setFilters, cfg }) => {
     filters.city,
     filters.locality,
     filters.pincode,
+    filters.joinedDate,
   ].filter(Boolean).length;
   const clear = () =>
-    setFilters({ search: "", state: "", city: "", locality: "", pincode: "" });
+    setFilters({
+      search: "",
+      state: "",
+      city: "",
+      locality: "",
+      pincode: "",
+      joinedDate: "",
+    });
 
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
@@ -1031,7 +1408,7 @@ const FilterBar = ({ users, filters, setFilters, cfg }) => {
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-2">
         <Select
           icon={<MapPin size={12} />}
           placeholder="All States"
@@ -1078,6 +1455,22 @@ const FilterBar = ({ users, filters, setFilters, cfg }) => {
             className={`w-full pl-8 pr-3 py-2.5 text-xs border-2 border-gray-200 rounded-xl focus:outline-none ${cfg.inputFocus} transition-colors`}
           />
         </div>
+        <div className="relative">
+          <CalendarDays
+            size={12}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
+          <input
+            type="date"
+            value={filters.joinedDate}
+            onChange={(e) =>
+              setFilters((p) => ({ ...p, joinedDate: e.target.value }))
+            }
+            className={`w-full pl-8 pr-3 py-2.5 text-xs border-2 border-gray-200 rounded-xl focus:outline-none ${cfg.inputFocus} transition-colors ${
+              filters.joinedDate ? cfg.selectActive : ""
+            }`}
+          />
+        </div>
       </div>
 
       {activeCount > 0 && (
@@ -1118,13 +1511,14 @@ const RoleUsers = ({ role = "sales_manager" }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewingUser, setViewingUser] = useState(null);
-  const [editingBuilder, setEditingBuilder] = useState(null);
+  const [editingProfile, setEditingProfile] = useState(null);
   const [filters, setFilters] = useState({
     search: "",
     state: "",
     city: "",
     locality: "",
     pincode: "",
+    joinedDate: "",
   });
 
   useEffect(() => {
@@ -1146,7 +1540,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
 
   const handleWorkInProgress = (id) => navigate(`/dashboard/users/${id}`);
 
-  const handleBuilderUpdated = (id, payload) => {
+  const handleProfileUpdated = (id, payload) => {
     setUsers((currentUsers) =>
       currentUsers.map((user) => {
         const userId = user.userId || user._id;
@@ -1158,12 +1552,17 @@ const RoleUsers = ({ role = "sales_manager" }) => {
   const filtered = useMemo(() => {
     const q = filters.search.toLowerCase();
     return users.filter((u) => {
-      if (q && !`${u.name} ${u.email} ${u.phone}`.toLowerCase().includes(q))
+      const createdDate = toDateInputValue(u.createdAt);
+      const searchable = `${getSearchableUserText(u)} ${createdDate}`;
+
+      if (q && !searchable.includes(q))
         return false;
       if (filters.state && u.state !== filters.state) return false;
       if (filters.city && u.city !== filters.city) return false;
       if (filters.locality && u.locality !== filters.locality) return false;
       if (filters.pincode && !u.pincode?.includes(filters.pincode))
+        return false;
+      if (filters.joinedDate && createdDate !== filters.joinedDate)
         return false;
       return true;
     });
@@ -1174,6 +1573,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
     {
       sales_manager: "bg-[#f5fcf8]",
       sales_agent: "bg-[#f0f6ff]",
+      agent: "bg-[#f5fcf8]",
       builder: "bg-[#fffdf0]",
       accounts: "bg-[#faf8ff]",
       customer_care: "bg-[#f0fbff]",
@@ -1185,6 +1585,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
         @keyframes cardIn  { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
         @keyframes dotBounce { 0%,80%,100%{transform:scale(0.55);opacity:0.35;} 40%{transform:scale(1);opacity:1;} }
         @keyframes modalIn { from{opacity:0;transform:scale(0.94) translateY(10px);} to{opacity:1;transform:scale(1) translateY(0);} }
+        @keyframes drawerIn { from{opacity:0;transform:translateX(100%);} to{opacity:1;transform:translateX(0);} }
       `}</style>
 
       {viewingUser && (
@@ -1196,12 +1597,13 @@ const RoleUsers = ({ role = "sales_manager" }) => {
         />
       )}
 
-      {role === "builder" && editingBuilder && (
-        <BuilderEditModal
-          user={editingBuilder}
+      {(role === "builder" || role === "user") && editingProfile && (
+        <ProfileEditModal
+          user={editingProfile}
+          role={role}
           cfg={cfg}
-          onClose={() => setEditingBuilder(null)}
-          onSave={handleBuilderUpdated}
+          onClose={() => setEditingProfile(null)}
+          onSave={handleProfileUpdated}
         />
       )}
 
@@ -1315,6 +1717,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
                   city: "",
                   locality: "",
                   pincode: "",
+                  joinedDate: "",
                 })
               }
               className={`px-4 py-2 rounded-xl text-white text-xs font-bold transition-all ${cfg.saveBg} ${cfg.saveHover}`}
@@ -1338,7 +1741,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
                   index={idx}
                   onViewDetail={setViewingUser}
                   onWorkInProgress={handleWorkInProgress}
-                  onEditBuilder={setEditingBuilder}
+                  onEditProfile={setEditingProfile}
                 />
               ))}
             </div>

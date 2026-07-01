@@ -254,7 +254,6 @@ export const sentBulkWhatsAppNotification = (formData) => {
 }
 ///////////////////////////////////////////////////////////////////
 
-
 export const getEmailCampaignStatus = (campaignId) => {
   return apiClient.get(
     `${SERVICES.USER}/email/send-email-campaign-status`,
@@ -263,12 +262,40 @@ export const getEmailCampaignStatus = (campaignId) => {
     },
   );
 };
-
+///////////////////////////////////////////////////////////////////
 
 
 export const editBuilderProfile = (id, formData) => {
   return apiClient.patch(`${SERVICES.USER}/builder/profile/${id}`, formData);
 };
+
+export const editUserProfile = (id, formData) => {
+  return apiClient.patch(`${SERVICES.USER}/auth/${id}/profile`, formData);
+};
+
+export const requestOtpBuilderPhoneNumber = (id, formData) => {
+  return apiClient.post(
+    `${SERVICES.USER}/auth/${id}/profile/phone/request-otp`,
+    formData,
+  );
+};
+
+export const verifyBuilderPhoneNumberOTP = (id, formData) => {
+  return apiClient.patch(`${SERVICES.USER}/auth/${id}/profile`, formData);
+};
+
+export const requestOtpUserPhoneNumber = (id, formData) => {
+  return apiClient.post(
+    `${SERVICES.USER}/auth/${id}/profile/phone/request-otp`,
+    formData,
+  );
+};
+
+export const verifyUserPhoneNumberOTP = (id, formData) => {
+  return apiClient.patch(`${SERVICES.USER}/auth/${id}/profile`, formData);
+};
+
+
 
 
 

@@ -71,7 +71,10 @@ const filtered = useMemo(() => {
 
 
     if (selectedDate) {
-      const userDate = new Date(u.createdAt).toISOString().split("T")[0];
+      const createdAt = new Date(u.createdAt);
+      const userDate = Number.isNaN(createdAt.getTime())
+        ? ""
+        : createdAt.toISOString().split("T")[0];
 
       if (userDate !== selectedDate) return false;
     }
@@ -89,6 +92,7 @@ const filtered = useMemo(() => {
   filterPhoneVerified,
   filterIsActive,
   filterRole,
+  selectedDate,
 
 ]);
 

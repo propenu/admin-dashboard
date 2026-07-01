@@ -84,6 +84,7 @@ const SignUP = lazy(() => import("./Auth/SignUp"));
 const Profile = lazy(()=> import("./pages/profile/Profile"))
 const AllAgents = lazy(() => import("./pages/users/AllUserInDetails/Agents.jsx"));
 const Builders = lazy(() => import("./pages/users/AllUserInDetails/Builders.jsx"));
+const Owners = lazy(() => import("./pages/users/AllUserInDetails/PropenuUser.jsx"));
 const SalesAgent = lazy(() => import("./pages/users/AllUserInDetails/SalesAgent.jsx"));
 const SalesManagers = lazy(() => import("./pages/users/AllUserInDetails/SalesManagers.jsx"));
 const Accounts = lazy(() => import("./pages/users/AllUserInDetails/Accounts.jsx"));
@@ -302,6 +303,7 @@ function App() {
                 <Route path="customercare" element={<CustomerCare />} />
                 <Route path="all-agents" element={<AllAgents />} />
                 <Route path="builders" element={<Builders />} />
+                <Route path="owners" element={<Owners role="user" />} />
                 <Route path="sales-agents" element={<SalesAgent />} />
                 <Route path="sales-managers" element={<SalesManagers />} />
 

@@ -1,9 +1,9 @@
 // src\pages\users\AllUserInDetails\Builders.jsx
 
-import RoleUsers from "./EachUserCompoents/RoleUsers";
+import PropenuUser from "./PropenuUser";
 
 const Builders = () => {
-  return <RoleUsers role="builder" />;
+  return <PropenuUser role="builder" />;
 };
 
 export default Builders;

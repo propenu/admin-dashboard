@@ -320,6 +320,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
             { path: "/users", label: "All Users", icon: AllUsersIcon },
             { path: "/builders", label: "Builders", icon: BuilderIcon },
             { path: "/all-agents", label: "Agents", icon: AgentIcon },
+            { path: "/owners", label: "Owners", icon: OwnerIcon },
           ],
         },
 
@@ -515,6 +516,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
             { path: "/users", label: "All Users", icon: AllUsersIcon },
             { path: "/builders", label: "Builders", icon: BuilderIcon },
             { path: "/all-agents", label: "Agents", icon: AgentIcon },
+            { path: "/owners", label: "Owners", icon: OwnerIcon },
           ],
         },
 
