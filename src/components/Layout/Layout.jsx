@@ -45,7 +45,7 @@ export default function MainLayout() {
       <Navbar toggleSidebar={() => setIsMobileOpen(true)} />
 
       {/* Body */}
-      <div className="flex pt-16">
+      <div className="flex min-w-0 pt-16">
 
         <Sidebar
           expanded={isHovered}
@@ -57,7 +57,7 @@ export default function MainLayout() {
 
         {/* Main Content */}
         <main
-          className="flex-1 min-h-[calc(100vh-64px)] transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          className="min-h-[calc(100vh-64px)] min-w-0 flex-1 transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
           style={{
             ...CONTENT_BACKGROUND,
             marginLeft: isDesktop
@@ -67,7 +67,7 @@ export default function MainLayout() {
               : "0px",
           }}
         >
-          <div className="p-3 sm:p-4 lg:p-6">
+          <div className="min-w-0 max-w-full p-3 sm:p-4 lg:p-6">
             <Outlet />
           </div>
         </main>

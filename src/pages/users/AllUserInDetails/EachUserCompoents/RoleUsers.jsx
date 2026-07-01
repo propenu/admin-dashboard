@@ -616,6 +616,7 @@ const PROFILE_EDIT_FIELDS = [
   { name: "email", label: "Email", icon: Mail, type: "email", span: false },
   { name: "phone", label: "Phone", icon: Phone, span: true },
   { name: "locality", label: "Locality", icon: MapPin, span: false },
+  { name: "city", label: "City", icon: Building2, span: false },
   { name: "state", label: "State", icon: MapPin, span: false },
   { name: "pincode", label: "Pincode", icon: Hash, span: false },
 ];
@@ -846,7 +847,7 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
               {capitalize(user.name || profileLabel)}
             </h2>
             <p className="mt-1 text-xs font-medium text-gray-400">
-              Update name, email, locality, state, pincode, or phone.
+              Update name, email, locality, city, state, pincode, or phone.
             </p>
           </div>
           <button

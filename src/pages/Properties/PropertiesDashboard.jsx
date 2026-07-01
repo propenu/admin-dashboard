@@ -205,14 +205,14 @@ function BreakdownRow({ row, total, color = "bg-emerald-500", onClick, selected 
 
 function Panel({ title, sub, icon: Icon, children, action, className = "" }) {
   return (
-    <section className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${className}`}>
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
+    <section className={`min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 ${className}`}>
+      <div className="mb-3 flex min-w-0 flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
+        <div className="min-w-0 max-w-full">
           <div className="flex items-center gap-2">
             {Icon && <Icon className="h-4 w-4 text-emerald-600" />}
             <h2 className="text-[13px] font-medium uppercase tracking-wide text-slate-800">{title}</h2>
           </div>
-          {sub && <p className="mt-0.5 text-[11px] text-slate-400">{sub}</p>}
+          {sub && <p className="mt-0.5 break-words text-[11px] text-slate-400">{sub}</p>}
         </div>
         {action}
       </div>
@@ -408,9 +408,9 @@ function PropertyCard({
           animation: "propertyRowIn 360ms ease both",
           animationDelay: `${Math.min(index * 35, 280)}ms`,
         }}
-        className="group flex min-h-[172px] overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md cursor-pointer sm:min-h-[182px] xl:min-h-[168px]"
+        className="group flex min-h-0 w-full min-w-0 max-w-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md sm:min-h-[182px] sm:flex-row xl:min-h-[168px]"
       >
-      <div className="relative min-h-[172px] w-28 shrink-0 self-stretch overflow-hidden bg-slate-100 sm:w-36 xl:w-40">
+      <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden bg-slate-100 sm:aspect-auto sm:min-h-[182px] sm:w-36 sm:self-stretch xl:min-h-[168px] xl:w-40">
         <img
           src={property?.gallery?.[0]?.url || property?.images?.[0]?.url || FALLBACK_IMAGE}
           alt=""
@@ -439,7 +439,7 @@ function PropertyCard({
         )}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col justify-between p-3.5">
+      <div className="flex min-w-0 flex-1 flex-col justify-between p-3 sm:p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-[13px] font-medium text-slate-800 group-hover:text-emerald-700 sm:text-sm">
@@ -485,14 +485,14 @@ function PropertyCard({
           )}
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-2 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5">
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
               setOpenLeads(true);
             }}
-            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-100"
+            className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-100 sm:py-1"
           >
             <BarChart3 className="h-3 w-3" />
             Leads {leadsLoading ? "..." : totalLeads}
@@ -503,7 +503,7 @@ function PropertyCard({
               event.stopPropagation();
               onOpen();
             }}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-[10px] font-medium text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700"
+            className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-slate-200 px-2.5 py-2 text-[10px] font-medium text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 sm:py-1"
           >
             View <ChevronRight className="h-3 w-3" />
           </button>
@@ -514,7 +514,7 @@ function PropertyCard({
                 event.stopPropagation();
                 onReview();
               }}
-              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-700"
+              className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-medium text-white transition hover:bg-emerald-700 sm:py-1"
             >
               Review <ChevronRight className="h-3 w-3" />
             </button>
@@ -525,7 +525,7 @@ function PropertyCard({
                 event.stopPropagation();
                 onEdit();
               }}
-              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[10px] font-medium text-white transition hover:bg-emerald-700"
+              className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-medium text-white transition hover:bg-emerald-700 sm:py-1"
             >
               Edit
             </button>
@@ -536,7 +536,7 @@ function PropertyCard({
               event.stopPropagation();
               onDelete();
             }}
-            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+            className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-[10px] font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 sm:ml-auto sm:py-1"
           >
             <Trash2 className="h-3 w-3" />
             Delete
@@ -547,7 +547,7 @@ function PropertyCard({
 
       {openLeads && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-2 sm:p-4"
           onClick={(event) => {
             event.stopPropagation();
             setOpenLeads(false);
@@ -557,7 +557,7 @@ function PropertyCard({
             className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-3 sm:gap-4 sm:p-5">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
                   Property leads
@@ -568,7 +568,7 @@ function PropertyCard({
                 <p className="mt-1 text-sm text-slate-500">
                   Total Leads: {totalLeads}
                 </p>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     disabled={!leads.length}
@@ -596,7 +596,7 @@ function PropertyCard({
               </button>
             </div>
 
-            <div className="max-h-[60vh] overflow-auto p-5">
+            <div className="max-h-[70vh] overflow-auto p-3 sm:max-h-[60vh] sm:p-5">
               {leadsLoading ? (
                 <div className="py-10 text-center text-slate-400">Loading leads...</div>
               ) : leads.length === 0 ? (
@@ -939,7 +939,7 @@ export default function PropertiesDashboard() {
   };
 
   return (
-    <main className="min-h-full bg-slate-50 p-3 sm:p-4">
+    <main className="min-h-full w-full min-w-0 max-w-full overflow-x-hidden bg-slate-50 p-2 sm:p-4">
       <ConfirmModal
         open={!!deleteTarget}
         title="Delete Property"
@@ -962,28 +962,28 @@ export default function PropertiesDashboard() {
           }
         `}
       </style>
-      <section className="mx-auto max-w-7xl">
-        <header className="flex flex-col gap-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-          <div>
+      <section className="mx-auto w-full min-w-0 max-w-7xl">
+        <header className="flex min-w-0 max-w-full flex-col gap-4 rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-emerald-700">
               <Building2 className="h-4 w-4" /> Property workspace
             </div>
             <h1 className="mt-1 text-xl font-medium text-slate-900 sm:text-2xl">All properties, one place</h1>
-            <p className="mt-0.5 text-sm text-slate-500">
+            <p className="mt-0.5 break-words text-sm text-slate-500">
               Browse every category by location, status, poster, and posting time.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="relative">
+          <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap">
+            <div className="relative min-w-0">
               <button
                 type="button"
                 onClick={() => setCreateOpen((open) => !open)}
-                className="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                className="inline-flex h-full w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 sm:px-4"
               >
                 <Plus className="h-4 w-4" /> Create property
               </button>
               {createOpen && (
-                <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-2xl border border-emerald-100 bg-white p-2 shadow-xl">
+                <div className="absolute left-0 z-20 mt-2 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-emerald-100 bg-white p-2 shadow-xl lg:left-auto lg:right-0">
                   <p className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
                     Select category
                   </p>
@@ -1004,7 +1004,7 @@ export default function PropertiesDashboard() {
             <button
               type="button"
               onClick={() => navigate("/agent-project")}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-700"
+              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-700 sm:px-4"
             >
               <ShieldCheck className="h-4 w-4" /> Create agent project
             </button>
@@ -1195,7 +1195,7 @@ export default function PropertiesDashboard() {
           </div>
         </Panel>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           <MetricCard
             label="Total Properties"
             value={overview.totalProperties ?? allProperties.length}
@@ -1482,7 +1482,7 @@ export default function PropertiesDashboard() {
                 Showing {(page - 1) * PAGE_SIZE + 1}-
                 {Math.min(page * PAGE_SIZE, visibleProperties.length)} of {visibleProperties.length}
               </span>
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex max-w-full items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
                 <button
                   type="button"
                   disabled={page === 1}
