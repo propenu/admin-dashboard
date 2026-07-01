@@ -29,6 +29,17 @@ import CreatedBy from "./TypeSpecificFields/common/BasicCommonComponents/Created
 import { savePropertyData } from "../../../store/common/propertyThunks";
 import FurnishedStatus from "./TypeSpecificFields/common/BasicCommonComponents/FurnishedStatus";
 
+const PLOT_AREA_TO_SQFT = {
+  sqft: 1,
+  sqmt: 10.7639104167,
+  sqyd: 9,
+  acre: 43560,
+  guntha: 1089,
+  cent: 435.6,
+  kanal: 5445,
+  hectare: 107639.104167,
+};
+
 const PROPERTY_TYPES = {
   residential: [
     { label: "Apartment", value: "apartment" },
@@ -543,6 +554,7 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
       return {
         ...base,
         plotArea: data.plotArea,
+        plotAreaUnit: data.plotAreaUnit || "sqft",
         roadWidthFt: data.roadWidthFt,
         dimensions: data.dimensions,
       };
@@ -684,7 +696,9 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
         break;
 
       case "land":
-        area = Number(form.plotArea);
+        area =
+          Number(form.plotArea) *
+          (PLOT_AREA_TO_SQFT[form.plotAreaUnit || "sqft"] || 1);
         break;
 
       case "agricultural":
@@ -709,6 +723,7 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
     form.price,
     form.carpetArea,
     form.plotArea,
+    form.plotAreaUnit,
     form.totalArea,
     category,
     dispatch,

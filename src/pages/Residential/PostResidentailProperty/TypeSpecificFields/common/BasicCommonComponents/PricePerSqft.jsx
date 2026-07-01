@@ -13,7 +13,7 @@ const PricePerSqft = forwardRef(({ error }, ref) => {
         return "Automatically calculated from Price ÷ Carpet Area";
 
       case "land":
-        return "Automatically calculated from Price ÷ Plot Area";
+        return "Automatically calculated from Price ÷ Plot Area converted to sq.ft";
 
       case "agricultural":
         return "Automatically calculated from Price ÷ Total Area";

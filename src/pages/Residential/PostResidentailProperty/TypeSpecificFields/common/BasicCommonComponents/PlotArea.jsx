@@ -23,7 +23,7 @@ const PlotArea = ({ error }) => {
       </p>
 
       <div
-        className={`flex border-2 rounded-xl overflow-hidden bg-white transition-all ${
+        className={`flex flex-col border-2 rounded-xl overflow-hidden bg-white transition-all sm:flex-row ${
           error
             ? "border-red-300"
             : "border-[#e5e7eb] focus-within:border-[#27AE60] focus-within:ring-2 focus-within:ring-[#27AE60]/10"
@@ -32,17 +32,20 @@ const PlotArea = ({ error }) => {
         {/* Plot Area Input */}
         <input
           type="number"
+          min="0"
+          step="any"
+          inputMode="decimal"
           placeholder="0"
           value={form.plotArea || ""}
           onChange={(e) => updateFieldValue("plotArea", e.target.value)}
-          className="flex-1 px-4 py-3 outline-none text-sm font-semibold placeholder:text-[#c9c9c9] text-[#111827]"
+          className="min-w-0 flex-1 px-4 py-3 outline-none text-sm font-semibold placeholder:text-[#c9c9c9] text-[#111827]"
         />
 
         {/* Dropdown */}
         <select
           value={form.plotAreaUnit || "sqft"}
           onChange={(e) => updateFieldValue("plotAreaUnit", e.target.value)}
-          className="px-4 py-3 border-l border-[#e5e7eb] bg-[#f9fafb] text-sm font-semibold outline-none cursor-pointer"
+          className="w-full px-4 py-3 border-t border-[#e5e7eb] bg-[#f9fafb] text-sm font-semibold outline-none cursor-pointer sm:w-32 sm:border-l sm:border-t-0"
         >
           {PLOT_AREA_UNITS.map((unit) => (
             <option key={unit.value} value={unit.value}>

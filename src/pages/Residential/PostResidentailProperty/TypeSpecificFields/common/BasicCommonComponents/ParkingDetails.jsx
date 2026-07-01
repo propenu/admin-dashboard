@@ -63,6 +63,21 @@ const ParkingDetails = ({ errors = {} }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const twoWheeler = form.parkingDetails?.twoWheeler;
+    const fourWheeler = form.parkingDetails?.fourWheeler;
+
+    if (twoWheeler === "" || twoWheeler === null || twoWheeler === undefined) {
+      updateNestedFieldValue("parkingDetails", "twoWheeler", 0);
+    }
+    if (fourWheeler === "" || fourWheeler === null || fourWheeler === undefined) {
+      updateNestedFieldValue("parkingDetails", "fourWheeler", 0);
+    }
+  }, [
+    form.parkingDetails?.twoWheeler,
+    form.parkingDetails?.fourWheeler,
+  ]);
+
   const selectedParking = PARKING_TYPES.find((p) => p.value === form.parkingType)?.label || "Select parking type";
 
   return (
