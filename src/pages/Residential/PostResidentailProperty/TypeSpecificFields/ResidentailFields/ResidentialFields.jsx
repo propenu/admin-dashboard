@@ -45,15 +45,22 @@ export default function ResidentialFields({ back, next }) {
 
   const validateAll = () => {
     const e = {};
+    const isValidCount = (value) =>
+      value !== "" &&
+      value !== null &&
+      value !== undefined &&
+      Number.isFinite(Number(value)) &&
+      Number(value) >= 0;
+
     if (!form.amenities || form.amenities.length === 0)
       e.amenities = "Select at least one amenity";
     if (!form.parkingType) e.parkingType = "Select parking type";
-    if (!form.parkingDetails?.twoWheeler)
+    if (!isValidCount(form.parkingDetails?.twoWheeler))
       e.twoWheeler = "Enter two wheeler capacity";
-    if (!form.parkingDetails?.fourWheeler)
+    if (!isValidCount(form.parkingDetails?.fourWheeler))
       e.fourWheeler = "Enter four wheeler capacity";
-    if (!form.totalFloors) e.totalFloors = "Enter total floors";
-    if (!form.floorNumber) e.floorNumber = "Enter floor number";
+    if (!isValidCount(form.totalFloors)) e.totalFloors = "Enter total floors";
+    if (!isValidCount(form.floorNumber)) e.floorNumber = "Enter floor number";
     if (!form.flooringType) e.flooringType = "Select flooring type";
     if (!form.kitchenType) e.kitchenType = "Select kitchen type";
     if (!form.description) e.description = "Enter property description";
@@ -65,12 +72,19 @@ export default function ResidentialFields({ back, next }) {
   useEffect(() => {
     setErrors((prev) => {
       const updated = { ...prev };
+      const isValidCount = (value) =>
+        value !== "" &&
+        value !== null &&
+        value !== undefined &&
+        Number.isFinite(Number(value)) &&
+        Number(value) >= 0;
+
       if (form.amenities?.length > 0) delete updated.amenities;
       if (form.parkingType) delete updated.parkingType;
-      if (form.parkingDetails?.twoWheeler) delete updated.twoWheeler;
-      if (form.parkingDetails?.fourWheeler) delete updated.fourWheeler;
-      if (form.totalFloors) delete updated.totalFloors;
-      if (form.floorNumber) delete updated.floorNumber;
+      if (isValidCount(form.parkingDetails?.twoWheeler)) delete updated.twoWheeler;
+      if (isValidCount(form.parkingDetails?.fourWheeler)) delete updated.fourWheeler;
+      if (isValidCount(form.totalFloors)) delete updated.totalFloors;
+      if (isValidCount(form.floorNumber)) delete updated.floorNumber;
       if (form.flooringType) delete updated.flooringType;
       if (form.kitchenType) delete updated.kitchenType;
       if (form.description) delete updated.description;

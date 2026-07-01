@@ -4,11 +4,13 @@ import { useActivePropertySlice } from "../../UsePropertySlice/useActiveProperty
 
 const PLOT_AREA_UNITS = [
   { label: "sq.ft", value: "sqft" },
+  { label: "sq.mt", value: "sqmt" },
   { label: "sq.yd", value: "sqyd" },
   { label: "Acre", value: "acre" },
-  { label: "Hectare", value: "hectare" },
-  { label: "Gunta", value: "gunta" },
+  { label: "Guntha", value: "guntha" },
   { label: "Cent", value: "cent" },
+  { label: "Kanal", value: "kanal" },
+  { label: "Hectare", value: "hectare" },
 ];
 
 const PlotArea = ({ error }) => {

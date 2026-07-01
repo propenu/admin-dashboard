@@ -395,6 +395,12 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
         
   const validateStep1 = () => {
     const e = {};
+    const isValidCount = (value) =>
+      value !== "" &&
+      value !== null &&
+      value !== undefined &&
+      Number.isFinite(Number(value)) &&
+      Number(value) >= 0;
 
     if (!category) e.category = "Please select a category";
     if (!form.listingType) e.listingType = "Please select Sale / Rent";
@@ -409,12 +415,12 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
           e.projectArea = "Project area is required";
       }
       if (category === "residential") {
-        if (form.totalTowers === "" || Number(form.totalTowers) < 0)
+        if (!isValidCount(form.totalTowers))
           e.totalTowers = "Number of towers is required";
       }
-      if (!form.totalUnits || Number(form.totalUnits) <= 0)
+      if (!isValidCount(form.totalUnits))
         e.totalUnits = "Total units are required";
-      if (form.availableUnits === "" || Number(form.availableUnits) < 0)
+      if (!isValidCount(form.availableUnits))
         e.availableUnits = "Available units are required";
       if (Number(form.availableUnits) > Number(form.totalUnits))
         e.availableUnits = "Available units cannot exceed total units";
@@ -430,9 +436,9 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
         e.carpetArea = "Carpet area cannot be greater than Built-up area";
         e.builtUpArea = "Built-up area must be greater than Carpet area";
       }
-      if (!form.bedrooms) e.bedrooms = "Bedrooms required";
-      if (!form.bathrooms) e.bathrooms = "Bathrooms required";
-      if (!form.balconies) e.balconies = "Balconies required";
+      if (!isValidCount(form.bedrooms)) e.bedrooms = "Bedrooms required";
+      if (!isValidCount(form.bathrooms)) e.bathrooms = "Bathrooms required";
+      if (!isValidCount(form.balconies)) e.balconies = "Balconies required";
       if (!form.price) e.price = "Price required";
       if (!form.pricePerSqft) e.pricePerSqft = "Price per sqft required";
       if (!form.facing) e.facing = "Facing required";
@@ -456,8 +462,8 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
     }
 
     if (category === "commercial") {
-      if (Number(form.cabins) <= 0) e.cabins = "Cabins required";
-      if (Number(form.seats) <= 0) e.seats = "Seats required";
+      if (!isValidCount(form.cabins)) e.cabins = "Cabins required";
+      if (!isValidCount(form.seats)) e.seats = "Seats required";
       if (!form.carpetArea) e.carpetArea = "Carpet area required";
       if (!form.builtUpArea) e.builtUpArea = "Built-up area required";
       const carpet = Number(form.carpetArea);

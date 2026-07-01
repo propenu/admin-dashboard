@@ -1,5 +1,5 @@
 
-// StepBasicDetails.jsx — Premium Emerald Theme, Full Responsive
+// StepBasicDetails.jsx
 import React from "react";
 import {
   Home, Layers, Zap, Info, Tag, Clock, Compass,
@@ -12,6 +12,17 @@ import CreatedBy  from "../../PostResidentailProperty/TypeSpecificFields/common/
 const ROAD_WIDTH_UNITS = [
   { label: "Feet", value: "ft", icon: "📏" },
   { label: "Meters", value: "m", icon: "📐" },
+];
+
+const PLOT_AREA_UNITS = [
+  { label: "sq.ft", value: "sqft" },
+  { label: "sq.mt", value: "sqmt" },
+  { label: "sq.yd", value: "sqyd" },
+  { label: "Acre", value: "acre" },
+  { label: "Guntha", value: "guntha" },
+  { label: "Cent", value: "cent" },
+  { label: "Kanal", value: "kanal" },
+  { label: "Hectare", value: "hectare" },
 ];
 
 export default function StepBasicDetails({ data, onChange, onSave }) {
@@ -315,7 +326,7 @@ export default function StepBasicDetails({ data, onChange, onSave }) {
             headerIcon="📏"
             headerLabel="Dimension Metrics"
           >
-            <div className="grid grid-cols-2 gap-3 mt-1">
+            <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {(cat === "residential" || cat === "commercial") && (
                 <>
                   <NumField
@@ -361,33 +372,36 @@ export default function StepBasicDetails({ data, onChange, onSave }) {
                     value={data.plotAreaUnit || ""}
                     onChange={(v) => upd("plotAreaUnit", v)}
                   /> */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 sm:col-span-2">
                     <label className="text-xs text-[#000000] uppercase">
                       Plot Area
                     </label>
 
-                    <div className="flex items-center bg-slate-50 rounded-xl border border-[#27AE60] overflow-hidden">
+                    <div className="flex flex-col overflow-hidden rounded-xl border border-[#27AE60] bg-slate-50 min-[420px]:flex-row min-[420px]:items-center">
                       {/* Plot Area Input */}
                       <input
                         type="number"
+                        min="0"
+                        step="any"
+                        inputMode="decimal"
                         placeholder="0"
                         value={data.plotArea || ""}
                         onChange={(e) => upd("plotArea", e.target.value)}
-                        className="flex-1 px-3 py-3 outline-none text-[#27AE60] text-sm bg-transparent"
+                        className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm text-[#27AE60] outline-none"
                       />
 
                       {/* Unit Dropdown */}
                       <select
                         value={data.plotAreaUnit || ""}
                         onChange={(e) => upd("plotAreaUnit", e.target.value)}
-                        className="px-3 py-3 border-l border-[#27AE60] bg-white text-sm outline-none"
+                        className="w-full border-t border-[#27AE60] bg-white px-3 py-3 text-sm outline-none min-[420px]:w-36 min-[420px]:border-l min-[420px]:border-t-0"
                       >
                         <option value="">Unit</option>
-                        <option value="sqft">Sq Ft</option>
-                        <option value="sqm">Sq Meter</option>
-                        <option value="acre">Acre</option>
-                        <option value="cent">Cent</option>
-                        <option value="yard">Sq Yard</option>
+                        {PLOT_AREA_UNITS.map((unit) => (
+                          <option key={unit.value} value={unit.value}>
+                            {unit.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>

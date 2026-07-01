@@ -100,7 +100,7 @@
 //ci 
 
 // frontend/.../TypeSpecificFields/common/BasicCommonComponents/FloorDetails.jsx
-import { forwardRef } from "react";
+import { forwardRef, useEffect } from "react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 
 const CounterBox = ({ label, value, onChange, onDecrement, onIncrement, error }) => (
@@ -141,6 +141,15 @@ const CounterBox = ({ label, value, onChange, onDecrement, onIncrement, error })
 
 const FloorDetails = forwardRef(({ errors = {} }, ref) => {
   const { form, updateFieldValue } = useActivePropertySlice();
+
+  useEffect(() => {
+    if (form.totalFloors === "" || form.totalFloors === null || form.totalFloors === undefined) {
+      updateFieldValue("totalFloors", 0);
+    }
+    if (form.floorNumber === "" || form.floorNumber === null || form.floorNumber === undefined) {
+      updateFieldValue("floorNumber", 0);
+    }
+  }, [form.totalFloors, form.floorNumber]);
 
   return (
     <div ref={ref} className="grid grid-cols-2 gap-4">
