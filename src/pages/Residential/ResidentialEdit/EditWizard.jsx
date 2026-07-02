@@ -240,7 +240,7 @@ export default function EditWizard() {
     {
       key: "basic",
       number: "01",
-      title: "Standard Information",
+      title: "Basic Details",
       description: "Intent, category, pricing and core property facts",
       icon: <LayoutList className="h-4 w-4" />,
       content: (
@@ -254,7 +254,7 @@ export default function EditWizard() {
     {
       key: "location",
       number: "02",
-      title: "Geographic Context",
+      title: "Location",
       description: "Address, locality, map pin and nearby places",
       icon: <MapPin className="h-4 w-4" />,
       content: (
@@ -268,7 +268,7 @@ export default function EditWizard() {
     {
       key: "details",
       number: "03",
-      title: "Property Specifications",
+      title: "Property Profile",
       description: "Amenities, gallery and category-specific details",
       icon: <SlidersHorizontal className="h-4 w-4" />,
       content: (
@@ -284,7 +284,7 @@ export default function EditWizard() {
           {
             key: "verification",
             number: "04",
-            title: "Compliance & Publish",
+            title: "Verify & Publish",
             description: "Documents, verification status and publishing",
             icon: <ShieldCheck className="h-4 w-4" />,
             content: (
