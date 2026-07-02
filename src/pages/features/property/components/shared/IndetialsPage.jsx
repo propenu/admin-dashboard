@@ -314,7 +314,7 @@ function LeadRow({ lead }) {
 }
 
 // ─── PersonCard (horizontal, 3-up) ────────────────────────────────────────────
-function PersonCard({ type, person, postedAt, role }) {
+function PersonCard({ type, person, timestamp: explicitTimestamp, role }) {
   const config = {
     created: {
       label: "Created By",
@@ -348,10 +348,14 @@ function PersonCard({ type, person, postedAt, role }) {
   const c = config[type];
   const Icon = c.icon;
   const name = person?.name || "—";
-  const email = person?.email || person?.email || "—";
+  const email = person?.email || "—";
   const phone = person?.phone;
   const idTail = (person?._id || person?.userId || "")?.slice(-4);
-  const timestamp = postedAt || person?.updatedAt || person?.createdAt;
+  const timestamp =
+    explicitTimestamp ||
+    person?.postedAt ||
+    person?.updatedAt ||
+    person?.createdAt;
   const displayRole = role || person?.roleName;
 
   return (
@@ -1011,6 +1015,26 @@ export default function FeaturedPropertyDetails() {
     typeof property.priceTo === "number" ? formatPrice(property.priceTo) : "N/A";
   const status = property.status === "active" ? "Active" : "Inactive";
   const promotionType = property.promotion?.type || "normal";
+  const updateHistory = Array.isArray(property.updateHistory)
+    ? property.updateHistory
+    : [];
+  const latestUpdate = updateHistory.reduce((latest, item) => {
+    if (!latest) return item;
+    return new Date(item?.updatedAt || 0) > new Date(latest?.updatedAt || 0)
+      ? item
+      : latest;
+  }, null);
+
+  // Audit users may be returned directly or nested under `user`.
+  const createdBy = property.createdBy?.user || property.createdBy || null;
+  const postedBy =
+    property.postedBy?.user || property.postedBy || createdBy;
+  const lastUpdatedBy =
+    property.lastUpdatedBy?.user ||
+    property.lastUpdatedBy ||
+    latestUpdate?.user ||
+    latestUpdate ||
+    createdBy;
 
   const extractLeads = (raw) => {
     if (!raw) return [];
@@ -1279,35 +1303,35 @@ export default function FeaturedPropertyDetails() {
 
       {/* ── PEOPLE ROW: Created By | Posted By | Last Updated By ──────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {property.createdBy && (
-          <PersonCard type="created" person={property.createdBy} />
-        )}
-        {property.postedBy && (
+        {createdBy && (
           <PersonCard
-            type="posted"
-            person={{
-              _id: property.postedBy.userId,
-              userId: property.postedBy.userId,
-              name: property.postedBy.name,
-              email: property.postedBy.email,
-              roleName: property.postedBy.roleName,
-            }}
-            postedAt={property.postedBy.postedAt}
-            role={property.postedBy.roleName}
+            type="created"
+            person={createdBy}
+            timestamp={property.createdAt}
           />
         )}
-        {property.lastUpdatedBy && (
+        {postedBy && (
+          <PersonCard
+            type="posted"
+            person={postedBy}
+            timestamp={
+              property.postedBy?.postedAt ||
+              property.postedAt ||
+              property.createdAt
+            }
+            role={postedBy.roleName}
+          />
+        )}
+        {lastUpdatedBy && (
           <PersonCard
             type="updated"
-            person={{
-              _id: property.lastUpdatedBy.userId,
-              userId: property.lastUpdatedBy.userId,
-              name: property.lastUpdatedBy.name,
-              email: property.lastUpdatedBy.email,
-              roleName: property.lastUpdatedBy.roleName,
-              updatedAt: property.lastUpdatedBy.updatedAt,
-            }}
-            role={property.lastUpdatedBy.roleName}
+            person={lastUpdatedBy}
+            timestamp={
+              property.lastUpdatedBy?.updatedAt ||
+              latestUpdate?.updatedAt ||
+              property.updatedAt
+            }
+            role={lastUpdatedBy.roleName}
           />
         )}
       </div>

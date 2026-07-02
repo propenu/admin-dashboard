@@ -2,7 +2,7 @@
 import {
   useState, useEffect, useRef, useMemo, useCallback, useReducer,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -1166,6 +1166,7 @@ function AnalyticsDashboard({
 
 export default function ProjectsDashboardPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // ── User / Role ──────────────────────────────────────────────────────────
   const { data: user }  = useQuery({ queryKey: ["current-user"], queryFn: getUserInDetails });
@@ -1176,7 +1177,9 @@ export default function ProjectsDashboardPage() {
   const isAdmin         = roleName === "admin";
   const canViewAnalytics = isSuperAdmin || isAdmin || isSalesManager || isSalesAgent;
   const canViewPendingProjects = isSuperAdmin || isSalesManager;
-  const [trackingFilter, setTrackingFilter] = useState("all");
+  const [trackingFilter, setTrackingFilter] = useState(
+    () => searchParams.get("tracking") || "all",
+  );
   const serverPromotionStatus =
     trackingFilter === "expired" || trackingFilter === "scheduled"
       ? trackingFilter
@@ -1265,19 +1268,74 @@ export default function ProjectsDashboardPage() {
       sponsoredHook.isLoading ||
       normalHook.isLoading;
   // ── Unified top-bar state (location + search) — drives analytics ─────────
-  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState(() => {
+    const savedLocation = searchParams.get("location");
+    if (!savedLocation) return null;
+    try {
+      return JSON.parse(savedLocation);
+    } catch {
+      return null;
+    }
+  });
   //const [searchTerm, setSearchTerm] = useState("");
-  const [analyticsSearch, setAnalyticsSearch] = useState("");
-  const [projectSearch, setProjectSearch] = useState("");
+  const [analyticsSearch, setAnalyticsSearch] = useState(
+    () => searchParams.get("analyticsSearch") || "",
+  );
+  const [projectSearch, setProjectSearch] = useState(
+    () => searchParams.get("search") || "",
+  );
   const debouncedAnalyticsSearch = useDebounce(analyticsSearch, 400);
 
   // ── Project list filter state (independent of analytics) ─────────────────
-  const [promotionFilter,    setPromotionFilter]    = useState("all");
-  const [statusFilter,       setStatusFilter]       = useState("all");
-  const [categoryFilter,     setCategoryFilter]     = useState("all");
-  const [propertyTypeFilter, setPropertyTypeFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("rank");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [promotionFilter, setPromotionFilter] = useState(
+    () => searchParams.get("promotion") || "all",
+  );
+  const [statusFilter, setStatusFilter] = useState(
+    () => searchParams.get("status") || "all",
+  );
+  const [categoryFilter, setCategoryFilter] = useState(
+    () => searchParams.get("category") || "all",
+  );
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState(
+    () => searchParams.get("propertyType") || "all",
+  );
+  const [sortBy, setSortBy] = useState(
+    () => searchParams.get("sort") || "rank",
+  );
+  const [currentPage, setCurrentPage] = useState(() => {
+    const savedPage = Number(searchParams.get("page"));
+    return Number.isInteger(savedPage) && savedPage > 0 ? savedPage : 1;
+  });
+  const hasMountedProjectFilters = useRef(false);
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (trackingFilter !== "all") next.set("tracking", trackingFilter);
+    if (selectedLocation) next.set("location", JSON.stringify(selectedLocation));
+    if (analyticsSearch.trim()) next.set("analyticsSearch", analyticsSearch);
+    if (projectSearch.trim()) next.set("search", projectSearch);
+    if (promotionFilter !== "all") next.set("promotion", promotionFilter);
+    if (statusFilter !== "all") next.set("status", statusFilter);
+    if (categoryFilter !== "all") next.set("category", categoryFilter);
+    if (propertyTypeFilter !== "all") {
+      next.set("propertyType", propertyTypeFilter);
+    }
+    if (sortBy !== "rank") next.set("sort", sortBy);
+    if (currentPage > 1) next.set("page", String(currentPage));
+    setSearchParams(next, { replace: true });
+  }, [
+    analyticsSearch,
+    categoryFilter,
+    currentPage,
+    projectSearch,
+    promotionFilter,
+    propertyTypeFilter,
+    selectedLocation,
+    setSearchParams,
+    sortBy,
+    statusFilter,
+    trackingFilter,
+  ]);
 
   // ── UI toggles ────────────────────────────────────────────────────────────
   const [showAnalytics, setShowAnalytics] = useState(true);
@@ -1515,6 +1573,10 @@ export default function ProjectsDashboardPage() {
   );
 
   useEffect(() => {
+    if (!hasMountedProjectFilters.current) {
+      hasMountedProjectFilters.current = true;
+      return;
+    }
     setCurrentPage(1);
   }, [
     promotionFilter,

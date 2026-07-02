@@ -1,9 +1,9 @@
 //src/pages/Properties/PropertiesDashboard.jsx
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -693,23 +693,63 @@ function PropertyCard({
 
 export default function PropertiesDashboard() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
   const { data: userData } = useCurrentUser();
-  const [category, setCategory] = useState("all");
-  const [status, setStatus] = useState("all");
+  const [category, setCategory] = useState(
+    () => searchParams.get("category") || "all",
+  );
+  const [status, setStatus] = useState(
+    () => searchParams.get("status") || "all",
+  );
   const [locationFilters, setLocationFilters] = useState({
-    state: "",
-    city: "",
-    locality: "",
+    state: searchParams.get("state") || "",
+    city: searchParams.get("city") || "",
+    locality: searchParams.get("locality") || "",
   });
-  const [locationSearch, setLocationSearch] = useState("");
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("newest");
+  const [locationSearch, setLocationSearch] = useState(
+    () => searchParams.get("locationSearch") || "",
+  );
+  const [search, setSearch] = useState(
+    () => searchParams.get("search") || "",
+  );
+  const [sort, setSort] = useState(
+    () => searchParams.get("sort") || "newest",
+  );
   const [createOpen, setCreateOpen] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    const savedPage = Number(searchParams.get("page"));
+    return Number.isInteger(savedPage) && savedPage > 0 ? savedPage : 1;
+  });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const hasMounted = useRef(false);
+
+  // Keep the card filters on the dashboard URL. The browser restores this
+  // exact entry when returning from details, including Pending/search/page.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (category !== "all") next.set("category", category);
+    if (status !== "all") next.set("status", status);
+    if (locationFilters.state) next.set("state", locationFilters.state);
+    if (locationFilters.city) next.set("city", locationFilters.city);
+    if (locationFilters.locality) next.set("locality", locationFilters.locality);
+    if (locationSearch.trim()) next.set("locationSearch", locationSearch);
+    if (search.trim()) next.set("search", search);
+    if (sort !== "newest") next.set("sort", sort);
+    if (page > 1) next.set("page", String(page));
+    setSearchParams(next, { replace: true });
+  }, [
+    category,
+    locationFilters,
+    locationSearch,
+    page,
+    search,
+    setSearchParams,
+    sort,
+    status,
+  ]);
 
   const analyticsQuery = useQuery({
     queryKey: ["properties-analytics", locationFilters],
@@ -846,6 +886,10 @@ export default function PropertiesDashboard() {
   );
 
   useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      return;
+    }
     setPage(1);
   }, [category, status, locationFilters, search, sort]);
   const activeFilterCount = [

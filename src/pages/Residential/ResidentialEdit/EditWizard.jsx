@@ -63,6 +63,7 @@ const cleanData = (obj) => {
 export default function EditWizard() {
   const { id } = useParams();
   const [activeStep, setActiveStep] = useState(0);
+  const [createdByError, setCreatedByError] = useState("");
 
   const storedId       = localStorage.getItem("editPropertyId");
   const storedCategory = localStorage.getItem("editPropertyCategory");
@@ -142,6 +143,13 @@ export default function EditWizard() {
         return;
       }
       dispatch(actions[category].updateField({ key: field, value }));
+      if (
+        field === "createdBy" &&
+        (value?._id || value?.userId) &&
+        value?._selectedFromSearch === true
+      ) {
+        setCreatedByError("");
+      }
       debouncedAutoSave({ category, propertyId, stepName, dispatch });
     },
     [category, propertyId, dispatch, debouncedAutoSave],
@@ -206,6 +214,19 @@ export default function EditWizard() {
   // ── Manual step save ─────────────────────────────────────────────────────
   const handleStepSave = useCallback(
     async (stepName) => {
+      if (stepName === "basic") {
+        const createdBy = currentRef.current?.createdBy;
+        const createdById =
+          typeof createdBy === "object"
+            ? createdBy?._id || createdBy?.userId
+            : createdBy;
+        if (!createdById || createdBy?._selectedFromSearch !== true) {
+          const message = "Search and select a user from the results";
+          setCreatedByError(message);
+          toast.error(message);
+          return false;
+        }
+      }
       const tid = toast.loading(`Saving ${stepName}...`);
       try {
         const payload = cleanData(currentRef.current);
@@ -248,6 +269,7 @@ export default function EditWizard() {
           data={current}
           onChange={(field, value) => handleFieldUpdate(field, value, "basic")}
           onSave={() => handleStepSave("basic")}
+          createdByError={createdByError}
         />
       ),
     },
@@ -308,6 +330,23 @@ export default function EditWizard() {
     Math.max(0, wizardSteps.length - 1),
   );
   const activeDefinition = wizardSteps[currentStepIndex];
+
+  const selectWizardStep = (nextStepIndex) => {
+    if (currentStepIndex === 0 && nextStepIndex > 0) {
+      const createdBy = currentRef.current?.createdBy;
+      const createdById =
+        typeof createdBy === "object"
+          ? createdBy?._id || createdBy?.userId
+          : createdBy;
+      if (!createdById || createdBy?._selectedFromSearch !== true) {
+        const message = "Search and select a user from the results";
+        setCreatedByError(message);
+        toast.error(message);
+        return;
+      }
+    }
+    setActiveStep(nextStepIndex);
+  };
 
   const goToNextStep = async () => {
     if (!activeDefinition) return;
@@ -398,7 +437,7 @@ export default function EditWizard() {
               <button
                 key={step.key}
                 type="button"
-                onClick={() => setActiveStep(index)}
+                onClick={() => selectWizardStep(index)}
                 className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition ${
                   currentStepIndex === index
                     ? "border-[#27AE60] bg-[#27AE60] text-white shadow-md"
@@ -432,7 +471,7 @@ export default function EditWizard() {
                     <button
                       key={step.key}
                       type="button"
-                      onClick={() => setActiveStep(index)}
+                      onClick={() => selectWizardStep(index)}
                       className={`group flex w-full items-start gap-3 rounded-2xl p-3 text-left transition ${
                         selected
                           ? "bg-[#27AE60] text-white shadow-lg shadow-emerald-200"

@@ -23,7 +23,7 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
 
   const [allUsers,       setAllUsers]       = useState([]);
   const [loading,        setLoading]        = useState(false);
-  const [activeRole,     setActiveRole]     = useState("");
+  const [activeRole,     setActiveRole]     = useState("user");
   const [searchQuery,    setSearchQuery]    = useState("");
   const [filters,        setFilters]        = useState({ state: "", city: "", pincode: "", locality: "" });
   const [dropdownOpen,   setDropdownOpen]   = useState(false);
@@ -48,7 +48,12 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
       setLoading(true);
       try {
         const res = await getUserSearch(activeRole || "all");
-        setAllUsers(res?.data?.results || []);
+        const users =
+          res?.data?.results ||
+          res?.data?.data?.results ||
+          res?.data?.data ||
+          (Array.isArray(res?.data) ? res.data : []);
+        setAllUsers(Array.isArray(users) ? users : []);
       } catch {
         setAllUsers([]);
       } finally {
@@ -73,9 +78,9 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
   }, [form?.createdBy, allUsers]);
 
   /* ── derive unique location options (cascade) ── */
-  const base = allUsers.filter((u) =>
-    !activeRole || u.role === activeRole
-  );
+  // The endpoint is already filtered by the selected role. Do not filter the
+  // response again: agent/owner search records do not always include `role`.
+  const base = allUsers;
 
   
 
@@ -103,8 +108,9 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
   )].sort();
 
   /* ── final filtered list ── */
+  const searchTerm = searchQuery.trim().toLowerCase();
   const filteredUsers = base.filter((u) => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = searchTerm;
     const matchSearch =
       !q ||
       u.name?.toLowerCase().includes(q) ||
@@ -141,13 +147,17 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
       ...user,
       _id: userId,
       roleName: user.roleName || user.role || "",
+      _selectedFromSearch: true,
     };
     if (onChange) {
       onChange("createdBy", createdByValue);
     } else {
       updateFieldValue("createdBy", createdByValue);
     }
-    localStorage.setItem("createdByBasedUserRole", user.role || "");
+    localStorage.setItem(
+      "createdByBasedUserRole",
+      user.role || user.roleName || activeRole || "",
+    );
     setDropdownOpen(false);
   };
 
@@ -208,8 +218,8 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
                 </p>
                 <p className="text-xs text-gray-400 truncate">{selectedUser.email}</p>
               </div>
-              <span className={`ml-auto flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${getRoleBadgeColor(selectedUser.role)}`}>
-                {selectedUser.role?.replace("_", " ")}
+              <span className={`ml-auto flex-shrink-0 px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${getRoleBadgeColor(selectedUser.role || selectedUser.roleName || activeRole)}`}>
+                {(selectedUser.role || selectedUser.roleName || activeRole)?.replace("_", " ")}
               </span>
             </div>
           ) : (
@@ -398,7 +408,9 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
             {/* Results count bar */}
             <div className="px-4 py-1.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
-                {loading ? "Loading..." : `${filteredUsers.length} user${filteredUsers.length !== 1 ? "s" : ""} found`}
+                {loading
+                  ? "Loading..."
+                  : `${filteredUsers.length} user${filteredUsers.length !== 1 ? "s" : ""} found`}
               </span>
               {filteredUsers.length > 0 && (
                 <span className="text-[10px] text-gray-400">Click to select</span>
@@ -433,7 +445,7 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
                     createdById === (user?._id || user?.userId);
                   return (
                     <li
-                      key={user._id}
+                      key={user._id || user.userId}
                       onClick={() => selectUser(user)}
                       className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all
                         ${isSelected
@@ -469,8 +481,8 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
 
                       {/* Role badge */}
                       <span className={`flex-shrink-0 px-2 py-0.5 rounded-md text-[10px]
-                        font-black uppercase tracking-wide ${getRoleBadgeColor(user.role)}`}>
-                        {user.role?.replace(/_/g, " ")}
+                        font-black uppercase tracking-wide ${getRoleBadgeColor(user.role || user.roleName || activeRole)}`}>
+                        {(user.role || user.roleName || activeRole)?.replace(/_/g, " ")}
                       </span>
                     </li>
                   );

@@ -269,12 +269,18 @@ export const updateFeaturedProperty = async (id, payload) => {
    Nearby Places (SAFE NORMALIZATION)
 ───────────────────────────────────────────── */
   if (Array.isArray(payload.nearbyPlaces)) {
-    const safePlaces = payload.nearbyPlaces.map((p) => ({
-      ...p,
-      coordinates: (p.coordinates || []).map((c) =>
-        typeof c === "string" ? Number(c) : c,
-      ),
-    }));
+    const safePlaces = payload.nearbyPlaces.map((p) => {
+      const coordinates = Array.isArray(p.coordinates)
+        ? p.coordinates.map(Number)
+        : null;
+      const hasValidCoordinates =
+        coordinates?.length === 2 &&
+        coordinates.every(Number.isFinite);
+
+      if (hasValidCoordinates) return { ...p, coordinates };
+
+      return { ...p, coordinates: [0, 0] };
+    });
 
     fd.append("nearbyPlaces", JSON.stringify(safePlaces));
   }

@@ -128,6 +128,25 @@ export const savePropertyData = createAsyncThunk(
           break;
 
         case "location": {
+          const nearbyPlaces = Array.isArray(stateForm.nearbyPlaces)
+            ? stateForm.nearbyPlaces.map((place) => {
+                const normalizedCoordinates = Array.isArray(place?.coordinates)
+                  ? place.coordinates.map(Number)
+                  : null;
+                const hasValidCoordinates =
+                  normalizedCoordinates?.length === 2 &&
+                  normalizedCoordinates.every(Number.isFinite);
+
+                if (hasValidCoordinates) {
+                  return { ...place, coordinates: normalizedCoordinates };
+                }
+
+                // Manual places do not have map coordinates. Send the valid
+                // GeoJSON placeholder expected by the API: [longitude, latitude].
+                return { ...place, coordinates: [0, 0] };
+              })
+            : [];
+
           const locationPayload = {
             address      : stateForm.address,
             locality     : stateForm.locality,
@@ -137,7 +156,7 @@ export const savePropertyData = createAsyncThunk(
             landName     : stateForm.landName,
             pincode      : stateForm.pincode,
             location     : stateForm.location,
-            nearbyPlaces : stateForm.nearbyPlaces,
+            nearbyPlaces,
           };
           response = await editPropertyLocation(category, id, locationPayload);
           console.log("//////////////// location ///////////////////////////");

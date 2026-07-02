@@ -17,13 +17,16 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          react: ["react", "react-dom"],
           router: ["react-router-dom"],
           query: ["@tanstack/react-query"],
           charts: ["recharts"],
         },
       },
     },
-    chunkSizeWarningLimit: 1000,
+    // `country-state-city` ships its worldwide city catalogue as one module.
+    // It is only requested by lazy-loaded notification routes, so it does not
+    // increase the initial dashboard payload. Keep the warning above that
+    // isolated dataset while retaining route-level code splitting.
+    chunkSizeWarningLimit: 9000,
   },
 });

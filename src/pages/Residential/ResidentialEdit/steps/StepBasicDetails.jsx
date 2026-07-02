@@ -36,7 +36,23 @@ const PLOT_AREA_TO_SQFT = {
   hectare: 107639.104167,
 };
 
-export default function StepBasicDetails({ data = {}, onChange, onSave }) {
+const AGENT_PROJECT_TYPES = {
+  residential: [
+    { label: "Apartment", value: "apartment" },
+    { label: "Villa", value: "villa" },
+  ],
+  land: [
+    { label: "Open Plot", value: "residential-plot" },
+    { label: "Commercial Plot", value: "commercial-plot" },
+  ],
+};
+
+export default function StepBasicDetails({
+  data = {},
+  onChange,
+  onSave,
+  createdByError,
+}) {
   const cat = (data.propertyCategory || "residential").toLowerCase();
   const isLoading = data.loading;
   const upd = React.useCallback(
@@ -165,9 +181,15 @@ export default function StepBasicDetails({ data = {}, onChange, onSave }) {
       </Block>
 
       {/* Property Type */}
-      <Block label="Property Type" icon={<Layers className="w-3.5 h-3.5" />}>
+      <Block
+        label={isAgentProject ? "Project Property Sub Type" : "Property Type"}
+        icon={<Layers className="w-3.5 h-3.5" />}
+      >
         <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-3">
-          {propertyTypes().map((item) => (
+          {(isAgentProject
+            ? AGENT_PROJECT_TYPES[cat] || []
+            : propertyTypes()
+          ).map((item) => (
             <button
               key={item.value}
               type="button"
@@ -185,7 +207,7 @@ export default function StepBasicDetails({ data = {}, onChange, onSave }) {
                     : "none",
               }}
             >
-              <span className="text-sm">{item.icon}</span>
+              {item.icon && <span className="text-sm">{item.icon}</span>}
               {item.label}
             </button>
           ))}
@@ -193,7 +215,7 @@ export default function StepBasicDetails({ data = {}, onChange, onSave }) {
       </Block>
 
       {/* Sub-type */}
-      {subTypes().length > 0 && (
+      {!isAgentProject && subTypes().length > 0 && (
         <Block label="Sub Type" icon={<Layers className="w-3.5 h-3.5" />}>
           <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-3">
             {subTypes().map((item) => (
@@ -572,7 +594,7 @@ export default function StepBasicDetails({ data = {}, onChange, onSave }) {
         </FinCard>
       )}
 
-      <CreatedBy data={data} onChange={upd} />
+      <CreatedBy data={data} onChange={upd} error={createdByError} />
 
       {/* Footer */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-6 border-t border-slate-100">

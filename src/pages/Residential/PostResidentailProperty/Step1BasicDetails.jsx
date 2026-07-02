@@ -416,6 +416,12 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
     if (!category) e.category = "Please select a category";
     if (!form.listingType) e.listingType = "Please select Sale / Rent";
     if (!form.propertyType) e.propertyType = "Please select property type";
+    const createdById =
+      typeof form.createdBy === "object"
+        ? form.createdBy?._id || form.createdBy?.userId
+        : null;
+    if (!createdById || form.createdBy?._selectedFromSearch !== true)
+      e.createdBy = "Search and select a user from the results";
 
     if (PROPERTY_SUB_TYPES[category] && !form.propertySubType)
       e.propertySubType = "Please select property sub type";
@@ -530,7 +536,10 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
       : { propertySubType: data.propertySubType }),
     price: Number(data.price) || 0,
     pricePerSqft: Number(data.pricePerSqft),
-    createdBy: data.createdBy,
+    createdBy:
+      typeof data.createdBy === "object"
+        ? data.createdBy?._id || data.createdBy?.userId
+        : data.createdBy,
     ...(agentProject
       ? {
           isAgentProject: true,
