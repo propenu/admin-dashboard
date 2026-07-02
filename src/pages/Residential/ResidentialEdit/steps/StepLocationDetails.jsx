@@ -56,21 +56,18 @@ async function geocodeText(text, signal) {
 
 const LocInput = memo(function LocInput({ label, value, onChange, placeholder, icon, maxLength, error, readOnly }) {
   return (
-    <div className="flex-1 space-y-1.5">
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+    <div className="min-w-0 flex-1 space-y-1.5">
+      <label className="ml-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
         {label}
       </label>
-      <div
-        className="flex items-center gap-2.5 bg-white px-4 py-3 rounded-xl border-2 transition-all"
-        style={{
-          borderColor: error ? "#fca5a5" : "transparent",
-          boxShadow: error
-            ? "0 0 0 3px #fca5a510"
-            : "0 1px 3px rgba(0,0,0,0.06), 0 0 0 1.5px #f1f5f9",
-          background: readOnly ? "#f9fafb" : "#fff",
-        }}
-      >
-        {icon && <span className="text-slate-300 shrink-0">{icon}</span>}
+      <div className={`flex h-10 items-center gap-2 rounded-lg border px-3 transition-all ${
+        error
+          ? "border-red-300 bg-red-50/30 ring-2 ring-red-50"
+          : readOnly
+            ? "border-slate-200 bg-slate-100"
+            : "border-slate-200 bg-slate-50/70 hover:border-emerald-300 focus-within:border-[#27AE60] focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-100"
+      }`}>
+        {icon && <span className="shrink-0 text-slate-400">{icon}</span>}
         <input
           type="text"
           value={value || ""}
@@ -78,12 +75,12 @@ const LocInput = memo(function LocInput({ label, value, onChange, placeholder, i
           readOnly={readOnly}
           onChange={onChange ? (e) => onChange(e.target.value) : undefined}
           placeholder={placeholder}
-          className="w-full text-sm font-bold text-slate-700 placeholder:text-slate-300 focus:outline-none bg-transparent"
+          className="min-w-0 w-full bg-transparent text-xs font-semibold text-slate-800 outline-none placeholder:font-medium placeholder:text-slate-300"
           style={{ caretColor: "#27AE60" }}
         />
       </div>
       {error && (
-        <p className="flex items-center gap-1 text-[10px] text-red-500 font-bold ml-1">
+        <p className="ml-1 flex items-center gap-1 text-[9px] font-bold text-red-500">
           <AlertCircle className="w-3 h-3" /> Invalid Pincode
         </p>
       )}
@@ -168,7 +165,6 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
   useEffect(() => {
     const pin = (data.pincode || "").replace(/\D/g, "");
     if (pin.length !== 6) {
-      setPincodeStatus(null);
       return;
     }
 
@@ -248,22 +244,37 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
   const pinnedCoordinates = data.location?.coordinates ?? null;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-[#27AE60]">
+            <MapPin className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#27AE60]">Property location</p>
+            <h2 className="mt-0.5 text-sm font-black text-slate-900">Address, map pin and nearby landmarks</h2>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 self-start rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-bold text-slate-500 sm:self-auto">
+          <CheckCircle2 className="h-3 w-3 text-[#27AE60]" />
+          Pincode auto-fills locality, city and state
+        </div>
+      </div>
       {/* ── Address card ── */}
       <div
-        className="rounded-3xl overflow-hidden"
+        className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]"
         style={{
           border: "1.5px solid #fde68a40",
           background: "linear-gradient(135deg,#fffbeb08,#fff)",
         }}
       >
         <div className="h-0.5" style={{ background: "linear-gradient(90deg,#F59E0B80,#F59E0B20,transparent)" }} />
-        <div className="p-5 sm:p-7 space-y-6">
+        <div className="space-y-3 p-3 sm:p-4">
           {/* Card header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
-                <MapPin className="w-4 h-4" />
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                <MapPin className="h-3.5 w-3.5" />
               </div>
               <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">
                 Physical Address
@@ -279,7 +290,7 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {/* Street address — full width */}
             <div className="sm:col-span-2">
               <LocInput
@@ -323,8 +334,8 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
             />
 
             {/* Locality — auto-filled (read-only) */}
-            <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-              <p className="text-xs font-semibold text-amber-700">
+            <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
+              <p className="text-[9px] font-semibold leading-4 text-amber-700">
                 Use the correct spelling, or enter a pincode to auto-fill
                 Locality, City, and State.
               </p>
@@ -338,7 +349,7 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
             />
 
             {/* City + State side by side — auto-filled (read-only) */}
-            <div className="grid grid-cols-2 gap-3 sm:col-span-2 md:col-span-1">
+            <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:col-span-2 md:col-span-1">
               <LocInput
                 label="City"
                 placeholder="Enter city"
@@ -357,27 +368,26 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
       </div>
 
       {/* ── Map (Mappls SDK) ── */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+        <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2.5 sm:px-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Navigation className="w-4 h-4" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+              <Navigation className="h-3.5 w-3.5" />
             </div>
             <div>
-              <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">Geospatial Marker</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-700">Map location</h3>
               <p className="text-[10px] text-slate-400 mt-0.5">
                 Click map to pin · pincode + locality + city + state auto-filled via OpenStreetMap
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 uppercase tracking-wide">
+          <span className="rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-[8px] font-black uppercase tracking-wider text-blue-600">
             Mappls
           </span>
         </div>
 
         <div
-          className="rounded-3xl overflow-hidden border-2 relative group"
-          style={{ height: "400px", borderColor: "#27AE6020", boxShadow: "0 8px 40px #27AE6012" }}
+          className="group relative h-[260px] overflow-hidden sm:h-[320px]"
         >
           <MapplsPinMap
             coordinates={data.location?.coordinates}
@@ -390,24 +400,24 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
       </div>
 
       {/* ── Nearby Landmarks ── */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2.5 px-1">
-          <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-            <Landmark className="w-4 h-4" />
+      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-4">
+        <div className="mb-3 flex items-center gap-2.5 border-b border-slate-100 pb-3">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
+            <Landmark className="h-3.5 w-3.5" />
           </div>
           <div>
-            <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">Nearby Landmarks</h3>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-700">Nearby Landmarks</h3>
             <p className="text-[10px] text-slate-400 mt-0.5">Photon live search (5 km) · Overpass 10 km lookup</p>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:p-7 space-y-5">
+        <div className="space-y-3">
           <NearbyPlacesInput
             value={data.nearbyPlaces || []}
             onChange={handleNearbyChange}
             coordinates={pinnedCoordinates}
           />
-          <div className="flex items-start gap-2.5 p-4 rounded-xl bg-white border border-slate-100 text-[11px] font-medium text-slate-500 leading-relaxed">
+          <div className="flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50/50 px-3 py-2 text-[9px] font-medium leading-4 text-slate-500">
             <span className="text-base mt-0.5">💡</span>
             <span>
               Adding landmarks like "Metro Station" or "Hospital" significantly
@@ -418,11 +428,11 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
       </div>
 
       {/* ── Footer ── */}
-      <div className="flex justify-end pt-4 border-t border-slate-100">
+      <div className="flex justify-end border-t border-slate-200 pt-4">
         <button
+          type="button"
           onClick={onSave}
-          className="flex items-center gap-2.5 px-8 py-3.5 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
-          style={{ background: "linear-gradient(135deg, #27AE60, #1e9e52)", boxShadow: "0 8px 25px #27AE6035" }}
+          className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-5 text-[10px] font-black uppercase tracking-[0.14em] text-white shadow-[0_8px_22px_rgba(39,174,96,0.22)] transition hover:bg-[#219653] active:scale-[0.98] sm:w-auto"
         >
           <Save className="w-4 h-4" /> Synchronize Location
         </button>

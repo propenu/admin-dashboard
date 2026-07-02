@@ -110,9 +110,6 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
   /* ── Separate existing (server) vs new (File) entries ── */
   const allFiles = form?.galleryFiles || [];
-  const existingImages = allFiles.filter((f) => f?.source === "server");
-  const newFiles = allFiles.filter((f) => f?.source === "local");
-
   const totalCount = allFiles.length;
 
   /* ── UPLOAD & COMPRESS ── */
@@ -231,10 +228,10 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
   /* ── RENDER ── */
   return (
-    <div ref={ref} className="space-y-6">
+    <div ref={ref} className="space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-700">
+        <p className="text-xs font-bold text-slate-700">
           Add photos of your property
         </p>
         <span className="text-xs text-gray-400">
@@ -252,7 +249,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
             handleFiles(e.dataTransfer.files);
           }
         }}
-        className={`relative flex flex-col items-center justify-center h-40 border-2 border-dashed rounded-2xl transition-all duration-200 ${
+        className={`relative flex h-28 flex-col items-center justify-center rounded-xl border border-dashed transition-all duration-200 sm:h-32 ${
           compressing
             ? "border-gray-300 bg-gray-50 cursor-not-allowed pointer-events-none"
             : totalCount >= MAX_FILES
@@ -321,9 +318,9 @@ const UploadGallery = forwardRef(({ error }, ref) => {
           </div>
         ) : (
           /* ── Default Upload UI ── */
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-[#27AE60] shadow-green-100">
-              <UploadCloud className="w-6 h-6" />
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-[#27AE60] shadow-sm shadow-green-100">
+              <UploadCloud className="h-4 w-4" />
             </div>
             <p className="text-xs text-center text-[#27AE60] font-medium">
               Drop property photos here
@@ -332,7 +329,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
                 Up to {MAX_FILES} photos · Auto-compressed · JPG PNG WEBP
               </span>
             </p>
-            <span className="mt-1 bg-[#27AE60] px-4 py-1.5 text-white rounded-lg text-sm font-medium">
+            <span className="mt-0.5 rounded-md bg-[#27AE60] px-3 py-1 text-[10px] font-bold text-white">
               Upload Photos
             </span>
           </div>
@@ -341,7 +338,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
       {/* Image Grid */}
       {totalCount > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
           {allFiles.map((file, index) => {
             const isNewFile = file?.source === "local";
             const previewUrl = getPreviewUrl(file);
@@ -351,7 +348,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
             return (
               <div
                 key={isNewFile ? `new-${index}-${file.name}` : `existing-${index}`}
-                className={`relative aspect-square rounded-2xl overflow-hidden border-2 group shadow-sm ${
+                className={`group relative aspect-square overflow-hidden rounded-xl border shadow-sm ${
                   isNewFile ? "border-blue-200" : "border-slate-100"
                 }`}
               >
@@ -367,9 +364,9 @@ const UploadGallery = forwardRef(({ error }, ref) => {
                           const fallback = URL.createObjectURL(file.file);
                           e.target.src = fallback;
                         }
-                        //previewCache.set(file, fallback);
-                        e.target.src = fallback;
-                      } catch {}
+                      } catch (previewError) {
+                        console.warn("Unable to create gallery preview", previewError);
+                      }
                     }
                   }}
                 />
@@ -404,7 +401,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
       {/* Status Banner */}
       <div
-        className={`flex items-center gap-3 p-3 rounded-2xl border transition-colors ${
+        className={`flex items-center gap-2 rounded-lg border p-2 transition-colors ${
           totalCount < MIN_REQUIRED
             ? "bg-amber-50 border-amber-100 text-amber-700"
             : "bg-emerald-50 border-emerald-100 text-emerald-700"

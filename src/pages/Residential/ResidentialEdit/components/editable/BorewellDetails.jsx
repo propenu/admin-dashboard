@@ -118,21 +118,21 @@ export  function BorewellDetails({ data, onChange }) {
   const upd = (f, v) =>
     onChange("borewellDetails", { ...bw, [f]: v ? Number(v) : "" });
   return (
-    <div className="col-span-full space-y-4 pt-6 border-t border-slate-200/60">
+    <div className="col-span-full space-y-3 border-t border-slate-200/60 pt-3">
       <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-[#27AE60]" />
-        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#27AE60]" />
+        <h3 className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
           Borewell Infrastructure
         </h3>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
           { label: "Depth (Meters)", field: "depthMeters" },
           { label: "Yield (LPM)", field: "yieldLpm" },
           { label: "Drilled Year", field: "drilledYear", placeholder: "YYYY" },
         ].map(({ label, field, placeholder }) => (
           <div key={field} className="space-y-1.5">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+            <label className="ml-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
               {label}
             </label>
             <input
@@ -140,7 +140,7 @@ export  function BorewellDetails({ data, onChange }) {
               value={bw[field] || ""}
               placeholder={placeholder || "0"}
               onChange={(e) => upd(field, e.target.value)}
-              className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:border-[#27AE60]/30 focus:ring-4 focus:ring-[#27AE60]/8 outline-none transition-all"
+              className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 outline-none transition-all focus:border-[#27AE60] focus:bg-white focus:ring-2 focus:ring-emerald-100"
             />
           </div>
         ))}

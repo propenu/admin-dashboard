@@ -273,12 +273,12 @@ export default function AmenitiesInput({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       
 
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-300" />
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -293,13 +293,13 @@ export default function AmenitiesInput({
             }
           }}
           placeholder="Search or add custom amenity..."
-          className="w-full border-2 border-slate-100 rounded-xl pl-11 pr-4 py-3 text-sm font-medium focus:outline-none focus:border-[#27AE60]/40 bg-white"
+          className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs font-medium outline-none transition focus:border-[#27AE60] focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
       {/* Search Results */}
       {isSearching && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {filteredItems.length > 0 ? (
             filteredItems.map((item) => {
               const added = isAdded(item.key);
@@ -316,7 +316,7 @@ export default function AmenitiesInput({
             <button
               type="button"
               onClick={addCustom}
-              className="col-span-full flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-[#27AE60]/40 text-sm text-[#15803d] font-medium hover:bg-[#f0fdf4] transition-all"
+              className="col-span-full flex min-h-9 items-center gap-2 rounded-lg border border-dashed border-[#27AE60]/40 px-3 py-2 text-[10px] font-bold text-[#15803d] transition-all hover:bg-[#f0fdf4]"
             >
               <span className="text-lg">➕</span>
               Add "{input.trim()}" as custom amenity
@@ -327,13 +327,13 @@ export default function AmenitiesInput({
 
       {/* Category-wise Amenities */}
       {!isSearching && (
-        <div className="space-y-5">
+        <div className="space-y-3">
           {categories.map((cat) => (
             <div key={cat.category}>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2.5">
+              <p className="mb-2 text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
                 {cat.category}
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                 {cat.items.map((item) => {
                   const added = isAdded(item.key);
                   return (
@@ -353,11 +353,11 @@ export default function AmenitiesInput({
 
       {/* Selected Amenities */}
       {value.length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100">
+        <div className="flex flex-wrap gap-1.5 border-t border-slate-100 pt-2.5">
           {value.map((a, i) => (
             <span
               key={i}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border"
+              className="flex items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold"
               style={{
                 background: "#f0fdf4",
                 color: "#15803d",
@@ -387,7 +387,7 @@ function AmenityButton({ item, added, onClick }) {
       type="button"
       onClick={onClick}
       disabled={added}
-      className="relative flex items-center gap-2.5 px-3 py-3 rounded-xl border-2 transition-all text-left"
+      className="relative flex min-h-10 items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all"
       style={{
         borderColor: added ? "#27AE60" : "#f1f5f9",
         background: added ? "#f0fdf4" : "#fff",
@@ -398,9 +398,9 @@ function AmenityButton({ item, added, onClick }) {
           <span className="w-1.5 h-1.5 bg-white rounded-full" />
         </span>
       )}
-      <span className="text-lg">{item.icon}</span>
+      <span className="text-sm">{item.icon}</span>
       <span
-        className={`text-xs ${
+        className={`text-[10px] ${
           added ? "text-[#15803d] font-bold" : "text-slate-600"
         }`}
       >

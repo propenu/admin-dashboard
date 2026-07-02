@@ -449,7 +449,11 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
       }
       if (!isValidCount(form.bedrooms)) e.bedrooms = "Bedrooms required";
       if (!isValidCount(form.bathrooms)) e.bathrooms = "Bathrooms required";
-      if (!isValidCount(form.balconies)) e.balconies = "Balconies required";
+      // A property may legitimately have no balcony. The counter renders an
+      // unset value as 0, so validate that same default instead of treating it
+      // as a missing required field.
+      if (!isValidCount(form.balconies ?? 0))
+        e.balconies = "Balconies must be 0 or more";
       if (!form.price) e.price = "Price required";
       if (!form.pricePerSqft) e.pricePerSqft = "Price per sqft required";
       if (!form.facing) e.facing = "Facing required";

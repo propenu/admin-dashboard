@@ -49,10 +49,25 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
   const totalImgs = (data.gallery?.length || 0) + (data.galleryFiles?.length || 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-[#27AE60]">
+            <ClipboardList className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#27AE60]">Property presentation</p>
+            <h2 className="mt-0.5 text-sm font-black text-slate-900">Features, media and property specifications</h2>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 self-start rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-bold text-slate-500 sm:self-auto">
+          <CheckCircle2 className="h-3 w-3 text-[#27AE60]" />
+          Changes remain editable
+        </div>
+      </div>
       {/* Gallery */}
       <ColorBlock borderColor="#bfdbfe" bgFrom="#eff6ff08" stripColor="#3B82F6">
-        <div className="flex items-center justify-between mb-5">
+        <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <IconBox bg="#dbeafe" color="#2563eb">
               <ImagePlus className="w-4 h-4" />
@@ -70,7 +85,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
           </div>
           <CountBadge count={totalImgs} max={10} />
         </div>
-        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-blue-100/60">
+        <div className="rounded-xl border border-blue-100/60 bg-white p-2.5 sm:p-3">
           <GalleryUpload
             existing={data.gallery || []}
             files={data.galleryFiles || []}
@@ -86,7 +101,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
       </ColorBlock>
 
       {/* Amenities */}
-      <div className="space-y-4">
+      <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-4">
         <SH
           icon={<Sparkles className="w-4 h-4" />}
           title="Features & Amenities"
@@ -94,7 +109,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
           color="#27AE60"
           badge={`${data.amenities?.length || 0} Selected`}
         />
-        <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-5 sm:p-7">
+        <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
           <AmenitiesInput
             value={data.amenities || []}
             onChange={(v) => upd("amenities", v)}
@@ -116,7 +131,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
             bg="#f0fdf4"
             color="#27AE60"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-6">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <PantryInput data={data} onChange={upd} />
             <FI
               label="Zoning"
@@ -126,16 +141,16 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
               icon={<Globe className="w-3 h-3" />}
             />
           </div>
-          <div className="pt-6 border-t border-[#27AE60]/10 mt-6">
+          <div className="mt-4 border-t border-[#27AE60]/10 pt-4">
             <BuildingManagement data={data} onChange={upd} />
           </div>
-          <div className="pt-6 border-t border-[#27AE60]/10 mt-6">
+          <div className="mt-4 border-t border-[#27AE60]/10 pt-4">
             <TenantInfo
               data={data}
               onUpdateTenant={(t) => upd("tenantInfo", t)}
             />
           </div>
-          <div className="pt-6 border-t border-[#27AE60]/10 mt-6 space-y-4">
+          <div className="mt-4 space-y-3 border-t border-[#27AE60]/10 pt-4">
             <SH
               icon={<ShieldCheck className="w-4 h-4" />}
               title="Fire Safety & Compliance"
@@ -178,14 +193,14 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
             color="#D97706"
           />
           {cat === "residential" && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {PARKING_TYPES.map((type) => {
                 const isSel = data.parkingType === type.value;
                 return (
                   <button
                     key={type.value}
                     onClick={() => upd("parkingType", type.value)}
-                    className="relative p-4 rounded-2xl border-2 text-center transition-all"
+                    className="relative min-h-14 rounded-xl border-2 px-2 py-2 text-center transition-all"
                     style={{
                       borderColor: isSel ? "#F59E0B" : "#fef3c740",
                       background: isSel ? "#fffbeb" : "#fff",
@@ -207,7 +222,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
               })}
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <ParkingCounter
               label="Two Wheeler"
               icon="🏍️"
@@ -236,7 +251,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
 
       {/* Floor + Kitchen */}
       {(cat === "residential" || cat === "commercial") && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <Panel>
             <SH
               icon={<Home className="w-4 h-4" />}
@@ -244,7 +259,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
               bg="#f1f5f9"
               color="#64748b"
             />
-            <div className="space-y-4 mt-5">
+            <div className="mt-3 space-y-3">
               <FS
                 label="Flooring Type"
                 value={data.flooringType || ""}
@@ -259,13 +274,13 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
                 <FI
                   label="Floor No."
                   type="number"
-                  value={data.floorNumber || ""}
+                  value={data.floorNumber ?? ""}
                   onChange={(v) => upd("floorNumber", parseInt(v) || 0)}
                 />
                 <FI
                   label="Total Floors"
                   type="number"
-                  value={data.totalFloors || ""}
+                  value={data.totalFloors ?? ""}
                   onChange={(v) => upd("totalFloors", parseInt(v) || 0)}
                 />
               </div>
@@ -278,7 +293,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
               bg="#f1f5f9"
               color="#64748b"
             />
-            <div className="space-y-4 mt-5">
+            <div className="mt-3 space-y-3">
               {cat === "residential" && (
                 <>
                   <FS
@@ -306,8 +321,8 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
 
       {/* Land */}
       {cat === "land" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <FS
               label="Facing"
               value={data.facing || ""}
@@ -331,7 +346,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
               onChange={(v) => upd("landUseZone", v)}
             />
           </div>
-          <div className="pt-4 border-t border-slate-100 space-y-4">
+          <div className="space-y-3 border-t border-slate-100 pt-3">
             <SH
               icon={<Sparkles className="w-4 h-4" />}
               title="Land Features"
@@ -354,7 +369,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
 
       {/* Agricultural */}
       {cat === "agricultural" && (
-        <div className="space-y-6">
+        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               // { label: "Plantation Age", key: "plantationAge", type: "number" },
@@ -403,7 +418,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
               <BorewellDetails data={data} onChange={upd} />
             </div>
           </div>
-          <div className="pt-4 border-t border-slate-100 space-y-4">
+          <div className="space-y-3 border-t border-slate-100 pt-3">
             <SH
               icon={<Sparkles className="w-4 h-4" />}
               title="Agricultural Features"
@@ -425,7 +440,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
       )}
 
       {/* Description */}
-      <div className="space-y-3">
+      <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-4">
         <SH
           icon={<AlignLeft className="w-4 h-4" />}
           title="Narrative & Remarks"
@@ -437,8 +452,8 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
             value={data.description || ""}
             onChange={(e) => upd("description", e.target.value)}
             placeholder="What makes this property special? Describe highlights, nearby amenities, unique features..."
-            rows={5}
-            className="w-full bg-white border-2 border-slate-100 rounded-2xl p-5 text-sm font-medium text-slate-600 placeholder:text-slate-300 focus:border-purple-200 outline-none resize-none transition-all"
+            rows={4}
+            className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-medium leading-5 text-slate-700 outline-none transition-all placeholder:text-slate-300 hover:border-emerald-200 focus:border-[#27AE60] focus:bg-white focus:ring-2 focus:ring-emerald-100"
           />
           <span className="absolute bottom-4 right-4 text-[10px] font-black text-slate-300 tabular-nums">
             {data.description?.length || 0}/2000
@@ -447,13 +462,14 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
       </div>
 
       {/* Footer */}
-      <div className="flex justify-end pt-5 border-t border-slate-100">
+      <div className="flex justify-end border-t border-slate-200 pt-4">
         <button
+          type="button"
           onClick={onSave}
-          className="flex items-center gap-2.5 px-8 py-3.5 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+          className="flex h-10 w-full items-center justify-center gap-2 rounded-xl px-5 text-[10px] font-black uppercase tracking-[0.14em] text-white transition-all active:scale-95 sm:w-auto"
           style={{
-            background: "linear-gradient(135deg, #8B5CF6, #7c3aed)",
-            boxShadow: "0 8px 25px #8B5CF635",
+            background: "linear-gradient(135deg, #27AE60, #219653)",
+            boxShadow: "0 8px 25px #27AE6035",
           }}
         >
           <Save className="w-4 h-4" />
@@ -468,23 +484,23 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
 
 function ColorBlock({ children, borderColor, bgFrom, stripColor }) {
   return (
-    <div className="rounded-3xl border overflow-hidden" style={{ borderColor, background: bgFrom }}>
-      <div className="h-0.5" style={{ background: `linear-gradient(90deg, ${stripColor}70, ${stripColor}20, transparent)` }} />
-      <div className="p-5 sm:p-7">{children}</div>
+    <div className="overflow-hidden rounded-2xl border bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]" style={{ borderColor, background: bgFrom }}>
+      <div className="h-0.5" style={{ background: `linear-gradient(90deg, ${stripColor}, ${stripColor}35, transparent)` }} />
+      <div className="p-3 sm:p-4">{children}</div>
     </div>
   );
 }
 
 function IconBox({ bg, color, children }) {
   return (
-    <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: bg, color }}>{children}</div>
+    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: bg, color }}>{children}</div>
   );
 }
 
 function CountBadge({ count, max }) {
   const good = count >= 5;
   return (
-    <div className="px-3.5 py-1.5 rounded-xl text-sm font-black tabular-nums" style={{ background: good ? "#f0fdf4" : "#f8fafc", color: good ? "#15803d" : "#64748b", border: `1.5px solid ${good ? "#27AE6030" : "#e2e8f0"}` }}>
+    <div className="rounded-lg px-2.5 py-1 text-[10px] font-black tabular-nums" style={{ background: good ? "#f0fdf4" : "#f8fafc", color: good ? "#15803d" : "#64748b", border: `1px solid ${good ? "#27AE6030" : "#e2e8f0"}` }}>
       {count} / {max}
     </div>
   );
@@ -493,19 +509,19 @@ function CountBadge({ count, max }) {
 function SH({ icon, title, bg, color, badge }) {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: bg, color }}>{icon}</div>
-      <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider">{title}</h3>
-      {badge && <div className="ml-auto px-2.5 py-1 rounded-full text-[10px] font-black" style={{ background: `${color}15`, color, border: `1.5px solid ${color}25` }}>{badge}</div>}
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: bg, color }}>{icon}</div>
+      <h3 className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-700">{title}</h3>
+      {badge && <div className="ml-auto rounded-full px-2 py-1 text-[9px] font-black" style={{ background: `${color}15`, color, border: `1px solid ${color}25` }}>{badge}</div>}
     </div>
   );
 }
 
 function TC({ label, checked, onToggle }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all" style={{ borderColor: checked ? "#27AE60" : "#f1f5f9", background: checked ? "#f0fdf4" : "#fff", boxShadow: checked ? "0 2px 12px #27AE6015" : "none" }}>
-      <span className={`text-[11px] font-black uppercase tracking-tight ${checked ? "text-[#15803d]" : "text-slate-400"}`}>{label}</span>
-      <button type="button" onClick={onToggle} className="relative w-10 h-5 rounded-full transition-colors shrink-0 ml-3" style={{ background: checked ? "#27AE60" : "#cbd5e1" }}>
-        <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all" style={{ left: checked ? "calc(100% - 18px)" : "2px" }} />
+    <div className="flex min-h-10 items-center justify-between rounded-lg border px-3 py-2 transition-all" style={{ borderColor: checked ? "#27AE60" : "#e2e8f0", background: checked ? "#f0fdf4" : "#fff", boxShadow: checked ? "0 2px 12px #27AE6015" : "none" }}>
+      <span className={`text-[9px] font-black uppercase tracking-tight ${checked ? "text-[#15803d]" : "text-slate-500"}`}>{label}</span>
+      <button type="button" onClick={onToggle} className="relative ml-3 h-4 w-8 shrink-0 rounded-full transition-colors" style={{ background: checked ? "#27AE60" : "#cbd5e1" }}>
+        <span className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all" style={{ left: checked ? "calc(100% - 14px)" : "2px" }} />
       </button>
     </div>
   );
@@ -513,24 +529,24 @@ function TC({ label, checked, onToggle }) {
 
 function TR({ label, checked, onToggle }) {
   return (
-    <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
-      <span className="text-sm font-bold text-slate-600">{label}</span>
-      <button type="button" onClick={() => onToggle(!checked)} className="relative w-10 h-5 rounded-full transition-colors shrink-0" style={{ background: checked ? "#27AE60" : "#cbd5e1" }}>
-        <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all" style={{ left: checked ? "calc(100% - 18px)" : "2px" }} />
+    <div className="flex min-h-10 items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 transition hover:border-emerald-200">
+      <span className="text-[11px] font-bold text-slate-600">{label}</span>
+      <button type="button" onClick={() => onToggle(!checked)} className="relative h-4 w-8 shrink-0 rounded-full transition-colors" style={{ background: checked ? "#27AE60" : "#cbd5e1" }}>
+        <span className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all" style={{ left: checked ? "calc(100% - 14px)" : "2px" }} />
       </button>
     </div>
   );
 }
 
 function Panel({ children }) {
-  return <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow">{children}</div>;
+  return <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-md sm:p-4">{children}</div>;
 }
 
 function FS({ label, value, onChange, options }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full bg-slate-50 border-2 border-transparent rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:border-[#27AE60]/30 focus:bg-white outline-none transition-all appearance-none">
+      <label className="ml-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 outline-none transition-all hover:border-emerald-200 focus:border-[#27AE60] focus:bg-white focus:ring-2 focus:ring-emerald-100">
         <option value="">Select {label}</option>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
@@ -541,18 +557,18 @@ function FS({ label, value, onChange, options }) {
 function FI({ label, type = "text", value, onChange, placeholder, icon }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1">{icon}{label}</label>
-      <input type={type} value={value} placeholder={placeholder || "—"} onChange={(e) => onChange(e.target.value)} className="w-full bg-slate-50 border-2 border-transparent rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:border-[#27AE60]/30 focus:bg-white outline-none transition-all" />
+      <label className="ml-0.5 flex items-center gap-1 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">{icon}{label}</label>
+      <input type={type} min={type === "number" ? "0" : undefined} value={value} placeholder={placeholder || "—"} onChange={(e) => onChange(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 outline-none transition-all placeholder:text-slate-300 hover:border-emerald-200 focus:border-[#27AE60] focus:bg-white focus:ring-2 focus:ring-emerald-100" />
     </div>
   );
 }
 
 function ParkingCounter({ label, icon, value, onUpdate }) {
   return (
-    <div className="bg-white rounded-xl border border-amber-100 p-4 flex items-center justify-between shadow-sm">
-      <div className="flex items-center gap-2.5"><span className="text-xl">{icon}</span><span className="text-xs font-black text-slate-600 uppercase tracking-tight">{label}</span></div>
-      <div className="flex items-center gap-2 bg-slate-50 rounded-xl p-1 border border-slate-100">
-        <button type="button" onClick={() => onUpdate(Math.max(0, Number(value || 0) - 1))} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-slate-200 hover:bg-red-50 hover:text-red-500 transition-all"><Minus className="w-3.5 h-3.5" /></button>
+    <div className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-2.5">
+      <div className="flex items-center gap-2"><span className="text-base">{icon}</span><span className="text-[10px] font-black uppercase tracking-tight text-slate-600">{label}</span></div>
+      <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+        <button type="button" onClick={() => onUpdate(Math.max(0, Number(value || 0) - 1))} className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white transition-all hover:bg-red-50 hover:text-red-500"><Minus className="h-3 w-3" /></button>
         <input
           type="number"
           min="0"
@@ -563,10 +579,10 @@ function ParkingCounter({ label, icon, value, onUpdate }) {
           onChange={(event) =>
             onUpdate(Math.max(0, Math.trunc(Number(event.target.value) || 0)))
           }
-          className="w-12 bg-transparent text-center font-black text-slate-800 text-sm tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="w-9 bg-transparent text-center text-xs font-black tabular-nums text-slate-800 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           aria-label={label}
         />
-        <button type="button" onClick={() => onUpdate(Number(value || 0) + 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg border border-slate-200 hover:bg-[#27AE60]/10 hover:text-[#27AE60] transition-all"><Plus className="w-3.5 h-3.5" /></button>
+        <button type="button" onClick={() => onUpdate(Number(value || 0) + 1)} className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white transition-all hover:bg-[#27AE60]/10 hover:text-[#27AE60]"><Plus className="h-3 w-3" /></button>
       </div>
     </div>
   );

@@ -1,10 +1,10 @@
 // EditWizard.jsx — FIXED: stable debounce, no stale closures, correct upload payload
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import debounce from "lodash/debounce";
-import { ChevronLeft, LayoutList, MapPin, SlidersHorizontal, ShieldCheck, Wifi } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, LayoutList, MapPin, SlidersHorizontal, ShieldCheck, Wifi } from "lucide-react";
 import { actions } from "../../../store/newIndex";
 import { savePropertyData } from "../../../store/common/propertyThunks";
 import StepBasicDetails from "./steps/StepBasicDetails";
@@ -62,6 +62,7 @@ const cleanData = (obj) => {
 
 export default function EditWizard() {
   const { id } = useParams();
+  const [activeStep, setActiveStep] = useState(0);
 
   const storedId       = localStorage.getItem("editPropertyId");
   const storedCategory = localStorage.getItem("editPropertyCategory");
@@ -114,7 +115,10 @@ export default function EditWizard() {
   // ── Stable debounce — created ONCE, reads latest state via ref ───────────
   // FIX: Previously re-created on every `current` change, resetting the timer
   //      on every keystroke and capturing stale state.
-  const debouncedAutoSave = useRef(
+  const debouncedAutoSave = useMemo(
+    () =>
+    // The debounced callback reads the ref only when it executes, never during render.
+    // eslint-disable-next-line react-hooks/refs
     debounce(async ({ category: cat, propertyId: pid, stepName, dispatch: d }) => {
       try {
         // Read from ref — always fresh, never stale
@@ -124,7 +128,8 @@ export default function EditWizard() {
         console.error("❌ Autosave failed:", err);
       }
     }, 1500),
-  ).current;
+    [],
+  );
 
   // ── Field update — stable callback, does NOT depend on `current` ─────────
   // FIX: Previously unstable because it was a plain function recreated each
@@ -206,8 +211,10 @@ export default function EditWizard() {
         const payload = cleanData(currentRef.current);
         await dispatch(savePropertyData({ category, id: propertyId, step: stepName, data: payload })).unwrap();
         toast.success("Saved to cloud!", { id: tid });
+        return true;
       } catch {
         toast.error("Sync failed", { id: tid });
+        return false;
       }
     },
     [category, propertyId, dispatch],
@@ -228,6 +235,88 @@ export default function EditWizard() {
 
   // ── Debounce cleanup ─────────────────────────────────────────────────────
   useEffect(() => () => debouncedAutoSave.cancel(), [debouncedAutoSave]);
+
+  const wizardSteps = [
+    {
+      key: "basic",
+      number: "01",
+      title: "Standard Information",
+      description: "Intent, category, pricing and core property facts",
+      icon: <LayoutList className="h-4 w-4" />,
+      content: (
+        <StepBasicDetails
+          data={current}
+          onChange={(field, value) => handleFieldUpdate(field, value, "basic")}
+          onSave={() => handleStepSave("basic")}
+        />
+      ),
+    },
+    {
+      key: "location",
+      number: "02",
+      title: "Geographic Context",
+      description: "Address, locality, map pin and nearby places",
+      icon: <MapPin className="h-4 w-4" />,
+      content: (
+        <StepLocationDetails
+          data={current}
+          onChange={(field, value) => handleFieldUpdate(field, value, "location")}
+          onSave={() => handleStepSave("location")}
+        />
+      ),
+    },
+    {
+      key: "details",
+      number: "03",
+      title: "Property Specifications",
+      description: "Amenities, gallery and category-specific details",
+      icon: <SlidersHorizontal className="h-4 w-4" />,
+      content: (
+        <StepPropertyDetails
+          data={current}
+          onChange={(field, value) => handleFieldUpdate(field, value, "details")}
+          onSave={() => handleStepSave("details")}
+        />
+      ),
+    },
+    ...(canShowVerification
+      ? [
+          {
+            key: "verification",
+            number: "04",
+            title: "Compliance & Publish",
+            description: "Documents, verification status and publishing",
+            icon: <ShieldCheck className="h-4 w-4" />,
+            content: (
+              <StepVerifyPublish
+                data={current}
+                onVerifyDocument={handleVerifyDocument}
+                onUploadDocument={handleUploadDocument}
+                onUpdateField={(field, value) =>
+                  handleFieldUpdate(field, value, "verification")
+                }
+                onSubmit={handleSubmit}
+              />
+            ),
+          },
+        ]
+      : []),
+  ];
+
+  const currentStepIndex = Math.min(
+    activeStep,
+    Math.max(0, wizardSteps.length - 1),
+  );
+  const activeDefinition = wizardSteps[currentStepIndex];
+
+  const goToNextStep = async () => {
+    if (!activeDefinition) return;
+    const saved = await handleStepSave(activeDefinition.key);
+    if (saved && currentStepIndex < wizardSteps.length - 1) {
+      setActiveStep((step) => step + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   // ── Loading / missing state ───────────────────────────────────────────────
   if (!category || !propertyId) {
@@ -302,63 +391,153 @@ export default function EditWizard() {
         </div>
       </header>
 
-      <main className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-1 py-8 sm:py-12 space-y-8 sm:space-y-12 max-sm:w-[calc(100vw-32px)]">
-        <div className="space-y-8 sm:space-y-12">
-          <WizardSection step="01" title="Standard Information" icon={<LayoutList className="w-4 h-4" />} accentColor="#27AE60">
-            <StepBasicDetails
-              data={current}
-              onChange={(f, v) => handleFieldUpdate(f, v, "basic")}
-              onSave={() => handleStepSave("basic")}
-            />
-          </WizardSection>
-
-          <WizardSection step="02" title="Geographic Context" icon={<MapPin className="w-4 h-4" />} accentColor="#27AE60">
-            <StepLocationDetails
-              data={current}
-              onChange={(f, v) => handleFieldUpdate(f, v, "location")}
-              onSave={() => handleStepSave("location")}
-            />
-          </WizardSection>
-
-          <WizardSection step="03" title="Property Specifications" icon={<SlidersHorizontal className="w-4 h-4" />} accentColor="#27AE60">
-            <StepPropertyDetails
-              data={current}
-              onChange={(f, v) => handleFieldUpdate(f, v, "details")}
-              onSave={() => handleStepSave("details")}
-            />
-          </WizardSection>
-{canShowVerification && (
-          <WizardSection step="04" title="Compliance & Publish" icon={<ShieldCheck className="w-4 h-4" />} accentColor="#27AE60">
-            <StepVerifyPublish
-              data={current}
-              onVerifyDocument={handleVerifyDocument}
-              onUploadDocument={handleUploadDocument}
-              onUpdateField={(f, v) => handleFieldUpdate(f, v, "verification")}
-              onSubmit={handleSubmit}
-            />
-          </WizardSection>
-)}
+      <main className="mx-auto w-full min-w-0 max-w-[1600px] px-3 py-5 sm:px-6 sm:py-8 lg:px-8">
+        <div className="mb-4 overflow-x-auto pb-1 lg:hidden">
+          <div className="flex min-w-max gap-2">
+            {wizardSteps.map((step, index) => (
+              <button
+                key={step.key}
+                type="button"
+                onClick={() => setActiveStep(index)}
+                className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition ${
+                  currentStepIndex === index
+                    ? "border-[#27AE60] bg-[#27AE60] text-white shadow-md"
+                    : "border-slate-200 bg-white text-slate-600"
+                }`}
+              >
+                {step.icon}
+                <span className="text-xs font-bold">{step.number}</span>
+                <span className="text-xs font-semibold">{step.title}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="h-16" />
+
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[270px_minmax(0,1fr)]">
+          <aside className="hidden lg:block">
+            <div className="sticky top-24 overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
+              <div className="border-b border-emerald-100 bg-emerald-50/70 p-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">
+                  Edit workflow
+                </p>
+                <p className="mt-1 text-sm font-bold text-slate-800">
+                  Complete each section
+                </p>
+              </div>
+              <nav className="space-y-1.5 p-3">
+                {wizardSteps.map((step, index) => {
+                  const selected = currentStepIndex === index;
+                  const completed = currentStepIndex > index;
+                  return (
+                    <button
+                      key={step.key}
+                      type="button"
+                      onClick={() => setActiveStep(index)}
+                      className={`group flex w-full items-start gap-3 rounded-2xl p-3 text-left transition ${
+                        selected
+                          ? "bg-[#27AE60] text-white shadow-lg shadow-emerald-200"
+                          : "text-slate-600 hover:bg-emerald-50"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                          selected
+                            ? "bg-white/20"
+                            : completed
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {completed ? <Check className="h-4 w-4" /> : step.icon}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[9px] font-black uppercase tracking-widest opacity-70">
+                          Step {step.number}
+                        </span>
+                        <span className="mt-0.5 block text-xs font-bold">
+                          {step.title}
+                        </span>
+                        <span
+                          className={`mt-1 block text-[10px] leading-relaxed ${
+                            selected ? "text-white/75" : "text-slate-400"
+                          }`}
+                        >
+                          {step.description}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          </aside>
+
+          <div className="min-w-0">
+            <WizardSection
+              step={activeDefinition?.number}
+              total={wizardSteps.length}
+              title={activeDefinition?.title}
+              description={activeDefinition?.description}
+              icon={activeDefinition?.icon}
+              accentColor="#27AE60"
+            >
+              {activeDefinition?.content}
+            </WizardSection>
+
+            <div className="mt-4 flex flex-col-reverse gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                disabled={currentStepIndex === 0}
+                onClick={() => {
+                  setActiveStep((step) => Math.max(0, step - 1));
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </button>
+              {currentStepIndex < wizardSteps.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={goToNextStep}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-6 text-xs font-black text-white shadow-lg shadow-emerald-200 transition hover:bg-[#219653]"
+                >
+                  Save & Continue <ChevronRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const saved = await handleStepSave(activeDefinition.key);
+                    if (saved) navigate("/properties");
+                  }}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-6 text-xs font-black text-white shadow-lg shadow-emerald-200 transition hover:bg-[#219653]"
+                >
+                  Finish Editing <Check className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );
 }
 
-function WizardSection({ children, step, title, icon, accentColor }) {
+function WizardSection({ children, step, total, title, description, icon, accentColor }) {
   return (
     <section>
-      <div className="flex items-center gap-1 mb-1">
+      <div className="mb-2 flex min-w-0 items-center gap-2">
         <div
           className="flex items-center gap-2 pl-3 pr-4 py-2 rounded-2xl text-white text-[12px] font-bold uppercase tracking-wider shrink-0 shadow-lg"
           style={{ background: accentColor, boxShadow: `0 6px 20px ${accentColor}35` }}
         >
           {icon}
-          <span className="hidden xs:inline sm:inline">{title}</span>
+          <span className="hidden sm:inline">{title}</span>
         </div>
-        <span className="sm:hidden text-xs font-black text-slate-600 uppercase tracking-wide truncate">{title}</span>
+        <span className="min-w-0 truncate text-xs font-black uppercase tracking-wide text-slate-600 sm:hidden">{title}</span>
         <div className="h-px flex-1 bg-gradient-to-r from-green-900 to-transparent" />
-        <span className="text-[10px] font-black text-[#27AE60] shrink-0 tabular-nums">{step}/ 04</span>
+        <span className="shrink-0 text-[10px] font-black tabular-nums text-[#27AE60]">{step}/{String(total).padStart(2, "0")}</span>
       </div>
 
       <div
@@ -366,7 +545,12 @@ function WizardSection({ children, step, title, icon, accentColor }) {
         style={{ border: `1.5px solid ${accentColor}18`, boxShadow: `0 2px 20px ${accentColor}08` }}
       >
         <div className="h-0.5" style={{ background: `linear-gradient(90deg, ${accentColor}60, ${accentColor}20, transparent)` }} />
-        <div className="p-5 sm:p-7 lg:p-9 max-sm:p-2">{children}</div>
+        {description && (
+          <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:px-7">
+            <p className="text-xs text-slate-500">{description}</p>
+          </div>
+        )}
+        <div className="p-3 sm:p-7 lg:p-8">{children}</div>
       </div>
     </section>
   );

@@ -79,24 +79,24 @@ export default function TotalArea({ value, onChange, error }) {
   const area = value || { value: "", unit: "sqft" };
   return (
     <div className="space-y-1.5">
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Total Area</label>
-      <div className={`flex border-2 rounded-xl overflow-hidden bg-white transition-all shadow-sm ${error ? "border-red-300" : "border-slate-100 focus-within:border-[#27AE60]/30"}`}>
+      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Total Area</label>
+      <div className={`flex h-10 overflow-hidden rounded-lg border-2 bg-slate-50 transition-all ${error ? "border-red-300" : "border-slate-200 focus-within:border-[#27AE60] focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-100"}`}>
         <input
           type="number"
           placeholder="0.00"
           value={area.value}
           onChange={(e) => onChange({ ...area, value: e.target.value })}
-          className="flex-1 px-4 py-3 outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300 bg-transparent"
+          className="min-w-0 flex-1 bg-transparent px-3 text-xs font-bold text-slate-700 outline-none placeholder:text-slate-300"
         />
-        <div className="relative flex items-center border-l border-slate-100 bg-slate-50">
+        <div className="relative flex w-24 items-center border-l border-slate-200 bg-white">
           <select
             value={area.unit}
             onChange={(e) => onChange({ ...area, unit: e.target.value })}
-            className="appearance-none pl-3 pr-8 py-3 text-xs font-black text-slate-500 bg-transparent outline-none cursor-pointer"
+            className="h-full w-full appearance-none bg-transparent pl-2 pr-7 text-[11px] font-bold text-slate-600 outline-none cursor-pointer"
           >
             {AREA_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
           </select>
-          <ChevronDown size={12} className="absolute right-2.5 text-slate-400 pointer-events-none" />
+          <ChevronDown size={11} className="absolute right-2 text-slate-400 pointer-events-none" />
         </div>
       </div>
       {error && <p className="text-red-500 text-[10px] font-bold ml-1 uppercase">{error}</p>}

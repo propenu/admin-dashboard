@@ -14,9 +14,7 @@ const DOC_TYPE_OPTIONS = [
 ];
 
 export default function StepVerifyPublish({
-  data,
-  onSubmit,
-  onVerifyDocument,
+  data = {},
   onUploadDocument,   
   onUpdateField,      // (field, value) => void
 }) {
@@ -25,8 +23,6 @@ export default function StepVerifyPublish({
   const [uploading,   setUploading]   = useState(false);
   const fileInputRef = useRef(null);
   const navigate     = useNavigate();
-
-  if (!data) return null;
 
   // ── 1. Server docs (already saved) ──────────────────────────────────────
   const serverDocs = useMemo(
@@ -123,31 +119,45 @@ export default function StepVerifyPublish({
   };
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-[#27AE60]">
+            <FileCheck className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#27AE60]">Verification center</p>
+            <h2 className="mt-0.5 text-sm font-black text-slate-900">Documents, review status and publishing readiness</h2>
+          </div>
+        </div>
+        <span className="self-start rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-bold text-slate-500 sm:self-auto">
+          Files save automatically after upload
+        </span>
+      </div>
 
       {/* ═══════════════════════════════════════════
           SECTION 1 — Existing (Server) Documents
       ═══════════════════════════════════════════ */}
       <div
-        className="bg-white rounded-3xl border-2 overflow-hidden"
+        className="overflow-hidden rounded-2xl border bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]"
         style={{ borderColor: "#27AE6018", boxShadow: "0 4px 24px #27AE6008" }}
       >
         <div className="h-0.5" style={{ background: "linear-gradient(90deg,#27AE6060,#27AE6015,transparent)" }} />
 
         {/* Header */}
-        <div className="px-5 sm:px-7 py-5 border-b border-slate-50 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#27AE60]/10 flex items-center justify-center">
-            <FolderOpen className="w-5 h-5 text-[#27AE60]" />
+        <div className="flex items-center gap-2.5 border-b border-slate-100 px-3 py-3 sm:px-4">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#27AE60]/10">
+            <FolderOpen className="h-3.5 w-3.5 text-[#27AE60]" />
           </div>
           <div>
-            <h3 className="text-base font-black text-slate-800">Submitted Documents</h3>
+            <h3 className="text-xs font-black text-slate-800">Submitted Documents</h3>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
               {totalServer} document{totalServer !== 1 ? "s" : ""} · {verifiedServer} verified
             </p>
           </div>
         </div>
 
-        <div className="p-5 sm:p-7 bg-slate-50/30 space-y-5">
+        <div className="space-y-3 bg-slate-50/30 p-3 sm:p-4">
           {serverDocTypes.length === 0 ? (
             <div className="py-10 text-center">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No documents on record</p>
@@ -155,7 +165,7 @@ export default function StepVerifyPublish({
           ) : (
             serverDocTypes.map((type) => (
               <div key={type}>
-                <div className="flex items-center gap-2 mb-3">
+                <div className="mb-2 flex items-center gap-2">
                   <Tag className="w-3 h-3 text-[#27AE60]" />
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#27AE60]">{type}</span>
                   <div className="flex-1 h-px bg-[#27AE60]/10" />
@@ -164,18 +174,18 @@ export default function StepVerifyPublish({
                   </span>
                 </div>
 
-                <div className="space-y-2 pl-1">
+                <div className="space-y-2">
                   {groupedServerDocs[type].map((doc, idx) => (
                     <div
                       key={doc.filename || idx}
-                      className="bg-white border-2 border-slate-50 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-[#27AE60]/20 transition-all group"
+                      className="group flex min-h-12 items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 transition-all hover:border-[#27AE60]/30"
                     >
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-[#27AE60] group-hover:bg-[#27AE60]/8 transition-all shrink-0">
-                          <FileText className="w-5 h-5" />
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400 transition-all group-hover:bg-[#27AE60]/8 group-hover:text-[#27AE60]">
+                          <FileText className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="text-sm font-black text-slate-700 truncate max-w-[180px] sm:max-w-[300px]">
+                          <p className="max-w-[190px] truncate text-xs font-black text-slate-700 sm:max-w-[420px]">
                             {doc.filename || doc.title}
                           </p>
                           <DocBadge status={doc.status} />
@@ -184,7 +194,7 @@ export default function StepVerifyPublish({
                       <button
                         type="button"
                         onClick={() => setPreviewDoc(doc)}
-                        className="p-2.5 rounded-xl hover:bg-blue-50 text-slate-300 hover:text-blue-600 transition-colors"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-blue-50 hover:text-blue-600"
                         title="Preview"
                       >
                         <Eye className="w-4 h-4" />
@@ -199,7 +209,7 @@ export default function StepVerifyPublish({
       </div>
 
       {/* ── Stats row ── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3">
         {[
           { icon: <FileText className="w-4 h-4" />,  label: "Total",    value: totalServer,                   color: "#3B82F6", active: true },
           { icon: <FileCheck className="w-4 h-4" />, label: "Verified", value: verifiedServer,                color: "#27AE60", active: verifiedServer > 0 },
@@ -207,12 +217,14 @@ export default function StepVerifyPublish({
         ].map((s) => (
           <div
             key={s.label}
-            className="p-4 sm:p-5 rounded-2xl border-2 transition-all"
+            className="flex min-h-16 items-center gap-3 rounded-xl border p-3 transition-all"
             style={{ borderColor: s.active ? `${s.color}25` : "#f1f5f9", background: s.active ? `${s.color}08` : "#f8fafc" }}
           >
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3" style={{ background: s.active ? `${s.color}15` : "#e2e8f0", color: s.active ? s.color : "#94a3b8" }}>{s.icon}</div>
-            <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: s.active ? s.color : "#94a3b8" }}>{s.label}</p>
-            <p className="text-2xl sm:text-3xl font-black tabular-nums" style={{ color: s.active ? s.color : "#cbd5e1" }}>{s.value}</p>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: s.active ? `${s.color}15` : "#e2e8f0", color: s.active ? s.color : "#94a3b8" }}>{s.icon}</div>
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: s.active ? s.color : "#94a3b8" }}>{s.label}</p>
+              <p className="text-lg font-black tabular-nums leading-5" style={{ color: s.active ? s.color : "#cbd5e1" }}>{s.value}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -223,32 +235,31 @@ export default function StepVerifyPublish({
           2. Upload files → onUploadDocument → saves to backend
       ═══════════════════════════════════════════ */}
       <div
-        className="bg-white rounded-3xl border-2 overflow-hidden"
+        className="overflow-hidden rounded-2xl border bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]"
         style={{ borderColor: "#3B82F618", boxShadow: "0 4px 24px #3B82F608" }}
       >
         <div className="h-0.5" style={{ background: "linear-gradient(90deg,#3B82F660,#3B82F615,transparent)" }} />
 
         {/* Header — type selector + upload button */}
-        <div className="px-5 sm:px-7 py-5 border-b border-slate-50 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 sm:px-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center">
-              <Plus className="w-5 h-5 text-blue-500" />
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
+              <Plus className="h-3.5 w-3.5 text-blue-500" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-800">Add New Document</h3>
+              <h3 className="text-xs font-black text-slate-800">Add New Document</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
                 Select type → upload → saves automatically
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
             {/* ── Step 1: pick type ── */}
             <select
               value={newDocType}
               onChange={(e) => handleDocTypeChange(e.target.value)}
-              className="text-xs font-black text-slate-700 border-2 border-slate-200 rounded-xl px-3 py-2.5 bg-slate-50 focus:outline-none focus:border-blue-400 transition-all"
-              style={{ minWidth: "170px" }}
+              className="h-10 w-full rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 text-[10px] font-bold text-emerald-800 outline-none transition-all hover:border-[#27AE60] hover:bg-emerald-50 focus:border-[#27AE60] focus:bg-white focus:ring-2 focus:ring-emerald-100 sm:min-w-48"
             >
               <option value="">① Select Type…</option>
               {DOC_TYPE_OPTIONS.map((t) => (
@@ -272,10 +283,10 @@ export default function StepVerifyPublish({
                 fileInputRef.current?.click();
               }}
               disabled={uploading}
-              className="flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-xs font-black transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-lg px-4 text-[10px] font-black text-white transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               style={{
-                background  : newDocType ? "linear-gradient(135deg,#1e293b,#0f172a)" : "#cbd5e1",
-                boxShadow   : newDocType ? "0 4px 14px rgba(0,0,0,0.25)" : "none",
+                background  : newDocType ? "linear-gradient(135deg,#27AE60,#219653)" : "#cbd5e1",
+                boxShadow   : newDocType ? "0 6px 16px #27AE6030" : "none",
                 cursor      : newDocType && !uploading ? "pointer" : "not-allowed",
               }}
             >
@@ -286,20 +297,20 @@ export default function StepVerifyPublish({
         </div>
 
         {/* Local (pending) docs list */}
-        <div className="p-5 sm:p-7 bg-slate-50/30">
+        <div className="bg-slate-50/30 p-3 sm:p-4">
           {localDocs.length === 0 ? (
             <div
               onClick={() => { if (newDocType) fileInputRef.current?.click(); }}
-              className="border-2 border-dashed rounded-2xl p-10 sm:p-14 text-center transition-all group"
+              className="group rounded-xl border border-dashed px-4 py-7 text-center transition-all sm:py-8"
               style={{
                 borderColor : newDocType ? "#3B82F640" : "#e2e8f0",
                 cursor      : newDocType ? "pointer" : "default",
               }}
             >
-              <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:bg-blue-50 transition-all shadow-sm">
-                <Upload className="w-6 h-6 text-slate-300 group-hover:text-blue-400 transition-colors" />
+              <div className="mx-auto mb-2.5 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 shadow-sm transition-all group-hover:scale-105 group-hover:bg-emerald-50">
+                <Upload className="h-4 w-4 text-slate-300 transition-colors group-hover:text-[#27AE60]" />
               </div>
-              <h4 className="font-black text-slate-500 text-sm">
+              <h4 className="text-[11px] font-black text-slate-500">
                 {newDocType
                   ? `Click to upload as "${DOC_TYPE_OPTIONS.find((o) => o.id === newDocType)?.label || newDocType}"`
                   : "① Select a type above, then ② upload"}
@@ -322,15 +333,15 @@ export default function StepVerifyPublish({
               {localDocs.map((doc, idx) => (
                 <div
                   key={doc.filename || idx}
-                  className="bg-white border-2 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all group"
+                  className="group flex min-h-12 items-center justify-between gap-3 rounded-xl border bg-white px-3 py-2.5 transition-all"
                   style={{ borderColor: "#FDE68A" }}
                 >
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                      <FileText className="w-5 h-5 text-amber-400" />
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50">
+                      <FileText className="h-4 w-4 text-amber-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-black text-slate-700 truncate max-w-[180px] sm:max-w-[280px]">
+                      <p className="max-w-[190px] truncate text-xs font-black text-slate-700 sm:max-w-[360px]">
                         {doc.filename}
                       </p>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -348,7 +359,7 @@ export default function StepVerifyPublish({
                   <button
                     type="button"
                     onClick={() => setPreviewDoc(doc)}
-                    className="p-2.5 rounded-xl hover:bg-blue-50 text-slate-300 hover:text-blue-600 transition-colors"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-blue-50 hover:text-blue-600"
                     title="Preview"
                   >
                     <Eye className="w-4 h-4" />
@@ -362,11 +373,11 @@ export default function StepVerifyPublish({
 
       {/* ── Warning ── */}
       {!allDone && (
-        <div className="flex items-start gap-3 p-4 rounded-2xl border" style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
-          <div className="w-7 h-7 rounded-xl bg-amber-100 flex items-center justify-center shrink-0 mt-0.5">
+        <div className="flex items-start gap-2 rounded-xl border px-3 py-2.5" style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
+          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-100">
             <Info className="w-3.5 h-3.5 text-amber-600" />
           </div>
-          <p className="text-xs font-bold text-amber-700 leading-relaxed">
+          <p className="text-[10px] font-bold leading-4 text-amber-700">
             {totalServer === 0
               ? "⚠️ No verified documents found. Select a type, upload a document, and it will be saved automatically."
               : verifiedServer < totalServer
@@ -379,10 +390,10 @@ export default function StepVerifyPublish({
       )}
 
       {/* ── Actions ── */}
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-6 border-t border-slate-100">
+      <div className="flex flex-col items-stretch justify-between gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center">
         <button
           onClick={() => navigate(`/${data.propertyCategory}`)}
-          className="px-6 py-3.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:bg-slate-200 text-center"
+          className="h-10 rounded-xl px-5 text-center text-[10px] font-black uppercase tracking-[0.14em] transition-all hover:bg-slate-200"
           style={{ background: "#f1f5f9", color: "#475569" }}
         >
           Exit
@@ -407,12 +418,12 @@ export default function StepVerifyPublish({
       {previewDoc && (
         <div className="fixed inset-0 bg-slate-900/85 backdrop-blur-md flex items-center justify-center z-[100] p-3 sm:p-8">
           <div
-            className="bg-white w-full max-w-4xl rounded-3xl overflow-hidden flex flex-col shadow-2xl max-h-[92vh]"
+            className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
             style={{ boxShadow: "0 40px 80px rgba(0,0,0,0.3)" }}
           >
-            <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 shrink-0">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#27AE60]/10 flex items-center justify-center">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#27AE60]/10">
                   <FileText className="w-4 h-4 text-[#27AE60]" />
                 </div>
                 <div>
@@ -424,7 +435,7 @@ export default function StepVerifyPublish({
               </div>
               <button
                 onClick={() => setPreviewDoc(null)}
-                className="w-9 h-9 rounded-xl hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-red-50 hover:text-red-500"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -437,10 +448,10 @@ export default function StepVerifyPublish({
                 }
               </div>
             </div>
-            <div className="px-6 py-4 border-t bg-slate-50 flex justify-end">
+            <div className="flex justify-end border-t bg-slate-50 px-4 py-3">
               <button
                 onClick={() => setPreviewDoc(null)}
-                className="px-6 py-2.5 bg-white border border-slate-200 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all"
+                className="h-9 rounded-lg border border-slate-200 bg-white px-4 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-slate-100"
               >
                 Close
               </button>
