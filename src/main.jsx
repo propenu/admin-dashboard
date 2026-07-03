@@ -12,9 +12,7 @@ import { store } from "./store/newIndex.js";
 // A user may keep the dashboard open while a new production deployment
 // replaces hashed lazy-loaded chunks. Refresh once so the browser receives
 // the latest index and asset manifest instead of remaining on a broken route.
-window.addEventListener("vite:preloadError", (event) => {
-  event.preventDefault();
-
+const recoverFromStaleDeployment = () => {
   const recoveryKey = "propenu-vite-preload-recovery";
   const lastRecovery = Number(sessionStorage.getItem(recoveryKey) || 0);
   const now = Date.now();
@@ -22,6 +20,25 @@ window.addEventListener("vite:preloadError", (event) => {
   if (now - lastRecovery > 30_000) {
     sessionStorage.setItem(recoveryKey, String(now));
     window.location.reload();
+  }
+};
+
+window.addEventListener("vite:preloadError", (event) => {
+  event.preventDefault();
+  recoverFromStaleDeployment();
+});
+
+// Some browsers surface React.lazy failures as an unhandled promise rejection
+// without emitting Vite's preload event.
+window.addEventListener("unhandledrejection", (event) => {
+  const message = String(event.reason?.message || event.reason || "");
+  if (
+    /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(
+      message,
+    )
+  ) {
+    event.preventDefault();
+    recoverFromStaleDeployment();
   }
 });
 
