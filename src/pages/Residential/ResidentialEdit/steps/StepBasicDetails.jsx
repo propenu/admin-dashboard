@@ -41,6 +41,9 @@ const AGENT_PROJECT_TYPES = {
     { label: "Apartment", value: "apartment" },
     { label: "Villa", value: "villa" },
   ],
+  commercial: [
+    { label: "Commercial Space", value: "office" },
+  ],
   land: [
     { label: "Open Plot", value: "residential-plot" },
     { label: "Commercial Plot", value: "commercial-plot" },

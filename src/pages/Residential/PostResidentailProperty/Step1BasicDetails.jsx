@@ -179,6 +179,7 @@ const CATEGORIES = [
 const AGENT_PROJECT_TYPES = [
   { label: "Apartment", value: "apartment", category: "residential", propertyType: "apartment" },
   { label: "Villa", value: "villa", category: "residential", propertyType: "villa" },
+  { label: "Commercial Space", value: "commercial-space", category: "commercial", propertyType: "office" },
   { label: "Open Plot", value: "open-plot", category: "land", propertyType: "residential-plot" },
   { label: "Commercial Plot", value: "commercial-plot", category: "land", propertyType: "commercial-plot" },
 ];

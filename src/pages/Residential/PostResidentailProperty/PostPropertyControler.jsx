@@ -20,6 +20,7 @@ const getAgentProjectConfig = (subType) => {
   const configs = {
     apartment: { category: "residential", propertyType: "apartment" },
     villa: { category: "residential", propertyType: "villa" },
+    "commercial-space": { category: "commercial", propertyType: "office" },
     "open-plot": { category: "land", propertyType: "residential-plot" },
     "commercial-plot": { category: "land", propertyType: "commercial-plot" },
   };
