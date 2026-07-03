@@ -38,7 +38,9 @@ const cleanData = (obj) => {
     const cleaned = {};
     Object.keys(obj).forEach((key) => {
       let value = obj[key];
-      if (key === "createdBy" && typeof value === "object") value = value?._id;
+      if (key === "createdBy" && typeof value === "object") {
+        value = value?._id || value?.userId || value?.id;
+      }
       const cv = cleanData(value);
       if (
         cv !== "" &&
@@ -103,6 +105,13 @@ export default function EditWizard() {
         dispatch(
           actions[category].hydrateForm({
             ...property,
+            createdBy:
+              property.createdBy && typeof property.createdBy === "object"
+                ? {
+                    ...property.createdBy,
+                    _selectedFromSearch: true,
+                  }
+                : property.createdBy || "",
             galleryFiles : property.galleryFiles || [],
             amenities    : property.amenities    || [],
           }),
@@ -218,14 +227,15 @@ export default function EditWizard() {
         const createdBy = currentRef.current?.createdBy;
         const createdById =
           typeof createdBy === "object"
-            ? createdBy?._id || createdBy?.userId
-            : createdBy;
-        if (!createdById || createdBy?._selectedFromSearch !== true) {
+            ? createdBy?._id || createdBy?.userId || createdBy?.id
+            : "";
+        if (!createdById) {
           const message = "Search and select a user from the results";
           setCreatedByError(message);
           toast.error(message);
           return false;
         }
+        setCreatedByError("");
       }
       const tid = toast.loading(`Saving ${stepName}...`);
       try {
@@ -336,14 +346,15 @@ export default function EditWizard() {
       const createdBy = currentRef.current?.createdBy;
       const createdById =
         typeof createdBy === "object"
-          ? createdBy?._id || createdBy?.userId
-          : createdBy;
-      if (!createdById || createdBy?._selectedFromSearch !== true) {
+          ? createdBy?._id || createdBy?.userId || createdBy?.id
+          : "";
+      if (!createdById) {
         const message = "Search and select a user from the results";
         setCreatedByError(message);
         toast.error(message);
         return;
       }
+      setCreatedByError("");
     }
     setActiveStep(nextStepIndex);
   };

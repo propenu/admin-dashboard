@@ -808,6 +808,28 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
             )}
           </CardWrapper>
 
+          {category === "commercial" &&
+            form.propertyType === "office" && (
+              <CardWrapper>
+                <SectionLabel>Property Sub Type</SectionLabel>
+                <div ref={subTypeRef} className="flex flex-wrap gap-2">
+                  {PROPERTY_SUB_TYPES.commercial.office.map((type) => (
+                    <ChoiceChip
+                      key={type.value}
+                      label={type.label}
+                      selected={form.propertySubType === type.value}
+                      onClick={() => setValue("propertySubType", type.value)}
+                    />
+                  ))}
+                </div>
+                {errors.propertySubType && (
+                  <p className="mt-2 text-xs font-medium text-red-500">
+                    {errors.propertySubType}
+                  </p>
+                )}
+              </CardWrapper>
+            )}
+
           <CardWrapper>
             <SectionLabel>Project Summary</SectionLabel>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

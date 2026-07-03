@@ -224,7 +224,8 @@ export default function StepBasicDetails({
       </Block>
 
       {/* Sub-type */}
-      {!isAgentProject && subTypes().length > 0 && (
+      {(!isAgentProject || cat === "commercial") &&
+        subTypes().length > 0 && (
         <Block label="Sub Type" icon={<Layers className="w-3.5 h-3.5" />}>
           <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-3">
             {subTypes().map((item) => (
