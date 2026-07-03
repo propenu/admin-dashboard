@@ -705,7 +705,11 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
     switch (category) {
       case "residential":
       case "commercial":
-        area = Number(form.carpetArea);
+        area = Number(
+          form.priceCalculationBasis === "builtUpArea"
+            ? form.builtUpArea
+            : form.carpetArea,
+        );
         break;
 
       case "land":
@@ -735,6 +739,8 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
   }, [
     form.price,
     form.carpetArea,
+    form.builtUpArea,
+    form.priceCalculationBasis,
     form.plotArea,
     form.plotAreaUnit,
     form.totalArea,

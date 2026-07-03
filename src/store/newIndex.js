@@ -29,6 +29,7 @@ const getBaseState = (category, type) => ({
   maintenanceCharges: "",
   currency: "INR",
   pricePerSqft: "",
+  priceCalculationBasis: "carpetArea",
   constructionStatus: "",
   amenities: [],
   banksApproved: [],

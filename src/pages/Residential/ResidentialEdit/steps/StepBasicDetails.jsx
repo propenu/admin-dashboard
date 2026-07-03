@@ -77,7 +77,11 @@ export default function StepBasicDetails({
     let areaInSqft = 0;
 
     if (cat === "residential" || cat === "commercial") {
-      areaInSqft = Number(data.carpetArea);
+      areaInSqft = Number(
+        data.priceCalculationBasis === "builtUpArea"
+          ? data.builtUpArea
+          : data.carpetArea,
+      );
     } else if (cat === "land") {
       areaInSqft =
         Number(data.plotArea) *
@@ -96,6 +100,8 @@ export default function StepBasicDetails({
     cat,
     data.price,
     data.carpetArea,
+    data.builtUpArea,
+    data.priceCalculationBasis,
     data.plotArea,
     data.plotAreaUnit,
     data.totalArea,
@@ -460,6 +466,47 @@ export default function StepBasicDetails({
                 prefix="₹"
               />
             </div>
+            {(cat === "residential" || cat === "commercial") && (
+              <div className="mt-3">
+                <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  Calculate price / sqft using
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "carpetArea", label: "Carpet Area" },
+                    { value: "builtUpArea", label: "Built-up Area" },
+                  ].map((option) => {
+                    const active =
+                      (data.priceCalculationBasis || "carpetArea") ===
+                      option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() =>
+                          upd("priceCalculationBasis", option.value)
+                        }
+                        className={`rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${
+                          active
+                            ? "border-[#27AE60] bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-[10px] text-slate-500">
+                  Automatically calculated from Price ÷{" "}
+                  {(data.priceCalculationBasis || "carpetArea") ===
+                  "builtUpArea"
+                    ? "Built-up Area"
+                    : "Carpet Area"}
+                </p>
+              </div>
+            )}
           </FinCard>
           <FinCard
             headerColor="#27AE60"
