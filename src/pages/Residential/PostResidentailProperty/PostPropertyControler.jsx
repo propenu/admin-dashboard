@@ -127,9 +127,15 @@ export default function PropertyController({ agentProject = false }) {
          })()
        : {}),
 
+     // Keep the populated API user so Assigned To can render immediately
+     // after initial load and after Save & Continue → Back. The save payload
+     // still converts this object to its _id.
      createdBy:
-       typeof draft.createdBy === "object"
-         ? draft.createdBy?._id
+       draft.createdBy && typeof draft.createdBy === "object"
+         ? {
+             ...draft.createdBy,
+             _selectedFromSearch: true,
+           }
          : draft.createdBy || "",
 
      galleryFiles: currentForm?.galleryFiles?.length

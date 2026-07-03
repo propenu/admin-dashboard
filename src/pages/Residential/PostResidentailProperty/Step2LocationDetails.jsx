@@ -133,6 +133,7 @@ async function lookupPostalPin(pincode, signal) {
     const firstOffice = data?.[0]?.PostOffice?.[0] || {};
 
     return {
+      locality: titleCase(firstOffice.Name || firstOffice.Block || ""),
       city: titleCase(firstOffice.District || ""),
       state: titleCase(firstOffice.State || ""),
     };
@@ -165,34 +166,31 @@ async function geocodePincode(pincode, signal) {
     lookupNominatimPincode(pincode, signal),
   ]);
 
-  if (!best) return null;
+  // Postal PIN data can still fill the address if Nominatim has no coordinate
+  // match for this pincode.
+  if (!best) {
+    return {
+      lat: NaN,
+      lng: NaN,
+      locality: postal.locality || "",
+      city: postal.city || "",
+      state: postal.state || "",
+    };
+  }
 
   const a = best?.address || {};
   return {
     lat: parseFloat(best.lat),
     lng: parseFloat(best.lon),
+    // Locality/coordinates come from OpenStreetMap; India Post is the
+    // authoritative source used below for city and state.
     locality: titleCase(stripWard(
       a.suburb || a.neighbourhood || a.hamlet ||
       a.village || a.town || a.city_district || a.county || ""
-    )),
+    )) || postal.locality || "",
     city: postal.city || titleCase(a.city || a.town || a.village || a.city_district || a.state_district || a.county || ""),
     state: postal.state || titleCase(a.state || ""),
   };
-}
-
-/**
- * Forward geocode a free-text string → { lat, lng }
- * Fallback when locality/city/state change and no user pin exists.
- */
-async function geocodeText(text, signal) {
-  const res  = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(text)}&limit=1`,
-    { signal, headers: { "Accept-Language": "en" } }
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (!Array.isArray(data) || !data.length) return null;
-  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
 }
 
 // ─────────────────────────────────────────────
@@ -914,10 +912,10 @@ export default function Step2LocationDetails({ next, back, category }) {
   const gpsAbortRef          = useRef(null);   // GPS reverse geocode
   const pincodeAbortRef      = useRef(null);   // pincode forward geocode
   const coordinatesAbortRef  = useRef(null);   // coordinate reverse geocode
-  const fieldGeocodeAbortRef = useRef(null);   // field-watch forward geocode
   const pincodeCacheRef      = useRef(new Map());
   const pinPlacedByUserRef   = useRef(false);  // true after manual map click or GPS
-  const skipFieldGeocodeRef  = useRef(false);  // prevents field-watch loop after pin
+  const manualPincodeEditRef = useRef(false);  // skip autofill when returning with saved data
+  const manualCoordinateEditRef = useRef(false); // don't reverse-geocode API hydration
   const skipCoordinateReverseRef = useRef(false);
 
   useEffect(() => {
@@ -932,7 +930,7 @@ export default function Step2LocationDetails({ next, back, category }) {
   // Called by MapplsPinMap on every click → receives { coordinates, pincode?, locality?, city?, state? }
   const handlePinChange = useCallback(({ coordinates, pincode, locality, city, state }) => {
     pinPlacedByUserRef.current  = true;
-    skipFieldGeocodeRef.current = true; // map click fills fields → don't re-geocode them
+    manualPincodeEditRef.current = false;
     skipCoordinateReverseRef.current = true;
     setMarkerPlaced(true);
 
@@ -993,6 +991,8 @@ export default function Step2LocationDetails({ next, back, category }) {
       return;
     }
 
+    if (!manualCoordinateEditRef.current) return;
+
     const [lng, lat] = coords;
 
     coordinatesAbortRef.current?.abort();
@@ -1001,6 +1001,8 @@ export default function Step2LocationDetails({ next, back, category }) {
 
     reverseGeocode(lat, lng, ctrl.signal)
       .then((geo) => {
+        manualCoordinateEditRef.current = false;
+        manualPincodeEditRef.current = false;
         if (geo.pincode) setValue("pincode", geo.pincode);
         if (geo.locality) setValue("locality", geo.locality);
         if (geo.city) setValue("city", geo.city);
@@ -1019,6 +1021,11 @@ export default function Step2LocationDetails({ next, back, category }) {
   // Fires when user types a complete 6-digit pincode.
   // → fills locality / city / state AND places map marker (if not pinned yet).
   useEffect(() => {
+    // Existing property data can hydrate field-by-field. Never let the saved
+    // pincode overwrite its saved locality/city/state during that initial load.
+    // Autofill is intentionally enabled only by a real PIN input edit.
+    if (!manualPincodeEditRef.current) return;
+
     const pin = (form.pincode || "").replace(/\D/g, "");
     if (pin.length !== 6) return;
 
@@ -1044,7 +1051,6 @@ export default function Step2LocationDetails({ next, back, category }) {
         // marker even when the user previously clicked the map or used GPS.
         if (Number.isFinite(lat) && Number.isFinite(lng)) {
           pinPlacedByUserRef.current = false;
-          skipFieldGeocodeRef.current = true;
           skipCoordinateReverseRef.current = true;
           setValue("location", { type: "Point", coordinates: [lng, lat] });
           setMarkerPlaced(true);
@@ -1057,36 +1063,12 @@ export default function Step2LocationDetails({ next, back, category }) {
     return () => { ctrl.abort(); clearTimeout(tid); };
   }, [form.pincode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Field-watch geocode (fallback) ────────────────────────────────────────
-  // When locality/city/state are edited manually and no pin exists yet,
-  // auto-place the map marker (mirrors File 5 behaviour).
-  useEffect(() => {
-    if (skipFieldGeocodeRef.current) { skipFieldGeocodeRef.current = false; return; }
-    if (!form.locality || !form.city || !form.state) return;
-
-    fieldGeocodeAbortRef.current?.abort();
-    const ctrl = new AbortController();
-    fieldGeocodeAbortRef.current = ctrl;
-
-    geocodeText(`${form.locality}, ${form.city}, ${form.state}`, ctrl.signal)
-      .then((geo) => {
-        if (!geo) return;
-        skipCoordinateReverseRef.current = true;
-        setValue("location", { type: "Point", coordinates: [geo.lng, geo.lat] });
-        setMarkerPlaced(true);
-      })
-      .catch((e) => { if (e?.name !== "AbortError") console.error(e); });
-
-    return () => ctrl.abort();
-  }, [form.locality, form.city, form.state]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Cleanup
   useEffect(() => {
     return () => {
       gpsAbortRef.current?.abort();
       pincodeAbortRef.current?.abort();
       coordinatesAbortRef.current?.abort();
-      fieldGeocodeAbortRef.current?.abort();
     };
   }, []);
 
@@ -1230,6 +1212,7 @@ export default function Step2LocationDetails({ next, back, category }) {
                   // while the user is choosing a new pincode.
                   coordinatesAbortRef.current?.abort();
                   pinPlacedByUserRef.current = false;
+                  manualPincodeEditRef.current = true;
                   setValue("pincode", nextPincode);
                 }}
                 placeholder="6-digit pincode"
@@ -1249,6 +1232,7 @@ export default function Step2LocationDetails({ next, back, category }) {
                   const lng = form.location?.coordinates?.[0];
 
                   if (!isNaN(lat) && Number.isFinite(lng)) {
+                    manualCoordinateEditRef.current = true;
                     setValue("location", {
                       type: "Point",
                       coordinates: [lng, lat],
@@ -1271,6 +1255,7 @@ export default function Step2LocationDetails({ next, back, category }) {
                   const lat = form.location?.coordinates?.[1];
 
                   if (!isNaN(lng) && Number.isFinite(lat)) {
+                    manualCoordinateEditRef.current = true;
                     setValue("location", {
                       type: "Point",
                       coordinates: [lng, lat],

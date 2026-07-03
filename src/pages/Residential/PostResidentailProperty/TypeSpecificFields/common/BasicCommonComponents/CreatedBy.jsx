@@ -65,7 +65,20 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
 
   /* ── if form already has a createdBy id, find the user label ── */
   useEffect(() => {
-    if (form?.createdBy && allUsers.length) {
+    if (!form?.createdBy) {
+      setSelectedUser(null);
+      return;
+    }
+
+    // Draft/detail APIs return a populated createdBy object. Render that
+    // object directly instead of depending on it being present in the current
+    // role-filtered/paginated user-search response.
+    if (typeof form.createdBy === "object" && form.createdBy.name) {
+      setSelectedUser(form.createdBy);
+      return;
+    }
+
+    if (allUsers.length) {
       const createdById =
         typeof form.createdBy === "object"
           ? form.createdBy._id || form.createdBy.id
