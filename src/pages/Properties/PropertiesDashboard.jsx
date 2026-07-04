@@ -289,9 +289,20 @@ function MiniLineChart({ values = [], color = "#27AE60" }) {
   );
 }
 
-async function fetchEveryPage(fetcher) {
+function useDebounce(value, delay = 350) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timeout);
+  }, [value, delay]);
+
+  return debounced;
+}
+
+async function fetchEveryPage(fetcher, params = {}) {
   const limit = 100;
-  const first = await fetcher({ page: 1, limit });
+  const first = await fetcher({ ...params, page: 1, limit });
   const total = first?.meta?.total ?? first?.items?.length ?? 0;
   const pages = Math.ceil(total / (first?.meta?.limit || limit));
 
@@ -299,7 +310,7 @@ async function fetchEveryPage(fetcher) {
 
   const rest = await Promise.all(
     Array.from({ length: pages - 1 }, (_, index) =>
-      fetcher({ page: index + 2, limit }),
+      fetcher({ ...params, page: index + 2, limit }),
     ),
   );
 
@@ -714,6 +725,7 @@ export default function PropertiesDashboard() {
   const [search, setSearch] = useState(
     () => searchParams.get("search") || "",
   );
+  const debouncedSearch = useDebounce(search);
   const [sort, setSort] = useState(
     () => searchParams.get("sort") || "newest",
   );
@@ -762,8 +774,9 @@ export default function PropertiesDashboard() {
 
   const categoryQueries = useQueries({
     queries: CATEGORIES.filter((item) => item.fetcher).map((item) => ({
-      queryKey: ["properties-dashboard", item.value],
-      queryFn: () => fetchEveryPage(item.fetcher),
+      queryKey: ["properties-dashboard", item.value, debouncedSearch],
+      queryFn: () =>
+        fetchEveryPage(item.fetcher, { search: debouncedSearch }),
       staleTime: 60_000,
     })),
   });
@@ -844,7 +857,7 @@ export default function PropertiesDashboard() {
   );
 
   const visibleProperties = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const term = debouncedSearch.trim().toLowerCase();
     return allProperties
       .filter((property) => category === "all" || property._category === category)
       .filter((property) => status === "all" || getStatus(property) === status)
@@ -867,7 +880,7 @@ export default function PropertiesDashboard() {
         const second = new Date(b?.createdAt || 0).getTime();
         return sort === "newest" ? second - first : first - second;
       });
-  }, [allProperties, category, locationFilters, search, sort, status]);
+  }, [allProperties, category, debouncedSearch, locationFilters, sort, status]);
 
   const loading = categoryQueries.some((query) => query.isLoading);
   const failed = categoryQueries.filter((query) => query.isError).length;

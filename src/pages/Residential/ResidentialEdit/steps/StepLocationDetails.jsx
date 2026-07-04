@@ -16,24 +16,75 @@ const titleCase = (str) => {
 
 const stripWard = (s) => (s ? s.replace(/^ward\s*\d+[a-z]?\s+/i, "").trim() : "");
 
+async function lookupPostalPin(pincode, signal) {
+  try {
+    const res = await fetch(
+      `https://api.postalpincode.in/pincode/${pincode}`,
+      { signal },
+    );
+    if (!res.ok) return { locality: "", city: "", state: "" };
+
+    const data = await res.json();
+    const firstOffice = data?.[0]?.PostOffice?.[0] || {};
+    return {
+      locality: titleCase(firstOffice.Name || firstOffice.Block || ""),
+      city: titleCase(firstOffice.District || ""),
+      state: titleCase(firstOffice.State || ""),
+    };
+  } catch (error) {
+    if (error?.name !== "AbortError") {
+      console.error("Postal PIN lookup error:", error);
+    }
+    return { locality: "", city: "", state: "" };
+  }
+}
+
+async function lookupNominatimPincode(pincode, signal) {
+  const urls = [
+    `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=India&format=json&addressdetails=1&limit=1&accept-language=en`,
+    `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&accept-language=en&q=${encodeURIComponent(`${pincode}, India`)}`,
+  ];
+
+  for (const url of urls) {
+    const res = await fetch(url, {
+      signal,
+      headers: { "Accept-Language": "en" },
+    });
+    if (!res.ok) continue;
+    const data = await res.json();
+    if (Array.isArray(data) && data.length) return data[0];
+  }
+  return null;
+}
+
 async function geocodePincode(pincode, signal) {
-  const url =
-    `https://nominatim.openstreetmap.org/search` +
-    `?postalcode=${pincode}&country=India&format=json&addressdetails=1&limit=1&accept-language=en`;
-  const res = await fetch(url, { signal, headers: { "Accept-Language": "en" } });
-  if (!res.ok) throw new Error("Pincode geocode failed.");
-  const data = await res.json();
-  if (!Array.isArray(data) || !data.length) return null;
-  const best = data[0];
+  const [postal, best] = await Promise.all([
+    lookupPostalPin(pincode, signal),
+    lookupNominatimPincode(pincode, signal),
+  ]);
+
+  if (!best) {
+    if (!postal.locality && !postal.city && !postal.state) return null;
+    return {
+      lat: NaN,
+      lng: NaN,
+      locality: postal.locality,
+      city: postal.city,
+      state: postal.state,
+    };
+  }
+
   const a = best?.address || {};
   return {
     lat: parseFloat(best.lat),
     lng: parseFloat(best.lon),
     locality: titleCase(stripWard(
       a.suburb || a.neighbourhood || a.hamlet || a.village || a.town || a.city_district || a.county || ""
-    )),
-    city: titleCase(a.city || a.town || a.village || a.city_district || a.state_district || a.county || ""),
-    state: titleCase(a.state || ""),
+    )) || postal.locality,
+    city:
+      postal.city ||
+      titleCase(a.city || a.town || a.village || a.city_district || a.state_district || a.county || ""),
+    state: postal.state || titleCase(a.state || ""),
   };
 }
 
@@ -98,13 +149,13 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
   // Refs for abort controllers
   const pincodeAbortRef       = useRef(null);
   const fieldGeocodeAbortRef  = useRef(null);
+  const pincodeCacheRef       = useRef(new Map());
+  // Saved edit data must not trigger a fresh lookup on initial hydration.
+  const manualPincodeEditRef  = useRef(false);
 
   // Tracks who last set location so field-watch geocode doesn't fight pincode/pin
   // Values: null | "pincode" | "pin" | "field"
   const geocodeSourceRef    = useRef(null);
-  // True after the user manually places a pin on the map
-  const pinPlacedByUserRef  = useRef(false);
-
   // ── Stable field updater — does NOT change identity on each render ────────
   // FIX: Previously `upd` was recreated every render as `(f,v) => onChange(f,v,"location")`,
   //      making every useEffect/useCallback that listed it as a dep re-fire.
@@ -120,7 +171,7 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
   //      Now `upd` is stable so we can safely include it and the callback is also stable.
   const handlePinChange = useCallback(
     ({ coordinates, pincode, locality, city, state }) => {
-      pinPlacedByUserRef.current = true;
+      manualPincodeEditRef.current = false;
       geocodeSourceRef.current   = "pin";
 
       upd("location", { type: "Point", coordinates });
@@ -154,15 +205,17 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
 
   const handlePincodeChange = useCallback((value) => {
     const num = value.replace(/\D/g, "").slice(0, 6);
-    // If user clears the pincode, reset the pin-lock so next pincode entry
-    // can move the map again.
-    if (num.length === 0) pinPlacedByUserRef.current = false;
+    // A manually entered pincode is the latest location choice, matching the
+    // Post Property Step 2 behavior.
+    manualPincodeEditRef.current = true;
     upd("pincode", num);
     if (num.length !== 6) setPincodeStatus(null);
   }, [upd]);
 
   // ── Pincode → Nominatim auto-fill ────────────────────────────────────────
   useEffect(() => {
+    if (!manualPincodeEditRef.current) return;
+
     const pin = (data.pincode || "").replace(/\D/g, "");
     if (pin.length !== 6) {
       return;
@@ -174,8 +227,10 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
 
     const tid = setTimeout(async () => {
       try {
-        const geo = await geocodePincode(pin, ctrl.signal);
+        const cachedGeo = pincodeCacheRef.current.get(pin);
+        const geo = cachedGeo || await geocodePincode(pin, ctrl.signal);
         if (!geo) { setPincodeStatus("error"); return; }
+        if (!cachedGeo) pincodeCacheRef.current.set(pin, geo);
 
         const { lat, lng, locality, city, state } = geo;
 
@@ -186,8 +241,7 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
 
         geocodeSourceRef.current = "pincode";
 
-        // Move map only if user hasn't already placed a pin
-        if (!pinPlacedByUserRef.current && Number.isFinite(lat) && Number.isFinite(lng)) {
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
           upd("location", { type: "Point", coordinates: [lng, lat] });
         }
 

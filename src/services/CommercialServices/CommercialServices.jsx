@@ -7,10 +7,10 @@ import { PROPERTY_VERIFICATION_API_ENDPOINTS } from "../../config/propertyVerifi
  * FETCH COMMERCIAL PROPERTIES (GET)
  * Aligned with Infinite Scroll logic
  */
-export const fetchCommercial = async ({ page = 1, limit = 20 }) => {
+export const fetchCommercial = async ({ page = 1, limit = 20, search = "" }) => {
   try {
     const response = await authAxios.get(API_ENDPOINTS.COMMERCIAL, {
-      params: { page, limit },
+      params: { page, limit, ...(search.trim() && { search: search.trim() }) },
     });
     return response.data; // Expecting { items: [], meta: { total, page, limit } }
   } catch (error) {

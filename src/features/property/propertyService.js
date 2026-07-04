@@ -16,6 +16,9 @@ export const getFeaturedProjectsByType = (
   if (params.promotionStatus) {
     query.set("promotionStatus", params.promotionStatus);
   }
+  if (params.search?.trim()) {
+    query.set("search", params.search.trim());
+  }
 
   query.set("page", String(page));
   query.set("limit", String(limit));

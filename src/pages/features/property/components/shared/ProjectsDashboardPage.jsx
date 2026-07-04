@@ -1184,16 +1184,22 @@ export default function ProjectsDashboardPage() {
     trackingFilter === "expired" || trackingFilter === "scheduled"
       ? trackingFilter
       : null;
+  const [projectSearch, setProjectSearch] = useState(
+    () => searchParams.get("search") || "",
+  );
+  const debouncedProjectSearch = useDebounce(projectSearch, 350);
 
   
 
   // ── Property hooks ───────────────────────────────────────────────────────
-  const primeHook     = useFeaturedProjects("prime");
-  const featuredHook  = useFeaturedProjects("featured");
-  const sponsoredHook = useFeaturedProjects("sponsored");
-  const normalHook    = useFeaturedProjects("normal");
+  const projectQueryOptions = { search: debouncedProjectSearch };
+  const primeHook     = useFeaturedProjects("prime", projectQueryOptions);
+  const featuredHook  = useFeaturedProjects("featured", projectQueryOptions);
+  const sponsoredHook = useFeaturedProjects("sponsored", projectQueryOptions);
+  const normalHook    = useFeaturedProjects("normal", projectQueryOptions);
   const lifecycleHook = useFeaturedProjects(null, {
     promotionStatus: serverPromotionStatus,
+    search: debouncedProjectSearch,
     enabled: !!serverPromotionStatus,
   });
 
@@ -1280,9 +1286,6 @@ export default function ProjectsDashboardPage() {
   //const [searchTerm, setSearchTerm] = useState("");
   const [analyticsSearch, setAnalyticsSearch] = useState(
     () => searchParams.get("analyticsSearch") || "",
-  );
-  const [projectSearch, setProjectSearch] = useState(
-    () => searchParams.get("search") || "",
   );
   const debouncedAnalyticsSearch = useDebounce(analyticsSearch, 400);
 
@@ -1440,8 +1443,8 @@ export default function ProjectsDashboardPage() {
       }
     }
 
-    if (projectSearch.trim()) {
-      const q = projectSearch.toLowerCase().trim();
+    if (debouncedProjectSearch) {
+      const q = debouncedProjectSearch.toLowerCase();
 
       list = list.filter(
         (p) =>
@@ -1542,7 +1545,7 @@ export default function ProjectsDashboardPage() {
     categoryFilter,
     propertyTypeFilter,
     selectedLocation,
-    projectSearch,
+    debouncedProjectSearch,
     canViewPendingProjects,
     sortBy,
   ]);

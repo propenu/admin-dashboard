@@ -13,14 +13,20 @@ import { toast } from "sonner";
 /**
  * Central hook for any featured-project type.
  * @param {"prime"|"featured"|"normal"|"sponsored"|null} type
- * @param {{promotionStatus?: string|null, enabled?: boolean}} options
+ * @param {{promotionStatus?: string|null, search?: string, enabled?: boolean}} options
  */
 export function useFeaturedProjects(type, options = {}) {
   const queryClient = useQueryClient();
   const promotionStatus = options.promotionStatus || null;
+  const search = options.search?.trim() || "";
   const enabled = options.enabled ?? true;
   
-const queryKey = ["featured-projects", type || "all", promotionStatus || "all"];
+const queryKey = [
+  "featured-projects",
+  type || "all",
+  promotionStatus || "all",
+  search,
+];
 
 const {
   data,
@@ -40,6 +46,7 @@ const {
 
     const res = await getFeaturedProjectsByType(type, pageParam, 20, {
       promotionStatus,
+      search,
     });
 
     console.log("RESPONSE PAGE:", res?.data?.meta?.page);

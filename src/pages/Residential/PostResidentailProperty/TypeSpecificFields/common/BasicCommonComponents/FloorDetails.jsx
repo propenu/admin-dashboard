@@ -102,6 +102,7 @@
 // frontend/.../TypeSpecificFields/common/BasicCommonComponents/FloorDetails.jsx
 import { forwardRef, useEffect } from "react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
+import { getPropertyTypeFloorRules } from "../../ResidentailFields/propertyTypeFloorRules";
 
 const CounterBox = ({ label, value, onChange, onDecrement, onIncrement, error }) => (
   <div className="space-y-2">
@@ -141,34 +142,78 @@ const CounterBox = ({ label, value, onChange, onDecrement, onIncrement, error })
 
 const FloorDetails = forwardRef(({ errors = {} }, ref) => {
   const { form, updateFieldValue } = useActivePropertySlice();
+  const floorRules = getPropertyTypeFloorRules(
+    form.propertyType,
+    form.totalFloors,
+  );
 
   useEffect(() => {
-    if (form.totalFloors === "" || form.totalFloors === null || form.totalFloors === undefined) {
+    if (
+      floorRules.showTotalTowers &&
+      (form.totalTowers === "" ||
+        form.totalTowers === null ||
+        form.totalTowers === undefined)
+    ) {
+      updateFieldValue("totalTowers", 0);
+    }
+    if (
+      floorRules.showTotalFloors &&
+      (form.totalFloors === "" ||
+        form.totalFloors === null ||
+        form.totalFloors === undefined)
+    ) {
       updateFieldValue("totalFloors", 0);
     }
-    if (form.floorNumber === "" || form.floorNumber === null || form.floorNumber === undefined) {
+    if (
+      floorRules.showPropertyFloor &&
+      (form.floorNumber === "" ||
+        form.floorNumber === null ||
+        form.floorNumber === undefined)
+    ) {
       updateFieldValue("floorNumber", 0);
     }
-  }, [form.totalFloors, form.floorNumber]);
+  }, [
+    floorRules.showPropertyFloor,
+    floorRules.showTotalFloors,
+    floorRules.showTotalTowers,
+    form.floorNumber,
+    form.totalFloors,
+    form.totalTowers,
+    updateFieldValue,
+  ]);
 
   return (
-    <div ref={ref} className="grid grid-cols-2 gap-4">
-      <CounterBox
-        label="Total Floors"
-        value={form.totalFloors || 0}
-        onChange={(value) => updateFieldValue("totalFloors", value)}
-        onDecrement={() => updateFieldValue("totalFloors", Math.max(0, (form.totalFloors || 0) - 1))}
-        onIncrement={() => updateFieldValue("totalFloors", Number(form.totalFloors || 0) + 1)}
-        error={errors.totalFloors}
-      />
-      <CounterBox
-        label="Floor Number"
-        value={form.floorNumber || 0}
-        onChange={(value) => updateFieldValue("floorNumber", value)}
-        onDecrement={() => updateFieldValue("floorNumber", Math.max(0, (form.floorNumber || 0) - 1))}
-        onIncrement={() => updateFieldValue("floorNumber", Number(form.floorNumber || 0) + 1)}
-        error={errors.floorNumber}
-      />
+    <div ref={ref} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {floorRules.showTotalTowers && (
+        <CounterBox
+          label="Total Towers"
+          value={form.totalTowers || 0}
+          onChange={(value) => updateFieldValue("totalTowers", value)}
+          onDecrement={() => updateFieldValue("totalTowers", Math.max(0, (form.totalTowers || 0) - 1))}
+          onIncrement={() => updateFieldValue("totalTowers", Number(form.totalTowers || 0) + 1)}
+          error={errors.totalTowers}
+        />
+      )}
+      {floorRules.showTotalFloors && (
+        <CounterBox
+          label="Total Floors"
+          value={form.totalFloors || 0}
+          onChange={(value) => updateFieldValue("totalFloors", value)}
+          onDecrement={() => updateFieldValue("totalFloors", Math.max(0, (form.totalFloors || 0) - 1))}
+          onIncrement={() => updateFieldValue("totalFloors", Number(form.totalFloors || 0) + 1)}
+          error={errors.totalFloors}
+        />
+      )}
+      {floorRules.showPropertyFloor && (
+        <CounterBox
+          label="Property Floor"
+          value={form.floorNumber || 0}
+          onChange={(value) => updateFieldValue("floorNumber", value)}
+          onDecrement={() => updateFieldValue("floorNumber", Math.max(0, (form.floorNumber || 0) - 1))}
+          onIncrement={() => updateFieldValue("floorNumber", Number(form.floorNumber || 0) + 1)}
+          error={errors.floorNumber}
+        />
+      )}
     </div>
   );
 });

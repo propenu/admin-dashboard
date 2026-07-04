@@ -391,6 +391,14 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
 
     dispatch(actions[option.category].updateField({ key: "isAgentProject", value: true }));
     dispatch(actions[option.category].updateField({ key: "propertyType", value: option.propertyType }));
+    if (
+      option.category === "residential" &&
+      option.propertyType === "villa"
+    ) {
+      dispatch(
+        actions.residential.updateField({ key: "totalTowers", value: "" }),
+      );
+    }
     dispatch(
       actions[option.category].updateField({
         key: "propertySubType",
@@ -432,7 +440,10 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
         if (!form.projectArea || Number(form.projectArea) <= 0)
           e.projectArea = "Project area is required";
       }
-      if (category === "residential") {
+      if (
+        category === "residential" &&
+        form.propertyType === "apartment"
+      ) {
         if (!isValidCount(form.totalTowers))
           e.totalTowers = "Number of towers is required";
       }
@@ -454,13 +465,6 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
         e.carpetArea = "Carpet area cannot be greater than Built-up area";
         e.builtUpArea = "Built-up area must be greater than Carpet area";
       }
-      if (!isValidCount(form.bedrooms)) e.bedrooms = "Bedrooms required";
-      if (!isValidCount(form.bathrooms)) e.bathrooms = "Bathrooms required";
-      // A property may legitimately have no balcony. The counter renders an
-      // unset value as 0, so validate that same default instead of treating it
-      // as a missing required field.
-      if (!isValidCount(form.balconies ?? 0))
-        e.balconies = "Balconies must be 0 or more";
       if (!form.price) e.price = "Price required";
       if (!form.pricePerSqft) e.pricePerSqft = "Price per sqft required";
       if (!form.facing) e.facing = "Facing required";
@@ -484,8 +488,6 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
     }
 
     if (category === "commercial") {
-      if (!isValidCount(form.cabins)) e.cabins = "Cabins required";
-      if (!isValidCount(form.seats)) e.seats = "Seats required";
       if (!form.carpetArea) e.carpetArea = "Carpet area required";
       if (!form.builtUpArea) e.builtUpArea = "Built-up area required";
       const carpet = Number(form.carpetArea);
@@ -500,6 +502,7 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
       if (!form.furnishedStatus)
         e.furnishedStatus = "Furnished status required";
       if (!form.wallFinishStatus) e.wallFinishStatus = "Wall finish status required";
+      if (!form.facing) e.facing = "Facing required";
       if (!form.propertyAge) e.propertyAge = "Property age required";
       if (!form.constructionStatus)
         e.constructionStatus = "Construction status required";
@@ -545,7 +548,7 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
       ? {
           isAgentProject: true,
           projectArea: Number(data.projectArea) || 0,
-          ...(category === "residential"
+          ...(category === "residential" && data.propertyType === "apartment"
             ? {
                 totalTowers: Number(data.totalTowers) || 0,
               }
@@ -582,6 +585,7 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
         seats: Number(data.seats) || 0,
         furnishedStatus: data.furnishedStatus,
         wallFinishStatus: data.wallFinishStatus,
+        facing: data.facing,
         propertyAge: data.propertyAge,
         constructionStatus: data.constructionStatus,
         transactionType: data.transactionType,
@@ -685,6 +689,13 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
   useEffect(() => {
     setErrors((prev) => {
       const updated = { ...prev };
+      // Room counters are optional. Both an untouched field and zero are
+      // valid values for residential and commercial properties.
+      delete updated.bedrooms;
+      delete updated.bathrooms;
+      delete updated.balconies;
+      delete updated.cabins;
+      delete updated.seats;
 
       Object.keys(updated).forEach((key) => {
         if (form[key]) {
@@ -836,7 +847,8 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
               {(category === "residential" || category === "land") && (
                 <ProjectNumberField label="Project Area" value={form.projectArea} onChange={(value) => setValue("projectArea", value)} error={errors.projectArea} placeholder="Enter project area" />
               )}
-              {category === "residential" && (
+              {category === "residential" &&
+                form.propertyType === "apartment" && (
                 <ProjectNumberField label="No. of Towers" value={form.totalTowers} onChange={(value) => setValue("totalTowers", value)} error={errors.totalTowers} placeholder="Enter number of towers" />
               )}
               <ProjectNumberField label="Total Units" value={form.totalUnits} onChange={(value) => setValue("totalUnits", value)} error={errors.totalUnits} placeholder="Enter total units" />
@@ -873,11 +885,9 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
           </CardWrapper>
           <CardWrapper>
             <SectionLabel>Area & Pricing</SectionLabel>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <CarpetArea error={errors.carpetArea} />
               <BuiltUpArea error={errors.builtUpArea} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
               <Price error={errors.price} />
               <PricePerSqft error={errors.pricePerSqft} />
               <Facing error={errors.facing} />
@@ -925,11 +935,12 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
           </CardWrapper>
           <CardWrapper>
             <SectionLabel>Area & Pricing</SectionLabel>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <CarpetArea error={errors.carpetArea} />
               <BuiltUpArea error={errors.builtUpArea} />
               <Price error={errors.price} />
               <PricePerSqft error={errors.pricePerSqft} />
+              <Facing error={errors.facing} />
             </div>
           </CardWrapper>
           <CardWrapper>

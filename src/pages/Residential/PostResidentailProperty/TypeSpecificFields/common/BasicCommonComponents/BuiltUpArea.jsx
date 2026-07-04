@@ -23,16 +23,16 @@ export const BuiltUpArea = forwardRef(({ error }, ref) => {
         </div>
       </div>
       <div
-        className={`flex border-2 rounded-xl overflow-hidden bg-white transition-all ${error ? "border-red-300" : "border-[#e5e7eb] focus-within:border-[#27AE60] focus-within:ring-2 focus-within:ring-[#27AE60]/10"}`}
+        className={`flex w-full border-2 rounded-xl overflow-hidden bg-white transition-all ${error ? "border-red-300" : "border-[#e5e7eb] focus-within:border-[#27AE60] focus-within:ring-2 focus-within:ring-[#27AE60]/10"}`}
       >
         <input
           type="number"
           placeholder="0"
           value={form.builtUpArea || ""}
           onChange={(e) => updateFieldValue("builtUpArea", e.target.value)}
-          className="flex-1 px-4 py-3 outline-none text-sm font-semibold placeholder:text-[#c9c9c9] text-[#111827]"
+          className="min-w-0 flex-1 px-4 py-3 outline-none text-sm font-semibold placeholder:text-[#c9c9c9] text-[#111827]"
         />
-        <div className="flex items-center px-2 bg-[#f9fafb] border-l border-[#e5e7eb] text-[#9ca3af] text-xs font-bold whitespace-nowrap">
+        <div className="flex min-w-14 shrink-0 items-center justify-center border-l border-[#e5e7eb] bg-[#f9fafb] px-2 text-xs font-bold whitespace-nowrap text-[#9ca3af]">
           sq.ft
         </div>
       </div>

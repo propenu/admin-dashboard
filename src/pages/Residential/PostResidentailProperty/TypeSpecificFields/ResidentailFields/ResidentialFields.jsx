@@ -16,6 +16,7 @@ import KitchenType from "../common/BasicCommonComponents/KitchenType";
 import DescriptionMain from "../common/BasicCommonComponents/DescriptionMain";
 import IsPriceNegotiable from "../common/BasicCommonComponents/IsPriceNegotiable";
 import UploadGallery from "../common/BasicCommonComponents/UploadGallery";
+import { getPropertyTypeFloorRules } from "./propertyTypeFloorRules";
 
 const CardWrapper = ({ children, className = "" }) => (
   <div className={`bg-white rounded-2xl border border-[#e6f4ec] p-6 shadow-sm ${className}`}>{children}</div>
@@ -45,6 +46,10 @@ export default function ResidentialFields({ back, next }) {
 
   const validateAll = () => {
     const e = {};
+    const floorRules = getPropertyTypeFloorRules(
+      form.propertyType,
+      form.totalFloors,
+    );
     const isValidCount = (value) =>
       value !== "" &&
       value !== null &&
@@ -59,8 +64,12 @@ export default function ResidentialFields({ back, next }) {
       e.twoWheeler = "Enter two wheeler capacity";
     if (!isValidCount(form.parkingDetails?.fourWheeler))
       e.fourWheeler = "Enter four wheeler capacity";
-    if (!isValidCount(form.totalFloors)) e.totalFloors = "Enter total floors";
-    if (!isValidCount(form.floorNumber)) e.floorNumber = "Enter floor number";
+    if (floorRules.showTotalTowers && !isValidCount(form.totalTowers))
+      e.totalTowers = "Enter total towers";
+    if (floorRules.showTotalFloors && !isValidCount(form.totalFloors))
+      e.totalFloors = "Enter total floors";
+    if (floorRules.showPropertyFloor && !isValidCount(form.floorNumber))
+      e.floorNumber = "Enter property floor";
     if (!form.flooringType) e.flooringType = "Select flooring type";
     if (!form.kitchenType) e.kitchenType = "Select kitchen type";
     if (!form.description) e.description = "Enter property description";

@@ -20,10 +20,10 @@ export const createResidential = async (data) => {
  * FETCH COMMERCIAL PROPERTIES (GET)
  * Aligned with Infinite Scroll logic
  */
-export const fetchResidential = async ({ page = 1, limit = 20 }) => {
+export const fetchResidential = async ({ page = 1, limit = 20, search = "" }) => {
   try {
     const response = await authAxios.get(API_ENDPOINTS.RESIDENTIAL, {
-      params: { page, limit },
+      params: { page, limit, ...(search.trim() && { search: search.trim() }) },
     });
     return response.data; // Expecting { items: [], meta: { total, page, limit } }
   } catch (error) {

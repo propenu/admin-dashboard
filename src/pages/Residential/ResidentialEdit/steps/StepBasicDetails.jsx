@@ -461,7 +461,7 @@ export default function StepBasicDetails({
             onChange={(v) => upd("transactionType", v)}
           />
         )}
-        {cat === "residential" && (
+        {(cat === "residential" || cat === "commercial") && (
           <ElegantDrop
             label="Facing"
             icon={<Compass className="w-3.5 h-3.5" />}

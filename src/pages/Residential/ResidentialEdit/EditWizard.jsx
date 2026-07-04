@@ -62,6 +62,27 @@ const cleanData = (obj) => {
   return obj;
 };
 
+const normalizeOptionalRoomCounts = (form, category) => {
+  if (category === "residential") {
+    return {
+      ...form,
+      bedrooms: Number(form.bedrooms) || 0,
+      bathrooms: Number(form.bathrooms) || 0,
+      balconies: Number(form.balconies) || 0,
+    };
+  }
+
+  if (category === "commercial") {
+    return {
+      ...form,
+      cabins: Number(form.cabins) || 0,
+      seats: Number(form.seats) || 0,
+    };
+  }
+
+  return form;
+};
+
 export default function EditWizard() {
   const { id } = useParams();
   const [activeStep, setActiveStep] = useState(0);
@@ -132,7 +153,11 @@ export default function EditWizard() {
     debounce(async ({ category: cat, propertyId: pid, stepName, dispatch: d }) => {
       try {
         // Read from ref — always fresh, never stale
-        const payload = cleanData(currentRef.current);
+        const latestForm =
+          stepName === "basic"
+            ? normalizeOptionalRoomCounts(currentRef.current, cat)
+            : currentRef.current;
+        const payload = cleanData(latestForm);
         await d(savePropertyData({ category: cat, id: pid, step: stepName, data: payload })).unwrap();
       } catch (err) {
         console.error("❌ Autosave failed:", err);
@@ -239,7 +264,11 @@ export default function EditWizard() {
       }
       const tid = toast.loading(`Saving ${stepName}...`);
       try {
-        const payload = cleanData(currentRef.current);
+        const latestForm =
+          stepName === "basic"
+            ? normalizeOptionalRoomCounts(currentRef.current, category)
+            : currentRef.current;
+        const payload = cleanData(latestForm);
         await dispatch(savePropertyData({ category, id: propertyId, step: stepName, data: payload })).unwrap();
         toast.success("Saved to cloud!", { id: tid });
         return true;

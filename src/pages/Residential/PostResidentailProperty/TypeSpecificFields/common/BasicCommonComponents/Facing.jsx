@@ -40,7 +40,7 @@ const Facing = forwardRef(({ error, category }, ref) => {
 
   return (
     <div
-      className="space-y-2 relative"
+      className="relative self-start space-y-2"
       ref={(node) => {
         dropdownRef.current = node;
         if (typeof ref === "function") ref(node);
@@ -70,7 +70,7 @@ const Facing = forwardRef(({ error, category }, ref) => {
       {error && <p className="text-red-500 text-xs font-medium">{error}</p>}
 
       {open && (
-        <div className="absolute top-full left-0 mt-2 w-full rounded-xl border border-[#e5e7eb] bg-white shadow-xl z-50 overflow-hidden">
+        <div className="absolute left-0 top-full z-50 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white shadow-xl">
           {facingOptions.map((opt) => {
             
             const isSelected = form.facing === opt.value;
