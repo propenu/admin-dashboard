@@ -87,6 +87,8 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
           if (action.payload?.data) {
             const payload = action.payload.data;
             const previousCreatedBy = state.form.createdBy;
+            const previousPriceCalculationBasis =
+              state.form.priceCalculationBasis || "carpetArea";
             const responseCreatedBy = payload.createdBy;
             const shouldKeepPopulatedCreatedBy =
               previousCreatedBy &&
@@ -113,6 +115,14 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
             state.form = {
               ...initialState.form,
               ...payload,
+              // The basic-details API currently does not return this UI
+              // preference. Preserve the selected basis instead of resetting
+              // to initialState.form.carpetArea after every autosave.
+              priceCalculationBasis:
+                payload.priceCalculationBasis === "builtUpArea" ||
+                payload.priceCalculationBasis === "carpetArea"
+                  ? payload.priceCalculationBasis
+                  : previousPriceCalculationBasis,
               createdBy: shouldKeepPopulatedCreatedBy
                 ? previousCreatedBy
                 : mergedCreatedBy,

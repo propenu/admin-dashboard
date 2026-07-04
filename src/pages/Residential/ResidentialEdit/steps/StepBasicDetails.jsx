@@ -50,6 +50,14 @@ const AGENT_PROJECT_TYPES = {
   ],
 };
 
+const calculatePricePerSqft = (price, area) => {
+  const numericPrice = Number(price);
+  const numericArea = Number(area);
+
+  if (numericPrice <= 0 || numericArea <= 0) return null;
+  return Math.round(numericPrice / numericArea);
+};
+
 export default function StepBasicDetails({
   data = {},
   onChange,
@@ -93,11 +101,12 @@ export default function StepBasicDetails({
       areaInSqft = Number(data.totalArea?.value);
     }
 
-    if (Number(data.price) > 0 && areaInSqft > 0) {
-      const calculated = Math.round(Number(data.price) / areaInSqft);
-      if (Number(data.pricePerSqft) !== calculated) {
-        upd("pricePerSqft", calculated);
-      }
+    const calculated = calculatePricePerSqft(data.price, areaInSqft);
+    if (
+      calculated !== null &&
+      Number(data.pricePerSqft) !== calculated
+    ) {
+      upd("pricePerSqft", calculated);
     }
   }, [
     cat,
@@ -111,6 +120,32 @@ export default function StepBasicDetails({
     data.pricePerSqft,
     upd,
   ]);
+
+  const handlePriceCalculationBasisChange = React.useCallback(
+    (basis) => {
+      // Calculate in the same interaction as the basis change. Waiting only
+      // for the effect can leave the edit form showing the value calculated
+      // from the previously selected area until another field changes.
+      const area =
+        basis === "builtUpArea" ? data.builtUpArea : data.carpetArea;
+      const calculated = calculatePricePerSqft(data.price, area);
+
+      upd("priceCalculationBasis", basis);
+      if (
+        calculated !== null &&
+        Number(data.pricePerSqft) !== calculated
+      ) {
+        upd("pricePerSqft", calculated);
+      }
+    },
+    [
+      data.builtUpArea,
+      data.carpetArea,
+      data.price,
+      data.pricePerSqft,
+      upd,
+    ],
+  );
 
   const propertyTypes = () => ({ commercial: Enums.COMMERCIAL_TYPES, land: Enums.LAND_TYPES, agricultural: Enums.AGRI_TYPES })[cat] || Enums.PROPERTY_TYPES;
   const subTypes = () => ({ commercial: Enums.COMMERCIAL_SUB_TYPES, land: Enums.LAND_SUB_TYPES, agricultural: Enums.AGRI_SUB_TYPES })[cat] || [];
@@ -489,7 +524,7 @@ export default function StepBasicDetails({
                         type="button"
                         aria-pressed={active}
                         onClick={() =>
-                          upd("priceCalculationBasis", option.value)
+                          handlePriceCalculationBasisChange(option.value)
                         }
                         className={`rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${
                           active

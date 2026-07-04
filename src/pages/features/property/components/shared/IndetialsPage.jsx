@@ -822,9 +822,9 @@ function LeadsSection({
             </div>
 
             {analyticsError && (
-              <div className="flex items-center gap-2 text-sm text-red-500 bg-red-50 rounded-xl p-3 mb-4 border border-red-100">
+              <div className="flex items-center gap-2 text-sm text-[27AE60]  rounded-xl p-3 mb-4 border border-red-100">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                Failed to load leads data.
+                No leads found
               </div>
             )}
 
@@ -1196,21 +1196,12 @@ export default function FeaturedPropertyDetails() {
               </h1>
               <div className="flex items-start gap-1.5 text-sm text-slate-500 mt-2">
                 <MapPin className="w-4 h-4 text-[#27AE60] flex-shrink-0 mt-0.5" />
-                <span>
-                  {[
-                    property.address,
-                    property.locality,
-                    property.city,
-                    property.state,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </span>
+                <span>{[property.address].filter(Boolean).join(", ")}</span>
               </div>
             </div>
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-100">
               <p className="text-[11px] font-bold text-[#27AE60] uppercase tracking-widest">
-                Price Range
+                Budget Range
               </p>
               <p className="text-2xl font-extrabold text-[#27AE60] mt-1">
                 {priceFrom}{" "}
@@ -1283,7 +1274,7 @@ export default function FeaturedPropertyDetails() {
                 onClick={() => navigate(`/post-property/${property._id}`)}
                 className="flex-1 text-sm font-bold py-2.5 rounded-xl bg-[#27AE60] text-white hover:bg-green-700 transition shadow"
               >
-                Edit Property
+                Edit Project
               </button>
               {property.brochure?.url && (
                 <a
