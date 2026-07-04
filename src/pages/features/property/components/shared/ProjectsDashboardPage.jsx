@@ -138,6 +138,14 @@ const getProjectStatus = (project) => {
 
 const pct = (part, total) => (!total ? 0 : Math.round((part / total) * 100));
 
+const normalizeSearchText = (value) =>
+  String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
 // Debounce hook — prevents analytics from firing on every keystroke
 function useDebounce(value, delay = 400) {
   const [debounced, setDebounced] = useState(value);
@@ -1444,16 +1452,11 @@ export default function ProjectsDashboardPage() {
     }
 
     if (debouncedProjectSearch) {
-      const q = debouncedProjectSearch.toLowerCase();
+      const q = normalizeSearchText(debouncedProjectSearch);
 
-      list = list.filter(
-        (p) =>
-          p.title?.toLowerCase().includes(q) ||
-          p.slug?.toLowerCase().includes(q) ||
-          p._id?.toLowerCase().includes(q) ||
-          p.city?.toLowerCase().includes(q) ||
-          p.locality?.toLowerCase().includes(q) ||
-          p.address?.toLowerCase().includes(q),
+      list = list.filter((p) =>
+        [p.title, p.slug, p._id, p.propertyCode, p.city, p.locality, p.address]
+          .some((value) => normalizeSearchText(value).includes(q)),
       );
     }
 

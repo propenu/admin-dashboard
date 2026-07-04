@@ -74,6 +74,14 @@ const CATEGORIES = [
   { value: "land", label: "Land", fetcher: fetchLand },
 ];
 
+const normalizeSearchText = (value) =>
+  String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
 const STATUSES = [
   { value: "all", label: "All status" },
   { value: "active", label: "Active" },
@@ -857,7 +865,7 @@ export default function PropertiesDashboard() {
   );
 
   const visibleProperties = useMemo(() => {
-    const term = debouncedSearch.trim().toLowerCase();
+    const term = normalizeSearchText(debouncedSearch);
     return allProperties
       .filter((property) => category === "all" || property._category === category)
       .filter((property) => status === "all" || getStatus(property) === status)
@@ -872,8 +880,13 @@ export default function PropertiesDashboard() {
           property?.state,
           property?.locality,
           property?._id,
+          property?.slug,
+          property?.propertyCode,
+          property?.address,
+          property?.buildingName,
+          property?.landName,
           property?.createdBy?.name,
-        ].some((value) => String(value || "").toLowerCase().includes(term));
+        ].some((value) => normalizeSearchText(value).includes(term));
       })
       .sort((a, b) => {
         const first = new Date(a?.createdAt || 0).getTime();

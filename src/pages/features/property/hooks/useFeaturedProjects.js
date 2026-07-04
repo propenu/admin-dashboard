@@ -44,10 +44,49 @@ const {
   queryFn: async ({ pageParam }) => {
     console.log("REQUEST PAGE:", pageParam);
 
-    const res = await getFeaturedProjectsByType(type, pageParam, 20, {
+    const limit = search ? 100 : 20;
+    const res = await getFeaturedProjectsByType(type, pageParam, limit, {
       promotionStatus,
       search,
     });
+
+    // The deployed API may ignore `search`. Merge every server page while
+    // searching so a match can never be hidden outside the first page.
+    if (search && pageParam === 1) {
+      const pages = res?.data?.meta?.pages ?? 1;
+      if (pages > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: pages - 1 }, (_, index) =>
+            getFeaturedProjectsByType(type, index + 2, limit, {
+              promotionStatus,
+              search,
+            }),
+          ),
+        );
+        const seen = new Set();
+        const items = [res, ...remainingPages]
+          .flatMap((page) => page?.data?.items || [])
+          .filter((property) => {
+            if (!property?._id || seen.has(property._id)) return false;
+            seen.add(property._id);
+            return true;
+          });
+
+        return {
+          ...res,
+          data: {
+            ...res.data,
+            items,
+            meta: {
+              ...res.data.meta,
+              page: 1,
+              limit: items.length,
+              pages: 1,
+            },
+          },
+        };
+      }
+    }
 
     console.log("RESPONSE PAGE:", res?.data?.meta?.page);
     console.log("TOTAL PAGES:", res?.data?.meta?.pages);

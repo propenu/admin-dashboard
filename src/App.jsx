@@ -29,10 +29,6 @@ const PropertiesDashboard = lazy(() =>
   import("./pages/Properties/PropertiesDashboard")
 );
 
-const PropertiesDashboardPageduplicate = lazy(() =>
-  import("./pages/features/property/components/shared/DuplicateProjectDashBoardPage.jsx")
-);
-
 const FeaturedProperties = lazy(() =>
   import("./pages/FeaturedProperties/FeatureProperties")
 );
@@ -238,11 +234,6 @@ function App() {
 
                 <Route path="/projects" element={<ProjectsDashboardPage />} />
                 <Route path="/properties" element={<PropertiesDashboard />} />
-
-                <Route
-                  path="/datta"
-                  element={<PropertiesDashboardPageduplicate />}
-                />
 
                 {/* Featured Property */}
                 <Route
