@@ -1316,7 +1316,7 @@ export default function ProjectsDashboardPage() {
     if (trackingFilter !== "all") next.set("tracking", trackingFilter);
     if (selectedLocation) next.set("location", JSON.stringify(selectedLocation));
     if (analyticsSearch.trim()) next.set("analyticsSearch", analyticsSearch);
-    if (projectSearch.trim()) next.set("search", projectSearch);
+    if (debouncedProjectSearch) next.set("search", debouncedProjectSearch);
     if (promotionFilter !== "all") next.set("promotion", promotionFilter);
     if (statusFilter !== "all") next.set("status", statusFilter);
     if (categoryFilter !== "all") next.set("category", categoryFilter);
@@ -1330,7 +1330,7 @@ export default function ProjectsDashboardPage() {
     analyticsSearch,
     categoryFilter,
     currentPage,
-    projectSearch,
+    debouncedProjectSearch,
     promotionFilter,
     propertyTypeFilter,
     selectedLocation,
@@ -1588,7 +1588,7 @@ export default function ProjectsDashboardPage() {
     categoryFilter,
     propertyTypeFilter,
     selectedLocation,
-    projectSearch,
+    debouncedProjectSearch,
     sortBy,
   ]);
 
@@ -1800,7 +1800,7 @@ export default function ProjectsDashboardPage() {
       <div className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_6px_20px_rgba(22,163,74,0.12)] sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-[#27AE60] sm:text-3xl">
-            All Projects
+            Projects
           </h1>
           <p className="text-slate-500 mt-0.5 text-sm">
             Unified view across all project types

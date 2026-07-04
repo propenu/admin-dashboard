@@ -748,7 +748,7 @@ export default function PropertiesDashboard() {
     if (locationFilters.city) next.set("city", locationFilters.city);
     if (locationFilters.locality) next.set("locality", locationFilters.locality);
     if (locationSearch.trim()) next.set("locationSearch", locationSearch);
-    if (search.trim()) next.set("search", search);
+    if (debouncedSearch.trim()) next.set("search", debouncedSearch);
     if (sort !== "newest") next.set("sort", sort);
     if (page > 1) next.set("page", String(page));
     setSearchParams(next, { replace: true });
@@ -757,7 +757,7 @@ export default function PropertiesDashboard() {
     locationFilters,
     locationSearch,
     page,
-    search,
+    debouncedSearch,
     setSearchParams,
     sort,
     status,
@@ -904,7 +904,7 @@ export default function PropertiesDashboard() {
       return;
     }
     setPage(1);
-  }, [category, status, locationFilters, search, sort]);
+  }, [category, status, debouncedSearch, locationFilters, sort]);
   const activeFilterCount = [
     category !== "all",
     status !== "all",
