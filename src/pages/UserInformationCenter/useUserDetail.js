@@ -9,6 +9,26 @@ import {
   getUserProperties,
 } from "../../features/user/userDetailService";
 
+const paginateUserRecords = (payload, page, limit) => {
+  const items = payload?.items || [];
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * limit;
+
+  return {
+    items: items.slice(start, start + limit),
+    meta: {
+      ...(payload?.meta || {}),
+      total,
+      page: safePage,
+      limit,
+      pages: totalPages,
+      totalPages,
+    },
+  };
+};
+
 // ── User Profile ──────────────────────────────────────────────────────────────
 export const useUserById = (userId) =>
   useQuery({
@@ -123,27 +143,15 @@ export const useUserFeaturedProjects = (
   limit = 20,
 ) =>
   useQuery({
-    queryKey: ["user-featured-projects", userId, type, page, limit],
+    // Page and card limit are presentation concerns. Keeping them out of the
+    // key lets counts, tabs, and pagination share one complete cached result.
+    queryKey: ["user-featured-projects", userId, type],
 
     queryFn: async () => {
-      const res = await getUserFeaturedProjects(userId, type, page, limit);
-      const items = res.data?.items || [];
-      const total = items.length;
-      const totalPages = Math.max(1, Math.ceil(total / limit));
-      const start = (page - 1) * limit;
-
-      return {
-        items: items.slice(start, start + limit),
-        meta: {
-          ...(res.data?.meta || {}),
-          total,
-          page,
-          limit,
-          pages: totalPages,
-          totalPages,
-        },
-      };
+      const res = await getUserFeaturedProjects(userId, type, 1, 100);
+      return res.data;
     },
+    select: (payload) => paginateUserRecords(payload, page, limit),
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
   });
@@ -224,27 +232,13 @@ export const useUserProperties = (
   limit = 20,
 ) =>
   useQuery({
-    queryKey: ["user-properties", userId, category, page, limit],
+    queryKey: ["user-properties", userId, category],
 
     queryFn: async () => {
-      const res = await getUserProperties(userId, category, page, limit);
-      const items = res.data?.items || [];
-      const total = items.length;
-      const totalPages = Math.max(1, Math.ceil(total / limit));
-      const start = (page - 1) * limit;
-
-      return {
-        items: items.slice(start, start + limit),
-        meta: {
-          ...(res.data?.meta || {}),
-          total,
-          page,
-          limit,
-          pages: totalPages,
-          totalPages,
-        },
-      };
+      const res = await getUserProperties(userId, category, 1, 100);
+      return res.data;
     },
+    select: (payload) => paginateUserRecords(payload, page, limit),
 
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,

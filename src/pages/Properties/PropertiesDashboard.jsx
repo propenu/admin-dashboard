@@ -1038,9 +1038,13 @@ export default function PropertiesDashboard() {
             <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-emerald-700">
               <Building2 className="h-4 w-4" /> Property workspace
             </div>
-            <h1 className="mt-1 text-xl font-medium text-slate-900 sm:text-2xl">All properties, one place</h1>
+            {/* <h1 className="mt-1 text-xl font-medium text-slate-900 sm:text-2xl">All properties, one place</h1> */}
+            <h1 className="mt-1 text-xl font-medium text-slate-900 sm:text-2xl">
+              Properties
+            </h1>
             <p className="mt-0.5 break-words text-sm text-slate-500">
-              Browse every category by location, status, poster, and posting time.
+              Browse every category by location, status, poster, and posting
+              time.
             </p>
           </div>
           <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap">
@@ -1091,7 +1095,9 @@ export default function PropertiesDashboard() {
               <span className="rounded-full bg-emerald-600 px-3 py-1 text-white">
                 {activeLocationLabel}
               </span>
-              {(locationFilters.state || locationFilters.city || locationFilters.locality) && (
+              {(locationFilters.state ||
+                locationFilters.city ||
+                locationFilters.locality) && (
                 <button
                   type="button"
                   onClick={() => {
@@ -1128,7 +1134,8 @@ export default function PropertiesDashboard() {
               )}
             </label>
             <p className="text-[11px] text-slate-500">
-              Showing {stateRows.length} states, {cityRows.length} cities, {localityRows.length} localities
+              Showing {stateRows.length} states, {cityRows.length} cities,{" "}
+              {localityRows.length} localities
             </p>
           </div>
 
@@ -1149,16 +1156,26 @@ export default function PropertiesDashboard() {
                 <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-600 text-white">
                   <Globe className="h-4 w-4" />
                 </span>
-                <span className="text-xl font-medium text-slate-900">{fmtNum(analyticsTotal)}</span>
+                <span className="text-xl font-medium text-slate-900">
+                  {fmtNum(analyticsTotal)}
+                </span>
               </div>
-              <p className="mt-2 text-[13px] font-medium text-slate-900">All India</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">National CRM view</p>
+              <p className="mt-2 text-[13px] font-medium text-slate-900">
+                All India
+              </p>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                National CRM view
+              </p>
             </button>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-2.5">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">1. Select State</p>
-                <span className="text-[10px] font-medium text-slate-400">{stateRows.length}</span>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                  1. Select State
+                </p>
+                <span className="text-[10px] font-medium text-slate-400">
+                  {stateRows.length}
+                </span>
               </div>
               <div className="max-h-48 space-y-1 overflow-auto pr-1">
                 {stateRows.map((row) => (
@@ -1172,7 +1189,9 @@ export default function PropertiesDashboard() {
                 ))}
                 {stateRows.length === 0 && (
                   <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-400">
-                    {locationSearch ? "No matching state found" : "No state data found"}
+                    {locationSearch
+                      ? "No matching state found"
+                      : "No state data found"}
                   </p>
                 )}
               </div>
@@ -1180,8 +1199,12 @@ export default function PropertiesDashboard() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-2.5">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">2. Select City</p>
-                <span className="text-[10px] font-medium text-slate-400">{cityRows.length}</span>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                  2. Select City
+                </p>
+                <span className="text-[10px] font-medium text-slate-400">
+                  {cityRows.length}
+                </span>
               </div>
               <div className="max-h-48 space-y-1 overflow-auto pr-1">
                 {cityRows.map((row) => (
@@ -1195,7 +1218,9 @@ export default function PropertiesDashboard() {
                 ))}
                 {cityRows.length === 0 && (
                   <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-400">
-                    {locationSearch ? "No matching city found" : "Select a state to narrow cities"}
+                    {locationSearch
+                      ? "No matching city found"
+                      : "Select a state to narrow cities"}
                   </p>
                 )}
               </div>
@@ -1203,8 +1228,12 @@ export default function PropertiesDashboard() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-2.5">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">3. Select Locality</p>
-                <span className="text-[10px] font-medium text-slate-400">{localityRows.length}</span>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                  3. Select Locality
+                </p>
+                <span className="text-[10px] font-medium text-slate-400">
+                  {localityRows.length}
+                </span>
               </div>
               <div className="max-h-48 space-y-1 overflow-auto pr-1">
                 {localityRows.map((row) => (
@@ -1218,7 +1247,9 @@ export default function PropertiesDashboard() {
                 ))}
                 {localityRows.length === 0 && (
                   <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-400">
-                    {locationSearch ? "No matching locality found" : "Select a city to narrow localities"}
+                    {locationSearch
+                      ? "No matching locality found"
+                      : "Select a city to narrow localities"}
                   </p>
                 )}
               </div>
@@ -1234,7 +1265,9 @@ export default function PropertiesDashboard() {
                 setLocationFilters({ state: "", city: "", locality: "" });
               }}
               className={`rounded-full px-3 py-1 font-medium ${
-                !locationFilters.state ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600"
+                !locationFilters.state
+                  ? "bg-emerald-600 text-white"
+                  : "bg-slate-100 text-slate-600"
               }`}
             >
               India
@@ -1242,7 +1275,13 @@ export default function PropertiesDashboard() {
             {locationFilters.state && (
               <button
                 type="button"
-                onClick={() => setLocationFilters({ state: locationFilters.state, city: "", locality: "" })}
+                onClick={() =>
+                  setLocationFilters({
+                    state: locationFilters.state,
+                    city: "",
+                    locality: "",
+                  })
+                }
                 className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700"
               >
                 {locationFilters.state}
@@ -1251,7 +1290,12 @@ export default function PropertiesDashboard() {
             {locationFilters.city && (
               <button
                 type="button"
-                onClick={() => setLocationFilters((previous) => ({ ...previous, locality: "" }))}
+                onClick={() =>
+                  setLocationFilters((previous) => ({
+                    ...previous,
+                    locality: "",
+                  }))
+                }
                 className="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700"
               >
                 {locationFilters.city}
@@ -1329,59 +1373,104 @@ export default function PropertiesDashboard() {
                 <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
                   <Eye className="h-4 w-4 text-emerald-600" /> Views
                 </p>
-                <p className="mt-1 text-xl font-medium text-slate-900">{fmtNum(overview.totalViews)}</p>
+                <p className="mt-1 text-xl font-medium text-slate-900">
+                  {fmtNum(overview.totalViews)}
+                </p>
                 <MiniLineChart
-                  values={[overview.activeProperties, overview.pendingProperties, overview.draftProperties, overview.totalViews]}
+                  values={[
+                    overview.activeProperties,
+                    overview.pendingProperties,
+                    overview.draftProperties,
+                    overview.totalViews,
+                  ]}
                 />
               </div>
               <div className="rounded-2xl bg-slate-50 p-3">
                 <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                  <MousePointerClick className="h-4 w-4 text-emerald-600" /> Clicks
+                  <MousePointerClick className="h-4 w-4 text-emerald-600" />{" "}
+                  Clicks
                 </p>
-                <p className="mt-1 text-xl font-medium text-slate-900">{fmtNum(overview.totalClicks)}</p>
+                <p className="mt-1 text-xl font-medium text-slate-900">
+                  {fmtNum(overview.totalClicks)}
+                </p>
                 <MiniLineChart
-                  values={[overview.totalClicks, overview.activeProperties, overview.pendingProperties, overview.totalClicks]}
+                  values={[
+                    overview.totalClicks,
+                    overview.activeProperties,
+                    overview.pendingProperties,
+                    overview.totalClicks,
+                  ]}
                   color="#0EA5E9"
                 />
               </div>
               <div className="rounded-2xl bg-slate-50 p-3">
                 <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                  <MessageSquare className="h-4 w-4 text-emerald-600" /> Inquiries
+                  <MessageSquare className="h-4 w-4 text-emerald-600" />{" "}
+                  Inquiries
                 </p>
-                <p className="mt-1 text-xl font-medium text-slate-900">{fmtNum(overview.totalInquiries)}</p>
+                <p className="mt-1 text-xl font-medium text-slate-900">
+                  {fmtNum(overview.totalInquiries)}
+                </p>
                 <MiniLineChart
-                  values={[overview.totalInquiries, overview.pendingProperties, overview.activeProperties, overview.totalInquiries]}
+                  values={[
+                    overview.totalInquiries,
+                    overview.pendingProperties,
+                    overview.activeProperties,
+                    overview.totalInquiries,
+                  ]}
                   color="#F59E0B"
                 />
               </div>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-slate-100 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Listing Type</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Listing Type
+                </p>
                 <div className="mt-3 space-y-2">
                   {cleanRows(analytics.listingTypeWise).map((row) => (
-                    <BreakdownRow key={row._id} row={row} total={analyticsTotal} color="bg-blue-500" />
+                    <BreakdownRow
+                      key={row._id}
+                      row={row}
+                      total={analyticsTotal}
+                      color="bg-blue-500"
+                    />
                   ))}
                   {cleanRows(analytics.listingTypeWise).length === 0 && (
-                    <p className="text-sm text-slate-400">No listing data yet</p>
+                    <p className="text-sm text-slate-400">
+                      No listing data yet
+                    </p>
                   )}
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-100 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Promotion Mix</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Promotion Mix
+                </p>
                 <div className="mt-3 space-y-2">
                   {cleanRows(analytics.promotionWise).map((row) => (
-                    <BreakdownRow key={row._id} row={row} total={analyticsTotal} color="bg-emerald-500" />
+                    <BreakdownRow
+                      key={row._id}
+                      row={row}
+                      total={analyticsTotal}
+                      color="bg-emerald-500"
+                    />
                   ))}
                   {cleanRows(analytics.promotionWise).length === 0 && (
-                    <p className="text-sm text-slate-400">No promotion data yet</p>
+                    <p className="text-sm text-slate-400">
+                      No promotion data yet
+                    </p>
                   )}
                 </div>
               </div>
             </div>
           </Panel>
 
-          <Panel title="Status Control" sub="Click a row to filter cards below" icon={PieChart}>
+          <Panel
+            title="Status Control"
+            sub="Click a row to filter cards below"
+            icon={PieChart}
+          >
             <StatusDonut overview={overview} total={analyticsTotal} />
             <div className="space-y-2">
               {cleanRows(analytics.statusWise).map((row) => (
@@ -1399,7 +1488,9 @@ export default function PropertiesDashboard() {
                           : "bg-rose-500"
                   }
                   selected={status === row._id}
-                  onClick={() => setStatus(status === row._id ? "all" : row._id)}
+                  onClick={() =>
+                    setStatus(status === row._id ? "all" : row._id)
+                  }
                 />
               ))}
             </div>
@@ -1414,7 +1505,13 @@ export default function PropertiesDashboard() {
           >
             <div className="space-y-2">
               <BreakdownRow
-                row={{ _id: "all properties", total: analyticsTotal, active: overview.activeProperties, pending: overview.pendingProperties, draft: overview.draftProperties }}
+                row={{
+                  _id: "all properties",
+                  total: analyticsTotal,
+                  active: overview.activeProperties,
+                  pending: overview.pendingProperties,
+                  draft: overview.draftProperties,
+                }}
                 total={analyticsTotal}
                 selected={category === "all"}
                 onClick={() => setCategory("all")}
@@ -1425,35 +1522,55 @@ export default function PropertiesDashboard() {
                   row={row}
                   total={analyticsTotal}
                   selected={category === row._id}
-                  onClick={() => setCategory(category === row._id ? "all" : row._id)}
+                  onClick={() =>
+                    setCategory(category === row._id ? "all" : row._id)
+                  }
                 />
               ))}
             </div>
           </Panel>
 
-          <Panel title="Property Type Demand" sub="Best performing inventory buckets" icon={TrendingUp}>
+          <Panel
+            title="Property Type Demand"
+            sub="Best performing inventory buckets"
+            icon={TrendingUp}
+          >
             <div className="max-h-[420px] space-y-2 overflow-auto pr-1">
-              {cleanRows(analytics.propertyTypeWise).slice(0, 12).map((row) => (
-                <button
-                  key={`${row.category}-${row._id}`}
-                  type="button"
-                  onClick={() => setCategory(row.category || "all")}
-                  className="w-full rounded-2xl border border-slate-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">{titleCase(row._id)}</p>
-                      <p className="text-[11px] font-medium capitalize text-emerald-700">{row.category || "Unknown category"}</p>
+              {cleanRows(analytics.propertyTypeWise)
+                .slice(0, 12)
+                .map((row) => (
+                  <button
+                    key={`${row.category}-${row._id}`}
+                    type="button"
+                    onClick={() => setCategory(row.category || "all")}
+                    className="w-full rounded-2xl border border-slate-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">
+                          {titleCase(row._id)}
+                        </p>
+                        <p className="text-[11px] font-medium capitalize text-emerald-700">
+                          {row.category || "Unknown category"}
+                        </p>
+                      </div>
+                      <span className="text-lg font-medium text-slate-900">
+                        {fmtNum(row.total)}
+                      </span>
                     </div>
-                    <span className="text-lg font-medium text-slate-900">{fmtNum(row.total)}</span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-3 gap-1 text-center text-[10px] font-medium">
-                    <span className="rounded-lg bg-emerald-50 py-1 text-emerald-700">A {row.active || 0}</span>
-                    <span className="rounded-lg bg-amber-50 py-1 text-amber-700">P {row.pending || 0}</span>
-                    <span className="rounded-lg bg-slate-100 py-1 text-slate-600">D {row.draft || 0}</span>
-                  </div>
-                </button>
-              ))}
+                    <div className="mt-2 grid grid-cols-3 gap-1 text-center text-[10px] font-medium">
+                      <span className="rounded-lg bg-emerald-50 py-1 text-emerald-700">
+                        A {row.active || 0}
+                      </span>
+                      <span className="rounded-lg bg-amber-50 py-1 text-amber-700">
+                        P {row.pending || 0}
+                      </span>
+                      <span className="rounded-lg bg-slate-100 py-1 text-slate-600">
+                        D {row.draft || 0}
+                      </span>
+                    </div>
+                  </button>
+                ))}
             </div>
           </Panel>
         </div>
@@ -1462,7 +1579,8 @@ export default function PropertiesDashboard() {
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-slate-800">
-                <Filter className="h-4 w-4 text-emerald-600" /> Filter property cards
+                <Filter className="h-4 w-4 text-emerald-600" /> Filter property
+                cards
               </p>
               <p className="mt-1 text-xs text-slate-400">
                 Cards below follow location, category, status, search and sort.
@@ -1504,32 +1622,56 @@ export default function PropertiesDashboard() {
                 className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-9 text-sm outline-none transition focus:border-emerald-400 focus:bg-white"
               />
               {search && (
-                <button type="button" onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                >
                   <X className="h-4 w-4" />
                 </button>
               )}
             </label>
-            <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-400">
-              {STATUSES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-400"
+            >
+              {STATUSES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
             </select>
-            <select value={sort} onChange={(event) => setSort(event.target.value)} className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-400">
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value)}
+              className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-400"
+            >
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
             </select>
           </div>
           <div className="mt-4 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <span className="inline-flex items-center gap-1.5">
-              <Filter className="h-4 w-4" /> {visibleProperties.length} cards shown below • {activeFilterCount} filters active
+              <Filter className="h-4 w-4" /> {visibleProperties.length} cards
+              shown below • {activeFilterCount} filters active
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <CalendarClock className="h-4 w-4" /> Analytics source: `/analytics/properties`
+              <CalendarClock className="h-4 w-4" /> Analytics source:
+              `/analytics/properties`
             </span>
-            {failed > 0 && <span className="font-medium text-amber-700">{failed} category could not be loaded</span>}
+            {failed > 0 && (
+              <span className="font-medium text-amber-700">
+                {failed} category could not be loaded
+              </span>
+            )}
           </div>
         </div>
 
         {loading ? (
-          <div className="flex min-h-72 items-center justify-center"><LoadingSpinner /></div>
+          <div className="flex min-h-72 items-center justify-center">
+            <LoadingSpinner />
+          </div>
         ) : visibleProperties.length ? (
           <>
             <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
@@ -1550,7 +1692,8 @@ export default function PropertiesDashboard() {
             <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <span className="font-medium text-slate-500">
                 Showing {(page - 1) * PAGE_SIZE + 1}-
-                {Math.min(page * PAGE_SIZE, visibleProperties.length)} of {visibleProperties.length}
+                {Math.min(page * PAGE_SIZE, visibleProperties.length)} of{" "}
+                {visibleProperties.length}
               </span>
               <div className="flex max-w-full items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
                 <button
@@ -1578,7 +1721,9 @@ export default function PropertiesDashboard() {
                 <button
                   type="button"
                   disabled={page === totalPages}
-                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  onClick={() =>
+                    setPage((current) => Math.min(totalPages, current + 1))
+                  }
                   className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Next
@@ -1589,8 +1734,12 @@ export default function PropertiesDashboard() {
         ) : (
           <div className="mt-4 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-center">
             <MapPin className="h-9 w-9 text-slate-300" />
-            <p className="mt-3 font-medium text-slate-700">No matching properties</p>
-            <p className="mt-1 text-sm text-slate-400">Try another category, location, or status.</p>
+            <p className="mt-3 font-medium text-slate-700">
+              No matching properties
+            </p>
+            <p className="mt-1 text-sm text-slate-400">
+              Try another category, location, or status.
+            </p>
           </div>
         )}
       </section>

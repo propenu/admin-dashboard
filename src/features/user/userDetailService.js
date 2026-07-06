@@ -42,19 +42,14 @@ const normalizeUserIds = (userIds) =>
 const getAllCreatedBy = async (url, query, userIds) => {
   const validUserIds = normalizeUserIds(userIds);
   let effectiveQuery = new URLSearchParams(query);
-  let firstResponse = await apiClient.get(
+  // The backend createdBy filter is inconsistent: depending on the user it
+  // can return zero records or only part of the matching records. Always load
+  // the category/type pages without that filter and match creator IDs here.
+  effectiveQuery.delete("createdBy");
+  const firstResponse = await apiClient.get(
     `${url}?${effectiveQuery.toString()}`,
   );
-  let firstPayload = firstResponse.data;
-
-  // Some endpoints currently return an empty result when createdBy is sent,
-  // even though matching records exist in the unfiltered list. Fall back to
-  // the full listing and apply the creator match locally.
-  if (getItems(firstPayload).length === 0 && effectiveQuery.has("createdBy")) {
-    effectiveQuery.delete("createdBy");
-    firstResponse = await apiClient.get(`${url}?${effectiveQuery.toString()}`);
-    firstPayload = firstResponse.data;
-  }
+  const firstPayload = firstResponse.data;
 
   const pages = getPageCount(firstPayload);
 
@@ -73,9 +68,17 @@ const getAllCreatedBy = async (url, query, userIds) => {
     ...getItems(firstPayload),
     ...remainingResponses.flatMap((response) => getItems(response.data)),
   ];
-  const items = allItems.filter(
-    (item) => validUserIds.includes(String(getCreatorId(item))),
-  );
+  const seenIds = new Set();
+  const items = allItems.filter((item) => {
+    if (!validUserIds.includes(String(getCreatorId(item)))) return false;
+
+    // Guard against overlapping/unstable backend pages returning the same
+    // record more than once.
+    const recordId = String(item?._id || "");
+    if (recordId && seenIds.has(recordId)) return false;
+    if (recordId) seenIds.add(recordId);
+    return true;
+  });
 
   return {
     ...firstResponse,
