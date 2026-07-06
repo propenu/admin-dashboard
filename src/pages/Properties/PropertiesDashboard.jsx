@@ -1038,7 +1038,7 @@ export default function PropertiesDashboard() {
             <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-emerald-700">
               <Building2 className="h-4 w-4" /> Property workspace
             </div>
-            <h1 className="mt-1 text-xl font-medium text-slate-900 sm:text-2xl">All properties, one place</h1>
+            <h1 className="mt-1 text-xl font-medium text-slate-900 sm:text-2xl">All properties, one placessssssssssssssssssssssssssssss</h1>
             <p className="mt-0.5 break-words text-sm text-slate-500">
               Browse every category by location, status, poster, and posting time.
             </p>
