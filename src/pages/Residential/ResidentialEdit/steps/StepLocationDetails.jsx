@@ -88,17 +88,6 @@ async function geocodePincode(pincode, signal) {
   };
 }
 
-async function geocodeText(text, signal) {
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(text)}&limit=1`,
-    { signal, headers: { "Accept-Language": "en" } }
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (!Array.isArray(data) || !data.length) return null;
-  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // LocInput — memoized so it only re-renders when its own props change.
 // FIX: Was re-rendering on every parent keystroke because it wasn't wrapped
@@ -148,14 +137,10 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
 
   // Refs for abort controllers
   const pincodeAbortRef       = useRef(null);
-  const fieldGeocodeAbortRef  = useRef(null);
   const pincodeCacheRef       = useRef(new Map());
   // Saved edit data must not trigger a fresh lookup on initial hydration.
   const manualPincodeEditRef  = useRef(false);
 
-  // Tracks who last set location so field-watch geocode doesn't fight pincode/pin
-  // Values: null | "pincode" | "pin" | "field"
-  const geocodeSourceRef    = useRef(null);
   // ── Stable field updater — does NOT change identity on each render ────────
   // FIX: Previously `upd` was recreated every render as `(f,v) => onChange(f,v,"location")`,
   //      making every useEffect/useCallback that listed it as a dep re-fire.
@@ -172,7 +157,6 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
   const handlePinChange = useCallback(
     ({ coordinates, pincode, locality, city, state }) => {
       manualPincodeEditRef.current = false;
-      geocodeSourceRef.current   = "pin";
 
       upd("location", { type: "Point", coordinates });
       if (pincode)  upd("pincode",  pincode);
@@ -190,18 +174,9 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
   const handleBuildingChange    = useCallback((v) => upd("buildingName", v), [upd]);
   const handleLandNameChange    = useCallback((v) => upd("landName",     v), [upd]);
   const handleNearbyChange      = useCallback((v) => upd("nearbyPlaces", v), [upd]);
-  const handleLocalityChange = useCallback((value) => {
-    geocodeSourceRef.current = null;
-    upd("locality", value);
-  }, [upd]);
-  const handleCityChange = useCallback((value) => {
-    geocodeSourceRef.current = null;
-    upd("city", value);
-  }, [upd]);
-  const handleStateChange = useCallback((value) => {
-    geocodeSourceRef.current = null;
-    upd("state", value);
-  }, [upd]);
+  const handleLocalityChange = useCallback((value) => upd("locality", value), [upd]);
+  const handleCityChange     = useCallback((value) => upd("city", value), [upd]);
+  const handleStateChange    = useCallback((value) => upd("state", value), [upd]);
 
   const handlePincodeChange = useCallback((value) => {
     const num = value.replace(/\D/g, "").slice(0, 6);
@@ -239,8 +214,6 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
         if (city)     upd("city",     city);
         if (state)    upd("state",    state);
 
-        geocodeSourceRef.current = "pincode";
-
         if (Number.isFinite(lat) && Number.isFinite(lng)) {
           upd("location", { type: "Point", coordinates: [lng, lat] });
         }
@@ -260,39 +233,9 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
     };
   }, [data.pincode, upd]);
 
-  // ── Typed locality/city/state → geocode to place map pin (last resort) ───
-  // FIX: Previously ran on every programmatic set of locality/city/state
-  //      (from pincode or pin geocoder), creating an infinite loop.
-  //      Now guarded by geocodeSourceRef — only fires when user typed manually.
-  useEffect(() => {
-    // Skip if the last change came from pincode lookup or map pin
-    if (geocodeSourceRef.current === "pincode" || geocodeSourceRef.current === "pin") {
-      geocodeSourceRef.current = null; // consume the guard
-      return;
-    }
-    if (!data.locality || !data.city || !data.state) return;
-
-    fieldGeocodeAbortRef.current?.abort();
-    const ctrl = new AbortController();
-    fieldGeocodeAbortRef.current = ctrl;
-
-    const tid = setTimeout(() => {
-      geocodeText(`${data.locality}, ${data.city}, ${data.state}`, ctrl.signal)
-        .then((geo) => {
-          if (!geo) return;
-          geocodeSourceRef.current = "field";
-          upd("location", { type: "Point", coordinates: [geo.lng, geo.lat] });
-        })
-        .catch((e) => { if (e?.name !== "AbortError") console.error(e); });
-    }, 600);
-
-    return () => { ctrl.abort(); clearTimeout(tid); };
-  }, [data.locality, data.city, data.state, upd]);
-
   // ── Cleanup ───────────────────────────────────────────────────────────────
   useEffect(() => () => {
     pincodeAbortRef.current?.abort();
-    fieldGeocodeAbortRef.current?.abort();
   }, []);
 
   const pinnedCoordinates = data.location?.coordinates ?? null;
