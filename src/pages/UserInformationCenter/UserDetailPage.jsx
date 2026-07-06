@@ -289,7 +289,13 @@ const MobileTab = ({ item, active, onClick }) => {
 };
 
 // ─── Right panel content renderer ─────────────────────────────────────────────
-const PanelContent = ({ activeKey, userId, user, userLoading }) => {
+const PanelContent = ({
+  activeKey,
+  userId,
+  resourceUserIds,
+  user,
+  userLoading,
+}) => {
   switch (activeKey) {
     case "profile":
       return (
@@ -322,7 +328,7 @@ const PanelContent = ({ activeKey, userId, user, userLoading }) => {
             title="Projects"
             subtitle="All featured, prime, normal & sponsored"
           />
-          <FeaturedProjectsSection userId={userId} flat />
+          <FeaturedProjectsSection userId={resourceUserIds} flat />
         </div>
       );
     case "properties":
@@ -332,7 +338,7 @@ const PanelContent = ({ activeKey, userId, user, userLoading }) => {
             title="Properties"
             subtitle="Residential, commercial, land & agricultural"
           />
-          <PropertiesSection userId={userId} flat />
+          <PropertiesSection userId={resourceUserIds} flat />
         </div>
       );
     default:
@@ -374,6 +380,14 @@ const UserDetailPage = () => {
   const navigate = useNavigate();
   const { data: user, isLoading: userLoading } = useUserById(userId);
   const [activeSection, setActiveSection] = useState("profile");
+  const resourceUserIds = [
+    userId,
+    user?._id,
+    user?.userId?._id,
+    typeof user?.userId === "string" ? user.userId : null,
+    user?.authUserId?._id,
+    typeof user?.authUserId === "string" ? user.authUserId : null,
+  ].filter(Boolean);
 
   const navItems = getNavItemsByRole(user?.roleName);
 
@@ -678,6 +692,7 @@ const UserDetailPage = () => {
           <PanelContent
             activeKey={activeSection}
             userId={userId}
+            resourceUserIds={resourceUserIds}
             user={user}
             userLoading={userLoading}
           />

@@ -24,21 +24,45 @@ const getCreatorId = (item) =>
   item?.createdBy?.id ||
   item?.createdBy;
 
+const normalizeUserIds = (userIds) =>
+  [...new Set((Array.isArray(userIds) ? userIds : [userIds])
+    .flatMap((value) =>
+      value && typeof value === "object"
+        ? [value._id, value.userId, value.id]
+        : [value],
+    )
+    .filter(Boolean)
+    .map(String))];
+
 /**
  * The property APIs do not consistently apply the createdBy query before
  * pagination. Fetch every reported backend page, then scope the combined
  * result to the requested user so records on later pages are not lost.
  */
-const getAllCreatedBy = async (url, query, userId) => {
-  const firstResponse = await apiClient.get(`${url}?${query.toString()}`);
-  const firstPayload = firstResponse.data;
+const getAllCreatedBy = async (url, query, userIds) => {
+  const validUserIds = normalizeUserIds(userIds);
+  let effectiveQuery = new URLSearchParams(query);
+  let firstResponse = await apiClient.get(
+    `${url}?${effectiveQuery.toString()}`,
+  );
+  let firstPayload = firstResponse.data;
+
+  // Some endpoints currently return an empty result when createdBy is sent,
+  // even though matching records exist in the unfiltered list. Fall back to
+  // the full listing and apply the creator match locally.
+  if (getItems(firstPayload).length === 0 && effectiveQuery.has("createdBy")) {
+    effectiveQuery.delete("createdBy");
+    firstResponse = await apiClient.get(`${url}?${effectiveQuery.toString()}`);
+    firstPayload = firstResponse.data;
+  }
+
   const pages = getPageCount(firstPayload);
 
   const remainingResponses =
     pages > 1
       ? await Promise.all(
           Array.from({ length: pages - 1 }, (_, index) => {
-            const pageQuery = new URLSearchParams(query);
+            const pageQuery = new URLSearchParams(effectiveQuery);
             pageQuery.set("page", String(index + 2));
             return apiClient.get(`${url}?${pageQuery.toString()}`);
           }),
@@ -50,7 +74,7 @@ const getAllCreatedBy = async (url, query, userId) => {
     ...remainingResponses.flatMap((response) => getItems(response.data)),
   ];
   const items = allItems.filter(
-    (item) => String(getCreatorId(item)) === String(userId),
+    (item) => validUserIds.includes(String(getCreatorId(item))),
   );
 
   return {
@@ -88,31 +112,33 @@ export const getUserSubscriptionHistory = (userId) =>
 // ── Featured Projects by createdBy userId ─────────────────────────────────────
 // types: featured | prime | normal | sponsored
 export const getUserFeaturedProjects = (
-  userId,
+  userIds,
   type = "featured",
   page = 1,
   limit = 20,
 ) => {
+  const [primaryUserId = ""] = normalizeUserIds(userIds);
   const query = new URLSearchParams({
-    createdBy: userId,
+    createdBy: primaryUserId,
     page: "1",
     limit: String(Math.max(limit, 100)),
   });
   if (type) query.set("type", type);
-  return getAllCreatedBy(PROPERTY_BASE, query, userId);
+  return getAllCreatedBy(PROPERTY_BASE, query, userIds);
 };
 
 // ── Properties (residential / commercial / land / agricultural) ───────────────
 export const getUserProperties = (
-  userId,
+  userIds,
   category = "residential",
   page = 1,
   limit = 20,
 ) => {
+  const [primaryUserId = ""] = normalizeUserIds(userIds);
   const query = new URLSearchParams({
-    createdBy: userId,
+    createdBy: primaryUserId,
     page: "1",
     limit: String(Math.max(limit, 100)),
   });
-  return getAllCreatedBy(`${SERVICES.PROPERTY}/${category}`, query, userId);
+  return getAllCreatedBy(`${SERVICES.PROPERTY}/${category}`, query, userIds);
 };
