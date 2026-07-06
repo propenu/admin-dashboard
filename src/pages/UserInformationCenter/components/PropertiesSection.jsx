@@ -284,14 +284,10 @@ const PropertiesContent = ({ userId }) => {
 
   const { data, isLoading } = useUserProperties(userId, cat, page);
 
-  const properties = data?.items || [];
+  // The service combines every backend page and scopes records by createdBy
+  // before this UI-level pagination is applied.
+  const properties = data?.items || data?.data || [];
   const totalPages = data?.meta?.totalPages || 1;
-
-        
-        const filteredProperties = properties.filter(
-          (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
-        );
-
 
         const counts = useUserPropertyCounts(userId);
 
@@ -354,7 +350,7 @@ const PropertiesContent = ({ userId }) => {
             <Skel key={i} h="190px" radius="14px" />
           ))}
         </div>
-      ) : filteredProperties.length === 0 ? (
+      ) : properties.length === 0 ? (
         <Empty msg={`No ${cat} properties`} icon="🏠" />
       ) : (
         <div
@@ -364,7 +360,7 @@ const PropertiesContent = ({ userId }) => {
             gap: "10px",
           }}
         >
-          {filteredProperties.map((p) => (
+          {properties.map((p) => (
             <PropertyCard
               key={p._id}
               p={p}
@@ -443,38 +439,7 @@ const PropertiesContent = ({ userId }) => {
 
 const PropertiesSection = ({ userId, flat }) => {
   const { data } = useUserProperties(userId, "residential");
-  const count = Array.isArray(data)
-    ? data.length
-    : Array.isArray(data?.items)
-      ? data.items.length
-      : 0; 
-
-      const properties = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.items)
-          ? data.items
-          : Array.isArray(data?.data)
-            ? data.data
-            : [];
-
-      const filteredProperties = properties.filter(
-        (p) => String(p.createdBy?._id) === String(userId),
-      );
-
-      console.log("USER ID =>", userId);
-
-      console.log("FILTERED PROPERTIES =>", filteredProperties);
-
-      console.log(
-        "ALL PROPERTY CREATED BY IDS =>",
-        properties.map((p) => ({
-          propertyId: p._id,
-          createdBy: p.createdBy?._id,
-        })),
-      );
-
-
-      const counts = useUserPropertyCounts(userId);
+  const count = data?.meta?.total ?? data?.items?.length ?? data?.data?.length ?? 0;
 
   if (flat) return <PropertiesContent userId={userId} />;
 

@@ -143,7 +143,7 @@ const getNavItemsByRole = (role) => {
   }
 
   if (role === "agent") {
-    return [profile,, properties];
+    return [profile, projects, properties];
   }
 
   // ── DEFAULT (admin, super_admin, etc.) ──

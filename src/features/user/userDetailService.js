@@ -5,6 +5,70 @@ import { SERVICES } from "../../config/services";
 const PAYMENT_BASE = `${SERVICES.PAYMENT}/accounts`;
 const PROPERTY_BASE = `${SERVICES.PROPERTY}/featured-project`;
 
+const getItems = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+const getPageCount = (payload) =>
+  Math.max(
+    1,
+    Number(payload?.meta?.pages || payload?.meta?.totalPages || 1),
+  );
+
+const getCreatorId = (item) =>
+  item?.createdBy?._id ||
+  item?.createdBy?.userId ||
+  item?.createdBy?.id ||
+  item?.createdBy;
+
+/**
+ * The property APIs do not consistently apply the createdBy query before
+ * pagination. Fetch every reported backend page, then scope the combined
+ * result to the requested user so records on later pages are not lost.
+ */
+const getAllCreatedBy = async (url, query, userId) => {
+  const firstResponse = await apiClient.get(`${url}?${query.toString()}`);
+  const firstPayload = firstResponse.data;
+  const pages = getPageCount(firstPayload);
+
+  const remainingResponses =
+    pages > 1
+      ? await Promise.all(
+          Array.from({ length: pages - 1 }, (_, index) => {
+            const pageQuery = new URLSearchParams(query);
+            pageQuery.set("page", String(index + 2));
+            return apiClient.get(`${url}?${pageQuery.toString()}`);
+          }),
+        )
+      : [];
+
+  const allItems = [
+    ...getItems(firstPayload),
+    ...remainingResponses.flatMap((response) => getItems(response.data)),
+  ];
+  const items = allItems.filter(
+    (item) => String(getCreatorId(item)) === String(userId),
+  );
+
+  return {
+    ...firstResponse,
+    data: {
+      items,
+      meta: {
+        ...(firstPayload?.meta || {}),
+        total: items.length,
+        page: 1,
+        limit: items.length || Number(query.get("limit")) || 20,
+        pages: 1,
+        totalPages: 1,
+      },
+    },
+  };
+};
+
 // ── User ─────────────────────────────────────────────────────────────────────
 export const getUserById = (userId) =>
   apiClient.get(`${SERVICES.USER}/auth/all-users?userId=${userId}`);
@@ -28,15 +92,15 @@ export const getUserFeaturedProjects = (
   type = "featured",
   page = 1,
   limit = 20,
-) =>
-  // apiClient.get(
-  //   `${PROPERTY_BASE}?type=${type}&createdBy=${userId}&page=${page}&limit=${limit}`,
-  // );
-  apiClient.get(
-    `${PROPERTY_BASE}?${
-      type ? `type=${type}&` : ""
-    }createdBy=${userId}&page=${page}&limit=${limit}`,
-  );
+) => {
+  const query = new URLSearchParams({
+    createdBy: userId,
+    page: "1",
+    limit: String(Math.max(limit, 100)),
+  });
+  if (type) query.set("type", type);
+  return getAllCreatedBy(PROPERTY_BASE, query, userId);
+};
 
 // ── Properties (residential / commercial / land / agricultural) ───────────────
 export const getUserProperties = (
@@ -44,7 +108,11 @@ export const getUserProperties = (
   category = "residential",
   page = 1,
   limit = 20,
-) =>
-  apiClient.get(
-    `${SERVICES.PROPERTY}/${category}?createdBy=${userId}&page=${page}&limit=${limit}`,
-  );
+) => {
+  const query = new URLSearchParams({
+    createdBy: userId,
+    page: "1",
+    limit: String(Math.max(limit, 100)),
+  });
+  return getAllCreatedBy(`${SERVICES.PROPERTY}/${category}`, query, userId);
+};

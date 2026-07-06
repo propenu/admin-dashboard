@@ -123,16 +123,29 @@ export const useUserFeaturedProjects = (
   limit = 20,
 ) =>
   useQuery({
-    queryKey: ["user-featured-projects", userId, type, page],
+    queryKey: ["user-featured-projects", userId, type, page, limit],
 
     queryFn: async () => {
       const res = await getUserFeaturedProjects(userId, type, page, limit);
+      const items = res.data?.items || [];
+      const total = items.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const start = (page - 1) * limit;
 
-      console.log("PAGE =", page);
-      console.log("API RESPONSE =", res.data);
-
-      return res.data;
+      return {
+        items: items.slice(start, start + limit),
+        meta: {
+          ...(res.data?.meta || {}),
+          total,
+          page,
+          limit,
+          pages: totalPages,
+          totalPages,
+        },
+      };
     },
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
   });
 
 // ── Featured Project Counts ─────────────────────────────────────────
@@ -211,12 +224,26 @@ export const useUserProperties = (
   limit = 20,
 ) =>
   useQuery({
-    queryKey: ["user-properties", userId, category, page],
+    queryKey: ["user-properties", userId, category, page, limit],
 
     queryFn: async () => {
       const res = await getUserProperties(userId, category, page, limit);
+      const items = res.data?.items || [];
+      const total = items.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const start = (page - 1) * limit;
 
-      return res.data;
+      return {
+        items: items.slice(start, start + limit),
+        meta: {
+          ...(res.data?.meta || {}),
+          total,
+          page,
+          limit,
+          pages: totalPages,
+          totalPages,
+        },
+      };
     },
 
     enabled: !!userId,

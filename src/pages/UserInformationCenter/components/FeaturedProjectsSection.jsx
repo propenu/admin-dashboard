@@ -1,6 +1,6 @@
 // src/features/users/components/FeaturedProjectsSection.jsx
 import React, { useState } from "react";
-import { Star, MapPin } from "lucide-react";
+import { Star, MapPin, Calendar } from "lucide-react";
 import AccordionSection from "./AccordionSection";
 import { C, Badge, Skel, Empty, fmtDate } from "./shared";
 import {
@@ -197,6 +197,19 @@ const thumb =
             </p>
           </div>
         )}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            marginTop: "8px",
+          }}
+        >
+          <Calendar size={9} color={C.muted} />
+          <p style={{ margin: 0, fontSize: "9px", color: C.muted }}>
+            {fmtDate(p.createdAt)}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -206,18 +219,12 @@ const FeaturedContent = ({ userId }) => {
   const [type, setType] = useState("featured");
   const [page, setPage] = useState(1);
 
-  console.log("Current page =", page); // <-- ADD HERE
-
   const { data, isLoading } = useUserFeaturedProjects(userId, type, page);
 
-  
-
-  const projects = data?.items || [];
-  const totalPages = data?.meta?.pages || 1;
-
-  const filteredProperties = projects.filter(
-    (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
-  );
+  // The service combines every backend page and scopes records by createdBy
+  // before this UI-level pagination is applied.
+  const projects = data?.items || data?.data || [];
+  const totalPages = data?.meta?.totalPages || data?.meta?.pages || 1;
 
   const counts = useUserFeaturedProjectCounts(userId);
 
@@ -278,7 +285,7 @@ const FeaturedContent = ({ userId }) => {
             <Skel key={i} h="200px" radius="14px" />
           ))}
         </div>
-      ) : filteredProperties.length === 0 ? (
+      ) : projects.length === 0 ? (
         <Empty msg={`No ${type} projects`} icon="🏗️" />
       ) : (
         <div
@@ -288,7 +295,7 @@ const FeaturedContent = ({ userId }) => {
             gap: "10px",
           }}
         >
-          {filteredProperties.map((p) => (
+          {projects.map((p) => (
             <ProjectCard key={p._id} p={p} type={type} />
           ))}
         </div>
@@ -336,10 +343,7 @@ const FeaturedContent = ({ userId }) => {
         </div>
 
         <button
-          onClick={() => {
-            console.log("Next button clicked");
-            setPage((prev) => prev + 1);
-          }}
+          onClick={() => setPage((prev) => prev + 1)}
           disabled={page === totalPages}
           style={{
             padding: "8px 16px",
@@ -362,24 +366,7 @@ const FeaturedContent = ({ userId }) => {
 };
 
 const FeaturedProjectsSection = ({ userId, flat }) => {
-
-  // const { data, isLoading } = useUserFeaturedProjects(userId, "featured");
-  // const projects = Array.isArray(data)
-  //   ? data
-  //   : Array.isArray(data?.data)
-  //     ? data.data
-  //     : [];
-
-  //     const filteredProjects = projects.filter(
-  //       (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
-  //     );
   const { data } = useUserFeaturedProjects(userId, "featured");
-
-  const projects = data?.items || [];
-
-  const filteredProjects = projects.filter(
-    (p) => String(p.createdBy?._id || p.createdBy) === String(userId),
-  );
 
   if (flat) return <FeaturedContent userId={userId} />;
 
