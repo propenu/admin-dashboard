@@ -7,9 +7,16 @@ import { deletePropertyGalleryImagesIndex } from "../../../../../../features/pro
 import { toast } from "sonner";
 
 const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+const MIN_FILES = 5;
 const MAX_FILES = 12;
 const TARGET_KB = 200; // Each image will be compressed to ~200KB max
 const TARGET_BYTES = TARGET_KB * 1024;
+
+const formatFileSizeMb = (item) => {
+  const bytes = item?.file?.size || item?.size || item?.originalSize;
+  if (!bytes) return "";
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
 
 const compressImageToTarget = (file) => {
   return new Promise((resolve, reject) => {
@@ -492,7 +499,7 @@ const handleRemovePhoto = async (index) => {
               Drag and drop your photos here
               <br />
               <span className="text-gray-400">
-                Up to {MAX_FILES} photos · Auto-compressed · JPG PNG WEBP
+                Minimum {MIN_FILES} and maximum {MAX_FILES} photos · Auto-compressed · JPG PNG WEBP
               </span>
             </p>
             <span className="mt-3 bg-[#27AE60] px-4 py-2 text-white rounded-lg text-sm font-medium">
@@ -507,6 +514,7 @@ const handleRemovePhoto = async (index) => {
         <div className="grid grid-cols-5 gap-3 mt-4">
           {previewUrls.slice(0, 5).map((url, index) => {
             const isLast = index === 4 && previewUrls.length > 5;
+            const sizeLabel = formatFileSizeMb(form.galleryFiles?.[index]);
             return (
               <div
                 key={index}
@@ -524,6 +532,12 @@ const handleRemovePhoto = async (index) => {
                   <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
                     No Preview
                   </div>
+                )}
+
+                {sizeLabel && (
+                  <span className="absolute left-1 bottom-1 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+                    {sizeLabel}
+                  </span>
                 )}
 
                 {/* Remove button */}

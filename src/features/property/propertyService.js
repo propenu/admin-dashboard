@@ -154,6 +154,14 @@ export const projectAnalytics = (id) => {
   return apiClient.get(`${SERVICES.PROPERTY}/leads/project/${id}/leads`);
 };
 
+export const deleteProjectLead = (id) => {
+  return apiClient.delete(`${SERVICES.PROPERTY}/leads/${id}`);
+};
+
+export const deleteAllProjectLeads = (id) => {
+  return apiClient.delete(`${SERVICES.PROPERTY}/leads/project/${id}/leads`);
+};
+
 export const projectExternalFileAddLeads = (id, payload) => {
   return apiClient.post(
     `${SERVICES.PROPERTY}/leads/project/${id}/leads/import`,

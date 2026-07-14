@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import AmenitiesInput from "../components/editable/AmenitiesInput";
 import GalleryUpload from "../components/editable/GalleryUpload";
+import SpecificationsInput from "../components/editable/SpecificationsInput";
 import TenantInfo from "../components/editable/TenantInfo";
 import BuildingManagement from "../components/editable/BuildingManagement";
 import PantryInput from "../components/editable/PantryInput";
@@ -44,9 +45,9 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
   
   if (!data) return null;
   const upd = (f, v) => onChange(f, v, "details");
-  const cat = data.propertyCategory?.toLowerCase();
+  const cat = (data.categoryType || data.propertyCategory)?.toLowerCase();
 
-  const totalImgs = (data.gallery?.length || 0) + (data.galleryFiles?.length || 0);
+  const totalImgs = data.galleryFiles?.length || data.gallery?.length || 0;
 
   return (
     <div className="space-y-4">
@@ -83,7 +84,7 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
               </p>
             </div>
           </div>
-          <CountBadge count={totalImgs} max={10} />
+          <CountBadge count={totalImgs} max={12} />
         </div>
         <div className="rounded-xl border border-blue-100/60 bg-white p-2.5 sm:p-3">
           <GalleryUpload
@@ -117,6 +118,24 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
           />
         </div>
       </div>
+
+      {cat === "residential" && (
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-4">
+          <SH
+            icon={<ClipboardList className="w-4 h-4" />}
+            title="Specifications"
+            bg="#f0fdf4"
+            color="#27AE60"
+            badge={`${data.specifications?.length || 0} Categories`}
+          />
+          <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+            <SpecificationsInput
+              value={data.specifications || []}
+              onChange={(v) => upd("specifications", v)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Commercial Block */}
       {cat === "commercial" && (

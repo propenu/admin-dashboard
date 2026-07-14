@@ -86,8 +86,10 @@ export default function LandFields({ back, next }) {
       e.price = "Price must be greater than 0";
     if (!form.description || form.description.trim().length < 20)
       e.description = "Description is too short";
-    if (!form.galleryFiles?.length)
-      e.galleryFiles = "Upload at least one site photo";
+    if (!form.galleryFiles || form.galleryFiles.length < 5)
+      e.galleryFiles = "Please upload minimum 5 photos";
+    else if (form.galleryFiles.length > 12)
+      e.galleryFiles = "Please upload maximum 12 photos";
     return e;
   };
 
@@ -99,7 +101,8 @@ export default function LandFields({ back, next }) {
       if (form.plotArea > 0) delete updated.plotArea;
       if (form.landName?.trim().length >= 3) delete updated.landName;
       if (form.price > 0) delete updated.price;
-      if (form.galleryFiles?.length > 0) delete updated.galleryFiles;
+      if (form.galleryFiles?.length >= 5 && form.galleryFiles.length <= 12)
+        delete updated.galleryFiles;
       return updated;
     });
   }, [form]);

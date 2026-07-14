@@ -1,4 +1,4 @@
-// src/pages/UpsertProperties/components/UpsertIndetailsProperty/IndetailsProperty.jsx
+// propenuadmindashborad/src/pages/UpsertProperties/components/UpsertIndetailsProject/PropertyIndetails.jsx
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -103,6 +103,70 @@ const formatRoleName = (role) => {
   };
 
   return roles[role] || capitalize(role);
+};
+
+const normalizeAuditPerson = (person, fallbackDate) => {
+  if (!person) return null;
+  if (typeof person === "string") return { _id: person, updatedAt: fallbackDate };
+
+  const user = person.userId && typeof person.userId === "object" ? person.userId : {};
+  const id = person._id || person.userId || user._id || person.id || user.id;
+
+  return {
+    ...person,
+    _id: id,
+    name: person.name || user.name,
+    email: person.email || user.email,
+    phone: person.phone || person.contact || user.phone || user.contact,
+    roleName:
+      person.roleName ||
+      person.role ||
+      user.roleName ||
+      user.role ||
+      user.roleId?.name ||
+      user.roleId?.label,
+    postedAt: person.postedAt || fallbackDate,
+    updatedAt: person.updatedAt || fallbackDate,
+  };
+};
+
+const getPostedBy = (property) =>
+  normalizeAuditPerson(
+    property?.postedBy || property?.createdBy,
+    property?.postedBy?.postedAt || property?.createdAt,
+  );
+
+const getUpdateHistory = (property) => {
+  const history = Array.isArray(property?.updateHistory)
+    ? property.updateHistory
+        .map((item) => normalizeAuditPerson(item, item?.updatedAt || property?.updatedAt))
+        .filter(Boolean)
+    : [];
+
+  if (history.length === 0 && property?.lastUpdatedBy) {
+    history.push(normalizeAuditPerson(property.lastUpdatedBy, property?.updatedAt));
+  }
+
+  return history.sort(
+    (a, b) => new Date(b?.updatedAt || 0) - new Date(a?.updatedAt || 0),
+  );
+};
+
+const getLastUpdatedBy = (property) => {
+  const latest =
+    normalizeAuditPerson(property?.lastUpdatedBy, property?.updatedAt) ||
+    getUpdateHistory(property)[0];
+
+  if (latest) return latest;
+
+  const postedBy = getPostedBy(property);
+  if (!property?.updatedAt && !postedBy) return null;
+
+  return {
+    ...(postedBy || {}),
+    name: postedBy?.name || "Unknown user",
+    updatedAt: property?.updatedAt,
+  };
 };
 // Detect category from property data
 const detectCategory = (property) => {
@@ -319,14 +383,14 @@ function RecordMeta({ property }) {
 }
 
 // ─── CreatedByCard ────────────────────────────────────────────────────────────
-function CreatedByCard({ person }) {
+function PostedByCard({ person }) {
   if (!person) return null;
   return (
     <SectionCard>
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 bg-green-50">
         <UserPlus className="w-3.5 h-3.5 text-[#27AE60]" />
         <span className="text-[10px] font-bold uppercase tracking-widest text-[#27AE60]">
-          Created By
+          Posted By
         </span>
       </div>
       <div className="p-4 flex flex-col gap-2">
@@ -343,6 +407,26 @@ function CreatedByCard({ person }) {
             </p>
           </div>
         </div>
+        {person.roleName && (
+          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
+              Role
+            </p>
+            <p className="text-[11px] font-semibold text-slate-700 capitalize">
+              {formatRoleName(person.roleName)}
+            </p>
+          </div>
+        )}
+        {person.postedAt && (
+          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
+              Posted On
+            </p>
+            <p className="text-[11px] font-semibold text-slate-700">
+              {formatDateTime(person.postedAt)}
+            </p>
+          </div>
+        )}
         {person.email && (
           <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
             <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
@@ -369,13 +453,78 @@ function CreatedByCard({ person }) {
 }
 
 // ─── LeadRow ──────────────────────────────────────────────────────────────────
+function LastUpdatedByCard({ person, updateCount }) {
+  if (!person) return null;
+  return (
+    <SectionCard>
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 bg-blue-50">
+        <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
+          Last Updated By
+        </span>
+      </div>
+      <div className="p-4 flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+            <User className="w-4 h-4 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-800 capitalize">
+              {person.name || "Unknown user"}
+            </p>
+            {person._id && (
+              <p className="text-[9px] text-slate-400 font-mono">
+                ID: ...{String(person._id).slice(-4)}
+              </p>
+            )}
+          </div>
+        </div>
+        {person.roleName && (
+          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
+              Role
+            </p>
+            <p className="text-[11px] font-semibold text-slate-700 capitalize">
+              {formatRoleName(person.roleName)}
+            </p>
+          </div>
+        )}
+        <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+          <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
+            Updated On
+          </p>
+          <p className="text-[11px] font-semibold text-slate-700">
+            {formatDateTime(person.updatedAt)}
+          </p>
+        </div>
+        <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+          <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
+            Total Updates
+          </p>
+          <p className="text-[11px] font-semibold text-slate-700">
+            {updateCount || 0}
+          </p>
+        </div>
+        {person.email && (
+          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
+              Email
+            </p>
+            <p className="text-[11px] font-semibold text-slate-700 truncate">
+              {person.email}
+            </p>
+          </div>
+        )}
+      </div>
+    </SectionCard>
+  );
+}
+
 function UpdateHistoryPanel({ property }) {
-  const history = Array.isArray(property?.updateHistory)
-    ? [...property.updateHistory].sort(
-        (a, b) => new Date(b?.updatedAt || 0) - new Date(a?.updatedAt || 0),
-      )
-    : [];
-  const lastUpdated = property?.lastUpdatedBy || history[0];
+  const history = getUpdateHistory(property);
+  const lastUpdated =
+    normalizeAuditPerson(property?.lastUpdatedBy, property?.updatedAt) ||
+    history[0];
   const updateCount = property?.updateCount ?? history.length;
 
   return (
@@ -1599,6 +1748,9 @@ const analyticsLoading = isLoading;
   const displayImage = images[activeImage]?.url || Fallback;
   const isActive = property.status === "active";
   const completion = property.completion?.percent || 0;
+  const postedBy = getPostedBy(property);
+  const lastUpdatedBy = getLastUpdatedBy(property);
+  const updateCount = property.updateCount ?? getUpdateHistory(property).length;
 
   // Category label for display
   const categoryLabels = {
@@ -2015,10 +2167,11 @@ const analyticsLoading = isLoading;
         </div>
       </SectionCard>
 
-      {/* ── CREATED BY ────────────────────────────────────────────────── */}
-      {property.createdBy && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <CreatedByCard person={property.createdBy} />
+      {/* ── POSTED BY ─────────────────────────────────────────────────── */}
+      {(postedBy || lastUpdatedBy) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-5xl">
+          <PostedByCard person={postedBy} />
+          <LastUpdatedByCard person={lastUpdatedBy} updateCount={updateCount} />
         </div>
       )}
 

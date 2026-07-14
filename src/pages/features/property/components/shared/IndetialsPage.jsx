@@ -41,8 +41,11 @@ import {
   Users,
   Upload,
   Search,
+  Trash2,
 } from "lucide-react";
 import {
+  deleteAllProjectLeads,
+  deleteProjectLead,
   projectAnalytics,
   projectExternalFileAddLeads,
 } from "../../../../../features/property/propertyService";
@@ -162,6 +165,12 @@ const leadStatusClass = (status = "") => {
   return "bg-slate-50 text-slate-600 border-slate-100";
 };
 
+const getApiErrorMessage = (err, fallback) => {
+  const data = err?.response?.data;
+  if (typeof data === "string") return data;
+  return data?.message || data?.error || err?.message || fallback;
+};
+
 const formatLeadText = (value) => {
   if (value === null || value === undefined || value === "") return "-";
   return String(value)
@@ -269,7 +278,7 @@ function MetaItem({ label, value }) {
   );
 }
 
-function LeadRow({ lead }) {
+function LeadRow({ lead, onDeleteLead, isDeletingLead }) {
   return (
     <tr className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors">
       <td className="px-3 py-2.5">
@@ -308,6 +317,17 @@ function LeadRow({ lead }) {
         >
           {formatLeadText(lead.status)}
         </span>
+      </td>
+      <td className="px-3 py-2.5 text-center">
+        <button
+          type="button"
+          onClick={() => onDeleteLead(lead)}
+          disabled={isDeletingLead}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 bg-white text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          title="Delete lead"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </td>
     </tr>
   );
@@ -632,6 +652,7 @@ function LeadsSection({
 }) {
   const [activeTab, setActiveTab] = useState("leads");
   const [leadSearch, setLeadSearch] = useState("");
+  const [leadDeleteTarget, setLeadDeleteTarget] = useState(null);
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
   const leadSearchTerm = leadSearch.trim().toLowerCase();
@@ -700,6 +721,47 @@ function LeadsSection({
     if (!file) return;
     importLeadsMutation.mutate(file);
   };
+
+  const refreshLeadQueries = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["projectAnalytics", projectId] }),
+      queryClient.invalidateQueries({ queryKey: ["projectLeads", projectId] }),
+      queryClient.invalidateQueries({ queryKey: ["project-analytics"] }),
+      queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] }),
+    ]);
+  };
+
+  const deleteLeadMutation = useMutation({
+    mutationFn: (id) => deleteProjectLead(id),
+    onSuccess: async () => {
+      toast.success("Lead deleted");
+      setLeadDeleteTarget(null);
+      await refreshLeadQueries();
+    },
+    onError: (err) => {
+      toast.error(getApiErrorMessage(err, "Failed to delete lead"));
+    },
+  });
+
+  const deleteAllLeadsMutation = useMutation({
+    mutationFn: () => deleteAllProjectLeads(projectId),
+    onSuccess: async (res) => {
+      const count = res?.data?.data?.deletedCount;
+      toast.success(
+        typeof count === "number"
+          ? `${count} project leads deleted`
+          : "Project leads deleted"
+      );
+      setLeadDeleteTarget(null);
+      await refreshLeadQueries();
+    },
+    onError: (err) => {
+      toast.error(getApiErrorMessage(err, "Failed to delete project leads"));
+    },
+  });
+
+  const isDeletingLead =
+    deleteLeadMutation.isPending || deleteAllLeadsMutation.isPending;
 
   const tabs = [
     { key: "leads", label: `Leads (${totalLeads})` },
@@ -771,6 +833,15 @@ function LeadsSection({
                 >
                   <Download className="h-3.5 w-3.5" />
                   Excel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLeadDeleteTarget({ type: "all" })}
+                  disabled={!leads.length || isDeletingLead}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete all
                 </button>
               </div>
             </div>
@@ -844,21 +915,29 @@ function LeadsSection({
               <>
                 <div className="overflow-hidden rounded-xl border border-slate-100">
                   <div className="max-h-[460px] overflow-auto">
-                  <table className="w-full min-w-[980px] table-fixed text-left">
+                  <table className="w-full min-w-[1080px] table-fixed text-left">
                     <thead>
                       <tr className="sticky top-0 z-10 bg-slate-50 border-b border-slate-100">
-                        <th className="w-[16%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Full Name</th>
-                        <th className="w-[13%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Phone Number</th>
-                        <th className="w-[20%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Email</th>
-                        <th className="w-[15%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Lead Time</th>
-                        <th className="w-[14%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Planning</th>
-                        <th className="w-[11%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Budget</th>
-                        <th className="w-[11%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</th>
+                        <th className="w-[15%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Full Name</th>
+                        <th className="w-[12%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Phone Number</th>
+                        <th className="w-[18%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Email</th>
+                        <th className="w-[14%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Lead Time</th>
+                        <th className="w-[13%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Planning</th>
+                        <th className="w-[10%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Budget</th>
+                        <th className="w-[10%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</th>
+                        <th className="w-[8%] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Delete</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredLeads.map((lead, i) => (
-                        <LeadRow key={lead._id || i} lead={lead} />
+                        <LeadRow
+                          key={lead._id || i}
+                          lead={lead}
+                          isDeletingLead={isDeletingLead}
+                          onDeleteLead={(item) =>
+                            setLeadDeleteTarget({ type: "one", lead: item })
+                          }
+                        />
                       ))}
                     </tbody>
                   </table>
@@ -944,6 +1023,54 @@ function LeadsSection({
           </div>
         )}
       </div>
+
+      {leadDeleteTarget && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="flex gap-3">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  {leadDeleteTarget.type === "all"
+                    ? "Delete all project leads?"
+                    : "Delete this lead?"}
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  {leadDeleteTarget.type === "all"
+                    ? "This deletes only leads for this project. The project/property will not be deleted."
+                    : `This deletes only ${leadDeleteTarget.lead?.name || "this lead"}. The project/property will not be deleted.`}
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLeadDeleteTarget(null)}
+                disabled={isDeletingLead}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (leadDeleteTarget.type === "all") {
+                    deleteAllLeadsMutation.mutate();
+                    return;
+                  }
+                  deleteLeadMutation.mutate(leadDeleteTarget.lead?._id);
+                }}
+                disabled={isDeletingLead}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+              >
+                {isDeletingLead ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-//7hh
+//propenuadmindashborad/src/pages/Properties/PropertiesDashboard.jsx
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";

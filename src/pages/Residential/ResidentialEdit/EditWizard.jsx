@@ -83,6 +83,9 @@ const normalizeOptionalRoomCounts = (form, category) => {
   return form;
 };
 
+const getGalleryCount = (form) =>
+  form?.galleryFiles?.length || form?.gallery?.length || 0;
+
 export default function EditWizard() {
   const { id } = useParams();
   const [activeStep, setActiveStep] = useState(0);
@@ -261,6 +264,17 @@ export default function EditWizard() {
           return false;
         }
         setCreatedByError("");
+      }
+      if (stepName === "details") {
+        const galleryCount = getGalleryCount(currentRef.current);
+        if (galleryCount < 5) {
+          toast.error("Please upload minimum 5 photos");
+          return false;
+        }
+        if (galleryCount > 12) {
+          toast.error("Please upload maximum 12 photos");
+          return false;
+        }
       }
       const tid = toast.loading(`Saving ${stepName}...`);
       try {

@@ -76,8 +76,10 @@ export default function AgriculturalFields({ back, next }) {
   const validateStep3 = () => {
     const e = {};
     //if (!form.currency) e.currency = "Currency is required";
-     if (!form.galleryFiles || form.galleryFiles.length < 5)
-       e.galleryFiles = "Upload at least 5 image";
+    if (!form.galleryFiles || form.galleryFiles.length < 5)
+      e.galleryFiles = "Please upload minimum 5 photos";
+    else if (form.galleryFiles.length > 12)
+      e.galleryFiles = "Please upload maximum 12 photos";
     return e;
   };
 
@@ -90,7 +92,8 @@ export default function AgriculturalFields({ back, next }) {
       if (form.totalArea?.value > 0) delete updated.totalArea;
       if (form.waterSource) delete updated.waterSource;
       
-      if (form.galleryFiles?.length > 0) delete updated.galleryFiles;
+      if (form.galleryFiles?.length >= 5 && form.galleryFiles.length <= 12)
+        delete updated.galleryFiles;
       return updated;
     });
   }, [form]);

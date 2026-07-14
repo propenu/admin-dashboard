@@ -544,7 +544,7 @@
 
 // NearbyPlacesInput.jsx
 // Live search:  Photon (komoot) — 5 km bounding box, as-you-type
-// Full search:  Overpass API   — 10 km radius, on submit / category chip
+// Full search:  Overpass API   — 30 km radius, on submit
 // All data: OpenStreetMap (zero Mappls API calls)
 
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -554,10 +554,10 @@ import { Search, Loader2, MapPin, X, Check, Plus, Navigation } from "lucide-reac
 // Constants (mirrors File 1)
 // ─────────────────────────────────────────────
 
-const SEARCH_RADIUS_KM       = 5;
-const SEARCH_RESULT_LIMIT    = 5;
+const SEARCH_RADIUS_KM       = 30;
+const SEARCH_RESULT_LIMIT    = 30;
 const PHOTON_CANDIDATE_LIMIT = 15;
-const MAX_NEARBY_RADIUS_M    = 10_000;
+const MAX_NEARBY_RADIUS_M    = 30_000;
 
 // ─────────────────────────────────────────────
 // Distance helpers
@@ -618,7 +618,7 @@ function buildPhotonAddress(p) {
 }
 
 // ─────────────────────────────────────────────
-// Overpass helpers (10 km)
+// Overpass helpers (30 km)
 // ─────────────────────────────────────────────
 
 async function fetchByFilter(filter, lat, lng) {
@@ -723,6 +723,8 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
   const [catError,    setCatError]    = useState(null);
 
   const [query, setQuery] = useState("");
+  const [manualPlaceName, setManualPlaceName] = useState("");
+  const [manualDistanceText, setManualDistanceText] = useState("");
 
   const [photonResults, setPhotonResults] = useState([]);
   const [photonLoading, setPhotonLoading] = useState(false);
@@ -824,7 +826,7 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
       const [lng, lat] = pinnedCoords;
       const places = await fetchByFilter(cat.filter, lat, lng);
       setCatResults(places);
-      if (!places.length) setCatError(`No ${cat.label.toLowerCase()} found within 10 km.`);
+      if (!places.length) setCatError(`No ${cat.label.toLowerCase()} found within 30 km.`);
     } catch (e) {
       if (e?.name !== "AbortError") setCatError("Failed to load. Try again.");
     } finally { setLoadingCat(null); }
@@ -849,7 +851,7 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
       } else {
         const places = await fetchByName(q, lat, lng);
         if (!places.length) {
-          setOvError(`"${q}" not found within 10 km.`); setOvSearched(true);
+          setOvError(`"${q}" not found within 30 km.`); setOvSearched(true);
         } else {
           handleAdd(places[0]); setAutoAdded(places[0].name);
           setOvResults(places); setOvSearched(true);
@@ -881,6 +883,34 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
   const handleRemove = useCallback((place) => {
     onChange(value.filter((p) => !(p.name === place.name && p.type === place.type)));
   }, [value, onChange]);
+
+  const handleAddManualPlace = useCallback(() => {
+    const name = manualPlaceName.trim();
+    const rawDistance = manualDistanceText.trim();
+    if (!name || !rawDistance) return;
+
+    const distanceText = /\b(km|m)\b/i.test(rawDistance)
+      ? rawDistance
+      : `${rawDistance} km`;
+
+    const alreadyAdded = value.some(
+      (place) => place.name.toLowerCase() === name.toLowerCase()
+    );
+    if (alreadyAdded) return;
+
+    onChange([
+      ...value,
+      {
+        name,
+        type: "manual",
+        icon: "📍",
+        distanceText,
+        order: value.length,
+      },
+    ]);
+    setManualPlaceName("");
+    setManualDistanceText("");
+  }, [manualDistanceText, manualPlaceName, onChange, value]);
 
   const addPhoton = (place) => {
     const name = place.address ? `${place.title}, ${place.address}` : place.title;
@@ -914,7 +944,7 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
       <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5">
         <Navigation size={13} className="text-purple-500 shrink-0" />
         <p className="text-xs text-purple-700 font-semibold">
-          Places within <span className="font-black">10 km</span> shown nearest first.
+          Places within <span className="font-black">30 km</span> shown nearest first.
           Live suggestions limited to <span className="font-black">{SEARCH_RADIUS_KM} km</span>.
         </p>
       </div>
@@ -955,7 +985,7 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
           </button>
         </div>
         <p className="text-[10px] text-slate-400 mt-1.5">
-          Live results as you type ({SEARCH_RADIUS_KM} km) · Press Search / Enter for full 10 km lookup
+          Live results as you type ({SEARCH_RADIUS_KM} km) · Press Search / Enter for full 30 km lookup
         </p>
 
         {/* Photon live dropdown */}
@@ -982,27 +1012,45 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
         )}
       </div>
 
-      {/* Category chips */}
-      <div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Browse by category</p>
-        <div className="flex flex-wrap gap-2">
-          {PLACE_CATEGORIES.map((cat) => {
-            const active  = activeCat === cat.key;
-            const loading = loadingCat === cat.key;
-            return (
-              <button key={cat.key} type="button" onClick={() => handleCatClick(cat)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all"
-                style={{
-                  borderColor: active ? "#9333ea" : "#e2e8f0",
-                  background:  active ? "#faf5ff" : "#fff",
-                  color:       active ? "#7e22ce" : "#4b5563",
-                }}
-              >
-                {loading ? <Loader2 size={11} className="animate-spin" /> : <span style={{ fontSize: 13 }}>{cat.icon}</span>}
-                {cat.label}
-              </button>
-            );
-          })}
+      {/* Manual place add */}
+      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+        <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+          Add place manually
+        </p>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_170px_auto]">
+          <div className="relative">
+            <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" />
+            <input
+              value={manualPlaceName}
+              onChange={(event) => setManualPlaceName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") handleAddManualPlace();
+              }}
+              placeholder="Enter nearby place name"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-medium text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/10"
+            />
+          </div>
+          <div className="relative">
+            <Navigation size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" />
+            <input
+              value={manualDistanceText}
+              onChange={(event) => setManualDistanceText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") handleAddManualPlace();
+              }}
+              placeholder="Distance (e.g. 1.2 km)"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-medium text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/10"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleAddManualPlace}
+            disabled={!manualPlaceName.trim() || !manualDistanceText.trim()}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-black text-white transition-colors hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus size={14} />
+            Add
+          </button>
         </div>
       </div>
 
@@ -1028,7 +1076,7 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
       {!anyLoading && ovSearched && !activeCat && !ovResults.length && (
         <div className="text-center py-6 text-slate-400">
           <Search size={24} className="mx-auto mb-2 opacity-30" />
-          <p className="text-sm font-semibold">No places found within 10 km for "{query}"</p>
+          <p className="text-sm font-semibold">No places found within 30 km for "{query}"</p>
           <p className="text-xs mt-1">Try a different keyword or re-pin your location</p>
         </div>
       )}
@@ -1040,7 +1088,7 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex-1">
               {autoAdded && !activeCat
                 ? `More matches (${displayResults.length})`
-                : `Places (${displayResults.length} within 10 km)`}
+                : `Places (${displayResults.length} within 30 km)`}
             </p>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-14">Distance</p>
           </div>

@@ -1184,7 +1184,7 @@ export default function ProjectsDashboardPage() {
   const isSuperAdmin    = roleName === "super_admin";
   const isAdmin         = roleName === "admin";
   const canViewAnalytics = isSuperAdmin || isAdmin || isSalesManager || isSalesAgent;
-  const canViewPendingProjects = isSuperAdmin || isSalesManager;
+  const canViewPendingProjects = isSuperAdmin || isSalesManager || isSalesAgent || isAdmin;
   const [trackingFilter, setTrackingFilter] = useState(
     () => searchParams.get("tracking") || "all",
   );

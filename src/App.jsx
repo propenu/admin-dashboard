@@ -198,6 +198,10 @@ const Blogs = lazy(() =>
   import("./pages/blogs/Blogs")
 );
 
+const TicketDashboard = lazy(() =>
+  import("./pages/Tickets/TicketDashboard")
+);
+
 
 
 function App() {
@@ -450,6 +454,7 @@ function App() {
 
                 {/* Blogs */}
                 <Route path="/blogs" element={<Blogs />} />
+                <Route path="/tickets" element={<TicketDashboard />} />
               </Route>
             </Route>
 

@@ -82,7 +82,10 @@ export default function CommercialFields({ back, next }) {
     //if (!form.currency) e.currency = "Select currency";
     if (!form.description) e.description = "Enter a description";
     if (!form.status) e.status = "Select property status";
-    if (!form.galleryFiles?.length) e.galleryFiles = "Upload at least one image";
+    if (!form.galleryFiles || form.galleryFiles.length < 5)
+      e.galleryFiles = "Please upload minimum 5 photos";
+    else if (form.galleryFiles.length > 12)
+      e.galleryFiles = "Please upload maximum 12 photos";
     return e;
   };
 
@@ -93,8 +96,8 @@ export default function CommercialFields({ back, next }) {
       if (form.parkingType) delete updated.parkingType;
       if (form.constructionStatus) delete updated.constructionStatus;
       if (form.price > 0) delete updated.price;
-       if (!form.galleryFiles || form.galleryFiles.length < 5)
-        updated.galleryFiles = "Upload at least 5 image";
+      if (form.galleryFiles?.length >= 5 && form.galleryFiles.length <= 12)
+        delete updated.galleryFiles;
       return updated;
     });
   }, [form]);

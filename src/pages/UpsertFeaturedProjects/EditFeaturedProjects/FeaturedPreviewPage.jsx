@@ -85,7 +85,7 @@ const getSections = (categoryType) => [
 
     icon: "📊",
   },
-];
+].filter((section) => categoryType !== "land" || section.id !== "specifications");
 
 /* ─────────────────────────────────────────────
    SectionWrapper
@@ -186,6 +186,7 @@ export default function FeaturedPreviewPage() {
   const [activeSection, setActiveSection]     = useState("hero");
 
   const SECTIONS = getSections(livePreviewData?.categoryType);
+  const isLandProject = livePreviewData?.categoryType === "land";
 
   /* Load */
   useEffect(() => {
@@ -263,6 +264,12 @@ export default function FeaturedPreviewPage() {
     Object.values(sectionRefs.current).forEach((node) => observer.observe(node));
     return () => observer.disconnect();
   }, [formData]);
+
+  useEffect(() => {
+    if (isLandProject && activeSection === "specifications") {
+      setActiveSection("hero");
+    }
+  }, [activeSection, isLandProject]);
 
   if (!formData) return <LoadingSpinner />;
 
@@ -487,7 +494,8 @@ export default function FeaturedPreviewPage() {
           registerSectionRef={(el) => (sectionRefs.current["video"] = el)}
         />
 
-        <SectionWrapper
+        {!isLandProject && (
+          <SectionWrapper
           id="specifications"
           title="Specifications"
           subtitle="Construction & materials"
@@ -508,7 +516,8 @@ export default function FeaturedPreviewPage() {
           registerSectionRef={(el) =>
             (sectionRefs.current["specifications"] = el)
           }
-        />
+          />
+        )}
 
         <SectionWrapper
           id="about"

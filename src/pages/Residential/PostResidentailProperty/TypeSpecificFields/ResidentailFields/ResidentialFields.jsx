@@ -74,7 +74,9 @@ export default function ResidentialFields({ back, next }) {
     if (!form.kitchenType) e.kitchenType = "Select kitchen type";
     if (!form.description) e.description = "Enter property description";
     if (!form.galleryFiles || form.galleryFiles.length < 5)
-      e.galleryFiles = "Upload at least 5 image";
+      e.galleryFiles = "Please upload minimum 5 photos";
+    else if (form.galleryFiles.length > 12)
+      e.galleryFiles = "Please upload maximum 12 photos";
     return e;
   };
 
@@ -97,7 +99,8 @@ export default function ResidentialFields({ back, next }) {
       if (form.flooringType) delete updated.flooringType;
       if (form.kitchenType) delete updated.kitchenType;
       if (form.description) delete updated.description;
-      if (form.galleryFiles?.length > 0) delete updated.galleryFiles;
+      if (form.galleryFiles?.length >= 5 && form.galleryFiles.length <= 12)
+        delete updated.galleryFiles;
       return updated;
     });
   }, [form]);

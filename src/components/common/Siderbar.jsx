@@ -1,4 +1,5 @@
-// src/components/common/Sidebar.jsx  (also works as Siderbar.jsx)
+// src/components/common/Sidebar.jsx  (also works as Siderbar.jsx)  
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
@@ -257,6 +258,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
+        { path: "/tickets", label: "Tickets", icon: mailnotifications },
 
         {
           label: "Operations",
@@ -453,6 +455,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
+        { path: "/tickets", label: "Tickets", icon: mailnotifications },
 
         {
           label: "Operations",
@@ -681,6 +684,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
+        { path: "/tickets", label: "Tickets", icon: mailnotifications },
       ],
       accounts: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },

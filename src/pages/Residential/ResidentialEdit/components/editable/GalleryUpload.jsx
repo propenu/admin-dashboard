@@ -8,10 +8,28 @@ import { toast } from "sonner";
 /* ══════════════════════════════════════════════════════════
    CONSTANTS
 ══════════════════════════════════════════════════════════ */
-const MAX_FILES = 20;
+const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+const MAX_FILES = 12;
 const MIN_REQUIRED = 5;
 const TARGET_KB = 200;
 const TARGET_BYTES = TARGET_KB * 1024;
+
+const normalizeServerImage = (image) => ({
+  ...image,
+  source: "server",
+  preview: image?.preview || image?.url || image?.secureUrl || image?.location,
+  name: image?.name || image?.filename || image?.key || "Property image",
+  size: image?.size || image?.fileSize || image?.bytes || image?.contentLength,
+});
+
+const formatFileSizeMb = (item) => {
+  const bytes = item?.originalSize || item?.file?.size || item?.size;
+  if (!bytes) return "";
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+const getKnownFileSize = (item) =>
+  item?.originalSize || item?.file?.size || item?.size;
 
 // Persistent WeakMap cache for blob preview URLs
 //const previewCache = new WeakMap();
@@ -96,9 +114,11 @@ const compressImageToTarget = (file) => {
 /* ══════════════════════════════════════════════════════════
    COMPONENT
 ══════════════════════════════════════════════════════════ */
-const UploadGallery = forwardRef(({ error }, ref) => {
+const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
   const { form, updateFieldValue } = useActivePropertySlice();
   const inputRef = useRef(null);
+  const hydratedServerImagesRef = useRef(false);
+  const attemptedSizeUrlsRef = useRef(new Set());
 
   const [compressing, setCompressing] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -108,9 +128,69 @@ const UploadGallery = forwardRef(({ error }, ref) => {
   useEffect(() => {
   }, [form?.galleryFiles]);
 
+  useEffect(() => {
+    if (hydratedServerImagesRef.current || form?.galleryFiles?.length) return;
+
+    const serverImages = (form?.gallery?.length ? form.gallery : existing)
+      .map(normalizeServerImage)
+      .filter((item) => item.preview);
+
+    if (serverImages.length) {
+      hydratedServerImagesRef.current = true;
+      updateFieldValue("galleryFiles", serverImages);
+    }
+  }, [existing, form?.gallery, form?.galleryFiles, updateFieldValue]);
+
   /* ── Separate existing (server) vs new (File) entries ── */
   const allFiles = form?.galleryFiles || [];
   const totalCount = allFiles.length;
+
+  useEffect(() => {
+    const missingSizeItems = allFiles
+      .map((item, index) => ({ item, index, url: getPreviewUrl(item) }))
+      .filter(({ item, url }) => (
+        item?.source === "server" &&
+        url &&
+        !getKnownFileSize(item) &&
+        !attemptedSizeUrlsRef.current.has(url)
+      ));
+
+    if (!missingSizeItems.length) return;
+
+    let cancelled = false;
+
+    const loadServerImageSizes = async () => {
+      const resolvedSizes = await Promise.all(
+        missingSizeItems.map(async ({ url, index }) => {
+          attemptedSizeUrlsRef.current.add(url);
+          try {
+            const response = await fetch(url, { method: "HEAD" });
+            const contentLength = Number(response.headers.get("content-length"));
+            return contentLength > 0 ? { index, size: contentLength } : null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      if (cancelled) return;
+
+      const validSizes = resolvedSizes.filter(Boolean);
+      if (!validSizes.length) return;
+
+      const updated = [...allFiles];
+      validSizes.forEach(({ index, size }) => {
+        updated[index] = { ...updated[index], size };
+      });
+      updateFieldValue("galleryFiles", updated);
+    };
+
+    loadServerImageSizes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allFiles, updateFieldValue]);
 
   /* ── UPLOAD & COMPRESS ── */
   const handleFiles = async (fileList) => {
@@ -132,6 +212,12 @@ const UploadGallery = forwardRef(({ error }, ref) => {
     const compressedFiles = [];
 
     for (const file of filesToProcess) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name} is above 1 MB. Please upload an image under 1 MB.`);
+        setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
+        continue;
+      }
+
       setCurrentFileName(file.name);
 
       try {
@@ -144,6 +230,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
           file: compressed,
           source: "local",
           name: compressed.name,
+          originalSize: file.size,
           preview,
         });
       } catch (err) {
@@ -220,10 +307,10 @@ const UploadGallery = forwardRef(({ error }, ref) => {
 
    // ✅ server images
    if (file.source === "server") {
-     return file.preview;
+     return file.preview || file.url || file.secureUrl || file.location;
    }
 
-   return null;
+   return file.preview || file.url || file.secureUrl || file.location || null;
  };
 
   /* ── RENDER ── */
@@ -326,7 +413,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
               Drop property photos here
               <br />
               <span className="text-gray-400 font-normal">
-                Up to {MAX_FILES} photos · Auto-compressed · JPG PNG WEBP
+                Minimum {MIN_REQUIRED} and maximum {MAX_FILES} photos · 1 MB max · JPG PNG WEBP
               </span>
             </p>
             <span className="mt-0.5 rounded-md bg-[#27AE60] px-3 py-1 text-[10px] font-bold text-white">
@@ -342,6 +429,7 @@ const UploadGallery = forwardRef(({ error }, ref) => {
           {allFiles.map((file, index) => {
             const isNewFile = file?.source === "local";
             const previewUrl = getPreviewUrl(file);
+            const sizeLabel = formatFileSizeMb(file);
 
             if (!previewUrl) return null;
 
@@ -393,6 +481,12 @@ const UploadGallery = forwardRef(({ error }, ref) => {
                 >
                   {isNewFile ? "New" : "Live"}
                 </div>
+
+                {sizeLabel && (
+                  <div className="absolute bottom-2 left-2 rounded-lg bg-black/70 px-2 py-0.5 text-[9px] font-black text-white shadow">
+                    {sizeLabel}
+                  </div>
+                )}
               </div>
             );
           })}
