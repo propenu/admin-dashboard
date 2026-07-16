@@ -1,4 +1,5 @@
 import DashboardCard from "./DashboardCard";
+import { progressFill, progressTrack } from "./ticketUi";
 import { formatLabel } from "../utils/ticketFormatters";
 
 export default function DepartmentBreakdown({ overview, onOpenQueue }) {
@@ -10,9 +11,9 @@ export default function DepartmentBreakdown({ overview, onOpenQueue }) {
 
   return (
     <DashboardCard title="Tickets by Department">
-      <div className="mt-1.5 space-y-1.5">
+      <div className="space-y-2.5">
         {overview.byDepartment.length === 0 ? (
-          <p className="text-[10px] font-normal text-slate-500">No department data</p>
+          <p className="rounded-xl bg-slate-50 p-4 text-[12px] font-medium text-slate-500">No department data</p>
         ) : (
           overview.byDepartment.map((item) => {
             const percent = Math.round((item.count / total) * 100);
@@ -21,18 +22,18 @@ export default function DepartmentBreakdown({ overview, onOpenQueue }) {
                 key={item._id || "unassigned"}
                 type="button"
                 onClick={() => onOpenQueue?.({ department: item._id })}
-                className="grid w-full grid-cols-[82px_1fr_48px] items-center gap-1 rounded-sm px-0.5 text-left hover:bg-blue-50"
+                className="grid w-full grid-cols-[110px_1fr_62px] items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-emerald-50"
               >
-                <span className="text-[10px] font-normal text-slate-900">
+                <span className="truncate text-[12px] font-semibold text-slate-700">
                   {formatLabel(item._id)}
                 </span>
-                <div className="h-0.5 rounded-full bg-slate-100">
+                <div className={progressTrack}>
                   <div
-                    className="h-full rounded-full bg-blue-600"
+                    className={progressFill}
                     style={{ width: `${(item.count / max) * 100}%` }}
                   />
                 </div>
-                <span className="text-[10px] font-normal text-slate-900">
+                <span className="text-right text-[12px] font-black text-slate-900">
                   {item.count} ({percent}%)
                 </span>
               </button>

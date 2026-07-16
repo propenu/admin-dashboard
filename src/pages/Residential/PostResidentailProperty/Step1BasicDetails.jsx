@@ -40,6 +40,10 @@ const PLOT_AREA_TO_SQFT = {
   hectare: 107639.104167,
 };
 
+const RELATIONSHIP_MANAGER_ROLES = [
+  { label: "Relationship Manager", value: "relationship_manager" },
+];
+
 const PROPERTY_TYPES = {
   residential: [
     { label: "Apartment", value: "apartment" },
@@ -544,6 +548,14 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
       typeof data.createdBy === "object"
         ? data.createdBy?._id || data.createdBy?.userId
         : data.createdBy,
+    ...(data.relationshipManagerId
+      ? {
+          relationshipManagerId:
+            typeof data.relationshipManagerId === "object"
+              ? data.relationshipManagerId?._id || data.relationshipManagerId?.userId
+              : data.relationshipManagerId,
+        }
+      : {}),
     ...(agentProject
       ? {
           isAgentProject: true,
@@ -912,6 +924,14 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
               )}
 
               <CreatedBy error={errors.createdBy} />
+              <CreatedBy
+                fieldName="relationshipManagerId"
+                label="Assigned Manager"
+                roles={RELATIONSHIP_MANAGER_ROLES}
+                defaultRole="relationship_manager"
+                placeholder="Search relationship manager by name, phone, or ID..."
+                persistRoleSelection={false}
+              />
             </div>
           </CardWrapper>
         </>
@@ -959,6 +979,14 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
                 <TransactionTypes error={errors.transactionType} />
               </div>
               <CreatedBy error={errors.createdBy} />
+              <CreatedBy
+                fieldName="relationshipManagerId"
+                label="Assigned Manager"
+                roles={RELATIONSHIP_MANAGER_ROLES}
+                defaultRole="relationship_manager"
+                placeholder="Search relationship manager by name, phone, or ID..."
+                persistRoleSelection={false}
+              />
             </div>
           </CardWrapper>
         </>
@@ -981,6 +1009,14 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
               </div>
 
               <CreatedBy error={errors.createdBy} />
+              <CreatedBy
+                fieldName="relationshipManagerId"
+                label="Assigned Manager"
+                roles={RELATIONSHIP_MANAGER_ROLES}
+                defaultRole="relationship_manager"
+                placeholder="Search relationship manager by name, phone, or ID..."
+                persistRoleSelection={false}
+              />
             </div>
           </CardWrapper>
         </>
@@ -1000,6 +1036,14 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
                 <PricePerSqft error={errors.pricePerSqft} />
               </div>
               <CreatedBy error={errors.createdBy} />
+              <CreatedBy
+                fieldName="relationshipManagerId"
+                label="Assigned Manager"
+                roles={RELATIONSHIP_MANAGER_ROLES}
+                defaultRole="relationship_manager"
+                placeholder="Search relationship manager by name, phone, or ID..."
+                persistRoleSelection={false}
+              />
             </div>
           </CardWrapper>
         </>

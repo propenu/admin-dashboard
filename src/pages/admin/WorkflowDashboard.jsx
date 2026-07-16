@@ -15,6 +15,8 @@ import {
   Activity,
   Shield,
   ChevronRight,
+  Megaphone,
+  Handshake,
 } from "lucide-react";
 import { getAllUsers } from "../../features/user/userService";
 
@@ -92,6 +94,36 @@ const ROLES = [
     desc: "Support tickets & user assistance",
     metrics: ["Tickets", "Resolved", "Pending"],
   },
+  {
+    key: "digital_marketing",
+    label: "Digital Marketing",
+    icon: Megaphone,
+    color: "#27AE60",
+    bg: "#dcfce7",
+    desc: "Campaigns, promotions, content and lead reach",
+    metrics: ["Campaigns", "Leads", "Engagement"],
+    path: "/digital-marketing",
+  },
+  {
+    key: "relationship_manager",
+    label: "Relationship Manager",
+    icon: Handshake,
+    color: "#27AE60",
+    bg: "#dcfce7",
+    desc: "Client relationships, property follow-ups and tickets",
+    metrics: ["Clients", "Properties", "Tickets"],
+    path: "/relationship-managers",
+  },
+  {
+    key: "regional_manager",
+    label: "Regional Manager",
+    icon: Users,
+    color: "#27AE60",
+    bg: "#dcfce7",
+    desc: "Regional operations, property follow-ups and tickets",
+    metrics: ["Regions", "Properties", "Tickets"],
+    path: "/regional-managers",
+  },
 ];
 
 // ─── Stat chip ─────────────────────────────────────────────────────────────────
@@ -167,7 +199,7 @@ const RoleCard = ({ role, count, onClick }) => {
 
       {/* Workflow steps preview */}
       <div className="flex items-center gap-1.5">
-        {["Register", "KYC", "Active", "Workflow"].map((step, i) => (
+        {["Register", "Active", "Workflow"].map((step, i) => (
           <React.Fragment key={step}>
             <span
               className="text-[9px] font-700 px-2 py-0.5 rounded-full"
@@ -175,7 +207,7 @@ const RoleCard = ({ role, count, onClick }) => {
             >
               {step}
             </span>
-            {i < 3 && (
+            {i < 2 && (
               <ArrowRight size={8} className="text-gray-300 flex-shrink-0" />
             )}
           </React.Fragment>
@@ -260,7 +292,7 @@ const WorkflowDashboard = () => {
             key={role.key}
             role={role}
             count={loading ? undefined : userCounts[role.key] || 0}
-            onClick={() => navigate(`/dashboard/workflow/${role.key}`)}
+            onClick={() => navigate(role.path || `/dashboard/users/role/${role.key}`)}
           />
         ))}
       </div>

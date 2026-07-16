@@ -83,6 +83,9 @@ const Builders = lazy(() => import("./pages/users/AllUserInDetails/Builders.jsx"
 const Owners = lazy(() => import("./pages/users/AllUserInDetails/PropenuUser.jsx"));
 const SalesAgent = lazy(() => import("./pages/users/AllUserInDetails/SalesAgent.jsx"));
 const SalesManagers = lazy(() => import("./pages/users/AllUserInDetails/SalesManagers.jsx"));
+const DigitalMarketing = lazy(() => import("./pages/users/AllUserInDetails/DigitalMarketing.jsx"));
+const RelationshipManagers = lazy(() => import("./pages/users/AllUserInDetails/RelationshipManagers.jsx"));
+const RegionalManagers = lazy(() => import("./pages/users/AllUserInDetails/RegionalManagers.jsx"));
 const Accounts = lazy(() => import("./pages/users/AllUserInDetails/Accounts.jsx"));
 const CustomerCare = lazy(() => import("./pages/users/AllUserInDetails/CustomerCare.jsx"));
 
@@ -301,6 +304,9 @@ function App() {
                 <Route path="owners" element={<Owners role="user" />} />
                 <Route path="sales-agents" element={<SalesAgent />} />
                 <Route path="sales-managers" element={<SalesManagers />} />
+                <Route path="digital-marketing" element={<DigitalMarketing />} />
+                <Route path="relationship-managers" element={<RelationshipManagers />} />
+                <Route path="regional-managers" element={<RegionalManagers />} />
 
                 {/* Agricultural */}
                 <Route path="/agricultural" element={<Agricultural />} />

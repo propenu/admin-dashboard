@@ -207,6 +207,7 @@ export const updateFeaturedProperty = async (id, payload) => {
     "state",
     "city",
     "locality",
+    "relationshipManagerId",
 
     // ✅ ADD THESE
     "totalTowers",
@@ -223,7 +224,9 @@ export const updateFeaturedProperty = async (id, payload) => {
 
   simpleFields.forEach((key) => {
     if (payload[key] !== undefined && payload[key] !== null) {
-      const val = payload[key];
+      const val = key === "relationshipManagerId" && typeof payload[key] === "object"
+        ? payload[key]._id || payload[key].userId || ""
+        : payload[key];
       fd.append(
         key,
         typeof val === "object" ? JSON.stringify(val) : String(val),

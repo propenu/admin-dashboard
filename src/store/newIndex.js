@@ -21,6 +21,7 @@ const getBaseState = (category, type) => ({
   city: "",
   state: "",
   createdBy: "",
+  relationshipManagerId: "",
   locality: "",
   pincode: "",
   location: { type: "Point", coordinates: [0, 0] },

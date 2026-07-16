@@ -1,5 +1,6 @@
 import { UserRound } from "lucide-react";
 import DashboardCard from "./DashboardCard";
+import { primaryButton } from "./ticketUi";
 
 export default function AssignmentLoad({ overview, onOpenQueue }) {
   const first = overview.assignmentLoad[0] || {};
@@ -8,14 +9,14 @@ export default function AssignmentLoad({ overview, onOpenQueue }) {
 
   return (
     <DashboardCard title="Assignment Load">
-      <div className="mt-0.5 flex items-center gap-0.5">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-red-600">
-          <UserRound className="h-2.5 w-2.5" />
+      <div className="flex items-center gap-3 rounded-xl bg-rose-50 p-3">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-100 bg-white text-rose-600">
+          <UserRound className="h-5 w-5" />
         </span>
         <div>
-          <p className="text-[9px] font-medium leading-tight text-slate-900">{agentName}</p>
-          <p className="text-xs font-medium leading-none text-slate-900">{count}</p>
-          <p className="text-[8px] font-normal leading-tight text-slate-500">
+          <p className="text-[12px] font-bold leading-tight text-slate-900">{agentName}</p>
+          <p className="mt-1 text-[26px] font-black leading-none text-slate-950">{count}</p>
+          <p className="mt-1 text-[12px] font-medium leading-tight text-slate-500">
             Tickets waiting for assignment
           </p>
         </div>
@@ -23,7 +24,7 @@ export default function AssignmentLoad({ overview, onOpenQueue }) {
       <button
         type="button"
         onClick={() => onOpenQueue?.({ assignment: "unassigned" })}
-        className="mt-0.5 h-[18px] w-full rounded-md border border-slate-200 text-[9px] font-medium leading-none text-blue-600 hover:bg-blue-50"
+        className={`${primaryButton} mt-3 w-full`}
       >
         View Unassigned Tickets
       </button>

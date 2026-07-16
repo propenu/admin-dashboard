@@ -56,8 +56,41 @@ const ROLES = [
     bg: "#ede9fe",
     icon: "📊",
   },
+  {
+    label: "Regional Manager",
+    value: "regional_manager",
+    color: "#d97706",
+    bg: "#fef3c7",
+    icon: "REG",
+  },
+  {
+    label: "Digital Marketing",
+    value: "digital_marketing",
+    color: "#db2777",
+    bg: "#fce7f3",
+    icon: "DM",
+  },
   { label: "User", value: "user", color: "#6b7280", bg: "#f3f4f6", icon: "👤" },
 ];
+
+ROLES.splice(ROLES.length - 1, 0, {
+  label: "Relationship Manager",
+  value: "relationship_manager",
+  color: "#059669",
+  bg: "#d1fae5",
+  icon: "RM",
+});
+
+const REGIONAL_MANAGER_TRANSFER_ROLES = [
+  "sales_manager",
+  "sales_agent",
+  "relationship_manager",
+];
+
+const getAllowedTransferRoles = (currentUserRole) =>
+  currentUserRole === "regional_manager"
+    ? ROLES.filter((role) => REGIONAL_MANAGER_TRANSFER_ROLES.includes(role.value))
+    : ROLES;
 
 const getRoleStyle = (role) => {
   const found = ROLES.find((r) => r.value === role);
@@ -218,7 +251,7 @@ function StepRow({ step, label, done, active }) {
 }
 
 /* ─── Role Selector Grid (Step 1 inside dropdown) ───────────── */
-function RoleSelectorGrid({ value, onChange }) {
+function RoleSelectorGrid({ value, onChange, roles = ROLES }) {
   return (
     <div style={{ padding: "12px 12px 14px" }}>
       <div
@@ -260,7 +293,7 @@ function RoleSelectorGrid({ value, onChange }) {
           gap: 7,
         }}
       >
-        {ROLES.map((r) => {
+        {roles.map((r) => {
           const isSel = value === r.value;
           return (
             <button
@@ -293,7 +326,7 @@ function RoleSelectorGrid({ value, onChange }) {
 }
 
 /* ─── Location Filter (Step 2 inside dropdown) ───────────────── */
-function LocationFilterBar({ users, filters, setFilters }) {
+function LocationFilterBar({ users, filters, setFilters, lockedState = "" }) {
   const states = useMemo(
     () => [...new Set(users.map((u) => u.state).filter(Boolean))].sort(),
     [users],
@@ -382,7 +415,7 @@ function LocationFilterBar({ users, filters, setFilters }) {
         {activeCount > 0 && (
           <button
             onClick={() =>
-              setFilters({ state: "", city: "", locality: "", pincode: "" })
+              setFilters({ state: lockedState || "", city: "", locality: "", pincode: "" })
             }
             style={{
               background: "#fee2e2",
@@ -426,6 +459,7 @@ function LocationFilterBar({ users, filters, setFilters }) {
             <select
               className={`tc-loc-select${filters[key] ? " has-value" : ""}`}
               value={filters[key]}
+              disabled={key === "state" && !!lockedState}
               onChange={(e) =>
                 setFilters((f) => ({ ...f, [key]: e.target.value }))
               }
@@ -471,7 +505,12 @@ function LocationFilterBar({ users, filters, setFilters }) {
                 {f.icon} {f.val}
                 <span
                   style={{ cursor: "pointer", opacity: 0.6, marginLeft: 1 }}
-                  onClick={() => setFilters((p) => ({ ...p, [f.key]: "" }))}
+                  onClick={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      [f.key]: f.key === "state" && lockedState ? lockedState : "",
+                    }))
+                  }
                 >
                   ✕
                 </span>
@@ -484,21 +523,31 @@ function LocationFilterBar({ users, filters, setFilters }) {
 }
 
 /* ─── Single Search Field ────────────────────────────────────── */
-function SingleSearchField({ value, onChange }) {
+function SingleSearchField({ value, onChange, allowedRoles = ROLES, lockedState = "" }) {
   const [query, setQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [locFilters, setLocFilters] = useState({
-    state: "",
+    state: lockedState || "",
     city: "",
     locality: "",
     pincode: "",
   });
-  const [step, setStep] = useState("role"); // "role" | "search"
+  const [step, setStep] = useState("role"); // "role" | "search" | "direct"
   const hasFetched = useRef({});
   const containerRef = useRef(null);
+
+  useEffect(() => {
+    setLocFilters((current) => ({
+      ...current,
+      state: lockedState || "",
+      city: lockedState && current.state !== lockedState ? "" : current.city,
+      locality: lockedState && current.state !== lockedState ? "" : current.locality,
+      pincode: lockedState && current.state !== lockedState ? "" : current.pincode,
+    }));
+  }, [lockedState]);
 
   const locActiveCount = [
     locFilters.state,
@@ -533,7 +582,10 @@ function SingleSearchField({ value, onChange }) {
   }, [allUsers, locFilters, query]);
 
   const fetchForRole = async (role) => {
-    if (hasFetched.current[role]) return;
+    if (hasFetched.current[role]) {
+      setAllUsers(hasFetched.current[role]);
+      return;
+    }
     setLoading(true);
     try {
       const res = await getUserSearch(role);
@@ -546,10 +598,39 @@ function SingleSearchField({ value, onChange }) {
     }
   };
 
+  const fetchForDirectSearch = async () => {
+    setLoading(true);
+    try {
+      const roleResults = await Promise.all(
+        allowedRoles.map(async (role) => {
+          if (hasFetched.current[role.value]) {
+            return hasFetched.current[role.value];
+          }
+
+          const res = await getUserSearch(role.value);
+          const results = res?.data?.results || [];
+          hasFetched.current[role.value] = results;
+          return results;
+        }),
+      );
+
+      const byId = new Map();
+      roleResults.flat().forEach((user) => {
+        const id = user?._id || user?.id || `${user?.email || ""}-${user?.phone || ""}`;
+        if (id && !byId.has(id)) byId.set(id, user);
+      });
+      setAllUsers([...byId.values()]);
+    } catch {
+      setAllUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
     setAllUsers([]);
-    setLocFilters({ state: "", city: "", locality: "", pincode: "" });
+    setLocFilters({ state: lockedState || "", city: "", locality: "", pincode: "" });
     setQuery("");
     setStep("search");
     fetchForRole(role);
@@ -560,9 +641,28 @@ function SingleSearchField({ value, onChange }) {
     setStep("role");
     setSelectedRole("");
     setAllUsers([]);
-    setLocFilters({ state: "", city: "", locality: "", pincode: "" });
+    setLocFilters({ state: lockedState || "", city: "", locality: "", pincode: "" });
     setQuery("");
     setOpen(true);
+  };
+
+  const handleDirectSearchChange = (value) => {
+    setQuery(value);
+    setSelectedRole("");
+    setLocFilters({ state: lockedState || "", city: "", locality: "", pincode: "" });
+    setOpen(true);
+
+    if (!value.trim()) {
+      setStep("role");
+      setAllUsers([]);
+      return;
+    }
+
+    if (step !== "direct") {
+      setStep("direct");
+    }
+
+    fetchForDirectSearch();
   };
 
   useEffect(() => {
@@ -590,14 +690,14 @@ function SingleSearchField({ value, onChange }) {
     setStep("role");
     setSelectedRole("");
     setAllUsers([]);
-    setLocFilters({ state: "", city: "", locality: "", pincode: "" });
+    setLocFilters({ state: lockedState || "", city: "", locality: "", pincode: "" });
   };
 
   const isOpen = open && !value;
-  const roleObj = ROLES.find((r) => r.value === selectedRole);
+  const roleObj = allowedRoles.find((r) => r.value === selectedRole);
 
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
+    <div ref={containerRef} style={{ position: "relative", zIndex: isOpen ? 30 : 1 }}>
       {/* ── Selected user card ── */}
       {value ? (
         <div
@@ -731,7 +831,7 @@ function SingleSearchField({ value, onChange }) {
               display: "block",
               boxSizing: "border-box",
               boxShadow: isOpen ? "0 0 0 3px rgba(39,174,96,0.10)" : "none",
-              cursor: step === "role" ? "pointer" : "text",
+              cursor: "text",
             }}
             placeholder={
               step === "role"
@@ -739,9 +839,9 @@ function SingleSearchField({ value, onChange }) {
                 : `Search ${roleObj?.label || ""} by name, email, phone...`
             }
             value={query}
-            readOnly={step === "role"}
             onChange={(e) => {
               if (step === "search") setQuery(e.target.value);
+              else handleDirectSearchChange(e.target.value);
             }}
             onFocus={handleOpen}
             onClick={handleOpen}
@@ -779,7 +879,7 @@ function SingleSearchField({ value, onChange }) {
           </div>
 
           {/* Right badges */}
-          {step === "search" && (
+          {(step === "search" || step === "direct") && (
             <div
               style={{
                 position: "absolute",
@@ -860,8 +960,11 @@ function SingleSearchField({ value, onChange }) {
             borderRadius: 14,
             boxShadow:
               "0 16px 48px rgba(0,0,0,0.11), 0 2px 8px rgba(39,174,96,0.08)",
-            zIndex: 200,
+            zIndex: 10020,
             overflow: "hidden",
+            maxHeight: "min(500px, calc(100vh - 260px))",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           {/* ══ STEP 1: Role grid ══ */}
@@ -869,11 +972,12 @@ function SingleSearchField({ value, onChange }) {
             <RoleSelectorGrid
               value={selectedRole}
               onChange={handleRoleSelect}
+              roles={allowedRoles}
             />
           )}
 
           {/* ══ STEP 2: Location + Search results ══ */}
-          {step === "search" && (
+          {(step === "search" || step === "direct") && (
             <>
               {/* Role header bar */}
               <div
@@ -887,7 +991,7 @@ function SingleSearchField({ value, onChange }) {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                  <span style={{ fontSize: 15 }}>{roleObj?.icon}</span>
+                  <span style={{ fontSize: 15 }}>{step === "direct" ? "Search" : roleObj?.icon}</span>
                   <div>
                     <div
                       style={{
@@ -898,7 +1002,7 @@ function SingleSearchField({ value, onChange }) {
                         lineHeight: 1.2,
                       }}
                     >
-                      {roleObj?.label} Users
+                      {step === "direct" ? "Matching Users" : `${roleObj?.label || ""} Users`}
                     </div>
                     {!loading && (
                       <div
@@ -948,13 +1052,20 @@ function SingleSearchField({ value, onChange }) {
                   users={allUsers}
                   filters={locFilters}
                   setFilters={setLocFilters}
+                  lockedState={lockedState}
                 />
               )}
 
               {/* User list (Step 3) */}
               <div
                 className="tc-drop-scroll"
-                style={{ maxHeight: 240, overflowY: "auto" }}
+                style={{
+                  flex: "1 1 auto",
+                  minHeight: 110,
+                  maxHeight: "min(210px, 26vh)",
+                  overflowY: "auto",
+                  overscrollBehavior: "contain",
+                }}
               >
                 {loading ? (
                   <div
@@ -983,7 +1094,7 @@ function SingleSearchField({ value, onChange }) {
                         fontFamily: "DM Sans, sans-serif",
                       }}
                     >
-                      Loading {roleObj?.label} users...
+                      Loading {step === "direct" ? "matching" : roleObj?.label} users...
                     </span>
                   </div>
                 ) : filtered.length === 0 ? (
@@ -1011,7 +1122,7 @@ function SingleSearchField({ value, onChange }) {
                       <button
                         onClick={() =>
                           setLocFilters({
-                            state: "",
+                            state: lockedState || "",
                             city: "",
                             locality: "",
                             pincode: "",
@@ -1215,11 +1326,11 @@ function SingleSearchField({ value, onChange }) {
 }
 
 /* ─── Target Role Selector ───────────────────────────────────── */
-function TargetRoleSelector({ value, onChange }) {
+function TargetRoleSelector({ value, onChange, roles = ROLES }) {
   return (
     <div style={{ marginBottom: 6 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {ROLES.map((r) => {
+        {roles.map((r) => {
           const isActive = value === r.value;
           return (
             <button
@@ -1255,12 +1366,15 @@ function TargetRoleSelector({ value, onChange }) {
 }
 
 /* ─── Main Modal ─────────────────────────────────────────────── */
-export default function TransferCredentials({ onClose }) {
+export default function TransferCredentials({ onClose, currentUserRole, currentUser }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [targetRole, setTargetRole] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [successData, setSuccessData] = useState(null);
+  const allowedTransferRoles = getAllowedTransferRoles(currentUserRole);
+  const regionalScopeState =
+    currentUserRole === "regional_manager" ? currentUser?.state || "" : "";
 
   const canSubmit = selectedUser && targetRole && !loading;
 
@@ -1299,6 +1413,8 @@ export default function TransferCredentials({ onClose }) {
           justifyContent: "center",
           zIndex: 9999,
           padding: 16,
+          overflow: "hidden",
+          overflowX: "hidden",
           background: "rgba(220,240,228,0.55)",
           backdropFilter: "blur(0px)",
           WebkitBackdropFilter: "blur(0px)",
@@ -1312,9 +1428,8 @@ export default function TransferCredentials({ onClose }) {
             position: "relative",
             width: "100%",
             maxWidth: 480,
-            maxHeight: "calc(100vh - 32px)",
-            overflowY: "auto",
-            overflowX: "hidden",
+            maxHeight: "none",
+            overflow: "visible",
             borderRadius: 22,
             padding: "28px 26px 26px",
             background: "#ffffff",
@@ -1615,6 +1730,8 @@ export default function TransferCredentials({ onClose }) {
               <SingleSearchField
                 value={selectedUser}
                 onChange={setSelectedUser}
+                allowedRoles={allowedTransferRoles}
+                lockedState={regionalScopeState}
               />
 
               {/* Divider */}
@@ -1670,6 +1787,7 @@ export default function TransferCredentials({ onClose }) {
                 <TargetRoleSelector
                   value={targetRole}
                   onChange={setTargetRole}
+                  roles={allowedTransferRoles}
                 />
               </div>
 

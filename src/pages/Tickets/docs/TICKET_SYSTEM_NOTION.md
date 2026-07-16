@@ -52,9 +52,13 @@ Query:
 - `category`
 - `department`
 - `assignedTo`
+- `assignedRole`
+- `assignedOrRequested` (returns tickets where the user is either requester or assignee)
 - `requesterId`
 - `requesterEmail`
 - `propertyId`
+- `module` (matches `metadata.module`)
+- `relatedProjectId` (matches either `propertyId` or `metadata.relatedProjectId`)
 - `tag`
 - `overdue=true|false`
 - `createdFrom`, `createdTo`

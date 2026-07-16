@@ -1,17 +1,49 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/LeftEditor.jsx
 import { useState, useEffect } from "react";
 import { compressImage } from "./imageCompressor";
+import { getUserSearch } from "../../../../features/user/userService";
+
+const getUserId = (value) => {
+  if (!value) return "";
+  if (typeof value === "object") return value._id || value.userId || "";
+  return value;
+};
 
 export default function LeftEditor({ formData, setFormData, setLivePreviewData, onSave, saving }) {
    
 
   const [local, setLocal] = useState({});
+  const [relationshipManagers, setRelationshipManagers] = useState([]);
+  const [managerSearch, setManagerSearch] = useState("");
+  const [managersLoading, setManagersLoading] = useState(true);
+  const [managersError, setManagersError] = useState("");
 
   
 
   useEffect(() => {
     setLocal(formData || {});
   }, [formData]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadRelationshipManagers() {
+      try {
+        const response = await getUserSearch("relationship_manager");
+        if (active) setRelationshipManagers(response?.data?.results || []);
+      } catch (error) {
+        console.error("Failed to load relationship managers", error);
+        if (active) setManagersError("Unable to load relationship managers");
+      } finally {
+        if (active) setManagersLoading(false);
+      }
+    }
+
+    loadRelationshipManagers();
+    return () => {
+      active = false;
+    };
+  }, []);
   
   if (!formData) return null;
 
@@ -41,6 +73,23 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
   }
 
   const formatToCr = (v) => (v ? `₹${(v / 10000000).toFixed(2)} Cr` : "");
+
+  const selectedManagerId = String(getUserId(local.relationshipManagerId));
+  const normalizedSearch = managerSearch.trim().toLowerCase();
+  const filteredRelationshipManagers = relationshipManagers.filter((manager) => {
+    if (!normalizedSearch) return true;
+    return [manager.name, manager.email, manager.phone, manager.city, manager.state]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(normalizedSearch));
+  });
+  const currentManager =
+    local.relationshipManagerId && typeof local.relationshipManagerId === "object"
+      ? local.relationshipManagerId
+      : null;
+  const managerOptions = currentManager &&
+    !filteredRelationshipManagers.some((manager) => String(manager._id) === selectedManagerId)
+      ? [currentManager, ...filteredRelationshipManagers]
+      : filteredRelationshipManagers;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -206,6 +255,40 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
             placeholder="e.g. P52100XXXXXX"
           />
         </FieldGroup>
+
+        <div className="rounded-xl border border-[#27AE60]/20 bg-[#27AE60]/5 p-3 space-y-3">
+          <FieldGroup label="Relationship Manager" hint="Assigned to this project">
+            <input
+              type="search"
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30 focus:border-[#27AE60] bg-white"
+              value={managerSearch}
+              onChange={(e) => setManagerSearch(e.target.value)}
+              placeholder="Search by name, email or phone"
+            />
+          </FieldGroup>
+          <select
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30 focus:border-[#27AE60] bg-white"
+            value={selectedManagerId}
+            onChange={(e) => changeLocal("relationshipManagerId", e.target.value)}
+            disabled={managersLoading}
+          >
+            <option value="">
+              {managersLoading ? "Loading relationship managers..." : "Select Relationship Manager"}
+            </option>
+            {managerOptions.map((manager) => (
+              <option key={getUserId(manager)} value={getUserId(manager)}>
+                {manager.name || manager.email || "Relationship Manager"}
+                {[manager.locality, manager.city, manager.state].filter(Boolean).length
+                  ? ` - ${[manager.locality, manager.city, manager.state].filter(Boolean).join(", ")}`
+                  : ""}
+              </option>
+            ))}
+          </select>
+          {managersError && <p className="text-xs font-medium text-red-500">{managersError}</p>}
+          {!managersLoading && !managersError && managerOptions.length === 0 && (
+            <p className="text-xs text-gray-500">No relationship managers match this search.</p>
+          )}
+        </div>
 
         {/* Save Button */}
         <button

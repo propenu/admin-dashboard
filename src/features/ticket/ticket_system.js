@@ -4,6 +4,16 @@ import { SERVICES } from "../../config/services";
 
 const DASHBOARD_BASE = "/api/ticket-dashboard";
 const TICKETS_BASE = "/api/tickets";
+
+const legacyStatusMap = {
+  waiting_for_customer: "awaiting_user_response",
+  waiting_for_internal_team: "under_review",
+};
+
+const normalizeTicketStatus = (ticket) =>
+  ticket
+    ? { ...ticket, status: legacyStatusMap[ticket.status] || ticket.status }
+    : ticket;
 const COMMENTS_BASE = "/api/ticket-comments";
 const ATTACHMENTS_BASE = "/api/ticket-attachments";
 const CATEGORIES_BASE = "/api/ticket-categories";
@@ -217,12 +227,17 @@ export const getTickets = async (params) => {
   const response = await apiClient.get(TICKETS_BASE, {
     params: cleanParams(params),
   });
-  return response.data;
+  return {
+    ...response.data,
+    data: Array.isArray(response.data?.data)
+      ? response.data.data.map(normalizeTicketStatus)
+      : response.data?.data,
+  };
 };
 
 export const getTicketById = async (id) => {
   const response = await apiClient.get(`${TICKETS_BASE}/${id}`);
-  return unwrapData(response);
+  return normalizeTicketStatus(unwrapData(response));
 };
 
 export const createTicket = async (payload) => {

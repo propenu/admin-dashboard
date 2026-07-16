@@ -10,6 +10,8 @@ import {
   Home,
   Users,
   CreditCard,
+  Megaphone,
+  Handshake,
 } from "lucide-react";
 
 // ─── Role metadata ────────────────────────────────────────────────────────────
@@ -83,6 +85,27 @@ export const ROLE_META = {
     icon: CreditCard,
     bg: "#e0e7ff",
     query: "accounts",
+  },
+  digital_marketing: {
+    label: "Digital Marketing",
+    color: "#27AE60",
+    icon: Megaphone,
+    bg: "#dcfce7",
+    query: "digital_marketing",
+  },
+  relationship_manager: {
+    label: "Relationship Managers",
+    color: "#27AE60",
+    icon: Handshake,
+    bg: "#dcfce7",
+    query: "relationship_manager",
+  },
+  regional_manager: {
+    label: "Regional Managers",
+    color: "#27AE60",
+    icon: Users,
+    bg: "#dcfce7",
+    query: "regional_manager",
   },
 };
 
@@ -329,7 +352,77 @@ export const WORKFLOW_STEPS = {
       desc: () => "Accounts team managing payments & invoices",
     },
   ],
+  digital_marketing: [
+    {
+      key: "registered",
+      label: "Account Created",
+      desc: (u) => `Joined ${fmtDate(u?.createdAt)}`,
+    },
+    {
+      key: "active",
+      label: "Account Active",
+      desc: (u) => `Status: ${u?.accountStatus?.replace(/_/g, " ") || "—"}`,
+    },
+    {
+      key: "campaigns",
+      label: "Campaign Access",
+      desc: () => "Managing campaigns, blogs and promotions",
+    },
+    {
+      key: "leads",
+      label: "Lead Reach",
+      desc: () => "Supporting digital lead generation",
+    },
+  ],
+  relationship_manager: [
+    {
+      key: "registered",
+      label: "Account Created",
+      desc: (u) => `Joined ${fmtDate(u?.createdAt)}`,
+    },
+    {
+      key: "active",
+      label: "Account Active",
+      desc: (u) => `Status: ${u?.accountStatus?.replace(/_/g, " ") || "—"}`,
+    },
+    {
+      key: "relationships",
+      label: "Client Relationships",
+      desc: () => "Managing client follow-ups and relationships",
+    },
+    {
+      key: "properties",
+      label: "Property Coordination",
+      desc: () => "Coordinating projects, properties and tickets",
+    },
+  ],
+  regional_manager: [
+    {
+      key: "registered",
+      label: "Account Created",
+      desc: (u) => `Joined ${fmtDate(u?.createdAt)}`,
+    },
+    {
+      key: "active",
+      label: "Account Active",
+      desc: (u) => `Status: ${u?.accountStatus?.replace(/_/g, " ") || "—"}`,
+    },
+    {
+      key: "regions",
+      label: "Regional Operations",
+      desc: () => "Managing regional users, projects and follow-ups",
+    },
+    {
+      key: "properties",
+      label: "Property Coordination",
+      desc: () => "Coordinating properties, progress and tickets",
+    },
+  ],
 };
+
+Object.keys(WORKFLOW_STEPS).forEach((role) => {
+  WORKFLOW_STEPS[role] = WORKFLOW_STEPS[role].filter((step) => step.key !== "kyc");
+});
 
 // ─── Resolve step status from user data ──────────────────────────────────────
 export const resolveStep = (key, user) => {

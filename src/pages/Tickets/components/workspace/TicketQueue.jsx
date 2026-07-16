@@ -1,6 +1,7 @@
 import { Search, SlidersHorizontal } from "lucide-react";
 import { TICKET_PRIORITIES, TICKET_STATUSES, priorityTone, statusTone } from "../../constants/ticketOptions";
-import { formatDueDate, formatLabel, formatRelativeTime } from "../../utils/ticketFormatters";
+import { formatDateTime, formatDueDate, formatLabel, formatRelativeTime } from "../../utils/ticketFormatters";
+import { ticketInput, ticketSurface } from "../ticketUi";
 
 export default function TicketQueue({
   tickets = [],
@@ -14,19 +15,19 @@ export default function TicketQueue({
   const update = (patch) => onFiltersChange({ ...filters, page: 1, ...patch });
 
   return (
-    <section className="rounded-md border border-slate-200 bg-white shadow-sm">
-      <div className="grid gap-1 border-b border-slate-200 p-1">
+    <section className={`${ticketSurface} overflow-hidden`}>
+      <div className="grid gap-2 border-b border-slate-100 p-3">
         <label className="relative">
-          <Search className="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             value={filters.q || ""}
             onChange={(event) => update({ q: event.target.value })}
             placeholder="Search ticket, requester, tag"
-            className="h-7 w-full rounded-md border border-slate-200 bg-white pl-6 pr-1.5 text-[11px] outline-none focus:border-emerald-400"
+            className={`${ticketInput} w-full pl-9`}
           />
         </label>
 
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <FilterSelect value={filters.status || ""} onChange={(status) => update({ status })}>
             <option value="">All status</option>
             {TICKET_STATUSES.map((status) => (
@@ -53,9 +54,9 @@ export default function TicketQueue({
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-b border-slate-100 px-1.5 py-1 text-[10px] text-slate-500">
-        <span className="inline-flex items-center gap-1">
-          <SlidersHorizontal className="h-3 w-3" />
+      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-[12px] font-semibold text-slate-500">
+        <span className="inline-flex items-center gap-1.5">
+          <SlidersHorizontal className="h-4 w-4 text-[#27AE60]" />
           {meta?.total || tickets.length || 0} tickets
         </span>
         <span>Sort: newest update</span>
@@ -72,25 +73,27 @@ export default function TicketQueue({
               key={ticket._id}
               type="button"
               onClick={() => onSelect(ticket._id)}
-              className={`block w-full border-b border-slate-100 px-1.5 py-2 text-left transition hover:bg-emerald-50/60 ${
-                selectedId === ticket._id ? "bg-emerald-50 shadow-[inset_3px_0_0_#16a34a]" : "bg-white"
+            className={`block w-full border-b border-slate-100 px-4 py-4 text-left transition duration-200 hover:bg-emerald-50/60 ${
+                selectedId === ticket._id ? "bg-emerald-50 shadow-[inset_4px_0_0_#27AE60]" : "bg-white"
               }`}
             >
-              <div className="flex items-start justify-between gap-1.5">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-[11px] font-medium text-slate-950">{ticket.title}</p>
-                  <p className="mt-0.5 truncate text-[10px] text-slate-500">
+                  <p className="truncate text-[13px] font-bold text-slate-950">{ticket.title}</p>
+                  <p className="mt-1 truncate text-[12px] font-medium text-slate-500">
                     {ticket.requester?.name || "Requester"} - {formatLabel(ticket.department)}
                   </p>
                 </div>
-                <span className={`shrink-0 rounded-full border px-1 py-0.5 text-[9px] ${priorityTone[ticket.priority] || priorityTone.medium}`}>
+                <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-bold ${priorityTone[ticket.priority] || priorityTone.medium}`}>
                   {formatLabel(ticket.priority)}
                 </span>
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-1 text-[9px] text-slate-500">
-                <span className={`rounded-full border px-1 py-0.5 ${statusTone[ticket.status] || statusTone.open}`}>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-medium text-slate-500">
+                <span className={`rounded-full border px-2 py-1 font-bold ${statusTone[ticket.status] || statusTone.open}`}>
                   {formatLabel(ticket.status)}
                 </span>
+                <span>{ticket.assignedTo?.name ? `Assigned ${ticket.assignedTo.name}` : "Unassigned"}</span>
+                <span>Created {formatDateTime(ticket.createdAt)}</span>
                 <span>Due {formatDueDate(ticket.dueAt)}</span>
                 <span>Updated {formatRelativeTime(ticket.updatedAt)}</span>
               </div>
@@ -107,7 +110,7 @@ function FilterSelect({ value, onChange, children }) {
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="h-7 min-w-0 rounded-md border border-slate-200 bg-white px-1.5 text-[11px] text-slate-700 outline-none focus:border-emerald-400"
+      className={`${ticketInput} min-w-0`}
     >
       {children}
     </select>
@@ -115,5 +118,5 @@ function FilterSelect({ value, onChange, children }) {
 }
 
 function EmptyState({ text }) {
-  return <div className="p-4 text-center text-[11px] text-slate-500">{text}</div>;
+  return <div className="p-8 text-center text-[12px] font-semibold text-slate-500">{text}</div>;
 }

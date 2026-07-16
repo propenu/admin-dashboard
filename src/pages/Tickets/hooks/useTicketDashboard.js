@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { getTicketDashboardOverview } from "../../../features/ticket/ticket_system";
 import { normalizeTicketOverview } from "../utils/ticketNormalizers";
 
-export function useTicketDashboard() {
+export function useTicketDashboard(enabled = true) {
   const query = useQuery({
     queryKey: ["ticket-dashboard", "overview"],
     queryFn: getTicketDashboardOverview,
+    enabled,
     refetchInterval: 60000,
   });
 

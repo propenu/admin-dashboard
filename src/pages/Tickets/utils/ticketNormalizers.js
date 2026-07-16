@@ -5,7 +5,12 @@ import {
 
 function mapCounts(items = []) {
   return items.reduce((acc, item) => {
-    acc[item._id || "unassigned"] = item.count || 0;
+    const legacyStatusMap = {
+      waiting_for_customer: "awaiting_user_response",
+      waiting_for_internal_team: "under_review",
+    };
+    const key = legacyStatusMap[item._id] || item._id || "unassigned";
+    acc[key] = (acc[key] || 0) + (item.count || 0);
     return acc;
   }, {});
 }
@@ -32,6 +37,16 @@ export function normalizeTicketOverview(data = {}) {
       avgFirstResponseMinutes: data?.sla?.avgFirstResponseMinutes || 0,
       avgResolutionMinutes: data?.sla?.avgResolutionMinutes || 0,
     },
-    recent: Array.isArray(data?.recent) ? data.recent : [],
+    recent: Array.isArray(data?.recent)
+      ? data.recent.map((ticket) => ({
+          ...ticket,
+          status:
+            ticket.status === "waiting_for_customer"
+              ? "awaiting_user_response"
+              : ticket.status === "waiting_for_internal_team"
+                ? "under_review"
+                : ticket.status,
+        }))
+      : [],
   };
 }

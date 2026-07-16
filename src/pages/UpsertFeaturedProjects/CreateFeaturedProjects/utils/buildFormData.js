@@ -117,6 +117,7 @@ export async function buildFormData(payload) {
     "possessionDate",
     "reraNumber",
     "createdBy",
+    "relationshipManagerId",
     "status",
     "mapEmbedUrl",
     "redirectUrl",

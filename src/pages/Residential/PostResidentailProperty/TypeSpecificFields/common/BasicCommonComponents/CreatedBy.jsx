@@ -18,12 +18,25 @@ const ROLES = [
 const LABEL = "block text-[10px] font-black  uppercase tracking-widest text-[#27AE60] mb-1.5";
 const ERR   = "text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1";
 
-const CreatedBy = forwardRef(({ error, onChange }, ref) => {
+const CreatedBy = forwardRef(
+  (
+    {
+      error,
+      onChange,
+      fieldName = "createdBy",
+      label = "Assigned to",
+      roles = ROLES,
+      defaultRole,
+      placeholder = "Select a user...",
+      persistRoleSelection = true,
+    },
+    ref,
+  ) => {
   const { form, updateFieldValue } = useActivePropertySlice();
 
   const [allUsers,       setAllUsers]       = useState([]);
   const [loading,        setLoading]        = useState(false);
-  const [activeRole,     setActiveRole]     = useState("user");
+  const [activeRole,     setActiveRole]     = useState(defaultRole || roles[0]?.value || "user");
   const [searchQuery,    setSearchQuery]    = useState("");
   const [filters,        setFilters]        = useState({ state: "", city: "", pincode: "", locality: "" });
   const [dropdownOpen,   setDropdownOpen]   = useState(false);
@@ -65,7 +78,9 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
 
   /* ── if form already has a createdBy id, find the user label ── */
   useEffect(() => {
-    if (!form?.createdBy) {
+    const fieldValue = form?.[fieldName];
+
+    if (!fieldValue) {
       setSelectedUser(null);
       return;
     }
@@ -73,22 +88,22 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
     // Draft/detail APIs return a populated createdBy object. Render that
     // object directly instead of depending on it being present in the current
     // role-filtered/paginated user-search response.
-    if (typeof form.createdBy === "object" && form.createdBy.name) {
-      setSelectedUser(form.createdBy);
+    if (typeof fieldValue === "object" && fieldValue.name) {
+      setSelectedUser(fieldValue);
       return;
     }
 
     if (allUsers.length) {
-      const createdById =
-        typeof form.createdBy === "object"
-          ? form.createdBy._id || form.createdBy.id
-          : form.createdBy;
+      const selectedId =
+        typeof fieldValue === "object"
+          ? fieldValue._id || fieldValue.id || fieldValue.userId
+          : fieldValue;
       const found = allUsers.find(
-        (u) => (u?._id || u?.userId) === createdById,
+        (u) => (u?._id || u?.userId) === selectedId,
       );
       if (found) setSelectedUser(found);
     }
-  }, [form?.createdBy, allUsers]);
+  }, [form?.[fieldName], allUsers, fieldName]);
 
   /* ── derive unique location options (cascade) ── */
   // The endpoint is already filtered by the selected role. Do not filter the
@@ -128,7 +143,9 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
       !q ||
       u.name?.toLowerCase().includes(q) ||
       u.email?.toLowerCase().includes(q) ||
-      u.phone?.includes(q);
+      u.phone?.includes(q) ||
+      u.userId?.toLowerCase?.().includes(q) ||
+      u._id?.toLowerCase?.().includes(q);
     const matchState    = !filters.state    || u.state    === filters.state;
     const matchCity     = !filters.city     || u.city     === filters.city;
     const matchPincode  = !filters.pincode  || u.pincode  === filters.pincode;
@@ -163,23 +180,25 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
       _selectedFromSearch: true,
     };
     if (onChange) {
-      onChange("createdBy", createdByValue);
+      onChange(fieldName, createdByValue);
     } else {
-      updateFieldValue("createdBy", createdByValue);
+      updateFieldValue(fieldName, createdByValue);
     }
-    localStorage.setItem(
-      "createdByBasedUserRole",
-      user.role || user.roleName || activeRole || "",
-    );
+    if (persistRoleSelection) {
+      localStorage.setItem(
+        "createdByBasedUserRole",
+        user.role || user.roleName || activeRole || "",
+      );
+    }
     setDropdownOpen(false);
   };
 
   const clearSelection = () => {
     setSelectedUser(null);
     if (onChange) {
-      onChange("createdBy", "");
+      onChange(fieldName, "");
     } else {
-      updateFieldValue("createdBy", "");
+      updateFieldValue(fieldName, "");
     }
     setSearchQuery("");
     setFilters({ state: "", city: "", pincode: "", locality: "" });
@@ -191,6 +210,7 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
       agent:         "bg-blue-100 text-blue-800",
       sales_manager: "bg-purple-100 text-purple-800",
       sales_agent:   "bg-indigo-100 text-indigo-800",
+      relationship_manager: "bg-emerald-100 text-emerald-800",
       super_admin:   "bg-red-100 text-red-800",
       admin:         "bg-orange-100 text-orange-800",
       customer_care: "bg-pink-100 text-pink-800",
@@ -202,7 +222,7 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
   /* ── render ── */
   return (
     <div ref={ref} className="space-y-2">
-      <p className={LABEL}>Assigned to</p>
+      <p className={LABEL}>{label}</p>
 
       {/* ── Trigger / Selected display ── */}
       <div ref={wrapperRef} className="relative">
@@ -237,7 +257,7 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
             </div>
           ) : (
             <span className="text-sm text-gray-400 font-semibold">
-              Select a user...
+              {placeholder}
             </span>
           )}
 
@@ -268,7 +288,7 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
 
             {/* Role tabs */}
             <div className="flex overflow-x-auto border-b border-gray-100 bg-gray-50 px-2 pt-2 gap-1 scrollbar-hide">
-              {ROLES.map((r) => (
+              {roles.map((r) => (
                 <button
                   key={r.value}
                   type="button"
@@ -301,7 +321,7 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search name, email, phone..."
+                  placeholder="Search name, email, phone, ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-8 py-2.5 border-2 border-gray-200 rounded-xl text-sm
@@ -450,12 +470,13 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
                 </li>
               ) : (
                 filteredUsers.map((user) => {
-                  const createdById =
-                    typeof form?.createdBy === "object"
-                      ? form.createdBy._id || form.createdBy.id
-                      : form?.createdBy;
+                  const fieldValue = form?.[fieldName];
+                  const selectedId =
+                    typeof fieldValue === "object"
+                      ? fieldValue._id || fieldValue.id || fieldValue.userId
+                      : fieldValue;
                   const isSelected =
-                    createdById === (user?._id || user?.userId);
+                    selectedId === (user?._id || user?.userId);
                   return (
                     <li
                       key={user._id || user.userId}
@@ -509,6 +530,7 @@ const CreatedBy = forwardRef(({ error, onChange }, ref) => {
       {error && <p className={ERR}>⚠ {error}</p>}
     </div>
   );
-});
+  },
+);
 
 export default CreatedBy;

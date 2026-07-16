@@ -47,6 +47,14 @@ const ROLES = [
 
   { value: "accounts", label: "Accounts" },
   { value: "digital_marketing", label: "Digital Marketing" },
+  { value: "relationship_manager", label: "Relationship Manager" },
+  { value: "regional_manager", label: "Regional Manager" },
+];
+
+const REGIONAL_MANAGER_CREATABLE_ROLES = [
+  { value: "sales_manager", label: "Sales Manager" },
+  { value: "sales_agent", label: "Sales Executive" },
+  { value: "relationship_manager", label: "Relationship Manager" },
 ];
 
 const STEP_LABELS = ["Info", "Verify", "Location"];
@@ -258,7 +266,7 @@ function Field({ label, error, children }) {
 }
 
 /* ─── Main Modal ─────────────────────────────────────────────── */
-export default function CreateUserModal({ onClose }) {
+export default function CreateUserModal({ onClose, currentUserRole, currentUser }) {
   const [step,    setStep]    = useState(1);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -268,13 +276,18 @@ export default function CreateUserModal({ onClose }) {
   const { mutateAsync: createRequestOtp } = adiminCreateOtp();
   const { mutateAsync: createVerifyOtpService } = adminCreateVerifyOtp();
   const { mutateAsync: createUserLocationDetails } = adminCreateUserLocationDetails();
+  const availableRoles =
+    currentUserRole === "regional_manager" ? REGIONAL_MANAGER_CREATABLE_ROLES : ROLES;
+  const defaultRole = availableRoles[0]?.value || "sales_manager";
+  const regionalScopeState =
+    currentUserRole === "regional_manager" ? currentUser?.state || "" : "";
 
   const {
     register, watch, trigger, control,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { role: "admin", phone: "", pincode: "", city: "", locality: "", state: "" },
+    defaultValues: { role: defaultRole, phone: "", pincode: "", city: "", locality: "", state: regionalScopeState },
     mode: "onChange",
   });
 
@@ -477,7 +490,7 @@ export default function CreateUserModal({ onClose }) {
                   {formData.name}
                 </span>{" "}has been registered as a{" "}
                 <span style={{ fontWeight: 600, color: PRIMARY_DARK }}>
-                  {ROLES.find((r) => r.value === formData.role)?.label}
+                  {availableRoles.find((r) => r.value === formData.role)?.label}
                 </span>
               </div>
 
@@ -598,7 +611,7 @@ export default function CreateUserModal({ onClose }) {
                   <Field label="Assigned Role">
                     <div style={{ position: "relative" }}>
                       <select {...register("role")} className="cum-select">
-                        {ROLES.map((r) => (
+                        {availableRoles.map((r) => (
                           <option key={r.value} value={r.value}>{r.label}</option>
                         ))}
                       </select>
@@ -708,7 +721,9 @@ export default function CreateUserModal({ onClose }) {
                     <input
                       {...register("state")}
                       placeholder="Telangana"
+                      disabled={!!regionalScopeState}
                       className={`cum-input${errors.state ? " cum-error" : ""}`}
+                      style={regionalScopeState ? { background: PRIMARY_LIGHT, color: PRIMARY_DARK, fontWeight: 700 } : undefined}
                     />
                   </Field>
 
@@ -755,7 +770,7 @@ export default function CreateUserModal({ onClose }) {
                         borderRadius: 999, background: "rgba(39,174,96,0.15)",
                         color: PRIMARY_DARK, whiteSpace: "nowrap", flexShrink: 0,
                       }}>
-                        {ROLES.find((r) => r.value === formData.role)?.label}
+                        {availableRoles.find((r) => r.value === formData.role)?.label}
                       </span>
                     </div>
                   </div>

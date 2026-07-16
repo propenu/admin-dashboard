@@ -36,6 +36,7 @@ export const INITIAL_PAYLOAD = {
   heroDescription: "",
   color: "",
   createdBy: "",
+  relationshipManagerId: "",
   mapEmbedUrl: "",
   metaTitle: "",
   metaDescription: "",

@@ -1,5 +1,4 @@
 // src/components/common/Sidebar.jsx  (also works as Siderbar.jsx)  
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
@@ -294,6 +293,21 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               icon: LocationsIcon,
             },
             {
+              path: "/digital-marketing",
+              label: "Digital Marketing",
+              icon: mailnotifications,
+            },
+            {
+              path: "/relationship-managers",
+              label: "Relationship Managers",
+              icon: SalesManagerIcon,
+            },
+            {
+              path: "/regional-managers",
+              label: "Regional Managers",
+              icon: SalesManagerIcon,
+            },
+            {
               label: "Create Credentials",
               icon: CreateCredentialsIcon,
               key: "create-credentials",
@@ -491,6 +505,21 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               icon: LocationsIcon,
             },
             {
+              path: "/digital-marketing",
+              label: "Digital Marketing",
+              icon: mailnotifications,
+            },
+            {
+              path: "/relationship-managers",
+              label: "Relationship Managers",
+              icon: SalesManagerIcon,
+            },
+            {
+              path: "/regional-managers",
+              label: "Regional Managers",
+              icon: SalesManagerIcon,
+            },
+            {
               label: "Create Credentials",
               icon: CreateCredentialsIcon,
               key: "create-credentials",
@@ -647,6 +676,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         //   ],
         // },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
+        { path: "/tickets", label: "Tickets", icon: mailnotifications },
       ],
       sales_agent: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
@@ -676,6 +706,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
+        { path: "/tickets", label: "Tickets", icon: mailnotifications },
       ],
       customer_care: [
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
@@ -686,8 +717,64 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         },
         { path: "/tickets", label: "Tickets", icon: mailnotifications },
       ],
+      relationship_manager: [
+        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
+        { path: "/properties", label: "Properties", icon: PropertiesIcon },
+        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        {
+          path: "/property-progress",
+          label: "Property Progress",
+          icon: PropertyProgressIcon,
+        },
+      ],
+      regional_manager: [
+        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
+        { path: "/properties", label: "Properties", icon: PropertiesIcon },
+        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        {
+          label: "Operations",
+          icon: UserIcon,
+          key: "Operations",
+          children: [
+            {
+              path: "/sales-managers",
+              label: "Sales Managers",
+              icon: SalesManagerIcon,
+            },
+            {
+              path: "/sales-agents",
+              label: "Sales Executives",
+              icon: SalesAgentIcon,
+            },
+            {
+              path: "/relationship-managers",
+              label: "Relationship Managers",
+              icon: SalesManagerIcon,
+            },
+            {
+              label: "Create Credentials",
+              icon: CreateCredentialsIcon,
+              key: "create-credentials",
+              action: "openCreateUserModal",
+            },
+            {
+              label: "Transfer Credentials",
+              icon: CreateCredentialsIcon,
+              key: "transfer-credentials",
+              action: "openTranforCredentialsModal",
+            },
+            {
+              label: "Assign Executive",
+              icon: AgentIcon,
+              key: "assign-agent",
+              action: "openAssignAgentModal",
+            },
+          ],
+        },
+      ],
       accounts: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
+        { path: "/tickets", label: "Tickets", icon: mailnotifications },
         // {
         //   label: "Properties",
         //   icon: PropertiesIcon,
@@ -786,6 +873,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/", label: "Dashboard", icon: DashboardIcon },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
+        { path: "/tickets", label: "Tickets", icon: mailnotifications },
         {
           path: "/blogs",
           label: "Blogs",
@@ -1078,9 +1166,9 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       </aside>
 
       {/* ── Modals ── */}
-      {showCreateModal         && <CreateUserModal     onClose={() => setShowCreateModal(false)}         />}
-      {showAssignAgentModal    && <AssignManagerPage   onClose={() => setShowAssignAgentModal(false)}    />}
-      {showTransferCredentials && <TransferCredentials onClose={() => setShowTransferCredentials(false)} />}
+      {showCreateModal         && <CreateUserModal     onClose={() => setShowCreateModal(false)} currentUserRole={user?.roleName} currentUser={user}         />}
+      {showAssignAgentModal    && <AssignManagerPage   onClose={() => setShowAssignAgentModal(false)} currentUserRole={user?.roleName} currentUser={user}    />}
+      {showTransferCredentials && <TransferCredentials onClose={() => setShowTransferCredentials(false)} currentUserRole={user?.roleName} currentUser={user} />}
     </>
   );
 }

@@ -5,9 +5,11 @@ export const departmentLabels = {
 
 export const statusLabels = {
   open: "Open",
+  assigned: "Assigned",
+  under_review: "Under Review",
+  awaiting_user_response: "Awaiting User Response",
   in_progress: "In Progress",
-  waiting_for_customer: "Waiting Customer",
-  waiting_for_internal_team: "Waiting Team",
+  escalated: "Escalated",
   reopened: "Reopened",
   resolved: "Resolved",
   closed: "Closed",
@@ -20,12 +22,20 @@ export const priorityLabels = {
   low: "Low",
 };
 
+export const roleLabels = {
+  sales_agent: "Sales Executive",
+  sales_manager: "Sales Manager",
+  customer_care: "Customer Care",
+  digital_marketing: "Digital Marketing",
+};
+
 export function formatLabel(value) {
   if (!value) return "Unassigned";
   return (
     departmentLabels[value] ||
     statusLabels[value] ||
     priorityLabels[value] ||
+    roleLabels[value] ||
     String(value)
       .replace(/[-_]/g, " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase())
@@ -54,9 +64,10 @@ export function formatDateTime(value) {
 
 export function formatMinutes(value) {
   if (!value) return "-";
-  if (value < 60) return `${value}m`;
-  const hours = Math.floor(value / 60);
-  const minutes = value % 60;
+  const roundedMinutes = Math.round(Number(value));
+  if (roundedMinutes < 60) return `${roundedMinutes}m`;
+  const hours = Math.floor(roundedMinutes / 60);
+  const minutes = roundedMinutes % 60;
   return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 

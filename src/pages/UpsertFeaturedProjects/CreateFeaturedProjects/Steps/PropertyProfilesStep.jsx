@@ -1,7 +1,7 @@
 // src/pages/post-property/featured-create/steps/PropertyProfilesStep.jsx
 
 import { forwardRef, useImperativeHandle, useRef, useState,useEffect } from "react";
-import { Building2, FileText, BadgeCheck, Globe, Map, Tag } from "lucide-react";
+import { Building2, FileText, BadgeCheck, Globe, Map, Tag, UserCheck } from "lucide-react";
 import { getUserSearch } from "../../../../features/user/userService";
 import { saveImage, deleteImage } from "../utils/indexedDB";
 import { compressPdfAdvanced } from "../utils/compressPdfAdvanced";
@@ -63,8 +63,10 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
   const [errors, setErrors] = useState({});
   const profileRef = useRef(null);
   const [builders, setBuilders] = useState([]);
+  const [relationshipManagers, setRelationshipManagers] = useState([]);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [relationshipManagerSearch, setRelationshipManagerSearch] = useState("");
   const builderRef = useRef(null);
 
   const brochureInputRef = useRef(null);
@@ -75,6 +77,7 @@ const PropertyProfilesStep = forwardRef(({ payload, update }, ref) => {
   const [selectedBuilderId, setSelectedBuilderId] = useState("");
 
   const [buildersLoaded, setBuildersLoaded] = useState(false);
+  const [relationshipManagersLoaded, setRelationshipManagersLoaded] = useState(false);
 
   
     const HIDE_TOWER_TYPES = [
@@ -100,6 +103,24 @@ const shouldHideTowerFields =
     pincode: "",
     locality: "",
   });
+
+  useEffect(() => {
+    const nextFilters = {
+      state: payload.state || "",
+      city: payload.city || "",
+      pincode: payload.pincode || "",
+      locality: payload.locality || "",
+    };
+
+    setFilters((current) =>
+      current.state === nextFilters.state &&
+      current.city === nextFilters.city &&
+      current.pincode === nextFilters.pincode &&
+      current.locality === nextFilters.locality
+        ? current
+        : nextFilters,
+    );
+  }, [payload.state, payload.city, payload.pincode, payload.locality]);
 
   // useEffect(() => {
   //   const stillExists = filteredBuilders.some(
@@ -169,6 +190,35 @@ const shouldHideTowerFields =
   }, []);
 
   useEffect(() => {
+    async function loadRelationshipManagers() {
+      try {
+        const res = await getUserSearch("relationship_manager");
+        setRelationshipManagers(res?.data?.results || []);
+        setRelationshipManagersLoaded(true);
+      } catch (err) {
+        console.error("Failed to load relationship managers", err);
+        setRelationshipManagers([]);
+        setRelationshipManagersLoaded(true);
+      }
+    }
+
+    loadRelationshipManagers();
+  }, []);
+
+  useEffect(() => {
+    if (!relationshipManagersLoaded) return;
+    if (!payload.relationshipManagerId) return;
+
+    const exists = relationshipManagers.some(
+      (manager) => String(manager._id) === String(payload.relationshipManagerId),
+    );
+
+    if (!exists) {
+      update({ relationshipManagerId: "" });
+    }
+  }, [relationshipManagersLoaded, relationshipManagers, payload.relationshipManagerId]);
+
+  useEffect(() => {
     // ✅ If no builders available
     // auto assign current user
 
@@ -183,40 +233,49 @@ const shouldHideTowerFields =
     }
   }, [builders, payload?.me?._id]);
 
-  // Unique values from full builder list
+  const normalized = (value) => String(value || "").trim().toLowerCase();
+  const matchesLocationValue = (itemValue, filterValue) =>
+    !filterValue || normalized(itemValue) === normalized(filterValue);
+
+  const locationUsers = [...builders, ...relationshipManagers];
+
+  // Unique values from full builder and relationship manager list
   const uniqueStates = [
-    ...new Set(builders.map((b) => b.state).filter(Boolean)),
+    ...new Set([payload.state, ...locationUsers.map((user) => user.state)].filter(Boolean)),
   ];
   const uniqueCities = [
     ...new Set(
-      builders
-        .filter((b) => !filters.state || b.state === filters.state)
-        .map((b) => b.city)
+      locationUsers
+        .filter((user) => matchesLocationValue(user.state, filters.state))
+        .map((user) => user.city)
+        .concat(payload.city || [])
         .filter(Boolean),
     ),
   ];
   const uniquePincodes = [
     ...new Set(
-      builders
+      locationUsers
         .filter(
-          (b) =>
-            (!filters.state || b.state === filters.state) &&
-            (!filters.city || b.city === filters.city),
+          (user) =>
+            matchesLocationValue(user.state, filters.state) &&
+            matchesLocationValue(user.city, filters.city),
         )
-        .map((b) => b.pincode)
+        .map((user) => user.pincode)
+        .concat(payload.pincode || [])
         .filter(Boolean),
     ),
   ];
   const uniqueLocalities = [
     ...new Set(
-      builders
+      locationUsers
         .filter(
-          (b) =>
-            (!filters.state || b.state === filters.state) &&
-            (!filters.city || b.city === filters.city) &&
-            (!filters.pincode || b.pincode === filters.pincode),
+          (user) =>
+            matchesLocationValue(user.state, filters.state) &&
+            matchesLocationValue(user.city, filters.city) &&
+            matchesLocationValue(user.pincode, filters.pincode),
         )
-        .map((b) => b.locality)
+        .map((user) => user.locality)
+        .concat(payload.locality || [])
         .filter(Boolean),
     ),
   ];
@@ -224,16 +283,36 @@ const shouldHideTowerFields =
   
 
   const filteredBuilders = builders.filter((b) => {
-    const matchesState = !filters.state || b.state === filters.state;
-    const matchesCity = !filters.city || b.city === filters.city;
-    const matchesPincode = !filters.pincode || b.pincode === filters.pincode;
-    const matchesLocality =
-      !filters.locality || b.locality === filters.locality;
+    const matchesState = matchesLocationValue(b.state, filters.state);
+    const matchesCity = matchesLocationValue(b.city, filters.city);
+    const matchesPincode = matchesLocationValue(b.pincode, filters.pincode);
+    const matchesLocality = matchesLocationValue(b.locality, filters.locality);
     const matchesSearch =
       !searchQuery.trim() ||
       b.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       b.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       b.phone?.includes(searchQuery);
+    return (
+      matchesState &&
+      matchesCity &&
+      matchesPincode &&
+      matchesLocality &&
+      matchesSearch
+    );
+  });
+
+  const filteredRelationshipManagers = relationshipManagers.filter((manager) => {
+    const matchesState = matchesLocationValue(manager.state, filters.state);
+    const matchesCity = matchesLocationValue(manager.city, filters.city);
+    const matchesPincode = matchesLocationValue(manager.pincode, filters.pincode);
+    const matchesLocality = matchesLocationValue(manager.locality, filters.locality);
+    const query = relationshipManagerSearch.trim().toLowerCase();
+    const matchesSearch =
+      !query ||
+      manager.name?.toLowerCase().includes(query) ||
+      manager.email?.toLowerCase().includes(query) ||
+      manager.phone?.includes(relationshipManagerSearch.trim());
+
     return (
       matchesState &&
       matchesCity &&
@@ -294,6 +373,12 @@ const shouldHideTowerFields =
       console.log("✅ Builder selected");
     }
 
+    const hasRelationshipManagers = relationshipManagers.length > 0;
+
+    if (hasRelationshipManagers && !payload.relationshipManagerId) {
+      e.relationshipManagerId = "Please select relationship manager";
+    }
+
       // Brochure
       if (!payload.brochure) {
         e.brochure = "Brochure PDF is required";
@@ -321,7 +406,7 @@ const shouldHideTowerFields =
       if (Object.keys(e).length > 0) {
         console.log("❌ Validation Failed");
 
-        const scrollTarget = e.createdBy ? builderRef : profileRef;
+        const scrollTarget = e.createdBy || e.relationshipManagerId ? builderRef : profileRef;
 
         scrollTarget.current?.scrollIntoView({
           behavior: "smooth",
@@ -420,6 +505,9 @@ const shouldHideTowerFields =
   };
 
   const selectedBuilder = builders.find((b) => b._id === payload.createdBy);
+  const selectedRelationshipManager = relationshipManagers.find(
+    (manager) => manager._id === payload.relationshipManagerId,
+  );
 
   const visibleBuilders = selectedBuilder
     ? [
@@ -427,6 +515,15 @@ const shouldHideTowerFields =
         ...filteredBuilders.filter((b) => b._id !== selectedBuilder._id),
       ]
     : filteredBuilders;
+
+  const visibleRelationshipManagers = selectedRelationshipManager
+    ? [
+        selectedRelationshipManager,
+        ...filteredRelationshipManagers.filter(
+          (manager) => manager._id !== selectedRelationshipManager._id,
+        ),
+      ]
+    : filteredRelationshipManagers;
 
   /* ── Render ── */
   return (
@@ -1171,6 +1268,285 @@ const shouldHideTowerFields =
                 {filteredBuilders.length} builder(s) found
               </p>
             )}
+          </div>
+
+          <div className="mt-6 rounded-2xl border-2 border-gray-200 bg-gray-50/70 p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: "linear-gradient(135deg,#f0fdf6,#dcfce7)",
+                  border: "2px solid #bbf7d0",
+                }}
+              >
+                <UserCheck size={17} style={{ color: "#27AE60" }} />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+                  Relationship Manager
+                </p>
+                <h3 className="text-sm font-black text-gray-900">
+                  Select Relationship Manager
+                </h3>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className={LABEL}>Search Relationship Manager</label>
+              <div className="relative">
+                <svg
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                </svg>
+                <input
+                  type="text"
+                  className={`${inp()} pl-10`}
+                  placeholder="Search by name, email or phone..."
+                  value={relationshipManagerSearch}
+                  onChange={(e) => setRelationshipManagerSearch(e.target.value)}
+                />
+                {relationshipManagerSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setRelationshipManagerSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none"
+                  >
+                    x
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+              <div>
+                <label className={LABEL}>State</label>
+                <select
+                  className={inp()}
+                  value={filters.state}
+                  onChange={(e) => {
+                    setFilters({
+                      state: e.target.value,
+                      city: "",
+                      pincode: "",
+                      locality: "",
+                    });
+                  }}
+                >
+                  <option value="">All States</option>
+                  {uniqueStates.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={LABEL}>City</label>
+                <select
+                  className={inp()}
+                  value={filters.city}
+                  onChange={(e) => {
+                    setFilters((f) => ({
+                      ...f,
+                      city: e.target.value,
+                      pincode: "",
+                      locality: "",
+                    }));
+                  }}
+                >
+                  <option value="">All Cities</option>
+                  {uniqueCities.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={LABEL}>Pincode</label>
+                <select
+                  className={inp()}
+                  value={filters.pincode}
+                  onChange={(e) => {
+                    setFilters((f) => ({
+                      ...f,
+                      pincode: e.target.value,
+                      locality: "",
+                    }));
+                  }}
+                >
+                  <option value="">All Pincodes</option>
+                  {uniquePincodes.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={LABEL}>Locality</label>
+                <select
+                  className={inp()}
+                  value={filters.locality}
+                  onChange={(e) => {
+                    setFilters((f) => ({ ...f, locality: e.target.value }));
+                  }}
+                >
+                  <option value="">All Localities</option>
+                  {uniqueLocalities.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {(relationshipManagerSearch ||
+              filters.state ||
+              filters.city ||
+              filters.pincode ||
+              filters.locality) && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {relationshipManagerSearch && (
+                  <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                    "{relationshipManagerSearch}"
+                    <button
+                      type="button"
+                      onClick={() => setRelationshipManagerSearch("")}
+                      className="ml-1 hover:text-red-500"
+                    >
+                      x
+                    </button>
+                  </span>
+                )}
+                {filters.state && (
+                  <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                    {filters.state}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilters({
+                          state: "",
+                          city: "",
+                          pincode: "",
+                          locality: "",
+                        });
+                      }}
+                      className="ml-1 hover:text-red-500"
+                    >
+                      x
+                    </button>
+                  </span>
+                )}
+                {filters.city && (
+                  <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                    {filters.city}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilters((f) => ({
+                          ...f,
+                          city: "",
+                          pincode: "",
+                          locality: "",
+                        }));
+                      }}
+                      className="ml-1 hover:text-red-500"
+                    >
+                      x
+                    </button>
+                  </span>
+                )}
+                {filters.pincode && (
+                  <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                    {filters.pincode}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilters((f) => ({ ...f, pincode: "", locality: "" }));
+                      }}
+                      className="ml-1 hover:text-red-500"
+                    >
+                      x
+                    </button>
+                  </span>
+                )}
+                {filters.locality && (
+                  <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
+                    {filters.locality}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilters((f) => ({ ...f, locality: "" }));
+                      }}
+                      className="ml-1 hover:text-red-500"
+                    >
+                      x
+                    </button>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters({
+                      state: "",
+                      city: "",
+                      pincode: "",
+                      locality: "",
+                    });
+                    setRelationshipManagerSearch("");
+                  }}
+                  className="text-xs text-red-400 font-bold hover:text-red-600 ml-1"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            <div>
+              <label className={LABEL}>Select Relationship Manager *</label>
+              <select
+                className={inp(errors.relationshipManagerId)}
+                value={payload.relationshipManagerId || ""}
+                onChange={(e) => handleChange("relationshipManagerId", e.target.value)}
+              >
+                <option value="">
+                  {filteredRelationshipManagers.length === 0
+                    ? "No relationship managers found"
+                    : "Select Relationship Manager"}
+                </option>
+                {visibleRelationshipManagers.map((manager) => (
+                  <option key={manager._id} value={manager._id}>
+                    {manager.name
+                      ? manager.name.charAt(0).toUpperCase() + manager.name.slice(1)
+                      : "Relationship Manager"}
+                    {manager.city || manager.state
+                      ? ` - ${manager.city || ""}${manager.city && manager.state ? ", " : ""}${manager.state || ""}`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+              {errors.relationshipManagerId && (
+                <p className={ERR}>Warning {errors.relationshipManagerId}</p>
+              )}
+              {filteredRelationshipManagers.length > 0 && (
+                <p className="text-xs text-gray-400 mt-1">
+                  {filteredRelationshipManagers.length} relationship manager(s) found
+                </p>
+              )}
+            </div>
           </div>
         </SectionCard>
       </div>

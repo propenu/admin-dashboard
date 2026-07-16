@@ -10,6 +10,7 @@ import {
   requestOtpUserPhoneNumber,
   verifyUserPhoneNumberOTP,
 } from "../../../../features/user/userService";
+import { fetchLoggedInUser } from "../../../../services/UserServices/userServices";
 import { toast } from "sonner";
 import {
   Mail,
@@ -336,9 +337,114 @@ const ROLE_CONFIG = {
     statBg: "bg-[#f8fffe]",
     statBorder: "border-[#27AE60]/08",
   },
+  digital_marketing: {
+    label: "Digital Marketing",
+    pluralLabel: "Digital Marketing",
+    shortLabel: "DM",
+    icon: MessageSquareText,
+    accent: "#27AE60",
+    accentLight: "#f0fdf4",
+    accentBorder: "#27AE60",
+    gradientFrom: "#27AE60",
+    gradientTo: "#1a9e54",
+    avatarBg: "bg-[#e8f8ef]",
+    avatarText: "text-[#27AE60]",
+    avatarBorder: "border-[#27AE60]/25",
+    badgeBg: "bg-[#e8f8ef]",
+    badgeText: "text-[#27AE60]",
+    badgeBorder: "border-[#27AE60]/25",
+    cardHover:
+      "hover:border-[#27AE60]/25 hover:shadow-[0_12px_40px_rgba(39,174,96,0.13)]",
+    btnBorder: "border-[#27AE60]/20",
+    btnText: "text-[#27AE60]",
+    btnHover: "hover:bg-[#f0fdf4]",
+    inputFocus: "focus:border-[#27AE60]",
+    selectActive: "border-[#27AE60]/40 bg-[#f0fdf4] text-[#27AE60]",
+    dotColor: "bg-[#27AE60]",
+    dotShadow: "rgba(39,174,96,0.4)",
+    loadingText: "text-[#27AE60]/50",
+    divider: "from-[#27AE60]/25 via-[#27AE60]/8",
+    saveBg: "bg-[#27AE60]",
+    saveHover: "hover:bg-[#219653]",
+    saveShadow: "shadow-[0_6px_20px_rgba(39,174,96,0.3)]",
+    iconBg: "bg-[#f0faf5]",
+    iconBorder: "border-[#27AE60]/12",
+    statBg: "bg-[#f8fffe]",
+    statBorder: "border-[#27AE60]/08",
+  },
+  relationship_manager: {
+    label: "Relationship Manager",
+    pluralLabel: "Relationship Managers",
+    shortLabel: "RM",
+    icon: UsersIcon,
+    accent: "#27AE60",
+    accentLight: "#f0fdf4",
+    accentBorder: "#27AE60",
+    gradientFrom: "#27AE60",
+    gradientTo: "#1a9e54",
+    avatarBg: "bg-[#e8f8ef]",
+    avatarText: "text-[#27AE60]",
+    avatarBorder: "border-[#27AE60]/25",
+    badgeBg: "bg-[#e8f8ef]",
+    badgeText: "text-[#27AE60]",
+    badgeBorder: "border-[#27AE60]/25",
+    cardHover:
+      "hover:border-[#27AE60]/25 hover:shadow-[0_12px_40px_rgba(39,174,96,0.13)]",
+    btnBorder: "border-[#27AE60]/20",
+    btnText: "text-[#27AE60]",
+    btnHover: "hover:bg-[#f0fdf4]",
+    inputFocus: "focus:border-[#27AE60]",
+    selectActive: "border-[#27AE60]/40 bg-[#f0fdf4] text-[#27AE60]",
+    dotColor: "bg-[#27AE60]",
+    dotShadow: "rgba(39,174,96,0.4)",
+    loadingText: "text-[#27AE60]/50",
+    divider: "from-[#27AE60]/25 via-[#27AE60]/8",
+    saveBg: "bg-[#27AE60]",
+    saveHover: "hover:bg-[#219653]",
+    saveShadow: "shadow-[0_6px_20px_rgba(39,174,96,0.3)]",
+    iconBg: "bg-[#f0faf5]",
+    iconBorder: "border-[#27AE60]/12",
+    statBg: "bg-[#f8fffe]",
+    statBorder: "border-[#27AE60]/08",
+  },
+  regional_manager: {
+    label: "Regional Manager",
+    pluralLabel: "Regional Managers",
+    shortLabel: "RG",
+    icon: UsersIcon,
+    accent: "#27AE60",
+    accentLight: "#f0fdf4",
+    accentBorder: "#27AE60",
+    gradientFrom: "#27AE60",
+    gradientTo: "#1a9e54",
+    avatarBg: "bg-[#e8f8ef]",
+    avatarText: "text-[#27AE60]",
+    avatarBorder: "border-[#27AE60]/25",
+    badgeBg: "bg-[#e8f8ef]",
+    badgeText: "text-[#27AE60]",
+    badgeBorder: "border-[#27AE60]/25",
+    cardHover:
+      "hover:border-[#27AE60]/25 hover:shadow-[0_12px_40px_rgba(39,174,96,0.13)]",
+    btnBorder: "border-[#27AE60]/20",
+    btnText: "text-[#27AE60]",
+    btnHover: "hover:bg-[#f0fdf4]",
+    inputFocus: "focus:border-[#27AE60]",
+    selectActive: "border-[#27AE60]/40 bg-[#f0fdf4] text-[#27AE60]",
+    dotColor: "bg-[#27AE60]",
+    dotShadow: "rgba(39,174,96,0.4)",
+    loadingText: "text-[#27AE60]/50",
+    divider: "from-[#27AE60]/25 via-[#27AE60]/8",
+    saveBg: "bg-[#27AE60]",
+    saveHover: "hover:bg-[#219653]",
+    saveShadow: "shadow-[0_6px_20px_rgba(39,174,96,0.3)]",
+    iconBg: "bg-[#f0faf5]",
+    iconBorder: "border-[#27AE60]/12",
+    statBg: "bg-[#f8fffe]",
+    statBorder: "border-[#27AE60]/08",
+  },
 };
 
-const getRoleCfg = (role) => ROLE_CONFIG[role]
+const getRoleCfg = (role) => ROLE_CONFIG[role] || ROLE_CONFIG.sales_agent;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getInitials = (name = "") =>
@@ -402,6 +508,7 @@ const getCompanyName = (user) =>
 const UserDetailModal = ({ user, role, onClose, onWorkInProgress }) => {
   const cfg = getRoleCfg(role);
   const RoleIcon = cfg.icon;
+  const displayLabel = cfg.pluralLabel || `${cfg.label}s`;
 
   return (
     <div
@@ -1179,7 +1286,7 @@ const UserCard = ({
           )}
         </div>
 
-        {/* Account and KYC details */}
+        {/* Account details */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
             <CalendarDays
@@ -1197,7 +1304,7 @@ const UserCard = ({
             </div>
           </div>
 
-          {role !== "builder" && (
+          {role === "user" && (
             <>
               <div className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
                 <Shield
@@ -1314,7 +1421,7 @@ const Select = ({
 );
 
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
-const FilterBar = ({ users, filters, setFilters, cfg }) => {
+const FilterBar = ({ users, filters, setFilters, cfg, lockedState = "" }) => {
   const states = useMemo(
     () => [...new Set(users.map((u) => u.state).filter(Boolean))].sort(),
     [users],
@@ -1345,7 +1452,7 @@ const FilterBar = ({ users, filters, setFilters, cfg }) => {
   const clear = () =>
     setFilters({
       search: "",
-      state: "",
+      state: lockedState || "",
       city: "",
       locality: "",
       pincode: "",
@@ -1385,6 +1492,7 @@ const FilterBar = ({ users, filters, setFilters, cfg }) => {
           icon={<MapPin size={12} />}
           placeholder="All States"
           value={filters.state}
+          disabled={!!lockedState}
           onChange={(v) =>
             setFilters((p) => ({ ...p, state: v, city: "", locality: "" }))
           }
@@ -1461,7 +1569,12 @@ const FilterBar = ({ users, filters, setFilters, cfg }) => {
               >
                 {k}: {v}
                 <button
-                  onClick={() => setFilters((p) => ({ ...p, [k]: "" }))}
+                  onClick={() =>
+                    setFilters((p) => ({
+                      ...p,
+                      [k]: k === "state" && lockedState ? lockedState : "",
+                    }))
+                  }
                   className="hover:text-red-400 transition-colors"
                 >
                   <X size={10} />
@@ -1479,11 +1592,13 @@ const RoleUsers = ({ role = "sales_manager" }) => {
   const navigate = useNavigate();
   const cfg = getRoleCfg(role);
   const RoleIcon = cfg.icon;
+  const displayLabel = cfg.pluralLabel || `${cfg.label}s`;
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewingUser, setViewingUser] = useState(null);
   const [editingProfile, setEditingProfile] = useState(null);
+  const [lockedState, setLockedState] = useState("");
   const [filters, setFilters] = useState({
     search: "",
     state: "",
@@ -1492,6 +1607,31 @@ const RoleUsers = ({ role = "sales_manager" }) => {
     pincode: "",
     joinedDate: "",
   });
+
+  useEffect(() => {
+    let mounted = true;
+
+    fetchLoggedInUser()
+      .then((me) => {
+        if (!mounted) return;
+        const stateScope =
+          me?.roleName === "regional_manager" ? me?.state || "" : "";
+        setLockedState(stateScope);
+        if (stateScope) {
+          setFilters((current) => ({
+            ...current,
+            state: stateScope,
+            city: current.state !== stateScope ? "" : current.city,
+            locality: current.state !== stateScope ? "" : current.locality,
+          }));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -1529,6 +1669,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
 
       if (q && !searchable.includes(q))
         return false;
+      if (lockedState && u.state !== lockedState) return false;
       if (filters.state && u.state !== filters.state) return false;
       if (filters.city && u.city !== filters.city) return false;
       if (filters.locality && u.locality !== filters.locality) return false;
@@ -1538,7 +1679,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
         return false;
       return true;
     });
-  }, [users, filters]);
+  }, [users, filters, lockedState]);
 
   // Page background tint per role
   const pageBg =
@@ -1597,7 +1738,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
                 className="text-[22px] leading-none tracking-tight font-extrabold"
                 style={{ color: cfg.accent }}
               >
-                {cfg.label}s
+                {displayLabel}
               </h1>
             </div>
           </div>
@@ -1617,7 +1758,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
         </div>
 
         <p className="text-black text-[13px] ml-[58px] mb-4">
-          Manage and view all active {cfg.label.toLowerCase()}s
+          Manage and view all active {displayLabel.toLowerCase()}
         </p>
 
         <div
@@ -1635,6 +1776,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
               filters={filters}
               setFilters={setFilters}
               cfg={cfg}
+              lockedState={lockedState}
             />
           </div>
         )}
@@ -1685,7 +1827,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
               onClick={() =>
                 setFilters({
                   search: "",
-                  state: "",
+                  state: lockedState || "",
                   city: "",
                   locality: "",
                   pincode: "",

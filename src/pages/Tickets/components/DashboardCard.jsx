@@ -1,7 +1,13 @@
+import { ticketSurface } from "./ticketUi";
+
 export default function DashboardCard({ title, children, className = "" }) {
   return (
-    <section className={`rounded-md border border-slate-200 bg-white p-1 ${className}`}>
-      {title && <h2 className="text-[11px] font-medium leading-tight text-slate-900">{title}</h2>}
+    <section className={`${ticketSurface} p-4 ${className}`}>
+      {title && (
+        <h2 className="mb-3 text-[13px] font-bold leading-tight text-slate-950">
+          {title}
+        </h2>
+      )}
       {children}
     </section>
   );

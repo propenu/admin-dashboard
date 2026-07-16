@@ -88,7 +88,7 @@ const styles = `
 `;
 
 /* ─── LocationFilterBar ─────────────────────────────────────── */
-function LocationFilterBar({ users, filters, setFilters }) {
+function LocationFilterBar({ users, filters, setFilters, lockedState = "" }) {
   const cities     = useMemo(() => [...new Set(users.map(u => u.city).filter(Boolean))].sort(),     [users]);
   const states     = useMemo(() => [...new Set(users.map(u => u.state).filter(Boolean))].sort(),    [users]);
   const localities = useMemo(() => [...new Set(users.map(u => u.locality).filter(Boolean))].sort(), [users]);
@@ -128,7 +128,7 @@ function LocationFilterBar({ users, filters, setFilters }) {
         </div>
         {hasFilters && (
           <button
-            onClick={() => setFilters({ city: "", state: "", locality: "", pincode: "" })}
+            onClick={() => setFilters({ city: "", state: lockedState || "", locality: "", pincode: "" })}
             style={{
               background: "#fee2e2", border: "none", borderRadius: 6,
               color: "#ef4444", fontSize: 10, fontWeight: 600,
@@ -173,6 +173,7 @@ function LocationFilterBar({ users, filters, setFilters }) {
           <select
             className={`amm-loc-select${filters.state ? " has-value" : ""}`}
             value={filters.state}
+            disabled={!!lockedState}
             onChange={e => setFilters(f => ({ ...f, state: e.target.value }))}
           >
             <option value="">All States</option>
@@ -235,7 +236,12 @@ function LocationFilterBar({ users, filters, setFilters }) {
               {f.icon} {f.val}
               <span
                 style={{ cursor: "pointer", opacity: 0.6, marginLeft: 1 }}
-                onClick={() => setFilters(prev => ({ ...prev, [f.key]: "" }))}
+                onClick={() =>
+                  setFilters(prev => ({
+                    ...prev,
+                    [f.key]: f.key === "state" && lockedState ? lockedState : "",
+                  }))
+                }
               >✕</span>
             </span>
           ))}
@@ -246,14 +252,24 @@ function LocationFilterBar({ users, filters, setFilters }) {
 }
 
 /* ─── SearchField ────────────────────────────────────────────── */
-function SearchField({ label, roleQuery, value, onChange }) {
+function SearchField({ label, roleQuery, value, onChange, lockedState = "" }) {
   const [query,    setQuery]    = useState("");
   const [allUsers, setAllUsers] = useState([]);
   const [loading,  setLoading]  = useState(false);
   const [open,     setOpen]     = useState(false);
-  const [filters,  setFilters]  = useState({ city: "", state: "", locality: "", pincode: "" });
+  const [filters,  setFilters]  = useState({ city: "", state: lockedState || "", locality: "", pincode: "" });
   const hasFetched              = useRef(false);
   const containerRef            = useRef(null);
+
+  useEffect(() => {
+    setFilters((current) => ({
+      ...current,
+      state: lockedState || "",
+      city: lockedState && current.state !== lockedState ? "" : current.city,
+      locality: lockedState && current.state !== lockedState ? "" : current.locality,
+      pincode: lockedState && current.state !== lockedState ? "" : current.pincode,
+    }));
+  }, [lockedState]);
 
   /* Apply all filters + text search */
   const filtered = useMemo(() => {
@@ -451,6 +467,7 @@ function SearchField({ label, roleQuery, value, onChange }) {
               users={allUsers}
               filters={filters}
               setFilters={setFilters}
+              lockedState={lockedState}
             />
           )}
 
@@ -486,7 +503,7 @@ function SearchField({ label, roleQuery, value, onChange }) {
                 </p>
                 {activeFilterCount > 0 && (
                   <button
-                    onClick={() => setFilters({ city: "", state: "", locality: "", pincode: "" })}
+                    onClick={() => setFilters({ city: "", state: lockedState || "", locality: "", pincode: "" })}
                     style={{
                       marginTop: 8, background: "none", border: `1px solid ${PRIMARY}`,
                       borderRadius: 6, color: PRIMARY, fontSize: 11, fontWeight: 600,
@@ -589,11 +606,13 @@ function SearchField({ label, roleQuery, value, onChange }) {
 }
 
 /* ─── Main Modal ─────────────────────────────────────────────── */
-export default function AssignManagerModal({ onClose }) {
+export default function AssignManagerModal({ onClose, currentUserRole, currentUser }) {
   const [selectedAgent,   setSelectedAgent]   = useState(null);
   const [selectedManager, setSelectedManager] = useState(null);
   const [loading,  setLoading]  = useState(false);
   const [success,  setSuccess]  = useState(false);
+  const regionalScopeState =
+    currentUserRole === "regional_manager" ? currentUser?.state || "" : "";
 
   const canSubmit = selectedAgent && selectedManager && !loading;
 
@@ -757,6 +776,7 @@ export default function AssignManagerModal({ onClose }) {
                 roleQuery="sales_agent"
                 value={selectedAgent}
                 onChange={setSelectedAgent}
+                lockedState={regionalScopeState}
               />
 
               {/* Connector arrow */}
@@ -781,6 +801,7 @@ export default function AssignManagerModal({ onClose }) {
                 roleQuery="sales_manager"
                 value={selectedManager}
                 onChange={setSelectedManager}
+                lockedState={regionalScopeState}
               />
 
               {/* Assignment Preview */}

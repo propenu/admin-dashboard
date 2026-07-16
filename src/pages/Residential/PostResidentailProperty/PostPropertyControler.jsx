@@ -138,6 +138,13 @@ export default function PropertyController({ agentProject = false }) {
              _selectedFromSearch: true,
            }
          : draft.createdBy || "",
+     relationshipManagerId:
+       draft.relationshipManagerId && typeof draft.relationshipManagerId === "object"
+         ? {
+             ...draft.relationshipManagerId,
+             _selectedFromSearch: true,
+           }
+         : draft.relationshipManagerId || "",
 
      galleryFiles: currentForm?.galleryFiles?.length
        ? currentForm.galleryFiles

@@ -27,6 +27,8 @@ import {
   CreditCard,
   Package,
   Activity,
+  Megaphone,
+  Handshake,
 } from "lucide-react";
 import { getUserSearch, getAllUsers } from "../../features/user/userService";
 
@@ -75,6 +77,24 @@ const ROLE_META = {
     color: "#27AE60",
     icon: CreditCard,
     bg: "#e0e7ff",
+  },
+  digital_marketing: {
+    label: "Digital Marketing",
+    color: "#27AE60",
+    icon: Megaphone,
+    bg: "#dcfce7",
+  },
+  relationship_manager: {
+    label: "Relationship Manager",
+    color: "#27AE60",
+    icon: Handshake,
+    bg: "#dcfce7",
+  },
+  regional_manager: {
+    label: "Regional Manager",
+    color: "#27AE60",
+    icon: Users,
+    bg: "#dcfce7",
   },
 };
 
@@ -131,7 +151,29 @@ const WORKFLOW_STEPS = {
     { key: "assigned", label: "Users Assigned", icon: Users },
     { key: "tickets", label: "Tickets Handled", icon: Activity },
   ],
+  digital_marketing: [
+    { key: "registered", label: "Registered", icon: CheckCircle },
+    { key: "campaigns", label: "Campaign Access", icon: Megaphone },
+    { key: "leads", label: "Lead Reach", icon: TrendingUp },
+    { key: "tickets", label: "Tickets Handled", icon: Activity },
+  ],
+  relationship_manager: [
+    { key: "registered", label: "Registered", icon: CheckCircle },
+    { key: "relationships", label: "Client Relationships", icon: Handshake },
+    { key: "properties", label: "Properties", icon: Home },
+    { key: "tickets", label: "Tickets Handled", icon: Activity },
+  ],
+  regional_manager: [
+    { key: "registered", label: "Registered", icon: CheckCircle },
+    { key: "regions", label: "Regional Operations", icon: Users },
+    { key: "properties", label: "Properties", icon: Home },
+    { key: "tickets", label: "Tickets Handled", icon: Activity },
+  ],
 };
+
+Object.keys(WORKFLOW_STEPS).forEach((role) => {
+  WORKFLOW_STEPS[role] = WORKFLOW_STEPS[role].filter((step) => step.key !== "kyc");
+});
 
 // ─── Workflow step status resolver ─────────────────────────────────────────────
 const resolveStepStatus = (stepKey, user) => {

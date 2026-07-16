@@ -5,6 +5,7 @@ import {
   assignTicket,
   changeTicketPriority,
   changeTicketStatus,
+  createTicketAttachment,
   createTicket,
   getTicketAgentPerformance,
   getTicketById,
@@ -26,11 +27,12 @@ export const ticketKeys = {
   overview: ["ticket-dashboard", "overview"],
 };
 
-export function useTicketList(filters) {
+export function useTicketList(filters, enabled = true) {
   const stableFilters = useMemo(() => filters, [filters]);
   return useQuery({
     queryKey: ticketKeys.list(stableFilters),
     queryFn: () => getTickets(stableFilters),
+    enabled,
     keepPreviousData: true,
     staleTime: 30000,
   });
@@ -128,6 +130,13 @@ export function useTicketActions() {
       onSuccess: (ticket) => {
         invalidateTickets();
         if (ticket?._id) queryClient.setQueryData(ticketKeys.detail(ticket._id), ticket);
+      },
+    }),
+    createAttachment: useMutation({
+      mutationFn: createTicketAttachment,
+      onSuccess: (attachment) => {
+        invalidateTickets();
+        if (attachment?.ticketId) queryClient.invalidateQueries({ queryKey: ticketKeys.detail(attachment.ticketId) });
       },
     }),
   };
