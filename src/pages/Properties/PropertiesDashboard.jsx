@@ -970,10 +970,12 @@ export default function PropertiesDashboard() {
   };
 
   const canReviewProperty = (property) =>
-    property?.status === "pending" &&
-    property?.completion?.percent === 80 &&
-    !isAgentCreatedProperty(property) &&
-    userRoleName === "super_admin";
+    (property?.status === "pending" &&
+      property?.completion?.percent === 80 &&
+      !isAgentCreatedProperty(property) &&
+      userRoleName === "super_admin") ||
+    userRoleName === "admin" ||
+    userRoleName === "sales_manager";
 
   const reviewProperty = (property) => {
     rememberCategory(property._category);
