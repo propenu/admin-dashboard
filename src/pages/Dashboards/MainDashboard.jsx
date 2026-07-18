@@ -28,7 +28,7 @@ const Dashboard = () => {
     );
   }
 
-  return <DashboardRouter role={user?.roleName} />;
+  return <DashboardRouter role={user?.roleName} permissions={user?.permissions || []} />;
 };
 
 export default Dashboard;

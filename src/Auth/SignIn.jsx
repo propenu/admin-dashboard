@@ -1,7 +1,7 @@
 //src/Auth/SignIn.jsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Cookies from "js-cookie";
+import { setAuthToken } from "../utils/authToken";
 //import { requestOtp, verifyOtpService } from "../features/user/userService";
 import { useCreateRequestOtp, useVerifyOtp } from "./hook/useAuth";
 import { Mail, Loader2, AlertCircle, ChevronLeft } from "lucide-react";
@@ -73,12 +73,7 @@ export default function SignIn() {
         setErrorMsg("");
         try {
           const res = await verifyOtpService({otp:fullOtp, email});
-          Cookies.set("token", res.token, {
-            path: "/",
-            expires: 30,
-            secure: window.location.protocol === "https:",
-            sameSite: "strict",
-          });
+          setAuthToken(res.token);
           navigate("/", { replace: true });
         } catch (err) {
           setErrorMsg(err?.message || "Invalid OTP.");

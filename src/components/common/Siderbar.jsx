@@ -223,7 +223,24 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
   };
   const toggleMenu = (key) => setOpenMenus((p) => ({ ...p, [key]: !p[key] }));
 
-  useEffect(() => { fetchLoggedInUser().then(setUser).catch(() => {}); }, []);
+  useEffect(() => {
+    let active = true;
+    const refreshUser = () => fetchLoggedInUser().then((nextUser) => {
+      if (active) setUser(nextUser);
+    }).catch(() => {});
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshUser();
+    };
+
+    refreshUser();
+    window.addEventListener("focus", refreshUser);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refreshUser);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -244,14 +261,63 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     else                                                     navigate(child.path);
   };
 
+  const getPermissionMenu = (permissions = []) => {
+    const allowed = new Set(
+      (Array.isArray(permissions) ? permissions : [])
+        .map((permission) => String(permission).trim().toLowerCase()),
+    );
+    const canView = (module) => allowed.has(`${module}:view`);
+    const propertyAccess = canView("residential") || canView("commercial") || canView("land") || canView("agricultural");
+    const operationsChildren = [
+      (canView("team") || canView("user")) && { path: "/propenu-team-members", label: "Team Directory", icon: AllUsersIcon },
+      canView("team") && { path: "/dashboard/team-management", label: "Team Management", icon: TeamManagementIcon },
+      allowed.has("user:update") && { label: "Transfer Credentials", icon: CreateCredentialsIcon, key: "transfer-credentials", action: "openTranforCredentialsModal" },
+      allowed.has("team:assign_manager") && { label: "Assign Executive", icon: AgentIcon, key: "assign-agent", action: "openAssignAgentModal" },
+    ].filter(Boolean);
+    const userChildren = [
+      canView("user") && { path: "/users", label: "All Users", icon: AllUsersIcon },
+      canView("user") && { path: "/owners", label: "Owners", icon: OwnerIcon },
+      canView("builder") && { path: "/builders", label: "Builders", icon: BuilderIcon },
+      canView("agent") && { path: "/all-agents", label: "Agents", icon: AgentIcon },
+    ].filter(Boolean);
+    const accessControlChildren = [
+      allowed.has("role:create") && { path: "/access-control/roles/new", label: "Create Role & Access", icon: TeamManagementIcon },
+      allowed.has("user:create") && { path: "/access-control/credentials/new", label: "Create Credentials", icon: CreateCredentialsIcon },
+      (allowed.has("role:view") || allowed.has("role:update_permissions")) && { path: "/access-control/users", label: "Role Permissions", icon: TeamManagementIcon },
+    ].filter(Boolean);
+    return [
+      canView("dashboard") && { path: "/", label: "Dashboard", icon: DashboardIcon },
+      allowed.has("dashboard:view_reports") && { path: "/operations/reports", label: "Reports", icon: PropertyProgressIcon },
+      canView("project") && { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
+      propertyAccess && { path: "/properties", label: "Properties", icon: PropertiesIcon },
+      canView("lead") && { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
+      (canView("project") || propertyAccess) && { path: "/property-progress", label: "Property Progress", icon: PropertyProgressIcon },
+      canView("location") && { path: "/locations", label: "Locations", icon: LocationsIcon },
+      canView("blog") && { path: "/blogs", label: "Blogs", icon: mailnotifications },
+      canView("ticket") && { path: "/tickets", label: "Tickets", icon: mailnotifications },
+      operationsChildren.length && { label: "Operations", icon: UserIcon, key: "permission-operations", children: operationsChildren },
+      accessControlChildren.length && { label: "Access Control", icon: TeamManagementIcon, key: "permission-access-control", children: accessControlChildren },
+      userChildren.length && { label: "Users", icon: UserIcon, key: "permission-users", children: userChildren },
+      canView("payment") && { path: "/payments-list", label: "Payments", icon: AccountsIcon },
+      canView("subscription") && { path: "/active-subscriptions", label: "Subscriptions", icon: AccountsIcon },
+      canView("email_campaign") && { path: "/email-notifications", label: "Email Campaigns", icon: mailnotifications },
+      canView("whatsapp_campaign") && { path: "/whatsapp-notifications", label: "WhatsApp Campaigns", icon: mailnotifications },
+      canView("notification") && { path: "/push-notifications", label: "Notifications", icon: mailnotifications },
+    ].filter(Boolean);
+  };
+
   /* ── Menu definitions ─────────────────────────────────────────────── */
   const getMenuByRole = (role) =>
     ({
       super_admin: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
+        { path: "/access-control/roles/new", label: "Create Role & Access", icon: TeamManagementIcon },
+        { path: "/access-control/credentials/new", label: "Create Credentials", icon: CreateCredentialsIcon },
+        { path: "/access-control/users", label: "User Permissions", icon: TeamManagementIcon },
 
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
+        { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -266,52 +332,13 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           children: [
             {
               path: "/propenu-team-members",
-              label: "All Team Members",
+              label: "Team Directory",
               icon: AllUsersIcon,
             },
             {
               path: "/dashboard/team-management",
               label: "Team Management",
               icon: TeamManagementIcon,
-            },
-            {
-              path: "/sales-managers",
-              label: "Sales Managers",
-              icon: SalesManagerIcon,
-            },
-            {
-              path: "/sales-agents",
-              label: "Sales Executives",
-              icon: SalesAgentIcon,
-            },
-            // { path: "/builders", label: "Builders", icon: BuilderIcon },
-            // { path: "/all-agents", label: "Agents", icon: AgentIcon },
-            { path: "/accounts", label: "Accounts", icon: AccountsIcon },
-            {
-              path: "/customercare",
-              label: "Customer Care",
-              icon: LocationsIcon,
-            },
-            {
-              path: "/digital-marketing",
-              label: "Digital Marketing",
-              icon: mailnotifications,
-            },
-            {
-              path: "/relationship-managers",
-              label: "Relationship Managers",
-              icon: SalesManagerIcon,
-            },
-            {
-              path: "/regional-managers",
-              label: "Regional Managers",
-              icon: SalesManagerIcon,
-            },
-            {
-              label: "Create Credentials",
-              icon: CreateCredentialsIcon,
-              key: "create-credentials",
-              action: "openCreateUserModal",
             },
             {
               label: "Transfer Credentials",
@@ -345,6 +372,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           icon: SubcriptinIcon,
           key: "subscriptions",
           children: [
+            { path: "/builder-plans", label: "Builder Plans", icon: BuilderIcon },
             { path: "/agent-payments", label: "Agent", icon: AgentIcon },
             {
               label: "Post Property",
@@ -443,6 +471,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       ],
       admin: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
+        { path: "/access-control/credentials/new", label: "Create Credentials", icon: CreateCredentialsIcon },
         // {
         //   label: "Projects",
         //   icon: FeaturedProjetsIcon,
@@ -464,6 +493,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         // },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
+        { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -478,52 +508,13 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           children: [
             {
               path: "/propenu-team-members",
-              label: "All Team Members",
+              label: "Team Directory",
               icon: AllUsersIcon,
             },
             {
               path: "/dashboard/team-management",
               label: "Team Management",
               icon: TeamManagementIcon,
-            },
-            {
-              path: "/sales-managers",
-              label: "Sales Managers",
-              icon: SalesManagerIcon,
-            },
-            {
-              path: "/sales-agents",
-              label: "Sales Executives",
-              icon: SalesAgentIcon,
-            },
-            // { path: "/builders", label: "Builders", icon: BuilderIcon },
-            // { path: "/all-agents", label: "Agents", icon: AgentIcon },
-            { path: "/accounts", label: "Accounts", icon: AccountsIcon },
-            {
-              path: "/customercare",
-              label: "Customer Care",
-              icon: LocationsIcon,
-            },
-            {
-              path: "/digital-marketing",
-              label: "Digital Marketing",
-              icon: mailnotifications,
-            },
-            {
-              path: "/relationship-managers",
-              label: "Relationship Managers",
-              icon: SalesManagerIcon,
-            },
-            {
-              path: "/regional-managers",
-              label: "Regional Managers",
-              icon: SalesManagerIcon,
-            },
-            {
-              label: "Create Credentials",
-              icon: CreateCredentialsIcon,
-              key: "create-credentials",
-              action: "openCreateUserModal",
             },
             {
               label: "Transfer Credentials",
@@ -557,6 +548,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           icon: SubcriptinIcon,
           key: "subscriptions",
           children: [
+            { path: "/builder-plans", label: "Builder Plans", icon: BuilderIcon },
             { path: "/agent-payments", label: "Agent", icon: AgentIcon },
             {
               label: "Post Property",
@@ -752,12 +744,6 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               icon: SalesManagerIcon,
             },
             {
-              label: "Create Credentials",
-              icon: CreateCredentialsIcon,
-              key: "create-credentials",
-              action: "openCreateUserModal",
-            },
-            {
               label: "Transfer Credentials",
               icon: CreateCredentialsIcon,
               key: "transfer-credentials",
@@ -799,6 +785,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           icon: SubcriptinIcon,
           key: "subscriptions",
           children: [
+            { path: "/builder-plans", label: "Builder Plans", icon: BuilderIcon },
             { path: "/agent-payments", label: "Agent", icon: AgentIcon },
             {
               label: "Post Property",
@@ -880,7 +867,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           icon: mailnotifications,
         },
       ],
-    })[role] || [];
+    })[role] || getPermissionMenu(user?.permissions || []);
 
   const menuItems = user ? getMenuByRole(user.roleName) : [];
   const showText  = expanded || isMobileOpen;

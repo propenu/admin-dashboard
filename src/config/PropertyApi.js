@@ -1,7 +1,7 @@
 // frontend/admin-dashboard/src/config/PropertyApi.js
 import axios from "axios";
-import Cookies from "js-cookie";
 import { API_BASE_URL } from "./api";
+import { getAuthToken } from "../utils/authToken";
 
 const propertyApi = axios.create({
   baseURL: API_BASE_URL,
@@ -12,7 +12,7 @@ const propertyApi = axios.create({
 
 propertyApi.interceptors.request.use(
   (config) => {
-    const token = Cookies.get("token");
+    const token = getAuthToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

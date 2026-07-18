@@ -1,225 +1,113 @@
-// frontend/admin-dashboard/src/pages/users/Users.jsx
-import { useEffect, useState, useMemo } from "react";
-import {
-  X,
-} from "lucide-react";
-import { Header } from "./components/Header";
-import { StatCards } from "./components/StatCards";
-import { SearchFiltersPanel } from "./components/SearchFiltersPanel";
-import {useUsers, useSearchUsers} from "./hook/useUserData";
-import { MobileCardView } from "./components/MobileCardView";
-import { DesktopTable } from "./components/DesktopTable";
+import { useEffect, useMemo, useState } from "react";
+import { Hash, LayoutGrid, List, Mail, MapPin, Phone, RefreshCw, Search, UsersRound, X } from "lucide-react";
+import { useUsers } from "./hook/useUserData";
+import { getTeamDirectoryRoles } from "../../../features/accessControl/accessControlService";
+
+const cleanRole = (value = "") => String(value).replace(/_/g, " ");
+const unique = (items) => [...new Set(items.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
 
 export default function PropenuTeam() {
-  // General filters
-  const [search, setSearch] = useState("");
-  const [filterAccountStatus, setFilterAccountStatus] = useState("");
-  const [filterKycStatus, setFilterKycStatus] = useState("");
-  const [filterPhoneVerified, setFilterPhoneVerified] = useState("");
-  const [filterIsActive, setFilterIsActive] = useState("");
-  const [filterRole, setFilterRole] = useState("all"); 
-  const { data: allUsers = [], isLoading, refetch } = useUsers();
-  const { data: searchData = {} } = useSearchUsers(search);
-  const [locationFilter, setLocationFilter] = useState(null);
-  const [selectedDate, setSelectedDate] = useState("");
+  const { data: users = [], isLoading, refetch, isFetching } = useUsers();
+  const [roleOptions, setRoleOptions] = useState([]);
+  const [viewMode, setViewMode] = useState("cards");
+  const [filters, setFilters] = useState({ role: "", state: "", city: "", locality: "", pincode: "", status: "", fromDate: "", toDate: "", search: "" });
 
   useEffect(() => {
-    refetch();
+    getTeamDirectoryRoles()
+      .then((result) => setRoleOptions(result.roles || []))
+      .catch(() => setRoleOptions([]));
   }, []);
 
+  const options = useMemo(() => {
+    const byState = filters.state ? users.filter((user) => user.state === filters.state) : users;
+    const byCity = filters.city ? byState.filter((user) => user.city === filters.city) : byState;
+    const byLocality = filters.locality ? byCity.filter((user) => user.locality === filters.locality) : byCity;
+    return {
+      states: unique(users.map((user) => user.state)),
+      cities: unique(byState.map((user) => user.city)),
+      localities: unique(byCity.map((user) => user.locality)),
+      pincodes: unique(byLocality.map((user) => user.pincode)),
+    };
+  }, [filters.city, filters.locality, filters.state, users]);
 
+  const filtered = useMemo(() => {
+    const query = filters.search.trim().toLowerCase();
+    return users.filter((user) => {
+      if (filters.role && user.roleName !== filters.role) return false;
+      if (filters.state && user.state !== filters.state) return false;
+      if (filters.city && user.city !== filters.city) return false;
+      if (filters.locality && user.locality !== filters.locality) return false;
+      if (filters.pincode && String(user.pincode) !== filters.pincode) return false;
+      if (filters.status && user.accountStatus !== filters.status) return false;
+      if (filters.fromDate || filters.toDate) {
+        if (!user.createdAt) return false;
+        const joinedAt = new Date(user.createdAt);
+        if (Number.isNaN(joinedAt.getTime())) return false;
+        if (filters.fromDate && joinedAt < new Date(`${filters.fromDate}T00:00:00`)) return false;
+        if (filters.toDate && joinedAt > new Date(`${filters.toDate}T23:59:59.999`)) return false;
+      }
+      if (!query) return true;
+      return `${user.name} ${user.email} ${user.phone} ${user.roleName} ${user.locality} ${user.city} ${user.state} ${user.pincode}`.toLowerCase().includes(query);
+    });
+  }, [filters, users]);
 
-
-//const users = allUsers.filter((u) => u.roleName === "user");
-const users = allUsers.filter((u) => {
-  if (filterRole === "all") {
-    return [
-      "sales_manager",
-      "sales_agent",
-      "admin",
-      "accounts",
-      "customer_care",
-    ].includes(u.roleName);
-  }
-
-  return u.roleName === filterRole;
-});
-
-const filtered = useMemo(() => {
-  const q = search.trim().toLowerCase();
-
-  return users.filter((u) => {
-    if (
-      q &&
-      !u.name?.toLowerCase().includes(q) &&
-      !u.phone?.includes(q) &&
-      !u.email?.toLowerCase().includes(q)
-    )
-      return false;
-
-    if (locationFilter) {
-      const { value, type } = locationFilter;
-      const field = u[type]?.toLowerCase() || "";
-
-      if (!field.includes(value.toLowerCase())) return false;
-    }
-
-    if (filterAccountStatus && u.accountStatus !== filterAccountStatus)
-      return false;
-
-    if (filterKycStatus && u.kyc?.status !== filterKycStatus) return false;
-
-
-    if (selectedDate) {
-      const createdAt = new Date(u.createdAt);
-      const userDate = Number.isNaN(createdAt.getTime())
-        ? ""
-        : createdAt.toISOString().split("T")[0];
-
-      if (userDate !== selectedDate) return false;
-    }
-
-
-
-    return true;
+  const update = (key, value) => setFilters((current) => {
+    const next = { ...current, [key]: value };
+    if (key === "state") Object.assign(next, { city: "", locality: "", pincode: "" });
+    if (key === "city") Object.assign(next, { locality: "", pincode: "" });
+    if (key === "locality") next.pincode = "";
+    return next;
   });
-}, [
-  users,
-  search,
-  locationFilter,
-  filterAccountStatus,
-  filterKycStatus,
-  filterPhoneVerified,
-  filterIsActive,
-  filterRole,
-  selectedDate,
 
-]);
+  const clear = () => setFilters({ role: "", state: "", city: "", locality: "", pincode: "", status: "", fromDate: "", toDate: "", search: "" });
+  const activeCount = users.filter((user) => user.accountStatus === "active" && user.isActive !== false).length;
 
+  const Select = ({ label, value, onChange, children }) => <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold capitalize outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">{children}</select></label>;
 
-  /* ── Stats ── */
-  const stats = useMemo(
-    () => ({
-      total: users.length,
-      active: users.filter((u) => u.accountStatus === "active").length,
-      kycVerified: users.filter((u) => u.kyc?.status === "verified").length,
-      phoneVerified: users.filter((u) => u.phoneVerified).length,
-      locPending: users.filter((u) => u.accountStatus === "location_pending")
-        .length,
-    }),
-    [users],
-  );
-
-  const hasFilters =
-    search ||
-    filterAccountStatus ||
-    filterKycStatus ||
-    filterPhoneVerified ||
-    filterIsActive ||
-    locationFilter || 
-    selectedDate;
-
-
-  const clearAll = () => {
-    setSearch("");
-    setFilterAccountStatus("");
-    setFilterKycStatus("");
-    setFilterPhoneVerified("");
-    setFilterIsActive("");
-    setLocationFilter(null);
-    setFilterRole("user"); 
-    setSelectedDate("");
-  }; 
-
-  
-
-  /* ── Format location for display ── */
-  const formatLocation = (u) => {
-    const parts = [u.locality, u.city, u.state, u.pincode].filter(Boolean);
-    return parts.length ? parts : null;
-  };
-
-  /* ── Highlight location fields matching active filter ── */
-  const locQuery = locationFilter?.value || "";
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50/40 p-4 md:p-6 lg:p-8">
-      <Header
-        isLoading={isLoading}
-        users={users}
-        filtered={filtered}
-        onRefresh={refetch}
-      />
-
-     
-      <StatCards stats={stats} />
-
-      
-      <SearchFiltersPanel
-        search={search}
-        setSearch={setSearch}
-        locationFilter={locationFilter}
-        setLocationFilter={setLocationFilter}
-        users={users}
-        filterAccountStatus={filterAccountStatus}
-        setFilterAccountStatus={setFilterAccountStatus}
-        filterKycStatus={filterKycStatus}
-        setFilterKycStatus={setFilterKycStatus}
-        filterPhoneVerified={filterPhoneVerified}
-        setFilterPhoneVerified={setFilterPhoneVerified}
-        filterIsActive={filterIsActive}
-        setFilterIsActive={setFilterIsActive}
-        filterRole={filterRole}
-        setFilterRole={setFilterRole}
-        hasFilters={hasFilters}
-        selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
-        clearAll={clearAll}
-      />
-
-      {/* ── Data Table ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {/* ── Desktop Table ── */}
-        <DesktopTable
-          filtered={filtered}
-          loading={isLoading}
-          hasFilters={hasFilters}
-          formatLocation={formatLocation}
-          locQuery={locQuery}
-        /> 
-        {/* ── Mobile Card View ── */}
-        <MobileCardView
-          filtered={filtered}
-          loading={isLoading}
-          formatLocation={formatLocation}
-          locQuery={locQuery}
-        />
-      </div>
-      {/* Footer count */}
-      {!isLoading && filtered.length > 0 && (
-        <p className="text-center text-xs text-gray-400 mt-4">
-          Showing {filtered.length} of {users.length} users
-          {locationFilter &&
-            ` in ${locationFilter.type === "city" ? "city" : locationFilter.type} "${locationFilter.value}"`}
-        </p>
-      )}
+  return <div className="mx-auto max-w-[1500px] pb-10 text-slate-900">
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">Operations</p><h1 className="mt-1 text-3xl font-black tracking-tight">Team directory</h1><p className="mt-1 text-sm text-slate-500">Select a role and location to find the right team member.</p></div>
+      <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{roleOptions.length} roles</span><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{users.length} members</span><span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">{activeCount} active</span><button onClick={() => refetch()} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"><RefreshCw size={15} className={isFetching ? "animate-spin" : ""} /></button></div>
     </div>
-  );
-}
-/* ── Filter Tag ── */
-const TAG_COLORS = {
-  green: "bg-[#27AE60]/10 text-[#27AE60]",
-  blue: "bg-blue-50 text-blue-700",
-  amber: "bg-amber-50 text-amber-700",
-  purple: "bg-purple-50 text-purple-700",
-  gray: "bg-gray-100 text-gray-600",
-};
 
-const Tag = ({ label, onRemove, color = "gray" }) => (
-  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${TAG_COLORS[color]}`}>
-    {label}
-    <button onClick={onRemove} className="hover:opacity-60 transition-opacity">
-      <X className="w-3 h-3" />
-    </button>
-  </span>
-);
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
+        <Select label="Role" value={filters.role} onChange={(value) => update("role", value)}><option value="">All roles</option>{roleOptions.map((role) => <option key={role._id || role.name} value={role.name}>{role.label || cleanRole(role.name)}</option>)}</Select>
+        <Select label="State" value={filters.state} onChange={(value) => update("state", value)}><option value="">All states</option>{options.states.map((item) => <option key={item}>{item}</option>)}</Select>
+        <Select label="City" value={filters.city} onChange={(value) => update("city", value)}><option value="">All cities</option>{options.cities.map((item) => <option key={item}>{item}</option>)}</Select>
+        <Select label="Locality" value={filters.locality} onChange={(value) => update("locality", value)}><option value="">All localities</option>{options.localities.map((item) => <option key={item}>{item}</option>)}</Select>
+        <Select label="Pincode" value={filters.pincode} onChange={(value) => update("pincode", value)}><option value="">All pincodes</option>{options.pincodes.map((item) => <option key={item}>{item}</option>)}</Select>
+        <Select label="Status" value={filters.status} onChange={(value) => update("status", value)}><option value="">All statuses</option><option value="active">Active</option><option value="location_pending">Location pending</option><option value="kyc_pending">KYC pending</option></Select>
+        <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Joined from</span><input type="date" value={filters.fromDate} max={filters.toDate || undefined} onChange={(event) => update("fromDate", event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" /></label>
+        <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Joined to</span><input type="date" value={filters.toDate} min={filters.fromDate || undefined} onChange={(event) => update("toDate", event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" /></label>
+        <button onClick={clear} className="mt-auto flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"><X size={14} /> Clear</button>
+      </div>
+      <div className="relative mt-3"><Search className="absolute left-3 top-2.5 text-slate-400" size={16} /><input value={filters.search} onChange={(event) => update("search", event.target.value)} placeholder="Search name, email, phone, role or location" className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" /></div>
+    </section>
+
+    <section className="mt-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><UsersRound size={17} className="text-emerald-600" /><h2 className="text-sm font-bold capitalize">{filters.role ? roleOptions.find((role) => role.name === filters.role)?.label || cleanRole(filters.role) : "All team members"}</h2></div><div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">Showing {filtered.length} of {users.length}</span><div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "cards" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><LayoutGrid size={14} /> Cards</button><button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><List size={14} /> Table</button></div></div></div>
+      {isLoading ? <div className="rounded-2xl border border-slate-200 bg-white p-14 text-center text-sm text-slate-500">Loading team members…</div> : filtered.length ? viewMode === "cards" ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filtered.map((user) => {
+        const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
+        const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+        const active = user.accountStatus === "active" && user.isActive !== false;
+        return <article key={user._id} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 to-emerald-300" />
+          <div className="flex items-start gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700">{initials}</div><div className="min-w-0 flex-1"><h3 className="truncate text-base font-black text-slate-800">{user.name || "Unnamed user"}</h3><p className="mt-0.5 truncate text-[11px] font-bold uppercase tracking-wide text-emerald-600">{cleanRole(user.roleName)}</p></div><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} title={active ? "Active" : "Pending"} /></div>
+          <div className="mt-4 grid gap-2 border-t border-slate-100 pt-3 text-xs">
+            <p className="flex items-center gap-2 text-slate-600"><Hash size={13} className="shrink-0 text-emerald-600" /><span className="font-mono font-bold">{user.userCode || String(user._id).slice(-10).toUpperCase()}</span></p>
+            <p className="flex items-center gap-2 text-slate-600"><Mail size={13} className="shrink-0 text-emerald-600" /><span className="truncate">{user.email || "No email"}</span></p>
+            <p className="flex items-center gap-2 text-slate-600"><Phone size={13} className="shrink-0 text-emerald-600" /><span>{user.phone || "No phone"}</span></p>
+            <p className="flex items-start gap-2 text-slate-600"><MapPin size={13} className="mt-0.5 shrink-0 text-emerald-600" /><span className="line-clamp-2">{location || "Work location not provided"}</span></p>
+          </div>
+          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{String(user.accountStatus || "pending").replace(/_/g, " ")}</span><span className="text-[10px] text-slate-400">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "—"}</span></div>
+        </article>;
+      })}</div> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left text-xs"><thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Team member</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Work location</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Joined</th></tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((user) => {
+        const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
+        const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+        const active = user.accountStatus === "active" && user.isActive !== false;
+        return <tr key={user._id} className="transition hover:bg-emerald-50/40"><td className="px-4 py-3"><div className="flex items-center gap-2.5"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 font-black text-emerald-700">{initials}</div><div className="min-w-0"><p className="max-w-[190px] truncate font-bold text-slate-800">{user.name || "Unnamed user"}</p><p className="mt-0.5 font-mono text-[10px] text-slate-400">{user.userCode || String(user._id).slice(-10).toUpperCase()}</p></div></div></td><td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2.5 py-1 font-bold capitalize text-emerald-700">{cleanRole(user.roleName)}</span></td><td className="px-4 py-3 text-slate-600"><p className="max-w-[210px] truncate">{user.email || "No email"}</p><p className="mt-0.5 text-slate-400">{user.phone || "No phone"}</p></td><td className="max-w-[260px] px-4 py-3 text-slate-600"><span className="line-clamp-2">{location || "Work location not provided"}</span></td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} />{String(user.accountStatus || "pending").replace(/_/g, " ")}</span></td><td className="whitespace-nowrap px-4 py-3 text-slate-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "—"}</td></tr>;
+      })}</tbody></table></div></div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center"><UsersRound className="mx-auto mb-3 text-slate-300" size={36} /><p className="font-bold text-slate-600">{filters.role ? `No members are assigned to ${roleOptions.find((role) => role.name === filters.role)?.label || cleanRole(filters.role)} yet.` : "No team members match these filters."}</p><p className="mt-1 text-xs text-slate-400">{filters.role ? "Create credentials for this role to add its first team member." : "Clear or change the filters to view more people."}</p></div>}
+    </section>
+  </div>;
+}

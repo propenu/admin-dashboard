@@ -1,7 +1,7 @@
 //src/Auth/SignUp.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Cookies from "js-cookie";
+import { setAuthToken } from "../utils/authToken";
 import {
   createRequestOtp,
   createVerifyOtpService,
@@ -97,12 +97,7 @@ export default function SignUp() {
         try {
          
           const res = await createVerifyOtpService(fullOtp, email, name, role);
-          Cookies.set("token", res.token, {
-            path: "/",
-            expires: 30,
-            secure: window.location.protocol === "https:",
-            sameSite: "strict",
-          });
+          setAuthToken(res.token);
           navigate("/", { replace: true });
         } catch (err) {
           setErrorMsg(err?.message || "Invalid OTP.");

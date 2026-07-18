@@ -4,7 +4,7 @@ import LOGO from "../../assets/logo.svg";
 import { Menu, User, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
-import Cookies from "js-cookie";
+import { clearAuthToken } from "../../utils/authToken";
 
 export default function Navbar({ toggleSidebar }) {
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ export default function Navbar({ toggleSidebar }) {
   }, []);
 
   const handleLogout = () => {
-    Cookies.remove("token");
+    clearAuthToken();
     navigate("/signin");
   };
 

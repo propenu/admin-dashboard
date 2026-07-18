@@ -7,6 +7,7 @@ import LoadingSpinner from "./components/common/LoadingSpinner";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import PublicRoute from "./pages/PublicRoute";
 import ProtectedRoute from "./pages/ProtectedRoute";
+import PermissionRoute from "./pages/PermissionRoute";
 
 // Lazy Loaded Pages
 const Dashboard = lazy(() => import("./pages/Dashboards/MainDashboard.jsx"));
@@ -148,6 +149,10 @@ const RevenueByPlan = lazy(() =>
   import("./pages/Accounts/RevenueByPlan")
 );
 
+const BuilderPlans = lazy(() =>
+  import("./pages/Accounts/BuilderPlans")
+);
+
 const TeamManagement = lazy(() =>
   import("./pages/users/AllUserInDetails/TeamManager.jsx")
 );
@@ -204,6 +209,21 @@ const Blogs = lazy(() =>
 const TicketDashboard = lazy(() =>
   import("./pages/Tickets/TicketDashboard")
 );
+const LeadManagement = lazy(() => import("./pages/Leads/LeadManagement"));
+
+const CreateRolePage = lazy(() =>
+  import("./pages/accessControl/CreateRolePage")
+);
+
+const CreateCredentialPage = lazy(() =>
+  import("./pages/accessControl/CreateCredentialPage")
+);
+const UserPermissionsPage = lazy(() =>
+  import("./pages/accessControl/UserPermissionsPage")
+);
+const OperationsDashboard = lazy(() =>
+  import("./pages/Dashboards/OperationsDashboard")
+);
 
 
 
@@ -231,6 +251,7 @@ function App() {
               <Route element={<Layout />}>
                 {/* Admin Dashboard */}
                 <Route path="/" element={<Dashboard />} />
+                <Route path="/operations/reports" element={<PermissionRoute permission="dashboard:view_reports"><OperationsDashboard reportMode /></PermissionRoute>} />
 
                 {/* Projects */}
 
@@ -239,8 +260,8 @@ function App() {
                 <Route path="/sponsored" element={<SponsoredProjectsPage />} />
                 <Route path="/normal" element={<NormalProjectsPage />} />
 
-                <Route path="/projects" element={<ProjectsDashboardPage />} />
-                <Route path="/properties" element={<PropertiesDashboard />} />
+                <Route path="/projects" element={<PermissionRoute permission="project:view"><ProjectsDashboardPage /></PermissionRoute>} />
+                <Route path="/properties" element={<PermissionRoute anyPermissions={["residential:view", "commercial:view", "land:view", "agricultural:view"]}><PropertiesDashboard /></PermissionRoute>} />
 
                 {/* Featured Property */}
                 <Route
@@ -290,23 +311,20 @@ function App() {
 
                 {/* Users */}
                 <Route path="/users" element={<Partners />} />
-                <Route
-                  path="/propenu-team-members"
-                  element={<PropenuTeamMembers />}
-                />
+                <Route path="/propenu-team-members" element={<PermissionRoute anyPermissions={["team:view", "user:view"]}><PropenuTeamMembers /></PermissionRoute>} />
 
                 <Route path="/locations" element={<Locations />} />
 
-                <Route path="accounts" element={<Accounts />} />
-                <Route path="customercare" element={<CustomerCare />} />
-                <Route path="all-agents" element={<AllAgents />} />
-                <Route path="builders" element={<Builders />} />
+                <Route path="accounts" element={<PermissionRoute permission="user:view"><Accounts /></PermissionRoute>} />
+                <Route path="customercare" element={<PermissionRoute permission="user:view"><CustomerCare /></PermissionRoute>} />
+                <Route path="all-agents" element={<PermissionRoute permission="agent:view"><AllAgents /></PermissionRoute>} />
+                <Route path="builders" element={<PermissionRoute permission="builder:view"><Builders /></PermissionRoute>} />
                 <Route path="owners" element={<Owners role="user" />} />
-                <Route path="sales-agents" element={<SalesAgent />} />
-                <Route path="sales-managers" element={<SalesManagers />} />
-                <Route path="digital-marketing" element={<DigitalMarketing />} />
-                <Route path="relationship-managers" element={<RelationshipManagers />} />
-                <Route path="regional-managers" element={<RegionalManagers />} />
+                <Route path="sales-agents" element={<PermissionRoute permission="user:view"><SalesAgent /></PermissionRoute>} />
+                <Route path="sales-managers" element={<PermissionRoute permission="user:view"><SalesManagers /></PermissionRoute>} />
+                <Route path="digital-marketing" element={<PermissionRoute permission="user:view"><DigitalMarketing /></PermissionRoute>} />
+                <Route path="relationship-managers" element={<PermissionRoute permission="user:view"><RelationshipManagers /></PermissionRoute>} />
+                <Route path="regional-managers" element={<PermissionRoute permission="user:view"><RegionalManagers /></PermissionRoute>} />
 
                 {/* Agricultural */}
                 <Route path="/agricultural" element={<Agricultural />} />
@@ -356,10 +374,7 @@ function App() {
                   element={<PostPropertyController />}
                 />
                 {/* Property Progress */}
-                <Route
-                  path="/property-progress"
-                  element={<PropertyProgress />}
-                />
+                <Route path="/property-progress" element={<PermissionRoute anyPermissions={["project:view", "residential:view", "commercial:view", "land:view", "agricultural:view"]}><PropertyProgress /></PermissionRoute>} />
 
                 {/* Push Notification */}
                 <Route
@@ -425,6 +440,7 @@ function App() {
                   element={<SubscriptionHistory />}
                 />
                 <Route path="/revenue-by-plan" element={<RevenueByPlan />} />
+                <Route path="/builder-plans" element={<BuilderPlans />} />
 
                 {/* User detail — navigated to on row click */}
                 <Route
@@ -445,10 +461,7 @@ function App() {
                 />
 
                 {/* Team Members */}
-                <Route
-                  path="/dashboard/team-management"
-                  element={<TeamManagementPageTwo />}
-                />
+                <Route path="/dashboard/team-management" element={<PermissionRoute permission="team:view"><TeamManagementPageTwo /></PermissionRoute>} />
 
                 <Route
                   path="/dashboard/users/role/:role"
@@ -461,6 +474,11 @@ function App() {
                 {/* Blogs */}
                 <Route path="/blogs" element={<Blogs />} />
                 <Route path="/tickets" element={<TicketDashboard />} />
+                <Route path="/leads" element={<PermissionRoute permission="lead:view"><LeadManagement /></PermissionRoute>} />
+                <Route path="/access-control/roles/:roleId/permissions" element={<PermissionRoute permission="role:view"><CreateRolePage /></PermissionRoute>} />
+                <Route path="/access-control/roles/new" element={<PermissionRoute permission="role:create"><CreateRolePage /></PermissionRoute>} />
+                <Route path="/access-control/credentials/new" element={<PermissionRoute permission="user:create"><CreateCredentialPage /></PermissionRoute>} />
+                <Route path="/access-control/users" element={<PermissionRoute permission="role:view"><UserPermissionsPage /></PermissionRoute>} />
               </Route>
             </Route>
 

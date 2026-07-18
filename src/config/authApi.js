@@ -1,7 +1,7 @@
 // D:\propenu\frontend\admin-dashboard\src\config\authApi.js
 import axios from "axios";
-import Cookies from "js-cookie";
 import { AUTH_API_BASE_URL } from "./UserDeatilsApi";
+import { getAuthToken } from "../utils/authToken";
 
 const authAxios = axios.create({
   baseURL: AUTH_API_BASE_URL,
@@ -13,7 +13,7 @@ const authAxios = axios.create({
 
 // Automatically attach token for every request
 authAxios.interceptors.request.use((config) => {
-  const token = Cookies.get("token");
+  const token = getAuthToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

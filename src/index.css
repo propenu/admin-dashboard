@@ -352,3 +352,20 @@ body{
   background-color: #fef08a; /* yellow highlight */
 }
 
+/* Access-control pages use a consistent input surface without changing legacy screens. */
+.access-control-field input,
+.access-control-field select {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 0.75rem 1rem 0.75rem 2.75rem;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.access-control-field input:focus,
+.access-control-field select:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+}

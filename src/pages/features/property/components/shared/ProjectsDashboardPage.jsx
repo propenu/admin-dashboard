@@ -1268,6 +1268,12 @@ export default function ProjectsDashboardPage() {
     normalHook.properties,
   ]);
 
+  const creatorRoleOptions = useMemo(() => [...new Set(
+    allProperties
+      .map((property) => property.createdBy?.roleName || property.createdByRole || property.creatorRole)
+      .filter(Boolean),
+  )].sort((a, b) => String(a).localeCompare(String(b))), [allProperties]);
+
   console.log("Prime:", primeHook.properties.length);
   console.log("Featured:", featuredHook.properties.length);
   console.log("Sponsored:", sponsoredHook.properties.length);
@@ -1310,8 +1316,17 @@ export default function ProjectsDashboardPage() {
   const [propertyTypeFilter, setPropertyTypeFilter] = useState(
     () => searchParams.get("propertyType") || "all",
   );
+  const [creatorRoleFilter, setCreatorRoleFilter] = useState(
+    () => searchParams.get("creatorRole") || "all",
+  );
+  const [createdFrom, setCreatedFrom] = useState(
+    () => searchParams.get("createdFrom") || "",
+  );
+  const [createdTo, setCreatedTo] = useState(
+    () => searchParams.get("createdTo") || "",
+  );
   const [sortBy, setSortBy] = useState(
-    () => searchParams.get("sort") || "rank",
+    () => searchParams.get("sort") || "newest",
   );
   const [currentPage, setCurrentPage] = useState(() => {
     const savedPage = Number(searchParams.get("page"));
@@ -1331,12 +1346,18 @@ export default function ProjectsDashboardPage() {
     if (propertyTypeFilter !== "all") {
       next.set("propertyType", propertyTypeFilter);
     }
-    if (sortBy !== "rank") next.set("sort", sortBy);
+    if (creatorRoleFilter !== "all") next.set("creatorRole", creatorRoleFilter);
+    if (createdFrom) next.set("createdFrom", createdFrom);
+    if (createdTo) next.set("createdTo", createdTo);
+    if (sortBy !== "newest") next.set("sort", sortBy);
     if (currentPage > 1) next.set("page", String(currentPage));
     setSearchParams(next, { replace: true });
   }, [
     analyticsSearch,
     categoryFilter,
+    createdFrom,
+    createdTo,
+    creatorRoleFilter,
     currentPage,
     debouncedProjectSearch,
     promotionFilter,
@@ -1425,6 +1446,18 @@ export default function ProjectsDashboardPage() {
       list = list.filter((p) => p.propertyType === propertyTypeFilter);
       console.log("After propertyType", list.length);
     }
+    if (creatorRoleFilter !== "all") {
+      list = list.filter((p) => (p.createdBy?.roleName || p.createdByRole || p.creatorRole) === creatorRoleFilter);
+    }
+    if (createdFrom || createdTo) {
+      list = list.filter((p) => {
+        const createdAt = new Date(p.createdAt || 0);
+        if (Number.isNaN(createdAt.getTime())) return false;
+        if (createdFrom && createdAt < new Date(`${createdFrom}T00:00:00`)) return false;
+        if (createdTo && createdAt > new Date(`${createdTo}T23:59:59.999`)) return false;
+        return true;
+      });
+    }
 
     console.log("Before price filters", list.length);
 
@@ -1468,6 +1501,14 @@ export default function ProjectsDashboardPage() {
     let filteredList = [...list];
 
     switch (sortBy) {
+      case "newest":
+        filteredList.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        break;
+
+      case "oldest":
+        filteredList.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+        break;
+
       case "0-1L":
         filteredList = filteredList.filter((p) => (p.priceFrom || 0) <= 100000);
         break;
@@ -1546,6 +1587,9 @@ export default function ProjectsDashboardPage() {
     trackingFilter,
     serverPromotionStatus,
     categoryFilter,
+    createdFrom,
+    createdTo,
+    creatorRoleFilter,
     propertyTypeFilter,
     selectedLocation,
     debouncedProjectSearch,
@@ -1713,12 +1757,14 @@ export default function ProjectsDashboardPage() {
   // ── Active filter count + clear ───────────────────────────────────────────
   const activeFiltersCount = useMemo(() => [
     promotionFilter !== "all", statusFilter !== "all", trackingFilter !== "all",
-    categoryFilter !== "all",  propertyTypeFilter !== "all",
-  ].filter(Boolean).length, [promotionFilter, statusFilter, trackingFilter, categoryFilter, propertyTypeFilter]);
+    categoryFilter !== "all", propertyTypeFilter !== "all", creatorRoleFilter !== "all",
+    Boolean(createdFrom), Boolean(createdTo),
+  ].filter(Boolean).length, [promotionFilter, statusFilter, trackingFilter, categoryFilter, propertyTypeFilter, creatorRoleFilter, createdFrom, createdTo]);
 
   const clearListFilters = useCallback(() => {
     setPromotionFilter("all"); setStatusFilter("all"); setTrackingFilter("all");
     setCategoryFilter("all");  setPropertyTypeFilter("all");
+    setCreatorRoleFilter("all"); setCreatedFrom(""); setCreatedTo("");
   }, []);
 
   const clearAll = useCallback(() => {
@@ -2040,6 +2086,16 @@ export default function ProjectsDashboardPage() {
             </div>
           </div>
 
+          <label className="min-w-[170px]">
+            <span className="mb-2 block text-xs font-bold text-slate-600">Created by role</span>
+            <select value={creatorRoleFilter} onChange={(event) => setCreatorRoleFilter(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold capitalize text-slate-600 outline-none focus:border-emerald-500">
+              <option value="all">All roles</option>
+              {creatorRoleOptions.map((role) => <option key={role} value={role}>{String(role).replace(/_/g, " ")}</option>)}
+            </select>
+          </label>
+          <label className="min-w-[145px]"><span className="mb-2 block text-xs font-bold text-slate-600">Created from</span><input type="date" value={createdFrom} max={createdTo || undefined} onChange={(event) => setCreatedFrom(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-emerald-500" /></label>
+          <label className="min-w-[145px]"><span className="mb-2 block text-xs font-bold text-slate-600">Created to</span><input type="date" value={createdTo} min={createdFrom || undefined} onChange={(event) => setCreatedTo(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-emerald-500" /></label>
+
           {/* Clear list filters */}
           {activeFiltersCount > 0 && (
             <button
@@ -2151,7 +2207,9 @@ export default function ProjectsDashboardPage() {
             onChange={(e) => setSortBy(e.target.value)}
             className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 sm:flex-none"
           >
-            <option value="rank">Price Short</option>
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="rank">Display rank</option>
 
             <optgroup label="Low Budget">
               <option value="0-1L">₹0 - ₹1L</option>

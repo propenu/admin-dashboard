@@ -1,8 +1,8 @@
 import { Navigate, Outlet } from "react-router-dom";
-import Cookies from "js-cookie";
+import { getAuthToken } from "../utils/authToken";
 
 const PublicRoute = () => {
-  const token = Cookies.get("token");
+  const token = getAuthToken();
 
   // If already logged in → redirect to dashboard
   if (token) {
