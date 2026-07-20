@@ -33,6 +33,11 @@ const DashboardRouter = ({ role, permissions = [] }) => {
         ? <OperationsDashboard />
         : <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-amber-900">This role does not include dashboard access.</div>;
 
+    case "business_development_head":
+      return permissions.includes("dashboard:view")
+        ? <OperationsDashboard businessDevelopmentMode />
+        : <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-amber-900">This role does not include dashboard access.</div>;
+
     default:
       return permissions.includes("dashboard:view")
         ? <AdminDashboard />

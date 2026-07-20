@@ -193,6 +193,9 @@ export const getAllProjectsAnalytics = (params = {}) => {
   if (params.state) query.set("state", params.state);
   if (params.city) query.set("city", params.city);
   if (params.locality) query.set("locality", params.locality);
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  if (params.creatorIds) query.set("creatorIds", params.creatorIds);
   const qs = query.toString();
   return apiClient.get(
     `${SERVICES.PROPERTY}/analytics/project${qs ? `?${qs}` : ""}`,
@@ -205,6 +208,9 @@ export const getAllPropertiesAnalytics = (params = {}) => {
   if (params.state) query.set("state", params.state);
   if (params.city) query.set("city", params.city);
   if (params.locality) query.set("locality", params.locality);
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  if (params.creatorIds) query.set("creatorIds", params.creatorIds);
   const qs = query.toString();
   return apiClient.get(
     `${SERVICES.PROPERTY}/analytics/properties${qs ? `?${qs}` : ""}`,

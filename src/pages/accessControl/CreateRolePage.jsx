@@ -26,6 +26,8 @@ export default function CreateRolePage() {
   const [deleting, setDeleting] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [parentRoles, setParentRoles] = useState([]);
+  const [parentRoleId, setParentRoleId] = useState("");
 
   useEffect(() => {
     fetchLoggedInUser()
@@ -87,13 +89,14 @@ export default function CreateRolePage() {
   const selectedDeleteRole = roles.find((item) => item._id === deleteRoleId);
 
   useEffect(() => {
-    const requests = [getPermissionCatalog()];
+    const requests = [getPermissionCatalog(), getAccessRoles()];
     if (roleId) requests.push(getAccessRole(roleId));
 
     Promise.all(requests)
-      .then(([catalogResult, roleResult]) => {
+      .then(([catalogResult, rolesResult, roleResult]) => {
         const items = catalogResult.modules || [];
         setModules(items || []);
+        setParentRoles((rolesResult.roles || []).filter((role) => role.isActive !== false && !["user", "builder", "builder_staff", "agent"].includes(role.name)));
         if (roleResult?.role) {
           setName(roleResult.role.name || "");
           setLabel(roleResult.role.label || "");
@@ -141,7 +144,7 @@ export default function CreateRolePage() {
         toast.success(`${label} permissions updated`);
         navigate("/propenu-team-members");
       } else {
-        const result = await createAccessRole({ name, label, permissions: [...selected] });
+        const result = await createAccessRole({ name, label, parentRoleId: parentRoleId || null, permissions: [...selected] });
         toast.success(`${result.role.label} role created`);
         navigate("/access-control/credentials/new", { state: { roleName: result.role.name } });
       }
@@ -187,6 +190,12 @@ export default function CreateRolePage() {
             <input disabled={isEditing} value={label} onChange={(e) => { setLabel(e.target.value); if (!name) setName(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "_")); }} placeholder="Property Reviewer" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100" />
             <label className="mt-5 block text-xs font-bold uppercase tracking-wider text-slate-500">Role key</label>
             <input disabled={isEditing} value={name} onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} placeholder="property_reviewer" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100" />
+            <label className="mt-5 block text-xs font-bold uppercase tracking-wider text-slate-500">Parent role</label>
+            <select value={parentRoleId} onChange={(event) => setParentRoleId(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100">
+              <option value="">No parent / top-level role</option>
+              {parentRoles.map((role) => <option key={role._id} value={role._id}>{role.label} ({role.name})</option>)}
+            </select>
+            <p className="mt-2 text-[11px] leading-4 text-slate-500">Defines where this role sits in the organisation hierarchy. Example: Business Development Head → Operations Head.</p>
             <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
               <div className="mb-1 flex items-center gap-2 font-bold"><LockKeyhole size={15} /> Safe by design</div>
               {isEditing ? "Saving here updates this role. Every team member assigned to the same role receives the updated permissions." : "This creates a custom Admin Dashboard role. User, Builder, Agent and Builder Staff account workflows are not changed."}

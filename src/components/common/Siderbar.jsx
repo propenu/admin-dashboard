@@ -856,6 +856,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           ],
         },
       ],
+      business_development_head: getPermissionMenu(user?.permissions || []),
       digital_marketing: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },

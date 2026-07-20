@@ -221,8 +221,8 @@ const CreateCredentialPage = lazy(() =>
 const UserPermissionsPage = lazy(() =>
   import("./pages/accessControl/UserPermissionsPage")
 );
-const OperationsDashboard = lazy(() =>
-  import("./pages/Dashboards/OperationsDashboard")
+const OperationsReportsPage = lazy(() =>
+  import("./pages/Dashboards/OperationsReportsPage")
 );
 
 
@@ -251,7 +251,7 @@ function App() {
               <Route element={<Layout />}>
                 {/* Admin Dashboard */}
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/operations/reports" element={<PermissionRoute permission="dashboard:view_reports"><OperationsDashboard reportMode /></PermissionRoute>} />
+                <Route path="/operations/reports" element={<PermissionRoute permission="dashboard:view_reports"><OperationsReportsPage /></PermissionRoute>} />
 
                 {/* Projects */}
 
@@ -313,7 +313,7 @@ function App() {
                 <Route path="/users" element={<Partners />} />
                 <Route path="/propenu-team-members" element={<PermissionRoute anyPermissions={["team:view", "user:view"]}><PropenuTeamMembers /></PermissionRoute>} />
 
-                <Route path="/locations" element={<Locations />} />
+                <Route path="/locations" element={<PermissionRoute permission="location:view"><Locations /></PermissionRoute>} />
 
                 <Route path="accounts" element={<PermissionRoute permission="user:view"><Accounts /></PermissionRoute>} />
                 <Route path="customercare" element={<PermissionRoute permission="user:view"><CustomerCare /></PermissionRoute>} />
@@ -473,7 +473,7 @@ function App() {
 
                 {/* Blogs */}
                 <Route path="/blogs" element={<Blogs />} />
-                <Route path="/tickets" element={<TicketDashboard />} />
+                <Route path="/tickets" element={<PermissionRoute permission="ticket:view"><TicketDashboard /></PermissionRoute>} />
                 <Route path="/leads" element={<PermissionRoute permission="lead:view"><LeadManagement /></PermissionRoute>} />
                 <Route path="/access-control/roles/:roleId/permissions" element={<PermissionRoute permission="role:view"><CreateRolePage /></PermissionRoute>} />
                 <Route path="/access-control/roles/new" element={<PermissionRoute permission="role:create"><CreateRolePage /></PermissionRoute>} />
