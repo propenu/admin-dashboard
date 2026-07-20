@@ -20,6 +20,15 @@ export const createAccessRole = async (payload) =>
 export const getAccessRole = async (roleId) =>
   (await apiClient.get(`${ROLES}/${roleId}`)).data;
 
+export const getAccessRoles = async () =>
+  (await apiClient.get(ROLES)).data;
+
+export const deleteAccessRole = async (roleId) =>
+  (await apiClient.delete(`${ROLES}/${roleId}`)).data;
+
+export const updateAccessRoleStatus = async (roleId, isActive) =>
+  (await apiClient.patch(`${ROLES}/${roleId}/status`, { isActive })).data;
+
 export const updateAccessRolePermissions = async (roleId, permissions) =>
   (await apiClient.patch(`${ROLES}/${roleId}/permissions`, { permissions })).data;
 
