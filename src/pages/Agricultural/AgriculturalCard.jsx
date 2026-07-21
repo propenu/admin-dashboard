@@ -10,7 +10,7 @@ import { saveAs } from "file-saver";
 import {
   getPropertyCreatorTag,
   isAgentCreatedProperty,
-} from "../../Utils/propertyCreatorRole";
+} from "../../utils/propertyCreatorRole";
 import { actions } from "../../store/newIndex";
 
 import {

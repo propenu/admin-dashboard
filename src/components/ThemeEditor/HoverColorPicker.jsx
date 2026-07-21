@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { HexColorPicker } from "react-colorful";
 import { Check, X, Copy, Sparkles } from "lucide-react";
-import { getContrastTextColor } from "../../Utils/colorUtils";
+import { getContrastTextColor } from "../../utils/colorUtils";
 
 export default function HoverColorPicker({
   position,

@@ -1,7 +1,7 @@
 // pages/locations/LocationsPage.jsx
 import { useState } from "react";
 //import { State, City } from "country-state-city";
-import { INDIAN_STATES, getCitiesByState } from "../../Utils/countryStateCity";
+import { INDIAN_STATES, getCitiesByState } from "../../utils/countryStateCity";
 
 import useLocations from "./hooks/useLocations";
 import { buildPayload, groupByState, getPopularCities } from "./utils/locationHelpers";

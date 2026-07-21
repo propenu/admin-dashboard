@@ -13,7 +13,7 @@ import StepPropertyDetails from "./steps/StepPropertyDetails";
 import StepVerifyPublish from "./steps/StepVerifyPublish";
 import { getPropertyById } from "../../../services/Common/AllPropertyServices";
 import { setActiveCategory } from "../../../store/Ui/uiSlice";
-import { isAgentCreatedProperty } from "../../../Utils/propertyCreatorRole";
+import { isAgentCreatedProperty } from "../../../utils/propertyCreatorRole";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // cleanData — strips empty values, resolves createdBy._id, preserves File/Date

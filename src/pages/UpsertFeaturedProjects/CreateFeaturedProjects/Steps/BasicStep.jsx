@@ -9,7 +9,7 @@ import {
 } from "react";
 
 //import { State, City } from "country-state-city";
-import { INDIAN_STATES, getCitiesByState } from "../../../../Utils/countryStateCity";
+import { INDIAN_STATES, getCitiesByState } from "../../../../utils/countryStateCity";
 
 /* ─── data ──────────────────────────────────────────────────────── */
 
