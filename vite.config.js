@@ -14,6 +14,10 @@ export default defineConfig({
   base: "/",
 
   build: {
+    // Use a dedicated output directory. The legacy `dist` directory can be
+    // held open by a local preview/static server on Windows, which prevents
+    // Vite from cleaning it and causes EPERM build failures.
+    outDir: "build",
     rollupOptions: {
       output: {
         manualChunks: {

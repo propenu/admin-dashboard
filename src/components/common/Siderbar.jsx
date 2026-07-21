@@ -301,7 +301,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       canView("project") && { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
       propertyAccess && { path: "/properties", label: "Properties", icon: PropertiesIcon },
       canView("lead") && { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
-      (canView("lead") || canView("user") || canView("builder") || canView("agent")) && { path: "/lead-capture", label: "Lead Capture", icon: SalesManagerIcon },
+      (canView("lead") || canView("user") || canView("builder") || canView("agent")) && { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
       (canView("project") || propertyAccess) && { path: "/property-progress", label: "Property Progress", icon: PropertyProgressIcon },
       canView("location") && { path: "/locations", label: "Locations", icon: LocationsIcon },
       canView("blog") && { path: "/blogs", label: "Blogs", icon: mailnotifications },
@@ -329,7 +329,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
-        { path: "/lead-capture", label: "Lead Capture", icon: SalesManagerIcon },
+        { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -506,7 +506,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
-        { path: "/lead-capture", label: "Lead Capture", icon: SalesManagerIcon },
+        { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
