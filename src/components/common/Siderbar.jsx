@@ -215,6 +215,10 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
   const [user,       setUser]       = useState(null);
   const [openMenus,  setOpenMenus]  = useState({});
   const [hoveredKey, setHoveredKey] = useState(null);
+  const [liveCounts, setLiveCounts] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem("propenu:sidebar-counts") || "{}"); }
+    catch { return {}; }
+  });
 
   const isActiveRoute       = (path) => location.pathname === path;
   const hasActiveDescendant = (item) => {
@@ -240,6 +244,12 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       window.removeEventListener("focus", refreshUser);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
+  }, []);
+
+  useEffect(() => {
+    const updateCounts = (event) => setLiveCounts(event.detail || {});
+    window.addEventListener("propenu:sidebar-counts", updateCounts);
+    return () => window.removeEventListener("propenu:sidebar-counts", updateCounts);
   }, []);
 
   useEffect(() => {
@@ -291,6 +301,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       canView("project") && { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
       propertyAccess && { path: "/properties", label: "Properties", icon: PropertiesIcon },
       canView("lead") && { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
+      (canView("lead") || canView("user") || canView("builder") || canView("agent")) && { path: "/lead-capture", label: "Lead Capture", icon: SalesManagerIcon },
       (canView("project") || propertyAccess) && { path: "/property-progress", label: "Property Progress", icon: PropertyProgressIcon },
       canView("location") && { path: "/locations", label: "Locations", icon: LocationsIcon },
       canView("blog") && { path: "/blogs", label: "Blogs", icon: mailnotifications },
@@ -318,6 +329,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
+        { path: "/lead-capture", label: "Lead Capture", icon: SalesManagerIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -494,6 +506,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
+        { path: "/lead-capture", label: "Lead Capture", icon: SalesManagerIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -872,6 +885,13 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
 
   const menuItems = user ? getMenuByRole(user.roleName) : [];
   const showText  = expanded || isMobileOpen;
+  const sidebarBadge = (item) => {
+    if (user?.roleName !== "business_development_head") return null;
+    if (item.path === "/projects") return { primary: liveCounts.projectsToday || 0, secondary: liveCounts.activeProjects || 0, title: "today / active" };
+    if (item.path === "/properties") return { primary: liveCounts.propertiesToday || 0, title: "posted today" };
+    if (item.path === "/tickets") return { primary: liveCounts.ticketsToday || 0, title: "today" };
+    return null;
+  };
 
   return (
     <>
@@ -934,7 +954,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                       onClick={() => toggleMenu(item.key)}
                       //onMouseEnter={() => !showText && setHoveredKey(item.key)}
                       //onMouseLeave={() => setHoveredKey(null)}
-                      className={`w-full flex items-center ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-all duration-150 relative ${showText ? "justify-between" : "justify-center"}`}
+                      className={`min-h-8 w-full flex items-center ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-all duration-150 relative ${showText ? "justify-between" : "justify-center"}`}
                       style={
                         parentActive
                           ? { background: "#f0fdf4", color: "#27AE60" }
@@ -956,10 +976,10 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                         />
                       )}
 
-                      <div className={`flex items-center ${S.rowGap} min-w-0`}>
+                      <div className={`flex min-w-0 flex-1 items-center ${S.rowGap}`}>
                         <NavIcon src={item.icon} active={parentActive} isParent />
                         {showText && (
-                          <span className={`${S.rowText} ${S.rowFont} truncate pb-0.5`}>
+                          <span className={`${S.rowText} ${S.rowFont} truncate pb-0.5 text-left`}>
                             {item.label}
                           </span>
                         )}
@@ -1062,13 +1082,14 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
 
             /* ── Top-level leaf ── */
             const leafActive = isActiveRoute(item.path);
+            const badge = sidebarBadge(item);
             return (
               <div key={item.path} className="relative">
                 <button
                   onClick={() => navigate(item.path)}
                   // onMouseEnter={() => !showText && setHoveredKey(item.path)}
                   // onMouseLeave={() => setHoveredKey(null)}
-                  className={`w-full flex items-center ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-all duration-150 ${showText ? "justify-start" : "justify-center"}`}
+                  className={`relative min-h-8 w-full flex items-center ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-all duration-150 ${showText ? "justify-start" : "justify-center"}`}
                   style={
                     leafActive
                       ? {
@@ -1096,12 +1117,12 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                   <NavIcon src={item.icon} active={leafActive} />
                   {showText && (
                     // <span className={`${S.rowText} ${S.rowFont} truncate leading-none`}>
-                    <span
-                      className={`${S.rowText} ${S.rowFont} truncate leading-[1.3] p-[2px]`}
-                    >
+                    <span className={`${S.rowText} ${S.rowFont} min-w-0 flex-1 truncate p-[2px] text-left leading-[1.3]`}>
                       {item.label}
                     </span>
                   )}
+                  {showText && badge && <span title={badge.title} className={`ml-auto flex min-w-5 shrink-0 items-center justify-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black tabular-nums ${leafActive ? "border-white/25 bg-white/20 text-white" : "border-emerald-100 bg-emerald-50 text-emerald-700"}`}><b>{badge.primary}</b>{badge.secondary !== undefined && <em className="not-italic opacity-65">/ {badge.secondary}</em>}</span>}
+                  {!showText && badge && Number(badge.primary) > 0 && <span className="absolute right-0.5 top-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-rose-500 px-0.5 text-[7px] font-black text-white">{badge.primary > 99 ? "99+" : badge.primary}</span>}
                 </button>
 
                 {!showText && (

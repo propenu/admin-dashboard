@@ -369,3 +369,187 @@ body{
   border-color: #10b981;
   box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
 }
+@media (min-width: 1024px) {
+  .bd-overview > header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .bd-overview > section:nth-of-type(1) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .bd-overview > section:nth-of-type(2),
+  .bd-overview > section:nth-of-type(3) {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .bd-overview > section:nth-of-type(2) > * {
+    grid-column: span 4 / span 4;
+  }
+
+  .bd-overview > section:nth-of-type(3) > :nth-child(1) {
+    grid-column: span 4 / span 4;
+  }
+
+  .bd-overview > section:nth-of-type(3) > :nth-child(2) {
+    grid-column: span 3 / span 3;
+  }
+
+  .bd-overview > section:nth-of-type(3) > :nth-child(3) {
+    grid-column: span 5 / span 5;
+  }
+}
+
+/* Business overview: paired analytics on the left, compact daily rail right. */
+@media (min-width: 1024px) {
+  .bd-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 230px;
+    gap: 0.75rem;
+  }
+
+  .bd-overview > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0;
+  }
+
+  .bd-overview > header,
+  .bd-overview > section:nth-of-type(1) {
+    grid-column: 1 / -1;
+  }
+
+  .bd-overview > header { grid-row: 1; }
+  .bd-overview > section:nth-of-type(1) { grid-row: 2; }
+
+  .bd-overview > section:nth-of-type(2),
+  .bd-overview > section:nth-of-type(3) {
+    display: contents;
+  }
+
+  .bd-overview > section:nth-of-type(2) > :nth-child(1) { grid-column: 1; grid-row: 3; }
+  .bd-overview > section:nth-of-type(2) > :nth-child(2) { grid-column: 2; grid-row: 3; }
+  .bd-overview > section:nth-of-type(2) > :nth-child(3) { grid-column: 1; grid-row: 4; }
+  .bd-overview > section:nth-of-type(3) > :nth-child(1) { grid-column: 2; grid-row: 4; }
+  .bd-overview > section:nth-of-type(3) > :nth-child(2) { grid-column: 1; grid-row: 5; }
+  .bd-overview > section:nth-of-type(3) > :nth-child(3) { grid-column: 2; grid-row: 5; }
+
+  .bd-overview > .bd-today-slot {
+    grid-column: 3;
+    grid-row: 3 / span 3;
+    align-self: start;
+    position: sticky;
+    top: 0.75rem;
+  }
+
+  .bd-today-slot aside {
+    max-width: none;
+  }
+
+  .bd-today-slot aside > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bd-today-slot aside > div > div {
+    min-height: 48px;
+    border-right: 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .bd-today-slot aside > div > div:first-child {
+    min-height: 54px;
+  }
+
+  .bd-today-slot aside > div > div:last-child {
+    border-bottom: 0;
+  }
+}
+
+/* Dense, viewport-first Business Development report workspace. */
+.bd-reports {
+  display: flex;
+  flex-direction: column;
+}
+
+.bd-reports > header { order: 1; }
+.bd-reports > form { order: 2; }
+.bd-reports > div { order: 3; }
+.bd-reports > section:nth-of-type(1) { order: 4; }
+.bd-reports > section:nth-of-type(2) { order: 5; }
+.bd-reports > section:nth-of-type(3) { order: 6; }
+.bd-reports > section:nth-of-type(n + 4) { order: 7; }
+
+.bd-reports > form {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+  padding: 0.45rem;
+}
+
+.bd-reports > form label span {
+  margin-bottom: 0.1rem;
+  font-size: 7px;
+}
+
+.bd-reports > form select,
+.bd-reports > form input,
+.bd-reports > form button {
+  height: 1.8rem;
+  font-size: 8px;
+}
+
+.bd-reports > section:first-of-type article {
+  min-height: 72px;
+  padding: 0.5rem 0.65rem;
+}
+
+.bd-reports > section:nth-of-type(2) > section {
+  grid-column: span 4 / span 4 !important;
+}
+
+.bd-reports > section:nth-of-type(3) > section {
+  grid-column: span 6 / span 6 !important;
+}
+
+.bd-reports > section:first-of-type article p:nth-child(2) {
+  font-size: 1rem;
+  line-height: 1.15rem;
+}
+
+.bd-reports .h-52 {
+  height: 155px !important;
+}
+
+.bd-reports section table th,
+.bd-reports section table td {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+
+.bd-reports .max-h-\[360px\] {
+  max-height: 145px !important;
+}
+
+.bd-reports .relative.overflow-x-auto {
+  max-height: 150px;
+  overflow: auto;
+}
+
+.bd-reports .relative.overflow-x-auto thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.bd-reports > section + section {
+  min-height: 0;
+}
+
+.bd-reports > section + section > section {
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .bd-reports {
+    zoom: 0.9;
+  }
+}

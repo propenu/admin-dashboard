@@ -210,6 +210,7 @@ const TicketDashboard = lazy(() =>
   import("./pages/Tickets/TicketDashboard")
 );
 const LeadManagement = lazy(() => import("./pages/Leads/LeadManagement"));
+const LeadCaptureAnalytics = lazy(() => import("./pages/Leads/LeadCaptureAnalytics"));
 
 const CreateRolePage = lazy(() =>
   import("./pages/accessControl/CreateRolePage")
@@ -475,6 +476,7 @@ function App() {
                 <Route path="/blogs" element={<Blogs />} />
                 <Route path="/tickets" element={<PermissionRoute permission="ticket:view"><TicketDashboard /></PermissionRoute>} />
                 <Route path="/leads" element={<PermissionRoute permission="lead:view"><LeadManagement /></PermissionRoute>} />
+                <Route path="/lead-capture" element={<PermissionRoute anyPermissions={["lead:view", "user:view", "builder:view", "agent:view"]}><LeadCaptureAnalytics /></PermissionRoute>} />
                 <Route path="/access-control/roles/:roleId/permissions" element={<PermissionRoute permission="role:view"><CreateRolePage /></PermissionRoute>} />
                 <Route path="/access-control/roles/new" element={<PermissionRoute permission="role:create"><CreateRolePage /></PermissionRoute>} />
                 <Route path="/access-control/credentials/new" element={<PermissionRoute permission="user:create"><CreateCredentialPage /></PermissionRoute>} />
