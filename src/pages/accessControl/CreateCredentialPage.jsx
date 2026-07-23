@@ -109,6 +109,16 @@ const ROLE_HIERARCHY = [
   ["technical_support_head", 2], ["technical_support_team", 3],
 ];
 const normalizeRole = (value = "") => String(value).toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+const ROLE_DISPLAY_LABELS = {
+  team_lead: "Customer Support Team Leads",
+  team_leads: "Customer Support Team Leads",
+  customer_support_team_lead: "Customer Support Team Leads",
+  customer_care_executive: "Customer Care Executives",
+  customer_care_executives: "Customer Care Executives",
+  relationship_manager: "Relationship Managers",
+  relationship_managers: "Relationship Managers",
+};
+const roleDisplayLabel = (role) => ROLE_DISPLAY_LABELS[normalizeRole(role?.name)] || role?.label;
 const ROLE_ALIASES = {
   operation_head: "operations_head", ceo_founders: "ceo", regional_managers: "regional_manager",
   sales_executives: "sales_executive", team_leads: "team_lead", customer_care_executives: "customer_care_executive",
@@ -143,12 +153,12 @@ function RoleSelect({ roles, users, value, onChange }) {
     <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">Dashboard role</span>
     <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className={`flex w-full items-center gap-3 rounded-xl border bg-white px-4 py-3 text-left outline-none transition ${open ? "border-emerald-500 ring-4 ring-emerald-100" : "border-slate-200 hover:border-slate-300"}`}>
       <ShieldCheck className="shrink-0 text-slate-400" size={18} />
-      <span className={`min-w-0 flex-1 truncate text-sm ${selected ? "font-semibold text-slate-900" : "text-slate-400"}`}>{selected?.label || "Select an existing active role"}</span>
+      <span className={`min-w-0 flex-1 truncate text-sm ${selected ? "font-semibold text-slate-900" : "text-slate-400"}`}>{roleDisplayLabel(selected) || "Select an existing active role"}</span>
       <ChevronDown className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} size={18} />
     </button>
     {open && <div className="absolute left-0 right-0 top-[calc(100%+8px)] max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
       <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Organisation hierarchy</div>
-      {orderedRoles.length ? orderedRoles.map((role) => { const members = membersFor(role); return <button key={role._id} type="button" onClick={() => { onChange(role.name); setOpen(false); }} style={{ paddingLeft: `${12 + role.hierarchy.depth * 20}px` }} className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${value === role.name ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="text-slate-300">{role.hierarchy.depth ? "└" : ""}</span><span className="min-w-0 flex-1 truncate">{role.label}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{members.length}</span>{value === role.name && <Check className="shrink-0 text-emerald-600" size={16} />}</button>; }) : <div className="px-3 py-5 text-center text-sm text-slate-500">No active dashboard roles found</div>}
+      {orderedRoles.length ? orderedRoles.map((role) => { const members = membersFor(role); return <button key={role._id} type="button" onClick={() => { onChange(role.name); setOpen(false); }} style={{ paddingLeft: `${12 + role.hierarchy.depth * 20}px` }} className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${value === role.name ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="text-slate-300">{role.hierarchy.depth ? "└" : ""}</span><span className="min-w-0 flex-1 truncate">{roleDisplayLabel(role) || role.label}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{members.length}</span>{value === role.name && <Check className="shrink-0 text-emerald-600" size={16} />}</button>; }) : <div className="px-3 py-5 text-center text-sm text-slate-500">No active dashboard roles found</div>}
     </div>}
     {selected && <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-xs font-bold text-slate-700"><UsersRound size={15} className="text-emerald-600" /> People assigned to {selected.label}</span><span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-500">{selectedMembers.length}</span></div>{selectedMembers.length ? <div className="mt-2 flex max-h-24 flex-wrap gap-2 overflow-y-auto">{selectedMembers.map((user) => <span key={user._id} title={user.email || user.phone} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700">{user.name || user.email || "Unnamed user"}</span>)}</div> : <p className="mt-2 text-[11px] text-slate-400">No users are currently assigned to this role.</p>}</div>}
   </div>;

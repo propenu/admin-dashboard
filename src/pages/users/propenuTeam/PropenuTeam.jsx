@@ -4,6 +4,16 @@ import { useUsers } from "./hook/useUserData";
 import { getTeamDirectoryRoles } from "../../../features/accessControl/accessControlService";
 
 const cleanRole = (value = "") => String(value).replace(/_/g, " ");
+const TEAM_ROLE_LABELS = {
+  team_lead: "Customer Support Team Leads",
+  team_leads: "Customer Support Team Leads",
+  customer_support_team_lead: "Customer Support Team Leads",
+  customer_care_executive: "Customer Care Executives",
+  customer_care_executives: "Customer Care Executives",
+  relationship_manager: "Relationship Managers",
+  relationship_managers: "Relationship Managers",
+};
+const teamRoleLabel = (role) => TEAM_ROLE_LABELS[String(role?.name || "").toLowerCase()] || role?.label || cleanRole(role?.name);
 const unique = (items) => [...new Set(items.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
 
 export default function PropenuTeam() {
@@ -133,13 +143,13 @@ function HierarchyRoleSelect({ roles, users, value, onChange }) {
     <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Role</span>
     <button type="button" onClick={() => setOpen((current) => !current)} className={`flex w-full items-center gap-2 rounded-lg border bg-white px-3 py-2 text-left text-xs font-semibold outline-none transition ${open ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200"}`}>
       <ShieldCheck size={15} className="shrink-0 text-slate-400" />
-      <span className="min-w-0 flex-1 truncate">{selected?.label || "All roles"}</span>
+      <span className="min-w-0 flex-1 truncate">{selected ? teamRoleLabel(selected) : "All roles"}</span>
       <ChevronDown size={15} className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
     </button>
     {open && <div className="absolute left-0 top-[calc(100%+6px)] z-50 max-h-80 min-w-[300px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
       <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Organisation hierarchy</div>
       <button type="button" onClick={() => { onChange(""); setOpen(false); }} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm ${!value ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="min-w-0 flex-1">All roles</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{users.length}</span>{!value && <Check size={15} className="text-emerald-600" />}</button>
-      {ordered.map((role) => <button key={role._id || role.name} type="button" onClick={() => { onChange(role.name); setOpen(false); }} style={{ paddingLeft: `${12 + role.hierarchyDepth * 20}px` }} className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${value === role.name ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="text-slate-300">{role.hierarchyDepth ? "└" : ""}</span><span className="min-w-0 flex-1 truncate">{role.label || cleanRole(role.name)}{role.isCurrentRole ? " (You)" : ""}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{memberCount(role)}</span>{value === role.name && <Check size={15} className="shrink-0 text-emerald-600" />}</button>)}
+      {ordered.map((role) => <button key={role._id || role.name} type="button" onClick={() => { onChange(role.name); setOpen(false); }} style={{ paddingLeft: `${12 + role.hierarchyDepth * 20}px` }} className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${value === role.name ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="text-slate-300">{role.hierarchyDepth ? "└" : ""}</span><span className="min-w-0 flex-1 truncate">{teamRoleLabel(role)}{role.isCurrentRole ? " (You)" : ""}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{memberCount(role)}</span>{value === role.name && <Check size={15} className="shrink-0 text-emerald-600" />}</button>)}
     </div>}
   </div>;
 }

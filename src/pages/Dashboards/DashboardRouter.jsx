@@ -6,6 +6,7 @@ import SalesAgentDashboard from "./SalesAgentDashboard";
 import AccountsDashboard from "./AccountsDashboard";
 import DigitalMarket from "./DigitalMarket";
 import OperationsDashboard from "./OperationsDashboard";
+import RegionalManagerDashboard from "./RegionalManagerDashboard";
 
 const DashboardRouter = ({ role, permissions = [] }) => {
   if (!permissions.includes("dashboard:view")) {
@@ -37,6 +38,9 @@ const DashboardRouter = ({ role, permissions = [] }) => {
 
     case "business_development_head":
       return <OperationsDashboard businessDevelopmentMode />;
+
+    case "regional_manager":
+      return <RegionalManagerDashboard />;
 
     default:
       return <AdminDashboard />;
