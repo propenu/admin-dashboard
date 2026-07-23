@@ -1,8 +1,8 @@
 import { Search, TicketPlus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import imageCompression from "browser-image-compression";
-import { getRequesterRelatedAssets, searchTicketRequesters } from "../../../../features/ticket/ticket_system";
-import { TICKET_ASSIGNABLE_ROLES, TICKET_CATEGORY_OPTIONS, TICKET_PRIORITIES, TICKET_SOURCES } from "../../constants/ticketOptions";
+import { getRequesterRelatedAssets, getTicketAssigneeRoleOptions, searchTicketAssignees, searchTicketRequesters } from "../../../../features/ticket/ticket_system";
+import { TICKET_CATEGORY_OPTIONS, TICKET_PRIORITIES, TICKET_SOURCES } from "../../constants/ticketOptions";
 import { formatLabel } from "../../utils/ticketFormatters";
 import { ghostButton, primaryButton } from "../ticketUi";
 
@@ -23,31 +23,13 @@ const initialForm = {
 const MAX_SOURCE_IMAGE_BYTES = 1024 * 1024;
 const MAX_ATTACHMENT_PAYLOAD_BYTES = 60 * 1024;
 const MAX_TICKET_PAYLOAD_BYTES = 90 * 1024;
-
-const requesterRoles = [
+const REQUESTER_TYPE_OPTIONS = [
   { label: "All", value: "all" },
   { label: "Users", value: "user" },
-  { label: "Builders", value: "builder" },
   { label: "Agents", value: "agent" },
+  { label: "Builders", value: "builder" },
+  { label: "Builder Staff", value: "builder_staff" },
 ];
-
-const REQUESTER_ROLE_ALIASES = new Set([
-  "user",
-  "owner",
-  "buyer",
-  "tenant",
-  "propenu_user",
-  "builder",
-  "agent",
-]);
-
-const isAllowedRequester = (user) => {
-  const role = String(user?.role || user?.roleName || user?.roleId?.name || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-  return REQUESTER_ROLE_ALIASES.has(role);
-};
 
 export default function TicketCreateModal({
   open,
@@ -64,6 +46,7 @@ export default function TicketCreateModal({
   const [requesterResults, setRequesterResults] = useState([]);
   const [requesterLoading, setRequesterLoading] = useState(false);
   const [selectedRequester, setSelectedRequester] = useState(null);
+  const [roleOptions, setRoleOptions] = useState([{ label: "All Roles", value: "all" }]);
   const [relatedAssets, setRelatedAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [selectedAssetId, setSelectedAssetId] = useState("");
@@ -80,6 +63,29 @@ export default function TicketCreateModal({
     [categories],
   );
 
+  useEffect(() => {
+    if (!open) return undefined;
+
+    let active = true;
+
+    const loadRoleOptions = async () => {
+      try {
+        const options = await getTicketAssigneeRoleOptions();
+        if (active) setRoleOptions(options);
+      } catch (_error) {
+        if (active) {
+          setRoleOptions([{ label: "All Roles", value: "all" }]);
+        }
+      }
+    };
+
+    loadRoleOptions();
+
+    return () => {
+      active = false;
+    };
+  }, [open]);
+
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
   useEffect(() => {
@@ -94,20 +100,16 @@ export default function TicketCreateModal({
     const timer = window.setTimeout(async () => {
       setRequesterLoading(true);
       try {
-        const roles = requesterRole === "all" ? ["user", "builder", "agent"] : [requesterRole];
-        const requesterGroups = await Promise.all(
-          roles.map((role) =>
-            searchTicketRequesters({
-              query: requesterQuery.trim(),
-              role,
-              limit: 30,
-            }),
-          ),
-        );
+        const requesterGroups = await Promise.all([
+          searchTicketRequesters({
+            query: requesterQuery.trim(),
+            role: requesterRole,
+            limit: 30,
+          }),
+        ]);
         const seenRequesterIds = new Set();
         const users = requesterGroups
           .flat()
-          .filter(isAllowedRequester)
           .filter((user) => {
             const id = user?.userId || user?._id || user?.id || `${user?.email || ""}:${user?.phone || ""}`;
             if (seenRequesterIds.has(id)) return false;
@@ -163,7 +165,7 @@ export default function TicketCreateModal({
     const timer = window.setTimeout(async () => {
       setAssigneeLoading(true);
       try {
-        const users = await searchTicketRequesters({
+        const users = await searchTicketAssignees({
           query: assigneeQuery.trim(),
           role: assigneeRole,
           limit: 20,
@@ -203,8 +205,8 @@ export default function TicketCreateModal({
   };
 
   const selectedAsset = relatedAssets.find((item) => item._id === selectedAssetId);
-  const visibleRequesterResults = requesterResults.filter(isAllowedRequester);
-  const visibleAssigneeResults = assigneeResults.filter((user) => !isAllowedRequester(user));
+  const visibleRequesterResults = requesterResults;
+  const visibleAssigneeResults = assigneeResults;
 
   if (!open) return null;
 
@@ -344,7 +346,7 @@ export default function TicketCreateModal({
             <div className="mb-3">
               <p className="text-[14px] font-semibold text-slate-900">Requester Details</p>
               <p className="mt-1 text-[12px] font-normal text-slate-500">
-                Only users, builders, and agents are shown. Select one to auto-fill the fields, or enter details manually.
+                Search across all roles returned by the API. Select one to auto-fill the fields, or enter details manually.
               </p>
             </div>
             <div className="grid gap-2 md:grid-cols-[1fr_140px]">
@@ -364,7 +366,7 @@ export default function TicketCreateModal({
               </Field>
               <Field label="Requester Type">
                 <select value={requesterRole} onChange={(event) => setRequesterRole(event.target.value)} className="ticket-input">
-                  {requesterRoles.map((role) => (
+                  {REQUESTER_TYPE_OPTIONS.map((role) => (
                     <option key={role.value} value={role.value}>
                       {role.label}
                     </option>
@@ -500,7 +502,7 @@ export default function TicketCreateModal({
                   }}
                   className="ticket-input"
                 >
-                  {TICKET_ASSIGNABLE_ROLES.map((role) => (
+                  {roleOptions.map((role) => (
                     <option key={role.value} value={role.value}>
                       {role.label}
                     </option>

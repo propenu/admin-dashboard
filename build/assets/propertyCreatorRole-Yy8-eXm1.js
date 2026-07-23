@@ -1,1 +1,0 @@
-const t=r=>{const e=r?.createdBy,n=e?.roleName||e?.role||e?.roleId?.name||e?.roleId?.roleName||"";return String(n).trim().toLowerCase()},o=r=>t(r).includes("agent"),a=r=>{const e=t(r);return e.includes("agent")?"Agent":e==="user"||e==="owner"?"User":e==="super_admin"?"Super Admin":e==="admin"?"Admin":e==="builder"?"Builder":e?e.replace(/_/g," "):"User"};export{a as g,o as i};

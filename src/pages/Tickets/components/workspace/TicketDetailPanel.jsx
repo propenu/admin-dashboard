@@ -1,7 +1,7 @@
 import { Activity, CalendarClock, Eye, Loader2, MessageSquare, Paperclip, Search, Send, UserRound, UserRoundCheck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { searchTicketRequesters } from "../../../../features/ticket/ticket_system";
-import { TICKET_ASSIGNABLE_ROLES, TICKET_PRIORITIES, TICKET_STATUSES, priorityTone, statusTone } from "../../constants/ticketOptions";
+import { getTicketAssigneeRoleOptions, searchTicketAssignees } from "../../../../features/ticket/ticket_system";
+import { TICKET_PRIORITIES, TICKET_STATUSES, priorityTone, statusTone } from "../../constants/ticketOptions";
 import { formatDateTime, formatDueDate, formatLabel } from "../../utils/ticketFormatters";
 import { ghostButton, primaryButton, ticketInput, ticketSurface } from "../ticketUi";
 
@@ -24,6 +24,7 @@ export default function TicketDetailPanel({
   const [assigneeQuery, setAssigneeQuery] = useState("");
   const [assigneeResults, setAssigneeResults] = useState([]);
   const [assigneeLoading, setAssigneeLoading] = useState(false);
+  const [assigneeRoleOptions, setAssigneeRoleOptions] = useState([{ label: "All Roles", value: "all" }]);
   const [commentAttachments, setCommentAttachments] = useState([]);
   const [showCommentAttachmentTools, setShowCommentAttachmentTools] = useState(false);
   const [commentAttachmentError, setCommentAttachmentError] = useState("");
@@ -58,6 +59,23 @@ export default function TicketDetailPanel({
 
   useEffect(() => {
     if (!canAssign) return undefined;
+    let active = true;
+
+    getTicketAssigneeRoleOptions()
+      .then((options) => {
+        if (active) setAssigneeRoleOptions(options);
+      })
+      .catch(() => {
+        if (active) setAssigneeRoleOptions([{ label: "All Roles", value: "all" }]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [canAssign]);
+
+  useEffect(() => {
+    if (!canAssign) return undefined;
     if (assigneeQuery.trim().length < 2) {
       setAssigneeResults([]);
       setAssigneeLoading(false);
@@ -67,7 +85,7 @@ export default function TicketDetailPanel({
     const timer = window.setTimeout(async () => {
       setAssigneeLoading(true);
       try {
-        const users = await searchTicketRequesters({
+        const users = await searchTicketAssignees({
           query: assigneeQuery.trim(),
           role: assigneeRole,
           limit: 20,
@@ -365,7 +383,7 @@ export default function TicketDetailPanel({
                   }}
                   className={`${ticketInput} w-full`}
                 >
-                  {TICKET_ASSIGNABLE_ROLES.map((role) => (
+                  {assigneeRoleOptions.map((role) => (
                     <option key={role.value} value={role.value}>
                       {role.label}
                     </option>

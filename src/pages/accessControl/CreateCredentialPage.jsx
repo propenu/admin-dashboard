@@ -33,9 +33,15 @@ export default function CreateCredentialPage() {
     if (!form.name.trim() || !/^\S+@\S+\.\S+$/.test(form.email) || !form.role) return toast.error("Complete name, email and select a role");
     if (!form.state || !form.city || !form.locality || !/^\d{6}$/.test(form.pincode)) return toast.error("Select a work location and enter a valid 6-digit pincode");
     setBusy(true);
-    try { await requestCredentialOtp(form.email); setStep(2); toast.success("Verification code sent"); }
-    catch (error) { toast.error(error.response?.data?.message || "Could not send code"); }
-    finally { setBusy(false); }
+    try {
+      await requestCredentialOtp(form.email);
+      setStep(2);
+      toast.success("Verification code sent");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not send code");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const verifyOtp = async (event) => {
@@ -48,8 +54,11 @@ export default function CreateCredentialPage() {
       setCreatedRole(result.role);
       setStep(3);
       toast.success("Email verified");
-    } catch (error) { toast.error(error.response?.data?.message || "Verification failed"); }
-    finally { setBusy(false); }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Verification failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const complete = async (event) => {
@@ -62,8 +71,11 @@ export default function CreateCredentialPage() {
       navigate(`/access-control/roles/${createdRole._id}/permissions`, {
         state: { createdUserName: form.name, roleLabel: createdRole.label },
       });
-    } catch (error) { toast.error(error.response?.data?.message || "Could not finish account setup"); }
-    finally { setBusy(false); }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not finish account setup");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -113,6 +125,8 @@ const ROLE_DISPLAY_LABELS = {
   team_lead: "Customer Support Team Leads",
   team_leads: "Customer Support Team Leads",
   customer_support_team_lead: "Customer Support Team Leads",
+  customer_support_team_leads: "Customer Support Team Leads",
+  customer_care: "Customer Care Executives",
   customer_care_executive: "Customer Care Executives",
   customer_care_executives: "Customer Care Executives",
   relationship_manager: "Relationship Managers",
@@ -121,15 +135,26 @@ const ROLE_DISPLAY_LABELS = {
 const roleDisplayLabel = (role) => ROLE_DISPLAY_LABELS[normalizeRole(role?.name)] || role?.label;
 const ROLE_ALIASES = {
   operation_head: "operations_head", ceo_founders: "ceo", regional_managers: "regional_manager",
-  sales_executives: "sales_executive", team_leads: "team_lead", customer_care_executives: "customer_care_executive",
+  sales_executives: "sales_executive", team_leads: "team_lead", customer_support_team_leads: "team_lead", customer_care: "customer_care_executive", customer_care_executives: "customer_care_executive",
   relationship_managers: "relationship_manager", accounts_and_finance: "accounts_finance",
 };
 const hierarchyRank = new Map(ROLE_HIERARCHY.map(([name, depth], index) => [name, { depth, index }]));
+const hierarchyParentByRole = new Map();
+ROLE_HIERARCHY.forEach(([name, depth], index) => {
+  if (!depth) return;
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (ROLE_HIERARCHY[cursor][1] === depth - 1) {
+      hierarchyParentByRole.set(name, ROLE_HIERARCHY[cursor][0]);
+      break;
+    }
+  }
+});
 
 function RoleSelect({ roles, users, value, onChange }) {
   const [open, setOpen] = useState(false);
   const selected = roles.find((role) => role.name === value);
   const rolesById = new Map(roles.map((role) => [String(role._id), role]));
+  const rolesByName = new Map(roles.map((role) => [normalizeRole(role.name), role]));
   const storedDepth = (role, visited = new Set()) => {
     const parentId = role?.parentRoleId?._id || role?.parentRoleId;
     if (!parentId || visited.has(String(parentId))) return 0;
@@ -138,17 +163,57 @@ function RoleSelect({ roles, users, value, onChange }) {
     visited.add(String(parentId));
     return 1 + storedDepth(parent, visited);
   };
-  const orderedRoles = [...roles].map((role) => {
+  const enrichedRoles = [...roles].map((role) => {
     const rawNameKey = normalizeRole(role.name);
     const rawLabelKey = normalizeRole(role.label);
     const nameKey = ROLE_ALIASES[rawNameKey] || rawNameKey;
     const labelKey = ROLE_ALIASES[rawLabelKey] || rawLabelKey.replace(/_and_/g, "_");
     const hierarchy = hierarchyRank.get(nameKey) || hierarchyRank.get(labelKey);
     const persistedDepth = storedDepth(role);
-    return { ...role, hierarchy: { depth: role.parentRoleId ? persistedDepth : hierarchy?.depth || 0, index: hierarchy?.index ?? 1000 } };
-  }).sort((first, second) => first.hierarchy.index - second.hierarchy.index || first.label.localeCompare(second.label));
+    const canonicalParentName = hierarchyParentByRole.get(nameKey) || hierarchyParentByRole.get(labelKey) || null;
+    const canonicalParentRole = canonicalParentName ? rolesByName.get(canonicalParentName) : null;
+    return {
+      ...role,
+      hierarchy: {
+        depth: role.parentRoleId ? persistedDepth : hierarchy?.depth || 0,
+        index: hierarchy?.index ?? 1000,
+        parentId: role?.parentRoleId?._id || role?.parentRoleId || canonicalParentRole?._id || null,
+      },
+    };
+  });
+  const childrenByParent = new Map();
+  enrichedRoles.forEach((role) => {
+    const key = role.hierarchy.parentId ? String(role.hierarchy.parentId) : "__root__";
+    const branch = childrenByParent.get(key) || [];
+    branch.push(role);
+    childrenByParent.set(key, branch);
+  });
+  const sortWithinLevel = (first, second) =>
+    first.hierarchy.index - second.hierarchy.index ||
+    String(roleDisplayLabel(first) || first.label).localeCompare(String(roleDisplayLabel(second) || second.label));
+  const orderedRoles = [];
+  const visitedRoleIds = new Set();
+  const appendBranch = (parentId = "__root__") => {
+    const branch = [...(childrenByParent.get(String(parentId)) || [])].sort(sortWithinLevel);
+    branch.forEach((role) => {
+      const roleId = String(role._id);
+      if (visitedRoleIds.has(roleId)) return;
+      visitedRoleIds.add(roleId);
+      orderedRoles.push(role);
+      appendBranch(roleId);
+    });
+  };
+  appendBranch("__root__");
+  enrichedRoles.sort(sortWithinLevel).forEach((role) => {
+    const roleId = String(role._id);
+    if (visitedRoleIds.has(roleId)) return;
+    visitedRoleIds.add(roleId);
+    orderedRoles.push(role);
+    appendBranch(roleId);
+  });
   const membersFor = (role) => users.filter((user) => String(user.roleId) === String(role._id) || user.roleName === role.name);
   const selectedMembers = selected ? membersFor(selected) : [];
+
   return <div className="relative z-30">
     <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">Dashboard role</span>
     <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className={`flex w-full items-center gap-3 rounded-xl border bg-white px-4 py-3 text-left outline-none transition ${open ? "border-emerald-500 ring-4 ring-emerald-100" : "border-slate-200 hover:border-slate-300"}`}>
@@ -158,11 +223,19 @@ function RoleSelect({ roles, users, value, onChange }) {
     </button>
     {open && <div className="absolute left-0 right-0 top-[calc(100%+8px)] max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
       <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Organisation hierarchy</div>
-      {orderedRoles.length ? orderedRoles.map((role) => { const members = membersFor(role); return <button key={role._id} type="button" onClick={() => { onChange(role.name); setOpen(false); }} style={{ paddingLeft: `${12 + role.hierarchy.depth * 20}px` }} className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${value === role.name ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="text-slate-300">{role.hierarchy.depth ? "└" : ""}</span><span className="min-w-0 flex-1 truncate">{roleDisplayLabel(role) || role.label}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{members.length}</span>{value === role.name && <Check className="shrink-0 text-emerald-600" size={16} />}</button>; }) : <div className="px-3 py-5 text-center text-sm text-slate-500">No active dashboard roles found</div>}
+      {orderedRoles.length ? orderedRoles.map((role) => {
+        const members = membersFor(role);
+        return <button key={role._id} type="button" onClick={() => { onChange(role.name); setOpen(false); }} style={{ paddingLeft: `${12 + role.hierarchy.depth * 20}px` }} className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${value === role.name ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}>
+          <span className="text-slate-300">{role.hierarchy.depth ? "L" : ""}</span>
+          <span className="min-w-0 flex-1 truncate">{roleDisplayLabel(role) || role.label}</span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{members.length}</span>
+          {value === role.name && <Check className="shrink-0 text-emerald-600" size={16} />}
+        </button>;
+      }) : <div className="px-3 py-5 text-center text-sm text-slate-500">No active dashboard roles found</div>}
     </div>}
     {selected && <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-xs font-bold text-slate-700"><UsersRound size={15} className="text-emerald-600" /> People assigned to {selected.label}</span><span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-500">{selectedMembers.length}</span></div>{selectedMembers.length ? <div className="mt-2 flex max-h-24 flex-wrap gap-2 overflow-y-auto">{selectedMembers.map((user) => <span key={user._id} title={user.email || user.phone} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700">{user.name || user.email || "Unnamed user"}</span>)}</div> : <p className="mt-2 text-[11px] text-slate-400">No users are currently assigned to this role.</p>}</div>}
   </div>;
 }
-function Primary({ busy, children }) { return <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:opacity-50">{busy ? "Please wait…" : children}</button>; }
+function Primary({ busy, children }) { return <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:opacity-50">{busy ? "Please wait..." : children}</button>; }
 function Review({ label, value }) { return <div className="rounded-xl bg-white p-3"><div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</div><div className="mt-1 text-sm font-semibold text-slate-800">{value}</div></div>; }
 function Success({ name, role, onCreateAnother, onDone }) { return <div className="py-12 text-center"><div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-emerald-100 text-emerald-600"><BadgeCheck size={40} /></div><h2 className="mt-6 text-3xl font-bold">Credential ready</h2><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500"><strong>{name}</strong> can now continue with the <strong>{role}</strong> dashboard role.</p><div className="mx-auto mt-8 flex max-w-md flex-col gap-3 sm:flex-row"><button onClick={onCreateAnother} className="flex-1 rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold hover:bg-slate-50">Create another</button><button onClick={onDone} className="flex-1 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700">View team</button></div></div>; }

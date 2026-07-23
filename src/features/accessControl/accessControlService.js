@@ -14,6 +14,9 @@ export const getAssignableRoles = async () =>
 export const getTeamDirectoryRoles = async () =>
   (await apiClient.get(`${ROLES}/team-directory`)).data;
 
+export const getVisibleHierarchyRoles = async () =>
+  (await apiClient.get(`${ROLES}/team-directory`)).data;
+
 export const createAccessRole = async (payload) =>
   (await apiClient.post(ROLES, payload)).data;
 

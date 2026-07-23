@@ -105,6 +105,43 @@ const S = {
   space:  "space-y-[1px]", // was space-y-0.5
 };
 
+const LEAF_HIERARCHY_ROLES = new Set([
+  "customer_care",
+  "customer_care_executive",
+  "customer_care_executives",
+  "relationship_manager",
+  "relationship_managers",
+  "sales_agent",
+  "sales_executive",
+  "sales_executives",
+  "technical_support_team",
+  "content_team",
+  "creative_team",
+  "digital_marketing",
+  "social_media",
+  "accounts",
+  "accounts_finance",
+  "legal_compliance",
+  "hr_administration",
+]);
+
+const normalizeSidebarRoleName = (value = "") =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+const SIDEBAR_ROLE_ALIASES = {
+  customer_support_team_lead: "team_lead",
+  customer_support_team_leads: "team_lead",
+  team_leads: "team_lead",
+  customer_care_executives: "customer_care_executive",
+  relationship_managers: "relationship_manager",
+  sales_executives: "sales_executive",
+};
+
 /* ─── Animated collapse ─────────────────────────────────────────────── */
 const CollapsePanel = ({ open, children }) => {
   const ref = useRef(null);
@@ -276,13 +313,16 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       (Array.isArray(permissions) ? permissions : [])
         .map((permission) => String(permission).trim().toLowerCase()),
     );
+    const rawRoleName = normalizeSidebarRoleName(user?.roleName || user?.roleLabel || user?.role || "");
+    const currentRoleName = SIDEBAR_ROLE_ALIASES[rawRoleName] || rawRoleName;
+    const isLeafHierarchyRole = LEAF_HIERARCHY_ROLES.has(currentRoleName);
     const canView = (module) => allowed.has(`${module}:view`);
     const propertyAccess = canView("residential") || canView("commercial") || canView("land") || canView("agricultural");
     const operationsChildren = [
-      (canView("team") || canView("user")) && { path: "/propenu-team-members", label: "Team Directory", icon: AllUsersIcon },
-      canView("team") && { path: "/dashboard/team-management", label: "Team Management", icon: TeamManagementIcon },
-      allowed.has("user:update") && { label: "Transfer Credentials", icon: CreateCredentialsIcon, key: "transfer-credentials", action: "openTranforCredentialsModal" },
-      allowed.has("team:assign_manager") && { label: "Assign Executive", icon: AgentIcon, key: "assign-agent", action: "openAssignAgentModal" },
+      !isLeafHierarchyRole && (canView("team") || canView("user")) && { path: "/propenu-team-members", label: "Team Directory", icon: AllUsersIcon },
+      !isLeafHierarchyRole && canView("team") && { path: "/dashboard/team-management", label: "Team Management", icon: TeamManagementIcon },
+      !isLeafHierarchyRole && allowed.has("user:update") && { label: "Transfer Credentials", icon: CreateCredentialsIcon, key: "transfer-credentials", action: "openTranforCredentialsModal" },
+      !isLeafHierarchyRole && allowed.has("team:assign_manager") && { label: "Assign Executive", icon: AgentIcon, key: "assign-agent", action: "openAssignAgentModal" },
     ].filter(Boolean);
     const userChildren = [
       canView("user") && { path: "/users", label: "All Users", icon: AllUsersIcon },

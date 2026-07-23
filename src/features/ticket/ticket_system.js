@@ -37,13 +37,17 @@ const getItems = (payload) => {
 
 const getRequesterRole = (user) => user?.role || user?.roleName || user?.roleId?.name || "";
 
+const CORE_REQUESTER_ROLES = new Set(["user", "agent", "builder", "builder_staff"]);
+const EXCLUDED_ASSIGNEE_ROLES = new Set(["user", "agent", "builder", "builder_staff"]);
+
 const matchesRequesterRole = (user, role) => {
-  if (!role || role === "all") return true;
   const value = String(getRequesterRole(user)).toLowerCase();
+  if (!role || role === "all") return CORE_REQUESTER_ROLES.has(value);
   const aliases = {
     user: ["user", "owner", "buyer", "tenant", "propenu_user"],
     builder: ["builder"],
     agent: ["agent"],
+    builder_staff: ["builder_staff", "builderstaff", "builder_staffs"],
   };
   return (aliases[role] || [role]).includes(value);
 };
@@ -72,10 +76,44 @@ const normalizeRequester = (user) => ({
   role: getRequesterRole(user),
 });
 
+const buildRoleOptionsFromUsers = (items) => {
+  const roleMap = new Map();
+  roleMap.set("all", { label: "All Roles", value: "all" });
+
+  items
+    .map(normalizeRequester)
+    .filter((user) => !EXCLUDED_ASSIGNEE_ROLES.has(String(getRequesterRole(user)).toLowerCase()))
+    .forEach((user) => {
+      const value = String(getRequesterRole(user) || "").trim().toLowerCase();
+      if (!value || roleMap.has(value)) return;
+      roleMap.set(value, {
+        value,
+        label: value
+          .split("_")
+          .filter(Boolean)
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" "),
+      });
+    });
+
+  return Array.from(roleMap.values());
+};
+
 const filterRequesters = (items, { query, role, limit }) =>
   items
     .map(normalizeRequester)
     .filter((user) => matchesRequesterRole(user, role))
+    .filter((user) => matchesRequesterQuery(user, query))
+    .slice(0, limit);
+
+const filterAssignableUsers = (items, { query, role, limit }) =>
+  items
+    .map(normalizeRequester)
+    .filter((user) => !EXCLUDED_ASSIGNEE_ROLES.has(String(getRequesterRole(user)).toLowerCase()))
+    .filter((user) => {
+      if (!role || role === "all") return true;
+      return String(getRequesterRole(user)).toLowerCase() === String(role).toLowerCase();
+    })
     .filter((user) => matchesRequesterQuery(user, query))
     .slice(0, limit);
 
@@ -173,23 +211,56 @@ export const getTicketAgentPerformance = async (params) => {
 };
 
 export const searchTicketRequesters = async ({ query, role = "all", limit = 20 } = {}) => {
-  if (query?.trim() || role !== "all") {
-    try {
-      const response = await apiClient.get(`${SERVICES.USER}/auth/search`, {
-        params: cleanParams({
-          q: query,
-          role: role === "all" ? undefined : role,
-        }),
-      });
-      const searched = filterRequesters(getItems(response.data), { query, role, limit });
-      if (searched.length) return searched;
-    } catch (error) {
-      // Fall back to the admin all-users list below.
-    }
-  }
+  const response = await apiClient.get(`${SERVICES.USER}/auth/all-users`, {
+    params: cleanParams({
+      scope: "ticket_requesters",
+    }),
+  });
+  const localMatches = filterRequesters(getItems(response.data), { query, role, limit });
+  if (localMatches.length || !query?.trim()) return localMatches;
 
-  const response = await apiClient.get(`${SERVICES.USER}/auth/all-users`);
-  return filterRequesters(getItems(response.data), { query, role, limit });
+  try {
+    const searchedResponse = await apiClient.get(`${SERVICES.USER}/auth/search`, {
+      params: cleanParams({
+        q: query,
+        role: role === "all" ? undefined : role,
+      }),
+    });
+    return filterRequesters(getItems(searchedResponse.data), { query, role, limit });
+  } catch (error) {
+    return localMatches;
+  }
+};
+
+export const searchTicketAssignees = async ({ query, role = "all", limit = 20 } = {}) => {
+  const response = await apiClient.get(`${SERVICES.USER}/auth/all-users`, {
+    params: cleanParams({
+      scope: "ticket_assignees",
+    }),
+  });
+  const localMatches = filterAssignableUsers(getItems(response.data), { query, role, limit });
+  if (localMatches.length || !query?.trim()) return localMatches;
+
+  try {
+    const searchedResponse = await apiClient.get(`${SERVICES.USER}/auth/search`, {
+      params: cleanParams({
+        q: query,
+        role: role === "all" ? undefined : role,
+      }),
+    });
+    return filterAssignableUsers(getItems(searchedResponse.data), { query, role, limit });
+  } catch (error) {
+    return localMatches;
+  }
+};
+
+export const getTicketAssigneeRoleOptions = async () => {
+  const response = await apiClient.get(`${SERVICES.USER}/auth/all-users`, {
+    params: cleanParams({
+      scope: "ticket_assignees",
+    }),
+  });
+  return buildRoleOptionsFromUsers(getItems(response.data));
 };
 
 export const getRequesterRelatedAssets = async (requester, params = {}) => {
