@@ -8,6 +8,10 @@ import DigitalMarket from "./DigitalMarket";
 import OperationsDashboard from "./OperationsDashboard";
 
 const DashboardRouter = ({ role, permissions = [] }) => {
+  if (!permissions.includes("dashboard:view")) {
+    return <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-amber-900">This role does not include dashboard access.</div>;
+  }
+
   switch (role) {
     case "super_admin":
       return <SuperAdminDashboard />;
@@ -29,19 +33,13 @@ const DashboardRouter = ({ role, permissions = [] }) => {
 
     case "operations_head":
     case "operation_head":
-      return permissions.includes("dashboard:view")
-        ? <OperationsDashboard />
-        : <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-amber-900">This role does not include dashboard access.</div>;
+      return <OperationsDashboard />;
 
     case "business_development_head":
-      return permissions.includes("dashboard:view")
-        ? <OperationsDashboard businessDevelopmentMode />
-        : <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-amber-900">This role does not include dashboard access.</div>;
+      return <OperationsDashboard businessDevelopmentMode />;
 
     default:
-      return permissions.includes("dashboard:view")
-        ? <AdminDashboard />
-        : <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-amber-900">This role does not include dashboard access.</div>;
+      return <AdminDashboard />;
   }
 };
 

@@ -32,6 +32,9 @@ export const updateAccessRoleStatus = async (roleId, isActive) =>
 export const updateAccessRolePermissions = async (roleId, permissions) =>
   (await apiClient.patch(`${ROLES}/${roleId}/permissions`, { permissions })).data;
 
+export const updateAccessRole = async (roleId, payload) =>
+  (await apiClient.patch(`${ROLES}/${roleId}`, payload)).data;
+
 export const getAccessUsers = async () =>
   (await apiClient.get(`${SERVICES.USER}/auth/all-users`)).data;
 

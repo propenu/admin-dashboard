@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, ChevronUp, MapPin, Power, RotateCcw, Save, Search, ShieldCheck, Trash2, UserRound, Users } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, MapPin, Pencil, Power, RotateCcw, Save, Search, ShieldCheck, Trash2, UserRound, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { deleteAccessRole, getAccessRole, getAccessRoles, getAccessUsers, getPermissionCatalog, updateAccessRolePermissions, updateAccessRoleStatus } from "../../features/accessControl/accessControlService";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
@@ -7,6 +8,7 @@ import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 const EXCLUDED_ROLES = new Set(["super_admin", "user", "builder", "builder_staff", "agent"]);
 
 export default function UserPermissionsPage() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [modules, setModules] = useState([]);
@@ -161,7 +163,10 @@ export default function UserPermissionsPage() {
   return <div className="mx-auto max-w-[1500px] pb-12 text-slate-900">
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div><div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700"><ShieldCheck size={14} /> Access control</div><h1 className="text-3xl font-bold tracking-tight">User permissions</h1><p className="mt-1 text-sm text-slate-500">Review any dashboard user’s assigned role and update its module access.</p></div>
-      <button onClick={save} disabled={!role || saving} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:opacity-50"><Save size={17} />{saving ? "Saving…" : "Save permissions"}</button>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {isSuperAdmin && role && role.name !== "super_admin" && <button type="button" onClick={() => navigate(`/access-control/roles/${role._id}/permissions`)} className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"><Pencil size={17} /> Edit role & parent</button>}
+        <button onClick={save} disabled={!role || saving} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:opacity-50"><Save size={17} />{saving ? "Saving…" : "Save permissions"}</button>
+      </div>
     </div>
 
     <div className="grid min-h-[700px] overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.07)] lg:grid-cols-[340px_minmax(0,1fr)]">

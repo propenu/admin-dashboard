@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Check, ChevronDown, ChevronUp, LockKeyhole, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { createAccessRole, deleteAccessRole, getAccessRole, getAccessRoles, getPermissionCatalog, updateAccessRolePermissions, updateAccessRoleStatus } from "../../features/accessControl/accessControlService";
+import { createAccessRole, deleteAccessRole, getAccessRole, getAccessRoles, getPermissionCatalog, updateAccessRole, updateAccessRolePermissions, updateAccessRoleStatus } from "../../features/accessControl/accessControlService";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 
 export default function CreateRolePage() {
@@ -96,11 +96,12 @@ export default function CreateRolePage() {
       .then(([catalogResult, rolesResult, roleResult]) => {
         const items = catalogResult.modules || [];
         setModules(items || []);
-        setParentRoles((rolesResult.roles || []).filter((role) => role.isActive !== false && !["user", "builder", "builder_staff", "agent"].includes(role.name)));
+        setParentRoles((rolesResult.roles || []).filter((role) => String(role._id) !== String(roleId || "") && role.isActive !== false && !["user", "builder", "builder_staff", "agent"].includes(role.name)));
         if (roleResult?.role) {
           setName(roleResult.role.name || "");
           setLabel(roleResult.role.label || "");
           setSelected(new Set(roleResult.role.permissions || []));
+          setParentRoleId(String(roleResult.role.parentRoleId?._id || roleResult.role.parentRoleId || ""));
         } else {
           setSelected(new Set(["dashboard:view"]));
         }
@@ -140,8 +141,11 @@ export default function CreateRolePage() {
     setSaving(true);
     try {
       if (isEditing) {
-        await updateAccessRolePermissions(roleId, [...selected]);
-        toast.success(`${label} permissions updated`);
+        await Promise.all([
+          updateAccessRole(roleId, { parentRoleId: parentRoleId || null }),
+          updateAccessRolePermissions(roleId, [...selected]),
+        ]);
+        toast.success(`${label} role and permissions updated`);
         navigate("/propenu-team-members");
       } else {
         const result = await createAccessRole({ name, label, parentRoleId: parentRoleId || null, permissions: [...selected] });
@@ -182,8 +186,8 @@ export default function CreateRolePage() {
           </div>
         </header>
 
-        <form onSubmit={submit} className={isEditing ? "block" : "grid lg:grid-cols-[360px_minmax(0,1fr)]"}>
-          {!isEditing && <aside className="border-b border-slate-200 bg-slate-50/70 p-6 lg:border-b-0 lg:border-r lg:p-8">
+        <form onSubmit={submit} className="grid lg:grid-cols-[360px_minmax(0,1fr)]">
+          <aside className="border-b border-slate-200 bg-slate-50/70 p-6 lg:border-b-0 lg:border-r lg:p-8">
             <h2 className="flex items-center gap-2 text-lg font-bold"><ShieldCheck className="text-emerald-600" size={20} /> Role identity</h2>
             <p className="mt-1 text-sm text-slate-500">{isEditing ? "You are updating the assigned role." : "Use a clear job-based name."}</p>
             <label className="mt-7 block text-xs font-bold uppercase tracking-wider text-slate-500">Display label</label>
@@ -203,7 +207,7 @@ export default function CreateRolePage() {
             <button disabled={saving || loading} className="mt-7 w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:opacity-50">
               {saving ? "Saving…" : isEditing ? "Save role permissions" : "Create role & continue"}
             </button>
-          </aside>}
+          </aside>
 
           <section className="p-6 lg:p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

@@ -259,7 +259,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       if (hasActiveDescendant(item) && item.key) autoOpen[item.key] = true;
       if (item.children) walk(item.children);
     });
-    walk(getMenuByRole(user.roleName));
+    walk(user.roleName === "super_admin" ? getMenuByRole("super_admin") : getPermissionMenu(user.permissions || []));
     setOpenMenus((p) => ({ ...p, ...autoOpen }));
   }, [location.pathname, user]);
 
@@ -883,7 +883,13 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       ],
     })[role] || getPermissionMenu(user?.permissions || []);
 
-  const menuItems = user ? getMenuByRole(user.roleName) : [];
+  // One navigation policy for every dashboard role. Super Admin controls the
+  // role's permission set; the sidebar is derived exclusively from that set.
+  const menuItems = user
+    ? user.roleName === "super_admin"
+      ? getMenuByRole("super_admin")
+      : getPermissionMenu(user.permissions || [])
+    : [];
   const showText  = expanded || isMobileOpen;
   const sidebarBadge = (item) => {
     if (user?.roleName !== "business_development_head") return null;

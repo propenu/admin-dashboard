@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Hash, LayoutGrid, List, Mail, MapPin, Phone, RefreshCw, Search, UsersRound, X } from "lucide-react";
+import { Check, ChevronDown, Hash, LayoutGrid, List, Mail, MapPin, Phone, RefreshCw, Search, ShieldCheck, UsersRound, X } from "lucide-react";
 import { useUsers } from "./hook/useUserData";
 import { getTeamDirectoryRoles } from "../../../features/accessControl/accessControlService";
 
@@ -72,7 +72,7 @@ export default function PropenuTeam() {
 
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
-        <Select label="Role" value={filters.role} onChange={(value) => update("role", value)}><option value="">All roles</option>{roleOptions.map((role) => <option key={role._id || role.name} value={role.name}>{role.label || cleanRole(role.name)}</option>)}</Select>
+        <HierarchyRoleSelect roles={roleOptions} users={users} value={filters.role} onChange={(value) => update("role", value)} />
         <Select label="State" value={filters.state} onChange={(value) => update("state", value)}><option value="">All states</option>{options.states.map((item) => <option key={item}>{item}</option>)}</Select>
         <Select label="City" value={filters.city} onChange={(value) => update("city", value)}><option value="">All cities</option>{options.cities.map((item) => <option key={item}>{item}</option>)}</Select>
         <Select label="Locality" value={filters.locality} onChange={(value) => update("locality", value)}><option value="">All localities</option>{options.localities.map((item) => <option key={item}>{item}</option>)}</Select>
@@ -109,5 +109,37 @@ export default function PropenuTeam() {
         return <tr key={user._id} className="transition hover:bg-emerald-50/40"><td className="px-4 py-3"><div className="flex items-center gap-2.5"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 font-black text-emerald-700">{initials}</div><div className="min-w-0"><p className="max-w-[190px] truncate font-bold text-slate-800">{user.name || "Unnamed user"}</p><p className="mt-0.5 font-mono text-[10px] text-slate-400">{user.userCode || String(user._id).slice(-10).toUpperCase()}</p></div></div></td><td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2.5 py-1 font-bold capitalize text-emerald-700">{cleanRole(user.roleName)}</span></td><td className="px-4 py-3 text-slate-600"><p className="max-w-[210px] truncate">{user.email || "No email"}</p><p className="mt-0.5 text-slate-400">{user.phone || "No phone"}</p></td><td className="max-w-[260px] px-4 py-3 text-slate-600"><span className="line-clamp-2">{location || "Work location not provided"}</span></td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} />{String(user.accountStatus || "pending").replace(/_/g, " ")}</span></td><td className="whitespace-nowrap px-4 py-3 text-slate-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "—"}</td></tr>;
       })}</tbody></table></div></div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center"><UsersRound className="mx-auto mb-3 text-slate-300" size={36} /><p className="font-bold text-slate-600">{filters.role ? `No members are assigned to ${roleOptions.find((role) => role.name === filters.role)?.label || cleanRole(filters.role)} yet.` : "No team members match these filters."}</p><p className="mt-1 text-xs text-slate-400">{filters.role ? "Create credentials for this role to add its first team member." : "Clear or change the filters to view more people."}</p></div>}
     </section>
+  </div>;
+}
+
+function HierarchyRoleSelect({ roles, users, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const selected = roles.find((role) => role.name === value);
+  const rolesById = new Map(roles.map((role) => [String(role._id), role]));
+  const depthFor = (role, visited = new Set()) => {
+    const parentId = role?.effectiveParentRoleId || role?.parentRoleId?._id || role?.parentRoleId;
+    if (!parentId || visited.has(String(parentId))) return 0;
+    const parent = rolesById.get(String(parentId));
+    if (!parent) return 0;
+    visited.add(String(parentId));
+    return 1 + depthFor(parent, visited);
+  };
+  const ordered = [...roles]
+    .map((role) => ({ ...role, hierarchyDepth: depthFor(role) }))
+    .sort((a, b) => Number(b.isCurrentRole) - Number(a.isCurrentRole) || a.hierarchyDepth - b.hierarchyDepth || String(a.label || a.name).localeCompare(String(b.label || b.name)));
+  const memberCount = (role) => users.filter((user) => String(user.roleId) === String(role._id) || user.roleName === role.name).length;
+
+  return <div className="relative z-30 min-w-0 xl:col-span-1">
+    <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Role</span>
+    <button type="button" onClick={() => setOpen((current) => !current)} className={`flex w-full items-center gap-2 rounded-lg border bg-white px-3 py-2 text-left text-xs font-semibold outline-none transition ${open ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200"}`}>
+      <ShieldCheck size={15} className="shrink-0 text-slate-400" />
+      <span className="min-w-0 flex-1 truncate">{selected?.label || "All roles"}</span>
+      <ChevronDown size={15} className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
+    </button>
+    {open && <div className="absolute left-0 top-[calc(100%+6px)] z-50 max-h-80 min-w-[300px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
+      <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Organisation hierarchy</div>
+      <button type="button" onClick={() => { onChange(""); setOpen(false); }} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm ${!value ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="min-w-0 flex-1">All roles</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{users.length}</span>{!value && <Check size={15} className="text-emerald-600" />}</button>
+      {ordered.map((role) => <button key={role._id || role.name} type="button" onClick={() => { onChange(role.name); setOpen(false); }} style={{ paddingLeft: `${12 + role.hierarchyDepth * 20}px` }} className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${value === role.name ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="text-slate-300">{role.hierarchyDepth ? "└" : ""}</span><span className="min-w-0 flex-1 truncate">{role.label || cleanRole(role.name)}{role.isCurrentRole ? " (You)" : ""}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{memberCount(role)}</span>{value === role.name && <Check size={15} className="shrink-0 text-emerald-600" />}</button>)}
+    </div>}
   </div>;
 }
