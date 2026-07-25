@@ -445,13 +445,13 @@ export default function PropertyCard({
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div
-      className="relative min-h-[224px] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-300 group cursor-pointer hover:border-[#27AE60]/30 hover:shadow-md sm:h-[224px]"
+      className="group relative h-full min-h-[224px] w-full min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:border-[#27AE60]/30 hover:shadow-md sm:h-[224px]"
       onClick={handleCardClick}
     >
       {/* ── HORIZONTAL FLEX LAYOUT ─────────────────────────────────────── */}
-      <div className="flex h-full flex-row">
+      <div className="flex h-full w-full min-w-0 flex-row">
         {/* ── LEFT: IMAGE (fixed width, full card height) ─────────────── */}
-        <div className="relative min-h-[224px] w-32 flex-shrink-0 overflow-hidden bg-slate-100 sm:h-full sm:w-40 lg:w-44">
+        <div className="relative min-h-[224px] w-32 flex-shrink-0 overflow-hidden bg-slate-100 sm:h-full sm:w-40 lg:w-48">
           {heroImage ? (
             <img
               src={heroImage}

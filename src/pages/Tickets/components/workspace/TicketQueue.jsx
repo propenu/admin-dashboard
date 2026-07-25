@@ -1,6 +1,7 @@
 import { Search, SlidersHorizontal } from "lucide-react";
 import { TICKET_PRIORITIES, TICKET_STATUSES, priorityTone, statusTone } from "../../constants/ticketOptions";
 import { formatDateTime, formatDueDate, formatLabel, formatRelativeTime } from "../../utils/ticketFormatters";
+import { involvementBadge } from "../../utils/ticketRoleAccess";
 import { ticketInput, ticketSurface } from "../ticketUi";
 
 export default function TicketQueue({
@@ -11,12 +12,38 @@ export default function TicketQueue({
   selectedId,
   onSelect,
   isLoading,
+  personalScopes = null,
+  currentUserId = null,
 }) {
   const update = (patch) => onFiltersChange({ ...filters, page: 1, ...patch });
+  const activeScope = filters.personalScope || "mine";
 
   return (
     <section className={`${ticketSurface} overflow-hidden`}>
       <div className="grid gap-2 border-b border-slate-100 p-3">
+        {Array.isArray(personalScopes) && personalScopes.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {personalScopes.map((scope) => {
+              const active = activeScope === scope.key;
+              return (
+                <button
+                  key={scope.key}
+                  type="button"
+                  title={scope.hint}
+                  onClick={() => update({ personalScope: scope.key })}
+                  className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
+                    active
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      : "border-slate-200 bg-white text-slate-500 hover:border-emerald-300 hover:text-slate-800"
+                  }`}
+                >
+                  {scope.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <label className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -92,6 +119,11 @@ export default function TicketQueue({
                 <span className={`rounded-full border px-2 py-1 font-bold ${statusTone[ticket.status] || statusTone.open}`}>
                   {formatLabel(ticket.status)}
                 </span>
+                {involvementBadge(ticket, currentUserId) && (
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-bold text-emerald-700">
+                    {involvementBadge(ticket, currentUserId)}
+                  </span>
+                )}
                 <span>{ticket.assignedTo?.name ? `Assigned ${ticket.assignedTo.name}` : "Unassigned"}</span>
                 <span>Created {formatDateTime(ticket.createdAt)}</span>
                 <span>Due {formatDueDate(ticket.dueAt)}</span>

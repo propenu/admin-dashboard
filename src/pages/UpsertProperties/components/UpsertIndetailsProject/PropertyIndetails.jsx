@@ -7,6 +7,12 @@ import { updateCommercialDocumentStatus } from "../../../../services/CommercialS
 import { updateAgriculturalDocumentStatus } from "../../../../services/AgricuturalServices/AgricuturalServices";
 import { updateLandDocumentStatus } from "../../../../services/LandServices/LandServices";
 import { verifyAgentPropertyVerification } from "../../../../features/property/propertyService";
+import { getUserDetails } from "../../../../features/user/userService";
+import {
+  canApproveProperty,
+  isPropertyAwaitingApproval,
+} from "../../../../utils/propertyAccessControl";
+import { getPropertyCreatorTag } from "../../../../utils/propertyCreatorRole";
 import {
   MapPin,
   ArrowLeft,
@@ -1688,14 +1694,24 @@ const {
   enabled: !!category && !!id,
 });
 
+  const { data: meResponse } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: getUserDetails,
+    staleTime: 60_000,
+  });
+  const currentUser =
+    meResponse?.data?.user || meResponse?.data || meResponse?.user || null;
 
-
-
-const analyticsLoading = isLoading;
+  const analyticsLoading = isLoading;
 
   const property = propertyResponse?.data;
   const analyticsData = propertyResponse?.data?.analytics;
-
+  const showApproveActions = Boolean(
+    property &&
+      isPropertyAwaitingApproval(property) &&
+      canApproveProperty(currentUser, property),
+  );
+  const creatorTag = property ? getPropertyCreatorTag(property) : "User";
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -1708,22 +1724,6 @@ const analyticsLoading = isLoading;
   if (!property) {
     return <div>Property Not Found</div>;
   }
-  
-
-  // if (!property) {
-  //   return (
-  //     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-  //       <XCircle className="w-12 h-12 text-red-300" />
-  //       <p className="text-slate-600 font-medium">Property not found.</p>
-  //       <button
-  //         onClick={() => navigate(-1)}
-  //         className="text-sm text-[#27AE60] underline underline-offset-2"
-  //       >
-  //         Go back
-  //       </button>
-  //     </div>
-  //   );
-  // }
 
   // Leads extraction
   const extractLeads = (raw) => {
@@ -1870,53 +1870,29 @@ const analyticsLoading = isLoading;
 
           {/* Meta column */}
           <div className="lg:col-span-3 p-6 flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              {completion === 70 && (
-                <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+            <div className="flex w-full flex-col gap-2">
+              {showApproveActions && (
+                <div className="mt-3 flex w-full items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
                   <div>
                     <p className="text-sm font-bold text-blue-700">
-                      This property is listed by an Agent
+                      Pending approval · Created by {creatorTag}
                     </p>
-
-                    <p className="text-xs text-blue-500 mt-1">
-                      Please check all details and approve verification.
+                    <p className="mt-1 text-xs text-blue-500">
+                      Higher hierarchy can approve this listing to go live.
+                      {completion === 70
+                        ? " Agent listing — approve from this details page."
+                        : " Review documents, then approve."}
                     </p>
                   </div>
-
-                  <BadgeCheck className="w-8 h-8 text-blue-600" />
+                  <BadgeCheck className="h-8 w-8 shrink-0 text-blue-600" />
                 </div>
               )}
 
-              {completion === 70 && (
+              {showApproveActions && (
                 <button
+                  type="button"
                   onClick={async () => {
                     try {
-                      // if (category === "residential"){
-                      //   await verifyAgentPropertyVerification(
-                      //     category,
-                      //     property._id,
-                      //     {
-                      //       // documentIndex: 0,
-                      //       status: "verified",
-                      //     },
-                      //   );
-                      // }else if(category === "commercial"){
-                      //   await updateCommercialDocumentStatus(property._id, {
-                      //     documentIndex: 0,
-                      //     status: "verified",
-                      //   });
-                      // }else if(category === "land"){
-                      //   await updateLandDocumentStatus(property._id, {
-                      //     documentIndex: 0,
-                      //     status: "verified",
-                      //   });
-                      // }else if(category === "agricutural"){
-                      //   await updateAgriculturalDocumentStatus(property._id, {
-                      //     documentIndex: 0,
-                      //     status: "verified",
-                      //   });
-                      // }
-
                       await verifyAgentPropertyVerification(
                         category,
                         property._id,
@@ -1930,24 +1906,15 @@ const analyticsLoading = isLoading;
                       );
                       navigate(`/properties`);
                     } catch (err) {
-                      toast.error("Verification failed");
+                      toast.error(
+                        err?.response?.data?.message || "Verification failed",
+                      );
                     }
                   }}
-                  className="
-                    mt-4
-                    flex items-center gap-2
-                    rounded-xl
-                    bg-green-600
-                    px-5
-                    py-3
-                    text-white
-                    font-bold
-                    hover:bg-green-700
-                    transition
-                  "
+                  className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 font-bold text-white transition hover:bg-green-700"
                 >
-                  <BadgeCheck className="w-5 h-5" />
-                  Approve Verification
+                  <BadgeCheck className="h-5 w-5" />
+                  Approve → Live
                 </button>
               )}
             </div>

@@ -65,6 +65,7 @@ import {
   getPropertyCreatorTag,
   isAgentCreatedProperty,
 } from "../../utils/propertyCreatorRole";
+import { canReviewPropertyListing } from "../../utils/propertyAccessControl";
 import { todayIso } from "../Dashboards/shared/dashboardDateRange";
 
 const CATEGORIES = [
@@ -554,7 +555,11 @@ function PropertyCard({
               }}
               className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-medium text-white transition hover:bg-emerald-700 sm:py-1"
             >
-              Review <ChevronRight className="h-3 w-3" />
+              {Number(property?.completion?.percent) === 70 ||
+              isAgentCreatedProperty(property)
+                ? "Approve"
+                : "Review"}{" "}
+              <ChevronRight className="h-3 w-3" />
             </button>
           ) : (
             <button
@@ -1041,18 +1046,25 @@ export default function PropertiesDashboard() {
     navigate(`/edit-property/${property._id}`);
   };
 
-  const canReviewProperty = (property) =>
-    (property?.status === "pending" &&
-      property?.completion?.percent === 80 &&
-      !isAgentCreatedProperty(property) &&
-      userRoleName === "super_admin") ||
-    userRoleName === "admin" ||
-    userRoleName === "sales_manager";
+  const currentUser = userData?.user || userData || null;
+
+  const canReviewProperty = (property) => {
+    if (!canReviewPropertyListing(currentUser, property)) return false;
+    // Agent path (70%): open details for Approve → Live
+    // Docs path (80% pending): open verification page
+    return true;
+  };
 
   const reviewProperty = (property) => {
     rememberCategory(property._category);
+    const percent = Number(property?.completion?.percent || 0);
+    if (percent === 70 || isAgentCreatedProperty(property)) {
+      navigate(`/property/${property._category}/${property._id}`);
+      return;
+    }
     const buildRoute = VERIFICATION_ROUTES[property._category];
     if (buildRoute) navigate(buildRoute(property._id));
+    else navigate(`/property/${property._category}/${property._id}`);
   };
 
   const deleteProperty = async () => {

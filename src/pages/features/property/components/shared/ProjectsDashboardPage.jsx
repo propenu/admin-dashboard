@@ -40,6 +40,7 @@ import {
   salesmanagerApproveAProject,
   salesmanagerRejectAProject,
 } from "../../../../../features/property/propertyService";
+import { requestSidebarRefresh } from "../../../../../utils/sidebarActivity";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -1422,8 +1423,11 @@ export default function ProjectsDashboardPage() {
     if (selectedLocation) next.set("location", JSON.stringify(selectedLocation));
     if (analyticsSearch.trim()) next.set("analyticsSearch", analyticsSearch);
     if (debouncedProjectSearch) next.set("search", debouncedProjectSearch);
-    if (promotionFilter !== "all") next.set("promotion", promotionFilter);
+    if (promotionFilter !== "all" && promotionFilter !== "pending") {
+      next.set("promotion", promotionFilter);
+    }
     if (statusFilter !== "all") next.set("status", statusFilter);
+    else if (promotionFilter === "pending") next.set("status", "pending");
     if (categoryFilter !== "all") next.set("category", categoryFilter);
     if (propertyTypeFilter !== "all") {
       next.set("propertyType", propertyTypeFilter);
@@ -1479,10 +1483,18 @@ export default function ProjectsDashboardPage() {
     [selectedLocation, debouncedAnalyticsSearch, createdFrom, createdTo],
   );
 
-  // Drill-downs: /projects?status=draft|onboarding&createdFrom=...&createdTo=...
+  // Drill-downs: /projects?status=draft|onboarding|pending&createdFrom=...&createdTo=...
   useEffect(() => {
     const nextStatus = normalizeProjectStatusParam(searchParams.get("status") || "all");
-    if (nextStatus !== statusFilter) setStatusFilter(nextStatus);
+    const nextPromotion = searchParams.get("promotion") || "all";
+    // Legacy ?promotion=pending → status pending (single filter source)
+    if (nextPromotion === "pending") {
+      if (statusFilter !== "pending") setStatusFilter("pending");
+      if (promotionFilter !== "all") setPromotionFilter("all");
+    } else {
+      if (nextStatus !== statusFilter) setStatusFilter(nextStatus);
+      if (nextPromotion !== promotionFilter) setPromotionFilter(nextPromotion);
+    }
     const nextFrom = searchParams.get("createdFrom") || searchParams.get("from") || "";
     const nextTo = searchParams.get("createdTo") || searchParams.get("to") || "";
     if (nextFrom !== createdFrom) setCreatedFrom(nextFrom);
@@ -1505,24 +1517,23 @@ export default function ProjectsDashboardPage() {
  }, [selectedLocation, analytics]);
 
 
+  const isPendingApprovalsView =
+    canViewPendingProjects &&
+    (statusFilter === "pending" || promotionFilter === "pending");
+
   // ── Project list filtering — uses all filter state ────────────────────────
   const visibleProperties = useMemo(() => {
+    // Pending approvals live in a dedicated API — list hooks often omit them.
+    let list = isPendingApprovalsView ? pendingProjects : allProperties;
 
-    
-    let list =
-      promotionFilter === "pending" && canViewPendingProjects
-        ? pendingProjects
-        : allProperties;
-
-        console.log("Initial", list.length);
-
-    if (promotionFilter !== "all" && promotionFilter !== "pending"){
+    if (promotionFilter !== "all" && promotionFilter !== "pending") {
       list = list.filter((p) => p.promotion?.type === promotionFilter);
-      console.log("After promotion", list.length);
     }
-    if (statusFilter !== "all"){
+    if (statusFilter !== "all" && !isPendingApprovalsView) {
       list = list.filter((p) => matchesProjectStatusFilter(p, statusFilter));
-      console.log("After status", list.length);
+    }
+    if (statusFilter === "pending" && isPendingApprovalsView) {
+      list = list.filter((p) => matchesProjectStatusFilter(p, "pending"));
     }
     if (trackingFilter !== "all" && !serverPromotionStatus) {
       list = list.filter((p) => {
@@ -1690,8 +1701,26 @@ export default function ProjectsDashboardPage() {
     selectedLocation,
     debouncedProjectSearch,
     canViewPendingProjects,
+    isPendingApprovalsView,
     sortBy,
   ]);
+
+  const openPendingApprovalsView = useCallback(() => {
+    const alreadyOpen = statusFilter === "pending" && promotionFilter === "all";
+    if (alreadyOpen) {
+      setStatusFilter("all");
+      return;
+    }
+    setPromotionFilter("all");
+    setStatusFilter("pending");
+    setTrackingFilter("all");
+    setCurrentPage(1);
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("projects-approve-queue")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [promotionFilter, statusFilter]);
 
   console.log(normalHook.properties.length);
   console.log(visibleProperties.length);
@@ -1713,7 +1742,7 @@ export default function ProjectsDashboardPage() {
   const needsMoreProjectsForNextPage =
     visibleProperties.length < nextPageEnd;
   const hasMoreServerProjects =
-    promotionFilter !== "pending" && projectHooks.some((hook) => hook.hasNextPage);
+    !isPendingApprovalsView && projectHooks.some((hook) => hook.hasNextPage);
   const isFetchingMoreProjects = projectHooks.some(
     (hook) => hook.isFetchingNextPage,
   );
@@ -1852,9 +1881,14 @@ export default function ProjectsDashboardPage() {
 
   // ── Active filter count + clear ───────────────────────────────────────────
   const activeFiltersCount = useMemo(() => [
-    promotionFilter !== "all", statusFilter !== "all", trackingFilter !== "all",
-    categoryFilter !== "all", propertyTypeFilter !== "all", creatorRoleFilter !== "all",
-    Boolean(createdFrom), Boolean(createdTo),
+    promotionFilter !== "all" && promotionFilter !== "pending",
+    statusFilter !== "all" || promotionFilter === "pending",
+    trackingFilter !== "all",
+    categoryFilter !== "all",
+    propertyTypeFilter !== "all",
+    creatorRoleFilter !== "all",
+    // One chip for the date range (not separate from/to)
+    Boolean(createdFrom || createdTo),
   ].filter(Boolean).length, [promotionFilter, statusFilter, trackingFilter, categoryFilter, propertyTypeFilter, creatorRoleFilter, createdFrom, createdTo]);
 
   const clearListFilters = useCallback(() => {
@@ -2064,16 +2098,20 @@ export default function ProjectsDashboardPage() {
 
       {/* ── PENDING APPROVALS (RM / higher hierarchy notification) ── */}
       {canViewPendingProjects && (
-        <div className="space-y-3">
+        <div id="projects-approve-queue" className="space-y-3">
           <div
-            onClick={() =>
-              setPromotionFilter((prev) =>
-                prev === "pending" ? "all" : "pending",
-              )
-            }
+            role="button"
+            tabIndex={0}
+            onClick={openPendingApprovalsView}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openPendingApprovalsView();
+              }
+            }}
             className={`flex cursor-pointer items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm transition-all hover:shadow-md
               ${
-                promotionFilter === "pending"
+                isPendingApprovalsView
                   ? "border-amber-300 ring-2 ring-amber-400"
                   : actionablePendingProjects.length > 0
                     ? "border-amber-300 bg-amber-50/40"
@@ -2100,17 +2138,17 @@ export default function ProjectsDashboardPage() {
             </div>
             <div className="ml-auto text-xs font-semibold text-amber-600">
               <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5">
-                {promotionFilter === "pending" ? "✓ Viewing now" : "Click to view"}
+                {isPendingApprovalsView ? "✓ Viewing now" : "Click to view"}
               </span>
             </div>
           </div>
 
-          {promotionFilter === "pending" && actionablePendingProjects.length > 0 && (
-            <div className="rounded-2xl border border-amber-200 bg-white p-3 shadow-sm sm:p-4">
+          {isPendingApprovalsView && actionablePendingProjects.length > 0 && (
+            <div className="w-full rounded-2xl border border-amber-200 bg-white p-3 shadow-sm sm:p-4">
               <p className="mb-3 text-xs font-bold uppercase tracking-wide text-amber-700">
                 Approve queue — goes live on approve
               </p>
-              <div className="space-y-2">
+              <div className="grid w-full grid-cols-1 gap-2">
                 {actionablePendingProjects.slice(0, 8).map((project) => {
                   const creatorName =
                     project?.createdBy?.fullName ||
@@ -2124,18 +2162,18 @@ export default function ProjectsDashboardPage() {
                   return (
                     <div
                       key={project._id}
-                      className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-800">
                           {project.title || "Untitled project"}
                         </p>
-                        <p className="truncate text-[11px] text-slate-500">
+                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
                           Created by {creatorName} · {String(creatorRole).replace(/_/g, " ")}
                           {project.city ? ` · ${project.city}` : ""}
                         </p>
                       </div>
-                      <div className="flex shrink-0 gap-2">
+                      <div className="flex w-full shrink-0 gap-2 sm:w-auto">
                         <button
                           type="button"
                           onClick={async (event) => {
@@ -2144,13 +2182,14 @@ export default function ProjectsDashboardPage() {
                               await salesmanagerApproveAProject(project._id);
                               toast.success("Project approved — now live");
                               refreshAllProjects();
+                              requestSidebarRefresh();
                             } catch (error) {
                               toast.error(
                                 error?.response?.data?.message || "Approval failed",
                               );
                             }
                           }}
-                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                          className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 sm:flex-none"
                         >
                           Approve → Live
                         </button>
@@ -2170,7 +2209,7 @@ export default function ProjectsDashboardPage() {
                               );
                             }
                           }}
-                          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                          className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 sm:flex-none"
                         >
                           Reject
                         </button>
@@ -2398,25 +2437,38 @@ export default function ProjectsDashboardPage() {
           </div>
         )}
 
-        {/* Active filter chips */}
+        {/* Active filter chips — one chip per concern (no duplicate Pending) */}
         {activeFiltersCount > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
-            {promotionFilter !== "all" && (
+            {promotionFilter !== "all" && promotionFilter !== "pending" && (
               <span className="inline-flex items-center gap-1.5 text-xs bg-blue-50 border border-blue-200 text-blue-700 rounded-full px-2.5 py-1 font-medium capitalize">
                 {promotionLabel}
-                <button onClick={() => setPromotionFilter("all")}>
+                <button type="button" onClick={() => setPromotionFilter("all")}>
                   <X className="w-3 h-3 hover:text-red-500" />
                 </button>
               </span>
             )}
-            {statusFilter !== "all" && (
+            {isPendingApprovalsView ? (
+              <span className="inline-flex items-center gap-1.5 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-full px-2.5 py-1 font-medium">
+                Pending approvals
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter("all");
+                    setPromotionFilter("all");
+                  }}
+                >
+                  <X className="w-3 h-3 hover:text-red-500" />
+                </button>
+              </span>
+            ) : statusFilter !== "all" ? (
               <span className="inline-flex items-center gap-1.5 text-xs bg-purple-50 border border-purple-200 text-purple-700 rounded-full px-2.5 py-1 font-medium capitalize">
                 {statusFilter}
-                <button onClick={() => setStatusFilter("all")}>
+                <button type="button" onClick={() => setStatusFilter("all")}>
                   <X className="w-3 h-3 hover:text-red-500" />
                 </button>
               </span>
-            )}
+            ) : null}
             {trackingFilter !== "all" && (
               <span
                 className={`inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 font-medium capitalize ${promotionLifecycleClass(
@@ -2424,7 +2476,7 @@ export default function ProjectsDashboardPage() {
                 )}`}
               >
                 {TRACKING_FILTERS.find((item) => item.value === trackingFilter)?.label || trackingFilter}
-                <button onClick={() => setTrackingFilter("all")}>
+                <button type="button" onClick={() => setTrackingFilter("all")}>
                   <X className="w-3 h-3 hover:text-red-500" />
                 </button>
               </span>
@@ -2432,7 +2484,7 @@ export default function ProjectsDashboardPage() {
             {categoryFilter !== "all" && (
               <span className="inline-flex items-center gap-1.5 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-2.5 py-1 font-medium capitalize">
                 {categoryFilter}
-                <button onClick={() => setCategoryFilter("all")}>
+                <button type="button" onClick={() => setCategoryFilter("all")}>
                   <X className="w-3 h-3 hover:text-red-500" />
                 </button>
               </span>
@@ -2440,7 +2492,17 @@ export default function ProjectsDashboardPage() {
             {propertyTypeFilter !== "all" && (
               <span className="inline-flex items-center gap-1.5 text-xs bg-teal-50 border border-teal-200 text-teal-700 rounded-full px-2.5 py-1 font-medium capitalize">
                 {propertyTypeFilter}
-                <button onClick={() => setPropertyTypeFilter("all")}>
+                <button type="button" onClick={() => setPropertyTypeFilter("all")}>
+                  <X className="w-3 h-3 hover:text-red-500" />
+                </button>
+              </span>
+            )}
+            {(createdFrom || createdTo) && (
+              <span className="inline-flex items-center gap-1.5 text-xs bg-slate-50 border border-slate-200 text-slate-700 rounded-full px-2.5 py-1 font-medium">
+                {isTodayRange
+                  ? "Today"
+                  : `${createdFrom || "…"} → ${createdTo || "…"}`}
+                <button type="button" onClick={clearDateRange}>
                   <X className="w-3 h-3 hover:text-red-500" />
                 </button>
               </span>
@@ -2449,67 +2511,63 @@ export default function ProjectsDashboardPage() {
         )}
       </div>
 
-      {/* ── RESULTS HEADER ───────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-bold text-slate-800">
-          Projects
-          {/* <span className="text-slate-500 text-sm ml-2">
-            ({displayedCount})
-          </span> */}
-        </h2>
+      {/* ── RESULTS (full-width aligned with filters) ───────────────────── */}
+      <div className="w-full space-y-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_6px_20px_rgba(22,163,74,0.10)] sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-lg font-bold text-slate-800">
+            Projects
+            <span className="ml-2 text-sm font-semibold text-slate-400">
+              ({visibleProperties.length})
+            </span>
+          </h2>
 
-        <div className="flex w-full items-center gap-2 sm:w-auto">
-          <ArrowUpDown className="w-4 h-4 text-slate-500" />
-
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 sm:flex-none"
-          >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="rank">Display rank</option>
-
-            <optgroup label="Low Budget">
-              <option value="0-1L">₹0 - ₹1L</option>
-              <option value="1L-5L">₹1L - ₹5L</option>
-              <option value="5L-10L">₹5L - ₹10L</option>
-            </optgroup>
-
-            <optgroup label="Mid Budget">
-              <option value="10L-25L">₹10L - ₹25L</option>
-              <option value="25L-50L">₹25L - ₹50L</option>
-              <option value="50L-1Cr">₹50L - ₹1Cr</option>
-            </optgroup>
-
-            <optgroup label="Premium">
-              <option value="1Cr-2Cr">₹1Cr - ₹2Cr</option>
-              <option value="2Cr-5Cr">₹2Cr - ₹5Cr</option>
-              <option value="5Cr+">₹5Cr+</option>
-            </optgroup>
-
-            <optgroup label="Sort">
-              <option value="lowToHigh">Price: Low → High</option>
-              <option value="highToLow">Price: High → Low</option>
-            </optgroup>
-          </select>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <ArrowUpDown className="h-4 w-4 text-slate-500" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 sm:min-w-[200px] sm:flex-none"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="rank">Display rank</option>
+              <optgroup label="Low Budget">
+                <option value="0-1L">₹0 - ₹1L</option>
+                <option value="1L-5L">₹1L - ₹5L</option>
+                <option value="5L-10L">₹5L - ₹10L</option>
+              </optgroup>
+              <optgroup label="Mid Budget">
+                <option value="10L-25L">₹10L - ₹25L</option>
+                <option value="25L-50L">₹25L - ₹50L</option>
+                <option value="50L-1Cr">₹50L - ₹1Cr</option>
+              </optgroup>
+              <optgroup label="Premium">
+                <option value="1Cr-2Cr">₹1Cr - ₹2Cr</option>
+                <option value="2Cr-5Cr">₹2Cr - ₹5Cr</option>
+                <option value="5Cr+">₹5Cr+</option>
+              </optgroup>
+              <optgroup label="Sort">
+                <option value="lowToHigh">Price: Low → High</option>
+                <option value="highToLow">Price: High → Low</option>
+              </optgroup>
+            </select>
+          </div>
         </div>
-      </div>
 
-      {/* ── PROPERTY GRID ────────────────────────────────────────────────── */}
       {isLoading ? (
         <div className="flex justify-center py-20">
           <LoadingSpinner size="lg" />
         </div>
       ) : visibleProperties.length === 0 ? (
-        <div className="text-center py-20 text-slate-500 bg-white rounded-2xl border border-slate-200">
-          <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-20" />
-          <p className="font-medium text-base">No projects found</p>
-          <p className="text-sm text-slate-400 mt-1">
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 py-16 text-center text-slate-500">
+          <BarChart3 className="mx-auto mb-3 h-12 w-12 opacity-20" />
+          <p className="text-base font-medium">No projects found</p>
+          <p className="mt-1 text-sm text-slate-400">
             Try adjusting your filters or search term
           </p>
           {(activeFiltersCount > 0 || selectedLocation || analyticsSearch) && (
             <button
+              type="button"
               onClick={clearAll}
               className="mt-3 text-sm text-[#27AE60] underline underline-offset-2"
             >
@@ -2518,26 +2576,33 @@ export default function ProjectsDashboardPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        <div
+          className={`grid w-full gap-4 ${
+            isPendingApprovalsView || paginatedProperties.length === 1
+              ? "grid-cols-1"
+              : "grid-cols-1 xl:grid-cols-2"
+          }`}
+        >
           {paginatedProperties.map((p) => (
-            <PropertyCard
-              key={p._id}
-              property={p}
-              type={p.promotion?.type || "normal"}
-              onDelete={() => setDeleteTarget(p._id)}
-              onPromote={() => openPromoteModal(p._id)}
-              onExpire={() => setExpireTarget(p._id)}
-              onReset={() => setResetTarget(p._id)}
-              onRankUpdated={refreshAllProjects}
-              canApprove={canApproveProject(currentUser, p)}
-            />
+            <div key={p._id} className="min-w-0 w-full">
+              <PropertyCard
+                property={p}
+                type={p.promotion?.type || "normal"}
+                onDelete={() => setDeleteTarget(p._id)}
+                onPromote={() => openPromoteModal(p._id)}
+                onExpire={() => setExpireTarget(p._id)}
+                onReset={() => setResetTarget(p._id)}
+                onRankUpdated={refreshAllProjects}
+                canApprove={canApproveProject(currentUser, p)}
+              />
+            </div>
           ))}
         </div>
       )}
 
       {/* ── PROJECT PAGINATION ───────────────────────────────────────────── */}
       {visibleProperties.length > 0 && (
-        <div className="flex flex-col items-center justify-center gap-3 py-4 sm:flex-row">
+        <div className="flex flex-col items-center justify-center gap-3 border-t border-slate-100 pt-4 sm:flex-row">
           <button
             type="button"
             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
@@ -2573,6 +2638,7 @@ export default function ProjectsDashboardPage() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }

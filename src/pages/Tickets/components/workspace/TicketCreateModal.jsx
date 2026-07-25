@@ -212,6 +212,15 @@ export default function TicketCreateModal({
 
   const submit = async (event) => {
     event.preventDefault();
+    const creatorId =
+      currentUser?._id || currentUser?.id || currentUser?.userId || undefined;
+    const creatorTag = creatorId ? `created_by_${creatorId}` : null;
+    const manualTags = form.tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    const tags = [...new Set([...(creatorTag ? [creatorTag] : []), ...manualTags])];
+
     const payload = {
       title: form.title.trim(),
       description: form.description.trim(),
@@ -236,13 +245,12 @@ export default function TicketCreateModal({
           }
         : undefined,
       attachments,
-      tags: form.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean),
+      tags,
       metadata: {
         createdFrom: "admin-ticket-desk",
-        createdByRole: currentUser?.roleName,
+        createdByUserId: creatorId,
+        createdByName: currentUser?.name || currentUser?.fullName,
+        createdByRole: currentUser?.roleName || currentUser?.role,
         requesterRole: selectedRequester?.role || selectedRequester?.roleName,
         requesterLocation: selectedRequester
           ? {
@@ -325,7 +333,9 @@ export default function TicketCreateModal({
             </span>
             <div>
               <h2 className="text-[20px] font-semibold text-slate-950">Create New Ticket</h2>
-              <p className="mt-1 text-[12px] font-normal text-slate-500">Add the requester, ticket information, and optional assignee.</p>
+              <p className="mt-1 text-[12px] font-normal text-slate-500">
+                Pick requester + details. Optionally assign to a staff user — you still keep this ticket under Created by me.
+              </p>
             </div>
           </div>
           <button type="button" onClick={onClose} className="rounded-xl p-2 text-slate-500 transition hover:bg-white hover:text-slate-900">

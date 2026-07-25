@@ -7,6 +7,7 @@ import { apiClient } from "../api/apiClient";
 import {
   SIDEBAR_ACK_EVENT,
   SIDEBAR_ACTIVITY_PATHS,
+  SIDEBAR_REFRESH_EVENT,
   emptySidebarCounts,
   getSidebarUserKey,
   inventoryOnboardingCount,
@@ -44,10 +45,19 @@ const sumAccountBuckets = (...buckets) =>
     emptyAccountBucket(),
   );
 
-const REFRESH_MS = 90_000;
+const REFRESH_MS = 45_000;
 const CUSTOMER_CARE_DEPARTMENT = "customer-care";
 
 const GLOBAL_SCOPE_ROLES = new Set(["super_admin", "admin", "business_development_head"]);
+
+/** Region-wide inventory badges (state only — city/locality was hiding CC creates). */
+const STATE_SCOPE_ROLES = new Set([
+  "regional_manager",
+  "operations_head",
+  "operation_head",
+  "ceo",
+  "founder",
+]);
 
 const CUSTOMER_CARE_TICKET_ROLES = new Set([
   "customer_care",
@@ -94,6 +104,8 @@ const buildUserScopeParams = (user) => {
   if (GLOBAL_SCOPE_ROLES.has(role)) return {};
   const params = {};
   if (user?.state) params.state = user.state;
+  // Regional / ops leaders see whole state (CC may create in another city).
+  if (STATE_SCOPE_ROLES.has(role)) return params;
   if (user?.city) params.city = user.city;
   if (user?.locality) params.locality = user.locality;
   return params;
@@ -496,14 +508,17 @@ export function useSidebarActivityBadges() {
     const onVisibility = () => {
       if (document.visibilityState === "visible") refresh();
     };
+    const onRefreshRequest = () => refresh();
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener(SIDEBAR_REFRESH_EVENT, onRefreshRequest);
 
     return () => {
       active = false;
       window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener(SIDEBAR_REFRESH_EVENT, onRefreshRequest);
     };
   }, []);
 

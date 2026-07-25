@@ -1,370 +1,143 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getAllProjectsAnalytics, getAllPropertiesAnalytics } from "../../../features/property/propertyService";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  getAllProjectsAnalytics,
+  getAllPropertiesAnalytics,
+} from "../../../features/property/propertyService";
 import { getAllUsers, getUserDetails } from "../../../features/user/userService";
+import { useDashboardDateRange } from "../shared/useDashboardDateRange";
+import {
+  mapRegionalManagerData,
+  RM_DATE_PRESETS,
+  unpackList,
+} from "./regionalManagerDashboardData";
 
-const isKnown = (v) => {
-  const s = String(v ?? "").trim().toLowerCase();
-  return Boolean(s) && !["unknown", "not specified", "not_specified", "n/a", "na", "null", "undefined"].includes(s);
-};
-
-const RM_TEAM_ROLES = new Set([
-  "sales_manager",
-  "sales_agent",
-  "sales_executive",
-  "sales_executives",
-  "business_development_manager",
-  "business_development_executive",
-]);
-
-const asNum = (v) => {
-  const n = Number(v || 0);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const toIsoDate = (date) => {
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return "";
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-};
-
-const unpackList = (result) => {
-  if (result?.status !== "fulfilled") return [];
-  const payload = result.value?.data;
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.users)) return payload.users;
-  if (Array.isArray(payload?.data)) return payload.data;
-  return [];
-};
-
-const unpackAnalytics = (result) => {
-  if (result?.status !== "fulfilled") return {};
-  return result.value?.data?.data || result.value?.data || {};
-};
-
-const resolveDateRange = (preset, customFrom, customTo) => {
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  if (preset === "all") return { from: "", to: "" };
-  if (preset === "today") return { from: toIsoDate(startOfToday), to: toIsoDate(today) };
-  if (preset === "7d") {
-    const from = new Date(startOfToday);
-    from.setDate(from.getDate() - 6);
-    return { from: toIsoDate(from), to: toIsoDate(today) };
+const safe = async (fn, fallback) => {
+  try {
+    return await fn();
+  } catch {
+    return fallback;
   }
-  if (preset === "30d") {
-    const from = new Date(startOfToday);
-    from.setDate(from.getDate() - 29);
-    return { from: toIsoDate(from), to: toIsoDate(today) };
-  }
-  if (preset === "month") {
-    const from = new Date(today.getFullYear(), today.getMonth(), 1);
-    return { from: toIsoDate(from), to: toIsoDate(today) };
-  }
-  if (preset === "custom") {
-    return {
-      from: customFrom || "",
-      to: customTo || "",
-    };
-  }
-  return { from: "", to: "" };
 };
+
+const unpackAnalytics = (response) => response?.data?.data || response?.data || {};
 
 export function useRegionalManagerDashboard() {
+  const dateRange = useDashboardDateRange("30d", RM_DATE_PRESETS);
+  const { range, filters } = dateRange;
   const [selectedCity, setSelectedCity] = useState("All Cities");
-  const [selectedLocality, setSelectedLocality] = useState("All Localities");
   const [selectedStatus, setSelectedStatus] = useState("All Statuses");
-  const [datePreset, setDatePreset] = useState("all");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [toastMsg, setToastMsg] = useState(null);
-  const [data, setData] = useState({
-    projects: {},
-    properties: {},
-    users: [],
-    currentUser: null,
+
+  const currentUserQuery = useQuery({
+    queryKey: ["rm-dashboard", "me"],
+    queryFn: async () => {
+      const response = await getUserDetails();
+      return response?.data?.user || response?.data || null;
+    },
+    staleTime: 120_000,
   });
 
-  const dateRange = useMemo(
-    () => resolveDateRange(datePreset, customFrom, customTo),
-    [customFrom, customTo, datePreset],
-  );
+  const currentUser = currentUserQuery.data;
+  const regionState = currentUser?.state || "";
 
-  const triggerToast = useCallback((msg) => {
-    setToastMsg(msg);
-    window.setTimeout(() => setToastMsg(null), 2800);
-  }, []);
+  const analyticsFilters = useMemo(() => {
+    const params = { ...filters };
+    if (regionState) params.state = regionState;
+    if (selectedCity && selectedCity !== "All Cities") params.city = selectedCity;
+    return params;
+  }, [filters, regionState, selectedCity]);
 
-  const loadData = useCallback(
-    async (isRefresh = false) => {
-      try {
-        if (isRefresh) setIsRefreshing(true);
-        else setLoading(true);
+  const projectsQuery = useQuery({
+    queryKey: ["rm-dashboard", "projects", analyticsFilters],
+    queryFn: () =>
+      safe(async () => unpackAnalytics(await getAllProjectsAnalytics(analyticsFilters)), {}),
+    enabled: Boolean(currentUser),
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
 
-        const currentUserResult = await getUserDetails().catch(() => null);
-        const currentUser =
-          currentUserResult?.data?.user || currentUserResult?.data || currentUserResult || null;
+  const propertiesQuery = useQuery({
+    queryKey: ["rm-dashboard", "properties", analyticsFilters],
+    queryFn: () =>
+      safe(async () => unpackAnalytics(await getAllPropertiesAnalytics(analyticsFilters)), {}),
+    enabled: Boolean(currentUser),
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
 
-        const analyticsParams = {};
-        if (currentUser?.state) analyticsParams.state = currentUser.state;
-        if (selectedCity && selectedCity !== "All Cities") analyticsParams.city = selectedCity;
-        if (selectedLocality && selectedLocality !== "All Localities") {
-          analyticsParams.locality = selectedLocality;
-        }
-        if (dateRange.from) analyticsParams.from = dateRange.from;
-        if (dateRange.to) analyticsParams.to = dateRange.to;
+  const usersQuery = useQuery({
+    queryKey: ["rm-dashboard", "users"],
+    queryFn: () =>
+      safe(async () => {
+        const response = await getAllUsers({ scope: "team_directory" });
+        return unpackList(response?.data || response);
+      }, []),
+    staleTime: 120_000,
+  });
 
-        const [usersResult, projectResult, propertyResult] = await Promise.allSettled([
-          getAllUsers({ scope: "team_directory" }),
-          getAllProjectsAnalytics(analyticsParams),
-          getAllPropertiesAnalytics(analyticsParams),
-        ]);
-
-        setData({
-          currentUser,
-          users: unpackList(usersResult),
-          projects: unpackAnalytics(projectResult),
-          properties: unpackAnalytics(propertyResult),
-        });
-        if (isRefresh) triggerToast("Regional data refreshed");
-      } catch (err) {
-        console.error("RegionalManagerDashboard load error:", err);
-        triggerToast("Failed to load regional data");
-      } finally {
-        setLoading(false);
-        setIsRefreshing(false);
-      }
-    },
-    [dateRange.from, dateRange.to, selectedCity, selectedLocality, triggerToast],
-  );
-
-  useEffect(() => {
-    // Custom range waits until both dates are set (or cleared)
-    if (datePreset === "custom" && customFrom && customTo && customFrom > customTo) return;
-    if (datePreset === "custom" && (Boolean(customFrom) !== Boolean(customTo))) return;
-    loadData(false);
-  }, [customFrom, customTo, datePreset, loadData]);
-
-  const projectOverview = data.projects?.overview || {};
-  const propertyOverview = data.properties?.overview || {};
-
-  const metrics = useMemo(() => {
-    const totalProperties =
-      asNum(projectOverview.totalProjects) + asNum(propertyOverview.totalProperties);
-    const activeListings =
-      asNum(projectOverview.activeProjects) + asNum(propertyOverview.activeProperties);
-    const pendingCount =
-      asNum(projectOverview.pendingProjects) + asNum(propertyOverview.pendingProperties);
-    const draftCount =
-      asNum(projectOverview.draftProjects || projectOverview.inactiveProjects) +
-      asNum(propertyOverview.draftProperties);
-    const totalInquiries =
-      asNum(projectOverview.totalInquiries) + asNum(propertyOverview.totalInquiries);
-    const totalClicks =
-      asNum(projectOverview.totalClicks) + asNum(propertyOverview.totalClicks);
-    const totalViews =
-      asNum(projectOverview.totalViews) + asNum(propertyOverview.totalViews);
-
-    const leadByStatus =
-      data.projects?.leadSummary?.byStatus || data.properties?.leadSummary?.byStatus || {};
-    const newLeads = asNum(leadByStatus.new_lead);
-    const qualified = asNum(leadByStatus.qualified);
-    const siteVisits = asNum(leadByStatus.site_visit);
-    const negotiation = asNum(leadByStatus.negotiation);
-    const conversions = asNum(leadByStatus.sale);
-    const inquiryTotal = totalInquiries || newLeads;
-
-    return {
-      totalProperties,
-      activeListings,
-      pendingCount,
-      draftCount,
-      totalInquiries: inquiryTotal,
-      totalClicks,
-      totalViews,
-      newLeads,
-      qualified,
-      siteVisits,
-      negotiation,
-      conversions,
-      conversionRate:
-        inquiryTotal > 0 ? ((conversions / inquiryTotal) * 100).toFixed(0) : "0",
-      funnelCounts: [inquiryTotal, qualified, siteVisits, negotiation, conversions],
-    };
-  }, [data.projects, data.properties, projectOverview, propertyOverview]);
-
-  const cityRows = useMemo(() => {
-    const raw = [...(data.projects?.cityWise || []), ...(data.properties?.cityWise || [])];
-    const map = new Map();
-    raw.forEach((row) => {
-      const key = String(row?._id ?? "");
-      if (!isKnown(key)) return;
-      const existing = map.get(key) || {
-        city: key,
-        total: 0,
-        active: 0,
-        pending: 0,
-        draft: 0,
-      };
-      existing.total += asNum(row?.total);
-      existing.active += asNum(row?.active);
-      existing.pending += asNum(row?.pending);
-      existing.draft += asNum(row?.draft);
-      map.set(key, existing);
-    });
-    const sorted = [...map.values()].sort((a, b) => b.total - a.total);
-    const max = sorted[0]?.total || 1;
-    return sorted.map((r) => ({ ...r, pct: Math.round((r.total / max) * 100) }));
-  }, [data.projects, data.properties]);
-
-  const localityRows = useMemo(() => {
-    const raw = [
-      ...(data.projects?.localityWise || []),
-      ...(data.properties?.localityWise || []),
-    ];
-    const map = new Map();
-    raw.forEach((row) => {
-      const key = String(row?._id ?? "");
-      if (!isKnown(key)) return;
-      const existing = map.get(key) || {
-        locality: key,
-        total: 0,
-        active: 0,
-        pending: 0,
-        draft: 0,
-      };
-      existing.total += asNum(row?.total);
-      existing.active += asNum(row?.active);
-      existing.pending += asNum(row?.pending);
-      existing.draft += asNum(row?.draft);
-      map.set(key, existing);
-    });
-    return [...map.values()].sort((a, b) => b.total - a.total);
-  }, [data.projects, data.properties]);
-
-  const statusRows = useMemo(() => {
-    const raw = [...(data.projects?.statusWise || []), ...(data.properties?.statusWise || [])];
-    const map = new Map();
-    raw.forEach((row) => {
-      const key = String(row?._id ?? "unknown").toLowerCase();
-      if (!key) return;
-      map.set(key, (map.get(key) || 0) + asNum(row?.total));
-    });
-    return [...map.entries()]
-      .map(([status, total]) => ({ status, total }))
-      .sort((a, b) => b.total - a.total);
-  }, [data.projects, data.properties]);
-
-  const filteredDetailRows = useMemo(() => {
-    const base =
-      selectedLocality !== "All Localities" || localityRows.length
-        ? localityRows.map((row) => ({
-            key: row.locality,
-            label: row.locality,
-            type: "Locality",
-            total: row.total,
-            active: row.active,
-            pending: row.pending,
-            draft: row.draft,
-          }))
-        : cityRows.map((row) => ({
-            key: row.city,
-            label: row.city,
-            type: "City",
-            total: row.total,
-            active: row.active,
-            pending: row.pending,
-            draft: row.draft,
-          }));
-
-    return base.filter((row) => {
-      if (selectedStatus === "All Statuses") return true;
-      if (selectedStatus === "active") return asNum(row.active) > 0;
-      if (selectedStatus === "pending") return asNum(row.pending) > 0;
-      if (selectedStatus === "draft") return asNum(row.draft) > 0;
-      return true;
-    });
-  }, [cityRows, localityRows, selectedLocality, selectedStatus]);
-
-  const teamMembers = useMemo(
+  const mapped = useMemo(
     () =>
-      data.users.filter((u) => RM_TEAM_ROLES.has(String(u.roleName || "").toLowerCase())),
-    [data.users],
+      mapRegionalManagerData({
+        currentUser,
+        projectsAnalytics: projectsQuery.data || {},
+        propertiesAnalytics: propertiesQuery.data || {},
+        usersPayload: usersQuery.data || [],
+        range,
+        selectedCity,
+        selectedStatus,
+      }),
+    [
+      currentUser,
+      projectsQuery.data,
+      propertiesQuery.data,
+      usersQuery.data,
+      range,
+      selectedCity,
+      selectedStatus,
+    ],
   );
 
-  const allCities = useMemo(() => {
-    const fromUsers = data.users.map((u) => u.city).filter(isKnown);
-    const fromAnalytics = cityRows.map((r) => r.city).filter(isKnown);
-    return [...new Set([...fromUsers, ...fromAnalytics])].sort();
-  }, [cityRows, data.users]);
+  const isLoading =
+    currentUserQuery.isLoading ||
+    (!!currentUser && (projectsQuery.isLoading || propertiesQuery.isLoading));
 
-  const allLocalities = useMemo(
-    () => localityRows.map((r) => r.locality).filter(isKnown).sort(),
-    [localityRows],
-  );
+  const isFetching =
+    currentUserQuery.isFetching ||
+    projectsQuery.isFetching ||
+    propertiesQuery.isFetching ||
+    usersQuery.isFetching;
 
-  const allStates = useMemo(
-    () => [...new Set(data.users.map((u) => u.state).filter(isKnown))].sort(),
-    [data.users],
-  );
+  const refetch = async () => {
+    await Promise.all([
+      currentUserQuery.refetch(),
+      projectsQuery.refetch(),
+      propertiesQuery.refetch(),
+      usersQuery.refetch(),
+    ]);
+  };
 
-  const clearFilters = useCallback(() => {
+  const clearFilters = () => {
     setSelectedCity("All Cities");
-    setSelectedLocality("All Localities");
     setSelectedStatus("All Statuses");
-    setDatePreset("all");
-    setCustomFrom("");
-    setCustomTo("");
-  }, []);
-
-  const activeFilterCount = [
-    selectedCity !== "All Cities",
-    selectedLocality !== "All Localities",
-    selectedStatus !== "All Statuses",
-    datePreset !== "all",
-  ].filter(Boolean).length;
+    dateRange.setPreset("30d");
+  };
 
   return {
-    loading,
-    isRefreshing,
-    toastMsg,
-    triggerToast,
+    ...mapped,
+    ...dateRange,
     selectedCity,
     setSelectedCity,
-    selectedLocality,
-    setSelectedLocality,
     selectedStatus,
     setSelectedStatus,
-    datePreset,
-    setDatePreset,
-    customFrom,
-    setCustomFrom,
-    customTo,
-    setCustomTo,
-    dateRange,
     clearFilters,
-    activeFilterCount,
-    loadData,
-    data,
-    metrics,
-    cityRows,
-    localityRows,
-    statusRows,
-    filteredDetailRows,
-    teamMembers,
-    allCities,
-    allLocalities,
-    allStates,
-    regionLabel: data.currentUser?.state || "Your region",
-    currentUser: data.currentUser,
+    isLoading,
+    isFetching,
+    refetch,
+    refreshedAt: propertiesQuery.dataUpdatedAt
+      ? new Date(propertiesQuery.dataUpdatedAt)
+      : new Date(),
+    presets: RM_DATE_PRESETS,
   };
 }
 
-export { isKnown, asNum, RM_TEAM_ROLES, toIsoDate };
+export { isKnown, RM_TEAM_ROLES } from "./regionalManagerDashboardData";

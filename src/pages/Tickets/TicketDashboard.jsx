@@ -15,27 +15,17 @@ import TicketCreateModal from "./components/workspace/TicketCreateModal";
 import TicketConfigPanel from "./components/workspace/TicketConfigPanel";
 import { ticketSurface, ticketSurfaceHover } from "./components/ticketUi";
 import { formatDateTime, formatLabel, formatRelativeTime } from "./utils/ticketFormatters";
+import { resolveTicketRoleAccess, involvementBadge } from "./utils/ticketRoleAccess";
 import { useTicketDashboard } from "./hooks/useTicketDashboard";
 import {
   buildTicketActor,
   useTicketActions,
   useTicketCatalogs,
   useTicketDetail,
-  useTicketList,
+  useRoleScopedTicketList,
 } from "./hooks/useTicketWorkspace";
 import { useCurrentUser } from "../../store/properties/useCurrentUser";
 
-const FULL_TICKET_DESK_ROLES = [
-  "super_admin",
-  "admin",
-  "customer_support_head",
-  "customer_care",
-  "customer_care_executive",
-  "customer_care_executives",
-];
-const QUEUE_TAB = { key: "queue", label: "Queue", icon: null };
-
-const getUserId = (user) => user?._id || user?.id || user?.userId;
 const getTicketId = (ticket) => ticket?._id || ticket?.id;
 const getNotificationStorageKey = (userId) =>
   userId ? `ticket-notifications-seen-ids:${userId}` : null;
@@ -49,27 +39,41 @@ export default function TicketDashboard() {
     limit: 20,
     sortBy: "updatedAt",
     sortOrder: "desc",
+    personalScope: "mine",
   });
   const [seenNotificationIds, setSeenNotificationIds] = useState(() => new Set());
 
   const { data: userData } = useCurrentUser();
   const currentUser = userData?.user;
-  const currentUserId = getUserId(currentUser);
-  const roleName = currentUser?.roleName || currentUser?.role;
-  const canUseFullDesk = FULL_TICKET_DESK_ROLES.includes(roleName);
+  const roleAccess = useMemo(() => resolveTicketRoleAccess(currentUser), [currentUser]);
+  const {
+    mode,
+    userId: currentUserId,
+    roleName,
+    canUseFullDesk,
+    canAssign,
+    canCreate,
+    title,
+    subtitle,
+    notice,
+    availableTabs,
+    personalScopes,
+  } = roleAccess;
   const actor = useMemo(() => buildTicketActor(currentUser), [currentUser]);
 
   const dashboard = useTicketDashboard(canUseFullDesk);
-  const ticketList = useTicketList(
+  const ticketList = useRoleScopedTicketList({
+    mode,
+    userId: currentUserId,
     filters,
-    canUseFullDesk || Boolean(currentUserId),
-  );
-  const rawTickets = ticketList.data?.data || [];
+    enabled: Boolean(currentUser) && (canUseFullDesk || Boolean(currentUserId)),
+  });
+  const rawTickets = ticketList.tickets || [];
   const tickets =
     filters.assignment === "unassigned"
       ? rawTickets.filter((ticket) => !ticket.assignedTo?.userId && !ticket.assignedTo?.name)
       : rawTickets;
-  const ticketMeta = ticketList.data?.meta || ticketList.data?.pagination;
+  const ticketMeta = ticketList.meta;
   const catalogs = useTicketCatalogs();
   const actions = useTicketActions();
   const visibleActiveTab =
@@ -88,14 +92,24 @@ export default function TicketDashboard() {
 
   useEffect(() => {
     if (!currentUser) return;
-    if (canUseFullDesk) return;
+    if (canUseFullDesk) {
+      setFilters((current) => {
+        const next = { ...current };
+        delete next.assignedOrRequested;
+        delete next.assignedTo;
+        delete next.requesterId;
+        delete next.tag;
+        if (!next.personalScope) next.personalScope = "mine";
+        return next;
+      });
+      return;
+    }
 
     setActiveTab("queue");
     setFilters((current) => ({
       ...current,
       page: 1,
-      assignedTo: undefined,
-      assignedOrRequested: currentUserId,
+      personalScope: current.personalScope || "mine",
     }));
   }, [canUseFullDesk, currentUser, currentUserId]);
 
@@ -105,7 +119,7 @@ export default function TicketDashboard() {
     try {
       const savedIds = JSON.parse(window.localStorage.getItem(key) || "[]");
       setSeenNotificationIds(new Set(Array.isArray(savedIds) ? savedIds : []));
-    } catch (error) {
+    } catch {
       setSeenNotificationIds(new Set());
     }
   }, [currentUserId]);
@@ -128,8 +142,7 @@ export default function TicketDashboard() {
       const ticketId = getTicketId(ticket);
       if (ticketId) nextIds.add(ticketId);
     });
-    const serializedIds = JSON.stringify([...nextIds]);
-    window.localStorage.setItem(key, serializedIds);
+    window.localStorage.setItem(key, JSON.stringify([...nextIds]));
     setSeenNotificationIds(nextIds);
   };
 
@@ -147,7 +160,7 @@ export default function TicketDashboard() {
       limit: 20,
       sortBy: "updatedAt",
       sortOrder: "desc",
-      ...(!canUseFullDesk && currentUserId ? { assignedOrRequested: currentUserId } : {}),
+      personalScope: "mine",
       ...patch,
     });
     setActiveTab("queue");
@@ -172,9 +185,17 @@ export default function TicketDashboard() {
   const handleCreateTicket = async (payload) => {
     try {
       const created = await actions.createTicket.mutateAsync(payload);
-      toast.success("Ticket created");
+      toast.success(
+        payload?.assignedTo?.userId
+          ? "Ticket created and sent to assignee — it also stays in your Created by me list"
+          : "Ticket created",
+      );
       setSelectedTicketId(created?._id);
       setActiveTab("queue");
+      if (!canUseFullDesk) {
+        setFilters((current) => ({ ...current, personalScope: "created", page: 1 }));
+      }
+      ticketList.refetch();
     } catch (error) {
       const responseText =
         typeof error?.response?.data === "string" ? error.response.data : "";
@@ -202,14 +223,10 @@ export default function TicketDashboard() {
         onRefresh={refreshAll}
         isRefreshing={dashboard.isFetching || ticketList.isFetching || detail.isFetching}
         roleName={roleName}
-        availableTabs={canUseFullDesk ? undefined : [QUEUE_TAB]}
-        canCreate
-        title={canUseFullDesk ? "Ticket Desk" : "My Assigned Tickets"}
-        subtitle={
-          canUseFullDesk
-            ? "Support queue, SLA health, requester conversations, and team workflow."
-            : "Tickets assigned to you by the support desk."
-        }
+        availableTabs={availableTabs || undefined}
+        canCreate={canCreate}
+        title={title}
+        subtitle={subtitle}
         notificationCount={unreadTicketCount}
         onOpenNotifications={openNotifications}
       />
@@ -230,29 +247,33 @@ export default function TicketDashboard() {
 
       {visibleActiveTab === "queue" && (
         <div className="mt-3 space-y-3">
-          {!canUseFullDesk && (
-            <AssignedTicketNotice
-              total={ticketMeta?.total || tickets.length || 0}
-              userName={currentUser?.name}
-            />
-          )}
+          <RoleTicketNotice
+            mode={mode}
+            notice={notice}
+            total={ticketMeta?.total || tickets.length || 0}
+            userName={currentUser?.name}
+            personalScope={filters.personalScope || "mine"}
+            personalScopes={personalScopes}
+          />
           <div className="grid min-w-0 items-start gap-3 lg:grid-cols-[minmax(330px,390px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)]">
-          <TicketQueue
-            tickets={tickets}
-            meta={ticketMeta}
-            filters={filters}
-            onFiltersChange={setFilters}
-            selectedId={activeTicketId}
-            onSelect={selectTicket}
-            isLoading={ticketList.isLoading}
-          />
-          <TicketDetailPanel
-            ticket={detail.data}
-            isLoading={detail.isLoading}
-            actor={actor}
-            actions={actions}
-            canAssign={canUseFullDesk}
-          />
+            <TicketQueue
+              tickets={tickets}
+              meta={ticketMeta}
+              filters={filters}
+              onFiltersChange={setFilters}
+              selectedId={activeTicketId}
+              onSelect={selectTicket}
+              isLoading={ticketList.isLoading}
+              personalScopes={personalScopes}
+              currentUserId={currentUserId}
+            />
+            <TicketDetailPanel
+              ticket={detail.data}
+              isLoading={detail.isLoading}
+              actor={actor}
+              actions={actions}
+              canAssign={canAssign}
+            />
           </div>
         </div>
       )}
@@ -262,6 +283,8 @@ export default function TicketDashboard() {
           tickets={tickets}
           seenTicketIds={seenNotificationIds}
           onOpenTicket={openTicket}
+          currentUserId={currentUserId}
+          mode={mode}
         />
       )}
 
@@ -288,13 +311,55 @@ export default function TicketDashboard() {
   );
 }
 
-function TicketNotificationsPage({ tickets, seenTicketIds, onOpenTicket }) {
+function RoleTicketNotice({
+  mode,
+  notice,
+  total,
+  userName,
+  personalScope,
+  personalScopes,
+}) {
+  const scopeLabel =
+    personalScopes?.find((item) => item.key === personalScope)?.label || "All mine";
+
+  if (mode === "desk") {
+    return (
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] font-medium text-[#17683b]">
+        <p className="font-bold text-[#14532d]">Shared Ticket Desk</p>
+        <p className="mt-1 leading-5">{notice}</p>
+        <p className="mt-1.5 text-[11px] text-emerald-800/80">
+          Queue shows <span className="font-semibold">{total}</span> ticket
+          {total === 1 ? "" : "s"} in this filter.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] font-medium text-[#17683b]">
+      <p className="font-bold text-[#14532d]">
+        My Tickets · {userName || "you"} · viewing “{scopeLabel}”
+      </p>
+      <p className="mt-1 leading-5">{notice}</p>
+      <p className="mt-1.5 text-[11px] text-emerald-800/80">
+        <span className="font-semibold">{total}</span> ticket{total === 1 ? "" : "s"} in this
+        view (login user ID based).
+      </p>
+    </div>
+  );
+}
+
+function TicketNotificationsPage({ tickets, seenTicketIds, onOpenTicket, currentUserId, mode }) {
   return (
     <section className={`mt-3 overflow-hidden ${ticketSurface}`}>
       <div className="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-[20px] font-black text-slate-950">Ticket Notifications</h2>
-          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">New assigned tickets appear here. Opening this page marks the current list as seen, and later assignments show as new.</p>
+          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+            {mode === "desk"
+              ? "Tickets in your current desk list. Open to mark as seen."
+              : "Your personal tickets (assigned / created / requester). New ones show as New until opened."}
+          </p>
         </div>
         <span className="w-fit rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-[12px] font-bold text-[#219653] shadow-sm">
           {tickets.length} total
@@ -310,6 +375,7 @@ function TicketNotificationsPage({ tickets, seenTicketIds, onOpenTicket }) {
           tickets.map((ticket) => {
             const ticketId = getTicketId(ticket);
             const isNew = ticketId && !seenTicketIds.has(ticketId);
+            const badge = involvementBadge(ticket, currentUserId);
             return (
               <button
                 key={ticketId || ticket.title}
@@ -331,14 +397,27 @@ function TicketNotificationsPage({ tickets, seenTicketIds, onOpenTicket }) {
                         New
                       </span>
                     )}
+                    {badge && (
+                      <span className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                        {badge}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1.5 text-[12px] font-semibold text-slate-500">
                     {ticket.requester?.name || "Requester"} - {formatLabel(ticket.department)}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-medium text-slate-500">
-                    <span className="rounded-full bg-white px-2 py-1 text-[#219653]">{formatLabel(ticket.status)}</span>
-                    <span className="rounded-full bg-white px-2 py-1">{formatLabel(ticket.priority)}</span>
-                    <span>{ticket.assignedTo?.name ? `Assigned ${ticket.assignedTo.name}` : "Unassigned"}</span>
+                    <span className="rounded-full bg-white px-2 py-1 text-[#219653]">
+                      {formatLabel(ticket.status)}
+                    </span>
+                    <span className="rounded-full bg-white px-2 py-1">
+                      {formatLabel(ticket.priority)}
+                    </span>
+                    <span>
+                      {ticket.assignedTo?.name
+                        ? `Assigned ${ticket.assignedTo.name}`
+                        : "Unassigned"}
+                    </span>
                     <span>Created {formatDateTime(ticket.createdAt)}</span>
                   </div>
                 </div>
@@ -351,15 +430,6 @@ function TicketNotificationsPage({ tickets, seenTicketIds, onOpenTicket }) {
         )}
       </div>
     </section>
-  );
-}
-
-function AssignedTicketNotice({ total, userName }) {
-  return (
-    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] font-medium text-[#17683b]">
-      <span className="font-semibold">{total}</span> ticket{total === 1 ? "" : "s"} assigned to{" "}
-      <span className="font-semibold">{userName || "you"}</span>. New assignments appear here after the admin saves an assignee with your user ID.
-    </div>
   );
 }
 

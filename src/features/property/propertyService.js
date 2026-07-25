@@ -1,6 +1,13 @@
 // src/features/property/common/propertyService.js
 import { apiClient } from "../../api/apiClient";
 import { SERVICES } from "../../config/services";
+import { requestSidebarRefresh } from "../../utils/sidebarActivity";
+
+const withSidebarRefresh = (promise) =>
+  Promise.resolve(promise).then((result) => {
+    requestSidebarRefresh();
+    return result;
+  });
 
 const BASE = `${SERVICES.PROPERTY}/featured-project`;
 
@@ -31,7 +38,7 @@ export const getFeaturedProjectById = (id) => apiClient.get(`${BASE}/${id}`);
 // ── POST ─────────────────────────────────────────────────────────────────────
 export const getAllFeaturedProjects = (id) => apiClient.get(`${BASE}`);
 export const createFeaturedProject = (formData, config = {}) =>
-  apiClient.post(BASE, formData, config);
+  withSidebarRefresh(apiClient.post(BASE, formData, config));
 
 // ── PATCH ────────────────────────────────────────────────────────────────────
 export const editFeaturedProject = (id, formData) =>
@@ -190,13 +197,11 @@ export const getSalesManagerPeddingProjects = () => {
   return apiClient.get(`${SERVICES.PROPERTY}/pending-projects`);
 }
 
-export const salesmanagerApproveAProject = (id) => {
-  return apiClient.patch(`${SERVICES.PROPERTY}/${id}/approve`);
-}
+export const salesmanagerApproveAProject = (id) =>
+  withSidebarRefresh(apiClient.patch(`${SERVICES.PROPERTY}/${id}/approve`));
 
-export const salesmanagerRejectAProject = (id, body = {}) => {
-  return apiClient.patch(`${SERVICES.PROPERTY}/${id}/reject`, body);
-};
+export const salesmanagerRejectAProject = (id, body = {}) =>
+  withSidebarRefresh(apiClient.patch(`${SERVICES.PROPERTY}/${id}/reject`, body));
 
 
 

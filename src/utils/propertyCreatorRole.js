@@ -1,10 +1,13 @@
 export const getPropertyCreatorRole = (property) => {
   const createdBy = property?.createdBy;
+  const postedBy = property?.postedBy;
   const role =
     createdBy?.roleName ||
     createdBy?.role ||
     createdBy?.roleId?.name ||
     createdBy?.roleId?.roleName ||
+    postedBy?.roleName ||
+    postedBy?.role ||
     "";
 
   return String(role).trim().toLowerCase();

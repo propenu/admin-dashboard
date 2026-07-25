@@ -3,6 +3,7 @@ const SEEN_PREFIX = "propenu:sidebar-seen:";
 
 export const SIDEBAR_ACTIVITY_EVENT = "propenu:sidebar-counts";
 export const SIDEBAR_ACK_EVENT = "propenu:sidebar-ack";
+export const SIDEBAR_REFRESH_EVENT = "propenu:sidebar-refresh";
 
 export const SIDEBAR_ACTIVITY_PATHS = {
   projects: "/projects",
@@ -109,12 +110,19 @@ export const publishSidebarCounts = (counts) => {
   window.dispatchEvent(new CustomEvent(SIDEBAR_ACTIVITY_EVENT, { detail: payload }));
 };
 
-/** Inventory onboarding = draft/inactive (and explicit onboarding when present). */
-export const inventoryOnboardingCount = (bucket = {}) =>
-  Math.max(
+/**
+ * Inventory onboarding / needs-attention count.
+ * Projects: include pending (CC/RM create → approval queue).
+ * Properties: draft/inactive (+ pending when present).
+ */
+export const inventoryOnboardingCount = (bucket = {}, options = {}) => {
+  const includePending = options.includePending !== false;
+  return Math.max(
     Number(bucket.onboarding || 0),
     Number(bucket.inactive || 0),
+    includePending ? Number(bucket.pending || 0) : 0,
   );
+};
 
 export const unreadFromSnapshot = (current = {}, path, seenMap = {}) => {
   const seen = seenMap?.[path];
@@ -155,8 +163,10 @@ export const statusBucketFromRows = (statusWise = []) => {
     const n = Number(row?.total || row?.count || 0) || 0;
     out.total += n;
     if (key === "active" || key === "approved" || key === "live") out.active += n;
-    else if (key === "pending" || key === "under_review" || key === "review") out.pending += n;
-    else if (
+    else if (key === "pending" || key === "under_review" || key === "review") {
+      out.pending += n;
+      out.onboarding += n;
+    } else if (
       key === "inactive" ||
       key === "draft" ||
       key === "onboarding" ||
@@ -176,7 +186,7 @@ export const statusBucketFromRows = (statusWise = []) => {
       }
     }
   });
-  if (!out.onboarding) out.onboarding = out.inactive;
+  if (!out.onboarding) out.onboarding = out.inactive + out.pending;
   return out;
 };
 
@@ -209,7 +219,8 @@ export const overviewToStatusBucket = (overview = {}) => {
     active,
     pending,
     inactive,
-    onboarding: inactive,
+    // Pending approvals are part of today's "needs attention" for projects/properties
+    onboarding: inactive + pending,
   };
 };
 
@@ -256,11 +267,22 @@ export const inventoryTodayHref = (path, detail = {}) => {
   const params = new URLSearchParams();
   params.set("createdFrom", day);
   params.set("createdTo", day);
-  const onboarding = inventoryOnboardingCount(detail);
-  // Prefer onboarding/draft filter when unread onboarding is present
-  if (onboarding > 0) {
-    params.set("status", path === SIDEBAR_ACTIVITY_PATHS.projects ? "inactive" : "draft");
+
+  const pending = Number(detail.pending || 0);
+  const draftLike = Math.max(
+    Number(detail.onboarding || 0),
+    Number(detail.inactive || 0),
+  );
+
+  // Prefer the status that explains the badge (pending approvals first for projects).
+  if (path === SIDEBAR_ACTIVITY_PATHS.projects) {
+    if (pending > 0) params.set("status", "pending");
+    else if (draftLike > 0) params.set("status", "inactive");
+  } else if (path === SIDEBAR_ACTIVITY_PATHS.properties) {
+    if (pending > 0) params.set("status", "pending");
+    else if (draftLike > 0) params.set("status", "draft");
   }
+
   return `${path}?${params.toString()}`;
 };
 
@@ -268,6 +290,12 @@ export const inventoryTodayHref = (path, detail = {}) => {
 export const requestSidebarPathAck = (path) => {
   if (typeof window === "undefined" || !path) return;
   window.dispatchEvent(new CustomEvent(SIDEBAR_ACK_EVENT, { detail: { path } }));
+};
+
+/** Force an immediate sidebar badge refetch (after create / approve / reject). */
+export const requestSidebarRefresh = () => {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(SIDEBAR_REFRESH_EVENT));
 };
 
 export { todayKey, startOfTodayMs };

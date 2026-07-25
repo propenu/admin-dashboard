@@ -351,7 +351,12 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     ].filter(Boolean);
     return [
       canView("dashboard") && { path: "/", label: "Dashboard", icon: DashboardIcon },
-      allowed.has("dashboard:view_reports") && { path: "/operations/reports", label: "Reports", icon: PropertyProgressIcon },
+      allowed.has("dashboard:view_reports") &&
+        currentRoleName !== "regional_manager" && {
+          path: "/operations/reports",
+          label: "Reports",
+          icon: PropertyProgressIcon,
+        },
       canView("project") && { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
       propertyAccess && { path: "/properties", label: "Properties", icon: PropertiesIcon },
       canView("lead") && { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
@@ -1027,6 +1032,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               : "New today",
         onboarding,
         inactive: Number(detail.inactive || 0),
+        pending: Number(detail.pending || 0),
         active: Number(detail.active || 0),
       };
     }
@@ -1063,6 +1069,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         ? inventoryTodayHref(path, {
             onboarding: badge?.onboarding || badge?.secondary,
             inactive: badge?.inactive,
+            pending: badge?.pending,
             active: badge?.active,
             primary: badge?.primary,
           })

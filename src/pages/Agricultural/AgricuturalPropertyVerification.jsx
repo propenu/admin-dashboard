@@ -22,6 +22,8 @@ import {
   fetchAgriculturalById,
   updateAgriculturalDocumentStatus,
 } from "../../services/AgricuturalServices/AgricuturalServices";
+import { getUserDetails } from "../../features/user/userService";
+import { canApproveProperty } from "../../utils/propertyAccessControl";
 
 const PropertyVerification = () => {
   const { id } = useParams();
@@ -45,7 +47,16 @@ const PropertyVerification = () => {
     queryFn: () => fetchAgriculturalById(id),
   });
 
+  const { data: meResponse } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: getUserDetails,
+    staleTime: 60_000,
+  });
+  const currentUser =
+    meResponse?.data?.user || meResponse?.data || meResponse?.user || null;
+
   const property = response?.data;
+  const canApproveDocs = canApproveProperty(currentUser, property);
 
   // --- HELPER FUNCTIONS ---
 
@@ -366,27 +377,33 @@ const PropertyVerification = () => {
                       Inspector Mode Active
                     </span>
                   </div>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => setShowRejectionInput(true)}
-                      className="px-8 py-4 border border-red-500/20 text-red-500 hover:bg-red-500/5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      onClick={() =>
-                        mutation.mutate({
-                          documentIndex:
-                            property.verificationDocuments.indexOf(selectedDoc),
-                          status: "verified",
-                        })
-                      }
-                      disabled={mutation.isPending}
-                      className="px-12 py-4 bg-[#27AE60] hover:bg-[#2ecc71] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-green-900/20 transition disabled:opacity-50"
-                    >
-                      {mutation.isPending ? "Syncing..." : "Approve"}
-                    </button>
-                  </div>
+                  {canApproveDocs ? (
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => setShowRejectionInput(true)}
+                        className="px-8 py-4 border border-red-500/20 text-red-500 hover:bg-red-500/5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        onClick={() =>
+                          mutation.mutate({
+                            documentIndex:
+                              property.verificationDocuments.indexOf(selectedDoc),
+                            status: "verified",
+                          })
+                        }
+                        disabled={mutation.isPending}
+                        className="px-12 py-4 bg-[#27AE60] hover:bg-[#2ecc71] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-green-900/20 transition disabled:opacity-50"
+                      >
+                        {mutation.isPending ? "Syncing..." : "Approve"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">
+                      Only a higher hierarchy role can approve this listing
+                    </p>
+                  )}
                 </div>
               )}
             </div>

@@ -22,6 +22,8 @@ import {
   fetchLandById,
   updateLandDocumentStatus,
 } from "../../services/LandServices/LandServices";
+import { getUserDetails } from "../../features/user/userService";
+import { canApproveProperty } from "../../utils/propertyAccessControl";
 
 const PropertyVerification = () => {
   const { id } = useParams();
@@ -42,7 +44,16 @@ const PropertyVerification = () => {
     queryFn: () => fetchLandById(id),
   });
 
+  const { data: meResponse } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: getUserDetails,
+    staleTime: 60_000,
+  });
+  const currentUser =
+    meResponse?.data?.user || meResponse?.data || meResponse?.user || null;
+
   const property = response?.data;
+  const canApproveDocs = canApproveProperty(currentUser, property);
 
   // --- HELPER FUNCTIONS ---
   const getFileType = (url) => {
@@ -359,27 +370,33 @@ const PropertyVerification = () => {
                       Inspector Mode
                     </span>
                   </div>
-                  <div className="flex w-full sm:w-auto gap-3">
-                    <button
-                      onClick={() => setShowRejectionInput(true)}
-                      className="flex-1 sm:flex-none px-6 lg:px-8 py-3 lg:py-4 border border-red-500/20 text-red-500 rounded-xl text-[10px] font-black uppercase"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      onClick={() =>
-                        mutation.mutate({
-                          documentIndex:
-                            property.verificationDocuments.indexOf(selectedDoc),
-                          status: "verified",
-                        })
-                      }
-                      disabled={mutation.isPending}
-                      className="flex-1 sm:flex-none px-10 lg:px-12 py-3 lg:py-4 bg-[#27AE60] text-white rounded-xl text-[10px] font-black uppercase"
-                    >
-                      {mutation.isPending ? "..." : "Approve"}
-                    </button>
-                  </div>
+                  {canApproveDocs ? (
+                    <div className="flex w-full sm:w-auto gap-3">
+                      <button
+                        onClick={() => setShowRejectionInput(true)}
+                        className="flex-1 sm:flex-none px-6 lg:px-8 py-3 lg:py-4 border border-red-500/20 text-red-500 rounded-xl text-[10px] font-black uppercase"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        onClick={() =>
+                          mutation.mutate({
+                            documentIndex:
+                              property.verificationDocuments.indexOf(selectedDoc),
+                            status: "verified",
+                          })
+                        }
+                        disabled={mutation.isPending}
+                        className="flex-1 sm:flex-none px-10 lg:px-12 py-3 lg:py-4 bg-[#27AE60] text-white rounded-xl text-[10px] font-black uppercase"
+                      >
+                        {mutation.isPending ? "..." : "Approve"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">
+                      Only a higher hierarchy role can approve this listing
+                    </p>
+                  )}
                 </div>
               )}
             </div>

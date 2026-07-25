@@ -15,6 +15,8 @@ const ROLE_RANK = {
   relationship_manager: 12,
   sales_agent: 10,
   sales_executive: 10,
+  agent: 10,
+  user: 5,
   team_lead: 20,
   customer_support_head: 30,
   sales_manager: 40,
@@ -129,11 +131,22 @@ export const canApproveProject = (user, project) => {
     actorRank < getProjectRoleRank("regional_manager") &&
     creatorRank <= getProjectRoleRank("customer_care_executive")
   ) {
-    if (
-      actorRole === "sales_manager" &&
-      (creatorRole === "sales_agent" || creatorRole === "sales_executive")
-    ) {
+    const smMayApprove = new Set([
+      "sales_agent",
+      "sales_executive",
+      "agent",
+      "user",
+      "builder",
+      "builder_staff",
+    ]);
+    if (actorRole === "sales_manager" && smMayApprove.has(creatorRole)) {
       return true;
+    }
+    if (
+      creatorRole === "customer_care_executive" ||
+      creatorRole === "relationship_manager"
+    ) {
+      return false;
     }
     return false;
   }
