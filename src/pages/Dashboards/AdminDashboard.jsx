@@ -1,175 +1,129 @@
-// frontend/admin-dashboard/src/pages/Dashborads/AdminDashboard.jsx
-import React, { useState, useEffect } from "react";
-import { getAdminAnalytics } from "../../features/property/propertyService";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
-import {
-  FolderKanban,
-  TrendingUp,
-  Eye,
-  RefreshCw,
-  CheckCircle,
-  FileText,
-} from "lucide-react";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { useAdminDashboard } from "./adminDashboard/useAdminDashboard";
+import AdHeader from "./adminDashboard/components/AdHeader";
+import AdKpiStrip from "./adminDashboard/components/AdKpiStrip";
+import AdWorkstreams from "./adminDashboard/components/AdWorkstreams";
+import AdApprovalQueue from "./adminDashboard/components/AdApprovalQueue";
+import AdInventoryPanel from "./adminDashboard/components/AdInventoryPanel";
+import AdAlertsPanel from "./adminDashboard/components/AdAlertsPanel";
+import AdMixPanel from "./adminDashboard/components/AdMixPanel";
+import AdModuleGrid from "./adminDashboard/components/AdModuleGrid";
 
-const AdminDashboard = () => {
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const dashboard = useAdminDashboard();
+  const [activeKpi, setActiveKpi] = useState(null);
 
-  const fetchAnalytics = async (isRefresh = false) => {
+  const go = (href) => {
+    if (href) navigate(href);
+  };
+
+  const refreshAll = async () => {
+    await dashboard.refetch();
+    toast.success("Admin ops dashboard refreshed");
+  };
+
+  const handleExport = async () => {
+    const s = dashboard.summary;
+    const lines = [
+      `Admin Operations Command Center — ${dashboard.currentUserName}`,
+      `Period: ${dashboard.rangeLabel}`,
+      `Listings: ${s.propertyCounts?.total || 0} (${s.propertyCounts?.active || 0} active, ${s.propertyCounts?.pending || 0} pending)`,
+      `Projects: ${s.projectCounts?.total || 0}`,
+      `Leads: ${s.totalLeads} (${s.newLeads} new)`,
+      `Open tickets: ${s.openTickets} · Unassigned: ${s.unassignedTickets} · Overdue: ${s.overdueTickets}`,
+      `Users: ${s.usersTotal} · Builders: ${s.builders} · Agents: ${s.agents} · Onboarding: ${s.onboarding}`,
+      `Approval load: ${s.approvalLoad}`,
+    ].join("\n");
+
     try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-
-      const res = await getAdminAnalytics();
-      setAnalytics(res.data || {});
-    } catch (err) {
-      console.error("Admin Dashboard Error:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      await navigator.clipboard.writeText(lines);
+      toast.success("Admin ops summary copied");
+    } catch {
+      toast.error("Unable to copy summary");
     }
   };
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
-
-  if (loading) {
+  if (dashboard.isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-3">
+        <div className="h-24 animate-pulse rounded-[14px] bg-slate-100" />
+        <div className="grid grid-cols-4 gap-2 xl:grid-cols-8">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-16 animate-pulse rounded-[14px] bg-slate-100" />
+          ))}
+        </div>
       </div>
     );
   }
 
-  const total = analytics?.totalProperties || 0;
-  const active = analytics?.active || 0;
-  const pending = analytics?.pending || 0;
-  const draft = analytics?.draft || 0;
-  const views = analytics?.totalViews || 0;
-
-  const activePercentage = total > 0 ? ((active / total) * 100).toFixed(1) : 0;
-
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-[#27AE60]">
-            Admin Dashboard
-          </h1>
-          <p className="text-sm text-slate-500">
-            Property analytics & operational overview
-          </p>
-        </div>
+    <div className="mx-auto max-w-[1680px] space-y-3 pb-6 text-slate-900">
+      <AdHeader
+        userName={dashboard.currentUserName}
+        rangeLabel={dashboard.rangeLabel}
+        refreshedAt={dashboard.refreshedAt}
+        preset={dashboard.preset}
+        onPresetChange={dashboard.setPreset}
+        customFrom={dashboard.customFrom}
+        customTo={dashboard.customTo}
+        onCustomFromChange={dashboard.setCustomFrom}
+        onCustomToChange={dashboard.setCustomTo}
+        onApplyCustom={dashboard.applyCustomRange}
+        onRefresh={refreshAll}
+        isFetching={dashboard.isFetching}
+        onExport={handleExport}
+        summary={dashboard.summary}
+        onOpenApprovals={() => go("/properties?status=pending")}
+        onOpenJoinedToday={() => go("/users?joined=today")}
+      />
 
-        <button
-          onClick={() => fetchAnalytics(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow border hover:bg-slate-100"
-        >
-          <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-          Refresh
-        </button>
+      <AdKpiStrip
+        kpis={dashboard.kpis}
+        activeKey={activeKpi}
+        onMetricClick={(kpi) => {
+          setActiveKpi((current) => (current === kpi.key ? null : kpi.key));
+          go(kpi.href);
+        }}
+      />
+
+      <AdWorkstreams workstreams={dashboard.workstreams} onOpen={go} />
+
+      <div className="grid gap-3 lg:grid-cols-12 lg:items-stretch">
+        <div className="min-h-[320px] lg:col-span-4">
+          <AdApprovalQueue items={dashboard.approvalQueue} onOpen={go} />
+        </div>
+        <div className="min-h-[320px] lg:col-span-5">
+          <AdInventoryPanel
+            propertyStatus={dashboard.propertyStatus}
+            projectStatus={dashboard.projectStatus}
+            leadTrend={dashboard.leadTrend}
+            summary={dashboard.summary}
+            onOpenProperties={() => go("/properties")}
+            onOpenProjects={() => go("/projects")}
+          />
+        </div>
+        <div className="min-h-[320px] lg:col-span-3">
+          <AdAlertsPanel alerts={dashboard.alerts} onOpen={go} />
+        </div>
       </div>
 
-      {/* KPI SECTION */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <KPI icon={<FolderKanban />} label="Total Properties" value={total} />
-        <KPI
-          icon={<CheckCircle />}
-          label="Active Properties"
-          value={`${active} (${activePercentage}%)`}
+      <div className="min-h-[240px]">
+        <AdMixPanel
+          sourceRows={dashboard.sourceRows}
+          categoryRows={dashboard.categoryRows}
+          ticketRows={dashboard.ticketRows}
+          userMix={dashboard.userMix}
+          summary={dashboard.summary}
+          onOpenLeads={() => go("/leads")}
+          onOpenTickets={() => go("/tickets")}
+          onOpenUsers={() => go("/users?filter=onboarding")}
         />
-        <KPI icon={<FileText />} label="Draft Properties" value={draft} />
-        <KPI icon={<Eye />} label="Total Views" value={views} />
       </div>
 
-      {/* STATUS DISTRIBUTION */}
-      <div className="bg-white p-6 rounded-2xl shadow mb-10">
-        <h3 className="text-sm font-bold text-slate-700 uppercase mb-6">
-          Property Status Distribution
-        </h3>
-
-        <ResponsiveContainer width="100%" height={120}>
-          <BarChart
-            layout="vertical"
-            data={[
-              {
-                name: "Properties",
-                Active: active,
-                Pending: pending,
-                Draft: draft,
-              },
-            ]}
-          >
-            <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-            <XAxis type="number" hide />
-            <YAxis type="category" dataKey="name" hide />
-            <Tooltip />
-            <Bar dataKey="Active" stackId="a" fill="#10b981" />
-            <Bar dataKey="Pending" stackId="a" fill="#f59e0b" />
-            <Bar dataKey="Draft" stackId="a" fill="#3b82f6" />
-          </BarChart>
-        </ResponsiveContainer>
-
-        <div className="flex justify-center gap-8 mt-6 text-xs font-semibold text-slate-600">
-          <Legend color="bg-emerald-500" label="Active" value={active} />
-          <Legend color="bg-amber-500" label="Pending" value={pending} />
-          <Legend color="bg-blue-500" label="Draft" value={draft} />
-        </div>
-      </div>
-
-      {/* ENGAGEMENT SECTION */}
-      <div className="bg-white p-6 rounded-2xl shadow">
-        <h3 className="text-sm font-bold text-slate-700 uppercase mb-6">
-          Engagement Overview
-        </h3>
-
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart
-            data={[
-              { name: "Total Views", value: views },
-              { name: "Active Properties", value: active },
-            ]}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="value" fill="#6366f1" radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <AdModuleGrid modules={dashboard.modules} onOpen={go} />
     </div>
   );
-};
-
-const KPI = ({ icon, label, value }) => (
-  <div className="bg-white p-5 rounded-2xl shadow hover:shadow-md transition">
-    <div className="flex justify-between items-center mb-3 text-slate-600">
-      {icon}
-    </div>
-    <div className="text-2xl font-bold text-slate-800">{value}</div>
-    <div className="text-xs text-slate-500 uppercase mt-1">{label}</div>
-  </div>
-);
-
-const Legend = ({ color, label, value }) => (
-  <div className="flex items-center gap-2">
-    <div className={`w-3 h-3 rounded-full ${color}`} />
-    {label} ({value})
-  </div>
-);
-
-export default AdminDashboard;
+}

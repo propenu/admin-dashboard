@@ -77,6 +77,7 @@ export const SearchFiltersPanel = ({
               { value: "all", label: "All Users" },
               { value: "user", label: "Owners" },
               { value: "builder", label: "Builders" },
+              { value: "builder_staff", label: "Builder Staff" },
               { value: "agent", label: "Agents" },
             ]}
           />
@@ -87,6 +88,7 @@ export const SearchFiltersPanel = ({
             placeholder="All Statuses"
             options={[
               { value: "active", label: "Active" },
+              { value: "onboarding", label: "Onboarding (all pending)" },
               { value: "location_pending", label: "Location Pending" },
               { value: "kyc_pending", label: "KYC Pending" },
             ]}

@@ -104,39 +104,6 @@ const shouldHideTowerFields =
     locality: "",
   });
 
-  useEffect(() => {
-    const nextFilters = {
-      state: payload.state || "",
-      city: payload.city || "",
-      pincode: payload.pincode || "",
-      locality: payload.locality || "",
-    };
-
-    setFilters((current) =>
-      current.state === nextFilters.state &&
-      current.city === nextFilters.city &&
-      current.pincode === nextFilters.pincode &&
-      current.locality === nextFilters.locality
-        ? current
-        : nextFilters,
-    );
-  }, [payload.state, payload.city, payload.pincode, payload.locality]);
-
-  // useEffect(() => {
-  //   const stillExists = filteredBuilders.some(
-  //     (b) => b._id === payload.createdBy,
-  //   );
-
-  //   if (!stillExists) {
-  //     update({
-  //       createdBy: "",
-  //     });
-
-  //     setSelectedBuilderId("");
-  //   }
-  // }, [filters, searchQuery, builders]);
- 
-
  useEffect(() => {
    // wait until API finished
    if (!buildersLoaded) return;
@@ -173,14 +140,25 @@ const shouldHideTowerFields =
   useEffect(() => {
     async function loadBuilders() {
       try {
-        const res = await getUserSearch("builder");
-        console.log("BUILDER API RESPONSE =>", res);
-        //setBuilders(res?.data?.results || []);
-        setBuilders(res?.data?.results || []);
+        // Include builder + builder_staff so Operations/staff can assign project owners.
+        const res = await getUserSearch("builder,builder_staff");
+        const results = Array.isArray(res?.data?.results)
+          ? res.data.results
+          : Array.isArray(res?.results)
+            ? res.results
+            : [];
+        const unique = [];
+        const seen = new Set();
+        results.forEach((user) => {
+          const id = String(user?._id || user?.userId || "");
+          if (!id || seen.has(id)) return;
+          seen.add(id);
+          unique.push(user);
+        });
+        setBuilders(unique);
         setBuildersLoaded(true);
       } catch (err) {
         console.error("Failed to load builders", err);
-        // setBuilders([]);
         setBuilders([]);
         setBuildersLoaded(true);
       }
@@ -1034,7 +1012,28 @@ const shouldHideTowerFields =
             </div>
           </div>
 
-          {/* Location filters */}
+          {/* Location filters — optional; start empty so all builders/staff show */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-gray-500">
+              Showing builder &amp; builder staff. Use filters below to narrow the list.
+            </p>
+            {(payload.state || payload.city || payload.pincode || payload.locality) && (
+              <button
+                type="button"
+                onClick={() =>
+                  setFilters({
+                    state: payload.state || "",
+                    city: payload.city || "",
+                    pincode: payload.pincode || "",
+                    locality: payload.locality || "",
+                  })
+                }
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800"
+              >
+                Match project location
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <div>
               <label className={LABEL}>State</label>
@@ -1255,19 +1254,30 @@ const shouldHideTowerFields =
                   ? "No builders found"
                   : "Select Builder"}
               </option>
-              {visibleBuilders.map((builder) => (
-                <option key={builder._id} value={builder._id}>
-                  {builder.name.charAt(0).toUpperCase() + builder.name.slice(1)}{" "}
-                  — {builder.city}, {builder.state}
-                </option>
-              ))}
+              {visibleBuilders.map((builder) => {
+                const displayName = String(builder.name || "Unnamed")
+                  .charAt(0)
+                  .toUpperCase() + String(builder.name || "Unnamed").slice(1);
+                const roleLabel = String(builder.role || "builder").replace(/_/g, " ");
+                const place = [builder.city, builder.state].filter(Boolean).join(", ");
+                return (
+                  <option key={builder._id} value={builder._id}>
+                    {displayName} — {roleLabel}
+                    {place ? ` — ${place}` : ""}
+                  </option>
+                );
+              })}
             </select>
             {errors.createdBy && <p className={ERR}>⚠ {errors.createdBy}</p>}
-            {filteredBuilders.length > 0 && (
+            {filteredBuilders.length > 0 ? (
               <p className="text-xs text-gray-400 mt-1">
-                {filteredBuilders.length} builder(s) found
+                {filteredBuilders.length} account(s) found · use search / location filters to narrow
               </p>
-            )}
+            ) : builders.length > 0 ? (
+              <p className="text-xs text-amber-600 mt-1">
+                No matches for current filters. Clear location filters or search to see all builders.
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-6 rounded-2xl border-2 border-gray-200 bg-gray-50/70 p-4">

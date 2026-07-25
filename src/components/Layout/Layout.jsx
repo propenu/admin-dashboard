@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Siderbar";
+import { useSidebarActivityBadges } from "../../hooks/useSidebarActivityBadges";
 
 const SIDEBAR_EXPANDED = 256;
 const SIDEBAR_COLLAPSED = 68;
@@ -24,6 +25,7 @@ const CONTENT_BACKGROUND = {
 export default function MainLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  useSidebarActivityBadges();
 
   // ✅ detect tablet/mobile
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);

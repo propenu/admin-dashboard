@@ -7,6 +7,12 @@ export const ACCOUNT_STATUS_MAP = {
     text: "text-[#27AE60]",
     dot: "bg-[#27AE60]",
   },
+  onboarding: {
+    label: "Onboarding",
+    bg: "bg-amber-50",
+    text: "text-amber-700",
+    dot: "bg-amber-400",
+  },
   location_pending: {
     label: "Location Pending",
     bg: "bg-amber-50",

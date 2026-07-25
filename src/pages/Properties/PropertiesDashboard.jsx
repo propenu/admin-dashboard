@@ -65,6 +65,7 @@ import {
   getPropertyCreatorTag,
   isAgentCreatedProperty,
 } from "../../utils/propertyCreatorRole";
+import { todayIso } from "../Dashboards/shared/dashboardDateRange";
 
 const CATEGORIES = [
   { value: "all", label: "All properties" },
@@ -86,9 +87,25 @@ const STATUSES = [
   { value: "all", label: "All status" },
   { value: "active", label: "Active" },
   { value: "pending", label: "Pending" },
-  { value: "draft", label: "Draft" },
+  { value: "draft", label: "Draft / Onboarding" },
   { value: "rejected", label: "Rejected" },
 ];
+
+const normalizeStatusParam = (value = "") => {
+  const key = String(value || "").trim().toLowerCase();
+  if (key === "onboarding" || key === "incomplete") return "draft";
+  return key || "all";
+};
+
+const inCreatedRange = (value, from, to) => {
+  if (!from && !to) return true;
+  if (!value) return false;
+  const createdAt = new Date(value);
+  if (Number.isNaN(createdAt.getTime())) return false;
+  if (from && createdAt < new Date(`${from}T00:00:00`)) return false;
+  if (to && createdAt > new Date(`${to}T23:59:59.999`)) return false;
+  return true;
+};
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=500&q=75";
@@ -128,11 +145,13 @@ const cleanRows = (rows = []) =>
     .filter((row) => row?._id && row._id !== "unknown")
     .sort((a, b) => (b.total || 0) - (a.total || 0));
 
-const buildAnalyticsParams = (filters) => {
+const buildAnalyticsParams = (filters, dateRange = {}) => {
   const params = {};
   if (filters.state) params.state = filters.state;
   if (filters.city) params.city = filters.city;
   if (filters.locality) params.locality = filters.locality;
+  if (dateRange.from) params.from = dateRange.from;
+  if (dateRange.to) params.to = dateRange.to;
   return params;
 };
 
@@ -720,7 +739,7 @@ export default function PropertiesDashboard() {
     () => searchParams.get("category") || "all",
   );
   const [status, setStatus] = useState(
-    () => searchParams.get("status") || "all",
+    () => normalizeStatusParam(searchParams.get("status") || "all"),
   );
   const [locationFilters, setLocationFilters] = useState({
     state: searchParams.get("state") || "",
@@ -737,6 +756,12 @@ export default function PropertiesDashboard() {
   const [sort, setSort] = useState(
     () => searchParams.get("sort") || "newest",
   );
+  const [createdFrom, setCreatedFrom] = useState(
+    () => searchParams.get("createdFrom") || searchParams.get("from") || "",
+  );
+  const [createdTo, setCreatedTo] = useState(
+    () => searchParams.get("createdTo") || searchParams.get("to") || "",
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const [page, setPage] = useState(() => {
     const savedPage = Number(searchParams.get("page"));
@@ -745,6 +770,23 @@ export default function PropertiesDashboard() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const hasMounted = useRef(false);
+
+  const isTodayRange =
+    Boolean(createdFrom) &&
+    Boolean(createdTo) &&
+    createdFrom === createdTo &&
+    createdFrom === todayIso();
+
+  const applyTodayRange = () => {
+    const day = todayIso();
+    setCreatedFrom(day);
+    setCreatedTo(day);
+  };
+
+  const clearDateRange = () => {
+    setCreatedFrom("");
+    setCreatedTo("");
+  };
 
   // Keep the card filters on the dashboard URL. The browser restores this
   // exact entry when returning from details, including Pending/search/page.
@@ -758,10 +800,14 @@ export default function PropertiesDashboard() {
     if (locationSearch.trim()) next.set("locationSearch", locationSearch);
     if (debouncedSearch.trim()) next.set("search", debouncedSearch);
     if (sort !== "newest") next.set("sort", sort);
+    if (createdFrom) next.set("createdFrom", createdFrom);
+    if (createdTo) next.set("createdTo", createdTo);
     if (page > 1) next.set("page", String(page));
     setSearchParams(next, { replace: true });
   }, [
     category,
+    createdFrom,
+    createdTo,
     locationFilters,
     locationSearch,
     page,
@@ -771,10 +817,23 @@ export default function PropertiesDashboard() {
     status,
   ]);
 
+  // Support drill-downs like /properties?status=onboarding&createdFrom=...
+  useEffect(() => {
+    const nextStatus = normalizeStatusParam(searchParams.get("status") || "all");
+    if (nextStatus !== status) setStatus(nextStatus);
+    const nextFrom = searchParams.get("createdFrom") || searchParams.get("from") || "";
+    const nextTo = searchParams.get("createdTo") || searchParams.get("to") || "";
+    if (nextFrom !== createdFrom) setCreatedFrom(nextFrom);
+    if (nextTo !== createdTo) setCreatedTo(nextTo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const analyticsQuery = useQuery({
-    queryKey: ["properties-analytics", locationFilters],
+    queryKey: ["properties-analytics", locationFilters, createdFrom, createdTo],
     queryFn: async () => {
-      const res = await getAllPropertiesAnalytics(buildAnalyticsParams(locationFilters));
+      const res = await getAllPropertiesAnalytics(
+        buildAnalyticsParams(locationFilters, { from: createdFrom, to: createdTo }),
+      );
       return res.data?.data || res.data;
     },
     staleTime: 60_000,
@@ -872,6 +931,7 @@ export default function PropertiesDashboard() {
       .filter((property) => !locationFilters.state || property?.state?.trim() === locationFilters.state)
       .filter((property) => !locationFilters.city || property?.city?.trim() === locationFilters.city)
       .filter((property) => !locationFilters.locality || property?.locality?.trim() === locationFilters.locality)
+      .filter((property) => inCreatedRange(property?.createdAt, createdFrom, createdTo))
       .filter((property) => {
         if (!term) return true;
         return [
@@ -893,7 +953,16 @@ export default function PropertiesDashboard() {
         const second = new Date(b?.createdAt || 0).getTime();
         return sort === "newest" ? second - first : first - second;
       });
-  }, [allProperties, category, debouncedSearch, locationFilters, sort, status]);
+  }, [
+    allProperties,
+    category,
+    createdFrom,
+    createdTo,
+    debouncedSearch,
+    locationFilters,
+    sort,
+    status,
+  ]);
 
   const loading = categoryQueries.some((query) => query.isLoading);
   const failed = categoryQueries.filter((query) => query.isError).length;
@@ -917,7 +986,7 @@ export default function PropertiesDashboard() {
       return;
     }
     setPage(1);
-  }, [category, status, debouncedSearch, locationFilters, sort]);
+  }, [category, status, debouncedSearch, locationFilters, sort, createdFrom, createdTo]);
   const activeFilterCount = [
     category !== "all",
     status !== "all",
@@ -926,6 +995,8 @@ export default function PropertiesDashboard() {
     !!locationFilters.locality,
     !!locationSearch.trim(),
     !!search.trim(),
+    !!createdFrom,
+    !!createdTo,
   ].filter(Boolean).length;
 
   const selectLocation = (type, value) => {
@@ -944,6 +1015,7 @@ export default function PropertiesDashboard() {
     setLocationSearch("");
     setSort("newest");
     setLocationFilters({ state: "", city: "", locality: "" });
+    clearDateRange();
   };
 
   const rememberCategory = (nextCategory) => {
@@ -1319,10 +1391,11 @@ export default function PropertiesDashboard() {
             icon={Building2}
             tone="emerald"
             percent={100}
-            active={category === "all" && status === "all"}
+            active={category === "all" && status === "all" && !createdFrom && !createdTo}
             onClick={() => {
               setCategory("all");
               setStatus("all");
+              clearDateRange();
             }}
           />
           <MetricCard
@@ -1346,9 +1419,9 @@ export default function PropertiesDashboard() {
             onClick={() => setStatus(status === "pending" ? "all" : "pending")}
           />
           <MetricCard
-            label="Draft / Incomplete"
+            label="Onboarding / Draft"
             value={overview.draftProperties}
-            sub="Follow-up queue"
+            sub="Incomplete listings — click to filter cards"
             icon={Activity}
             tone="slate"
             percent={pct(overview.draftProperties, analyticsTotal)}
@@ -1577,27 +1650,31 @@ export default function PropertiesDashboard() {
           </Panel>
         </div>
 
-        <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+        <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+          <div className="mb-3 flex min-h-[40px] items-start justify-between gap-3">
+            <div className="min-w-0">
               <p className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-slate-800">
-                <Filter className="h-4 w-4 text-emerald-600" /> Filter property
+                <Filter className="h-4 w-4 shrink-0 text-emerald-600" /> Filter property
                 cards
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                Cards below follow location, category, status, search and sort.
+                Cards below follow location, category, status, date, search and sort.
               </p>
             </div>
-            {activeFilterCount > 0 && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="w-fit rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200"
-              >
-                Clear all filters
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={clearFilters}
+              disabled={activeFilterCount === 0}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                activeFilterCount > 0
+                  ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "invisible bg-slate-100 text-slate-400"
+              }`}
+            >
+              Clear all filters
+            </button>
           </div>
+
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
             {CATEGORIES.map((item) => (
               <button
@@ -1614,16 +1691,17 @@ export default function PropertiesDashboard() {
               </button>
             ))}
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_180px_160px]">
-            <label className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_160px]">
+            <label className="relative min-w-0">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search title, location, poster or ID"
                 className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-9 text-sm outline-none transition focus:border-emerald-400 focus:bg-white"
               />
-              {search && (
+              {search ? (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
@@ -1631,12 +1709,12 @@ export default function PropertiesDashboard() {
                 >
                   <X className="h-4 w-4" />
                 </button>
-              )}
+              ) : null}
             </label>
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value)}
-              className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-400"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-400"
             >
               {STATUSES.map((item) => (
                 <option key={item.value} value={item.value}>
@@ -1647,19 +1725,87 @@ export default function PropertiesDashboard() {
             <select
               value={sort}
               onChange={(event) => setSort(event.target.value)}
-              className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-400"
+              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-400"
             >
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
             </select>
           </div>
-          <div className="mt-4 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <CalendarClock className="h-3.5 w-3.5 text-emerald-600" />
+                  Custom date range
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block min-w-0">
+                    <span className="mb-1 block text-[11px] font-medium text-slate-500">
+                      From
+                    </span>
+                    <input
+                      type="date"
+                      value={createdFrom}
+                      max={createdTo || undefined}
+                      onChange={(event) => setCreatedFrom(event.target.value)}
+                      className="h-11 w-full min-w-[11.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+                    />
+                  </label>
+                  <label className="block min-w-0">
+                    <span className="mb-1 block text-[11px] font-medium text-slate-500">
+                      To
+                    </span>
+                    <input
+                      type="date"
+                      value={createdTo}
+                      min={createdFrom || undefined}
+                      onChange={(event) => setCreatedTo(event.target.value)}
+                      className="h-11 w-full min-w-[11.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+                    />
+                  </label>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => (isTodayRange ? clearDateRange() : applyTodayRange())}
+                  className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                    isTodayRange
+                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                  }`}
+                >
+                  Today properties
+                </button>
+                <button
+                  type="button"
+                  onClick={clearDateRange}
+                  disabled={!createdFrom && !createdTo}
+                  className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                    createdFrom || createdTo
+                      ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                      : "cursor-not-allowed border-slate-100 bg-white text-slate-300"
+                  }`}
+                >
+                  Clear dates
+                </button>
+              </div>
+            </div>
+            <p className="mt-2 min-h-[18px] text-xs text-slate-500">
+              {createdFrom || createdTo
+                ? `${isTodayRange ? "Today" : "Selected"}: ${createdFrom || "—"} → ${createdTo || "—"}`
+                : "Pick From / To, or use Today properties."}
+            </p>
+          </div>
+
+          <div className="mt-3 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <span className="inline-flex items-center gap-1.5">
-              <Filter className="h-4 w-4" /> {visibleProperties.length} cards
+              <Filter className="h-4 w-4 shrink-0" /> {visibleProperties.length} cards
               shown below • {activeFilterCount} filters active
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <CalendarClock className="h-4 w-4" /> Analytics source:
+              <CalendarClock className="h-4 w-4 shrink-0" /> Analytics source:
               `/analytics/properties`
             </span>
             {failed > 0 && (

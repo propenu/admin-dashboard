@@ -41,6 +41,11 @@ import { UserCircle, ChevronDown, ChevronRight } from "lucide-react";
 import CreateUserModal     from "./CreateUserModal";
 import AssignManagerPage   from "./AssignManager";
 import TransferCredentials from "./TransferCredentials";
+import {
+  inventoryOnboardingCount,
+  inventoryTodayHref,
+  requestSidebarPathAck,
+} from "../../utils/sidebarActivity";
 
 /* ─────────────────────────────────────────────────────────────────────
    SIZE TOKENS  — change these one place to rescale entire sidebar
@@ -253,7 +258,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
   const [openMenus,  setOpenMenus]  = useState({});
   const [hoveredKey, setHoveredKey] = useState(null);
   const [liveCounts, setLiveCounts] = useState(() => {
-    try { return JSON.parse(window.localStorage.getItem("propenu:sidebar-counts") || "{}"); }
+    try {
+      const stored = JSON.parse(window.localStorage.getItem("propenu:sidebar-counts") || "{}");
+      // Don't flash stale counts — wait until hook marks ready after user-scoped fetch
+      return stored?.ready ? stored : {};
+    }
     catch { return {}; }
   });
 
@@ -305,7 +314,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     else if (child.action === "openTranforCredentialsModal") setShowTransferCredentials(true);
     else if (child.action === "openAssignAgentModal")        setShowAssignAgentModal(true);
     else if (child.children)                                 toggleMenu(child.key);
-    else                                                     navigate(child.path);
+    else                                                     navigateMenuPath(child.path);
   };
 
   const getPermissionMenu = (permissions = []) => {
@@ -328,6 +337,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       canView("user") && { path: "/users", label: "All Users", icon: AllUsersIcon },
       canView("user") && { path: "/owners", label: "Owners", icon: OwnerIcon },
       canView("builder") && { path: "/builders", label: "Builders", icon: BuilderIcon },
+      (canView("builder") || canView("builder_staff")) && {
+        path: "/builder-staff",
+        label: "Builder Staff",
+        icon: BuilderIcon,
+      },
       canView("agent") && { path: "/all-agents", label: "Agents", icon: AgentIcon },
     ].filter(Boolean);
     const accessControlChildren = [
@@ -362,9 +376,6 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     ({
       super_admin: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
-        { path: "/access-control/roles/new", label: "Create Role & Access", icon: TeamManagementIcon },
-        { path: "/access-control/credentials/new", label: "Create Credentials", icon: CreateCredentialsIcon },
-        { path: "/access-control/users", label: "User Permissions", icon: TeamManagementIcon },
 
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
@@ -382,6 +393,21 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           icon: UserIcon,
           key: "Operations",
           children: [
+            {
+              path: "/access-control/roles/new",
+              label: "Create Role & Access",
+              icon: TeamManagementIcon,
+            },
+            {
+              path: "/access-control/credentials/new",
+              label: "Create Credentials",
+              icon: CreateCredentialsIcon,
+            },
+            {
+              path: "/access-control/users",
+              label: "User Permissions",
+              icon: TeamManagementIcon,
+            },
             {
               path: "/propenu-team-members",
               label: "Team Directory",
@@ -414,6 +440,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           children: [
             { path: "/users", label: "All Users", icon: AllUsersIcon },
             { path: "/builders", label: "Builders", icon: BuilderIcon },
+            { path: "/builder-staff", label: "Builder Staff", icon: BuilderIcon },
             { path: "/all-agents", label: "Agents", icon: AgentIcon },
             { path: "/owners", label: "Owners", icon: OwnerIcon },
           ],
@@ -591,6 +618,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           children: [
             { path: "/users", label: "All Users", icon: AllUsersIcon },
             { path: "/builders", label: "Builders", icon: BuilderIcon },
+            { path: "/builder-staff", label: "Builder Staff", icon: BuilderIcon },
             { path: "/all-agents", label: "Agents", icon: AgentIcon },
             { path: "/owners", label: "Owners", icon: OwnerIcon },
           ],
@@ -754,6 +782,17 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/tickets", label: "Tickets", icon: mailnotifications },
       ],
       customer_care: [
+        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
+        { path: "/properties", label: "Properties", icon: PropertiesIcon },
+        {
+          path: "/property-progress",
+          label: "Property Progress",
+          icon: PropertyProgressIcon,
+        },
+        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+      ],
+      customer_care_executive: [
+        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
           path: "/property-progress",
@@ -931,12 +970,158 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       : getPermissionMenu(user.permissions || [])
     : [];
   const showText  = expanded || isMobileOpen;
-  const sidebarBadge = (item) => {
-    if (user?.roleName !== "business_development_head") return null;
-    if (item.path === "/projects") return { primary: liveCounts.projectsToday || 0, secondary: liveCounts.activeProjects || 0, title: "today / active" };
-    if (item.path === "/properties") return { primary: liveCounts.propertiesToday || 0, title: "posted today" };
-    if (item.path === "/tickets") return { primary: liveCounts.ticketsToday || 0, title: "today" };
+
+  const pathBadge = (path) => {
+    if (!path || !liveCounts?.ready) return null;
+    // Ignore counts published for a different logged-in user
+    if (
+      liveCounts.userKey &&
+      user &&
+      liveCounts.userKey !== String(user._id || user.id || user.userId || user.email || "anon")
+    ) {
+      return null;
+    }
+
+    const detail = liveCounts?.byPath?.[path];
+    if (detail) {
+      const primary = Number(detail.primary || 0);
+      const onboarding = inventoryOnboardingCount(detail);
+      const login = Number(detail.login || 0);
+      const isAccountPath = [
+        "/users",
+        "/owners",
+        "/builders",
+        "/all-agents",
+        "/builder-staff",
+      ].includes(path);
+      const isInventoryPath = path === "/projects" || path === "/properties";
+      // Account menus: only successfully created accounts today.
+      // Inventory menus: total today, with onboarding (draft/inactive) as secondary.
+      const showPrimary = isAccountPath
+        ? primary
+        : Math.max(primary, onboarding, Number(detail.inactive || 0));
+      if (showPrimary <= 0 && !isAccountPath && login <= 0) return null;
+      if (showPrimary <= 0) return null;
+      const parts = [];
+      if (detail.active) parts.push(`Active:${detail.active}`);
+      if (detail.pending) parts.push(`Pending:${detail.pending}`);
+      if (isInventoryPath && onboarding) parts.push(`Onboard:${onboarding}`);
+      else if (isAccountPath && onboarding) parts.push(`Onboard:${onboarding}`);
+      else if (!isInventoryPath && detail.inactive) parts.push(`Inactive:${detail.inactive}`);
+      if (login) parts.push(`Login:${login}`);
+      return {
+        primary: showPrimary,
+        secondary: isInventoryPath
+          ? onboarding || undefined
+          : isAccountPath
+            ? undefined
+            : onboarding || login || undefined,
+        title: parts.length
+          ? parts.join(" · ")
+          : isAccountPath
+            ? "Accounts created today"
+            : isInventoryPath
+              ? onboarding
+                ? "Today · onboarding"
+                : "New today"
+              : "New today",
+        onboarding,
+        inactive: Number(detail.inactive || 0),
+        active: Number(detail.active || 0),
+      };
+    }
+
+    // Legacy flat keys fallback
+    if (path === "/projects" && Number(liveCounts.projectsToday || 0) > 0) {
+      return {
+        primary: liveCounts.projectsToday || 0,
+        secondary: liveCounts.activeProjects || 0,
+        title: "today / active",
+      };
+    }
+    if (path === "/properties" && Number(liveCounts.propertiesToday || 0) > 0) {
+      return { primary: liveCounts.propertiesToday || 0, title: "posted today" };
+    }
+    if (path === "/tickets" && Number(liveCounts.ticketsToday || 0) > 0) {
+      return { primary: liveCounts.ticketsToday || 0, title: "today" };
+    }
+    if (path === "/leads" && Number(liveCounts.leadsToday || 0) > 0) {
+      return { primary: liveCounts.leadsToday || 0, title: "new leads today" };
+    }
     return null;
+  };
+
+  const navigateMenuPath = (path) => {
+    if (!path) return;
+    const badge = pathBadge(path);
+    const isInventory = path === "/properties" || path === "/projects";
+    const hasToday = isInventory ? Number(badge?.primary || 0) > 0 : false;
+    // Clear badge on click (even if already on same route with different query)
+    requestSidebarPathAck(path);
+    navigate(
+      hasToday
+        ? inventoryTodayHref(path, {
+            onboarding: badge?.onboarding || badge?.secondary,
+            inactive: badge?.inactive,
+            active: badge?.active,
+            primary: badge?.primary,
+          })
+        : path,
+    );
+  };
+
+  const sidebarBadge = (item) => {
+    if (!item || !liveCounts?.ready) return null;
+    if (item.path) return pathBadge(item.path);
+    // Parent groups (e.g. Users) — sum children badges
+    if (item.children?.length) {
+      let total = 0;
+      const titles = [];
+      const isUsersGroup = item.key === "Users" || item.key === "permission-users";
+      item.children.forEach((child) => {
+        // Avoid double-counting: All Users is already owners+builders+staff+agents
+        if (isUsersGroup && child.path === "/users") return;
+        const b = pathBadge(child.path);
+        if (!b) return;
+        total += Number(b.primary || 0);
+        if (b.title) titles.push(`${child.label}: ${b.primary}`);
+      });
+      if (total <= 0 && Number(liveCounts.usersGroupToday || 0) > 0 && isUsersGroup) {
+        total = Number(liveCounts.usersGroupToday || 0);
+      }
+      if (total <= 0) return null;
+      return {
+        primary: total,
+        title: titles.join(" · ") || (isUsersGroup ? "Accounts created today" : "New today"),
+      };
+    }
+    return null;
+  };
+
+  const BadgePill = ({ badge, active = false, compact = false }) => {
+    if (!badge || Number(badge.primary) <= 0) return null;
+    if (compact) {
+      return (
+        <span className="absolute right-0.5 top-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-rose-500 px-0.5 text-[7px] font-black text-white">
+          {badge.primary > 99 ? "99+" : badge.primary}
+        </span>
+      );
+    }
+    return (
+      <span
+        title={badge.title}
+        className={`ml-auto flex min-w-5 shrink-0 items-center justify-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black tabular-nums ${
+          active
+            ? "border-white/25 bg-white/20 text-white"
+            : "border-rose-100 bg-rose-50 text-rose-600"
+        }`}
+      >
+        <b>{badge.primary}</b>
+        {badge.secondary !== undefined && Number(badge.secondary) > 0 && (
+          <em className="not-italic opacity-65">/ {badge.secondary}</em>
+        )}
+      </span>
+    );
   };
 
   return (
@@ -1029,6 +1214,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                             {item.label}
                           </span>
                         )}
+                        {showText && <BadgePill badge={sidebarBadge(item)} />}
                       </div>
 
                       {showText && (
@@ -1041,6 +1227,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                           }}
                         />
                       )}
+                      {!showText && <BadgePill badge={sidebarBadge(item)} compact />}
                     </button>
 
                     {!showText && <FloatTooltip label={item.label} show={hoveredKey === item.key} />}
@@ -1083,7 +1270,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                                   if (!childActive) { e.currentTarget.style.background = ""; e.currentTarget.style.color = "#64748b"; }
                                 }}
                               >
-                                <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="flex min-w-0 flex-1 items-center gap-1.5">
                                   <NavIcon
                                     src={child.icon}
                                     active={childActive}
@@ -1092,6 +1279,10 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                                   />
                                   <span className="truncate">{child.label}</span>
                                 </div>
+
+                                {!child.children && (
+                                  <BadgePill badge={sidebarBadge(child)} active={!!childSelf} />
+                                )}
 
                                 {child.children ? (
                                   <ChevronRight
@@ -1132,7 +1323,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
             return (
               <div key={item.path} className="relative">
                 <button
-                  onClick={() => navigate(item.path)}
+                  onClick={() => navigateMenuPath(item.path)}
                   // onMouseEnter={() => !showText && setHoveredKey(item.path)}
                   // onMouseLeave={() => setHoveredKey(null)}
                   className={`relative min-h-8 w-full flex items-center ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-all duration-150 ${showText ? "justify-start" : "justify-center"}`}
@@ -1167,8 +1358,8 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                       {item.label}
                     </span>
                   )}
-                  {showText && badge && <span title={badge.title} className={`ml-auto flex min-w-5 shrink-0 items-center justify-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black tabular-nums ${leafActive ? "border-white/25 bg-white/20 text-white" : "border-emerald-100 bg-emerald-50 text-emerald-700"}`}><b>{badge.primary}</b>{badge.secondary !== undefined && <em className="not-italic opacity-65">/ {badge.secondary}</em>}</span>}
-                  {!showText && badge && Number(badge.primary) > 0 && <span className="absolute right-0.5 top-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-rose-500 px-0.5 text-[7px] font-black text-white">{badge.primary > 99 ? "99+" : badge.primary}</span>}
+                  {showText && <BadgePill badge={badge} active={leafActive} />}
+                  {!showText && <BadgePill badge={badge} compact />}
                 </button>
 
                 {!showText && (

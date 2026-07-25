@@ -62,6 +62,13 @@ export const ROLE_META = {
     bg: "#ffedd5",
     query: "builder",
   },
+  builder_staff: {
+    label: "Builder Staff",
+    color: "#27AE60",
+    icon: Users,
+    bg: "#ecfdf5",
+    query: "builder_staff",
+  },
   user: {
     label: "Buyers / Owners",
     //color: "#ec4899",
@@ -276,6 +283,32 @@ export const WORKFLOW_STEPS = {
       key: "featured",
       label: "Featured Listing",
       desc: () => "Projects promoted/featured",
+    },
+  ],
+  builder_staff: [
+    {
+      key: "registered",
+      label: "Account Created",
+      desc: (u) => `Joined ${fmtDate(u?.createdAt)}`,
+    },
+    {
+      key: "kyc",
+      label: "KYC Status",
+      desc: (u) =>
+        `KYC: ${u?.kyc?.status?.replace(/_/g, " ") || "not started"}`,
+    },
+    {
+      key: "active",
+      label: "Account Active",
+      desc: (u) => `Status: ${u?.accountStatus?.replace(/_/g, " ") || "—"}`,
+    },
+    {
+      key: "assigned",
+      label: "Builder Linked",
+      desc: (u) =>
+        u?.builderId || u?.companyName
+          ? "Linked to builder organisation"
+          : "Awaiting builder assignment",
     },
   ],
   user: [

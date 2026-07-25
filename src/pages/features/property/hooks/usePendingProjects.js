@@ -9,6 +9,7 @@ export const usePendingProjects = (options = {}) => {
       const res = await getSalesManagerPeddingProjects();
       return res.data;
     },
-    enabled: options.enabled,
+    enabled: options.enabled !== false,
+    refetchInterval: options.refetchInterval ?? false,
   });
 };

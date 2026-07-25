@@ -29,6 +29,17 @@ import {
   promotionLifecycleClass,
   promotionLifecycleCopy,
 } from "./promotionTracking";
+import { todayIso } from "../../../../Dashboards/shared/dashboardDateRange";
+import {
+  canApproveProject,
+  canCreateProject,
+  canViewPendingProjectApprovals,
+  normalizeProjectRole,
+} from "../../../../../utils/projectAccessControl";
+import {
+  salesmanagerApproveAProject,
+  salesmanagerRejectAProject,
+} from "../../../../../features/property/propertyService";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -79,8 +90,31 @@ const STATUS_FILTERS = [
   { value: "scheduled", label: "Scheduled" },
   { value: "expiringSoon", label: "Expiring Soon" },
   { value: "expired", label: "Expired" },
-  { value: "inactive", label: "Inactive" },
+  { value: "inactive", label: "Inactive / Onboarding" },
+  { value: "pending", label: "Pending" },
 ];
+
+const normalizeProjectStatusParam = (value = "") => {
+  const key = String(value || "").trim().toLowerCase();
+  if (key === "draft" || key === "onboarding" || key === "incomplete") return "inactive";
+  return key || "all";
+};
+
+const matchesProjectStatusFilter = (project, statusFilter) => {
+  if (!statusFilter || statusFilter === "all") return true;
+  const resolved = getProjectStatus(project).status;
+  const raw = String(project?.status || "").toLowerCase();
+  if (statusFilter === "inactive") {
+    return (
+      resolved === "inactive" ||
+      raw === "inactive" ||
+      raw === "draft" ||
+      raw === "onboarding" ||
+      raw === "incomplete"
+    );
+  }
+  return resolved === statusFilter || raw === statusFilter;
+};
 
 const TRACKING_FILTERS = [
   { value: "all", label: "All Tracking" },
@@ -156,7 +190,7 @@ function useDebounce(value, delay = 400) {
   return debounced;
 }
 
-const buildAnalyticsParams = (selectedLocation, analyticsSearch) => {
+const buildAnalyticsParams = (selectedLocation, analyticsSearch, dateRange = {}) => {
   const params = {};
 
   if (selectedLocation?.value?.state) {
@@ -174,6 +208,9 @@ const buildAnalyticsParams = (selectedLocation, analyticsSearch) => {
   if (analyticsSearch?.trim()) {
     params.search = analyticsSearch.trim();
   }
+
+  if (dateRange.from) params.from = dateRange.from;
+  if (dateRange.to) params.to = dateRange.to;
 
   return params;
 };
@@ -661,7 +698,7 @@ function KPICard({ label, display, icon: Icon, onClick, isActive }) {
   return (
     <div
       onClick={onClick}
-      className={`group flex min-w-0 items-center gap-3 rounded-xl border bg-white px-3 py-2.5 shadow-[0_4px_14px_rgba(22,163,74,0.10)] transition-all duration-200 sm:px-3.5 sm:py-3
+      className={`group flex h-full min-h-[76px] min-w-0 items-center gap-2.5 rounded-xl border bg-white px-3 py-2.5 shadow-[0_4px_14px_rgba(22,163,74,0.10)] transition-colors duration-200 sm:gap-3 sm:px-3.5
         ${onClick ? "cursor-pointer hover:border-emerald-300 hover:shadow-md" : "border-slate-200"}
         ${isActive ? "border-emerald-500 ring-2 ring-emerald-500/15 shadow-md" : "border-slate-200"}`}
     >
@@ -669,10 +706,13 @@ function KPICard({ label, display, icon: Icon, onClick, isActive }) {
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium leading-tight text-slate-600 sm:text-xs lg:text-[11px] xl:text-xs">
+        <p
+          className="truncate text-[11px] font-medium leading-none text-slate-600"
+          title={label}
+        >
           {label}
         </p>
-        <p className="mt-1 text-lg font-bold leading-none tracking-tight text-slate-900">
+        <p className="mt-1.5 truncate text-lg font-bold leading-none tracking-tight text-slate-900">
           {display}
         </p>
       </div>
@@ -738,7 +778,7 @@ function AnalyticsOverviewRow({
       filter: "pending",
     },
     {
-      label: "Inactive",
+      label: "Onboarding",
       display: String(ov.inactiveProjects ?? 0),
       icon: AlertCircle,
       color: "text-purple-700",
@@ -773,7 +813,7 @@ function AnalyticsOverviewRow({
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+    <div className="grid auto-rows-fr grid-cols-2 items-stretch gap-2.5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
       {cards.map((c) => (
         <KPICard
           key={c.label}
@@ -783,8 +823,15 @@ function AnalyticsOverviewRow({
           color={c.color}
           iconBg={c.iconBg}
           border={c.border}
-          onClick={c.filter ? () => onStatusFilter(c.filter) : undefined}
-          isActive={c.filter && activeStatusFilter === c.filter}
+          onClick={
+            c.filter
+              ? () =>
+                  onStatusFilter(
+                    activeStatusFilter === c.filter ? "all" : c.filter,
+                  )
+              : undefined
+          }
+          isActive={Boolean(c.filter && activeStatusFilter === c.filter)}
         />
       ))}
     </div>
@@ -801,15 +848,17 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid auto-rows-fr grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
       {cards.map((c) => {
         const Icon = c.icon;
         const isActive = activePromotionFilter === c.key;
         return (
           <div
             key={c.key}
-            onClick={() => onPromotionFilter(c.key)}
-            className={`flex min-w-0 cursor-pointer items-center justify-between gap-3 rounded-xl border bg-white p-4 shadow-[0_4px_14px_rgba(22,163,74,0.10)] transition-all duration-200 hover:border-emerald-300 hover:shadow-md
+            onClick={() =>
+              onPromotionFilter(isActive ? "all" : c.key)
+            }
+            className={`flex h-full min-h-[72px] min-w-0 cursor-pointer items-center justify-between gap-3 rounded-xl border bg-white px-4 py-3.5 shadow-[0_4px_14px_rgba(22,163,74,0.10)] transition-colors duration-200 hover:border-emerald-300 hover:shadow-md
               ${isActive ? "border-emerald-500 ring-2 ring-emerald-500/15 shadow-md" : "border-slate-200"}`}
           >
             <div className="flex min-w-0 items-center gap-2.5">
@@ -818,7 +867,7 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
               </span>
               <p className="truncate text-sm font-semibold text-slate-600">{c.label}</p>
             </div>
-            <p className="text-xl font-bold leading-none text-slate-900">
+            <p className="shrink-0 text-xl font-bold leading-none text-slate-900">
               {c.value}
             </p>
           </div>
@@ -1178,13 +1227,22 @@ export default function ProjectsDashboardPage() {
 
   // ── User / Role ──────────────────────────────────────────────────────────
   const { data: user }  = useQuery({ queryKey: ["current-user"], queryFn: getUserInDetails });
-  const roleName        = user?.user?.roleName;
+  const currentUser = user?.user || user || null;
+  const roleName = normalizeProjectRole(currentUser?.roleName);
   const isSalesManager  = roleName === "sales_manager";
   const isSalesAgent    = roleName === "sales_agent";
   const isSuperAdmin    = roleName === "super_admin";
   const isAdmin         = roleName === "admin";
-  const canViewAnalytics = isSuperAdmin || isAdmin || isSalesManager || isSalesAgent;
-  const canViewPendingProjects = isSuperAdmin || isSalesManager || isSalesAgent || isAdmin;
+  const isRegionalManager = roleName === "regional_manager";
+  const canViewAnalytics =
+    isSuperAdmin ||
+    isAdmin ||
+    isSalesManager ||
+    isSalesAgent ||
+    isRegionalManager ||
+    ["operations_head", "ceo", "business_development_head"].includes(roleName);
+  const canCreate = canCreateProject(currentUser);
+  const canViewPendingProjects = canViewPendingProjectApprovals(currentUser);
   const [trackingFilter, setTrackingFilter] = useState(
     () => searchParams.get("tracking") || "all",
   );
@@ -1214,8 +1272,15 @@ export default function ProjectsDashboardPage() {
   
 
 
-  const { data: pendingProjectsData, refetch: refetchPendingProjects } = usePendingProjects({ enabled: canViewPendingProjects });
+  const { data: pendingProjectsData, refetch: refetchPendingProjects } = usePendingProjects({
+    enabled: canViewPendingProjects,
+    refetchInterval: canViewPendingProjects ? 45_000 : false,
+  });
   const pendingProjects = pendingProjectsData?.data || [];
+  const actionablePendingProjects = useMemo(
+    () => pendingProjects.filter((project) => canApproveProject(currentUser, project)),
+    [pendingProjects, currentUser],
+  );
 
   const refreshAllProjects = useCallback(() => {
     primeHook.refetch();
@@ -1308,7 +1373,7 @@ export default function ProjectsDashboardPage() {
     () => searchParams.get("promotion") || "all",
   );
   const [statusFilter, setStatusFilter] = useState(
-    () => searchParams.get("status") || "all",
+    () => normalizeProjectStatusParam(searchParams.get("status") || "all"),
   );
   const [categoryFilter, setCategoryFilter] = useState(
     () => searchParams.get("category") || "all",
@@ -1320,11 +1385,28 @@ export default function ProjectsDashboardPage() {
     () => searchParams.get("creatorRole") || "all",
   );
   const [createdFrom, setCreatedFrom] = useState(
-    () => searchParams.get("createdFrom") || "",
+    () => searchParams.get("createdFrom") || searchParams.get("from") || "",
   );
   const [createdTo, setCreatedTo] = useState(
-    () => searchParams.get("createdTo") || "",
+    () => searchParams.get("createdTo") || searchParams.get("to") || "",
   );
+
+  const isTodayRange =
+    Boolean(createdFrom) &&
+    Boolean(createdTo) &&
+    createdFrom === createdTo &&
+    createdFrom === todayIso();
+
+  const applyTodayRange = () => {
+    const day = todayIso();
+    setCreatedFrom(day);
+    setCreatedTo(day);
+  };
+
+  const clearDateRange = () => {
+    setCreatedFrom("");
+    setCreatedTo("");
+  };
   const [sortBy, setSortBy] = useState(
     () => searchParams.get("sort") || "newest",
   );
@@ -1389,9 +1471,24 @@ export default function ProjectsDashboardPage() {
   const masterAnalytics = masterAnalyticsData?.data?.data || null;
 
   const analyticsParams = useMemo(
-    () => buildAnalyticsParams(selectedLocation, debouncedAnalyticsSearch),
-    [selectedLocation, debouncedAnalyticsSearch],
+    () =>
+      buildAnalyticsParams(selectedLocation, debouncedAnalyticsSearch, {
+        from: createdFrom,
+        to: createdTo,
+      }),
+    [selectedLocation, debouncedAnalyticsSearch, createdFrom, createdTo],
   );
+
+  // Drill-downs: /projects?status=draft|onboarding&createdFrom=...&createdTo=...
+  useEffect(() => {
+    const nextStatus = normalizeProjectStatusParam(searchParams.get("status") || "all");
+    if (nextStatus !== statusFilter) setStatusFilter(nextStatus);
+    const nextFrom = searchParams.get("createdFrom") || searchParams.get("from") || "";
+    const nextTo = searchParams.get("createdTo") || searchParams.get("to") || "";
+    if (nextFrom !== createdFrom) setCreatedFrom(nextFrom);
+    if (nextTo !== createdTo) setCreatedTo(nextTo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const { data: analyticsData, isLoading: analyticsLoading } = useQuery({
     queryKey:  ["project-analytics", analyticsParams],
@@ -1424,8 +1521,7 @@ export default function ProjectsDashboardPage() {
       console.log("After promotion", list.length);
     }
     if (statusFilter !== "all"){
-      //list = list.filter((p) => p.status === statusFilter);
-      list = list.filter((p) => getProjectStatus(p).status === statusFilter);
+      list = list.filter((p) => matchesProjectStatusFilter(p, statusFilter));
       console.log("After status", list.length);
     }
     if (trackingFilter !== "all" && !serverPromotionStatus) {
@@ -1855,13 +1951,16 @@ export default function ProjectsDashboardPage() {
             Unified view across all project types
           </p>
         </div>
-        <button
-          onClick={() => navigate("/create-featured-project")}
-          className="flex w-full items-center justify-center gap-2 self-start rounded-xl bg-[#27AE60] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 sm:w-auto sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          Create Project
-        </button>
+        {canCreate && (
+          <button
+            type="button"
+            onClick={() => navigate("/create-featured-project")}
+            className="flex w-full items-center justify-center gap-2 self-start rounded-xl bg-[#27AE60] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 sm:w-auto sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            Create Project
+          </button>
+        )}
       </div>
 
       {/* ── TOP BAR: Location selector + Search — both drive analytics ──── */}
@@ -1963,29 +2062,125 @@ export default function ProjectsDashboardPage() {
         </div>
       )}
 
-      {/* ── PENDING APPROVALS ───────────────────────── */}
+      {/* ── PENDING APPROVALS (RM / higher hierarchy notification) ── */}
       {canViewPendingProjects && (
-        <div
-          onClick={() =>
-            setPromotionFilter((prev) =>
-              prev === "pending" ? "all" : "pending",
-            )
-          }
-          className={`bg-white rounded-2xl border p-4 shadow-sm cursor-pointer hover:shadow-md transition-all flex items-center gap-4
-            ${promotionFilter === "pending" ? "ring-2 ring-amber-400 border-amber-200" : "border-amber-100"}`}
-        >
-          <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-            <Clock className="w-6 h-6 text-amber-500" />
+        <div className="space-y-3">
+          <div
+            onClick={() =>
+              setPromotionFilter((prev) =>
+                prev === "pending" ? "all" : "pending",
+              )
+            }
+            className={`flex cursor-pointer items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm transition-all hover:shadow-md
+              ${
+                promotionFilter === "pending"
+                  ? "border-amber-300 ring-2 ring-amber-400"
+                  : actionablePendingProjects.length > 0
+                    ? "border-amber-300 bg-amber-50/40"
+                    : "border-amber-100"
+              }`}
+          >
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-amber-50">
+              <Clock className="h-6 w-6 text-amber-500" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-2xl font-bold text-slate-800">
+                {actionablePendingProjects.length}
+              </p>
+              <p className="text-sm text-slate-500">
+                {isRegionalManager
+                  ? "New onboarding projects waiting for your approval"
+                  : "Pending project approvals"}
+              </p>
+              {actionablePendingProjects.length > 0 && (
+                <p className="mt-1 text-xs font-medium text-amber-700">
+                  Approve to make the project live immediately
+                </p>
+              )}
+            </div>
+            <div className="ml-auto text-xs font-semibold text-amber-600">
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5">
+                {promotionFilter === "pending" ? "✓ Viewing now" : "Click to view"}
+              </span>
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-slate-800">
-              {pendingProjects.length}
-            </p>
-            <p className="text-sm text-slate-500">Pending Approvals</p>
-          </div>
-          <div className="ml-auto text-xs text-amber-600 font-semibold bg-amber-50 px-3 py-1.5 rounded-full border border-amber-200">
-            {promotionFilter === "pending" ? "✓ Viewing now" : "Click to view"}
-          </div>
+
+          {promotionFilter === "pending" && actionablePendingProjects.length > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-white p-3 shadow-sm sm:p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wide text-amber-700">
+                Approve queue — goes live on approve
+              </p>
+              <div className="space-y-2">
+                {actionablePendingProjects.slice(0, 8).map((project) => {
+                  const creatorName =
+                    project?.createdBy?.fullName ||
+                    project?.createdBy?.name ||
+                    project?.postedBy?.name ||
+                    "Unknown";
+                  const creatorRole =
+                    project?.createdBy?.roleName ||
+                    project?.postedBy?.roleName ||
+                    "—";
+                  return (
+                    <div
+                      key={project._id}
+                      className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-800">
+                          {project.title || "Untitled project"}
+                        </p>
+                        <p className="truncate text-[11px] text-slate-500">
+                          Created by {creatorName} · {String(creatorRole).replace(/_/g, " ")}
+                          {project.city ? ` · ${project.city}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          type="button"
+                          onClick={async (event) => {
+                            event.stopPropagation();
+                            try {
+                              await salesmanagerApproveAProject(project._id);
+                              toast.success("Project approved — now live");
+                              refreshAllProjects();
+                            } catch (error) {
+                              toast.error(
+                                error?.response?.data?.message || "Approval failed",
+                              );
+                            }
+                          }}
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                        >
+                          Approve → Live
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async (event) => {
+                            event.stopPropagation();
+                            try {
+                              await salesmanagerRejectAProject(project._id, {
+                                reason: "Rejected from pending queue",
+                              });
+                              toast.success("Project rejected");
+                              refreshAllProjects();
+                            } catch (error) {
+                              toast.error(
+                                error?.response?.data?.message || "Reject failed",
+                              );
+                            }
+                          }}
+                          className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2088,27 +2283,91 @@ export default function ProjectsDashboardPage() {
 
           <label className="min-w-[170px]">
             <span className="mb-2 block text-xs font-bold text-slate-600">Created by role</span>
-            <select value={creatorRoleFilter} onChange={(event) => setCreatorRoleFilter(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold capitalize text-slate-600 outline-none focus:border-emerald-500">
+            <select value={creatorRoleFilter} onChange={(event) => setCreatorRoleFilter(event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold capitalize text-slate-600 outline-none focus:border-emerald-500">
               <option value="all">All roles</option>
               {creatorRoleOptions.map((role) => <option key={role} value={role}>{String(role).replace(/_/g, " ")}</option>)}
             </select>
           </label>
-          <label className="min-w-[145px]"><span className="mb-2 block text-xs font-bold text-slate-600">Created from</span><input type="date" value={createdFrom} max={createdTo || undefined} onChange={(event) => setCreatedFrom(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-emerald-500" /></label>
-          <label className="min-w-[145px]"><span className="mb-2 block text-xs font-bold text-slate-600">Created to</span><input type="date" value={createdTo} min={createdFrom || undefined} onChange={(event) => setCreatedTo(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 outline-none focus:border-emerald-500" /></label>
 
-          {/* Clear list filters */}
-          {activeFiltersCount > 0 && (
-            <button
-              onClick={clearListFilters}
-              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900 sm:ml-auto"
-            >
-              <X className="w-3 h-3" />
-              Clear filters
-              <span className="bg-red-200 text-red-700 rounded-full px-1.5 py-0.5 font-bold">
-                {activeFiltersCount}
-              </span>
-            </button>
-          )}
+          {/* Clear list filters — always reserved to avoid layout jump */}
+          <button
+            type="button"
+            onClick={clearListFilters}
+            disabled={activeFiltersCount === 0}
+            className={`flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition sm:ml-auto ${
+              activeFiltersCount > 0
+                ? "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                : "invisible border-slate-100 bg-slate-50 text-slate-300"
+            }`}
+          >
+            <X className="w-3 h-3" />
+            Clear filters
+            <span className="rounded-full bg-red-200 px-1.5 py-0.5 font-bold text-red-700">
+              {activeFiltersCount}
+            </span>
+          </button>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-600">
+                Custom date range
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block min-w-0">
+                  <span className="mb-1 block text-[11px] font-medium text-slate-500">From</span>
+                  <input
+                    type="date"
+                    value={createdFrom}
+                    max={createdTo || undefined}
+                    onChange={(event) => setCreatedFrom(event.target.value)}
+                    className="h-11 w-full min-w-[11.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500"
+                  />
+                </label>
+                <label className="block min-w-0">
+                  <span className="mb-1 block text-[11px] font-medium text-slate-500">To</span>
+                  <input
+                    type="date"
+                    value={createdTo}
+                    min={createdFrom || undefined}
+                    onChange={(event) => setCreatedTo(event.target.value)}
+                    className="h-11 w-full min-w-[11.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500"
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => (isTodayRange ? clearDateRange() : applyTodayRange())}
+                className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                  isTodayRange
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-emerald-400"
+                }`}
+              >
+                Today projects
+              </button>
+              <button
+                type="button"
+                onClick={clearDateRange}
+                disabled={!createdFrom && !createdTo}
+                className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                  createdFrom || createdTo
+                    ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                    : "cursor-not-allowed border-slate-100 bg-white text-slate-300"
+                }`}
+              >
+                Clear dates
+              </button>
+            </div>
+          </div>
+          <p className="mt-2 min-h-[18px] text-xs text-slate-500">
+            {createdFrom || createdTo
+              ? `${isTodayRange ? "Today" : "Selected"}: ${createdFrom || "—"} → ${createdTo || "—"}`
+              : "Pick From / To, or use Today projects."}
+          </p>
         </div>
 
         {/* Property type sub-filter */}
@@ -2270,6 +2529,7 @@ export default function ProjectsDashboardPage() {
               onExpire={() => setExpireTarget(p._id)}
               onReset={() => setResetTarget(p._id)}
               onRankUpdated={refreshAllProjects}
+              canApprove={canApproveProject(currentUser, p)}
             />
           ))}
         </div>

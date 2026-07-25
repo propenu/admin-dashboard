@@ -67,21 +67,37 @@ export const PhoneBadge = ({ verified }) =>
     </span>
   );
 
-export const StatCard = ({ label, value, icon, colorClass }) => (
-  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
-    <div
-      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}
-    >
-      {icon}
-    </div>
-    <div>
-      <p className="text-2xl font-extrabold text-gray-900 leading-none">
-        {value}
-      </p>
-      <p className="text-xs text-gray-400 font-medium mt-0.5">{label}</p>
-    </div>
-  </div>
-);
+export const StatCard = ({ label, value, icon, colorClass, onClick, active = false }) => {
+  const className = `bg-white rounded-2xl border shadow-sm p-4 flex items-center gap-3 w-full text-left transition ${
+    active
+      ? "border-emerald-400 ring-2 ring-emerald-100"
+      : "border-gray-100"
+  } ${onClick ? "cursor-pointer hover:border-emerald-300 hover:shadow-md" : ""}`;
+
+  const content = (
+    <>
+      <div
+        className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}
+      >
+        {icon}
+      </div>
+      <div>
+        <p className="text-2xl font-extrabold text-gray-900 leading-none">{value}</p>
+        <p className="text-xs text-gray-400 font-medium mt-0.5">{label}</p>
+      </div>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className} aria-pressed={active}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
+};
 
 export const FilterSelect = ({ value, onChange, options, placeholder }) => (
   <div className="relative">

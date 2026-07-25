@@ -88,13 +88,15 @@ export const createUserLocationDetails = async (formData) => {
   {/* User Services */}
 //////////////////////////////
 //All Users
-export const getAllUsers = () => {
-  return apiClient.get(`${SERVICES.USER}/auth/all-users`);
+export const getAllUsers = (params) => {
+  return apiClient.get(`${SERVICES.USER}/auth/all-users`, { params });
 };
 
-//UserSerach
+// User search — `role` may be a single role or comma-separated (e.g. "builder,builder_staff")
 export const getUserSearch = (query) => {
-  return apiClient.get(`${SERVICES.USER}/auth/search?role=${query}`);
+  return apiClient.get(`${SERVICES.USER}/auth/search`, {
+    params: { role: query },
+  });
 };
 
 //User Details

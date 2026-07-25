@@ -240,6 +240,40 @@ const ROLE_CONFIG = {
     statBg: "bg-[#f8fffe]",
     statBorder: "border-[#27AE60]/08",
   },
+  builder_staff: {
+    label: "Builder Staff",
+    shortLabel: "BS",
+    icon: UsersIcon,
+    accent: "#27AE60",
+    accentLight: "#f0fdf4",
+    accentBorder: "#27AE60",
+    gradientFrom: "#27AE60",
+    gradientTo: "#1a9e54",
+    avatarBg: "bg-[#e8f8ef]",
+    avatarText: "text-[#27AE60]",
+    avatarBorder: "border-[#27AE60]/25",
+    badgeBg: "bg-[#e8f8ef]",
+    badgeText: "text-[#27AE60]",
+    badgeBorder: "border-[#27AE60]/25",
+    cardHover:
+      "hover:border-[#27AE60]/25 hover:shadow-[0_12px_40px_rgba(39,174,96,0.13)]",
+    btnBorder: "border-[#27AE60]/20",
+    btnText: "text-[#27AE60]",
+    btnHover: "hover:bg-[#f0fdf4]",
+    inputFocus: "focus:border-[#27AE60]",
+    selectActive: "border-[#27AE60]/40 bg-[#f0fdf4] text-[#27AE60]",
+    dotColor: "bg-[#27AE60]",
+    dotShadow: "rgba(39,174,96,0.4)",
+    loadingText: "text-[#27AE60]/50",
+    divider: "from-[#27AE60]/25 via-[#27AE60]/8",
+    saveBg: "bg-[#27AE60]",
+    saveHover: "hover:bg-[#219653]",
+    saveShadow: "shadow-[0_6px_20px_rgba(39,174,96,0.3)]",
+    iconBg: "bg-[#f0faf5]",
+    iconBorder: "border-[#27AE60]/12",
+    statBg: "bg-[#f8fffe]",
+    statBorder: "border-[#27AE60]/08",
+  },
   accounts: {
     label: "Accounts",
     shortLabel: "ACC",
@@ -720,7 +754,14 @@ const normalizeProfilePhone = (phone = "") => {
 
 const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
   const isBuilder = role === "builder";
-  const profileLabel = isBuilder ? "Builder" : "Owner";
+  const isBuilderStaff = role === "builder_staff";
+  const profileLabel = isBuilder
+    ? "Builder"
+    : isBuilderStaff
+      ? "Builder Staff"
+      : "Owner";
+  // Builder org profile APIs for builders; staff use standard user profile APIs
+  const useBuilderApis = isBuilder;
   const userId = user.userId || user._id;
   const [formData, setFormData] = useState(() => getProfileEditPayload(user));
   const [saving, setSaving] = useState(false);
@@ -759,7 +800,7 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
     setError("");
 
     try {
-      const requestOtp = isBuilder
+      const requestOtp = useBuilderApis
         ? requestOtpBuilderPhoneNumber
         : requestOtpUserPhoneNumber;
       await requestOtp(userId, { phone });
@@ -796,7 +837,7 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
     setError("");
 
     try {
-      const verifyOtp = isBuilder
+      const verifyOtp = useBuilderApis
         ? verifyBuilderPhoneNumberOTP
         : verifyUserPhoneNumberOTP;
       await verifyOtp(userId, { phone, phoneOtp: cleanOtp });
@@ -876,7 +917,7 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
     setError("");
 
     try {
-      const editProfile = isBuilder ? editBuilderProfile : editUserProfile;
+      const editProfile = useBuilderApis ? editBuilderProfile : editUserProfile;
       await editProfile(userId, payload);
       onSave(userId, payload);
       toast.success(`${profileLabel} profile updated`);
@@ -1349,7 +1390,7 @@ const UserCard = ({
           >
             <Eye size={12} /> View Profile
           </button>
-          {(role === "builder" || role === "user") && (
+          {(role === "builder" || role === "builder_staff" || role === "user") && (
             <button
               onClick={() => onEditProfile(user)}
               className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-[11px] font-black transition-all active:scale-95 ${cfg.saveBg} ${cfg.saveHover} ${cfg.saveShadow}`}
@@ -1688,6 +1729,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
       sales_agent: "bg-[#f0f6ff]",
       agent: "bg-[#f5fcf8]",
       builder: "bg-[#fffdf0]",
+      builder_staff: "bg-[#f5fcf8]",
       accounts: "bg-[#faf8ff]",
       customer_care: "bg-[#f0fbff]",
     }[role] || "bg-[#f5fcf8]";
@@ -1710,7 +1752,8 @@ const RoleUsers = ({ role = "sales_manager" }) => {
         />
       )}
 
-      {(role === "builder" || role === "user") && editingProfile && (
+      {(role === "builder" || role === "builder_staff" || role === "user") &&
+        editingProfile && (
         <ProfileEditModal
           user={editingProfile}
           role={role}

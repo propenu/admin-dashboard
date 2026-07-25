@@ -1,140 +1,130 @@
-import React, { useState, useEffect } from "react";
-import { getAccountsSummary } from "../../features/payment/paymentServices";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
-import {
-  IndianRupee,
-  TrendingUp,
-  CreditCard,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { useAccountsDashboard } from "./accountsDashboard/useAccountsDashboard";
+import AcHeader from "./accountsDashboard/components/AcHeader";
+import AcKpiStrip from "./accountsDashboard/components/AcKpiStrip";
+import AcRevenuePanel from "./accountsDashboard/components/AcRevenuePanel";
+import AcPlanPanel from "./accountsDashboard/components/AcPlanPanel";
+import AcAlertsPanel from "./accountsDashboard/components/AcAlertsPanel";
+import AcPaymentsPanel from "./accountsDashboard/components/AcPaymentsPanel";
+import AcSubscriptionsPanel from "./accountsDashboard/components/AcSubscriptionsPanel";
+import { formatINR } from "./accountsDashboard/accountsDashboardData";
 
-const AccountsDashboard = () => {
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+export default function AccountsDashboard() {
+  const navigate = useNavigate();
+  const dashboard = useAccountsDashboard();
+  const [activeKpi, setActiveKpi] = useState(null);
 
-  const fetchAnalytics = async (isRefresh = false) => {
+  const refreshAll = async () => {
+    await dashboard.refetch();
+    toast.success("Accounts dashboard refreshed");
+  };
+
+  const handleExport = async () => {
+    const lines = [
+      `Finance Command Center — ${dashboard.currentUserName}`,
+      `Period: ${dashboard.rangeLabel}`,
+      `Lifetime revenue: ${formatINR(dashboard.summary.totalRevenue)}`,
+      `Period revenue: ${formatINR(dashboard.summary.periodRevenue)}`,
+      `Today: ${formatINR(dashboard.summary.todayRevenue)}`,
+      `Active subscriptions: ${dashboard.summary.activeSubscriptions}`,
+      `Failed payments: ${dashboard.summary.failedPayments}`,
+      `Success rate: ${dashboard.summary.successRate ?? "N/A"}%`,
+    ].join("\n");
+
     try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-
-      const res = await getAccountsSummary();
-      setAnalytics(res.data || {});
-    } catch (err) {
-      console.error("Accounts Dashboard Error:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      await navigator.clipboard.writeText(lines);
+      toast.success("Finance summary copied");
+    } catch {
+      toast.error("Unable to copy summary");
     }
   };
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
-
-  if (loading) {
+  if (dashboard.isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-3">
+        <div className="h-24 animate-pulse rounded-[14px] bg-slate-100" />
+        <div className="grid grid-cols-4 gap-2 xl:grid-cols-8">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-16 animate-pulse rounded-[14px] bg-slate-100" />
+          ))}
+        </div>
+        <div className="grid gap-3 lg:grid-cols-3">
+          <div className="h-72 animate-pulse rounded-[14px] bg-slate-100 lg:col-span-2" />
+          <div className="h-72 animate-pulse rounded-[14px] bg-slate-100" />
+        </div>
       </div>
     );
   }
 
-  const totalRevenue = analytics?.totalRevenue || 0;
-  const todayRevenue = analytics?.todayRevenue || 0;
-  const activeSubscriptions = analytics?.activeSubscriptions || 0;
-  const failedPayments = analytics?.failedPayments || 0;
-
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-[#27AE60]">
-            Accounts Dashboard
-          </h1>
-          <p className="text-sm text-slate-500">
-            Revenue analytics & subscription overview
-          </p>
+    <div className="mx-auto max-w-[1600px] space-y-3 pb-6 text-slate-900">
+      <AcHeader
+        userName={dashboard.currentUserName}
+        rangeLabel={dashboard.rangeLabel}
+        refreshedAt={dashboard.refreshedAt}
+        preset={dashboard.preset}
+        onPresetChange={dashboard.setPreset}
+        customFrom={dashboard.customFrom}
+        customTo={dashboard.customTo}
+        onCustomFromChange={dashboard.setCustomFrom}
+        onCustomToChange={dashboard.setCustomTo}
+        onApplyCustom={dashboard.applyCustomRange}
+        onRefresh={refreshAll}
+        isFetching={dashboard.isFetching}
+        onOpenPayments={() => navigate("/payments-list")}
+        onOpenSubscriptions={() => navigate("/active-subscriptions")}
+        onExport={handleExport}
+        summary={dashboard.summary}
+      />
+
+      <AcKpiStrip
+        kpis={dashboard.kpis}
+        activeKey={activeKpi}
+        onMetricClick={(key) => {
+          setActiveKpi((current) => (current === key ? null : key));
+          if (key === "failed" || key === "period" || key === "today" || key === "lifetime") {
+            navigate("/payments-list");
+          }
+          if (key === "subs") navigate("/active-subscriptions");
+          if (key === "plans") navigate("/revenue-by-plan");
+        }}
+      />
+
+      <div className="grid gap-3 lg:grid-cols-12 lg:items-stretch">
+        <div className="min-h-[320px] lg:col-span-6">
+          <AcRevenuePanel
+            trendRows={dashboard.trendRows}
+            typeRows={dashboard.typeRows}
+            revenueBridge={dashboard.revenueBridge}
+          />
         </div>
-
-        <button
-          onClick={() => fetchAnalytics(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow border hover:bg-slate-100"
-        >
-          <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-          Refresh
-        </button>
+        <div className="min-h-[320px] lg:col-span-3">
+          <AcPlanPanel
+            planRows={dashboard.planRows}
+            onOpenPlans={() => navigate("/revenue-by-plan")}
+          />
+        </div>
+        <div className="min-h-[320px] lg:col-span-3">
+          <AcAlertsPanel alerts={dashboard.alerts} />
+        </div>
       </div>
 
-      {/* KPI SECTION */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <KPI
-          icon={<IndianRupee />}
-          label="Total Revenue"
-          value={`₹ ${totalRevenue.toLocaleString()}`}
-        />
-        <KPI
-          icon={<TrendingUp />}
-          label="Today's Revenue"
-          value={`₹ ${todayRevenue.toLocaleString()}`}
-        />
-        <KPI
-          icon={<CreditCard />}
-          label="Active Subscriptions"
-          value={activeSubscriptions}
-        />
-        <KPI
-          icon={<AlertCircle />}
-          label="Failed Payments"
-          value={failedPayments}
-        />
-      </div>
-
-      {/* REVENUE CHART */}
-      <div className="bg-white p-6 rounded-2xl shadow">
-        <h3 className="text-sm font-bold text-slate-700 uppercase mb-6">
-          Revenue Overview
-        </h3>
-
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart
-            data={[
-              { name: "Total Revenue", value: totalRevenue },
-              { name: "Today Revenue", value: todayRevenue },
-            ]}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="value" fill="#10b981" radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="grid gap-3 lg:grid-cols-12 lg:items-stretch">
+        <div className="min-h-[280px] lg:col-span-8">
+          <AcPaymentsPanel
+            payments={dashboard.recentPayments}
+            onOpenPayments={() => navigate("/payments-list")}
+          />
+        </div>
+        <div className="min-h-[280px] lg:col-span-4">
+          <AcSubscriptionsPanel
+            subRows={dashboard.subRows}
+            onOpenSubscriptions={() => navigate("/active-subscriptions")}
+          />
+        </div>
       </div>
     </div>
   );
-};
-
-const KPI = ({ icon, label, value }) => (
-  <div className="bg-white p-5 rounded-2xl shadow hover:shadow-md transition">
-    <div className="flex justify-between items-center mb-3 text-slate-600">
-      {icon}
-    </div>
-    <div className="text-2xl font-bold text-slate-800">{value}</div>
-    <div className="text-xs text-slate-500 uppercase mt-1">{label}</div>
-  </div>
-);
-
-export default AccountsDashboard;
+}

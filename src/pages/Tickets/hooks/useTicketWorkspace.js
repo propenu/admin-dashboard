@@ -90,6 +90,9 @@ export function useTicketActions() {
   const invalidateTickets = () => {
     queryClient.invalidateQueries({ queryKey: ticketKeys.all });
     queryClient.invalidateQueries({ queryKey: ticketKeys.overview });
+    queryClient.invalidateQueries({ queryKey: ["customer-care-dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["customer-support-head-dashboard"] });
+    queryClient.invalidateQueries({ queryKey: ["ticket-dashboard"] });
   };
 
   return {
@@ -105,14 +108,22 @@ export function useTicketActions() {
       },
     }),
     changeStatus: useMutation({
-      mutationFn: changeTicketStatus,
+      mutationFn: ({ id, status, payload }) =>
+        changeTicketStatus({
+          id,
+          payload: payload || (status ? { status } : {}),
+        }),
       onSuccess: (ticket) => {
         invalidateTickets();
         if (ticket?._id) queryClient.setQueryData(ticketKeys.detail(ticket._id), ticket);
       },
     }),
     changePriority: useMutation({
-      mutationFn: changeTicketPriority,
+      mutationFn: ({ id, priority, payload }) =>
+        changeTicketPriority({
+          id,
+          payload: payload || (priority ? { priority } : {}),
+        }),
       onSuccess: (ticket) => {
         invalidateTickets();
         if (ticket?._id) queryClient.setQueryData(ticketKeys.detail(ticket._id), ticket);

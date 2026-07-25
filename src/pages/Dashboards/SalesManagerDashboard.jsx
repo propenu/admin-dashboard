@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { getSalesManagerAnalytics } from "../../features/property/propertyService";
+import React, { useCallback, useEffect, useState } from "react";
+import { apiClient } from "../../api/apiClient";
+import {
+  getAllProjectsAnalytics,
+  getAllPropertiesAnalytics,
+  getSalesManagerAnalytics,
+} from "../../features/property/propertyService";
+import { getTicketDashboardOverview } from "../../features/ticket/ticket_system";
 import {
   BarChart,
   Bar,
@@ -11,30 +17,104 @@ import {
 } from "recharts";
 import { Users, FolderKanban, CheckCircle, Eye, RefreshCw } from "lucide-react";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
+import DashboardDateFilter from "./shared/DashboardDateFilter";
+import { useDashboardDateRange } from "./shared/useDashboardDateRange";
+
+const asNumber = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const unpackAnalytics = (response) => response?.data?.data || response?.data || {};
+
+const overviewBucket = (overview = {}) => {
+  const active = asNumber(overview.activeProjects ?? overview.activeProperties ?? overview.active);
+  const pending = asNumber(overview.pendingProjects ?? overview.pendingProperties ?? overview.pending);
+  const draft = asNumber(
+    overview.draftProjects ?? overview.draftProperties ?? overview.inactive ?? overview.draft,
+  );
+  const total =
+    asNumber(overview.totalProjects ?? overview.totalProperties ?? overview.total) ||
+    active + pending + draft;
+  const views = asNumber(overview.totalViews ?? overview.views);
+  return { total, active, pending, draft, views };
+};
 
 const SalesManagerDashboard = () => {
+  const dateRange = useDashboardDateRange("30d");
+  const { filters, range } = dateRange;
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchAnalytics = async (isRefresh = false) => {
-    try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+  const fetchAnalytics = useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
 
-      const res = await getSalesManagerAnalytics();
-      setAnalytics(res.data || {});
-    } catch (err) {
-      console.error("Sales Manager Dashboard Error:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+        const [roleRes, propsRes, projectsRes, leadsRes, ticketsRes] = await Promise.allSettled([
+          getSalesManagerAnalytics(filters),
+          getAllPropertiesAnalytics(filters),
+          getAllProjectsAnalytics(filters),
+          apiClient.get("/api/properties/leads/admin/overview", {
+            params: { page: 1, limit: 50, ...filters },
+          }),
+          getTicketDashboardOverview({
+            from: filters.from,
+            to: filters.to,
+          }),
+        ]);
+
+        const role =
+          roleRes.status === "fulfilled"
+            ? unpackAnalytics(roleRes.value) || roleRes.value?.data || {}
+            : {};
+        const properties =
+          propsRes.status === "fulfilled" ? unpackAnalytics(propsRes.value) : {};
+        const projects =
+          projectsRes.status === "fulfilled" ? unpackAnalytics(projectsRes.value) : {};
+        const propertyCounts = overviewBucket(properties.overview || properties);
+        const projectCounts = overviewBucket(projects.overview || projects);
+        const hasPeriodInventory = Boolean(propertyCounts.total || projectCounts.total);
+
+        setAnalytics({
+          totalAgents: asNumber(role.totalAgents),
+          totalProperties: hasPeriodInventory
+            ? propertyCounts.total || asNumber(role.totalProperties)
+            : asNumber(role.totalProperties),
+          active: hasPeriodInventory
+            ? propertyCounts.active || asNumber(role.active)
+            : asNumber(role.active),
+          pending: hasPeriodInventory
+            ? propertyCounts.pending || asNumber(role.pending)
+            : asNumber(role.pending),
+          draft: hasPeriodInventory
+            ? propertyCounts.draft || asNumber(role.draft)
+            : asNumber(role.draft),
+          totalViews: hasPeriodInventory
+            ? propertyCounts.views || asNumber(role.totalViews)
+            : asNumber(role.totalViews),
+          leadsOverview:
+            leadsRes.status === "fulfilled"
+              ? leadsRes.value?.data?.data || leadsRes.value?.data || {}
+              : {},
+          ticketOverview: ticketsRes.status === "fulfilled" ? ticketsRes.value || {} : {},
+          projectCounts,
+        });
+      } catch (err) {
+        console.error("Sales Manager Dashboard Error:", err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [filters],
+  );
 
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [fetchAnalytics]);
 
   if (loading) {
     return (
@@ -56,28 +136,42 @@ const SalesManagerDashboard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-[#27AE60]">
-            Sales Manager Dashboard
-          </h1>
-          <p className="text-sm text-slate-500">
-            Team & property performance overview
-          </p>
+      <div className="mb-6 space-y-3">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-[#27AE60]">
+              Sales Manager Dashboard
+            </h1>
+            <p className="text-sm text-slate-500">
+              Team & property performance overview
+            </p>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Period{" "}
+              <strong className="font-semibold text-slate-600">{range.label}</strong>
+            </p>
+          </div>
+
+          <button
+            onClick={() => fetchAnalytics(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow border hover:bg-slate-100"
+          >
+            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+            Refresh
+          </button>
         </div>
 
-        <button
-          onClick={() => fetchAnalytics(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow border hover:bg-slate-100"
-        >
-          <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-          Refresh
-        </button>
+        <DashboardDateFilter
+          preset={dateRange.preset}
+          onPresetChange={dateRange.setPreset}
+          customFrom={dateRange.customFrom}
+          customTo={dateRange.customTo}
+          onCustomFromChange={dateRange.setCustomFrom}
+          onCustomToChange={dateRange.setCustomTo}
+          onApplyCustom={dateRange.applyCustomRange}
+        />
       </div>
 
-      {/* KPI SECTION */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <KPI icon={<Users />} label="Total Agents" value={totalAgents} />
         <KPI
@@ -93,7 +187,6 @@ const SalesManagerDashboard = () => {
         <KPI icon={<Eye />} label="Total Views" value={totalViews} />
       </div>
 
-      {/* PROPERTY STATUS DISTRIBUTION */}
       <div className="bg-white p-6 rounded-2xl shadow mb-10">
         <h3 className="text-sm font-bold text-slate-700 uppercase mb-6">
           Property Status Distribution
@@ -128,7 +221,6 @@ const SalesManagerDashboard = () => {
         </div>
       </div>
 
-      {/* TEAM PERFORMANCE SECTION */}
       <div className="bg-white p-6 rounded-2xl shadow">
         <h3 className="text-sm font-bold text-slate-700 uppercase mb-6">
           Team Performance Overview

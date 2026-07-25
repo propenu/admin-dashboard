@@ -25,7 +25,14 @@ import {
 } from "./hooks/useTicketWorkspace";
 import { useCurrentUser } from "../../store/properties/useCurrentUser";
 
-const FULL_TICKET_DESK_ROLES = ["super_admin", "admin", "customer_care"];
+const FULL_TICKET_DESK_ROLES = [
+  "super_admin",
+  "admin",
+  "customer_support_head",
+  "customer_care",
+  "customer_care_executive",
+  "customer_care_executives",
+];
 const QUEUE_TAB = { key: "queue", label: "Queue", icon: null };
 
 const getUserId = (user) => user?._id || user?.id || user?.userId;

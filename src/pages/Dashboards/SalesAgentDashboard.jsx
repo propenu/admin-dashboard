@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { getSalesAgentAnalytics } from "../../features/property/propertyService";
+import React, { useCallback, useEffect, useState } from "react";
+import { apiClient } from "../../api/apiClient";
+import {
+  getAllProjectsAnalytics,
+  getAllPropertiesAnalytics,
+  getSalesAgentAnalytics,
+} from "../../features/property/propertyService";
+import { getTicketDashboardOverview } from "../../features/ticket/ticket_system";
 import {
   BarChart,
   Bar,
@@ -17,39 +23,60 @@ import {
   RefreshCw,
 } from "lucide-react";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
+import DashboardDateFilter from "./shared/DashboardDateFilter";
+import { useDashboardDateRange } from "./shared/useDashboardDateRange";
+
+const asNumber = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const unpackAnalytics = (response) =>
+  response?.data?.data || response?.data?.[0] || response?.data || {};
 
 const SalesAgentDashboard = () => {
+  const dateRange = useDashboardDateRange("30d");
+  const { filters, range } = dateRange;
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchAnalytics = async (isRefresh = false) => {
-    try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+  const fetchAnalytics = useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
 
-      const res = await getSalesAgentAnalytics();
-      
-      const data =
-        res?.data?.data || 
-        res?.data?.[0] || 
-        res?.data || 
-        {};
+        const [roleRes] = await Promise.allSettled([
+          getSalesAgentAnalytics(filters),
+          getAllPropertiesAnalytics(filters),
+          getAllProjectsAnalytics(filters),
+          apiClient.get("/api/properties/leads/admin/overview", {
+            params: { page: 1, limit: 50, ...filters },
+          }),
+          getTicketDashboardOverview({
+            from: filters.from,
+            to: filters.to,
+          }),
+        ]);
 
-       
+        const data =
+          roleRes.status === "fulfilled" ? unpackAnalytics(roleRes.value) : {};
 
-      setAnalytics(data);
-    } catch (err) {
-      console.error("Sales Agent Dashboard Error:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+        setAnalytics(data);
+      } catch (err) {
+        console.error("Sales Agent Dashboard Error:", err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [filters],
+  );
 
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [fetchAnalytics]);
 
   if (loading) {
     return (
@@ -59,38 +86,52 @@ const SalesAgentDashboard = () => {
     );
   }
 
-  const total = analytics?.totalProperties || 0;
-  const active = analytics?.active || 0;
-  const pending = analytics?.pending || 0;
-  const draft = analytics?.draft || 0;
-  const views = analytics?.totalViews || 0;
+  const total = asNumber(analytics?.totalProperties);
+  const active = asNumber(analytics?.active);
+  const pending = asNumber(analytics?.pending);
+  const draft = asNumber(analytics?.draft);
+  const views = asNumber(analytics?.totalViews);
 
   const activePercentage = total > 0 ? ((active / total) * 100).toFixed(1) : 0;
 
   return (
     <div className="min-h-screen bg-slate-50 p-6">
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-[#27AE60]">
-            Sales Agent Dashboard
-          </h1>
-          <p className="text-sm text-slate-500">
-            Your property activity & engagement overview
-          </p>
+      <div className="mb-6 space-y-3">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-[#27AE60]">
+              Sales Agent Dashboard
+            </h1>
+            <p className="text-sm text-slate-500">
+              Your property activity & engagement overview
+            </p>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Period{" "}
+              <strong className="font-semibold text-slate-600">{range.label}</strong>
+            </p>
+          </div>
+
+          <button
+            onClick={() => fetchAnalytics(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow border hover:bg-slate-100"
+          >
+            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+            Refresh
+          </button>
         </div>
 
-        <button
-          onClick={() => fetchAnalytics(true)}
-          disabled={refreshing}
-          className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow border hover:bg-slate-100"
-        >
-          <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-          Refresh
-        </button>
+        <DashboardDateFilter
+          preset={dateRange.preset}
+          onPresetChange={dateRange.setPreset}
+          customFrom={dateRange.customFrom}
+          customTo={dateRange.customTo}
+          onCustomFromChange={dateRange.setCustomFrom}
+          onCustomToChange={dateRange.setCustomTo}
+          onApplyCustom={dateRange.applyCustomRange}
+        />
       </div>
 
-      {/* KPI SECTION */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <KPI icon={<FolderKanban />} label="My Properties" value={total} />
         <KPI
@@ -102,7 +143,6 @@ const SalesAgentDashboard = () => {
         <KPI icon={<Eye />} label="Total Views" value={views} />
       </div>
 
-      {/* STATUS DISTRIBUTION */}
       <div className="bg-white p-6 rounded-2xl shadow mb-10">
         <h3 className="text-sm font-bold text-slate-700 uppercase mb-6">
           Listing Status Overview
@@ -137,7 +177,6 @@ const SalesAgentDashboard = () => {
         </div>
       </div>
 
-      {/* PERFORMANCE VS ENGAGEMENT */}
       <div className="bg-white p-6 rounded-2xl shadow">
         <h3 className="text-sm font-bold text-slate-700 uppercase mb-6">
           Performance vs Engagement

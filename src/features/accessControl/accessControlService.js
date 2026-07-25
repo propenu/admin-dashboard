@@ -38,8 +38,8 @@ export const updateAccessRolePermissions = async (roleId, permissions) =>
 export const updateAccessRole = async (roleId, payload) =>
   (await apiClient.patch(`${ROLES}/${roleId}`, payload)).data;
 
-export const getAccessUsers = async () =>
-  (await apiClient.get(`${SERVICES.USER}/auth/all-users`)).data;
+export const getAccessUsers = async (params = { scope: "team_directory" }) =>
+  (await apiClient.get(`${SERVICES.USER}/auth/all-users`, { params })).data;
 
 export const requestCredentialOtp = async (email) =>
   (await apiClient.post(`${SERVICES.USER}/auth/admin-credentials/request-otp`, { email })).data;

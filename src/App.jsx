@@ -11,6 +11,24 @@ import PermissionRoute from "./pages/PermissionRoute";
 
 // Lazy Loaded Pages
 const Dashboard = lazy(() => import("./pages/Dashboards/MainDashboard.jsx"));
+const MarketingHeadDashboard = lazy(() =>
+  import("./pages/Dashboards/MarketingHeadDashboard.jsx"),
+);
+const ContentTeamDashboard = lazy(() =>
+  import("./pages/Dashboards/ContentTeamDashboard.jsx"),
+);
+const AccountsDashboardPage = lazy(() =>
+  import("./pages/Dashboards/AccountsDashboard.jsx"),
+);
+const SuperAdminDashboardPage = lazy(() =>
+  import("./pages/Dashboards/SuperAdminDashboard.jsx"),
+);
+const CeoDashboardPage = lazy(() =>
+  import("./pages/Dashboards/CeoDashboard.jsx"),
+);
+const AdminDashboardPage = lazy(() =>
+  import("./pages/Dashboards/AdminDashboard.jsx"),
+);
 
 
 const PrimeProjectsPage = lazy(() => import("./pages/features/property/pages/PrimeProjects/PrimeProjectsPage"));
@@ -81,6 +99,7 @@ const SignUP = lazy(() => import("./Auth/SignUp"));
 const Profile = lazy(()=> import("./pages/profile/Profile"))
 const AllAgents = lazy(() => import("./pages/users/AllUserInDetails/Agents.jsx"));
 const Builders = lazy(() => import("./pages/users/AllUserInDetails/Builders.jsx"));
+const BuilderStaff = lazy(() => import("./pages/users/AllUserInDetails/BuilderStaff.jsx"));
 const Owners = lazy(() => import("./pages/users/AllUserInDetails/PropenuUser.jsx"));
 const SalesAgent = lazy(() => import("./pages/users/AllUserInDetails/SalesAgent.jsx"));
 const SalesManagers = lazy(() => import("./pages/users/AllUserInDetails/SalesManagers.jsx"));
@@ -252,6 +271,54 @@ function App() {
               <Route element={<Layout />}>
                 {/* Admin Dashboard */}
                 <Route path="/" element={<Dashboard />} />
+                <Route
+                  path="/dashboard/marketing-head"
+                  element={
+                    <PermissionRoute permission="dashboard:view">
+                      <MarketingHeadDashboard />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/content-team"
+                  element={
+                    <PermissionRoute permission="dashboard:view">
+                      <ContentTeamDashboard />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/accounts"
+                  element={
+                    <PermissionRoute permission="dashboard:view">
+                      <AccountsDashboardPage />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/super-admin"
+                  element={
+                    <PermissionRoute permission="dashboard:view">
+                      <SuperAdminDashboardPage />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/ceo"
+                  element={
+                    <PermissionRoute permission="dashboard:view">
+                      <CeoDashboardPage />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/admin"
+                  element={
+                    <PermissionRoute permission="dashboard:view">
+                      <AdminDashboardPage />
+                    </PermissionRoute>
+                  }
+                />
                 <Route path="/operations/reports" element={<PermissionRoute permission="dashboard:view_reports"><OperationsReportsPage /></PermissionRoute>} />
 
                 {/* Projects */}
@@ -320,6 +387,14 @@ function App() {
                 <Route path="customercare" element={<PermissionRoute permission="user:view"><CustomerCare /></PermissionRoute>} />
                 <Route path="all-agents" element={<PermissionRoute permission="agent:view"><AllAgents /></PermissionRoute>} />
                 <Route path="builders" element={<PermissionRoute permission="builder:view"><Builders /></PermissionRoute>} />
+                <Route
+                  path="builder-staff"
+                  element={
+                    <PermissionRoute anyPermissions={["builder:view", "builder_staff:view", "user:view"]}>
+                      <BuilderStaff />
+                    </PermissionRoute>
+                  }
+                />
                 <Route path="owners" element={<Owners role="user" />} />
                 <Route path="sales-agents" element={<PermissionRoute permission="user:view"><SalesAgent /></PermissionRoute>} />
                 <Route path="sales-managers" element={<PermissionRoute permission="user:view"><SalesManagers /></PermissionRoute>} />

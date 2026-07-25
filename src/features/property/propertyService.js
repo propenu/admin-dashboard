@@ -138,12 +138,24 @@ export const getAdminAnalytics = () => {
 };
 
 
-export const getSalesManagerAnalytics = () => {
-  return apiClient.get(`${SERVICES.PROPERTY}/analytics/salemanager`);
+export const getSalesManagerAnalytics = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  const qs = query.toString();
+  return apiClient.get(
+    `${SERVICES.PROPERTY}/analytics/salemanager${qs ? `?${qs}` : ""}`,
+  );
 };
 
-export const getSalesAgentAnalytics = () => {
-  return apiClient.get(`${SERVICES.PROPERTY}/analytics/saleagent`);
+export const getSalesAgentAnalytics = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  const qs = query.toString();
+  return apiClient.get(
+    `${SERVICES.PROPERTY}/analytics/saleagent${qs ? `?${qs}` : ""}`,
+  );
 };
 
 
@@ -182,9 +194,9 @@ export const salesmanagerApproveAProject = (id) => {
   return apiClient.patch(`${SERVICES.PROPERTY}/${id}/approve`);
 }
 
-export const salesmanagerRejectAProject = (id) => {
-  return apiClient.patch(`${SERVICES.PROPERTY}/${id}/reject`);
-}
+export const salesmanagerRejectAProject = (id, body = {}) => {
+  return apiClient.patch(`${SERVICES.PROPERTY}/${id}/reject`, body);
+};
 
 
 

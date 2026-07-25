@@ -1,7 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Check, ChevronDown, Hash, LayoutGrid, List, Mail, MapPin, Phone, RefreshCw, Search, ShieldCheck, UsersRound, X } from "lucide-react";
 import { useUsers } from "./hook/useUserData";
 import { getTeamDirectoryRoles } from "../../../features/accessControl/accessControlService";
+import {
+  enrichHierarchyRoles,
+  buildChildrenByParent,
+  getExactRoleMatch,
+  userMatchesExactRole,
+  countUsersInExactRole,
+} from "../../../utils/roleHierarchy";
+
+const todayIso = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
 
 const cleanRole = (value = "") => String(value).replace(/_/g, " ");
 const TEAM_ROLE_LABELS = {
@@ -17,39 +33,10 @@ const TEAM_ROLE_LABELS = {
 };
 const teamRoleLabel = (role) => TEAM_ROLE_LABELS[String(role?.name || "").toLowerCase()] || role?.label || cleanRole(role?.name);
 const unique = (items) => [...new Set(items.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
-const normalizeTeamRole = (value = "") => String(value).toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-const TEAM_ROLE_ALIASES = {
-  customer_support_team_lead: "team_lead",
-  team_leads: "team_lead",
-  customer_support_team_leads: "team_lead",
-  customer_care: "customer_care_executive",
-  customer_care_executives: "customer_care_executive",
-  relationship_managers: "relationship_manager",
-  sales_executives: "sales_executive",
-  regional_managers: "regional_manager",
-};
-const TEAM_ROLE_HIERARCHY = [
-  ["super_admin", 0], ["ceo", 1], ["founder", 1], ["operations_head", 1],
-  ["business_development_head", 2], ["regional_manager", 3], ["business_development_manager", 4], ["sales_agent", 4], ["sales_executive", 4], ["sales_manager", 4],
-  ["customer_support_head", 2], ["team_lead", 3], ["customer_care", 4], ["customer_care_executive", 4], ["relationship_manager", 4],
-  ["marketing_head", 2], ["digital_marketing", 3], ["social_media", 3], ["content_team", 3], ["creative_team", 3],
-  ["accounts", 2], ["accounts_finance", 2], ["legal_compliance", 2], ["hr_administration", 2],
-  ["technical_support_head", 2], ["technical_support_team", 3],
-];
-const teamHierarchyRank = new Map(TEAM_ROLE_HIERARCHY.map(([name, depth], index) => [name, { depth, index }]));
-const teamHierarchyParentByRole = new Map();
-TEAM_ROLE_HIERARCHY.forEach(([name, depth], index) => {
-  if (!depth) return;
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    if (TEAM_ROLE_HIERARCHY[cursor][1] === depth - 1) {
-      teamHierarchyParentByRole.set(name, TEAM_ROLE_HIERARCHY[cursor][0]);
-      break;
-    }
-  }
-});
 
 export default function PropenuTeam() {
-  const { data: users = [], isLoading, refetch, isFetching } = useUsers();
+  const [searchParams] = useSearchParams();
+  const { data: users = [], isLoading, refetch, isFetching } = useUsers({ scope: "team_directory" });
   const [roleOptions, setRoleOptions] = useState([]);
   const [viewMode, setViewMode] = useState("cards");
   const [filters, setFilters] = useState({ role: "", state: "", city: "", locality: "", pincode: "", status: "", fromDate: "", toDate: "", search: "" });
@@ -59,6 +46,28 @@ export default function PropenuTeam() {
       .then((result) => setRoleOptions(result.roles || []))
       .catch(() => setRoleOptions([]));
   }, []);
+
+  useEffect(() => {
+    const role = searchParams.get("role") || "";
+    const status = searchParams.get("status") || "";
+    const joined = searchParams.get("joined");
+    const date = searchParams.get("date") || "";
+    const from = searchParams.get("from") || "";
+    const to = searchParams.get("to") || "";
+    const day = date || (joined === "today" ? todayIso() : "");
+    setFilters((current) => ({
+      ...current,
+      role,
+      status,
+      fromDate: day || from || "",
+      toDate: day || to || "",
+    }));
+  }, [searchParams]);
+
+  const selectedRoleMatch = useMemo(
+    () => (filters.role ? getExactRoleMatch(filters.role, roleOptions) : null),
+    [filters.role, roleOptions],
+  );
 
   const options = useMemo(() => {
     const byState = filters.state ? users.filter((user) => user.state === filters.state) : users;
@@ -75,7 +84,7 @@ export default function PropenuTeam() {
   const filtered = useMemo(() => {
     const query = filters.search.trim().toLowerCase();
     return users.filter((user) => {
-      if (filters.role && user.roleName !== filters.role) return false;
+      if (selectedRoleMatch && !userMatchesExactRole(user, selectedRoleMatch)) return false;
       if (filters.state && user.state !== filters.state) return false;
       if (filters.city && user.city !== filters.city) return false;
       if (filters.locality && user.locality !== filters.locality) return false;
@@ -91,7 +100,7 @@ export default function PropenuTeam() {
       if (!query) return true;
       return `${user.name} ${user.email} ${user.phone} ${user.roleName} ${user.locality} ${user.city} ${user.state} ${user.pincode}`.toLowerCase().includes(query);
     });
-  }, [filters, users]);
+  }, [filters, selectedRoleMatch, users]);
 
   const update = (key, value) => setFilters((current) => {
     const next = { ...current, [key]: value };
@@ -103,13 +112,50 @@ export default function PropenuTeam() {
 
   const clear = () => setFilters({ role: "", state: "", city: "", locality: "", pincode: "", status: "", fromDate: "", toDate: "", search: "" });
   const activeCount = users.filter((user) => user.accountStatus === "active" && user.isActive !== false).length;
+  const joinedTodayCount = users.filter((user) => {
+    if (!user.createdAt) return false;
+    const joinedAt = new Date(user.createdAt);
+    if (Number.isNaN(joinedAt.getTime())) return false;
+    return (
+      joinedAt.getFullYear() === new Date().getFullYear() &&
+      joinedAt.getMonth() === new Date().getMonth() &&
+      joinedAt.getDate() === new Date().getDate()
+    );
+  }).length;
+
+  const applyQuickFilter = (type) => {
+    if (type === "active") {
+      setFilters((current) => ({
+        ...current,
+        status: current.status === "active" ? "" : "active",
+        fromDate: "",
+        toDate: "",
+      }));
+      return;
+    }
+    if (type === "joinedToday") {
+      const day = todayIso();
+      setFilters((current) => ({
+        ...current,
+        status: "",
+        fromDate: current.fromDate === day && current.toDate === day ? "" : day,
+        toDate: current.fromDate === day && current.toDate === day ? "" : day,
+      }));
+    }
+  };
 
   const Select = ({ label, value, onChange, children }) => <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold capitalize outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">{children}</select></label>;
 
   return <div className="mx-auto max-w-[1500px] pb-10 text-slate-900">
     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">Operations</p><h1 className="mt-1 text-3xl font-black tracking-tight">Team directory</h1><p className="mt-1 text-sm text-slate-500">Select a role and location to find the right team member.</p></div>
-      <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{roleOptions.length} roles</span><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{users.length} members</span><span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">{activeCount} active</span><button onClick={() => refetch()} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"><RefreshCw size={15} className={isFetching ? "animate-spin" : ""} /></button></div>
+      <div className="flex items-center gap-2">
+        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{roleOptions.length} roles</span>
+        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{users.length} members</span>
+        <button type="button" onClick={() => applyQuickFilter("active")} className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${filters.status === "active" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}>{activeCount} active</button>
+        <button type="button" onClick={() => applyQuickFilter("joinedToday")} className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${filters.fromDate === todayIso() && filters.toDate === todayIso() ? "bg-emerald-600 text-white" : "bg-sky-50 text-sky-700 hover:bg-sky-100"}`}>{joinedTodayCount} joined today</button>
+        <button onClick={() => refetch()} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"><RefreshCw size={15} className={isFetching ? "animate-spin" : ""} /></button>
+      </div>
     </div>
 
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -128,7 +174,7 @@ export default function PropenuTeam() {
     </section>
 
     <section className="mt-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><UsersRound size={17} className="text-emerald-600" /><h2 className="text-sm font-bold capitalize">{filters.role ? roleOptions.find((role) => role.name === filters.role)?.label || cleanRole(filters.role) : "All team members"}</h2></div><div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">Showing {filtered.length} of {users.length}</span><div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "cards" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><LayoutGrid size={14} /> Cards</button><button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><List size={14} /> Table</button></div></div></div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><UsersRound size={17} className="text-emerald-600" /><h2 className="text-sm font-bold capitalize">{filters.role ? teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role }) : "All team members"}</h2></div><div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">Showing {filtered.length} of {users.length}</span><div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "cards" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><LayoutGrid size={14} /> Cards</button><button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><List size={14} /> Table</button></div></div></div>
       {isLoading ? <div className="rounded-2xl border border-slate-200 bg-white p-14 text-center text-sm text-slate-500">Loading team members...</div> : filtered.length ? viewMode === "cards" ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filtered.map((user) => {
         const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
         const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -149,7 +195,7 @@ export default function PropenuTeam() {
         const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
         const active = user.accountStatus === "active" && user.isActive !== false;
         return <tr key={user._id} className="transition hover:bg-emerald-50/40"><td className="px-4 py-3"><div className="flex items-center gap-2.5"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 font-black text-emerald-700">{initials}</div><div className="min-w-0"><p className="max-w-[190px] truncate font-bold text-slate-800">{user.name || "Unnamed user"}</p><p className="mt-0.5 font-mono text-[10px] text-slate-400">{user.userCode || String(user._id).slice(-10).toUpperCase()}</p></div></div></td><td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2.5 py-1 font-bold capitalize text-emerald-700">{cleanRole(user.roleName)}</span></td><td className="px-4 py-3 text-slate-600"><p className="max-w-[210px] truncate">{user.email || "No email"}</p><p className="mt-0.5 text-slate-400">{user.phone || "No phone"}</p></td><td className="max-w-[260px] px-4 py-3 text-slate-600"><span className="line-clamp-2">{location || "Work location not provided"}</span></td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} />{String(user.accountStatus || "pending").replace(/_/g, " ")}</span></td><td className="whitespace-nowrap px-4 py-3 text-slate-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</td></tr>;
-      })}</tbody></table></div></div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center"><UsersRound className="mx-auto mb-3 text-slate-300" size={36} /><p className="font-bold text-slate-600">{filters.role ? `No members are assigned to ${roleOptions.find((role) => role.name === filters.role)?.label || cleanRole(filters.role)} yet.` : "No team members match these filters."}</p><p className="mt-1 text-xs text-slate-400">{filters.role ? "Create credentials for this role to add its first team member." : "Clear or change the filters to view more people."}</p></div>}
+      })}</tbody></table></div></div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center"><UsersRound className="mx-auto mb-3 text-slate-300" size={36} /><p className="font-bold text-slate-600">{filters.role ? `No members are assigned to ${teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role })} yet.` : "No team members match these filters."}</p><p className="mt-1 text-xs text-slate-400">{filters.role ? "Create credentials for this role to add its first team member." : "Clear or change the filters to view more people."}</p></div>}
     </section>
   </div>;
 }
@@ -157,36 +203,8 @@ export default function PropenuTeam() {
 function HierarchyRoleSelect({ roles, users, value, onChange }) {
   const [open, setOpen] = useState(false);
   const selected = roles.find((role) => role.name === value);
-  const rolesById = new Map(roles.map((role) => [String(role._id), role]));
-  const rolesByName = new Map(roles.map((role) => [normalizeTeamRole(role.name), role]));
-  const depthFor = (role, visited = new Set()) => {
-    const parentId = role?.effectiveParentRoleId || role?.parentRoleId?._id || role?.parentRoleId;
-    if (!parentId || visited.has(String(parentId))) return 0;
-    const parent = rolesById.get(String(parentId));
-    if (!parent) return 0;
-    visited.add(String(parentId));
-    return 1 + depthFor(parent, visited);
-  };
-  const enriched = [...roles].map((role) => {
-    const rawName = normalizeTeamRole(role.name);
-    const nameKey = TEAM_ROLE_ALIASES[rawName] || rawName;
-    const hierarchy = teamHierarchyRank.get(nameKey);
-    const canonicalParentName = teamHierarchyParentByRole.get(nameKey) || null;
-    const canonicalParentRole = canonicalParentName ? rolesByName.get(canonicalParentName) : null;
-    return {
-      ...role,
-      hierarchyDepth: depthFor(role) || hierarchy?.depth || 0,
-      hierarchyIndex: hierarchy?.index ?? 1000,
-      hierarchyParentId: role?.effectiveParentRoleId || role?.parentRoleId?._id || role?.parentRoleId || canonicalParentRole?._id || null,
-    };
-  });
-  const childrenByParent = new Map();
-  enriched.forEach((role) => {
-    const key = role.hierarchyParentId ? String(role.hierarchyParentId) : "__root__";
-    const branch = childrenByParent.get(key) || [];
-    branch.push(role);
-    childrenByParent.set(key, branch);
-  });
+  const enriched = enrichHierarchyRoles(roles);
+  const childrenByParent = buildChildrenByParent(enriched);
   const sortWithinLevel = (first, second) =>
     Number(second.isCurrentRole) - Number(first.isCurrentRole) ||
     first.hierarchyIndex - second.hierarchyIndex ||
@@ -211,7 +229,8 @@ function HierarchyRoleSelect({ roles, users, value, onChange }) {
     ordered.push(role);
     appendBranch(role._id);
   });
-  const memberCount = (role) => users.filter((user) => String(user.roleId) === String(role._id) || user.roleName === role.name).length;
+  // Badge = exact role only (matches list filter behaviour).
+  const memberCount = (role) => countUsersInExactRole(users, role.name, roles);
 
   return <div className="relative z-30 min-w-0 xl:col-span-1">
     <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Role</span>

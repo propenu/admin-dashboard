@@ -181,6 +181,7 @@ export default function PropertyCard({
   onExpire,
   onReset,
   onRankUpdated,
+  canApprove = false,
 }) {
   const navigate   = useNavigate();
 
@@ -666,16 +667,16 @@ export default function PropertyCard({
               {p.status || "unknown"}
             </span>
 
-            {p.status === "pending" && (
+            {p.status === "pending" && canApprove && (
               <div className="flex gap-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     approveMutation.mutate(p._id);
                   }}
-                  className="px-2 py-1 bg-green-600 text-white rounded text-xs"
+                  className="rounded bg-green-600 px-2 py-1 text-xs text-white"
                 >
-                  Approve
+                  Approve → Live
                 </button>
 
                 <button
@@ -683,7 +684,7 @@ export default function PropertyCard({
                     e.stopPropagation();
                     rejectMutation.mutate(p._id);
                   }}
-                  className="px-2 py-1 bg-red-600 text-white rounded text-xs"
+                  className="rounded bg-red-600 px-2 py-1 text-xs text-white"
                 >
                   Reject
                 </button>

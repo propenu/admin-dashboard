@@ -7,6 +7,12 @@ import AccountsDashboard from "./AccountsDashboard";
 import DigitalMarket from "./DigitalMarket";
 import OperationsDashboard from "./OperationsDashboard";
 import RegionalManagerDashboard from "./RegionalManagerDashboard";
+import CustomerCareDashboard from "./CustomerCareDashboard";
+import CustomerSupportHeadDashboard from "./CustomerSupportHeadDashboard";
+import CustomerSupportTeamLeadDashboard from "./CustomerSupportTeamLeadDashboard";
+import MarketingHeadDashboard from "./MarketingHeadDashboard";
+import ContentTeamDashboard from "./ContentTeamDashboard";
+import CeoDashboard from "./CeoDashboard";
 
 const DashboardRouter = ({ role, permissions = [] }) => {
   if (!permissions.includes("dashboard:view")) {
@@ -16,6 +22,10 @@ const DashboardRouter = ({ role, permissions = [] }) => {
   switch (role) {
     case "super_admin":
       return <SuperAdminDashboard />;
+
+    case "ceo":
+    case "founder":
+      return <CeoDashboard />;
 
     case "admin":
       return <AdminDashboard />;
@@ -29,6 +39,12 @@ const DashboardRouter = ({ role, permissions = [] }) => {
     case "accounts":
       return <AccountsDashboard />;
 
+    case "marketing_head":
+      return <MarketingHeadDashboard />;
+
+    case "content_team":
+      return <ContentTeamDashboard />;
+
     case "digital_marketing":
       return <DigitalMarket />;
 
@@ -41,6 +57,20 @@ const DashboardRouter = ({ role, permissions = [] }) => {
 
     case "regional_manager":
       return <RegionalManagerDashboard />;
+
+    case "customer_support_head":
+      return <CustomerSupportHeadDashboard />;
+
+    case "team_lead":
+    case "team_leads":
+    case "customer_support_team_lead":
+    case "customer_support_team_leads":
+      return <CustomerSupportTeamLeadDashboard />;
+
+    case "customer_care":
+    case "customer_care_executive":
+    case "customer_care_executives":
+      return <CustomerCareDashboard />;
 
     default:
       return <AdminDashboard />;
