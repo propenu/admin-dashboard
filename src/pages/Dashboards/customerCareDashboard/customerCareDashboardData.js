@@ -196,6 +196,15 @@ export const mapTicketQueueItem = (ticket = {}) => {
     updatedLabel: updatedAt
       ? formatRelativeClock(updatedAt)
       : "Just now",
+    assignedToName: ticket.assignedTo?.name || "",
+    assignedAtLabel: ticket.metadata?.autoAssignedAt
+      ? formatRelativeClock(ticket.metadata.autoAssignedAt)
+      : ticket.activities?.find?.((a) => a.action === "ticket.assigned")
+        ? formatRelativeClock(
+            ticket.activities.find((a) => a.action === "ticket.assigned")?.createdAt,
+          )
+        : "",
+    autoAssigned: Boolean(ticket.metadata?.autoAssigned),
   };
 };
 

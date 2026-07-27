@@ -68,22 +68,22 @@ export const PhoneBadge = ({ verified }) =>
   );
 
 export const StatCard = ({ label, value, icon, colorClass, onClick, active = false }) => {
-  const className = `bg-white rounded-2xl border shadow-sm p-4 flex items-center gap-3 w-full text-left transition ${
+  const className = `bg-white rounded-xl border shadow-sm px-2.5 py-2 flex items-center gap-2 w-full text-left transition ${
     active
-      ? "border-emerald-400 ring-2 ring-emerald-100"
+      ? "border-emerald-400 ring-1 ring-emerald-100"
       : "border-gray-100"
   } ${onClick ? "cursor-pointer hover:border-emerald-300 hover:shadow-md" : ""}`;
 
   const content = (
     <>
       <div
-        className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}
+        className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${colorClass}`}
       >
         {icon}
       </div>
-      <div>
-        <p className="text-2xl font-extrabold text-gray-900 leading-none">{value}</p>
-        <p className="text-xs text-gray-400 font-medium mt-0.5">{label}</p>
+      <div className="min-w-0">
+        <p className="text-base font-extrabold text-gray-900 leading-none tabular-nums">{value}</p>
+        <p className="mt-0.5 truncate text-[10px] font-medium text-gray-400">{label}</p>
       </div>
     </>
   );

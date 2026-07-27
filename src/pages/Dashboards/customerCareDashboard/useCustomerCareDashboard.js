@@ -26,18 +26,35 @@ const unpackTickets = (payload) => {
   return [];
 };
 
+const getUserId = (user) =>
+  String(user?._id || user?.id || user?.userId || "").trim();
+
 export function useCustomerCareDashboard() {
   const dateRange = useDashboardDateRange("30d", DATE_PRESETS);
   const { range, filters } = dateRange;
   const trendDays = Math.min(Math.max(range.days || 7, 1), 90);
 
+  const currentUserQuery = useQuery({
+    queryKey: ["customer-care-dashboard", "current-user"],
+    queryFn: async () => {
+      const response = await getUserDetails();
+      return response?.data?.user || response?.data || null;
+    },
+    staleTime: 120_000,
+  });
+
+  const executiveId = getUserId(currentUserQuery.data);
+
+  // Personal queue: only tickets auto/manual assigned to this executive.
   const ticketScope = {
     scope: "customer_care",
     department: CUSTOMER_CARE_DEPARTMENT,
+    ...(executiveId ? { assignedTo: executiveId } : {}),
   };
 
   const overviewQuery = useQuery({
-    queryKey: ["customer-care-dashboard", "overview", CUSTOMER_CARE_DEPARTMENT, filters],
+    queryKey: ["customer-care-dashboard", "overview", CUSTOMER_CARE_DEPARTMENT, filters, executiveId],
+    enabled: Boolean(executiveId),
     queryFn: () =>
       getTicketDashboardOverview({
         ...filters,
@@ -48,15 +65,18 @@ export function useCustomerCareDashboard() {
   });
 
   const ticketsQuery = useQuery({
-    queryKey: ["customer-care-dashboard", "tickets", CUSTOMER_CARE_DEPARTMENT, filters],
+    queryKey: ["customer-care-dashboard", "tickets", CUSTOMER_CARE_DEPARTMENT, filters, executiveId],
+    enabled: Boolean(executiveId),
     queryFn: () =>
       getTickets({
         page: 1,
-        limit: 200,
+        limit: 100,
         sortBy: "updatedAt",
         sortOrder: "desc",
         ...ticketScope,
         ...filters,
+        createdFrom: filters.from,
+        createdTo: filters.to,
       }),
     staleTime: 30_000,
     refetchInterval: 60_000,
@@ -90,17 +110,9 @@ export function useCustomerCareDashboard() {
     refetchInterval: 60_000,
   });
 
-  const currentUserQuery = useQuery({
-    queryKey: ["customer-care-dashboard", "current-user"],
-    queryFn: async () => {
-      const response = await getUserDetails();
-      return response?.data?.user || response?.data || null;
-    },
-    staleTime: 120_000,
-  });
-
   const trendsQuery = useQuery({
-    queryKey: ["customer-care-dashboard", "trends", CUSTOMER_CARE_DEPARTMENT, filters, trendDays],
+    queryKey: ["customer-care-dashboard", "trends", CUSTOMER_CARE_DEPARTMENT, filters, trendDays, executiveId],
+    enabled: Boolean(executiveId),
     queryFn: () =>
       getTicketDashboardTrends({
         days: trendDays,
@@ -132,7 +144,14 @@ export function useCustomerCareDashboard() {
     refetchInterval: 120_000,
   });
 
-  const tickets = unpackTickets(ticketsQuery.data);
+  const tickets = useMemo(() => {
+    const list = unpackTickets(ticketsQuery.data);
+    if (!executiveId) return list;
+    // Safety net: only show tickets assigned to this executive.
+    return list.filter(
+      (ticket) => String(ticket?.assignedTo?.userId || "").trim() === executiveId,
+    );
+  }, [executiveId, ticketsQuery.data]);
 
   const derived = useMemo(
     () =>
@@ -165,6 +184,7 @@ export function useCustomerCareDashboard() {
     ...dateRange,
     rangeLabel: dateRange.rangeLabel || derived.rangeLabel,
     tickets,
+    executiveId,
     overviewQuery,
     ticketsQuery,
     leadsQuery,
@@ -173,7 +193,9 @@ export function useCustomerCareDashboard() {
     trendsQuery,
     projectsTodayQuery: projectsQuery,
     propertiesTodayQuery: propertiesQuery,
-    isLoading: overviewQuery.isLoading || ticketsQuery.isLoading || currentUserQuery.isLoading,
+    isLoading:
+      currentUserQuery.isLoading ||
+      (Boolean(executiveId) && (overviewQuery.isLoading || ticketsQuery.isLoading)),
     isFetching:
       overviewQuery.isFetching ||
       ticketsQuery.isFetching ||

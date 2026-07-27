@@ -1,10 +1,13 @@
 import { Search, TicketPlus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import imageCompression from "browser-image-compression";
+import LocationFilterBar from "../../../../components/common/LocationFilterBar";
 import { getRequesterRelatedAssets, getTicketAssigneeRoleOptions, searchTicketAssignees, searchTicketRequesters } from "../../../../features/ticket/ticket_system";
 import { TICKET_CATEGORY_OPTIONS, TICKET_PRIORITIES, TICKET_SOURCES } from "../../constants/ticketOptions";
 import { formatLabel } from "../../utils/ticketFormatters";
 import { ghostButton, primaryButton } from "../ticketUi";
+
+const EMPTY_LOCATION = { state: "", city: "", locality: "", pincode: "" };
 
 const initialForm = {
   title: "",
@@ -53,6 +56,8 @@ export default function TicketCreateModal({
   const [assigneeQuery, setAssigneeQuery] = useState("");
   const [assigneeRole, setAssigneeRole] = useState("all");
   const [assigneeResults, setAssigneeResults] = useState([]);
+  const [assigneePool, setAssigneePool] = useState([]);
+  const [assigneeLocation, setAssigneeLocation] = useState(EMPTY_LOCATION);
   const [assigneeLoading, setAssigneeLoading] = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState(null);
   const [attachments, setAttachments] = useState([]);
@@ -80,6 +85,13 @@ export default function TicketCreateModal({
     };
 
     loadRoleOptions();
+    searchTicketAssignees({ query: "", role: "all", limit: 500 })
+      .then((users) => {
+        if (active) setAssigneePool(users);
+      })
+      .catch(() => {
+        if (active) setAssigneePool([]);
+      });
 
     return () => {
       active = false;
@@ -168,7 +180,11 @@ export default function TicketCreateModal({
         const users = await searchTicketAssignees({
           query: assigneeQuery.trim(),
           role: assigneeRole,
-          limit: 20,
+          limit: 50,
+          state: assigneeLocation.state,
+          city: assigneeLocation.city,
+          locality: assigneeLocation.locality,
+          pincode: assigneeLocation.pincode,
         });
         setAssigneeResults(users);
       } catch (error) {
@@ -179,7 +195,14 @@ export default function TicketCreateModal({
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [assigneeQuery, assigneeRole, open]);
+  }, [assigneeQuery, assigneeRole, assigneeLocation, open]);
+
+  const locationFilterUsers = useMemo(() => {
+    if (!assigneeRole || assigneeRole === "all") return assigneePool;
+    return assigneePool.filter(
+      (user) => String(user.role || user.roleName || "").toLowerCase() === String(assigneeRole).toLowerCase(),
+    );
+  }, [assigneePool, assigneeRole]);
 
   const selectRequester = (user) => {
     setSelectedRequester(user);
@@ -196,7 +219,6 @@ export default function TicketCreateModal({
   const selectAssignee = (user) => {
     setSelectedAssignee(user);
     setAssigneeQuery(getRequesterName(user));
-    setAssigneeResults([]);
   };
 
   const selectAsset = (assetId) => {
@@ -507,7 +529,7 @@ export default function TicketCreateModal({
                   onChange={(event) => {
                     setAssigneeRole(event.target.value);
                     setAssigneeQuery("");
-                    setAssigneeResults([]);
+                    setAssigneeLocation(EMPTY_LOCATION);
                     setSelectedAssignee(null);
                   }}
                   className="ticket-input"
@@ -528,43 +550,76 @@ export default function TicketCreateModal({
                       setAssigneeQuery(event.target.value);
                       setSelectedAssignee(null);
                     }}
-                    placeholder="Name, email, phone"
+                    placeholder="Name, email, phone, location"
                     className="ticket-input ticket-search-input"
                   />
                 </div>
               </Field>
             </div>
+            <LocationFilterBar
+              users={locationFilterUsers}
+              filters={assigneeLocation}
+              setFilters={setAssigneeLocation}
+              className="mt-3"
+            />
             <div className="mt-3 max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-white">
               {assigneeLoading && (
                 <p className="px-3 py-3 text-[12px] font-medium text-slate-500">Loading assignees...</p>
               )}
               {!assigneeLoading && visibleAssigneeResults.length === 0 && (
-                <p className="px-3 py-3 text-[12px] font-medium text-slate-500">Search and select a team member, or leave this ticket unassigned.</p>
+                <p className="px-3 py-3 text-[12px] font-medium text-slate-500">
+                  No team members found for this role/location. Adjust filters or leave unassigned.
+                </p>
               )}
               {!assigneeLoading &&
-                visibleAssigneeResults.map((user) => (
-                  <button
-                    key={`assignee-${user._id || user.userId}-${user.email || user.phone || user.name}`}
-                    type="button"
-                    onClick={() => selectAssignee(user)}
-                    className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left transition last:border-b-0 hover:bg-emerald-50"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-medium text-slate-900">{getRequesterName(user)}</span>
-                      <span className="block truncate text-[12px] font-medium text-slate-500">
-                        {[user.email, user.phone].filter(Boolean).join(" | ")}
+                visibleAssigneeResults.map((user) => {
+                  const userId = String(user._id || user.userId || user.id || "");
+                  const selectedId = String(
+                    selectedAssignee?._id || selectedAssignee?.userId || selectedAssignee?.id || "",
+                  );
+                  const isSelected = Boolean(selectedId) && selectedId === userId;
+                  const location = [user.locality, user.city, user.state, user.pincode]
+                    .filter(Boolean)
+                    .join(", ");
+                  return (
+                    <button
+                      key={`assignee-${userId}-${user.email || user.phone || user.name}`}
+                      type="button"
+                      onClick={() => selectAssignee(user)}
+                      className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-3 py-2.5 text-left transition last:border-b-0 ${
+                        isSelected ? "bg-emerald-50" : "hover:bg-emerald-50"
+                      }`}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13px] font-medium text-slate-900">
+                          {getRequesterName(user)}
+                          {isSelected ? " · Selected" : ""}
+                        </span>
+                        <span className="block truncate text-[12px] font-medium text-slate-500">
+                          {[user.email, user.phone].filter(Boolean).join(" | ")}
+                        </span>
+                        {location ? (
+                          <span className="block truncate text-[11px] font-medium text-slate-400">{location}</span>
+                        ) : null}
                       </span>
-                    </span>
-                    <span className="shrink-0 rounded-full border border-[#27AE60]/30 bg-[#27AE60]/10 px-2 py-1 text-[11px] font-medium text-[#27AE60]">
-                      {formatLabel(user.role || user.roleName || "user")}
-                    </span>
-                  </button>
-                ))}
+                      <span className="shrink-0 rounded-full border border-[#27AE60]/30 bg-[#27AE60]/10 px-2 py-1 text-[11px] font-medium text-[#27AE60]">
+                        {formatLabel(user.role || user.roleName || "user")}
+                      </span>
+                    </button>
+                  );
+                })}
             </div>
             {selectedAssignee && (
               <div className="mt-3 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[12px] font-medium text-[#17683b]">
                 Assigned to: <span className="font-medium">{getRequesterName(selectedAssignee)}</span>
                 {selectedAssignee.email ? ` - ${selectedAssignee.email}` : ""}
+                {[selectedAssignee.locality, selectedAssignee.city, selectedAssignee.state]
+                  .filter(Boolean)
+                  .length > 0
+                  ? ` · ${[selectedAssignee.locality, selectedAssignee.city, selectedAssignee.state]
+                      .filter(Boolean)
+                      .join(", ")}`
+                  : ""}
               </div>
             )}
           </div>

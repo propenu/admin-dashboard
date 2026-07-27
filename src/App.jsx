@@ -216,6 +216,10 @@ const TeamManagementPageTwo = lazy(() =>
   import("./pages/admin/TeamManagement")
 );
 
+const TeamMemberWorkPage = lazy(() =>
+  import("./pages/admin/TeamMemberWorkPage")
+);
+
 const RoleUsersPage = lazy(() =>
   import("./pages/users/AllUserInDetails/RoleUsersPage")
 );
@@ -538,6 +542,10 @@ function App() {
 
                 {/* Team Members */}
                 <Route path="/dashboard/team-management" element={<PermissionRoute permission="team:view"><TeamManagementPageTwo /></PermissionRoute>} />
+                <Route
+                  path="/dashboard/team-management/member/:userId"
+                  element={<PermissionRoute permission="team:view"><TeamMemberWorkPage /></PermissionRoute>}
+                />
 
                 <Route
                   path="/dashboard/users/role/:role"

@@ -22,7 +22,31 @@ const getCreatorId = (item) =>
   item?.createdBy?._id ||
   item?.createdBy?.userId ||
   item?.createdBy?.id ||
-  item?.createdBy;
+  item?.createdBy ||
+  item?.postedBy?.userId?._id ||
+  item?.postedBy?.userId ||
+  item?.postedBy?._id ||
+  item?.postedBy?.id ||
+  item?.agentId?._id ||
+  item?.agentId ||
+  item?.userId?._id ||
+  item?.userId ||
+  null;
+
+const matchesUserId = (item, validUserIds) => {
+  const candidates = [
+    getCreatorId(item),
+    item?.createdBy?._id,
+    item?.createdBy,
+    item?.postedBy?.userId?._id,
+    item?.postedBy?.userId,
+    item?.lastUpdatedBy?.userId?._id,
+    item?.lastUpdatedBy?.userId,
+  ]
+    .filter(Boolean)
+    .map(String);
+  return candidates.some((id) => validUserIds.includes(id));
+};
 
 const normalizeUserIds = (userIds) =>
   [...new Set((Array.isArray(userIds) ? userIds : [userIds])
@@ -36,22 +60,53 @@ const normalizeUserIds = (userIds) =>
 
 /**
  * The property APIs do not consistently apply the createdBy query before
- * pagination. Fetch every reported backend page, then scope the combined
- * result to the requested user so records on later pages are not lost.
+ * pagination. Prefer createdBy query when backend supports it; always
+ * match creator / postedBy IDs client-side so sales-exec posts are not missed.
  */
 const getAllCreatedBy = async (url, query, userIds) => {
   const validUserIds = normalizeUserIds(userIds);
-  let effectiveQuery = new URLSearchParams(query);
-  // The backend createdBy filter is inconsistent: depending on the user it
-  // can return zero records or only part of the matching records. Always load
-  // the category/type pages without that filter and match creator IDs here.
-  effectiveQuery.delete("createdBy");
-  const firstResponse = await apiClient.get(
-    `${url}?${effectiveQuery.toString()}`,
-  );
-  const firstPayload = firstResponse.data;
+  const baseQuery = new URLSearchParams(query);
+  const [primaryUserId = ""] = validUserIds;
 
-  const pages = getPageCount(firstPayload);
+  // Try scoped fetch first (much faster when backend honors createdBy).
+  const scopedQuery = new URLSearchParams(baseQuery);
+  if (primaryUserId) scopedQuery.set("createdBy", primaryUserId);
+  scopedQuery.set("page", "1");
+  scopedQuery.set("limit", String(Math.max(Number(baseQuery.get("limit")) || 100, 100)));
+
+  let scopedItems = [];
+  try {
+    const scopedResponse = await apiClient.get(`${url}?${scopedQuery.toString()}`);
+    scopedItems = getItems(scopedResponse.data).filter((item) => matchesUserId(item, validUserIds));
+  } catch {
+    scopedItems = [];
+  }
+
+  // Fallback: unscoped pages (legacy behaviour) when scoped returns nothing.
+  if (scopedItems.length > 0) {
+    const seenIds = new Set();
+    const items = scopedItems.filter((item) => {
+      const recordId = String(item?._id || "");
+      if (recordId && seenIds.has(recordId)) return false;
+      if (recordId) seenIds.add(recordId);
+      return true;
+    });
+    return {
+      data: {
+        items,
+        meta: { total: items.length, page: 1, limit: items.length || 20, pages: 1, totalPages: 1 },
+      },
+    };
+  }
+
+  const effectiveQuery = new URLSearchParams(baseQuery);
+  effectiveQuery.delete("createdBy");
+  effectiveQuery.set("page", "1");
+  effectiveQuery.set("limit", "100");
+  const firstResponse = await apiClient.get(`${url}?${effectiveQuery.toString()}`);
+  const firstPayload = firstResponse.data;
+  // Cap pages to avoid loading the entire inventory for one member view.
+  const pages = Math.min(getPageCount(firstPayload), 10);
 
   const remainingResponses =
     pages > 1
@@ -70,10 +125,7 @@ const getAllCreatedBy = async (url, query, userIds) => {
   ];
   const seenIds = new Set();
   const items = allItems.filter((item) => {
-    if (!validUserIds.includes(String(getCreatorId(item)))) return false;
-
-    // Guard against overlapping/unstable backend pages returning the same
-    // record more than once.
+    if (!matchesUserId(item, validUserIds)) return false;
     const recordId = String(item?._id || "");
     if (recordId && seenIds.has(recordId)) return false;
     if (recordId) seenIds.add(recordId);

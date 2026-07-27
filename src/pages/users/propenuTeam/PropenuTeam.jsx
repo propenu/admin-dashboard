@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Check, ChevronDown, Hash, LayoutGrid, List, Mail, MapPin, Phone, RefreshCw, Search, ShieldCheck, UsersRound, X } from "lucide-react";
+import { Check, ChevronDown, Hash, LayoutGrid, List, Mail, MapPin, Network, Phone, RefreshCw, Search, ShieldCheck, UsersRound, X } from "lucide-react";
 import { useUsers } from "./hook/useUserData";
 import { getTeamDirectoryRoles } from "../../../features/accessControl/accessControlService";
 import {
-  enrichHierarchyRoles,
-  buildChildrenByParent,
+  orderRolesByHierarchy,
   getExactRoleMatch,
   userMatchesExactRole,
   countUsersInExactRole,
+  canonicalTeamRole,
 } from "../../../utils/roleHierarchy";
 
 const todayIso = () => {
@@ -21,17 +21,40 @@ const todayIso = () => {
 
 const cleanRole = (value = "") => String(value).replace(/_/g, " ");
 const TEAM_ROLE_LABELS = {
+  ceo: "CEO",
+  operations_head: "Operations Head",
+  operation_head: "Operations Head",
+  business_development_head: "Business Development Head",
+  regional_manager: "Regional Managers",
+  business_development_manager: "Business Development Manager",
+  sales_manager: "Sales Manager",
+  sales_agent: "Sales Executives",
+  sales_executive: "Sales Executives",
   team_lead: "Customer Support Team Leads",
   team_leads: "Customer Support Team Leads",
   customer_support_team_lead: "Customer Support Team Leads",
-  customer_support_team_leads: "Customer Support Team Leads",
+  customer_support_head: "Customer Support Head",
   customer_care: "Customer Care Executives",
   customer_care_executive: "Customer Care Executives",
   customer_care_executives: "Customer Care Executives",
   relationship_manager: "Relationship Managers",
   relationship_managers: "Relationship Managers",
+  accounts: "Accounts",
+  legal_compliance: "Legal",
+  hr_administration: "HR",
+  marketing_head: "Marketing Head",
+  digital_marketing: "Digital Marketing",
+  social_media: "Social Media",
+  content_team: "Content Team",
+  creative_team: "Creative Team",
+  technical_support_head: "Technical Support Head",
+  technical_support_team: "Technical Support Team",
 };
-const teamRoleLabel = (role) => TEAM_ROLE_LABELS[String(role?.name || "").toLowerCase()] || role?.label || cleanRole(role?.name);
+const teamRoleLabel = (role) =>
+  TEAM_ROLE_LABELS[canonicalTeamRole(role?.name)] ||
+  TEAM_ROLE_LABELS[String(role?.name || "").toLowerCase()] ||
+  role?.label ||
+  cleanRole(role?.name);
 const unique = (items) => [...new Set(items.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
 
 export default function PropenuTeam() {
@@ -50,6 +73,10 @@ export default function PropenuTeam() {
   useEffect(() => {
     const role = searchParams.get("role") || "";
     const status = searchParams.get("status") || "";
+    const state = searchParams.get("state") || "";
+    const city = searchParams.get("city") || "";
+    const locality = searchParams.get("locality") || "";
+    const pincode = searchParams.get("pincode") || "";
     const joined = searchParams.get("joined");
     const date = searchParams.get("date") || "";
     const from = searchParams.get("from") || "";
@@ -59,6 +86,10 @@ export default function PropenuTeam() {
       ...current,
       role,
       status,
+      state,
+      city,
+      locality,
+      pincode,
       fromDate: day || from || "",
       toDate: day || to || "",
     }));
@@ -175,6 +206,7 @@ export default function PropenuTeam() {
 
     <section className="mt-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><UsersRound size={17} className="text-emerald-600" /><h2 className="text-sm font-bold capitalize">{filters.role ? teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role }) : "All team members"}</h2></div><div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">Showing {filtered.length} of {users.length}</span><div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "cards" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><LayoutGrid size={14} /> Cards</button><button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><List size={14} /> Table</button></div></div></div>
+      <p className="mb-3 text-xs text-slate-500">Role filter shows the org band. <span className="font-semibold text-slate-700">Reports to</span> shows the specific person they work under when assigned.</p>
       {isLoading ? <div className="rounded-2xl border border-slate-200 bg-white p-14 text-center text-sm text-slate-500">Loading team members...</div> : filtered.length ? viewMode === "cards" ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filtered.map((user) => {
         const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
         const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -186,15 +218,16 @@ export default function PropenuTeam() {
             <p className="flex items-center gap-2 text-slate-600"><Hash size={13} className="shrink-0 text-emerald-600" /><span className="font-mono font-bold">{user.userCode || String(user._id).slice(-10).toUpperCase()}</span></p>
             <p className="flex items-center gap-2 text-slate-600"><Mail size={13} className="shrink-0 text-emerald-600" /><span className="truncate">{user.email || "No email"}</span></p>
             <p className="flex items-center gap-2 text-slate-600"><Phone size={13} className="shrink-0 text-emerald-600" /><span>{user.phone || "No phone"}</span></p>
+            <p className="flex items-center gap-2 text-slate-600"><Network size={13} className="shrink-0 text-emerald-600" /><span className="truncate">{user.reportsTo?.name ? `Reports to ${user.reportsTo.name}` : "No person reporting line"}</span></p>
             <p className="flex items-start gap-2 text-slate-600"><MapPin size={13} className="mt-0.5 shrink-0 text-emerald-600" /><span className="line-clamp-2">{location || "Work location not provided"}</span></p>
           </div>
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{String(user.accountStatus || "pending").replace(/_/g, " ")}</span><span className="text-[10px] text-slate-400">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</span></div>
         </article>;
-      })}</div> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[920px] text-left text-xs"><thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Team member</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Work location</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Joined</th></tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((user) => {
+      })}</div> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[1000px] text-left text-xs"><thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Team member</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Reports to</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Work location</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Joined</th></tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((user) => {
         const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
         const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
         const active = user.accountStatus === "active" && user.isActive !== false;
-        return <tr key={user._id} className="transition hover:bg-emerald-50/40"><td className="px-4 py-3"><div className="flex items-center gap-2.5"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 font-black text-emerald-700">{initials}</div><div className="min-w-0"><p className="max-w-[190px] truncate font-bold text-slate-800">{user.name || "Unnamed user"}</p><p className="mt-0.5 font-mono text-[10px] text-slate-400">{user.userCode || String(user._id).slice(-10).toUpperCase()}</p></div></div></td><td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2.5 py-1 font-bold capitalize text-emerald-700">{cleanRole(user.roleName)}</span></td><td className="px-4 py-3 text-slate-600"><p className="max-w-[210px] truncate">{user.email || "No email"}</p><p className="mt-0.5 text-slate-400">{user.phone || "No phone"}</p></td><td className="max-w-[260px] px-4 py-3 text-slate-600"><span className="line-clamp-2">{location || "Work location not provided"}</span></td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} />{String(user.accountStatus || "pending").replace(/_/g, " ")}</span></td><td className="whitespace-nowrap px-4 py-3 text-slate-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</td></tr>;
+        return <tr key={user._id} className="transition hover:bg-emerald-50/40"><td className="px-4 py-3"><div className="flex items-center gap-2.5"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 font-black text-emerald-700">{initials}</div><div className="min-w-0"><p className="max-w-[190px] truncate font-bold text-slate-800">{user.name || "Unnamed user"}</p><p className="mt-0.5 font-mono text-[10px] text-slate-400">{user.userCode || String(user._id).slice(-10).toUpperCase()}</p></div></div></td><td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2.5 py-1 font-bold capitalize text-emerald-700">{cleanRole(user.roleName)}</span></td><td className="px-4 py-3 text-slate-600"><span className="line-clamp-2">{user.reportsTo?.name || "—"}</span></td><td className="px-4 py-3 text-slate-600"><p className="max-w-[210px] truncate">{user.email || "No email"}</p><p className="mt-0.5 text-slate-400">{user.phone || "No phone"}</p></td><td className="max-w-[260px] px-4 py-3 text-slate-600"><span className="line-clamp-2">{location || "Work location not provided"}</span></td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} />{String(user.accountStatus || "pending").replace(/_/g, " ")}</span></td><td className="whitespace-nowrap px-4 py-3 text-slate-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</td></tr>;
       })}</tbody></table></div></div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center"><UsersRound className="mx-auto mb-3 text-slate-300" size={36} /><p className="font-bold text-slate-600">{filters.role ? `No members are assigned to ${teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role })} yet.` : "No team members match these filters."}</p><p className="mt-1 text-xs text-slate-400">{filters.role ? "Create credentials for this role to add its first team member." : "Clear or change the filters to view more people."}</p></div>}
     </section>
   </div>;
@@ -202,35 +235,18 @@ export default function PropenuTeam() {
 
 function HierarchyRoleSelect({ roles, users, value, onChange }) {
   const [open, setOpen] = useState(false);
-  const selected = roles.find((role) => role.name === value);
-  const enriched = enrichHierarchyRoles(roles);
-  const childrenByParent = buildChildrenByParent(enriched);
-  const sortWithinLevel = (first, second) =>
-    Number(second.isCurrentRole) - Number(first.isCurrentRole) ||
-    first.hierarchyIndex - second.hierarchyIndex ||
-    String(teamRoleLabel(first) || first.name).localeCompare(String(teamRoleLabel(second) || second.name));
-  const ordered = [];
-  const visited = new Set();
-  const appendBranch = (parentId = "__root__") => {
-    const branch = [...(childrenByParent.get(String(parentId)) || [])].sort(sortWithinLevel);
-    branch.forEach((role) => {
-      const roleId = String(role._id || role.name);
-      if (visited.has(roleId)) return;
-      visited.add(roleId);
-      ordered.push(role);
-      appendBranch(role._id);
-    });
-  };
-  appendBranch("__root__");
-  enriched.sort(sortWithinLevel).forEach((role) => {
-    const roleId = String(role._id || role.name);
-    if (visited.has(roleId)) return;
-    visited.add(roleId);
-    ordered.push(role);
-    appendBranch(role._id);
-  });
-  // Badge = exact role only (matches list filter behaviour).
+  const ordered = useMemo(() => orderRolesByHierarchy(roles), [roles]);
+  const selected =
+    ordered.find((role) => role.name === value) ||
+    ordered.find((role) => canonicalTeamRole(role.name) === canonicalTeamRole(value)) ||
+    ordered.find((role) => (role.aliasRoleNames || []).includes(value));
+  const selectedMatch = value ? canonicalTeamRole(value) : "";
   const memberCount = (role) => countUsersInExactRole(users, role.name, roles);
+  const minDepth = ordered.reduce(
+    (min, role) => Math.min(min, Number(role.hierarchyDepth) || 0),
+    Number.POSITIVE_INFINITY,
+  );
+  const baseDepth = Number.isFinite(minDepth) ? minDepth : 0;
 
   return <div className="relative z-30 min-w-0 xl:col-span-1">
     <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Role</span>
@@ -239,10 +255,29 @@ function HierarchyRoleSelect({ roles, users, value, onChange }) {
       <span className="min-w-0 flex-1 truncate">{selected ? teamRoleLabel(selected) : "All roles"}</span>
       <ChevronDown size={15} className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
     </button>
-    {open && <div className="absolute left-0 top-[calc(100%+6px)] z-50 max-h-80 min-w-[300px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
-      <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Organisation hierarchy</div>
+    {open && <div className="absolute left-0 top-[calc(100%+6px)] z-50 max-h-80 min-w-[320px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
+      <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Roles under your hierarchy</div>
       <button type="button" onClick={() => { onChange(""); setOpen(false); }} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm ${!value ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="min-w-0 flex-1">All roles</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{users.length}</span>{!value && <Check size={15} className="text-emerald-600" />}</button>
-      {ordered.map((role) => <button key={role._id || role.name} type="button" onClick={() => { onChange(role.name); setOpen(false); }} style={{ paddingLeft: `${12 + role.hierarchyDepth * 20}px` }} className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${value === role.name ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="text-slate-300">{role.hierarchyDepth ? "L" : ""}</span><span className="min-w-0 flex-1 truncate">{teamRoleLabel(role)}{role.isCurrentRole ? " (You)" : ""}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{memberCount(role)}</span>{value === role.name && <Check size={15} className="shrink-0 text-emerald-600" />}</button>)}
+      {ordered.map((role) => {
+        const active = value === role.name || selectedMatch === canonicalTeamRole(role.name);
+        const canon = canonicalTeamRole(role.name);
+        const indent = Math.max(0, (Number(role.hierarchyDepth) || 0) - baseDepth);
+        const isBranchRoot = ["business_development_head", "customer_support_head", "marketing_head", "accounts", "legal_compliance", "hr_administration", "technical_support_head"].includes(canon);
+        return (
+          <button
+            key={role._id || role.name}
+            type="button"
+            onClick={() => { onChange(role.name); setOpen(false); }}
+            style={{ paddingLeft: `${12 + indent * 18}px` }}
+            className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${active ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}
+          >
+            <span className="w-3 shrink-0 text-slate-300">{indent ? "└" : ""}</span>
+            <span className={`min-w-0 flex-1 truncate ${isBranchRoot ? "font-semibold" : ""}`}>{teamRoleLabel(role)}{role.isCurrentRole ? " (You)" : ""}</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{memberCount(role)}</span>
+            {active && <Check size={15} className="shrink-0 text-emerald-600" />}
+          </button>
+        );
+      })}
     </div>}
   </div>;
 }

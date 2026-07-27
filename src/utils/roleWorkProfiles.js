@@ -1,0 +1,424 @@
+/**
+ * Plain-language work profile for each hierarchy role.
+ * Used by Team Management so managers see WHAT each role does and WHERE to act.
+ */
+
+import { canonicalTeamRole } from "./roleHierarchy";
+
+const WORK = {
+  ceo: {
+    title: "CEO",
+    summary: "Owns company direction. Reviews org health; does not do day-to-day posting or tickets.",
+    primaryJob: "Govern teams and escalate blockers",
+    steps: [
+      "Review Operations Head and branch performance",
+      "Unblock cross-department issues",
+      "Approve high-level access / strategy changes",
+    ],
+    modules: [
+      { label: "Dashboard", path: "/", hint: "Company overview" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "People under leadership" },
+      { label: "Reports", path: "/operations/reports", hint: "Ops reports if enabled" },
+    ],
+  },
+  operations_head: {
+    title: "Operations Head",
+    summary: "Runs all operating branches: Sales/BD, Support, Marketing, Accounts, Legal, HR, Tech.",
+    primaryJob: "See where work is stuck across branches",
+    steps: [
+      "Open a branch role below (Sales, Support, Accounts…)",
+      "Check people + active work by location",
+      "Reassign, escalate, or create credentials as needed",
+    ],
+    modules: [
+      { label: "Team Directory", path: "/propenu-team-members", hint: "Full ops team" },
+      { label: "Tickets", path: "/tickets", hint: "Escalations across support/tech" },
+      { label: "Leads", path: "/leads", hint: "Sales pipeline health" },
+      { label: "Projects", path: "/projects", hint: "Inventory posted by field teams" },
+      { label: "Properties", path: "/properties", hint: "Listings & onboarding" },
+    ],
+  },
+  business_development_head: {
+    title: "Business Development Head",
+    summary: "Owns growth. Watches Regional Managers and the sales posting / lead machine.",
+    primaryJob: "Grow regions and clear sales backlog",
+    steps: [
+      "Review Regional Managers by state/city",
+      "Check posting & onboarding load under RMs",
+      "Push weak regions or rebalance people",
+    ],
+    modules: [
+      { label: "Projects", path: "/projects", hint: "Projects posted in regions" },
+      { label: "Properties", path: "/properties", hint: "Listings / onboarding" },
+      { label: "Leads", path: "/leads", hint: "Conversion pipeline" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "BD people" },
+    ],
+  },
+  regional_manager: {
+    title: "Regional Managers",
+    summary: "Owns a geography. Manages BD Managers, Sales Managers, and Sales Executives in that area.",
+    primaryJob: "Run regional posting, onboarding, and team load",
+    steps: [
+      "Filter by your state/city",
+      "See executives under this region",
+      "Chase incomplete onboarding and open tickets in the region",
+    ],
+    modules: [
+      { label: "Projects", path: "/projects", hint: "Regional projects" },
+      { label: "Properties", path: "/properties", hint: "Regional listings & onboard" },
+      { label: "Tickets", path: "/tickets", hint: "Regional issues" },
+      { label: "Sales Executives", path: "/sales-agents", hint: "Executives list (if available)" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "People in region roles" },
+    ],
+  },
+  business_development_manager: {
+    title: "Business Development Manager",
+    summary: "Coaches field growth under the Regional Manager.",
+    primaryJob: "Distribute and chase BD / sales field work",
+    steps: [
+      "Review executives reporting in your cities",
+      "Push incomplete listing onboarding",
+      "Support lead follow-ups",
+    ],
+    modules: [
+      { label: "Projects", path: "/projects", hint: "Field projects" },
+      { label: "Properties", path: "/properties", hint: "Onboarding queue" },
+      { label: "Leads", path: "/leads", hint: "Follow-ups" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "Team under you" },
+    ],
+  },
+  sales_manager: {
+    title: "Sales Manager",
+    summary: "Direct manager for Sales Executives. Owns daily posting and onboarding discipline.",
+    primaryJob: "Keep executives posting and clearing onboarding",
+    steps: [
+      "See each executive’s location and status",
+      "Open Properties / Projects for onboarding backlog",
+      "Reassign work if someone is overloaded",
+    ],
+    modules: [
+      { label: "Projects", path: "/projects", hint: "Posted projects" },
+      { label: "Properties", path: "/properties", hint: "Listings + onboarding" },
+      { label: "Property Progress", path: "/property-progress", hint: "Move drafts to live" },
+      { label: "Tickets", path: "/tickets", hint: "Blocks on go-live" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "Your executives" },
+    ],
+  },
+  sales_executive: {
+    title: "Sales Executives",
+    summary: "Field role. Posts inventory, finishes onboarding, tracks progress, handles related tickets.",
+    primaryJob: "Post → Onboard → Make live → Clear related tickets",
+    steps: [
+      "Post project / property for their location",
+      "Complete onboarding (photos, docs, details)",
+      "Track Property Progress until live",
+      "Raise or close tickets when something blocks go-live",
+    ],
+    modules: [
+      { label: "Projects", path: "/projects", hint: "Post / manage projects" },
+      { label: "Properties", path: "/properties", hint: "Post / manage listings" },
+      { label: "Property Progress", path: "/property-progress", hint: "Onboarding to live" },
+      { label: "Tickets", path: "/tickets", hint: "Fix blockers" },
+    ],
+  },
+  customer_support_head: {
+    title: "Customer Support Head",
+    summary: "Owns support quality. Watches Team Leads and care queues.",
+    primaryJob: "Clear support SLA and escalate tough cases",
+    steps: [
+      "Review Team Leads by location",
+      "Watch open vs resolved tickets",
+      "Escalate to Operations Head when needed",
+    ],
+    modules: [
+      { label: "Tickets", path: "/tickets", hint: "Support queue" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "Support people" },
+      { label: "Properties", path: "/properties", hint: "Listing-linked issues" },
+    ],
+  },
+  team_lead: {
+    title: "Customer Support Team Leads",
+    summary: "Distributes tickets to Care Executives and Relationship Managers.",
+    primaryJob: "Assign tickets and keep the queue moving",
+    steps: [
+      "See Care / Relationship people under you",
+      "Assign unassigned tickets",
+      "Check overdue / active cases by location",
+    ],
+    modules: [
+      { label: "Tickets", path: "/tickets", hint: "Assign & monitor" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "Your support team" },
+      { label: "Property Progress", path: "/property-progress", hint: "User listing issues" },
+    ],
+  },
+  customer_care_executive: {
+    title: "Customer Care Executives",
+    summary: "Front-line support. Takes tickets, updates users, resolves or escalates.",
+    primaryJob: "Resolve assigned tickets",
+    steps: [
+      "Open Tickets assigned to them",
+      "Update progress / comment",
+      "Resolve or escalate to Team Lead",
+    ],
+    modules: [
+      { label: "Tickets", path: "/tickets", hint: "Active support work" },
+      { label: "Projects", path: "/projects", hint: "Context on inventory" },
+      { label: "Properties", path: "/properties", hint: "Context on listings" },
+      { label: "Property Progress", path: "/property-progress", hint: "Onboarding help" },
+    ],
+  },
+  relationship_manager: {
+    title: "Relationship Managers",
+    summary: "High-touch support for key users, builders, and escalations.",
+    primaryJob: "Own relationship cases and escalations",
+    steps: [
+      "Handle escalated / VIP tickets",
+      "Coordinate with sales or accounts when needed",
+      "Keep key accounts unblocked",
+    ],
+    modules: [
+      { label: "Tickets", path: "/tickets", hint: "Escalation cases" },
+      { label: "Projects", path: "/projects", hint: "Key inventory" },
+      { label: "Properties", path: "/properties", hint: "Key listings" },
+    ],
+  },
+  marketing_head: {
+    title: "Marketing Head",
+    summary: "Owns demand and brand teams: Digital, Social, Content, Creative.",
+    primaryJob: "Run campaigns and content output",
+    steps: [
+      "Review marketing sub-teams",
+      "Check campaigns / blogs / creatives",
+      "Align campaigns with sales locations if needed",
+    ],
+    modules: [
+      { label: "Blogs", path: "/blogs", hint: "Content" },
+      { label: "WhatsApp Campaigns", path: "/whatsapp-notifications", hint: "Campaigns" },
+      { label: "Email Campaigns", path: "/email-notifications", hint: "Email" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "Marketing people" },
+    ],
+  },
+  digital_marketing: {
+    title: "Digital Marketing",
+    summary: "Runs digital acquisition and performance campaigns.",
+    primaryJob: "Launch and track digital campaigns",
+    steps: ["Plan campaigns", "Publish / schedule", "Report performance to Marketing Head"],
+    modules: [
+      { label: "WhatsApp Campaigns", path: "/whatsapp-notifications", hint: "Digital outreach" },
+      { label: "Email Campaigns", path: "/email-notifications", hint: "Email" },
+      { label: "Blogs", path: "/blogs", hint: "Landing content" },
+    ],
+  },
+  social_media: {
+    title: "Social Media",
+    summary: "Owns social channels and engagement posts.",
+    primaryJob: "Post and manage social presence",
+    steps: ["Create social content", "Schedule posts", "Track engagement"],
+    modules: [
+      { label: "Blogs", path: "/blogs", hint: "Shareable content" },
+      { label: "WhatsApp Campaigns", path: "/whatsapp-notifications", hint: "Broadcasts" },
+    ],
+  },
+  content_team: {
+    title: "Content Team",
+    summary: "Writes and maintains content for the platform.",
+    primaryJob: "Produce and update content",
+    steps: ["Draft content", "Publish blogs", "Support campaign copy"],
+    modules: [{ label: "Blogs", path: "/blogs", hint: "Content workspace" }],
+  },
+  creative_team: {
+    title: "Creative Team",
+    summary: "Creates visuals and creative assets for marketing and listings support.",
+    primaryJob: "Deliver creatives on time",
+    steps: ["Take creative briefs", "Produce assets", "Hand off to marketing / sales"],
+    modules: [
+      { label: "Blogs", path: "/blogs", hint: "Creative placements" },
+      { label: "Projects", path: "/projects", hint: "Project creatives context" },
+    ],
+  },
+  accounts: {
+    title: "Accounts",
+    summary: "Owns money flow: payments, subscriptions, plan issues that block go-live.",
+    primaryJob: "Clear payment and subscription blockers",
+    steps: [
+      "Review failed / pending payments",
+      "Check active subscriptions",
+      "Unblock builders/agents so inventory can go live",
+    ],
+    modules: [
+      { label: "Payments", path: "/payments-list", hint: "Payment queue" },
+      { label: "Subscriptions", path: "/active-subscriptions", hint: "Active plans" },
+      { label: "Accounts Summary", path: "/accounts-summary", hint: "Money overview" },
+      { label: "Tickets", path: "/tickets", hint: "Billing tickets" },
+    ],
+  },
+  legal_compliance: {
+    title: "Legal",
+    summary: "Compliance and legal holds on users, builders, or projects.",
+    primaryJob: "Clear legal / compliance checks",
+    steps: ["Review flagged projects or users", "Approve or hold", "Update Ops when cleared"],
+    modules: [
+      { label: "Projects", path: "/projects", hint: "Compliance on projects" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "Staff context" },
+      { label: "Tickets", path: "/tickets", hint: "Legal cases" },
+    ],
+  },
+  hr_administration: {
+    title: "HR",
+    summary: "People operations for Propenu team credentials and staffing.",
+    primaryJob: "Keep team roster and access healthy",
+    steps: ["Review joiners by role/location", "Support credential / reporting setup", "Flag inactive accounts"],
+    modules: [
+      { label: "Team Directory", path: "/propenu-team-members", hint: "People roster" },
+      { label: "Create Credentials", path: "/access-control/credentials/new", hint: "Add team member" },
+    ],
+  },
+  technical_support_head: {
+    title: "Technical Support Head",
+    summary: "Owns technical issue quality and tech team load.",
+    primaryJob: "Clear tech escalations",
+    steps: ["Monitor tech tickets", "Balance Technical Support Team", "Escalate product blockers"],
+    modules: [
+      { label: "Tickets", path: "/tickets", hint: "Tech queue" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "Tech people" },
+    ],
+  },
+  technical_support_team: {
+    title: "Technical Support Team",
+    summary: "Fixes technical tickets raised by users or internal teams.",
+    primaryJob: "Diagnose and resolve tech tickets",
+    steps: ["Pick assigned tech ticket", "Investigate / update", "Resolve or escalate to Tech Head"],
+    modules: [{ label: "Tickets", path: "/tickets", hint: "Tech work queue" }],
+  },
+};
+
+/** Branch headline for Ops-level grouping in the left rail. */
+export const ROLE_WORK_BRANCH = {
+  business_development_head: "Sales & Business Development",
+  regional_manager: "Sales & Business Development",
+  business_development_manager: "Sales & Business Development",
+  sales_manager: "Sales & Business Development",
+  sales_executive: "Sales & Business Development",
+  customer_support_head: "Customer Support",
+  team_lead: "Customer Support",
+  customer_care_executive: "Customer Support",
+  relationship_manager: "Customer Support",
+  marketing_head: "Marketing",
+  digital_marketing: "Marketing",
+  social_media: "Marketing",
+  content_team: "Marketing",
+  creative_team: "Marketing",
+  accounts: "Accounts · Legal · HR",
+  legal_compliance: "Accounts · Legal · HR",
+  hr_administration: "Accounts · Legal · HR",
+  technical_support_head: "Technical Support",
+  technical_support_team: "Technical Support",
+  ceo: "Leadership",
+  operations_head: "Leadership",
+};
+
+const FALLBACK = {
+  title: "Team role",
+  summary: "This role works inside your organisation hierarchy. Use people + modules below to manage their work.",
+  primaryJob: "Support team work under this role",
+  steps: ["Select location filters", "Review people in this role", "Open the work modules they use"],
+  modules: [
+    { label: "Team Directory", path: "/propenu-team-members", hint: "People list" },
+    { label: "Tickets", path: "/tickets", hint: "Issues" },
+  ],
+  panels: ["overview", "tickets", "projects", "properties"],
+  actions: [
+    { key: "tickets", label: "Review tickets", tab: "tickets" },
+    { key: "projects", label: "Review projects", tab: "projects" },
+    { key: "properties", label: "Review properties", tab: "properties" },
+  ],
+};
+
+/** Which data panels + quick actions each role gets on the member work page. */
+const ROLE_PANELS = {
+  ceo: ["overview", "tickets", "projects", "properties"],
+  operations_head: ["overview", "tickets", "projects", "properties"],
+  business_development_head: ["overview", "projects", "properties", "tickets"],
+  regional_manager: ["overview", "projects", "properties", "tickets"],
+  business_development_manager: ["overview", "projects", "properties", "tickets"],
+  sales_manager: ["overview", "projects", "properties", "tickets"],
+  sales_executive: ["overview", "projects", "properties", "tickets"],
+  customer_support_head: ["overview", "tickets", "properties"],
+  team_lead: ["overview", "tickets", "properties"],
+  customer_care_executive: ["overview", "tickets", "properties", "projects"],
+  relationship_manager: ["overview", "tickets", "properties", "projects"],
+  marketing_head: ["overview", "tickets"],
+  digital_marketing: ["overview", "tickets"],
+  social_media: ["overview", "tickets"],
+  content_team: ["overview", "tickets"],
+  creative_team: ["overview", "projects", "tickets"],
+  accounts: ["overview", "payments", "tickets"],
+  legal_compliance: ["overview", "tickets", "projects"],
+  hr_administration: ["overview"],
+  technical_support_head: ["overview", "tickets"],
+  technical_support_team: ["overview", "tickets"],
+};
+
+const ROLE_ACTIONS = {
+  sales_executive: [
+    { key: "post_project", label: "Projects they posted", tab: "projects" },
+    { key: "post_property", label: "Properties / onboarding", tab: "properties" },
+    { key: "tickets", label: "Blocker tickets", tab: "tickets" },
+  ],
+  sales_manager: [
+    { key: "projects", label: "Team projects", tab: "projects" },
+    { key: "properties", label: "Onboarding backlog", tab: "properties" },
+    { key: "tickets", label: "Open tickets", tab: "tickets" },
+  ],
+  customer_care_executive: [
+    { key: "tickets_open", label: "Resolve tickets", tab: "tickets" },
+    { key: "properties", label: "Listing context", tab: "properties" },
+    { key: "projects", label: "Project context", tab: "projects" },
+  ],
+  team_lead: [
+    { key: "tickets", label: "Assign / clear tickets", tab: "tickets" },
+  ],
+  relationship_manager: [
+    { key: "tickets", label: "Escalation cases", tab: "tickets" },
+  ],
+  accounts: [
+    { key: "payments", label: "Payments handled", tab: "payments" },
+    { key: "tickets", label: "Billing tickets", tab: "tickets" },
+  ],
+  technical_support_team: [
+    { key: "tickets", label: "Tech tickets to resolve", tab: "tickets" },
+  ],
+  technical_support_head: [
+    { key: "tickets", label: "Tech queue", tab: "tickets" },
+  ],
+};
+
+export const getRoleWorkProfile = (roleName = "") => {
+  const key = canonicalTeamRole(roleName);
+  const profile = WORK[key];
+  const panels = ROLE_PANELS[key] || FALLBACK.panels;
+  const actions = ROLE_ACTIONS[key] || FALLBACK.actions;
+  if (profile) return { ...profile, key, panels, actions };
+  return {
+    ...FALLBACK,
+    key,
+    panels,
+    actions,
+    title: String(roleName || "Role")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+  };
+};
+
+export const buildWorkHref = (path, { roleName = "", state = "", city = "", locality = "", pincode = "" } = {}) => {
+  if (!path) return "/";
+  if (path !== "/propenu-team-members") return path;
+  const params = new URLSearchParams();
+  if (roleName) params.set("role", roleName);
+  if (state) params.set("state", state);
+  if (city) params.set("city", city);
+  if (locality) params.set("locality", locality);
+  if (pincode) params.set("pincode", pincode);
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+};

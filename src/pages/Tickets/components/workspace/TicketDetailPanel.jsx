@@ -1,9 +1,12 @@
 import { Activity, CalendarClock, Eye, Loader2, MessageSquare, Paperclip, Search, Send, UserRound, UserRoundCheck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import LocationFilterBar from "../../../../components/common/LocationFilterBar";
 import { getTicketAssigneeRoleOptions, searchTicketAssignees } from "../../../../features/ticket/ticket_system";
 import { TICKET_PRIORITIES, TICKET_STATUSES, priorityTone, statusTone } from "../../constants/ticketOptions";
 import { formatDateTime, formatDueDate, formatLabel } from "../../utils/ticketFormatters";
 import { ghostButton, primaryButton, ticketInput, ticketSurface } from "../ticketUi";
+
+const EMPTY_LOCATION = { state: "", city: "", locality: "", pincode: "" };
 
 export default function TicketDetailPanel({
   ticket,
@@ -19,10 +22,17 @@ export default function TicketDetailPanel({
     name: "",
     email: "",
     role: "customer_care",
+    phone: "",
+    locality: "",
+    city: "",
+    state: "",
+    pincode: "",
   });
   const [assigneeRole, setAssigneeRole] = useState("all");
   const [assigneeQuery, setAssigneeQuery] = useState("");
   const [assigneeResults, setAssigneeResults] = useState([]);
+  const [assigneePool, setAssigneePool] = useState([]);
+  const [assigneeLocation, setAssigneeLocation] = useState(EMPTY_LOCATION);
   const [assigneeLoading, setAssigneeLoading] = useState(false);
   const [assigneeRoleOptions, setAssigneeRoleOptions] = useState([{ label: "All Roles", value: "all" }]);
   const [commentAttachments, setCommentAttachments] = useState([]);
@@ -41,15 +51,22 @@ export default function TicketDetailPanel({
   );
 
   useEffect(() => {
+    const assignedRole = normalizeRoleValue(ticket?.assignedTo?.role) || "customer_care";
     setAssignee({
       userId: ticket?.assignedTo?.userId || "",
       name: ticket?.assignedTo?.name || "",
       email: ticket?.assignedTo?.email || "",
-      role: ticket?.assignedTo?.role || "customer_care",
+      role: assignedRole,
+      phone: "",
+      locality: "",
+      city: "",
+      state: "",
+      pincode: "",
     });
-    setAssigneeRole(ticket?.assignedTo?.role || "all");
+    setAssigneeRole(normalizeRoleValue(ticket?.assignedTo?.role) || "all");
     setAssigneeQuery("");
     setAssigneeResults([]);
+    setAssigneeLocation(EMPTY_LOCATION);
     setCommentAttachments([]);
     setShowCommentAttachmentTools(false);
     setCommentAttachmentError("");
@@ -69,6 +86,14 @@ export default function TicketDetailPanel({
         if (active) setAssigneeRoleOptions([{ label: "All Roles", value: "all" }]);
       });
 
+    searchTicketAssignees({ query: "", role: "all", limit: 500 })
+      .then((users) => {
+        if (active) setAssigneePool(users);
+      })
+      .catch(() => {
+        if (active) setAssigneePool([]);
+      });
+
     return () => {
       active = false;
     };
@@ -76,11 +101,6 @@ export default function TicketDetailPanel({
 
   useEffect(() => {
     if (!canAssign) return undefined;
-    if (assigneeQuery.trim().length < 2) {
-      setAssigneeResults([]);
-      setAssigneeLoading(false);
-      return undefined;
-    }
 
     const timer = window.setTimeout(async () => {
       setAssigneeLoading(true);
@@ -88,7 +108,11 @@ export default function TicketDetailPanel({
         const users = await searchTicketAssignees({
           query: assigneeQuery.trim(),
           role: assigneeRole,
-          limit: 20,
+          limit: 50,
+          state: assigneeLocation.state,
+          city: assigneeLocation.city,
+          locality: assigneeLocation.locality,
+          pincode: assigneeLocation.pincode,
         });
         setAssigneeResults(users);
       } catch (error) {
@@ -96,10 +120,22 @@ export default function TicketDetailPanel({
       } finally {
         setAssigneeLoading(false);
       }
-    }, 300);
+    }, 250);
 
     return () => window.clearTimeout(timer);
-  }, [assigneeQuery, assigneeRole, canAssign]);
+  }, [assigneeQuery, assigneeRole, assigneeLocation, canAssign]);
+
+  const locationFilterUsers = useMemo(() => {
+    if (!assigneeRole || assigneeRole === "all") return assigneePool;
+    return assigneePool.filter(
+      (user) => normalizeRoleValue(user.role || user.roleName) === String(assigneeRole).toLowerCase(),
+    );
+  }, [assigneePool, assigneeRole]);
+
+  const assigneeLocationLabel = useMemo(
+    () => formatLocation(assignee),
+    [assignee.locality, assignee.city, assignee.state, assignee.pincode],
+  );
 
   if (isLoading) {
     return <section className={`${ticketSurface} p-6 text-[12px] font-semibold text-slate-500`}>Loading ticket detail...</section>;
@@ -165,6 +201,7 @@ export default function TicketDetailPanel({
 
   const submitAssignment = async () => {
     if (!assignee.name.trim()) return;
+    const role = normalizeRoleValue(assignee.role);
     await actions.assignTicket.mutateAsync({
       id: ticket._id,
       payload: {
@@ -172,7 +209,7 @@ export default function TicketDetailPanel({
           userId: assignee.userId.trim() || undefined,
           name: assignee.name.trim(),
           email: assignee.email.trim() || undefined,
-          role: assignee.role?.trim() || undefined,
+          role: role || undefined,
         },
         actor,
       },
@@ -180,19 +217,23 @@ export default function TicketDetailPanel({
   };
 
   const selectAssignee = (user) => {
-    const role = user.roleName || user.role || assigneeRole;
+    const role = normalizeRoleValue(user.roleName || user.role || assigneeRole);
     setAssignee({
-      userId: user.userId || user._id || user.id || "",
+      userId: String(user.userId || user._id || user.id || ""),
       name: getUserDisplayName(user),
       email: user.email || "",
-      role: role === "all" ? undefined : role,
+      role: role === "all" ? "" : role,
+      phone: user.phone || "",
+      locality: user.locality || "",
+      city: user.city || "",
+      state: user.state || "",
+      pincode: user.pincode || "",
     });
     setAssigneeQuery(getUserDisplayName(user));
-    setAssigneeResults([]);
   };
 
   return (
-    <section className={`min-w-0 max-w-full overflow-hidden ${ticketSurface}`}>
+    <section className={`flex h-full min-w-0 max-w-full flex-col ${ticketSurface}`}>
       <div className="border-b border-slate-100 bg-gradient-to-r from-white to-emerald-50/60 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -253,9 +294,9 @@ export default function TicketDetailPanel({
         </div>
       </div>
 
-      <div className="grid min-w-0 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(340px,36%)] 2xl:grid-cols-[minmax(0,1fr)_minmax(380px,34%)]">
-        <div className="min-w-0 lg:min-h-[460px]">
-          <div className="flex items-center justify-between">
+      <div className="grid min-w-0 flex-1 items-start gap-4 p-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)] xl:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
+        <div className="flex min-w-0 flex-col">
+          <div className="flex items-center justify-between gap-2">
             <h3 className="inline-flex items-center gap-2 text-[14px] font-black text-slate-950">
               <MessageSquare className="h-4 w-4 text-[#27AE60]" />
               Conversation
@@ -270,7 +311,7 @@ export default function TicketDetailPanel({
             </select>
           </div>
 
-          <div className="mt-3 max-h-[260px] min-h-[140px] space-y-2 overflow-y-auto pr-1">
+          <div className="mt-3 space-y-2">
             {[...publicComments, ...internalComments].length === 0 ? (
               <p className="rounded-xl bg-slate-50 p-4 text-[12px] font-medium text-slate-500">No comments yet.</p>
             ) : (
@@ -368,18 +409,18 @@ export default function TicketDetailPanel({
         </div>
 
         <aside className="min-w-0 space-y-3">
-          <Panel title="Raised / Handler" icon={UserRoundCheck} className="relative z-20">
+          <Panel title="Raised / Handler" icon={UserRoundCheck}>
             <Detail label="Raised By" value={ticket.requester?.name || "-"} />
             <Detail label="Raised Email" value={ticket.requester?.email || "-"} />
             <Detail label="Handler" value={ticket.assignedTo?.name || "Unassigned"} />
             {canAssign ? (
-              <div className="mt-1 space-y-1">
+              <div className="mt-1 space-y-2">
                 <select
                   value={assigneeRole}
                   onChange={(event) => {
                     setAssigneeRole(event.target.value);
                     setAssigneeQuery("");
-                    setAssigneeResults([]);
+                    setAssigneeLocation(EMPTY_LOCATION);
                   }}
                   className={`${ticketInput} w-full`}
                 >
@@ -389,6 +430,15 @@ export default function TicketDetailPanel({
                     </option>
                   ))}
                 </select>
+
+                <LocationFilterBar
+                  users={locationFilterUsers}
+                  filters={assigneeLocation}
+                  setFilters={setAssigneeLocation}
+                  columns={2}
+                  className="!p-2.5"
+                />
+
                 <div>
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -398,35 +448,67 @@ export default function TicketDetailPanel({
                     <input
                       value={assigneeQuery}
                       onChange={(event) => setAssigneeQuery(event.target.value)}
-                      placeholder="Search assignee by name, email, phone"
+                      placeholder="Search by name, email, phone, location"
                       className={`${ticketInput} w-full px-9`}
                     />
                   </div>
-                  {assigneeResults.length > 0 && (
-                    <div className="mt-2 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
-                      {assigneeResults.map((user) => (
-                        <button
-                          key={`${user.userId || user._id || user.id}-${user.email || user.phone || user.name}`}
-                          type="button"
-                          onClick={() => selectAssignee(user)}
-                          className="block w-full border-b border-slate-50 px-3 py-2 text-left hover:bg-emerald-50"
-                        >
-                          <span className="block truncate text-[12px] font-bold text-slate-900">
-                            {getUserDisplayName(user)}
-                          </span>
-                          <span className="block truncate text-[11px] font-medium text-slate-500">
-                            {formatLabel(user.roleName || user.role || "user")} {user.email ? `- ${user.email}` : ""}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-sm">
+                    {assigneeLoading && (
+                      <p className="px-3 py-3 text-[12px] font-medium text-slate-500">Loading team members...</p>
+                    )}
+                    {!assigneeLoading && assigneeResults.length === 0 && (
+                      <p className="px-3 py-3 text-[12px] font-medium text-slate-500">
+                        No users found for this role/location. Try another filter or search.
+                      </p>
+                    )}
+                    {!assigneeLoading &&
+                      assigneeResults.map((user) => {
+                        const userId = String(user.userId || user._id || user.id || "");
+                        const isSelected = Boolean(assignee.userId) && assignee.userId === userId;
+                        const location = formatLocation(user);
+                        return (
+                          <button
+                            key={`${userId}-${user.email || user.phone || user.name}`}
+                            type="button"
+                            onClick={() => selectAssignee(user)}
+                            className={`block w-full border-b border-slate-50 px-3 py-2 text-left last:border-b-0 ${
+                              isSelected ? "bg-emerald-50" : "hover:bg-emerald-50"
+                            }`}
+                          >
+                            <span className="block truncate text-[12px] font-bold text-slate-900">
+                              {getUserDisplayName(user)}
+                              {isSelected ? " · Selected" : ""}
+                            </span>
+                            <span className="block truncate text-[11px] font-medium text-slate-500">
+                              {formatLabel(user.roleName || user.role || "user")}
+                              {user.email ? ` · ${user.email}` : ""}
+                              {user.phone ? ` · ${user.phone}` : ""}
+                            </span>
+                            {location ? (
+                              <span className="mt-0.5 block truncate text-[10px] font-medium text-slate-400">
+                                {location}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                  </div>
                 </div>
                 {assignee.name && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] font-medium text-[#17683b]">
-                    Assigning to <span className="font-semibold">{assignee.name}</span>
-                    {assignee.role ? ` - ${formatLabel(assignee.role)}` : ""}
-                    {assignee.userId ? "" : " - missing user ID"}
+                    <p>
+                      Assigning to <span className="font-semibold">{assignee.name}</span>
+                      {assignee.role ? ` · ${formatLabel(assignee.role)}` : ""}
+                      {!assignee.userId ? " · missing user ID" : ""}
+                    </p>
+                    {(assignee.email || assignee.phone) && (
+                      <p className="mt-0.5 text-[11px] text-emerald-800/80">
+                        {[assignee.email, assignee.phone].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                    {assigneeLocationLabel ? (
+                      <p className="mt-0.5 text-[11px] text-emerald-800/80">{assigneeLocationLabel}</p>
+                    ) : null}
                   </div>
                 )}
                 <button
@@ -445,7 +527,7 @@ export default function TicketDetailPanel({
             )}
           </Panel>
 
-          <Panel title="Details" className="relative z-10">
+          <Panel title="Details">
             <Detail label="Category" value={formatLabel(ticket.category)} />
             <Detail label="Property" value={ticket.propertyId || "-"} />
             <Detail label="Asset Type" value={formatLabel(ticket.metadata?.relatedAsset?.category)} />
@@ -455,7 +537,7 @@ export default function TicketDetailPanel({
           </Panel>
 
           <Panel title="Activity" icon={Activity}>
-            <div className="max-h-44 space-y-1 overflow-y-auto pr-0.5">
+            <div className="space-y-1 pr-0.5">
               {(ticket.activities || []).length === 0 ? (
                 <p className="text-[10px] text-slate-500">No activity yet</p>
               ) : (
@@ -531,6 +613,16 @@ export default function TicketDetailPanel({
 
 function getUserDisplayName(user) {
   return user?.name || user?.companyName || user?.email || user?.phone || "Unnamed user";
+}
+
+function normalizeRoleValue(role) {
+  if (!role) return "";
+  if (typeof role === "object") {
+    return String(role.name || role.label || role.value || "")
+      .trim()
+      .toLowerCase();
+  }
+  return String(role).trim().toLowerCase();
 }
 
 function AttachmentList({ attachments = [], className = "" }) {

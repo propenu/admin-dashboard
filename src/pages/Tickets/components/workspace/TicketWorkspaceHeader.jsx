@@ -23,7 +23,7 @@ export default function TicketWorkspaceHeader({
   onOpenNotifications,
 }) {
   return (
-    <header className="sticky top-0 z-20 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_18px_45px_rgba(15,23,42,0.06)] backdrop-blur lg:flex-row lg:items-center lg:justify-between">
+    <header className="mb-1 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-[20px] font-black tracking-tight text-slate-950 sm:text-[22px]">{title}</h1>

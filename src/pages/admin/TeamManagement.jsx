@@ -1,557 +1,467 @@
-// src/pages/admin/TeamManagement.jsx
-// Manager list on left → click → see team members on right with individual workflow links
-
-import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+/**
+ * Team Management — hierarchy role work center.
+ * Left: roles under you. Right: plain-language job + work modules + people (location filtered).
+ */
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Users,
-  Mail,
-  Phone,
-  ChevronRight,
-  UserCircle,
-  Search,
-  TrendingUp,
-  ArrowLeft,
-  Shield,
-  MapPin,
-  ExternalLink,
-  CheckCircle,
-  Clock,
-  AlertCircle,
   Activity,
+  Briefcase,
+  CheckCircle2,
+  ChevronRight,
+  MapPin,
   RefreshCw,
+  Search,
+  ShieldCheck,
 } from "lucide-react";
+import { toast } from "sonner";
+import LocationFilterBar from "../../components/common/LocationFilterBar";
+import { getTeamDirectoryRoles } from "../../features/accessControl/accessControlService";
+import { fetchLoggedInUser } from "../../services/UserServices/userServices";
+import { useUsers } from "../users/propenuTeam/hook/useUserData";
 import {
-  getUserSearch,
-  getManagerAndTeamMembers,
-} from "../../features/user/userService";
+  canonicalTeamRole,
+  countUsersInExactRole,
+  getExactRoleMatch,
+  orderRolesByHierarchy,
+  userMatchesExactRole,
+} from "../../utils/roleHierarchy";
+import { getRoleWorkProfile, ROLE_WORK_BRANCH } from "../../utils/roleWorkProfiles";
 
-// ─── KYC badge ─────────────────────────────────────────────────────────────────
-const KycBadge = ({ status }) => {
-  const map = {
-    verified: {
-      color: "#27AE60",
-      bg: "#dcfce7",
-      icon: CheckCircle,
-      label: "KYC Verified",
-    },
-    not_started: {
-      color: "#94a3b8",
-      bg: "#f1f5f9",
-      icon: AlertCircle,
-      label: "KYC Pending",
-    },
-    pending: {
-      color: "#f59e0b",
-      bg: "#fef3c7",
-      icon: Clock,
-      label: "KYC In Progress",
-    },
-  };
-  const cfg = map[status] || map.not_started;
-  const Icon = cfg.icon;
-  return (
-    <span
-      className="inline-flex items-center gap-1 text-[10px] font-700 px-2 py-0.5 rounded-full"
-      style={{ background: cfg.bg, color: cfg.color }}
-    >
-      <Icon size={9} /> {cfg.label}
-    </span>
-  );
+const ROLE_LABELS = {
+  ceo: "CEO",
+  operations_head: "Operations Head",
+  business_development_head: "Business Development Head",
+  regional_manager: "Regional Managers",
+  business_development_manager: "Business Development Manager",
+  sales_manager: "Sales Manager",
+  sales_executive: "Sales Executives",
+  sales_agent: "Sales Executives",
+  customer_support_head: "Customer Support Head",
+  team_lead: "Customer Support Team Leads",
+  customer_care_executive: "Customer Care Executives",
+  relationship_manager: "Relationship Managers",
+  marketing_head: "Marketing Head",
+  digital_marketing: "Digital Marketing",
+  social_media: "Social Media",
+  content_team: "Content Team",
+  creative_team: "Creative Team",
+  accounts: "Accounts",
+  legal_compliance: "Legal",
+  hr_administration: "HR",
+  technical_support_head: "Technical Support Head",
+  technical_support_team: "Technical Support Team",
 };
 
-// ─── Agent card ────────────────────────────────────────────────────────────────
-const AgentCard = ({ agent, idx, navigate }) => {
-  const initials = (agent.name || "?")
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+const labelFor = (role) =>
+  ROLE_LABELS[canonicalTeamRole(role?.name)] ||
+  role?.label ||
+  String(role?.name || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+const EMPTY_LOC = { state: "", city: "", locality: "", pincode: "" };
+
+export default function TeamManagement() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data: users = [], isLoading, refetch, isFetching } = useUsers({ scope: "team_directory" });
+
+  const [roles, setRoles] = useState([]);
+  const [me, setMe] = useState(null);
+  const [search, setSearch] = useState("");
+  const [locationFilters, setLocationFilters] = useState(EMPTY_LOC);
+  const [selectedRoleName, setSelectedRoleName] = useState(searchParams.get("role") || "");
+
+  const [workPanel, setWorkPanel] = useState("day"); // day | people | tickets | projects | properties
+  const [viewAllPeople, setViewAllPeople] = useState(false);
+
+  useEffect(() => {
+    fetchLoggedInUser()
+      .then((user) => {
+        setMe(user);
+        if (canonicalTeamRole(user?.roleName) === "regional_manager" && user?.state) {
+          setLocationFilters((current) => ({ ...current, state: user.state }));
+        }
+      })
+      .catch(() => setMe(null));
+    getTeamDirectoryRoles()
+      .then((result) => setRoles(result.roles || []))
+      .catch(() => {
+        setRoles([]);
+        toast.error("Unable to load hierarchy roles");
+      });
+  }, []);
+
+  useEffect(() => {
+    const role = searchParams.get("role") || "";
+    setSelectedRoleName(role);
+    setWorkPanel("day");
+    setViewAllPeople(false);
+  }, [searchParams]);
+
+  const orderedRoles = useMemo(() => orderRolesByHierarchy(roles), [roles]);
+
+  const minDepth = useMemo(
+    () =>
+      orderedRoles.reduce(
+        (min, role) => Math.min(min, Number(role.hierarchyDepth) || 0),
+        Number.POSITIVE_INFINITY,
+      ),
+    [orderedRoles],
+  );
+  const baseDepth = Number.isFinite(minDepth) ? minDepth : 0;
+
+  const locationUsers = useMemo(() => {
+    return users.filter((user) => {
+      if (locationFilters.state && user.state !== locationFilters.state) return false;
+      if (locationFilters.city && user.city !== locationFilters.city) return false;
+      if (locationFilters.locality && user.locality !== locationFilters.locality) return false;
+      if (locationFilters.pincode && String(user.pincode) !== locationFilters.pincode) return false;
+      return true;
+    });
+  }, [users, locationFilters]);
+
+  const selectedRole =
+    orderedRoles.find((role) => role.name === selectedRoleName) ||
+    orderedRoles.find((role) => canonicalTeamRole(role.name) === canonicalTeamRole(selectedRoleName)) ||
+    null;
+
+  const selectedMatch = useMemo(
+    () => (selectedRoleName ? getExactRoleMatch(selectedRoleName, roles) : null),
+    [selectedRoleName, roles],
+  );
+
+  const profile = getRoleWorkProfile(selectedRole?.name || selectedRoleName);
+
+  const people = useMemo(() => {
+    if (!selectedMatch) return [];
+    const query = search.trim().toLowerCase();
+    return locationUsers.filter((user) => {
+      if (!userMatchesExactRole(user, selectedMatch)) return false;
+      if (!query) return true;
+      return `${user.name} ${user.email} ${user.phone} ${user.city} ${user.state} ${user.locality}`
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [locationUsers, selectedMatch, search]);
+
+  const activePeople = people.filter(
+    (user) => user.accountStatus === "active" && user.isActive !== false,
+  ).length;
+
+  const selectRole = (roleName) => {
+    setSelectedRoleName(roleName);
+    setWorkPanel("day");
+    setViewAllPeople(false);
+    const next = new URLSearchParams(searchParams);
+    if (roleName) next.set("role", roleName);
+    else next.delete("role");
+    setSearchParams(next, { replace: true });
+  };
+
+  const openMemberWork = (user, focusTab = "overview") => {
+    const role = selectedRole?.name || selectedRoleName || user.roleName || "";
+    const roleLabel = labelFor(selectedRole || { name: role }) || profile.title || "";
+    const params = new URLSearchParams();
+    if (role) params.set("role", role);
+    if (roleLabel) params.set("roleLabel", roleLabel);
+    if (focusTab && focusTab !== "overview") params.set("tab", focusTab);
+    const qs = params.toString();
+    navigate(`/dashboard/team-management/member/${user._id}${qs ? `?${qs}` : ""}`);
+  };
+
+  /** Stay on this page — switch work panel (no navigate to /projects etc.) */
+  const selectWorkPanel = (module) => {
+    const path = String(module?.path || "").toLowerCase();
+    const label = String(module?.label || "").toLowerCase();
+    if (path.includes("ticket") || label.includes("ticket")) setWorkPanel("tickets");
+    else if (path.includes("project") || label.includes("project")) setWorkPanel("projects");
+    else if (path.includes("propert") || path.includes("progress") || label.includes("propert") || label.includes("onboard"))
+      setWorkPanel("properties");
+    else if (path.includes("lead") || label.includes("lead")) setWorkPanel("people");
+    else if (path.includes("team") || path.includes("propenu") || label.includes("directory") || label.includes("team"))
+      setWorkPanel("people");
+    else setWorkPanel("day");
+  };
+
+  const visiblePeople = viewAllPeople ? people : people.slice(0, 8);
+  const peopleScroll = viewAllPeople ? "max-h-[70vh]" : "max-h-64";
+
+  let lastBranch = "";
 
   return (
-    <div
-      className="group bg-white rounded-2xl border border-gray-100 p-4
-                    hover:border-[#27AE60]/30 hover:shadow-lg hover:shadow-[#27AE60]/8
-                    transition-all duration-200"
-    >
-      <div className="flex items-start gap-3">
-        {/* Avatar */}
-        <div
-          className="w-11 h-11 rounded-xl bg-gradient-to-br from-gray-100 to-gray-50 border border-gray-100
-                        flex items-center justify-center flex-shrink-0
-                        group-hover:from-[#27AE60]/10 group-hover:to-emerald-50 group-hover:border-[#27AE60]/20 transition-all"
-        >
-          <span className="text-sm font-800 text-gray-500 group-hover:text-[#27AE60] transition-colors">
-            {initials}
-          </span>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/40 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        {/* Header */}
+        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-700">
+              Operations · Team Management
+            </p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+              Role work center
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Select a role. See what they do and their people — <strong>work stays on this page</strong> (scroll + View all).
+              {me?.roleName ? (
+                <span className="mt-1 block text-xs font-semibold text-slate-500">
+                  Logged in as {labelFor({ name: me.roleName })}
+                  {me.state ? ` · ${[me.locality, me.city, me.state].filter(Boolean).join(", ")}` : ""}
+                </span>
+              ) : null}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-800"
+          >
+            <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
+            Refresh team data
+          </button>
+        </header>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-sm font-700 text-gray-800 truncate group-hover:text-[#27AE60] transition-colors">
-                {agent.name}
+        {/* Location */}
+        <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <MapPin size={14} className="text-emerald-600" />
+            Filter people by work location
+          </div>
+          <LocationFilterBar
+            users={users}
+            filters={locationFilters}
+            setFilters={setLocationFilters}
+            lockedState={canonicalTeamRole(me?.roleName) === "regional_manager" ? me?.state || "" : ""}
+          />
+        </section>
+
+        <div className="grid gap-5 lg:grid-cols-[minmax(260px,320px)_1fr]">
+          {/* Left: hierarchy roles */}
+          <aside className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Roles under your hierarchy
               </p>
-              <p className="text-[10px] text-gray-400 font-600 uppercase tracking-wider mt-0.5">
-                {agent.roleName?.replace(/_/g, " ") || "Agent"}
+              <p className="mt-1 text-[11px] leading-4 text-slate-400">
+                Click a role to see its job and people
               </p>
             </div>
-            <span className="text-[10px] font-mono text-gray-300 flex-shrink-0 mt-0.5">
-              #{String(idx + 1).padStart(2, "0")}
-            </span>
-          </div>
+            <div className="max-h-[70vh] overflow-y-auto p-2">
+              {isLoading && !orderedRoles.length ? (
+                <p className="px-3 py-8 text-center text-sm text-slate-400">Loading roles…</p>
+              ) : !orderedRoles.length ? (
+                <p className="px-3 py-8 text-center text-sm text-slate-500">
+                  No child roles under your position.
+                </p>
+              ) : (
+                orderedRoles.map((role) => {
+                  const canon = canonicalTeamRole(role.name);
+                  const depth = Math.max(0, (Number(role.hierarchyDepth) || 0) - baseDepth);
+                  const branch = depth === 0 ? ROLE_WORK_BRANCH[canon] || "" : "";
+                  const showBranch = branch && branch !== lastBranch;
+                  if (showBranch) lastBranch = branch;
+                  const active =
+                    selectedRoleName === role.name ||
+                    canonicalTeamRole(selectedRoleName) === canon;
+                  const count = countUsersInExactRole(locationUsers, role.name, roles);
+                  return (
+                    <div key={role._id || role.name}>
+                      {showBranch ? (
+                        <div className="sticky top-0 z-10 mt-1 bg-emerald-50/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                          {branch}
+                        </div>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => selectRole(role.name)}
+                        style={{ paddingLeft: `${10 + depth * 14}px` }}
+                        className={`mb-0.5 flex w-full items-center gap-2 rounded-xl py-2.5 pr-3 text-left text-sm transition ${
+                          active
+                            ? "bg-emerald-600 font-bold text-white shadow-md shadow-emerald-600/20"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className={`w-3 shrink-0 ${active ? "text-emerald-100" : "text-slate-300"}`}>
+                          {depth ? "└" : ""}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">{labelFor(role)}</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </aside>
 
-          {/* Contact */}
-          {agent.email && (
-            <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-1.5 truncate">
-              <Mail size={10} className="flex-shrink-0 text-gray-300" />
-              {agent.email}
-            </p>
-          )}
-          {agent.phone && (
-            <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
-              <Phone size={10} className="flex-shrink-0 text-gray-300" />
-              {agent.phone}
-            </p>
-          )}
-          {agent.city && (
-            <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
-              <MapPin size={10} className="flex-shrink-0 text-gray-300" />
-              {[agent.city, agent.state].filter(Boolean).join(", ")}
-            </p>
-          )}
+          {/* Right: work + people */}
+          <main className="min-w-0 space-y-5">
+            {!selectedRoleName || !selectedRole ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
+                <ShieldCheck className="mx-auto text-emerald-500" size={40} />
+                <h2 className="mt-4 text-xl font-black text-slate-800">Pick a role on the left</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
+                  Example: choose <strong>Sales Executives</strong> to see posting & onboarding work,
+                  or <strong>Customer Care Executives</strong> to see ticket work — filtered by
+                  location.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* What this role does */}
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4 sm:px-6">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                          What this role works on
+                        </p>
+                        <h2 className="mt-1 text-xl font-black text-slate-900">{profile.title}</h2>
+                        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                          {profile.summary}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-right">
+                        <p className="text-[10px] font-bold uppercase text-slate-400">Primary job</p>
+                        <p className="mt-0.5 max-w-[220px] text-xs font-bold text-emerald-800">
+                          {profile.primaryJob}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-          {/* KYC + status row */}
-          <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-            <KycBadge status={agent.kyc?.status} />
-            {agent.accountStatus && (
-              <span
-                className={`text-[10px] font-700 px-2 py-0.5 rounded-full ${agent.accountStatus === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}
-              >
-                {agent.accountStatus.replace(/_/g, " ")}
-              </span>
+                  <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4">
+                    <div>
+                      <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                        <CheckCircle2 size={12} className="text-emerald-600" /> How this role works
+                      </p>
+                      <ol className="max-h-36 space-y-1 overflow-y-auto pr-1">
+                        {(profile.steps || []).map((step, index) => (
+                          <li key={step} className="flex gap-2 rounded-lg bg-slate-50 px-2 py-1.5 text-[11px] text-slate-700">
+                            <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-600 text-[9px] font-black text-white">{index + 1}</span>
+                            {step}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                    <div>
+                      <p className="mb-1.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                        <Briefcase size={12} className="text-emerald-600" /> Their work (same page)
+                      </p>
+                      <div className="grid max-h-36 gap-1 overflow-y-auto pr-1">
+                        {(profile.modules || []).map((module) => (
+                          <button
+                            key={`${module.path}-${module.label}`}
+                            type="button"
+                            onClick={() => selectWorkPanel(module)}
+                            className="flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-left hover:border-emerald-400 hover:bg-emerald-50"
+                          >
+                            <Activity size={13} className="shrink-0 text-emerald-600" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[11px] font-bold text-slate-800">{module.label}</span>
+                              <span className="block text-[10px] text-slate-500">{module.hint}</span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/access-control/credentials/new", { state: { roleName: selectedRole.name } })}
+                        className="mt-2 rounded-md bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white"
+                      >
+                        Create credentials
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+                  <div className="flex flex-wrap items-center gap-1 border-b border-slate-100 p-2">
+                    {[
+                      { key: "day", label: "Role job" },
+                      { key: "people", label: `People (${people.length})` },
+                      { key: "tickets", label: "Tickets" },
+                      { key: "projects", label: "Projects" },
+                      { key: "properties", label: "Properties" },
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setWorkPanel(item.key)}
+                        className={`rounded-md px-2.5 py-1 text-[10px] font-bold ${
+                          workPanel === item.key ? "bg-emerald-600 text-white" : "bg-slate-50 text-slate-600"
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                    <label className="relative ml-auto hidden sm:block">
+                      <Search size={12} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" className="w-36 rounded-md border border-slate-200 py-1 pl-7 pr-2 text-[10px] font-semibold" />
+                    </label>
+                  </div>
+                  <div className={`overflow-y-auto p-2 ${peopleScroll}`}>
+                    {workPanel === "day" ? (
+                      <div className="space-y-2 p-1 text-[11px] text-slate-600">
+                        <p>{profile.summary}</p>
+                        <p className="text-[10px] text-slate-400">Use tabs above — work stays on this page. Open People for members, or Tickets / Projects / Properties for work.</p>
+                      </div>
+                    ) : visiblePeople.length === 0 ? (
+                      <p className="py-8 text-center text-xs text-slate-400">No people for this filter.</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {workPanel !== "people" && (
+                          <p className="mb-1 rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-800">
+                            Open a person to load their {workPanel} on the detail page (same work flow).
+                          </p>
+                        )}
+                        {visiblePeople.map((user) => {
+                          const loc = [user.locality, user.city, user.state].filter(Boolean).join(", ");
+                          const active = user.accountStatus === "active" && user.isActive !== false;
+                          const focus = ["tickets", "projects", "properties"].includes(workPanel) ? workPanel : "overview";
+                          const roleTitle = profile.title || labelFor(selectedRole);
+                          return (
+                            <div key={user._id} className="flex items-center gap-2 rounded-lg border border-slate-100 px-2 py-1.5 hover:bg-emerald-50/40">
+                              <button type="button" onClick={() => openMemberWork(user, focus)} className="min-w-0 flex-1 text-left">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="truncate text-[11px] font-bold text-slate-900">{user.name || "Unnamed"}</span>
+                                  <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                                    {roleTitle}
+                                  </span>
+                                  <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                                    {String(user.accountStatus || "pending").replace(/_/g, " ")}
+                                  </span>
+                                </div>
+                                <p className="truncate text-[10px] text-slate-400">{user.email || "—"}{loc ? ` · ${loc}` : ""}</p>
+                              </button>
+                              <button type="button" onClick={() => openMemberWork(user, focus)} className="rounded-md bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-800">
+                                {workPanel === "people" ? "Work" : workPanel} <ChevronRight size={10} className="inline" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between border-t border-slate-100 px-2.5 py-1.5">
+                    <p className="text-[10px] text-slate-400">{people.length} people · {activePeople} active</p>
+                    <button type="button" onClick={() => setViewAllPeople((v) => !v)} className="rounded-md bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-800">
+                      {viewAllPeople ? "Show less" : "View all · expand"}
+                    </button>
+                  </div>
+                </section>
+              </>
             )}
-          </div>
-
-          {/* View profile button */}
-          {agent._id && (
-            <button
-              onClick={() => navigate(`/dashboard/users/${agent._id}`)}
-              className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-700
-                         bg-[#27AE60]/8 text-[#27AE60] hover:bg-[#27AE60] hover:text-white transition-all"
-            >
-              <ExternalLink size={11} /> View Full Profile
-            </button>
-          )}
+          </main>
         </div>
       </div>
     </div>
   );
-};
-
-// ─── Main ──────────────────────────────────────────────────────────────────────
-const TeamManagement = () => {
-  const navigate = useNavigate();
-  const [managers, setManagers] = useState([]);
-  const [filteredManagers, setFilteredManagers] = useState([]);
-  const [selectedManager, setSelectedManager] = useState(null);
-  const [teamData, setTeamData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [managersLoading, setManagersLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  // Load managers
-  const loadManagers = useCallback(() => {
-    setManagersLoading(true);
-    getUserSearch("sales_manager")
-      .then((res) => {
-        const list = res?.data?.results || res?.data?.data || res?.data || [];
-        setManagers(list);
-        setFilteredManagers(list);
-      })
-      .catch(console.error)
-      .finally(() => setManagersLoading(false));
-  }, []);
-
-  useEffect(() => {
-    loadManagers();
-  }, [loadManagers]);
-
-  // Search filter
-  useEffect(() => {
-    const q = search.toLowerCase();
-    setFilteredManagers(
-      managers.filter(
-        (m) =>
-          m.name?.toLowerCase().includes(q) ||
-          m.email?.toLowerCase().includes(q),
-      ),
-    );
-  }, [search, managers]);
-
-  const handleSelectManager = useCallback(
-    async (id) => {
-      setLoading(true);
-      setSidebarOpen(false);
-      setTeamData(null);
-      try {
-        const res = await getManagerAndTeamMembers(id);
-        setTeamData(res?.data);
-        setSelectedManager(managers.find((m) => m._id === id));
-      } catch (err) {
-        console.error("Fetch team failed", err);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [managers],
-  );
-
-  return (
-    <div
-      className="flex h-screen bg-gray-50 overflow-hidden"
-      style={{ fontFamily: "'Outfit', system-ui, sans-serif" }}
-    >
-      {/* ── LEFT SIDEBAR ── */}
-      <aside
-        className={`
-        fixed md:static z-30 inset-y-0 left-0 w-72 bg-white border-r border-gray-100
-        flex flex-col shadow-xl shadow-gray-100/60 transition-transform duration-300
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-      `}
-      >
-        {/* Header */}
-        <div className="px-4 py-4 border-b border-gray-100">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-400 hover:text-gray-700 transition-colors mb-4 text-xs font-600"
-          >
-            <ArrowLeft size={13} /> Back to Workflow
-          </button>
-
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-[#27AE60] flex items-center justify-center shadow-md shadow-[#27AE60]/30">
-              <Users size={18} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-sm font-800 text-gray-900">Team Directory</h2>
-              <p className="text-[11px] text-gray-400">
-                {filteredManagers.length} manager
-                {filteredManagers.length !== 1 ? "s" : ""}
-              </p>
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="relative">
-            <Search
-              size={13}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              placeholder="Search managers…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-gray-200 bg-gray-50
-                         focus:outline-none focus:border-[#27AE60]/50 focus:ring-2 focus:ring-[#27AE60]/10
-                         text-gray-700 placeholder-gray-400 transition-all"
-            />
-          </div>
-        </div>
-
-        {/* Manager list */}
-        <div className="flex-1 overflow-y-auto py-1">
-          {managersLoading ? (
-            <div className="p-4 space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center gap-3 animate-pulse">
-                  <div className="w-10 h-10 rounded-xl bg-gray-100 flex-shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 w-3/4 bg-gray-100 rounded" />
-                    <div className="h-2 w-1/2 bg-gray-100 rounded" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : filteredManagers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-16 text-gray-300">
-              <Users size={28} />
-              <p className="text-xs font-600 text-gray-400">
-                No managers found
-              </p>
-            </div>
-          ) : (
-            filteredManagers.map((m) => {
-              const isActive = selectedManager?._id === m._id;
-              return (
-                <button
-                  key={m._id}
-                  onClick={() => handleSelectManager(m._id)}
-                  className={`w-full text-left px-4 py-3.5 flex items-center gap-3 border-b border-gray-50
-                    transition-all duration-150 group relative
-                    ${isActive ? "border-r-[3px] border-r-[#27AE60]" : "hover:bg-gray-50"}
-                  `}
-                  style={isActive ? { background: "#27AE6008" } : {}}
-                >
-                  <div
-                    className={`w-6 h-6 rounded-xl flex items-center justify-center text-sm font-800 flex-shrink-0 transition-all
-                    ${isActive ? "bg-[#27AE60] text-white shadow-md shadow-[#27AE60]/30" : "bg-gray-100 text-gray-500 group-hover:bg-[#27AE60]/10 group-hover:text-[#27AE60]"}`}
-                  >
-                    {(m.name || "?")[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={`text-sm font-600 truncate ${isActive ? "text-[#27AE60]" : "text-gray-800"}`}
-                    >
-                      {m.name}
-                    </p>
-                    {/* <p className="text-[10px] text-gray-400 uppercase tracking-wider truncate mt-0.5">
-                      {m.roleName?.replace(/_/g, " ") || "Manager"}
-                    </p> */}
-                  </div>
-                  <ChevronRight
-                    size={14}
-                    className={`flex-shrink-0 transition-all ${isActive ? "text-[#27AE60]" : "text-gray-300"}`}
-                  />
-                </button>
-              );
-            })
-          )}
-        </div>
-
-        {/* Refresh button */}
-        <div className="p-3 border-t border-gray-100">
-          <button
-            onClick={loadManagers}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-700 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all"
-          >
-            <RefreshCw size={11} /> Refresh List
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/20 z-20 md:hidden backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* ── RIGHT CONTENT ── */}
-      <main className="flex-1 overflow-y-auto">
-        {/* Mobile top bar */}
-        <div className="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 sticky top-0 z-10">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="w-9 h-9 rounded-xl bg-[#27AE60]/10 flex items-center justify-center text-[#27AE60]"
-          >
-            <Users size={16} />
-          </button>
-          <span className="text-sm font-700 text-gray-700">
-            {selectedManager ? selectedManager.name : "Select a Manager"}
-          </span>
-        </div>
-
-        <div className="p-5 md:p-8">
-          {loading ? (
-            /* Loading skeleton */
-            <div className="max-w-4xl mx-auto space-y-4">
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 animate-pulse">
-                <div className="flex items-center gap-5">
-                  <div className="w-20 h-20 rounded-2xl bg-gray-100" />
-                  <div className="flex-1 space-y-3">
-                    <div className="h-5 w-40 bg-gray-100 rounded-lg" />
-                    <div className="h-3.5 w-56 bg-gray-100 rounded-lg" />
-                    <div className="h-3.5 w-32 bg-gray-100 rounded-lg" />
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse flex gap-4"
-                  >
-                    <div className="w-11 h-11 rounded-xl bg-gray-100 flex-shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3.5 w-32 bg-gray-100 rounded" />
-                      <div className="h-3 w-40 bg-gray-100 rounded" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : teamData ? (
-            /* ── Team detail ── */
-            <div className="max-w-4xl mx-auto">
-              {/* Manager header card */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
-                <div className="h-1.5 w-full bg-gradient-to-r from-[#27AE60] via-emerald-400 to-[#27AE60]/40" />
-                <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                  <div className="flex items-center gap-5">
-                    {/* Avatar */}
-                    <div
-                      className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-[#27AE60] to-emerald-400
-                                    flex items-center justify-center text-white text-2xl font-black
-                                    shadow-lg shadow-[#27AE60]/25 flex-shrink-0"
-                    >
-                      {(teamData.manager?.name || "?")[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        <h1 className="text-xl md:text-2xl font-black text-gray-900">
-                          {teamData.manager?.name}
-                        </h1>
-                        <span className="inline-flex items-center gap-1 bg-[#27AE60]/10 text-[#27AE60] text-[10px] font-800 px-2.5 py-1 rounded-full">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#27AE60]" />
-                          Sales Manager
-                        </span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-5 text-sm text-gray-500">
-                        {teamData.manager?.email && (
-                          <span className="flex items-center gap-1.5">
-                            <Mail size={13} className="text-[#27AE60]" />
-                            {teamData.manager.email}
-                          </span>
-                        )}
-                        {selectedManager?.phone && (
-                          <span className="flex items-center gap-1.5">
-                            <Phone size={13} className="text-[#27AE60]" />
-                            {selectedManager.phone}
-                          </span>
-                        )}
-                        {selectedManager?.city && (
-                          <span className="flex items-center gap-1.5">
-                            <MapPin size={13} className="text-[#27AE60]" />
-                            {[selectedManager.city, selectedManager.state]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* KYC + status */}
-                      <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                        <KycBadge status={selectedManager?.kyc?.status} />
-                        {selectedManager?.accountStatus && (
-                          <span
-                            className={`text-[10px] font-700 px-2.5 py-1 rounded-full ${selectedManager.accountStatus === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}
-                          >
-                            {selectedManager.accountStatus.replace(/_/g, " ")}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stats + View Profile */}
-                  <div className="flex flex-row sm:flex-col items-center sm:items-end gap-3">
-                    <div className="flex items-center gap-3 bg-[#27AE60]/8 rounded-2xl px-5 py-3 border border-[#27AE60]/15">
-                      <TrendingUp size={16} className="text-[#27AE60]" />
-                      <div>
-                        <p className="text-2xl font-black text-[#27AE60] leading-none">
-                          {teamData.totalAgents}
-                        </p>
-                        <p className="text-[10px] font-700 text-gray-400 uppercase tracking-wider mt-0.5">
-                          Total Agents
-                        </p>
-                      </div>
-                    </div>
-
-                    {selectedManager?._id && (
-                      <button
-                        onClick={() =>
-                          navigate(`/dashboard/users/${selectedManager._id}`)
-                        }
-                        className="flex items-center gap-1.5 text-xs font-700 text-[#27AE60] hover:underline"
-                      >
-                        <ExternalLink size={12} /> View Full Profile
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Team members heading */}
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-800 text-gray-800 flex items-center gap-2">
-                  <Users size={15} className="text-[#27AE60]" />
-                  Team Members
-                </h3>
-                <span className="text-xs font-700 bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">
-                  {teamData.agents?.length} agent
-                  {teamData.agents?.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-
-              {teamData.agents?.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-gray-100 py-16 flex flex-col items-center gap-3">
-                  <UserCircle size={40} className="text-gray-200" />
-                  <p className="text-sm font-600 text-gray-400">
-                    No agents assigned yet
-                  </p>
-                  <p className="text-xs text-gray-300">
-                    Agents will appear here once assigned to this manager
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {teamData.agents.map((agent, idx) => (
-                    <AgentCard
-                      key={agent._id}
-                      agent={agent}
-                      idx={idx}
-                      navigate={navigate}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* View all agents workflow button */}
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => navigate("/dashboard/workflow/sales_agent")}
-                  className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-700 bg-white border border-gray-200 text-gray-600 hover:border-[#27AE60]/40 hover:text-[#27AE60] transition-all"
-                >
-                  <Activity size={15} /> All Agent Workflows
-                </button>
-                <button
-                  onClick={() => navigate("/dashboard/workflow/sales_manager")}
-                  className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-700 bg-[#27AE60] text-white hover:opacity-90 transition-opacity"
-                >
-                  <TrendingUp size={15} /> Manager Workflows
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Placeholder */
-            <div className="h-full min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
-              <div className="w-20 h-20 rounded-3xl bg-[#27AE60]/8 border border-[#27AE60]/15 flex items-center justify-center mb-5">
-                <Users size={32} className="text-[#27AE60]/40" />
-              </div>
-              <h3 className="text-base font-800 text-gray-700 mb-1">
-                No Manager Selected
-              </h3>
-              <p className="text-sm text-gray-400 max-w-xs">
-                Choose a manager from the left panel to view their team and
-                agent details.
-              </p>
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="mt-5 md:hidden inline-flex items-center gap-2 bg-[#27AE60] text-white text-sm font-700 px-5 py-2.5 rounded-xl shadow-md shadow-[#27AE60]/25"
-              >
-                <Users size={15} /> Browse Managers
-              </button>
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
-};
-
-export default TeamManagement;
+}

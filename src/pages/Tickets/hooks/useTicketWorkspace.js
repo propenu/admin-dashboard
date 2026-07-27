@@ -39,6 +39,18 @@ export function useTicketList(filters, enabled = true) {
   });
 }
 
+const OPEN_BUCKET_STATUSES = new Set([
+  "open",
+  "assigned",
+  "under_review",
+  "awaiting_user_response",
+  "in_progress",
+  "escalated",
+  "reopened",
+  "waiting_for_customer",
+  "waiting_for_internal_team",
+]);
+
 const stripPersonalKeys = (filters = {}) => {
   const next = { ...filters };
   delete next.personalScope;
@@ -46,6 +58,13 @@ const stripPersonalKeys = (filters = {}) => {
   delete next.assignedTo;
   delete next.requesterId;
   delete next.tag;
+  delete next.assignment;
+  delete next.openBucket;
+  // Overview uses from/to; list API expects createdFrom/createdTo.
+  if (next.from && !next.createdFrom) next.createdFrom = next.from;
+  if (next.to && !next.createdTo) next.createdTo = next.to;
+  delete next.from;
+  delete next.to;
   return next;
 };
 
@@ -63,133 +82,197 @@ const dedupeTickets = (lists = []) => {
   });
 };
 
+const matchesLocalFilters = (ticket, filters = {}) => {
+  if (filters.openBucket === "true" || filters.openBucket === true) {
+    if (!OPEN_BUCKET_STATUSES.has(String(ticket?.status || "").toLowerCase())) return false;
+  } else if (filters.status) {
+    const status = String(ticket?.status || "").toLowerCase();
+    if (status !== String(filters.status).toLowerCase()) return false;
+  }
+  if (filters.priority) {
+    const priority = String(ticket?.priority || "").toLowerCase();
+    if (priority !== String(filters.priority).toLowerCase()) return false;
+  }
+  if (filters.assignment === "unassigned") {
+    if (ticket?.assignedTo?.userId || ticket?.assignedTo?.name) return false;
+  }
+  if (filters.overdue === "true" || filters.overdue === true) {
+    if (!ticket?.dueAt) return false;
+    const due = new Date(ticket.dueAt).getTime();
+    const closed = ["resolved", "closed"].includes(String(ticket.status || "").toLowerCase());
+    if (closed || Number.isNaN(due) || due >= Date.now()) return false;
+  }
+  if (filters.overdue === "false" || filters.overdue === false) {
+    const closed = ["resolved", "closed"].includes(String(ticket.status || "").toLowerCase());
+    if (!closed && ticket?.dueAt) {
+      const due = new Date(ticket.dueAt).getTime();
+      if (!Number.isNaN(due) && due < Date.now()) return false;
+    }
+  }
+  const q = String(filters.q || "").trim().toLowerCase();
+  if (q) {
+    const haystack = [
+      ticket?.title,
+      ticket?.description,
+      ticket?.requester?.name,
+      ticket?.requester?.email,
+      ticket?.assignedTo?.name,
+      ...(Array.isArray(ticket?.tags) ? ticket.tags : []),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    if (!haystack.includes(q)) return false;
+  }
+  return true;
+};
+
+const hasClientOnlyFilters = (filters = {}) =>
+  filters.assignment === "unassigned" ||
+  filters.openBucket === "true" ||
+  filters.openBucket === true ||
+  filters.overdue === "false" ||
+  filters.overdue === false;
+
+const buildPersonalFilterSets = ({ personalScope, userId, base, createTag }) => {
+  if (!userId) return [];
+  const common = {
+    ...base,
+    page: 1,
+    limit: Math.max(Number(base.limit) || 20, 100),
+  };
+  // Drop API overdue=false (backend ignores false); we filter that client-side.
+  if (common.overdue === "false" || common.overdue === false) {
+    delete common.overdue;
+  }
+
+  if (personalScope === "assigned") {
+    return [{ key: "assigned", ...common, assignedTo: userId }];
+  }
+  if (personalScope === "requested") {
+    return [{ key: "requested", ...common, requesterId: userId }];
+  }
+  if (personalScope === "created") {
+    return createTag ? [{ key: "created", ...common, tag: createTag }] : [];
+  }
+  // All mine = assigned/requested OR created by me
+  return [
+    { key: "involved", ...common, assignedOrRequested: userId },
+    ...(createTag ? [{ key: "created", ...common, tag: createTag }] : []),
+  ];
+};
+
 /**
  * Desk → single unscoped list.
- * Personal → merge assigned/requested + created-by-me (tag) so creators still see tickets they raised.
+ * Personal → only active scope queries (no stale merge from other pills).
  */
 export function useRoleScopedTicketList({ mode, userId, filters, enabled = true }) {
   const personalScope = filters?.personalScope || "mine";
   const base = useMemo(() => stripPersonalKeys(filters || {}), [filters]);
   const createTag = createdByTagForUser(userId);
 
-  const deskFilters = useMemo(() => ({ ...base }), [base]);
+  const deskFilters = useMemo(() => {
+    const next = { ...base };
+    if (next.overdue === "false" || next.overdue === false) delete next.overdue;
+    // Client-only open bucket — do not send a single status to the API.
+    if (filters?.openBucket === "true" || filters?.openBucket === true) {
+      delete next.status;
+    }
+    // Fetch a wider page when client-side filters need to match overview counts.
+    if (hasClientOnlyFilters(filters)) {
+      next.limit = Math.max(Number(next.limit) || 20, 100);
+      next.page = 1;
+    }
+    return next;
+  }, [base, filters]);
 
-  const assignedFilters = useMemo(
-    () => ({
-      ...base,
-      page: 1,
-      limit: Math.max(Number(base.limit) || 20, 50),
-      assignedTo: userId,
-    }),
-    [base, userId],
-  );
-
-  const requestedFilters = useMemo(
-    () => ({
-      ...base,
-      page: 1,
-      limit: Math.max(Number(base.limit) || 20, 50),
-      requesterId: userId,
-    }),
-    [base, userId],
-  );
-
-  const involvedFilters = useMemo(
-    () => ({
-      ...base,
-      page: 1,
-      limit: Math.max(Number(base.limit) || 20, 50),
-      assignedOrRequested: userId,
-    }),
-    [base, userId],
-  );
-
-  const createdFilters = useMemo(
-    () => ({
-      ...base,
-      page: 1,
-      limit: Math.max(Number(base.limit) || 20, 50),
-      tag: createTag || "__none__",
-    }),
-    [base, createTag],
+  const personalFilterSets = useMemo(
+    () =>
+      mode === "personal"
+        ? buildPersonalFilterSets({ personalScope, userId, base, createTag })
+        : [],
+    [mode, personalScope, userId, base, createTag],
   );
 
   const deskQuery = useTicketList(deskFilters, enabled && mode === "desk");
 
   const personalQueries = useQueries({
-    queries: [
-      {
-        queryKey: ticketKeys.list({ scope: "involved", ...involvedFilters }),
-        queryFn: () => getTickets(involvedFilters),
-        enabled:
-          enabled &&
-          mode === "personal" &&
-          Boolean(userId) &&
-          (personalScope === "mine"),
-        staleTime: 30000,
-        keepPreviousData: true,
-      },
-      {
-        queryKey: ticketKeys.list({ scope: "assigned", ...assignedFilters }),
-        queryFn: () => getTickets(assignedFilters),
-        enabled:
-          enabled &&
-          mode === "personal" &&
-          Boolean(userId) &&
-          personalScope === "assigned",
-        staleTime: 30000,
-        keepPreviousData: true,
-      },
-      {
-        queryKey: ticketKeys.list({ scope: "requested", ...requestedFilters }),
-        queryFn: () => getTickets(requestedFilters),
-        enabled:
-          enabled &&
-          mode === "personal" &&
-          Boolean(userId) &&
-          personalScope === "requested",
-        staleTime: 30000,
-        keepPreviousData: true,
-      },
-      {
-        queryKey: ticketKeys.list({ scope: "created", ...createdFilters }),
-        queryFn: () => getTickets(createdFilters),
-        enabled:
-          enabled &&
-          mode === "personal" &&
-          Boolean(userId) &&
-          Boolean(createTag) &&
-          (personalScope === "mine" || personalScope === "created"),
-        staleTime: 30000,
-        keepPreviousData: true,
-      },
-    ],
+    queries: personalFilterSets.map((filterSet) => {
+      const { key, ...apiFilters } = filterSet;
+      return {
+        queryKey: ticketKeys.list({ mode: "personal", scope: key, personalScope, ...apiFilters }),
+        queryFn: () => getTickets(apiFilters),
+        enabled: enabled && mode === "personal" && Boolean(userId),
+        staleTime: 10_000,
+      };
+    }),
   });
 
+  const queryEpoch = personalQueries.map((q) => `${q.status}:${q.dataUpdatedAt || 0}`).join("|");
+  const personalTickets = useMemo(() => {
+    if (mode !== "personal") return [];
+    // Only the active scope's queries exist in personalFilterSets — no stale pill merge.
+    const lists = personalQueries.map((q) => {
+      if (q.isPending && !q.data) return [];
+      return q.data?.data || [];
+    });
+    return dedupeTickets(lists).filter((ticket) => matchesLocalFilters(ticket, filters));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- queryEpoch tracks query result identity
+  }, [
+    mode,
+    personalScope,
+    queryEpoch,
+    filters.status,
+    filters.priority,
+    filters.q,
+    filters.overdue,
+    filters.assignment,
+    filters.openBucket,
+  ]);
+
   if (mode === "desk") {
+    const deskTickets = (deskQuery.data?.data || []).filter((ticket) =>
+      matchesLocalFilters(ticket, filters),
+    );
+    const apiMeta = deskQuery.data?.meta || deskQuery.data?.pagination || {};
+    const clientOnly = hasClientOnlyFilters(filters);
     return {
       data: deskQuery.data,
-      tickets: deskQuery.data?.data || [],
-      meta: deskQuery.data?.meta || deskQuery.data?.pagination,
+      tickets: deskTickets,
+      meta: {
+        ...apiMeta,
+        total: clientOnly ? deskTickets.length : Number(apiMeta.total ?? deskTickets.length),
+      },
       isLoading: deskQuery.isLoading,
       isFetching: deskQuery.isFetching,
       refetch: deskQuery.refetch,
     };
   }
 
-  const lists = personalQueries.map((q) => q.data?.data || []);
-  const tickets = dedupeTickets(lists);
-  const isLoading = personalQueries.some((q) => q.isLoading);
+  const waitingForFirstPage =
+    personalFilterSets.length > 0 &&
+    personalQueries.some((q) => q.isPending || q.isLoading) &&
+    !personalQueries.some((q) => q.isSuccess || q.isError);
   const isFetching = personalQueries.some((q) => q.isFetching);
 
   return {
     data: {
-      data: tickets,
-      meta: { total: tickets.length, page: 1, limit: tickets.length, pages: 1 },
+      data: personalTickets,
+      meta: {
+        total: personalTickets.length,
+        page: 1,
+        limit: personalTickets.length,
+        pages: 1,
+      },
     },
-    tickets,
-    meta: { total: tickets.length, page: 1, limit: tickets.length, pages: 1 },
-    isLoading,
+    tickets: personalTickets,
+    meta: {
+      total: personalTickets.length,
+      page: 1,
+      limit: personalTickets.length,
+      pages: 1,
+    },
+    isLoading: waitingForFirstPage,
     isFetching,
     refetch: () => Promise.all(personalQueries.map((q) => q.refetch())),
   };

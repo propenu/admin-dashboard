@@ -15,11 +15,20 @@ export default function TicketQueue({
   personalScopes = null,
   currentUserId = null,
 }) {
-  const update = (patch) => onFiltersChange({ ...filters, page: 1, ...patch });
+  const update = (patch) =>
+    onFiltersChange({
+      ...filters,
+      page: 1,
+      ...patch,
+    });
   const activeScope = filters.personalScope || "mine";
+  const setScope = (scopeKey) => {
+    if (scopeKey === activeScope) return;
+    update({ personalScope: scopeKey });
+  };
 
   return (
-    <section className={`${ticketSurface} overflow-hidden`}>
+    <section className={`flex h-full min-h-0 flex-col overflow-hidden ${ticketSurface}`}>
       <div className="grid gap-2 border-b border-slate-100 p-3">
         {Array.isArray(personalScopes) && personalScopes.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
@@ -30,10 +39,11 @@ export default function TicketQueue({
                   key={scope.key}
                   type="button"
                   title={scope.hint}
-                  onClick={() => update({ personalScope: scope.key })}
+                  onClick={() => setScope(scope.key)}
+                  aria-pressed={active}
                   className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
                     active
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
                       : "border-slate-200 bg-white text-slate-500 hover:border-emerald-300 hover:text-slate-800"
                   }`}
                 >
@@ -55,7 +65,10 @@ export default function TicketQueue({
         </label>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <FilterSelect value={filters.status || ""} onChange={(status) => update({ status })}>
+          <FilterSelect
+            value={filters.openBucket === "true" || filters.openBucket === true ? "" : filters.status || ""}
+            onChange={(status) => update({ status, openBucket: undefined })}
+          >
             <option value="">All status</option>
             {TICKET_STATUSES.map((status) => (
               <option key={status} value={status}>
@@ -79,6 +92,14 @@ export default function TicketQueue({
             <option value="false">Not overdue</option>
           </FilterSelect>
         </div>
+
+        <ActiveFilterChips filters={filters} onClear={(keys) => {
+          const next = { ...filters, page: 1 };
+          keys.forEach((key) => {
+            delete next[key];
+          });
+          onFiltersChange(next);
+        }} />
       </div>
 
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-[12px] font-semibold text-slate-500">
@@ -89,7 +110,7 @@ export default function TicketQueue({
         <span>Sort: newest update</span>
       </div>
 
-      <div className="max-h-[calc(100vh-230px)] min-h-[360px] overflow-y-auto">
+      <div className="min-h-[1400px] max-h-[calc(100vh-24px)] flex-1 overflow-y-auto">
         {isLoading ? (
           <EmptyState text="Loading tickets..." />
         ) : tickets.length === 0 ? (
@@ -100,7 +121,7 @@ export default function TicketQueue({
               key={ticket._id}
               type="button"
               onClick={() => onSelect(ticket._id)}
-            className={`block w-full border-b border-slate-100 px-4 py-4 text-left transition duration-200 hover:bg-emerald-50/60 ${
+              className={`block w-full border-b border-slate-100 px-4 py-4 text-left transition duration-200 hover:bg-emerald-50/60 ${
                 selectedId === ticket._id ? "bg-emerald-50 shadow-[inset_4px_0_0_#27AE60]" : "bg-white"
               }`}
             >
@@ -146,6 +167,49 @@ function FilterSelect({ value, onChange, children }) {
     >
       {children}
     </select>
+  );
+}
+
+function ActiveFilterChips({ filters, onClear }) {
+  const chips = [];
+  if (filters.createdFrom || filters.createdTo) {
+    const from = String(filters.createdFrom || "").slice(0, 10);
+    const to = String(filters.createdTo || "").slice(0, 10);
+    chips.push({
+      key: "dates",
+      label: from && to && from === to ? `Created ${from}` : `Created ${from || "…"} → ${to || "…"}`,
+      clearKeys: ["createdFrom", "createdTo", "from", "to"],
+    });
+  }
+  if (filters.openBucket === "true" || filters.openBucket === true) {
+    chips.push({ key: "openBucket", label: "Open (all active)", clearKeys: ["openBucket"] });
+  }
+  if (filters.assignment === "unassigned") {
+    chips.push({ key: "assignment", label: "Unassigned", clearKeys: ["assignment"] });
+  }
+  if (filters.department) {
+    chips.push({
+      key: "department",
+      label: `Dept: ${formatLabel(filters.department)}`,
+      clearKeys: ["department"],
+    });
+  }
+  if (!chips.length) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {chips.map((chip) => (
+        <button
+          key={chip.key}
+          type="button"
+          onClick={() => onClear(chip.clearKeys)}
+          className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100"
+          title="Clear filter"
+        >
+          {chip.label} ×
+        </button>
+      ))}
+    </div>
   );
 }
 

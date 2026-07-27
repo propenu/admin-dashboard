@@ -24,18 +24,29 @@ function orderedCounts(order, items = []) {
 }
 
 export function normalizeTicketOverview(data = {}) {
+  const assignmentLoad = Array.isArray(data?.assignmentLoad)
+    ? data.assignmentLoad.map((row) => ({
+        ...row,
+        agentName:
+          row?.agent?.name ||
+          row?.agent?.email ||
+          (row?._id ? `Agent ${String(row._id).slice(-6)}` : "Unassigned"),
+        count: Number(row?.count || 0),
+      }))
+    : [];
+
   return {
-    totals: data?.totals || 0,
-    open: data?.open || 0,
-    overdue: data?.overdue || 0,
-    unassigned: data?.unassigned || 0,
+    totals: Number(data?.totals || 0),
+    open: Number(data?.open || 0),
+    overdue: Number(data?.overdue || 0),
+    unassigned: Number(data?.unassigned || 0),
     byStatus: orderedCounts(dashboardStatusOrder, data?.byStatus),
     byPriority: orderedCounts(dashboardPriorityOrder, data?.byPriority),
     byDepartment: Array.isArray(data?.byDepartment) ? data.byDepartment : [],
-    assignmentLoad: Array.isArray(data?.assignmentLoad) ? data.assignmentLoad : [],
+    assignmentLoad,
     sla: {
-      avgFirstResponseMinutes: data?.sla?.avgFirstResponseMinutes || 0,
-      avgResolutionMinutes: data?.sla?.avgResolutionMinutes || 0,
+      avgFirstResponseMinutes: Number(data?.sla?.avgFirstResponseMinutes || 0),
+      avgResolutionMinutes: Number(data?.sla?.avgResolutionMinutes || 0),
     },
     recent: Array.isArray(data?.recent)
       ? data.recent.map((ticket) => ({
@@ -49,4 +60,18 @@ export function normalizeTicketOverview(data = {}) {
         }))
       : [],
   };
+}
+
+/** Aggregate trends API rows into one count per day. */
+export function normalizeTicketTrends(rows = []) {
+  const list = Array.isArray(rows) ? rows : [];
+  const byDay = new Map();
+  list.forEach((row) => {
+    const day = row?._id?.day || row?.day;
+    if (!day) return;
+    byDay.set(day, (byDay.get(day) || 0) + Number(row?.count || 0));
+  });
+  return [...byDay.entries()]
+    .map(([day, count]) => ({ day, count }))
+    .sort((a, b) => String(a.day).localeCompare(String(b.day)));
 }

@@ -7,6 +7,7 @@ import DepartmentBreakdown from "./components/DepartmentBreakdown";
 import AssignmentLoad from "./components/AssignmentLoad";
 import SlaPerformance from "./components/SlaPerformance";
 import RecentTicketsTable from "./components/RecentTicketsTable";
+import TicketTrendsPanel from "./components/TicketTrendsPanel";
 import TicketDashboardSkeleton from "./components/TicketDashboardSkeleton";
 import TicketWorkspaceHeader from "./components/workspace/TicketWorkspaceHeader";
 import TicketQueue from "./components/workspace/TicketQueue";
@@ -25,10 +26,22 @@ import {
   useRoleScopedTicketList,
 } from "./hooks/useTicketWorkspace";
 import { useCurrentUser } from "../../store/properties/useCurrentUser";
+import DashboardDateFilter from "../Dashboards/shared/DashboardDateFilter";
+import { useDashboardDateRange } from "../Dashboards/shared/useDashboardDateRange";
+import { DATE_PRESETS } from "../Dashboards/shared/dashboardDateRange";
+
+const TICKET_DATE_PRESETS = [...DATE_PRESETS, { key: "all", label: "All time" }];
 
 const getTicketId = (ticket) => ticket?._id || ticket?.id;
 const getNotificationStorageKey = (userId) =>
   userId ? `ticket-notifications-seen-ids:${userId}` : null;
+
+const toListDateBounds = (from, to) => {
+  const bounds = {};
+  if (from) bounds.createdFrom = String(from).includes("T") ? from : `${from}T00:00:00.000`;
+  if (to) bounds.createdTo = String(to).includes("T") ? to : `${to}T23:59:59.999`;
+  return bounds;
+};
 
 export default function TicketDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -42,6 +55,7 @@ export default function TicketDashboard() {
     personalScope: "mine",
   });
   const [seenNotificationIds, setSeenNotificationIds] = useState(() => new Set());
+  const overviewDateRange = useDashboardDateRange("all", TICKET_DATE_PRESETS);
 
   const { data: userData } = useCurrentUser();
   const currentUser = userData?.user;
@@ -55,32 +69,38 @@ export default function TicketDashboard() {
     canCreate,
     title,
     subtitle,
-    notice,
     availableTabs,
     personalScopes,
   } = roleAccess;
   const actor = useMemo(() => buildTicketActor(currentUser), [currentUser]);
 
-  const dashboard = useTicketDashboard(canUseFullDesk);
+  const dashboard = useTicketDashboard(canUseFullDesk, overviewDateRange.filters);
   const ticketList = useRoleScopedTicketList({
     mode,
     userId: currentUserId,
     filters,
     enabled: Boolean(currentUser) && (canUseFullDesk || Boolean(currentUserId)),
   });
-  const rawTickets = ticketList.tickets || [];
-  const tickets =
-    filters.assignment === "unassigned"
-      ? rawTickets.filter((ticket) => !ticket.assignedTo?.userId && !ticket.assignedTo?.name)
-      : rawTickets;
+  const tickets = ticketList.tickets || [];
   const ticketMeta = ticketList.meta;
   const catalogs = useTicketCatalogs();
   const actions = useTicketActions();
   const visibleActiveTab =
     activeTab === "notifications" ? "notifications" : canUseFullDesk ? activeTab : "queue";
 
-  const activeTicketId = selectedTicketId || tickets[0]?._id;
+  const activeTicketId = useMemo(() => {
+    if (selectedTicketId && tickets.some((t) => String(t._id) === String(selectedTicketId))) {
+      return selectedTicketId;
+    }
+    return tickets[0]?._id || null;
+  }, [selectedTicketId, tickets]);
   const detail = useTicketDetail(activeTicketId);
+
+  useEffect(() => {
+    if (!selectedTicketId) return;
+    const stillVisible = tickets.some((t) => String(t._id) === String(selectedTicketId));
+    if (!stillVisible) setSelectedTicketId(tickets[0]?._id || null);
+  }, [tickets, selectedTicketId]);
   const unreadTicketCount = useMemo(
     () =>
       tickets.filter((ticket) => {
@@ -155,13 +175,31 @@ export default function TicketDashboard() {
   };
 
   const openQueueWithFilters = (patch = {}) => {
+    const needsWideFetch =
+      patch.assignment === "unassigned" ||
+      patch.openBucket === "true" ||
+      patch.openBucket === true ||
+      patch.overdue === "true" ||
+      patch.overdue === true;
+    const hasExplicitDates = Boolean(patch.createdFrom || patch.createdTo);
+    const dateBounds = hasExplicitDates
+      ? toListDateBounds(patch.createdFrom, patch.createdTo)
+      : toListDateBounds(overviewDateRange.filters.from, overviewDateRange.filters.to);
+
+    const nextPatch = { ...patch };
+    delete nextPatch.createdFrom;
+    delete nextPatch.createdTo;
+    delete nextPatch.from;
+    delete nextPatch.to;
+
     setFilters({
       page: 1,
-      limit: 20,
+      limit: needsWideFetch ? 100 : 50,
       sortBy: "updatedAt",
       sortOrder: "desc",
       personalScope: "mine",
-      ...patch,
+      ...dateBounds,
+      ...nextPatch,
     });
     setActiveTab("queue");
   };
@@ -215,7 +253,7 @@ export default function TicketDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f8fffb] via-white to-[#f7fbff] p-2 text-slate-900 sm:p-3">
+    <div className="relative space-y-3 bg-gradient-to-br from-[#f8fffb] via-white to-[#f7fbff] pb-6 text-slate-900">
       <TicketWorkspaceHeader
         activeTab={visibleActiveTab}
         onTabChange={setActiveTab}
@@ -240,41 +278,34 @@ export default function TicketDashboard() {
       {visibleActiveTab === "overview" && (
         <OverviewTab
           overview={dashboard.overview}
+          trends={dashboard.trends}
+          trendsLoading={dashboard.isFetching}
+          dateRange={overviewDateRange}
           onOpenQueue={openQueueWithFilters}
           onOpenTicket={openTicket}
         />
       )}
 
       {visibleActiveTab === "queue" && (
-        <div className="mt-3 space-y-3">
-          <RoleTicketNotice
-            mode={mode}
-            notice={notice}
-            total={ticketMeta?.total || tickets.length || 0}
-            userName={currentUser?.name}
-            personalScope={filters.personalScope || "mine"}
+        <div className="grid min-w-0 items-stretch gap-3 lg:grid-cols-[minmax(300px,360px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]">
+          <TicketQueue
+            tickets={tickets}
+            meta={ticketMeta}
+            filters={filters}
+            onFiltersChange={setFilters}
+            selectedId={activeTicketId}
+            onSelect={selectTicket}
+            isLoading={ticketList.isLoading}
             personalScopes={personalScopes}
+            currentUserId={currentUserId}
           />
-          <div className="grid min-w-0 items-start gap-3 lg:grid-cols-[minmax(330px,390px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)]">
-            <TicketQueue
-              tickets={tickets}
-              meta={ticketMeta}
-              filters={filters}
-              onFiltersChange={setFilters}
-              selectedId={activeTicketId}
-              onSelect={selectTicket}
-              isLoading={ticketList.isLoading}
-              personalScopes={personalScopes}
-              currentUserId={currentUserId}
-            />
-            <TicketDetailPanel
-              ticket={detail.data}
-              isLoading={detail.isLoading}
-              actor={actor}
-              actions={actions}
-              canAssign={canAssign}
-            />
-          </div>
+          <TicketDetailPanel
+            ticket={detail.data}
+            isLoading={detail.isLoading}
+            actor={actor}
+            actions={actions}
+            canAssign={canAssign}
+          />
         </div>
       )}
 
@@ -289,7 +320,7 @@ export default function TicketDashboard() {
       )}
 
       {visibleActiveTab === "config" && (
-        <div className="mt-3">
+        <div>
           <TicketConfigPanel
             categories={catalogs.categoryItems}
             departments={catalogs.departmentItems}
@@ -311,47 +342,9 @@ export default function TicketDashboard() {
   );
 }
 
-function RoleTicketNotice({
-  mode,
-  notice,
-  total,
-  userName,
-  personalScope,
-  personalScopes,
-}) {
-  const scopeLabel =
-    personalScopes?.find((item) => item.key === personalScope)?.label || "All mine";
-
-  if (mode === "desk") {
-    return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] font-medium text-[#17683b]">
-        <p className="font-bold text-[#14532d]">Shared Ticket Desk</p>
-        <p className="mt-1 leading-5">{notice}</p>
-        <p className="mt-1.5 text-[11px] text-emerald-800/80">
-          Queue shows <span className="font-semibold">{total}</span> ticket
-          {total === 1 ? "" : "s"} in this filter.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[12px] font-medium text-[#17683b]">
-      <p className="font-bold text-[#14532d]">
-        My Tickets · {userName || "you"} · viewing “{scopeLabel}”
-      </p>
-      <p className="mt-1 leading-5">{notice}</p>
-      <p className="mt-1.5 text-[11px] text-emerald-800/80">
-        <span className="font-semibold">{total}</span> ticket{total === 1 ? "" : "s"} in this
-        view (login user ID based).
-      </p>
-    </div>
-  );
-}
-
 function TicketNotificationsPage({ tickets, seenTicketIds, onOpenTicket, currentUserId, mode }) {
   return (
-    <section className={`mt-3 overflow-hidden ${ticketSurface}`}>
+    <section className={`overflow-hidden ${ticketSurface}`}>
       <div className="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-[20px] font-black text-slate-950">Ticket Notifications</h2>
@@ -433,10 +426,41 @@ function TicketNotificationsPage({ tickets, seenTicketIds, onOpenTicket, current
   );
 }
 
-function OverviewTab({ overview, onOpenQueue, onOpenTicket }) {
+function OverviewTab({
+  overview,
+  trends,
+  trendsLoading,
+  dateRange,
+  onOpenQueue,
+  onOpenTicket,
+}) {
   return (
-    <div className="mt-3 space-y-3">
-      <TicketMetricGrid overview={overview} onOpenQueue={onOpenQueue} />
+    <div className="space-y-3">
+      <DashboardDateFilter
+        preset={dateRange.preset}
+        onPresetChange={dateRange.setPreset}
+        customFrom={dateRange.customFrom}
+        customTo={dateRange.customTo}
+        onCustomFromChange={dateRange.setCustomFrom}
+        onCustomToChange={dateRange.setCustomTo}
+        onApplyCustom={dateRange.applyCustomRange}
+        presets={TICKET_DATE_PRESETS}
+        label="Ticket period"
+        trailing="Live counts · click any KPI or chart to open the matching queue"
+      />
+
+      <TicketMetricGrid
+        overview={overview}
+        onOpenQueue={onOpenQueue}
+        rangeLabel={dateRange.rangeLabel}
+      />
+
+      <TicketTrendsPanel
+        trends={trends}
+        rangeLabel={dateRange.rangeLabel}
+        isLoading={trendsLoading && (!trends || trends.length === 0)}
+        onDayClick={onOpenQueue}
+      />
 
       <div className="grid gap-3 md:grid-cols-[1.08fr_0.98fr_1.02fr]">
         <StatusBreakdown overview={overview} onOpenQueue={onOpenQueue} />

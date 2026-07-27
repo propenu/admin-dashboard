@@ -32,16 +32,30 @@ const getItems = (payload) => {
   if (Array.isArray(payload?.items)) return payload.items;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.users)) return payload.users;
+  if (Array.isArray(payload?.results)) return payload.results;
   return [];
 };
 
-const getRequesterRole = (user) => user?.role || user?.roleName || user?.roleId?.name || "";
+const getRequesterRole = (user) => {
+  const raw =
+    user?.roleName ||
+    user?.role?.name ||
+    user?.role?.label ||
+    user?.roleId?.name ||
+    user?.roleId?.label ||
+    user?.role ||
+    "";
+  if (raw && typeof raw === "object") {
+    return String(raw.name || raw.label || "").trim().toLowerCase();
+  }
+  return String(raw || "").trim().toLowerCase();
+};
 
 const CORE_REQUESTER_ROLES = new Set(["user", "agent", "builder", "builder_staff"]);
 const EXCLUDED_ASSIGNEE_ROLES = new Set(["user", "agent", "builder", "builder_staff"]);
 
 const matchesRequesterRole = (user, role) => {
-  const value = String(getRequesterRole(user)).toLowerCase();
+  const value = getRequesterRole(user);
   if (!role || role === "all") return CORE_REQUESTER_ROLES.has(value);
   const aliases = {
     user: ["user", "owner", "buyer", "tenant", "propenu_user"],
@@ -49,7 +63,7 @@ const matchesRequesterRole = (user, role) => {
     agent: ["agent"],
     builder_staff: ["builder_staff", "builderstaff", "builder_staffs"],
   };
-  return (aliases[role] || [role]).includes(value);
+  return (aliases[role] || [String(role).toLowerCase()]).includes(value);
 };
 
 const matchesRequesterQuery = (user, query) => {
@@ -70,10 +84,19 @@ const matchesRequesterQuery = (user, query) => {
     .some((value) => String(value).toLowerCase().includes(normalized));
 };
 
+const matchesAssigneeLocation = (user, location = {}) => {
+  if (location.state && String(user?.state || "") !== String(location.state)) return false;
+  if (location.city && String(user?.city || "") !== String(location.city)) return false;
+  if (location.locality && String(user?.locality || "") !== String(location.locality)) return false;
+  if (location.pincode && String(user?.pincode || "") !== String(location.pincode)) return false;
+  return true;
+};
+
 const normalizeRequester = (user) => ({
   ...user,
   userId: user?.userId || user?._id || user?.id,
   role: getRequesterRole(user),
+  roleName: getRequesterRole(user) || user?.roleName,
 });
 
 const buildRoleOptionsFromUsers = (items) => {
@@ -82,9 +105,9 @@ const buildRoleOptionsFromUsers = (items) => {
 
   items
     .map(normalizeRequester)
-    .filter((user) => !EXCLUDED_ASSIGNEE_ROLES.has(String(getRequesterRole(user)).toLowerCase()))
+    .filter((user) => !EXCLUDED_ASSIGNEE_ROLES.has(getRequesterRole(user)))
     .forEach((user) => {
-      const value = String(getRequesterRole(user) || "").trim().toLowerCase();
+      const value = getRequesterRole(user);
       if (!value || roleMap.has(value)) return;
       roleMap.set(value, {
         value,
@@ -106,15 +129,16 @@ const filterRequesters = (items, { query, role, limit }) =>
     .filter((user) => matchesRequesterQuery(user, query))
     .slice(0, limit);
 
-const filterAssignableUsers = (items, { query, role, limit }) =>
+const filterAssignableUsers = (items, { query, role, limit, location } = {}) =>
   items
     .map(normalizeRequester)
-    .filter((user) => !EXCLUDED_ASSIGNEE_ROLES.has(String(getRequesterRole(user)).toLowerCase()))
+    .filter((user) => !EXCLUDED_ASSIGNEE_ROLES.has(getRequesterRole(user)))
     .filter((user) => {
       if (!role || role === "all") return true;
-      return String(getRequesterRole(user)).toLowerCase() === String(role).toLowerCase();
+      return getRequesterRole(user) === String(role).toLowerCase();
     })
     .filter((user) => matchesRequesterQuery(user, query))
+    .filter((user) => matchesAssigneeLocation(user, location))
     .slice(0, limit);
 
 const getPageCount = (payload) =>
@@ -232,13 +256,27 @@ export const searchTicketRequesters = async ({ query, role = "all", limit = 20 }
   }
 };
 
-export const searchTicketAssignees = async ({ query, role = "all", limit = 20 } = {}) => {
+export const searchTicketAssignees = async ({
+  query,
+  role = "all",
+  limit = 20,
+  state = "",
+  city = "",
+  locality = "",
+  pincode = "",
+} = {}) => {
+  const location = { state, city, locality, pincode };
   const response = await apiClient.get(`${SERVICES.USER}/auth/all-users`, {
     params: cleanParams({
       scope: "ticket_assignees",
     }),
   });
-  const localMatches = filterAssignableUsers(getItems(response.data), { query, role, limit });
+  const localMatches = filterAssignableUsers(getItems(response.data), {
+    query,
+    role,
+    limit,
+    location,
+  });
   if (localMatches.length || !query?.trim()) return localMatches;
 
   try {
@@ -248,7 +286,12 @@ export const searchTicketAssignees = async ({ query, role = "all", limit = 20 } 
         role: role === "all" ? undefined : role,
       }),
     });
-    return filterAssignableUsers(getItems(searchedResponse.data), { query, role, limit });
+    return filterAssignableUsers(getItems(searchedResponse.data), {
+      query,
+      role,
+      limit,
+      location,
+    });
   } catch (error) {
     return localMatches;
   }

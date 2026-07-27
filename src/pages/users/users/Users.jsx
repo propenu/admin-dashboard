@@ -7,8 +7,15 @@ import { SearchFiltersPanel } from "./components/SearchFiltersPanel";
 import { useUsers, useSearchUsers } from "./hook/useUserData";
 import { MobileCardView } from "./components/MobileCardView";
 import { DesktopTable } from "./components/DesktopTable";
+import DashboardDateFilter from "../../Dashboards/shared/DashboardDateFilter";
 
 const ONBOARDING_STATUSES = ["location_pending", "kyc_pending", "pending", "incomplete"];
+
+const USER_DATE_PRESETS = [
+  { key: "all", label: "All time" },
+  { key: "today", label: "Today" },
+  { key: "custom", label: "Custom" },
+];
 
 const toLocalIso = (value) => {
   if (!value) return "";
@@ -44,6 +51,9 @@ export default function Users() {
   const [selectedDate, setSelectedDate] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [datePreset, setDatePreset] = useState("all");
+  const [customFrom, setCustomFrom] = useState(() => todayIso());
+  const [customTo, setCustomTo] = useState(() => todayIso());
 
   useEffect(() => {
     refetch();
@@ -71,14 +81,33 @@ export default function Users() {
     if (!nextDate && joined === "today") nextDate = todayIso();
     if (!nextDate && from && to && from === to) nextDate = from;
 
+    const rangeFrom = from && to && from !== to ? from : "";
+    const rangeTo = from && to && from !== to ? to : "";
+
     setFilterAccountStatus(status);
     setFilterKycStatus(kyc);
     setFilterPhoneVerified(phone);
     setFilterIsActive(active);
     setFilterRole(role === "" ? "all" : role);
     setSelectedDate(nextDate);
-    setFromDate(from && to && from !== to ? from : "");
-    setToDate(from && to && from !== to ? to : "");
+    setFromDate(rangeFrom);
+    setToDate(rangeTo);
+
+    if (rangeFrom && rangeTo) {
+      setDatePreset("custom");
+      setCustomFrom(rangeFrom);
+      setCustomTo(rangeTo);
+    } else if (nextDate && nextDate === todayIso()) {
+      setDatePreset("today");
+      setCustomFrom(nextDate);
+      setCustomTo(nextDate);
+    } else if (nextDate) {
+      setDatePreset("custom");
+      setCustomFrom(nextDate);
+      setCustomTo(nextDate);
+    } else {
+      setDatePreset("all");
+    }
   }, [searchParams, location.pathname]);
 
   const syncUrl = (next) => {
@@ -92,11 +121,82 @@ export default function Users() {
     if (next.active) params.set("active", next.active);
     if (next.role && next.role !== "all") params.set("role", next.role);
     if (next.date) params.set("date", next.date);
-    if (next.from && next.to && next.from !== next.to) {
-      params.set("from", next.from);
-      params.set("to", next.to);
+    if (next.from && next.to) {
+      if (next.from === next.to) params.set("date", next.from);
+      else {
+        params.set("from", next.from);
+        params.set("to", next.to);
+      }
     }
     setSearchParams(params, { replace: true });
+  };
+
+  const applyDatePreset = (preset) => {
+    const base = {
+      status: filterAccountStatus,
+      kyc: filterKycStatus,
+      phone: filterPhoneVerified,
+      active: filterIsActive,
+      role: filterRole,
+    };
+
+    if (preset === "all") {
+      setDatePreset("all");
+      setSelectedDate("");
+      setFromDate("");
+      setToDate("");
+      syncUrl({ ...base, date: "", from: "", to: "" });
+      return;
+    }
+
+    if (preset === "today") {
+      const today = todayIso();
+      setDatePreset("today");
+      setSelectedDate(today);
+      setFromDate("");
+      setToDate("");
+      setCustomFrom(today);
+      setCustomTo(today);
+      syncUrl({ ...base, date: today, from: "", to: "" });
+      return;
+    }
+
+    // Custom — keep current window until Search is clicked
+    const from = fromDate || selectedDate || customFrom || todayIso();
+    const to = toDate || selectedDate || customTo || todayIso();
+    setDatePreset("custom");
+    setCustomFrom(from);
+    setCustomTo(to);
+  };
+
+  const applyCustomDateRange = () => {
+    if (!customFrom || !customTo) return;
+    const from = customFrom <= customTo ? customFrom : customTo;
+    const to = customFrom <= customTo ? customTo : customFrom;
+    setCustomFrom(from);
+    setCustomTo(to);
+    setDatePreset("custom");
+
+    const base = {
+      status: filterAccountStatus,
+      kyc: filterKycStatus,
+      phone: filterPhoneVerified,
+      active: filterIsActive,
+      role: filterRole,
+    };
+
+    if (from === to) {
+      setSelectedDate(from);
+      setFromDate("");
+      setToDate("");
+      syncUrl({ ...base, date: from, from: "", to: "" });
+      return;
+    }
+
+    setSelectedDate("");
+    setFromDate(from);
+    setToDate(to);
+    syncUrl({ ...base, date: "", from, to });
   };
 
   const users = allUsers.filter((u) => {
@@ -176,9 +276,6 @@ export default function Users() {
       kycVerified: users.filter((u) => u.kyc?.status === "verified").length,
       phoneVerified: users.filter((u) => u.phoneVerified).length,
       locPending: users.filter((u) => u.accountStatus === "location_pending").length,
-      onboarding: users.filter((u) =>
-        ONBOARDING_STATUSES.includes(String(u.accountStatus || "").toLowerCase()),
-      ).length,
       joinedToday: users.filter((u) => toLocalIso(u.createdAt) === todayIso()).length,
     }),
     [users],
@@ -208,6 +305,9 @@ export default function Users() {
     setSelectedDate("");
     setFromDate("");
     setToDate("");
+    setDatePreset("all");
+    setCustomFrom(todayIso());
+    setCustomTo(todayIso());
     setSearchParams({}, { replace: true });
   };
 
@@ -243,10 +343,6 @@ export default function Users() {
       syncUrl({ ...base, status: "location_pending" });
       return;
     }
-    if (key === "onboarding") {
-      syncUrl({ ...base, status: "onboarding" });
-      return;
-    }
     if (key === "joinedToday") {
       syncUrl({ ...base, date: todayIso() });
     }
@@ -270,24 +366,38 @@ export default function Users() {
       <StatCards
         stats={stats}
         activeKey={
-          selectedDate === todayIso() && !filterAccountStatus
+          selectedDate === todayIso() && !filterAccountStatus && !fromDate
             ? "joinedToday"
-            : filterAccountStatus === "onboarding"
-              ? "onboarding"
-              : filterAccountStatus === "active"
-                ? "active"
-                : filterAccountStatus === "location_pending"
-                  ? "locPending"
-                  : filterKycStatus === "verified"
-                    ? "kyc"
-                    : filterPhoneVerified === "true"
-                      ? "phone"
-                      : !hasFilters
-                        ? "total"
-                        : null
+            : filterAccountStatus === "active"
+              ? "active"
+              : filterAccountStatus === "location_pending"
+                ? "locPending"
+                : filterKycStatus === "verified"
+                  ? "kyc"
+                  : filterPhoneVerified === "true"
+                    ? "phone"
+                    : !hasFilters
+                      ? "total"
+                      : null
         }
         onStatClick={applyStatFilter}
       />
+
+      <div className="mb-3">
+        <DashboardDateFilter
+          preset={datePreset}
+          onPresetChange={applyDatePreset}
+          customFrom={customFrom}
+          customTo={customTo}
+          onCustomFromChange={setCustomFrom}
+          onCustomToChange={setCustomTo}
+          onApplyCustom={applyCustomDateRange}
+          presets={USER_DATE_PRESETS}
+          label="Joined date"
+          trailing="Filter users by account created date"
+        />
+      </div>
+
       <SearchFiltersPanel
         search={search}
         setSearch={setSearch}
@@ -318,21 +428,9 @@ export default function Users() {
         setFilterRole={setFilterRole}
         hasFilters={hasFilters}
         selectedDate={selectedDate}
-        setSelectedDate={(value) => {
-          setSelectedDate(value);
-          setFromDate("");
-          setToDate("");
-          syncUrl({
-            status: filterAccountStatus,
-            kyc: filterKycStatus,
-            phone: filterPhoneVerified,
-            active: filterIsActive,
-            role: filterRole,
-            date: value,
-            from: "",
-            to: "",
-          });
-        }}
+        fromDate={fromDate}
+        toDate={toDate}
+        onClearDate={() => applyDatePreset("all")}
         clearAll={clearAll}
       />
 
@@ -358,7 +456,6 @@ export default function Users() {
             ` in ${locationFilter.type === "city" ? "city" : locationFilter.type} "${locationFilter.value}"`}
           {selectedDate && ` · joined ${selectedDate}`}
           {fromDate && toDate && ` · joined ${fromDate} → ${toDate}`}
-          {filterAccountStatus === "onboarding" && " · onboarding only"}
         </p>
       )}
     </div>

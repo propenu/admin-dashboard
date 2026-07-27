@@ -111,6 +111,21 @@ export const transferCredentials = (id, formData) => {
   return apiClient.patch(`${SERVICES.USER}/auth/${id}/role`, formData);
 };
 
+/** Eligible person-level managers for a target role (hierarchy-aware). */
+export const getEligibleReportsTo = (params = {}) => {
+  return apiClient.get(`${SERVICES.USER}/auth/eligible-reports-to`, { params });
+};
+
+/** Above / below / reports-to roles for a role name. */
+export const getRoleHierarchyGuide = (role) => {
+  return apiClient.get(`${SERVICES.USER}/auth/role-hierarchy`, { params: { role } });
+};
+
+/** Generalized assign reports-to (any hierarchy pair). */
+export const assignReportsTo = (formData) => {
+  return apiClient.post(`${SERVICES.USER}/auth/assign-reports-to`, formData);
+};
+
 //Agent Verifcation Status Edit
 export const editAgentVerificationStatus = (id, formData) => {
   return apiClient.patch(`${SERVICES.USER}/agent/admin/verify/${id}`, formData);

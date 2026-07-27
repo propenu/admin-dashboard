@@ -6,6 +6,7 @@ const normalizeTeamRole = (value = "") =>
     .replace(/^_|_$/g, "");
 
 const TEAM_ROLE_ALIASES = {
+  operation_head: "operations_head",
   customer_support_team_lead: "team_lead",
   team_leads: "team_lead",
   customer_support_team_leads: "team_lead",
@@ -13,7 +14,58 @@ const TEAM_ROLE_ALIASES = {
   customer_care_executives: "customer_care_executive",
   relationship_managers: "relationship_manager",
   sales_executives: "sales_executive",
+  sales_agent: "sales_executive",
   regional_managers: "regional_manager",
+  // Legacy "Accounts & Finance" role → same Accounts row
+  accounts_finance: "accounts",
+};
+
+/** Preferred DB role name when collapsing aliases for display. */
+const PREFERRED_ROLE_NAME = {
+  customer_care_executive: "customer_care_executive",
+  team_lead: "team_lead",
+  sales_executive: "sales_agent",
+  relationship_manager: "relationship_manager",
+  operations_head: "operations_head",
+  accounts: "accounts",
+};
+
+/**
+ * Super Admin
+ * ├── CEO
+ * └── Operations Head
+ *     ├── BD Head → Regional Managers → (BD Manager, Sales Executives)
+ *     ├── Support Head → Team Leads → (Care Executives, Relationship Managers)
+ *     ├── Marketing Head → Digital / Social / Content / Creative
+ *     ├── Accounts · Legal · HR
+ *     └── Tech Support Head → Tech Support Team
+ */
+const TEAM_CANONICAL_PARENT = {
+  ceo: "super_admin",
+  founder: "super_admin",
+  admin: "super_admin",
+  operations_head: "super_admin",
+  business_development_head: "operations_head",
+  regional_manager: "business_development_head",
+  business_development_manager: "regional_manager",
+  sales_manager: "regional_manager",
+  sales_executive: "regional_manager",
+  sales_agent: "regional_manager",
+  customer_support_head: "operations_head",
+  team_lead: "customer_support_head",
+  customer_care_executive: "team_lead",
+  relationship_manager: "team_lead",
+  marketing_head: "operations_head",
+  digital_marketing: "marketing_head",
+  social_media: "marketing_head",
+  content_team: "marketing_head",
+  creative_team: "marketing_head",
+  accounts: "operations_head",
+  accounts_finance: "operations_head",
+  legal_compliance: "operations_head",
+  hr_administration: "operations_head",
+  technical_support_head: "operations_head",
+  technical_support_team: "technical_support_head",
 };
 
 const TEAM_ROLE_HIERARCHY = [
@@ -24,12 +76,11 @@ const TEAM_ROLE_HIERARCHY = [
   ["business_development_head", 2],
   ["regional_manager", 3],
   ["business_development_manager", 4],
-  ["sales_agent", 4],
-  ["sales_executive", 4],
   ["sales_manager", 4],
+  ["sales_executive", 4],
+  ["sales_agent", 4],
   ["customer_support_head", 2],
   ["team_lead", 3],
-  ["customer_care", 4],
   ["customer_care_executive", 4],
   ["relationship_manager", 4],
   ["marketing_head", 2],
@@ -49,50 +100,85 @@ const teamHierarchyRank = new Map(
   TEAM_ROLE_HIERARCHY.map(([name, depth], index) => [name, { depth, index }]),
 );
 
-const teamHierarchyParentByRole = new Map();
-TEAM_ROLE_HIERARCHY.forEach(([name, depth], index) => {
-  if (!depth) return;
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    if (TEAM_ROLE_HIERARCHY[cursor][1] === depth - 1) {
-      teamHierarchyParentByRole.set(name, TEAM_ROLE_HIERARCHY[cursor][0]);
-      break;
-    }
-  }
-});
-
 export const canonicalTeamRole = (value = "") => {
   const normalized = normalizeTeamRole(value);
   return TEAM_ROLE_ALIASES[normalized] || normalized;
 };
 
+/**
+ * Collapse alias duplicates (e.g. customer_care + customer_care_executive)
+ * into one display row so the hierarchy is not confusing.
+ */
+export const dedupeRolesForHierarchyDisplay = (roles = []) => {
+  const groups = new Map();
+  roles.forEach((role) => {
+    const key = canonicalTeamRole(role.name);
+    const list = groups.get(key) || [];
+    list.push(role);
+    groups.set(key, list);
+  });
+
+  return [...groups.entries()].map(([canonical, group]) => {
+    const preferred = PREFERRED_ROLE_NAME[canonical];
+    const primary =
+      (preferred && group.find((role) => role.name === preferred)) ||
+      group.find((role) => canonicalTeamRole(role.name) === role.name) ||
+      group.find((role) => role.parentRoleId) ||
+      group[0];
+    return {
+      ...primary,
+      canonicalName: canonical,
+      aliasRoleNames: group.map((role) => role.name).filter(Boolean),
+      aliasRoleIds: group.map((role) => role._id).filter(Boolean),
+    };
+  });
+};
+
+/**
+ * Build parent/child links inside the *current* role list only.
+ * When Ops Head (etc.) loads Create Credentials, parent roles above them are
+ * omitted — those children become local roots so indent stays correct.
+ * Prefer canonical parent over stale DB parentRoleId when both exist in-set.
+ */
 export const enrichHierarchyRoles = (roles = []) => {
-  const rolesById = new Map(roles.map((role) => [String(role._id), role]));
-  const rolesByName = new Map(roles.map((role) => [canonicalTeamRole(role.name), role]));
+  const deduped = dedupeRolesForHierarchyDisplay(roles);
+  const rolesById = new Map(deduped.map((role) => [String(role._id), role]));
+  const rolesByName = new Map(deduped.map((role) => [canonicalTeamRole(role.name), role]));
+
+  const withParents = deduped.map((role) => {
+    const nameKey = canonicalTeamRole(role.name);
+    const hierarchy = teamHierarchyRank.get(nameKey);
+    const canonicalParentName = TEAM_CANONICAL_PARENT[nameKey] || null;
+    const canonicalParentRole = canonicalParentName ? rolesByName.get(canonicalParentName) : null;
+    const persistedParentId =
+      role?.effectiveParentRoleId || role?.parentRoleId?._id || role?.parentRoleId || null;
+    const persistedParentInSet =
+      persistedParentId && rolesById.has(String(persistedParentId))
+        ? rolesById.get(String(persistedParentId))
+        : null;
+    const parentRole = canonicalParentRole || persistedParentInSet || null;
+
+    return {
+      ...role,
+      hierarchyIndex: hierarchy?.index ?? 1000,
+      hierarchyParentId: parentRole?._id || null,
+    };
+  });
+
+  const byId = new Map(withParents.map((role) => [String(role._id), role]));
   const depthFor = (role, visited = new Set()) => {
-    const parentId = role?.effectiveParentRoleId || role?.parentRoleId?._id || role?.parentRoleId;
+    const parentId = role.hierarchyParentId;
     if (!parentId || visited.has(String(parentId))) return 0;
-    const parent = rolesById.get(String(parentId));
+    const parent = byId.get(String(parentId));
     if (!parent) return 0;
     visited.add(String(parentId));
     return 1 + depthFor(parent, visited);
   };
-  return roles.map((role) => {
-    const nameKey = canonicalTeamRole(role.name);
-    const hierarchy = teamHierarchyRank.get(nameKey);
-    const canonicalParentName = teamHierarchyParentByRole.get(nameKey) || null;
-    const canonicalParentRole = canonicalParentName ? rolesByName.get(canonicalParentName) : null;
-    return {
-      ...role,
-      hierarchyDepth: depthFor(role) || hierarchy?.depth || 0,
-      hierarchyIndex: hierarchy?.index ?? 1000,
-      hierarchyParentId:
-        role?.effectiveParentRoleId ||
-        role?.parentRoleId?._id ||
-        role?.parentRoleId ||
-        canonicalParentRole?._id ||
-        null,
-    };
-  });
+
+  return withParents.map((role) => ({
+    ...role,
+    hierarchyDepth: depthFor(role),
+  }));
 };
 
 export const buildChildrenByParent = (enrichedRoles = []) => {
@@ -115,23 +201,24 @@ export const orderRolesByHierarchy = (roles = []) => {
     String(first.label || first.name).localeCompare(String(second.label || second.name));
   const ordered = [];
   const visited = new Set();
-  const appendBranch = (parentId = "__root__") => {
+  const appendBranch = (parentId = "__root__", depth = 0) => {
     const branch = [...(childrenByParent.get(String(parentId)) || [])].sort(sortWithinLevel);
     branch.forEach((role) => {
       const roleId = String(role._id || role.name);
       if (visited.has(roleId)) return;
       visited.add(roleId);
-      ordered.push(role);
-      appendBranch(role._id);
+      ordered.push({ ...role, hierarchyDepth: depth });
+      appendBranch(role._id, depth + 1);
     });
   };
-  appendBranch("__root__");
+  appendBranch("__root__", 0);
+  // Any remaining roles (broken links) start a new local root at depth 0
   enriched.sort(sortWithinLevel).forEach((role) => {
     const roleId = String(role._id || role.name);
     if (visited.has(roleId)) return;
     visited.add(roleId);
-    ordered.push(role);
-    appendBranch(role._id);
+    ordered.push({ ...role, hierarchyDepth: 0 });
+    appendBranch(role._id, 1);
   });
   return ordered;
 };
@@ -141,10 +228,10 @@ export const getRoleSubtree = (selectedRoleName, roles = []) => {
   if (!selectedRoleName) return { ids: new Set(), names: new Set(), canonicalNames: new Set() };
   const enriched = enrichHierarchyRoles(roles);
   const childrenByParent = buildChildrenByParent(enriched);
-  // Prefer exact role name so alias siblings are not collapsed incorrectly.
   const selected =
     enriched.find((role) => role.name === selectedRoleName) ||
-    enriched.find((role) => canonicalTeamRole(role.name) === canonicalTeamRole(selectedRoleName));
+    enriched.find((role) => canonicalTeamRole(role.name) === canonicalTeamRole(selectedRoleName)) ||
+    enriched.find((role) => (role.aliasRoleNames || []).includes(selectedRoleName));
   if (!selected) {
     const fallback = canonicalTeamRole(selectedRoleName);
     return {
@@ -160,14 +247,16 @@ export const getRoleSubtree = (selectedRoleName, roles = []) => {
     const roleId = String(role._id || role.name);
     if (ids.has(roleId)) return;
     ids.add(roleId);
+    (role.aliasRoleIds || []).forEach((id) => ids.add(String(id)));
     if (role.name) names.add(role.name);
+    (role.aliasRoleNames || []).forEach((name) => names.add(name));
     canonicalNames.add(canonicalTeamRole(role.name));
     (childrenByParent.get(String(role._id)) || []).forEach(walk);
   };
   walk(selected);
 
-  // Include alias-equivalent role docs (e.g. customer_care ↔ customer_care_executive).
-  enriched.forEach((role) => {
+  // Also include any non-deduped alias docs from original list for matching.
+  roles.forEach((role) => {
     const canonical = canonicalTeamRole(role.name);
     if (!canonicalNames.has(canonical)) return;
     ids.add(String(role._id || role.name));
@@ -194,7 +283,7 @@ export const countUsersInRoleSubtree = (users = [], roleName, roles = []) => {
   return users.filter((user) => userMatchesRoleSubtree(user, subtree)).length;
 };
 
-/** Exact role only (plus name aliases like team_lead ↔ customer_support_team_lead). No child roles. */
+/** Exact role only (plus name aliases). No child roles. */
 export const getExactRoleMatch = (selectedRoleName, roles = []) => {
   if (!selectedRoleName) return { ids: new Set(), names: new Set(), canonicalNames: new Set() };
   const canonical = canonicalTeamRole(selectedRoleName);

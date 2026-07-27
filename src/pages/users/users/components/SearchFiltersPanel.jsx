@@ -23,7 +23,9 @@ export const SearchFiltersPanel = ({
     setFilterRole,
     hasFilters,
     selectedDate,
-    setSelectedDate,
+    fromDate,
+    toDate,
+    onClearDate,
     clearAll
 }) => {
     return (
@@ -88,7 +90,6 @@ export const SearchFiltersPanel = ({
             placeholder="All Statuses"
             options={[
               { value: "active", label: "Active" },
-              { value: "onboarding", label: "Onboarding (all pending)" },
               { value: "location_pending", label: "Location Pending" },
               { value: "kyc_pending", label: "KYC Pending" },
             ]}
@@ -122,17 +123,6 @@ export const SearchFiltersPanel = ({
             ]}
           />
 
-          <div className="relative">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm
-               focus:outline-none focus:border-[#27AE60]
-               focus:ring-4 focus:ring-[#27AE60]/10"
-            />
-          </div>
-
           {hasFilters && (
             <button
               onClick={clearAll}
@@ -144,22 +134,23 @@ export const SearchFiltersPanel = ({
           )}
         </div>
 
-        
-
-        {selectedDate && (
-          <Tag
-            label={`Date: ${selectedDate}`}
-            onRemove={() => setSelectedDate("")}
-            color="green"
-          />
-        )}
-
         {/* Active filter tags summary */}
         {hasFilters && (
           <div className="flex flex-wrap gap-2 pt-1 border-t border-gray-50">
             <span className="text-[11px] text-gray-400 self-center">
               Active:
             </span>
+            {(selectedDate || (fromDate && toDate)) && (
+              <Tag
+                label={
+                  selectedDate
+                    ? `Joined: ${selectedDate}`
+                    : `Joined: ${fromDate} → ${toDate}`
+                }
+                onRemove={onClearDate}
+                color="green"
+              />
+            )}
             {search && (
               <Tag
                 label={`Search: "${search}"`}

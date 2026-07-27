@@ -39,7 +39,7 @@ import whatsappnotifications   from "../../assets/whatsappnotifications.svg";
 import aumattionnotifications  from "../../assets/automationsnotifications.svg";
 import { UserCircle, ChevronDown, ChevronRight } from "lucide-react";
 import CreateUserModal     from "./CreateUserModal";
-import AssignManagerPage   from "./AssignManager";
+import AssignReportsTo     from "./AssignReportsTo";
 import TransferCredentials from "./TransferCredentials";
 import {
   inventoryOnboardingCount,
@@ -104,10 +104,10 @@ const S = {
   avatarSize: "w-8 h-8", // was w-9 h-9
   avatarIcon: "w-4 h-4", // was w-5 h-5
 
-  /* nav container */
-  navPy:  "py-2",   // was py-3
-  navPx:  "px-1.5", // was px-2
-  space:  "space-y-[1px]", // was space-y-0.5
+  /* nav container — keep horizontal pad equal so icons stay in one column open/closed */
+  navPy:  "py-2",
+  navPx:  "px-2",
+  space:  "space-y-[1px]",
 };
 
 const LEAF_HIERARCHY_ROLES = new Set([
@@ -206,8 +206,8 @@ const NavIcon = ({ src, active, isParent = false, size = "md" }) => {
       : { filter: "brightness(0) invert(1)" }
     : { filter: "brightness(0) " };
   return (
-    <span className={`flex items-center justify-center ${S.iconBox} flex-shrink-0`}>
-      <img src={src} alt="" className={`${dim} object-contain transition-all duration-200`} style={filterStyle} />
+    <span className={`inline-flex ${S.iconBox} shrink-0 items-center justify-center`}>
+      <img src={src} alt="" className={`${dim} object-contain`} style={filterStyle} draggable={false} />
     </span>
   );
 };
@@ -331,7 +331,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       !isLeafHierarchyRole && (canView("team") || canView("user")) && { path: "/propenu-team-members", label: "Team Directory", icon: AllUsersIcon },
       !isLeafHierarchyRole && canView("team") && { path: "/dashboard/team-management", label: "Team Management", icon: TeamManagementIcon },
       !isLeafHierarchyRole && allowed.has("user:update") && { label: "Transfer Credentials", icon: CreateCredentialsIcon, key: "transfer-credentials", action: "openTranforCredentialsModal" },
-      !isLeafHierarchyRole && allowed.has("team:assign_manager") && { label: "Assign Executive", icon: AgentIcon, key: "assign-agent", action: "openAssignAgentModal" },
+      !isLeafHierarchyRole && allowed.has("team:assign_manager") && { label: "Assign Reports To", icon: AgentIcon, key: "assign-agent", action: "openAssignAgentModal" },
     ].filter(Boolean);
     const userChildren = [
       canView("user") && { path: "/users", label: "All Users", icon: AllUsersIcon },
@@ -430,7 +430,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               action: "openTranforCredentialsModal",
             },
             {
-              label: "Assign Executive",
+              label: "Assign Reports To",
               icon: AgentIcon,
               key: "assign-agent",
               action: "openAssignAgentModal",
@@ -608,7 +608,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               action: "openTranforCredentialsModal",
             },
             {
-              label: "Assign Executive",
+              label: "Assign Reports To",
               icon: AgentIcon,
               key: "assign-agent",
               action: "openAssignAgentModal",
@@ -847,7 +847,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               action: "openTranforCredentialsModal",
             },
             {
-              label: "Assign Executive",
+              label: "Assign Reports To",
               icon: AgentIcon,
               key: "assign-agent",
               action: "openAssignAgentModal",
@@ -1190,43 +1190,39 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                   <div className="relative">
                     <button
                       onClick={() => toggleMenu(item.key)}
-                      //onMouseEnter={() => !showText && setHoveredKey(item.key)}
-                      //onMouseLeave={() => setHoveredKey(null)}
-                      className={`min-h-8 w-full flex items-center ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-all duration-150 relative ${showText ? "justify-between" : "justify-center"}`}
+                      className={`relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-colors duration-150`}
                       style={
                         parentActive
                           ? { background: "#f0fdf4", color: "#27AE60" }
                           : { color: "#64748b" }
                       }
-                      onMouseEnter={(e) => { 
-                        if (!showText && setHoveredKey(item.key))
-                          if (!parentActive)
-                            e.currentTarget.style.background = "#f8fffe"; }}
-                      onMouseLeave={(e) => { 
+                      onMouseEnter={(e) => {
+                        if (!showText) setHoveredKey(item.key);
+                        if (!parentActive) e.currentTarget.style.background = "#f8fffe";
+                      }}
+                      onMouseLeave={(e) => {
                         setHoveredKey(null);
-                        if (!parentActive) e.currentTarget.style.background = "";       }}
+                        if (!parentActive) e.currentTarget.style.background = "";
+                      }}
                     >
                       {/* Left accent */}
                       {parentActive && (
                         <span
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-[2.5px] h-5 rounded-r-full"
+                          className="absolute left-0 top-1/2 h-5 w-[2.5px] -translate-y-1/2 rounded-r-full"
                           style={{ background: "#27AE60" }}
                         />
                       )}
 
-                      <div className={`flex min-w-0 flex-1 items-center ${S.rowGap}`}>
-                        <NavIcon src={item.icon} active={parentActive} isParent />
-                        {showText && (
-                          <span className={`${S.rowText} ${S.rowFont} truncate pb-0.5 text-left`}>
-                            {item.label}
-                          </span>
-                        )}
-                        {showText && <BadgePill badge={sidebarBadge(item)} />}
-                      </div>
-
+                      <NavIcon src={item.icon} active={parentActive} isParent />
+                      {showText && (
+                        <span className={`${S.rowText} ${S.rowFont} min-w-0 flex-1 truncate text-left leading-[1.3]`}>
+                          {item.label}
+                        </span>
+                      )}
+                      {showText && <BadgePill badge={sidebarBadge(item)} />}
                       {showText && (
                         <ChevronDown
-                          className="flex-shrink-0 transition-transform duration-200"
+                          className="shrink-0 transition-transform duration-200"
                           style={{
                             width: S.chevronSize, height: S.chevronSize,
                             color: parentActive ? "#27AE60" : "#94a3b8",
@@ -1331,9 +1327,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
               <div key={item.path} className="relative">
                 <button
                   onClick={() => navigateMenuPath(item.path)}
-                  // onMouseEnter={() => !showText && setHoveredKey(item.path)}
-                  // onMouseLeave={() => setHoveredKey(null)}
-                  className={`relative min-h-8 w-full flex items-center ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-all duration-150 ${showText ? "justify-start" : "justify-center"}`}
+                  className={`relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-colors duration-150`}
                   style={
                     leafActive
                       ? {
@@ -1344,7 +1338,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                       : { color: "#64748b" }
                   }
                   onMouseEnter={(e) => {
-                    if (!showText && setHoveredKey(item.path));
+                    if (!showText) setHoveredKey(item.path);
                     if (!leafActive) {
                       e.currentTarget.style.background = "#f0fdf4";
                       e.currentTarget.style.color = "#27AE60";
@@ -1360,8 +1354,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                 >
                   <NavIcon src={item.icon} active={leafActive} />
                   {showText && (
-                    // <span className={`${S.rowText} ${S.rowFont} truncate leading-none`}>
-                    <span className={`${S.rowText} ${S.rowFont} min-w-0 flex-1 truncate p-[2px] text-left leading-[1.3]`}>
+                    <span className={`${S.rowText} ${S.rowFont} min-w-0 flex-1 truncate text-left leading-[1.3]`}>
                       {item.label}
                     </span>
                   )}
@@ -1386,10 +1379,10 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
             className={`flex-shrink-0 ${S.footerP}`}
             style={{ borderTop: "1px solid #e8f5e9", background: "#fafffe" }}
           >
-            <div className={`flex items-center gap-2 ${!showText && "justify-center"}`}>
+            <div className="flex items-center justify-start gap-2">
               {/* Avatar */}
               <div
-                className={`relative ${S.avatarSize} rounded-full flex items-center justify-center flex-shrink-0`}
+                className={`relative ${S.avatarSize} shrink-0 rounded-full flex items-center justify-center`}
                 style={{
                   background: "linear-gradient(135deg, #27AE60, #1a8a49)",
                   boxShadow: "0 0 0 2px #bbf7d0",
@@ -1420,7 +1413,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
 
       {/* ── Modals ── */}
       {showCreateModal         && <CreateUserModal     onClose={() => setShowCreateModal(false)} currentUserRole={user?.roleName} currentUser={user}         />}
-      {showAssignAgentModal    && <AssignManagerPage   onClose={() => setShowAssignAgentModal(false)} currentUserRole={user?.roleName} currentUser={user}    />}
+      {showAssignAgentModal    && <AssignReportsTo     onClose={() => setShowAssignAgentModal(false)} currentUserRole={user?.roleName} currentUser={user}    />}
       {showTransferCredentials && <TransferCredentials onClose={() => setShowTransferCredentials(false)} currentUserRole={user?.roleName} currentUser={user} />}
     </>
   );

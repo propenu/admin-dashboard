@@ -17,6 +17,9 @@ export default function CustomerCareQueuePanel({
             {items.length}
           </span>
         </div>
+        <p className="text-[10px] text-slate-400">
+          Tickets auto-assigned to you (round-robin) · Lead can re-assign anytime
+        </p>
         <div className="flex flex-wrap gap-1.5">
           {QUEUE_TABS.map((tab) => (
             <button
@@ -84,6 +87,12 @@ export default function CustomerCareQueuePanel({
                         {item.statusLabel || "Open"}
                       </span>
                     </div>
+                    {item.autoAssigned || item.assignedToName ? (
+                      <p className="truncate text-[10px] text-emerald-700">
+                        {item.autoAssigned ? "Auto-assigned" : "Assigned"}
+                        {item.assignedAtLabel ? ` · ${item.assignedAtLabel}` : ""}
+                      </p>
+                    ) : null}
                   </button>
                 </li>
               );
