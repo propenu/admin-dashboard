@@ -46,7 +46,6 @@ const sumAccountBuckets = (...buckets) =>
   );
 
 const REFRESH_MS = 45_000;
-const CUSTOMER_CARE_DEPARTMENT = "customer-care";
 
 const GLOBAL_SCOPE_ROLES = new Set(["super_admin", "admin", "business_development_head"]);
 
@@ -59,15 +58,16 @@ const STATE_SCOPE_ROLES = new Set([
   "founder",
 ]);
 
-const CUSTOMER_CARE_TICKET_ROLES = new Set([
-  "customer_care",
-  "customer_care_executive",
-  "customer_care_executives",
+/** Leadership / heads: sidebar ticket badge = all tickets created today. */
+const TICKET_ALL_NOTIFICATION_ROLES = new Set([
+  "super_admin",
+  "admin",
+  "ceo",
+  "founder",
+  "operations_head",
+  "operation_head",
   "customer_support_head",
-  "customer_support_team_lead",
-  "customer_support_team_leads",
-  "team_lead",
-  "team_leads",
+  "customer_care_head",
 ]);
 
 const normalizeRole = (value = "") =>
@@ -77,6 +77,8 @@ const normalizeRole = (value = "") =>
     .replace(/&/g, "and")
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+
+const getUserId = (user) => String(user?._id || user?.id || user?.userId || "").trim();
 
 const canView = (permissions, module) => {
   if (!Array.isArray(permissions)) return false;
@@ -111,13 +113,19 @@ const buildUserScopeParams = (user) => {
   return params;
 };
 
+/**
+ * Sidebar ticket badge scope:
+ * - Super Admin / Admin / CEO / Operations Head / Customer Care Head → all tickets today
+ * - Everyone else → only tickets assigned to the logged-in user
+ */
 const buildTicketScopeParams = (user) => {
   const role = normalizeRole(user?.roleName || user?.role);
-  if (!CUSTOMER_CARE_TICKET_ROLES.has(role)) return {};
-  return {
-    scope: "customer_care",
-    department: CUSTOMER_CARE_DEPARTMENT,
-  };
+  if (TICKET_ALL_NOTIFICATION_ROLES.has(role)) return {};
+
+  const userId = getUserId(user);
+  // Fail closed: never show department-wide counts for personal roles.
+  if (!userId) return { assignedTo: "__none__" };
+  return { assignedTo: userId };
 };
 
 const normalizeInventoryBucket = (bucket = {}) => {
