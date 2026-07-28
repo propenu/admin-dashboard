@@ -8,6 +8,15 @@ export const DATE_PRESETS = [
   { key: "custom", label: "Custom" },
 ];
 
+/** Follow-up tracking page: Today / 7 days / Month / Year / Custom */
+export const FOLLOW_UP_DATE_PRESETS = [
+  { key: "today", label: "Today" },
+  { key: "7d", label: "7 days" },
+  { key: "30d", label: "Month" },
+  { key: "12mo", label: "Year" },
+  { key: "custom", label: "Custom" },
+];
+
 const isoDay = (d) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");

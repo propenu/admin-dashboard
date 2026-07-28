@@ -1,4 +1,4 @@
-import { RefreshCw, AlertCircle, CheckCircle2, Clock3, MessageSquare, Ticket } from "lucide-react";
+import { RefreshCw, AlertCircle, CheckCircle2, Clock3, ClipboardList, MessageSquare, Ticket } from "lucide-react";
 import DashboardDateFilter from "../../shared/DashboardDateFilter";
 import { KPI_QUEUE_TAB } from "../customerCareDashboardData";
 
@@ -36,6 +36,7 @@ export default function CustomerCareKpiStrip({
   isFetching,
   activeTab,
   onMetricClick,
+  onOpenFollowUp,
 }) {
   return (
     <section className="space-y-2.5">
@@ -53,17 +54,29 @@ export default function CustomerCareKpiStrip({
             </p>
           ) : null}
         </div>
-        {onRefresh && (
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={isFetching}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-60"
-          >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
-        )}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {onOpenFollowUp ? (
+            <button
+              type="button"
+              onClick={onOpenFollowUp}
+              className="inline-flex items-center gap-1.5 rounded-[10px] border border-emerald-200 bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Follow-up tracking
+            </button>
+          ) : null}
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isFetching}
+              className="inline-flex items-center gap-1.5 rounded-[10px] border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 shadow-sm hover:bg-slate-50 disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+          )}
+        </div>
       </div>
 
       {onPresetChange ? (

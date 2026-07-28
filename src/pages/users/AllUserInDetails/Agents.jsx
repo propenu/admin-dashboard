@@ -1,5 +1,6 @@
 // frontend/admin-dashboard/src/pages/users/AllUserInDetails/EachUserCompoents/Agents.jsx
 import React, { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   getUserSearch,
   editAgentVerificationStatus,
@@ -1603,7 +1604,27 @@ const Select = ({ icon, placeholder, value, onChange, options, disabled }) => (
 
 
 // ─── Main Component ────────────────────────────────────────────────────────
+const toLocalIsoDay = (value) => {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
 const AllAgents = () => {
+  const [searchParams] = useSearchParams();
+  const createdFrom =
+    searchParams.get("createdFrom") || searchParams.get("from") || "";
+  const createdTo =
+    searchParams.get("createdTo") || searchParams.get("to") || "";
+  const urlDay =
+    searchParams.get("date") ||
+    (searchParams.get("joined") === "today" ? toLocalIsoDay(new Date()) : "") ||
+    (createdFrom && createdTo && createdFrom === createdTo ? createdFrom : "");
+
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingAgent, setEditingAgent] = useState(null);
@@ -1619,15 +1640,26 @@ const AllAgents = () => {
     joinedDate: "",
   });
 
-  useEffect(() => { fetchAgents(); }, []);
+  useEffect(() => {
+    setFilters((current) => ({
+      ...current,
+      joinedDate: urlDay || "",
+    }));
+  }, [urlDay]);
 
-
-  
-
+  useEffect(() => {
+    fetchAgents();
+  }, [urlDay, createdFrom, createdTo]);
 
   const fetchAgents = async () => {
     try {
-      const response = await getUserSearch("agent");
+      setLoading(true);
+      const params = { role: "agent" };
+      const from = urlDay || createdFrom;
+      const to = urlDay || createdTo;
+      if (from) params.createdFrom = from;
+      if (to) params.createdTo = to;
+      const response = await getUserSearch(params);
       setAgents(response?.data?.results || []);
     } catch (err) {
       console.error("Failed to fetch agents:", err);
@@ -1664,20 +1696,23 @@ const AllAgents = () => {
       if (filters.locality && a.locality !== filters.locality) return false;
       if (filters.pincode && !a.pincode?.includes(filters.pincode)) return false;
       if (filters.joinedDate) {
-        const created = new Date(a.createdAt);
-        const now = new Date();
-
-        const diffDays = (now - created) / (1000 * 60 * 60 * 24);
-
-        if (
-          (filters.joinedDate === "today" && diffDays > 1) ||
-          (filters.joinedDate === "week" && diffDays > 7) ||
-          (filters.joinedDate === "month" && diffDays > 30) ||
-          (filters.joinedDate === "3months" && diffDays > 90) ||
-          (filters.joinedDate === "6months" && diffDays > 180) ||
-          (filters.joinedDate === "year" && diffDays > 365)
-        ) {
-          return false;
+        // Exact calendar day from sidebar (YYYY-MM-DD)
+        if (/^\d{4}-\d{2}-\d{2}$/.test(filters.joinedDate)) {
+          if (toLocalIsoDay(a.createdAt) !== filters.joinedDate) return false;
+        } else {
+          const created = new Date(a.createdAt);
+          const now = new Date();
+          const diffDays = (now - created) / (1000 * 60 * 60 * 24);
+          if (
+            (filters.joinedDate === "today" && diffDays > 1) ||
+            (filters.joinedDate === "week" && diffDays > 7) ||
+            (filters.joinedDate === "month" && diffDays > 30) ||
+            (filters.joinedDate === "3months" && diffDays > 90) ||
+            (filters.joinedDate === "6months" && diffDays > 180) ||
+            (filters.joinedDate === "year" && diffDays > 365)
+          ) {
+            return false;
+          }
         }
       }
 

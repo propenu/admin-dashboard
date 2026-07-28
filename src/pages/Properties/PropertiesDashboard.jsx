@@ -88,7 +88,7 @@ const STATUSES = [
   { value: "all", label: "All status" },
   { value: "active", label: "Active" },
   { value: "pending", label: "Pending" },
-  { value: "draft", label: "Draft / Onboarding" },
+  { value: "draft", label: "Draft" },
   { value: "rejected", label: "Rejected" },
 ];
 
@@ -1431,7 +1431,7 @@ export default function PropertiesDashboard() {
             onClick={() => setStatus(status === "pending" ? "all" : "pending")}
           />
           <MetricCard
-            label="Onboarding / Draft"
+            label="Draft"
             value={overview.draftProperties}
             sub="Incomplete listings — click to filter cards"
             icon={Activity}

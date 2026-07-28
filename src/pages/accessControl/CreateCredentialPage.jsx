@@ -10,6 +10,7 @@ import {
   countUsersInExactRole,
   canonicalTeamRole,
 } from "../../utils/roleHierarchy";
+import { requestSidebarRefresh } from "../../utils/sidebarActivity";
 
 const EMPTY = { name: "", email: "", role: "", reportsToUserId: "", otp: "", locality: "", city: "", state: "", pincode: "" };
 
@@ -95,6 +96,7 @@ export default function CreateCredentialPage() {
       setCreatedRole(result.role);
       setReportsToSummary(result.reportsTo || selectedReportsTo || null);
       setStep(3);
+      requestSidebarRefresh();
       toast.success("Email verified");
     } catch (error) {
       toast.error(error.response?.data?.message || "Verification failed");
@@ -167,7 +169,13 @@ export default function CreateCredentialPage() {
                 )}
               </div>
             )}
-            <Field label="State" icon={MapPin}><input value={form.state} onChange={update("state")} placeholder="e.g. Andhra Pradesh" /></Field><Field label="City" icon={Building2}><input value={form.city} onChange={update("city")} placeholder="e.g. Pitapuram" /></Field><Field label="Locality" icon={MapPin}><input value={form.locality} onChange={update("locality")} placeholder="Enter locality" /></Field><Field label="Pincode" icon={MapPin}><input inputMode="numeric" maxLength={6} value={form.pincode} onChange={(event) => setForm((current) => ({ ...current, pincode: event.target.value.replace(/\D/g, "") }))} placeholder="500081" /></Field><div className="sm:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><strong>Role + reporting line.</strong> The selected role places them in the org tree. Optionally pick the specific person they report to (e.g. which Regional Manager / Sales Manager).</div><div className="sm:col-span-2"><Primary busy={busy}>Send verification code <ArrowRight size={17} /></Primary></div></form>}
+            <Field label="State" icon={MapPin}><input value={form.state} onChange={update("state")} placeholder="e.g. Andhra Pradesh" /></Field><Field label="City" icon={Building2}><input value={form.city} onChange={update("city")} placeholder="e.g. Pitapuram" /></Field><Field label="Locality" icon={MapPin}><input value={form.locality} onChange={update("locality")} placeholder="Enter locality" /></Field><Field label="Pincode" icon={MapPin}><input inputMode="numeric" maxLength={6} value={form.pincode} onChange={(event) => setForm((current) => ({ ...current, pincode: event.target.value.replace(/\D/g, "") }))} placeholder="500081" /></Field>
+            {String(form.role || "").includes("customer_care") && (
+              <div className="sm:col-span-2 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+                <strong>CCE territory tip.</strong> This work location is their first territory. Team Lead can later expand to entire Telangana / AP or add cities & localities from Team Directory → Manage working locations.
+              </div>
+            )}
+            <div className="sm:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><strong>Role + reporting line.</strong> The selected role places them in the org tree. Optionally pick the specific person they report to (e.g. which Regional Manager / Sales Manager).</div><div className="sm:col-span-2"><Primary busy={busy}>Send verification code <ArrowRight size={17} /></Primary></div></form>}
 
             {step === 2 && <form onSubmit={verifyOtp} className="space-y-5"><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">A 4-digit code was sent to <strong className="text-slate-900">{form.email}</strong>.</div><Field label="Verification code" icon={KeyRound}><input inputMode="numeric" maxLength={4} value={form.otp} onChange={(e) => setForm((current) => ({ ...current, otp: e.target.value.replace(/\D/g, "") }))} className="text-center font-mono text-2xl tracking-[0.45em]" placeholder="0000" /></Field><Primary busy={busy}>Verify & continue <ArrowRight size={17} /></Primary><button type="button" onClick={() => setStep(1)} className="w-full text-sm font-semibold text-slate-500 hover:text-slate-800">Change account information</button></form>}
 

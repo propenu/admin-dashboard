@@ -30,7 +30,8 @@ const getUserId = (user) =>
   String(user?._id || user?.id || user?.userId || "").trim();
 
 export function useCustomerCareDashboard() {
-  const dateRange = useDashboardDateRange("30d", DATE_PRESETS);
+  // Default Today so daily assigned work is visible immediately.
+  const dateRange = useDashboardDateRange("today", DATE_PRESETS);
   const { range, filters } = dateRange;
   const trendDays = Math.min(Math.max(range.days || 7, 1), 90);
 
@@ -64,19 +65,18 @@ export function useCustomerCareDashboard() {
     refetchInterval: 60_000,
   });
 
+  // Fetch full personal queue (no createdFrom lock) so open work from prior days still shows.
+  // Period filters are applied in mapCustomerCareData for KPIs / resolved / activity.
   const ticketsQuery = useQuery({
-    queryKey: ["customer-care-dashboard", "tickets", CUSTOMER_CARE_DEPARTMENT, filters, executiveId],
+    queryKey: ["customer-care-dashboard", "tickets", CUSTOMER_CARE_DEPARTMENT, executiveId],
     enabled: Boolean(executiveId),
     queryFn: () =>
       getTickets({
         page: 1,
-        limit: 100,
+        limit: 200,
         sortBy: "updatedAt",
         sortOrder: "desc",
         ...ticketScope,
-        ...filters,
-        createdFrom: filters.from,
-        createdTo: filters.to,
       }),
     staleTime: 30_000,
     refetchInterval: 60_000,

@@ -42,9 +42,11 @@ import CreateUserModal     from "./CreateUserModal";
 import AssignReportsTo     from "./AssignReportsTo";
 import TransferCredentials from "./TransferCredentials";
 import {
+  accountTodayHref,
   inventoryOnboardingCount,
   inventoryTodayHref,
   requestSidebarPathAck,
+  SIDEBAR_ACCOUNT_PATHS,
 } from "../../utils/sidebarActivity";
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -351,6 +353,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     ].filter(Boolean);
     return [
       canView("dashboard") && { path: "/", label: "Dashboard", icon: DashboardIcon },
+      (canView("user") || canView("dashboard") || canView("team")) && {
+        path: "/follow-up-tracking",
+        label: "Follow-up tracking",
+        icon: TeamManagementIcon,
+      },
       allowed.has("dashboard:view_reports") &&
         currentRoleName !== "regional_manager" && {
           path: "/operations/reports",
@@ -787,6 +794,8 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/tickets", label: "Tickets", icon: mailnotifications },
       ],
       customer_care: [
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
+        { path: "/follow-up-tracking", label: "Follow-up tracking", icon: TeamManagementIcon },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
@@ -797,6 +806,8 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/tickets", label: "Tickets", icon: mailnotifications },
       ],
       customer_care_executive: [
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
+        { path: "/follow-up-tracking", label: "Follow-up tracking", icon: TeamManagementIcon },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
@@ -990,7 +1001,6 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     const detail = liveCounts?.byPath?.[path];
     if (detail) {
       const primary = Number(detail.primary || 0);
-      const onboarding = inventoryOnboardingCount(detail);
       const login = Number(detail.login || 0);
       const isAccountPath = [
         "/users",
@@ -998,41 +1008,57 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         "/builders",
         "/all-agents",
         "/builder-staff",
+        "/propenu-team-members",
       ].includes(path);
       const isInventoryPath = path === "/projects" || path === "/properties";
+      const isPropertiesPath = path === "/properties";
+      const pending = Number(detail.pending || 0);
+      const onboarding = inventoryOnboardingCount(
+        detail,
+        isPropertiesPath ? { kind: "properties" } : {},
+      );
       // Account menus: only successfully created accounts today.
-      // Inventory menus: total today, with onboarding (draft/inactive) as secondary.
+      // Properties: pending approvals only (drafts never notify).
+      // Projects: total today, with onboarding as secondary.
       const showPrimary = isAccountPath
         ? primary
-        : Math.max(primary, onboarding, Number(detail.inactive || 0));
+        : isPropertiesPath
+          ? pending
+          : Math.max(primary, onboarding, Number(detail.inactive || 0));
       if (showPrimary <= 0 && !isAccountPath && login <= 0) return null;
       if (showPrimary <= 0) return null;
       const parts = [];
       if (detail.active) parts.push(`Active:${detail.active}`);
-      if (detail.pending) parts.push(`Pending:${detail.pending}`);
-      if (isInventoryPath && onboarding) parts.push(`Onboard:${onboarding}`);
+      if (pending) parts.push(`Pending:${pending}`);
+      if (isPropertiesPath) {
+        // no draft/onboarding in properties tooltip
+      } else if (isInventoryPath && onboarding) parts.push(`Onboard:${onboarding}`);
       else if (isAccountPath && onboarding) parts.push(`Onboard:${onboarding}`);
       else if (!isInventoryPath && detail.inactive) parts.push(`Inactive:${detail.inactive}`);
       if (login) parts.push(`Login:${login}`);
       return {
         primary: showPrimary,
-        secondary: isInventoryPath
-          ? onboarding || undefined
-          : isAccountPath
-            ? undefined
-            : onboarding || login || undefined,
+        secondary: isPropertiesPath
+          ? undefined
+          : isInventoryPath
+            ? onboarding || undefined
+            : isAccountPath
+              ? undefined
+              : onboarding || login || undefined,
         title: parts.length
           ? parts.join(" · ")
           : isAccountPath
             ? "Accounts created today"
-            : isInventoryPath
-              ? onboarding
-                ? "Today · onboarding"
-                : "New today"
-              : "New today",
-        onboarding,
+            : isPropertiesPath
+              ? "Pending approvals today"
+              : isInventoryPath
+                ? onboarding
+                  ? "Today · onboarding"
+                  : "New today"
+                : "New today",
+        onboarding: isPropertiesPath ? pending : onboarding,
         inactive: Number(detail.inactive || 0),
-        pending: Number(detail.pending || 0),
+        pending,
         active: Number(detail.active || 0),
       };
     }
@@ -1061,11 +1087,16 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     if (!path) return;
     const badge = pathBadge(path);
     const isInventory = path === "/properties" || path === "/projects";
-    const hasToday = isInventory ? Number(badge?.primary || 0) > 0 : false;
+    const isAccount = SIDEBAR_ACCOUNT_PATHS.has(path);
+    const hasToday = (isInventory || isAccount) && Number(badge?.primary || 0) > 0;
     // Clear badge on click (even if already on same route with different query)
     requestSidebarPathAck(path);
+    if (hasToday && isAccount) {
+      navigate(accountTodayHref(path));
+      return;
+    }
     navigate(
-      hasToday
+      hasToday && isInventory
         ? inventoryTodayHref(path, {
             onboarding: badge?.onboarding || badge?.secondary,
             inactive: badge?.inactive,

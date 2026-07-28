@@ -128,9 +128,9 @@ const buildTicketScopeParams = (user) => {
   return { assignedTo: userId };
 };
 
-const normalizeInventoryBucket = (bucket = {}) => {
+const normalizeInventoryBucket = (bucket = {}, options = {}) => {
   const inactive = Number(bucket.inactive || 0);
-  const onboarding = inventoryOnboardingCount(bucket);
+  const onboarding = inventoryOnboardingCount(bucket, options);
   return {
     total: Number(bucket.total || 0),
     active: Number(bucket.active || 0),
@@ -142,8 +142,9 @@ const normalizeInventoryBucket = (bucket = {}) => {
 };
 
 const buildBadge = (unread, extras = {}) => {
+  const { kind, ...rest } = extras;
   const total = Number(unread.total || 0);
-  const onboarding = inventoryOnboardingCount(unread);
+  const onboarding = inventoryOnboardingCount(unread, kind ? { kind } : {});
   const login = Number(unread.login || 0);
   if (total <= 0 && onboarding <= 0 && login <= 0) {
     return {
@@ -153,17 +154,17 @@ const buildBadge = (unread, extras = {}) => {
       inactive: 0,
       login: 0,
       onboarding: 0,
-      ...extras,
+      ...rest,
     };
   }
   return {
-    primary: Math.max(total, onboarding),
+    primary: kind === "properties" ? Number(unread.pending || onboarding || 0) : Math.max(total, onboarding),
     active: Number(unread.active || 0),
     pending: Number(unread.pending || 0),
     inactive: Number(unread.inactive || 0),
     login,
-    onboarding,
-    ...extras,
+    onboarding: kind === "properties" ? Number(unread.pending || 0) : onboarding,
+    ...rest,
   };
 };
 
@@ -180,7 +181,28 @@ const pathForLocation = (pathname = "") => {
   if (pathname.startsWith("/builders")) return SIDEBAR_ACTIVITY_PATHS.builders;
   if (pathname.startsWith("/all-agents")) return SIDEBAR_ACTIVITY_PATHS.agents;
   if (pathname.startsWith("/users")) return SIDEBAR_ACTIVITY_PATHS.users;
+  if (pathname.startsWith("/propenu-team-members")) return SIDEBAR_ACTIVITY_PATHS.teamDirectory;
   return null;
+};
+
+/** Fill today's create/login bucket from a user list. */
+const countCreatedToday = (users = []) => {
+  const bucket = emptyAccountBucket();
+  (Array.isArray(users) ? users : []).forEach((u) => {
+    if (!isCreatedToday(u?.createdAt)) return;
+    const onboarding = isOnboardingStatus(u.accountStatus);
+    bucket.total += 1;
+    if (u.isActive === false || String(u.accountStatus || "").toLowerCase() === "inactive") {
+      bucket.inactive += 1;
+    } else if (onboarding) {
+      bucket.pending += 1;
+      bucket.onboarding += 1;
+    } else {
+      bucket.active += 1;
+    }
+    if (isCreatedToday(u.lastLoginAt)) bucket.login += 1;
+  });
+  return bucket;
 };
 
 async function collectRawSnapshots(user) {
@@ -204,6 +226,7 @@ async function collectRawSnapshots(user) {
     builders: emptyAccountBucket(),
     agents: emptyAccountBucket(),
     builderStaff: emptyAccountBucket(),
+    teamDirectory: emptyAccountBucket(),
   };
 
   if (allow("project")) {
@@ -236,15 +259,13 @@ async function collectRawSnapshots(user) {
           const fromStatus = statusBucketFromRows(data.statusWise);
           const fromOverview = overviewToStatusBucket(data.overview || {});
           const base = fromStatus.total > 0 ? fromStatus : fromOverview;
-          raw.properties = normalizeInventoryBucket({
-            ...base,
-            onboarding: Math.max(
-              Number(base.onboarding || 0),
-              Number(base.inactive || 0),
-              Number(fromOverview.onboarding || 0),
-              Number(data.overview?.draftProperties || 0),
-            ),
-          });
+          raw.properties = normalizeInventoryBucket(
+            {
+              ...base,
+              pending: Number(base.pending || fromOverview.pending || 0),
+            },
+            { kind: "properties" },
+          );
         })
         .catch(() => {}),
     );
@@ -298,9 +319,10 @@ async function collectRawSnapshots(user) {
     );
   }
 
-  const needUsers =
+  // Propenu.com marketplace accounts (user / agent / builder / builder_staff) → Users sidebar
+  const needMarketplaceUsers =
     allow("user") || allow("builder") || allow("builder_staff") || allow("agent") || isSuper;
-  if (needUsers) {
+  if (needMarketplaceUsers) {
     tasks.push(
       getAllUsers()
         .then((res) => {
@@ -313,21 +335,22 @@ async function collectRawSnapshots(user) {
           };
 
           users.forEach((u) => {
-            const bucket = roleBucket(u.roleName || u.role);
-            // Only marketplace account roles — never inflate from property/project createdBy updates
+            const roleLabel =
+              u.roleName ||
+              (typeof u.role === "string" ? u.role : u.role?.name) ||
+              "";
+            const bucket = roleBucket(roleLabel);
+            // Marketplace roles only — staff never inflate Users badges
             if (!bucket || !buckets[bucket]) return;
+            if (!isCreatedToday(u.createdAt)) return;
 
             const target = buckets[bucket];
-            const createdToday = isCreatedToday(u.createdAt);
-            if (!createdToday) return;
-
             const onboarding = isOnboardingStatus(u.accountStatus);
             target.total += 1;
             if (u.isActive === false || String(u.accountStatus || "").toLowerCase() === "inactive") {
               target.inactive += 1;
             } else if (onboarding) {
               target.pending += 1;
-              // Onboarding here = new account still incomplete (created today only)
               target.onboarding += 1;
             } else {
               target.active += 1;
@@ -339,13 +362,24 @@ async function collectRawSnapshots(user) {
           raw.builders = buckets.builders;
           raw.agents = buckets.agents;
           raw.builderStaff = buckets.builderStaff;
-          // All Users = sum of individual marketplace account creates today
           raw.users = sumAccountBuckets(
             buckets.owners,
             buckets.builders,
             buckets.agents,
             buckets.builderStaff,
           );
+        })
+        .catch(() => {}),
+    );
+  }
+
+  // Admin-dashboard credential creates (staff) → Team Directory sidebar (separate)
+  const needStaffUsers = isSuper || allow("team") || allow("user");
+  if (needStaffUsers) {
+    tasks.push(
+      getAllUsers({ scope: "team_directory" })
+        .then((res) => {
+          raw.teamDirectory = countCreatedToday(unpackUsers(res));
         })
         .catch(() => {}),
     );
@@ -373,9 +407,16 @@ function toPublishedCounts(raw, seenMap, caps, user) {
     SIDEBAR_ACTIVITY_PATHS.builderStaff,
     seenMap,
   );
+  const unreadTeamDirectory = unreadFromSnapshot(
+    raw.teamDirectory,
+    SIDEBAR_ACTIVITY_PATHS.teamDirectory,
+    seenMap,
+  );
 
   const projects = caps.projects ? buildBadge(unreadProjects) : buildBadge({ total: 0 });
-  const properties = caps.properties ? buildBadge(unreadProperties) : buildBadge({ total: 0 });
+  const properties = caps.properties
+    ? buildBadge(unreadProperties, { kind: "properties" })
+    : buildBadge({ total: 0 });
   const leads = caps.leads ? buildBadge(unreadLeads) : buildBadge({ total: 0 });
   const tickets = caps.tickets ? buildBadge(unreadTickets) : buildBadge({ total: 0 });
   const users = caps.users ? buildBadge(unreadUsers) : buildBadge({ total: 0 });
@@ -385,8 +426,11 @@ function toPublishedCounts(raw, seenMap, caps, user) {
   const builderStaff = caps.builderStaff
     ? buildBadge(unreadBuilderStaff)
     : buildBadge({ total: 0 });
+  const teamDirectory = caps.teamDirectory
+    ? buildBadge(unreadTeamDirectory)
+    : buildBadge({ total: 0 });
 
-  // Group total = individuals only (All Users is already their sum — don't double-count)
+  // Group total = marketplace individuals only (staff stays on Team Directory)
   const usersGroupPrimary =
     Number(owners.primary || 0) +
     Number(builders.primary || 0) +
@@ -407,6 +451,7 @@ function toPublishedCounts(raw, seenMap, caps, user) {
     buildersToday: builders.primary,
     agentsToday: agents.primary,
     builderStaffToday: builderStaff.primary,
+    teamDirectoryToday: teamDirectory.primary,
     usersGroupToday: usersGroupPrimary,
     byPath: {
       [SIDEBAR_ACTIVITY_PATHS.projects]: projects,
@@ -418,6 +463,7 @@ function toPublishedCounts(raw, seenMap, caps, user) {
       [SIDEBAR_ACTIVITY_PATHS.builders]: builders,
       [SIDEBAR_ACTIVITY_PATHS.agents]: agents,
       [SIDEBAR_ACTIVITY_PATHS.builderStaff]: builderStaff,
+      [SIDEBAR_ACTIVITY_PATHS.teamDirectory]: teamDirectory,
     },
     raw,
     day: todayKey(),
@@ -487,6 +533,8 @@ export function useSidebarActivityBadges() {
             isSuper ||
             canView(permissions, "builder_staff") ||
             canView(permissions, "builder"),
+          teamDirectory:
+            isSuper || canView(permissions, "team") || canView(permissions, "user"),
         };
         capsRef.current = caps;
 

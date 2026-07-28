@@ -11,15 +11,15 @@ import {
 } from "./projectAccessControl";
 import { getPropertyCreatorRole } from "./propertyCreatorRole";
 
-/** Pending agent path (~70%) or user docs path (~80% / pending). */
+/**
+ * True only for listings waiting in the approval queue.
+ * Incomplete drafts (even at ~70%) are NOT awaiting approval.
+ */
 export const isPropertyAwaitingApproval = (property) => {
   if (!property) return false;
   const status = String(property.status || "").toLowerCase();
   const approval = String(property.approval?.status || "").toLowerCase();
-  const percent = Number(property.completion?.percent || 0);
-  if (status === "pending" || approval === "pending") return true;
-  if (percent === 70 || percent === 80) return true;
-  return false;
+  return status === "pending" || approval === "pending";
 };
 
 export const canViewPropertyApprovals = (user) =>
@@ -27,15 +27,11 @@ export const canViewPropertyApprovals = (user) =>
 
 /**
  * Show Approve / Review for a listing based on createdBy hierarchy.
- * Agent details page (70%) and user docs review (80% pending) both use this.
+ * Agent details page (pending @ 70%) and user docs review (pending @ 80%) both use this.
  */
 export const canApproveProperty = (user, property) => {
   if (!property || !user) return false;
-  if (!isPropertyAwaitingApproval(property) && String(property.status).toLowerCase() !== "pending") {
-    // Still allow hierarchy check when explicitly pending-like
-    const status = String(property.status || "").toLowerCase();
-    if (status !== "pending" && status !== "draft") return false;
-  }
+  if (!isPropertyAwaitingApproval(property)) return false;
 
   const creatorRole = getPropertyCreatorRole(property);
   const synthetic = {
@@ -100,10 +96,8 @@ export const canApproveProperty = (user, property) => {
   return false;
 };
 
-/** Dashboard "Review" for docs path (pending @ ~80%). */
+/** Dashboard Approve/Review only for true pending listings. */
 export const canReviewPropertyListing = (user, property) => {
   if (!canApproveProperty(user, property)) return false;
-  const status = String(property?.status || "").toLowerCase();
-  const percent = Number(property?.completion?.percent || 0);
-  return status === "pending" || percent === 70 || percent === 80;
+  return String(property?.status || "").toLowerCase() === "pending";
 };

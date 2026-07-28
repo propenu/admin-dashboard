@@ -4,6 +4,7 @@ import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomerCareDashboard } from "./customerCareDashboard/useCustomerCareDashboard";
 import { filterTicketsByTab } from "./customerCareDashboard/customerCareDashboardData";
+import { followUpTrackHref } from "./superAdminDashboard/superAdminDashboardData";
 import CustomerCareKpiStrip from "./customerCareDashboard/components/CustomerCareKpiStrip";
 import CustomerCareQueuePanel from "./customerCareDashboard/components/CustomerCareQueuePanel";
 import CustomerCareWorkspacePanel from "./customerCareDashboard/components/CustomerCareWorkspacePanel";
@@ -42,10 +43,10 @@ export default function CustomerCareDashboard() {
 
   const filteredQueue = useMemo(() => {
     const visibleIds = new Set(
-      filterTicketsByTab(dashboard.tickets, queueTab).map((t) => t._id || t.id),
+      filterTicketsByTab(dashboard.tickets, queueTab, dashboard.range).map((t) => t._id || t.id),
     );
     return dashboard.queueItems.filter((item) => visibleIds.has(item.id));
-  }, [dashboard.queueItems, dashboard.tickets, queueTab]);
+  }, [dashboard.queueItems, dashboard.tickets, dashboard.range, queueTab]);
 
   useEffect(() => {
     if (!filteredQueue.length) {
@@ -178,6 +179,15 @@ export default function CustomerCareDashboard() {
           isFetching={dashboard.isFetching}
           activeTab={queueTab}
           onMetricClick={handleKpiClick}
+          onOpenFollowUp={() =>
+            navigate(
+              followUpTrackHref("onboarding_all", {
+                from: dashboard.range?.from,
+                to: dashboard.range?.to,
+                preset: dashboard.preset,
+              }),
+            )
+          }
         />
       </div>
 
@@ -217,10 +227,23 @@ export default function CustomerCareDashboard() {
             projectCounts={dashboard.projectCounts}
             propertyCounts={dashboard.propertyCounts}
             todayInteractions={todayInteractions}
+            assignmentNotifications={dashboard.assignmentNotifications || []}
+            leadRows={dashboard.leadRows || []}
             onNavigate={navigate}
+            onOpenTicket={(id) => {
+              setSelectedTicketId(id);
+              setQueueTab("all");
+              requestAnimationFrame(() => {
+                document.getElementById("cce-ticket-queue")?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "nearest",
+                });
+              });
+            }}
             rangeLabel={dashboard.rangeLabel}
             rangeFrom={dashboard.range?.from || ""}
             rangeTo={dashboard.range?.to || ""}
+            rangePreset={dashboard.preset || "today"}
           />
         </div>
       </div>

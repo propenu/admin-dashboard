@@ -7,11 +7,11 @@ import {
 /* ===============================
    🔹 GET ALL USERS
 ================================ */
-export const useUsers = () => {
+export const useUsers = (params) => {
   return useQuery({
-    queryKey: ["users"],
+    queryKey: ["users", params || null],
     queryFn: async () => {
-      const res = await getAllUsers();
+      const res = await getAllUsers(params);
       return res.data; // ✅ IMPORTANT
     },
   });

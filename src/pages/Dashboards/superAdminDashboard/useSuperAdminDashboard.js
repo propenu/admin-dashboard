@@ -161,7 +161,7 @@ export function useSuperAdminDashboard() {
     staleTime: 90_000,
   });
 
-  // Users API has no date params — fetch once, filter by range in mapSuperAdminData.
+  // Fetch users once for journey tracking (login/stuck need full set; period filter in mapper).
   const usersQuery = useQuery({
     queryKey: ["super-admin-dashboard", "users"],
     queryFn: () =>
@@ -189,10 +189,12 @@ export function useSuperAdminDashboard() {
         blogsPayload: blogsQuery.data || {},
         usersPayload: usersQuery.data || [],
         range,
+        preset: dateRange.preset,
       }),
     [
       blogsQuery.data,
       currentUserQuery.data,
+      dateRange.preset,
       failedQuery.data,
       leadsQuery.data,
       paidQuery.data,

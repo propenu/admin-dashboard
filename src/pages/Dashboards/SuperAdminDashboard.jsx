@@ -9,6 +9,7 @@ import SaFinancePanel from "./superAdminDashboard/components/SaFinancePanel";
 import SaInventoryPanel from "./superAdminDashboard/components/SaInventoryPanel";
 import SaAlertsPanel from "./superAdminDashboard/components/SaAlertsPanel";
 import SaOpsPanel from "./superAdminDashboard/components/SaOpsPanel";
+import SaFollowUpPanel from "./superAdminDashboard/components/SaFollowUpPanel";
 import SaModuleGrid from "./superAdminDashboard/components/SaModuleGrid";
 import { formatINR } from "./superAdminDashboard/superAdminDashboardData";
 
@@ -101,6 +102,15 @@ export default function SuperAdminDashboard() {
 
       <SaDomainHealth domains={dashboard.domains} onOpen={go} />
 
+      <SaFollowUpPanel
+        tracks={dashboard.followUpTracks || []}
+        onOpen={go}
+        allTracksHref={
+          dashboard.followUpTracks?.[0]?.items?.find((i) => i.key === "onboarding_all")?.href ||
+          "/follow-up-tracking"
+        }
+      />
+
       <div className="grid gap-3 lg:grid-cols-12 lg:items-stretch">
         <div className="min-h-[320px] lg:col-span-5">
           <SaFinancePanel
@@ -116,8 +126,22 @@ export default function SuperAdminDashboard() {
             propertyStatus={dashboard.propertyStatus}
             projectStatus={dashboard.projectStatus}
             summary={dashboard.summary}
-            onOpenProperties={() => go("/properties?status=active")}
-            onOpenProjects={() => go("/projects?status=active")}
+            onOpenProperties={() => {
+              const from = dashboard.range?.from;
+              const to = dashboard.range?.to;
+              const qs = new URLSearchParams();
+              if (from) qs.set("createdFrom", from);
+              if (to) qs.set("createdTo", to);
+              go(qs.toString() ? `/properties?${qs}` : "/properties");
+            }}
+            onOpenProjects={() => {
+              const from = dashboard.range?.from;
+              const to = dashboard.range?.to;
+              const qs = new URLSearchParams();
+              if (from) qs.set("createdFrom", from);
+              if (to) qs.set("createdTo", to);
+              go(qs.toString() ? `/projects?${qs}` : "/projects");
+            }}
           />
         </div>
         <div className="min-h-[320px] lg:col-span-3">

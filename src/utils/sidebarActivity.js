@@ -15,6 +15,8 @@ export const SIDEBAR_ACTIVITY_PATHS = {
   builders: "/builders",
   agents: "/all-agents",
   builderStaff: "/builder-staff",
+  /** Admin-created staff (CCE, leads, ops, etc.) — Team Directory */
+  teamDirectory: "/propenu-team-members",
 };
 
 /** Sidebar paths whose badges mean "accounts created today" (not inventory activity). */
@@ -24,6 +26,7 @@ export const SIDEBAR_ACCOUNT_PATHS = new Set([
   SIDEBAR_ACTIVITY_PATHS.builders,
   SIDEBAR_ACTIVITY_PATHS.agents,
   SIDEBAR_ACTIVITY_PATHS.builderStaff,
+  SIDEBAR_ACTIVITY_PATHS.teamDirectory,
 ]);
 
 const todayKey = () => {
@@ -96,6 +99,7 @@ export const emptySidebarCounts = (extras = {}) => ({
   buildersToday: 0,
   agentsToday: 0,
   builderStaffToday: 0,
+  teamDirectoryToday: 0,
   usersGroupToday: 0,
   byPath: {},
   raw: null,
@@ -113,9 +117,13 @@ export const publishSidebarCounts = (counts) => {
 /**
  * Inventory onboarding / needs-attention count.
  * Projects: include pending (CC/RM create → approval queue).
- * Properties: draft/inactive (+ pending when present).
+ * Properties: pending approvals only (drafts do not notify).
  */
 export const inventoryOnboardingCount = (bucket = {}, options = {}) => {
+  const kind = options.kind || "default";
+  if (kind === "properties") {
+    return Number(bucket.pending || 0);
+  }
   const includePending = options.includePending !== false;
   return Math.max(
     Number(bucket.onboarding || 0),
@@ -129,13 +137,15 @@ export const unreadFromSnapshot = (current = {}, path, seenMap = {}) => {
   const dayStart = startOfTodayMs();
   const baseline = seen?.snapshot || null;
   const seenAt = Number(seen?.at || 0);
-  const curOnboarding = inventoryOnboardingCount(current);
-  const baseOnboarding = inventoryOnboardingCount(baseline || {});
+  const isProperties = path === SIDEBAR_ACTIVITY_PATHS.properties;
+  const countOpts = isProperties ? { kind: "properties" } : {};
+  const curOnboarding = inventoryOnboardingCount(current, countOpts);
+  const baseOnboarding = inventoryOnboardingCount(baseline || {}, countOpts);
 
   // Never opened today → show full present-day totals
   if (!seen || !baseline || seenAt < dayStart) {
     return {
-      total: Number(current.total || 0),
+      total: isProperties ? Number(current.pending || 0) : Number(current.total || 0),
       active: Number(current.active || 0),
       pending: Number(current.pending || 0),
       inactive: Number(current.inactive || 0),
@@ -147,7 +157,7 @@ export const unreadFromSnapshot = (current = {}, path, seenMap = {}) => {
   // Opened earlier today → only counts that arrived after that snapshot
   const delta = (key) => Math.max(0, Number(current[key] || 0) - Number(baseline[key] || 0));
   return {
-    total: delta("total"),
+    total: isProperties ? delta("pending") : delta("total"),
     active: delta("active"),
     pending: delta("pending"),
     inactive: delta("inactive"),
@@ -235,6 +245,11 @@ export const isOnboardingStatus = (status) => {
   );
 };
 
+/**
+ * Map marketplace role → sidebar account bucket key.
+ * Keys must match SIDEBAR_ACTIVITY_PATHS / raw snapshot keys
+ * (owners, builders, agents, builderStaff) — not singular aliases.
+ */
 export const roleBucket = (roleName = "") => {
   const role = String(roleName || "")
     .trim()
@@ -242,10 +257,10 @@ export const roleBucket = (roleName = "") => {
   if (role === "builder_staff" || role === "builderstaff" || role === "builder_staffs") {
     return "builderStaff";
   }
-  if (role === "builder" || role === "builders") return "builder";
-  if (role === "agent" || role === "agents") return "agent";
+  if (role === "builder" || role === "builders") return "builders";
+  if (role === "agent" || role === "agents") return "agents";
   if (role === "user" || role === "owner" || role === "owners" || role === "buyer" || role === "tenant") {
-    return "owner";
+    return "owners";
   }
   // Internal ops/staff roles are not counted on Users / Owners / Builders / Agents badges
   return null;
@@ -279,10 +294,20 @@ export const inventoryTodayHref = (path, detail = {}) => {
     if (pending > 0) params.set("status", "pending");
     else if (draftLike > 0) params.set("status", "inactive");
   } else if (path === SIDEBAR_ACTIVITY_PATHS.properties) {
-    if (pending > 0) params.set("status", "pending");
-    else if (draftLike > 0) params.set("status", "draft");
+    // Properties badge = pending approval queue only (never draft).
+    params.set("status", "pending");
   }
 
+  return `${path}?${params.toString()}`;
+};
+
+/** Open Users / Team Directory tabs filtered to accounts created today. */
+export const accountTodayHref = (path) => {
+  if (!SIDEBAR_ACCOUNT_PATHS.has(path)) return path;
+  const day = todayKey();
+  const params = new URLSearchParams();
+  params.set("createdFrom", day);
+  params.set("createdTo", day);
   return `${path}?${params.toString()}`;
 };
 

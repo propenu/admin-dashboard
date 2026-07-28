@@ -21,6 +21,35 @@ const safeDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+const rangeBounds = (range = {}) => {
+  const from = range?.from ? new Date(`${range.from}T00:00:00`).getTime() : null;
+  const to = range?.to ? new Date(`${range.to}T23:59:59.999`).getTime() : null;
+  return {
+    from: Number.isFinite(from) ? from : null,
+    to: Number.isFinite(to) ? to : null,
+  };
+};
+
+const dateInRange = (value, range = {}) => {
+  const t = safeDate(value)?.getTime();
+  if (!t) return false;
+  const { from, to } = rangeBounds(range);
+  if (from == null && to == null) return true;
+  if (from != null && t < from) return false;
+  if (to != null && t > to) return false;
+  return true;
+};
+
+/** Ticket belongs to period if created or updated inside the selected date range. */
+const ticketInRange = (ticket, range = {}) => {
+  if (!range?.from && !range?.to) return true;
+  return (
+    dateInRange(ticket.createdAt, range) ||
+    dateInRange(ticket.updatedAt, range) ||
+    dateInRange(ticket.resolvedAt, range)
+  );
+};
+
 export const QUEUE_TABS = [
   { key: "all", label: "All" },
   { key: "open", label: "Open" },
@@ -121,9 +150,8 @@ const priorityTone = {
 
 const priorityRank = { urgent: 0, high: 1, medium: 2, low: 3 };
 
-export const filterTicketsByTab = (tickets = [], tab = "all") => {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+export const filterTicketsByTab = (tickets = [], tab = "all", range = {}) => {
+  const hasRange = Boolean(range?.from || range?.to);
 
   return tickets.filter((ticket) => {
     const status = getTicketStatus(ticket);
@@ -139,8 +167,13 @@ export const filterTicketsByTab = (tickets = [], tab = "all") => {
     if (tab === "urgent") return priority === "urgent" || priority === "high";
     if (tab === "awaiting") return AWAITING_STATUSES.has(status);
     if (tab === "resolved") {
-      const updatedAt = safeDate(ticket.updatedAt || ticket.resolvedAt);
-      return RESOLVED_STATUSES.has(status) && updatedAt && updatedAt >= todayStart;
+      if (!RESOLVED_STATUSES.has(status)) return false;
+      const resolvedAt = ticket.resolvedAt || ticket.updatedAt;
+      if (hasRange) return dateInRange(resolvedAt, range);
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const updatedAt = safeDate(resolvedAt);
+      return Boolean(updatedAt && updatedAt >= todayStart);
     }
     return true;
   });
@@ -409,35 +442,6 @@ export const mapPerformanceWeek = (trends = {}, tickets = []) => {
   return week;
 };
 
-const rangeBounds = (range = {}) => {
-  const from = range?.from ? new Date(`${range.from}T00:00:00`).getTime() : null;
-  const to = range?.to ? new Date(`${range.to}T23:59:59.999`).getTime() : null;
-  return {
-    from: Number.isFinite(from) ? from : null,
-    to: Number.isFinite(to) ? to : null,
-  };
-};
-
-const dateInRange = (value, range = {}) => {
-  const t = safeDate(value)?.getTime();
-  if (!t) return false;
-  const { from, to } = rangeBounds(range);
-  if (from == null && to == null) return true;
-  if (from != null && t < from) return false;
-  if (to != null && t > to) return false;
-  return true;
-};
-
-/** Ticket belongs to period if created or updated inside the selected date range. */
-const ticketInRange = (ticket, range = {}) => {
-  if (!range?.from && !range?.to) return true;
-  return (
-    dateInRange(ticket.createdAt, range) ||
-    dateInRange(ticket.updatedAt, range) ||
-    dateInRange(ticket.resolvedAt, range)
-  );
-};
-
 export const mapCustomerCareData = ({
   overview = {},
   tickets = [],
@@ -452,7 +456,25 @@ export const mapCustomerCareData = ({
   const periodLabel =
     range?.label || (range?.days === 1 ? "Today" : `Last ${range?.days || 30} days`);
   const allTickets = Array.isArray(tickets) ? tickets : [];
-  const normalizedTickets = allTickets.filter((ticket) => ticketInRange(ticket, range));
+  // Current workload: still-open tickets assigned to this executive (any create date).
+  const activeTickets = allTickets.filter((ticket) => !RESOLVED_STATUSES.has(getTicketStatus(ticket)));
+  // Period activity: created/updated/resolved inside selected range.
+  const periodTickets = allTickets.filter((ticket) => ticketInRange(ticket, range));
+  const periodResolved = allTickets.filter((ticket) => {
+    const status = getTicketStatus(ticket);
+    if (!RESOLVED_STATUSES.has(status)) return false;
+    return dateInRange(ticket.resolvedAt || ticket.updatedAt, range);
+  });
+  // Queue = active work + resolved-in-period (so Resolved tab works with date filter).
+  const queueSourceIds = new Set();
+  const queueSource = [];
+  [...activeTickets, ...periodResolved].forEach((ticket) => {
+    const id = String(ticket?._id || ticket?.id || "");
+    if (!id || queueSourceIds.has(id)) return;
+    queueSourceIds.add(id);
+    queueSource.push(ticket);
+  });
+
   const normalizedUsers = Array.isArray(users) ? users : [];
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -471,37 +493,26 @@ export const mapCustomerCareData = ({
       return sum + asNumber(byStatus[key]);
     }, 0);
 
-  const openFromTickets = normalizedTickets.filter((ticket) => {
+  const openFromTickets = activeTickets.filter((ticket) => {
     const status = getTicketStatus(ticket);
     return OPEN_STATUSES.has(status) || IN_PROGRESS_STATUSES.has(status) || AWAITING_STATUSES.has(status);
   }).length;
 
-  const urgentCount = normalizedTickets.filter((ticket) => {
+  const urgentCount = activeTickets.filter((ticket) => {
     const priority = getTicketPriority(ticket);
     return priority === "urgent" || priority === "high";
   }).length;
 
-  const awaitingFromTickets = normalizedTickets.filter((ticket) =>
+  const awaitingFromTickets = activeTickets.filter((ticket) =>
     AWAITING_STATUSES.has(getTicketStatus(ticket)),
   ).length;
 
-  const resolvedInPeriod = normalizedTickets.filter((ticket) => {
-    const status = getTicketStatus(ticket);
-    return (
-      RESOLVED_STATUSES.has(status) &&
-      (dateInRange(ticket.resolvedAt || ticket.updatedAt, range) ||
-        (!range?.from && safeDate(ticket.updatedAt || ticket.resolvedAt) >= todayStart))
-    );
-  }).length;
+  const resolvedInPeriod = periodResolved.length;
 
-  const openCreatedInPeriod = normalizedTickets.filter((ticket) => {
-    if (!dateInRange(ticket.createdAt, range)) return false;
-    const status = getTicketStatus(ticket);
-    return !RESOLVED_STATUSES.has(status);
-  }).length;
+  const openCreatedInPeriod = activeTickets.filter((ticket) =>
+    dateInRange(ticket.createdAt, range),
+  ).length;
 
-  const hasRange = Boolean(range?.from && range?.to);
-  const isTodayPeriod = range?.days === 1 || periodLabel === "Today";
   const overviewOpen =
     asNumber(overview.open ?? overview.openTickets) ||
     countStatus("open", "assigned", "reopened", "in_progress", "under_review", "awaiting_user_response");
@@ -510,11 +521,10 @@ export const mapCustomerCareData = ({
     countStatus("awaiting_user_response", "waiting_for_customer");
   const overviewResolvedToday = asNumber(overview.resolvedToday);
 
-  const pendingCallbacks = normalizedTickets.filter((ticket) => {
+  const pendingCallbacks = activeTickets.filter((ticket) => {
     const callback = safeDate(getCallbackDate(ticket));
     if (!callback) return false;
-    const status = getTicketStatus(ticket);
-    return callback >= todayStart && !RESOLVED_STATUSES.has(status);
+    return callback >= todayStart;
   }).length;
 
   const loginRows = normalizedUsers
@@ -541,7 +551,7 @@ export const mapCustomerCareData = ({
     dateInRange(lead.createdAt, range),
   );
   const todayInteractions = mapTodayInteractions({
-    tickets: normalizedTickets,
+    tickets: periodTickets,
     leads: periodLeads,
     users: normalizedUsers.filter((user) =>
       dateInRange(user.lastLoginAt || user.last_login_at || user.updatedAt, range),
@@ -549,7 +559,43 @@ export const mapCustomerCareData = ({
     todayStart: periodStart,
   });
 
-  const queueItems = normalizedTickets
+  /** New auto-assigned tickets for this CCE (notification-style discovery). */
+  const assignmentNotifications = allTickets
+    .filter((ticket) => {
+      const meta = ticket?.metadata || {};
+      const isAuto = Boolean(meta.autoAssigned) || Boolean(meta.autoAssignMethod);
+      const status = getTicketStatus(ticket);
+      if (!isAuto && status !== "assigned") return false;
+      return ticketInRange(ticket, range) || dateInRange(meta.autoAssignedAt, range);
+    })
+    .map((ticket) => {
+      const meta = ticket?.metadata || {};
+      const method = meta.autoAssignMethod || "round_robin";
+      const loc = [
+        meta.assignLocality || meta.locality,
+        meta.assignCity || meta.city,
+        meta.assignState || meta.state,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      return {
+        id: String(ticket._id || ticket.id),
+        title: ticket.title || "Support ticket",
+        ticketCode: ticket.ticketId || ticket.code || String(ticket._id || "").slice(-6),
+        method,
+        methodLabel:
+          method === "location_round_robin" ? "Location assign" : "Round-robin",
+        locationLabel: loc || "Location not stamped",
+        requester: getRequesterName(ticket),
+        status: getTicketStatus(ticket),
+        time: safeDate(meta.autoAssignedAt || ticket.updatedAt || ticket.createdAt),
+        tone: method === "location_round_robin" ? "emerald" : "blue",
+      };
+    })
+    .sort((a, b) => (b.time?.getTime?.() || 0) - (a.time?.getTime?.() || 0))
+    .slice(0, 12);
+
+  const queueItems = queueSource
     .map(mapTicketQueueItem)
     .sort((a, b) => {
       const priorityDiff =
@@ -559,7 +605,7 @@ export const mapCustomerCareData = ({
     });
 
   const activityRows = [
-    ...normalizedTickets.slice(0, 5).map((ticket) => ({
+    ...periodTickets.slice(0, 5).map((ticket) => ({
       id: `ticket-${ticket._id || ticket.id}`,
       title:
         getTicketStatus(ticket) === "resolved"
@@ -569,19 +615,22 @@ export const mapCustomerCareData = ({
       time: safeDate(ticket.updatedAt || ticket.createdAt),
       tone: "bg-emerald-500",
     })),
-    ...loginRows.slice(0, 4).map((user) => ({
-      id: `login-${user.id}`,
-      title: `${user.name} logged in`,
-      description: `${user.role} • ${user.email || "No email"}`,
-      time: user.lastLoginAt,
-      tone: "bg-blue-500",
-    })),
+    ...loginRows
+      .filter((row) => dateInRange(row.lastLoginAt, range))
+      .slice(0, 4)
+      .map((user) => ({
+        id: `login-${user.id}`,
+        title: `${user.name} logged in`,
+        description: `${user.role} • ${user.email || "No email"}`,
+        time: user.lastLoginAt,
+        tone: "bg-blue-500",
+      })),
   ]
     .filter((item) => item.time)
     .sort((a, b) => (b.time?.getTime?.() || 0) - (a.time?.getTime?.() || 0))
     .slice(0, 8);
 
-  const performanceWeek = mapPerformanceWeek(trends, normalizedTickets);
+  const performanceWeek = mapPerformanceWeek(trends, periodResolved);
   const firstResponseMinutes = asNumber(
     overview.avgFirstResponseMinutes ??
       overview.sla?.avgFirstResponseMinutes ??
@@ -602,16 +651,13 @@ export const mapCustomerCareData = ({
 
   return {
     summary: {
-      // Prefer period-filtered ticket list so Custom/7d/30d/90d stay accurate.
-      openTickets: hasRange ? openFromTickets || overviewOpen : overviewOpen || openFromTickets,
+      // Open / urgent / awaiting = current personal workload (not locked to create-date).
+      openTickets: openFromTickets || overviewOpen,
       openTicketsTodayDelta: openCreatedInPeriod,
       urgentCount,
-      awaitingCount: hasRange
-        ? awaitingFromTickets || overviewAwaiting
-        : overviewAwaiting || awaitingFromTickets,
-      resolvedToday: hasRange
-        ? resolvedInPeriod || (isTodayPeriod ? overviewResolvedToday : 0)
-        : overviewResolvedToday || resolvedInPeriod,
+      awaitingCount: awaitingFromTickets || overviewAwaiting,
+      // Resolved follows the selected period (Today / 7d / 30d / Custom).
+      resolvedToday: resolvedInPeriod || overviewResolvedToday,
       pendingCallbacks,
       successfulLogins: loginAttemptsToday.length,
       failedAttempts: asNumber(overview.failedAttempts),
@@ -623,6 +669,7 @@ export const mapCustomerCareData = ({
       periodLabel,
     },
     queueItems,
+    assignmentNotifications,
     leadRows: mapLeadRows(periodLeads),
     recentLogins: loginRows
       .filter((row) => dateInRange(row.lastLoginAt, range))

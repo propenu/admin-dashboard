@@ -55,3 +55,13 @@ export const completeCredentialLocation = async (payload, onboardingToken) =>
       { headers: { Authorization: `Bearer ${onboardingToken}` } },
     )
   ).data;
+
+export const getUserWorkingLocations = async (userId) =>
+  (await apiClient.get(`${SERVICES.USER}/auth/${userId}/working-locations`)).data;
+
+export const updateUserWorkingLocations = async (userId, workingLocations) =>
+  (
+    await apiClient.put(`${SERVICES.USER}/auth/${userId}/working-locations`, {
+      workingLocations,
+    })
+  ).data;

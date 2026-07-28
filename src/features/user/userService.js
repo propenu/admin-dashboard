@@ -92,11 +92,13 @@ export const getAllUsers = (params) => {
   return apiClient.get(`${SERVICES.USER}/auth/all-users`, { params });
 };
 
-// User search — `role` may be a single role or comma-separated (e.g. "builder,builder_staff")
-export const getUserSearch = (query) => {
-  return apiClient.get(`${SERVICES.USER}/auth/search`, {
-    params: { role: query },
-  });
+// User search — `role` may be a string, or params object ({ role, createdFrom, createdTo })
+export const getUserSearch = (queryOrParams, extraParams = {}) => {
+  const params =
+    queryOrParams && typeof queryOrParams === "object"
+      ? { ...queryOrParams, ...extraParams }
+      : { role: queryOrParams, ...extraParams };
+  return apiClient.get(`${SERVICES.USER}/auth/search`, { params });
 };
 
 //User Details

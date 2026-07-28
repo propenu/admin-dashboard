@@ -45,7 +45,28 @@ export default function Users() {
   const [filterPhoneVerified, setFilterPhoneVerified] = useState("");
   const [filterIsActive, setFilterIsActive] = useState("");
   const [filterRole, setFilterRole] = useState("all");
-  const { data: allUsers = [], isLoading, refetch } = useUsers();
+  const listParams = useMemo(() => {
+    const createdFrom =
+      searchParams.get("createdFrom") || searchParams.get("from") || "";
+    const createdTo =
+      searchParams.get("createdTo") || searchParams.get("to") || "";
+    const date = searchParams.get("date") || "";
+    const joined = searchParams.get("joined");
+    const day =
+      date ||
+      (joined === "today" ? todayIso() : "") ||
+      (createdFrom && createdTo && createdFrom === createdTo ? createdFrom : "");
+    const params = {};
+    if (day) {
+      params.createdFrom = day;
+      params.createdTo = day;
+    } else {
+      if (createdFrom) params.createdFrom = createdFrom;
+      if (createdTo) params.createdTo = createdTo;
+    }
+    return Object.keys(params).length ? params : undefined;
+  }, [searchParams]);
+  const { data: allUsers = [], isLoading, refetch } = useUsers(listParams);
   useSearchUsers(search);
   const [locationFilter, setLocationFilter] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
@@ -59,7 +80,7 @@ export default function Users() {
     refetch();
   }, [refetch]);
 
-  // Apply dashboard drill-down filters from URL (e.g. /users?filter=onboarding&joined=today)
+  // Apply dashboard drill-down filters from URL (e.g. /users?createdFrom=&createdTo= / joined=today)
   useEffect(() => {
     const status =
       searchParams.get("status") ||
@@ -74,8 +95,9 @@ export default function Users() {
     const role = roleFromPath || searchParams.get("role") || "all";
     const joined = searchParams.get("joined");
     const dateParam = searchParams.get("date") || "";
-    const from = searchParams.get("from") || "";
-    const to = searchParams.get("to") || "";
+    const from =
+      searchParams.get("createdFrom") || searchParams.get("from") || "";
+    const to = searchParams.get("createdTo") || searchParams.get("to") || "";
 
     let nextDate = dateParam;
     if (!nextDate && joined === "today") nextDate = todayIso();
@@ -122,11 +144,19 @@ export default function Users() {
     if (next.role && next.role !== "all") params.set("role", next.role);
     if (next.date) params.set("date", next.date);
     if (next.from && next.to) {
-      if (next.from === next.to) params.set("date", next.from);
-      else {
+      if (next.from === next.to) {
+        params.set("createdFrom", next.from);
+        params.set("createdTo", next.to);
+        params.set("date", next.from);
+      } else {
+        params.set("createdFrom", next.from);
+        params.set("createdTo", next.to);
         params.set("from", next.from);
         params.set("to", next.to);
       }
+    } else if (next.date) {
+      params.set("createdFrom", next.date);
+      params.set("createdTo", next.date);
     }
     setSearchParams(params, { replace: true });
   };

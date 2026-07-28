@@ -33,7 +33,9 @@ import { useCustomerSupportTeamLeadDashboard } from "./customerSupportTeamLeadDa
 import { filterTicketsByTab } from "./customerSupportTeamLeadDashboard/customerSupportTeamLeadDashboardData";
 import TlQueuePanel from "./customerSupportTeamLeadDashboard/components/TlQueuePanel";
 import CshWorkspacePanel from "./customerSupportHeadDashboard/components/CshWorkspacePanel";
+import CceTerritoryManagerModal from "./customerSupportTeamLeadDashboard/components/CceTerritoryManagerModal";
 import DashboardDateFilter from "./shared/DashboardDateFilter";
+import { followUpTrackHref } from "./superAdminDashboard/superAdminDashboardData";
 import {
   buildTicketActor,
   useTicketActions,
@@ -42,6 +44,19 @@ import {
 
 const fmt = (v) => Number(v || 0).toLocaleString("en-IN");
 const cleanRole = (value = "") => String(value || "").replace(/_/g, " ");
+
+const isCceMember = (member) => {
+  const key = String(member?.roleKey || member?.role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
+  return (
+    key.includes("customer_care") ||
+    key === "customer_care" ||
+    key === "customer_care_executive" ||
+    key === "customer_care_executives"
+  );
+};
 
 const TABS = [
   { id: "overview", icon: BarChart3, label: "Performance Overview" },
@@ -62,6 +77,7 @@ export default function CustomerSupportTeamLeadDashboard() {
   const [dirRole, setDirRole] = useState("All roles");
   const [dirStatus, setDirStatus] = useState("All Statuses");
   const [dirSearch, setDirSearch] = useState("");
+  const [territoryMember, setTerritoryMember] = useState(null);
 
   const actor = useMemo(
     () => buildTicketActor(dashboard.currentUserQuery.data),
@@ -363,6 +379,22 @@ export default function CustomerSupportTeamLeadDashboard() {
                 </button>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  followUpTrackHref("onboarding_all", {
+                    from: dashboard.range?.from,
+                    to: dashboard.range?.to,
+                    preset: dashboard.preset,
+                  }),
+                )
+              }
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
+            >
+              Follow-up tracking
+            </button>
 
             {currentUser && (
               <div className="hidden items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 shadow-sm sm:flex">
@@ -721,6 +753,15 @@ export default function CustomerSupportTeamLeadDashboard() {
                       >
                         View their open tickets
                       </button>
+                      {isCceMember(member) ? (
+                        <button
+                          type="button"
+                          onClick={() => setTerritoryMember(member)}
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white py-2 text-xs font-bold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
+                        >
+                          Manage working locations
+                        </button>
+                      ) : null}
                     </article>
                   );
                 })}
@@ -737,6 +778,13 @@ export default function CustomerSupportTeamLeadDashboard() {
           </motion.div>
         )}
       </div>
+
+      <CceTerritoryManagerModal
+        open={Boolean(territoryMember)}
+        member={territoryMember}
+        onClose={() => setTerritoryMember(null)}
+        onSaved={() => dashboard.refetch?.()}
+      />
     </div>
   );
 }

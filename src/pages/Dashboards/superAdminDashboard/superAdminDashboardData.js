@@ -130,11 +130,70 @@ const overviewBucket = (overview = {}) => {
   const draft = asNumber(
     overview.draftProjects ?? overview.draftProperties ?? overview.inactive ?? overview.draft,
   );
+  const rejected = asNumber(
+    overview.rejectedProjects ?? overview.rejectedProperties ?? overview.rejected,
+  );
   const total =
     asNumber(overview.totalProjects ?? overview.totalProperties ?? overview.total) ||
-    active + pending + draft;
+    active + pending + draft + rejected;
   const views = asNumber(overview.totalViews ?? overview.views);
-  return { total, active, pending, draft, views };
+  return { total, active, pending, draft, rejected, views };
+};
+
+const statusWiseCount = (rows = [], key) => {
+  const match = (Array.isArray(rows) ? rows : []).find(
+    (row) => String(row?._id || "").toLowerCase() === String(key).toLowerCase(),
+  );
+  return asNumber(match?.total ?? match?.count);
+};
+
+/** Build /properties or /projects href with dashboard period filters applied. */
+export const inventoryPeriodHref = (path, range = {}, extras = {}) => {
+  const params = new URLSearchParams();
+  if (extras.status && extras.status !== "all") params.set("status", extras.status);
+  if (range?.from) params.set("createdFrom", range.from);
+  if (range?.to) params.set("createdTo", range.to);
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+};
+
+/** Build /users list href with period + status/role filters. */
+export const usersPeriodHref = (range = {}, extras = {}) => {
+  const params = new URLSearchParams();
+  if (extras.status) params.set("status", extras.status);
+  if (extras.filter) params.set("filter", extras.filter);
+  if (extras.kyc) params.set("kyc", extras.kyc);
+  if (extras.role && extras.role !== "all") params.set("role", extras.role);
+  if (extras.active) params.set("active", extras.active);
+  if (range?.from) params.set("createdFrom", range.from);
+  if (range?.to) params.set("createdTo", range.to);
+  const qs = params.toString();
+  return qs ? `/users?${qs}` : "/users";
+};
+
+/** Deep-link into Follow-up Tracking page for a single track. */
+export const followUpTrackHref = (trackKey, range = {}, extras = {}) => {
+  const params = new URLSearchParams();
+  params.set("track", trackKey);
+  const preset = extras.preset || range?.preset;
+  if (preset) params.set("preset", preset);
+  if (range?.from) params.set("from", range.from);
+  if (range?.to) params.set("to", range.to);
+  return `/follow-up-tracking?${params.toString()}`;
+};
+
+const normalizeRoleName = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+const accountStatusOf = (u) => String(u?.accountStatus || "").toLowerCase();
+const isLoginToday = (u) => {
+  const t = safeDate(u?.lastLoginAt)?.getTime();
+  return Boolean(t && t >= startOfTodayMs());
 };
 
 const healthScore = (score) => {
@@ -246,7 +305,9 @@ export function mapSuperAdminData({
   blogsPayload = {},
   usersPayload = [],
   range = {},
+  preset = "30d",
 }) {
+  const fuRange = { ...range, preset };
   const hasDateWindow = Boolean(range?.from && range?.to);
   const lifetimeRevenue = asNumber(summary.lifetimeRevenue ?? summary.totalRevenue);
   const periodRevenue = asNumber(
@@ -293,6 +354,12 @@ export function mapSuperAdminData({
     propertyCounts.draft = legacyProps.draft;
     propertyCounts.views = legacyProps.views;
   }
+  if (!propertyCounts.rejected) {
+    propertyCounts.rejected = statusWiseCount(propertiesAnalytics.statusWise, "rejected");
+  }
+  if (!projectCounts.rejected) {
+    projectCounts.rejected = statusWiseCount(projectsAnalytics.statusWise, "rejected");
+  }
 
   const byStatus = leadSummary.byStatus || {};
   const bySource = leadSummary.bySource || {};
@@ -338,17 +405,251 @@ export function mapSuperAdminData({
     count: asNumber(roleMap[role.key]),
   }));
 
-  const onboardingUsers = platformUsersAll.filter((u) =>
-    ["location_pending", "kyc_pending", "pending", "incomplete"].includes(
-      String(u.accountStatus || "").toLowerCase(),
-    ),
-  ).length;
+  const onboardingList = platformUsersAll.filter((u) =>
+    ["location_pending", "kyc_pending", "pending", "incomplete"].includes(accountStatusOf(u)),
+  );
+  const onboardingUsers = onboardingList.filter((u) => inRange(u.createdAt, range)).length;
 
   const usersToday = platformUsersAll.filter((u) => {
     const t = safeDate(u.createdAt)?.getTime();
     return t && t >= startOfTodayMs();
   }).length;
   const usersInPeriod = users.length;
+
+  const createdTodayList = platformUsersAll.filter((u) => {
+    const t = safeDate(u.createdAt)?.getTime();
+    return t && t >= startOfTodayMs();
+  });
+  const loginTodayList = platformUsersAll.filter(isLoginToday);
+  const stuckLocationList = platformUsersAll.filter(
+    (u) => accountStatusOf(u) === "location_pending" && inRange(u.createdAt, range),
+  );
+  const stuckKycList = platformUsersAll.filter(
+    (u) => accountStatusOf(u) === "kyc_pending" && inRange(u.createdAt, range),
+  );
+  const kycRejectedList = platformUsersAll.filter(
+    (u) => accountStatusOf(u) === "kyc_rejected" && inRange(u.createdAt, range),
+  );
+  const activeSuccessList = platformUsersAll.filter(
+    (u) => accountStatusOf(u) === "active" && inRange(u.createdAt, range),
+  );
+  const ownersPeriod = users.filter((u) => normalizePlatformRole(u.roleName || u.role) === "user");
+  const agentsPeriod = users.filter((u) => normalizePlatformRole(u.roleName || u.role) === "agent");
+  const buildersPeriod = users.filter((u) => normalizePlatformRole(u.roleName || u.role) === "builder");
+  const builderStaffPeriod = users.filter(
+    (u) => normalizePlatformRole(u.roleName || u.role) === "builder_staff",
+  );
+
+  const followUpTracks = [
+    {
+      group: "User journey",
+      hint: "Signup → location → KYC → active (CCE follow-up)",
+      items: [
+        {
+          key: "created_today",
+          label: "Created today",
+          count: createdTodayList.length,
+          tone: "emerald",
+          stage: "Account created",
+          href: followUpTrackHref("created_today", {
+            from: isoDay(new Date()),
+            to: isoDay(new Date()),
+            preset: "today",
+          }),
+          listHref: usersPeriodHref(
+            { from: isoDay(new Date()), to: isoDay(new Date()) },
+            {},
+          ),
+        },
+        {
+          key: "created_period",
+          label: "Created (period)",
+          count: usersInPeriod,
+          tone: "emerald",
+          stage: "Successfully created",
+          href: followUpTrackHref("created_period", fuRange),
+          listHref: usersPeriodHref(range, {}),
+        },
+        {
+          key: "login_today",
+          label: "Login today",
+          count: loginTodayList.length,
+          tone: "blue",
+          stage: "Logged in today",
+          href: followUpTrackHref("login_today", fuRange),
+          listHref: followUpTrackHref("login_today", fuRange),
+        },
+        {
+          key: "active_success",
+          label: "Active success",
+          count: activeSuccessList.length,
+          tone: "emerald",
+          stage: "Active account",
+          href: followUpTrackHref("active_success", fuRange),
+          listHref: usersPeriodHref(range, { status: "active" }),
+        },
+        {
+          key: "stuck_location",
+          label: "Stuck · location",
+          count: stuckLocationList.length,
+          tone: "amber",
+          stage: "Location pending",
+          href: followUpTrackHref("stuck_location", fuRange),
+          listHref: usersPeriodHref(range, { status: "location_pending" }),
+        },
+        {
+          key: "stuck_kyc",
+          label: "Stuck · KYC",
+          count: stuckKycList.length,
+          tone: "amber",
+          stage: "KYC pending",
+          href: followUpTrackHref("stuck_kyc", fuRange),
+          listHref: usersPeriodHref(range, { status: "kyc_pending" }),
+        },
+        {
+          key: "kyc_rejected",
+          label: "KYC rejected",
+          count: kycRejectedList.length,
+          tone: "rose",
+          stage: "KYC rejected",
+          href: followUpTrackHref("kyc_rejected", fuRange),
+          listHref: usersPeriodHref(range, { status: "kyc_rejected" }),
+        },
+        {
+          key: "onboarding_all",
+          label: "All onboarding",
+          count: onboardingUsers,
+          tone: "violet",
+          stage: "Any stuck step",
+          href: followUpTrackHref("onboarding_all", fuRange),
+          listHref: usersPeriodHref(range, { filter: "onboarding" }),
+        },
+      ],
+    },
+    {
+      group: "Roles",
+      hint: "Owners, agents, builders & builder staff",
+      items: [
+        {
+          key: "owners",
+          label: "Owners",
+          count: ownersPeriod.length,
+          tone: "emerald",
+          stage: "Owner / user",
+          href: followUpTrackHref("owners", fuRange),
+          listHref:
+            range?.from && range?.to
+              ? `/owners?createdFrom=${encodeURIComponent(range.from)}&createdTo=${encodeURIComponent(range.to)}`
+              : "/owners",
+        },
+        {
+          key: "agents",
+          label: "Agents",
+          count: agentsPeriod.length,
+          tone: "blue",
+          stage: "Agent signup",
+          href: followUpTrackHref("agents", fuRange),
+          listHref:
+            range?.from && range?.to
+              ? `/all-agents?createdFrom=${encodeURIComponent(range.from)}&createdTo=${encodeURIComponent(range.to)}`
+              : "/all-agents",
+        },
+        {
+          key: "builders",
+          label: "Builders",
+          count: buildersPeriod.length,
+          tone: "amber",
+          stage: "Builder signup",
+          href: followUpTrackHref("builders", fuRange),
+          listHref:
+            range?.from && range?.to
+              ? `/builders?createdFrom=${encodeURIComponent(range.from)}&createdTo=${encodeURIComponent(range.to)}`
+              : "/builders",
+        },
+        {
+          key: "builder_staff",
+          label: "Builder staff",
+          count: builderStaffPeriod.length,
+          tone: "violet",
+          stage: "Builder staff",
+          href: followUpTrackHref("builder_staff", fuRange),
+          listHref:
+            range?.from && range?.to
+              ? `/builder-staff?createdFrom=${encodeURIComponent(range.from)}&createdTo=${encodeURIComponent(range.to)}`
+              : "/builder-staff",
+        },
+      ],
+    },
+    {
+      group: "Inventory follow-up",
+      hint: "Property / project lists — open table + Excel for CCE follow-up",
+      items: [
+        {
+          key: "property_pending",
+          label: "Property pending",
+          count: propertyCounts.pending,
+          tone: "amber",
+          stage: "Awaiting approval",
+          href: followUpTrackHref("property_pending", fuRange),
+          listHref: inventoryPeriodHref("/properties", range, { status: "pending" }),
+        },
+        {
+          key: "property_active",
+          label: "Property active",
+          count: propertyCounts.active,
+          tone: "emerald",
+          stage: "Live listings",
+          href: followUpTrackHref("property_active", fuRange),
+          listHref: inventoryPeriodHref("/properties", range, { status: "active" }),
+        },
+        {
+          key: "property_draft",
+          label: "Property draft",
+          count: propertyCounts.draft,
+          tone: "blue",
+          stage: "Draft / incomplete",
+          href: followUpTrackHref("property_draft", fuRange),
+          listHref: inventoryPeriodHref("/properties", range, { status: "draft" }),
+        },
+        {
+          key: "property_rejected",
+          label: "Property rejected",
+          count: propertyCounts.rejected,
+          tone: "rose",
+          stage: "Needs rework",
+          href: followUpTrackHref("property_rejected", fuRange),
+          listHref: inventoryPeriodHref("/properties", range, { status: "rejected" }),
+        },
+        {
+          key: "project_pending",
+          label: "Project pending",
+          count: projectCounts.pending,
+          tone: "amber",
+          stage: "Awaiting approval",
+          href: followUpTrackHref("project_pending", fuRange),
+          listHref: inventoryPeriodHref("/projects", range, { status: "pending" }),
+        },
+        {
+          key: "project_active",
+          label: "Project active",
+          count: projectCounts.active,
+          tone: "emerald",
+          stage: "Live projects",
+          href: followUpTrackHref("project_active", fuRange),
+          listHref: inventoryPeriodHref("/projects", range, { status: "active" }),
+        },
+        {
+          key: "project_draft",
+          label: "Project draft",
+          count: projectCounts.draft,
+          tone: "violet",
+          stage: "Draft / onboarding",
+          href: followUpTrackHref("project_draft", fuRange),
+          listHref: inventoryPeriodHref("/projects", range, { status: "inactive" }),
+        },
+      ],
+    },
+  ];
 
   const planRows = (Array.isArray(revenueByPlan) ? revenueByPlan : unpackList(revenueByPlan))
     .map((row) => ({
@@ -429,21 +730,21 @@ export function mapSuperAdminData({
       score: inventoryHealth,
       metric: String(propertyCounts.total + projectCounts.total),
       detail: `${propertyCounts.active} live properties · ${projectCounts.active} live projects`,
-      href: "/properties",
+      href: inventoryPeriodHref("/properties", range),
       navItems: [
         {
           key: "properties",
           label: "Properties",
           value: propertyCounts.total,
           hint: `${propertyCounts.active} live`,
-          href: "/properties",
+          href: inventoryPeriodHref("/properties", range),
         },
         {
           key: "projects",
           label: "Projects",
           value: projectCounts.total,
           hint: `${projectCounts.active} live`,
-          href: "/projects",
+          href: inventoryPeriodHref("/projects", range),
         },
       ],
       ...healthScore(inventoryHealth),
@@ -511,8 +812,17 @@ export function mapSuperAdminData({
       hint: `${usersInPeriod} joined · ${periodLabel}`,
     },
     { label: "Onboarding", href: "/users?filter=onboarding", hint: `${onboardingUsers} pending` },
-    { label: "Projects", href: "/projects?status=active", hint: `${projectCounts.total} · ${periodLabel}` },
-    { label: "Properties", href: "/properties?status=active", hint: `${propertyCounts.total} listings · ${periodLabel}` },
+    { label: "Follow-up tracking", href: followUpTrackHref("onboarding_all", fuRange), hint: "CCE journey lists" },
+    {
+      label: "Projects",
+      href: inventoryPeriodHref("/projects", range),
+      hint: `${projectCounts.total} · ${periodLabel}`,
+    },
+    {
+      label: "Properties",
+      href: inventoryPeriodHref("/properties", range),
+      hint: `${propertyCounts.total} listings · ${periodLabel}`,
+    },
     { label: "Leads", href: "/leads", hint: `${totalLeads} · ${periodLabel}` },
     { label: "Tickets", href: "/tickets", hint: `${openTickets} open · ${periodLabel}` },
     { label: "Payments", href: "/payments-list", hint: formatINR(totalRevenue) },
@@ -572,7 +882,7 @@ export function mapSuperAdminData({
       value: propertyCounts.total,
       hint: `${propertyCounts.active} active · ${periodLabel}`,
       tone: "emerald",
-      href: "/properties?status=active",
+      href: inventoryPeriodHref("/properties", range),
     },
     {
       key: "projects",
@@ -580,7 +890,7 @@ export function mapSuperAdminData({
       value: projectCounts.total,
       hint: `${projectCounts.active} live · ${periodLabel}`,
       tone: "blue",
-      href: "/projects?status=active",
+      href: inventoryPeriodHref("/projects", range),
     },
     {
       key: "leads",
@@ -652,6 +962,7 @@ export function mapSuperAdminData({
     leadSourceRows,
     ticketStatusRows,
     roleRows,
+    followUpTracks,
   };
 }
 

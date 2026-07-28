@@ -10,6 +10,20 @@ import {
   countUsersInExactRole,
   canonicalTeamRole,
 } from "../../../utils/roleHierarchy";
+import CceTerritoryManagerModal from "../../Dashboards/customerSupportTeamLeadDashboard/components/CceTerritoryManagerModal";
+
+const isCceRole = (roleName = "") => {
+  const key = String(roleName)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
+  return (
+    key === "customer_care" ||
+    key === "customer_care_executive" ||
+    key === "customer_care_executives" ||
+    key.includes("customer_care")
+  );
+};
 
 const todayIso = () => {
   const d = new Date();
@@ -59,10 +73,42 @@ const unique = (items) => [...new Set(items.filter(Boolean))].sort((a, b) => Str
 
 export default function PropenuTeam() {
   const [searchParams] = useSearchParams();
-  const { data: users = [], isLoading, refetch, isFetching } = useUsers({ scope: "team_directory" });
+  const listParams = useMemo(() => {
+    const createdFrom =
+      searchParams.get("createdFrom") || searchParams.get("from") || "";
+    const createdTo =
+      searchParams.get("createdTo") || searchParams.get("to") || "";
+    const date = searchParams.get("date") || "";
+    const joined = searchParams.get("joined");
+    const day =
+      date ||
+      (joined === "today" ? todayIso() : "") ||
+      (createdFrom && createdTo && createdFrom === createdTo ? createdFrom : "");
+    const params = { scope: "team_directory" };
+    if (day) {
+      params.createdFrom = day;
+      params.createdTo = day;
+    } else {
+      if (createdFrom) params.createdFrom = createdFrom;
+      if (createdTo) params.createdTo = createdTo;
+    }
+    return params;
+  }, [searchParams]);
+  const { data: users = [], isLoading, refetch, isFetching } = useUsers(listParams);
   const [roleOptions, setRoleOptions] = useState([]);
   const [viewMode, setViewMode] = useState("cards");
   const [filters, setFilters] = useState({ role: "", state: "", city: "", locality: "", pincode: "", status: "", fromDate: "", toDate: "", search: "" });
+  const [territoryMember, setTerritoryMember] = useState(null);
+
+  const openTerritoryManager = (user) => {
+    setTerritoryMember({
+      id: String(user._id || user.id),
+      name: user.name || "Executive",
+      email: user.email || "",
+      role: cleanRole(user.roleName),
+      roleKey: user.roleName,
+    });
+  };
 
   useEffect(() => {
     getTeamDirectoryRoles()
@@ -79,9 +125,10 @@ export default function PropenuTeam() {
     const pincode = searchParams.get("pincode") || "";
     const joined = searchParams.get("joined");
     const date = searchParams.get("date") || "";
-    const from = searchParams.get("from") || "";
-    const to = searchParams.get("to") || "";
-    const day = date || (joined === "today" ? todayIso() : "");
+    const from =
+      searchParams.get("createdFrom") || searchParams.get("from") || "";
+    const to = searchParams.get("createdTo") || searchParams.get("to") || "";
+    const day = date || (joined === "today" ? todayIso() : "") || (from && to && from === to ? from : "");
     setFilters((current) => ({
       ...current,
       role,
@@ -94,7 +141,6 @@ export default function PropenuTeam() {
       toDate: day || to || "",
     }));
   }, [searchParams]);
-
   const selectedRoleMatch = useMemo(
     () => (filters.role ? getExactRoleMatch(filters.role, roleOptions) : null),
     [filters.role, roleOptions],
@@ -206,7 +252,7 @@ export default function PropenuTeam() {
 
     <section className="mt-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><UsersRound size={17} className="text-emerald-600" /><h2 className="text-sm font-bold capitalize">{filters.role ? teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role }) : "All team members"}</h2></div><div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">Showing {filtered.length} of {users.length}</span><div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "cards" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><LayoutGrid size={14} /> Cards</button><button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><List size={14} /> Table</button></div></div></div>
-      <p className="mb-3 text-xs text-slate-500">Role filter shows the org band. <span className="font-semibold text-slate-700">Reports to</span> shows the specific person they work under when assigned.</p>
+      <p className="mb-3 text-xs text-slate-500">Role filter shows the org band. <span className="font-semibold text-slate-700">Reports to</span> shows the specific person they work under when assigned. For Customer Care Executives, use <span className="font-semibold text-slate-700">Align working locations</span> to set state / city / locality territories for auto ticket assign.</p>
       {isLoading ? <div className="rounded-2xl border border-slate-200 bg-white p-14 text-center text-sm text-slate-500">Loading team members...</div> : filtered.length ? viewMode === "cards" ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filtered.map((user) => {
         const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
         const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -221,15 +267,37 @@ export default function PropenuTeam() {
             <p className="flex items-center gap-2 text-slate-600"><Network size={13} className="shrink-0 text-emerald-600" /><span className="truncate">{user.reportsTo?.name ? `Reports to ${user.reportsTo.name}` : "No person reporting line"}</span></p>
             <p className="flex items-start gap-2 text-slate-600"><MapPin size={13} className="mt-0.5 shrink-0 text-emerald-600" /><span className="line-clamp-2">{location || "Work location not provided"}</span></p>
           </div>
-          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{String(user.accountStatus || "pending").replace(/_/g, " ")}</span><span className="text-[10px] text-slate-400">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</span></div>
+          <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{String(user.accountStatus || "pending").replace(/_/g, " ")}</span>
+              <span className="text-[10px] text-slate-400">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</span>
+            </div>
+            {isCceRole(user.roleName) ? (
+              <button
+                type="button"
+                onClick={() => openTerritoryManager(user)}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100"
+              >
+                <MapPin size={13} />
+                Align working locations
+              </button>
+            ) : null}
+          </div>
         </article>;
-      })}</div> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[1000px] text-left text-xs"><thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Team member</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Reports to</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Work location</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Joined</th></tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((user) => {
+      })}</div> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-xs"><thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Team member</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Reports to</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Work location</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Joined</th><th className="px-4 py-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((user) => {
         const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
         const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
         const active = user.accountStatus === "active" && user.isActive !== false;
-        return <tr key={user._id} className="transition hover:bg-emerald-50/40"><td className="px-4 py-3"><div className="flex items-center gap-2.5"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 font-black text-emerald-700">{initials}</div><div className="min-w-0"><p className="max-w-[190px] truncate font-bold text-slate-800">{user.name || "Unnamed user"}</p><p className="mt-0.5 font-mono text-[10px] text-slate-400">{user.userCode || String(user._id).slice(-10).toUpperCase()}</p></div></div></td><td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2.5 py-1 font-bold capitalize text-emerald-700">{cleanRole(user.roleName)}</span></td><td className="px-4 py-3 text-slate-600"><span className="line-clamp-2">{user.reportsTo?.name || "—"}</span></td><td className="px-4 py-3 text-slate-600"><p className="max-w-[210px] truncate">{user.email || "No email"}</p><p className="mt-0.5 text-slate-400">{user.phone || "No phone"}</p></td><td className="max-w-[260px] px-4 py-3 text-slate-600"><span className="line-clamp-2">{location || "Work location not provided"}</span></td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} />{String(user.accountStatus || "pending").replace(/_/g, " ")}</span></td><td className="whitespace-nowrap px-4 py-3 text-slate-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</td></tr>;
+        return <tr key={user._id} className="transition hover:bg-emerald-50/40"><td className="px-4 py-3"><div className="flex items-center gap-2.5"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 font-black text-emerald-700">{initials}</div><div className="min-w-0"><p className="max-w-[190px] truncate font-bold text-slate-800">{user.name || "Unnamed user"}</p><p className="mt-0.5 font-mono text-[10px] text-slate-400">{user.userCode || String(user._id).slice(-10).toUpperCase()}</p></div></div></td><td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2.5 py-1 font-bold capitalize text-emerald-700">{cleanRole(user.roleName)}</span></td><td className="px-4 py-3 text-slate-600"><span className="line-clamp-2">{user.reportsTo?.name || "—"}</span></td><td className="px-4 py-3 text-slate-600"><p className="max-w-[210px] truncate">{user.email || "No email"}</p><p className="mt-0.5 text-slate-400">{user.phone || "No phone"}</p></td><td className="max-w-[260px] px-4 py-3 text-slate-600"><span className="line-clamp-2">{location || "Work location not provided"}</span></td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} />{String(user.accountStatus || "pending").replace(/_/g, " ")}</span></td><td className="whitespace-nowrap px-4 py-3 text-slate-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</td><td className="px-4 py-3">{isCceRole(user.roleName) ? <button type="button" onClick={() => openTerritoryManager(user)} className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"><MapPin size={12} /> Align locations</button> : <span className="text-slate-300">—</span>}</td></tr>;
       })}</tbody></table></div></div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center"><UsersRound className="mx-auto mb-3 text-slate-300" size={36} /><p className="font-bold text-slate-600">{filters.role ? `No members are assigned to ${teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role })} yet.` : "No team members match these filters."}</p><p className="mt-1 text-xs text-slate-400">{filters.role ? "Create credentials for this role to add its first team member." : "Clear or change the filters to view more people."}</p></div>}
     </section>
+
+    <CceTerritoryManagerModal
+      open={Boolean(territoryMember)}
+      member={territoryMember}
+      onClose={() => setTerritoryMember(null)}
+      onSaved={() => refetch()}
+    />
   </div>;
 }
 

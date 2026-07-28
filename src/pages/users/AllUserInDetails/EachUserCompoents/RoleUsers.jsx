@@ -1,6 +1,6 @@
 // frontend/admin-dashboard/src/pages/users/AllUserInDetails/EachUserCompoents/RoleUsers.jsx
 import React, { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   editBuilderProfile,
   editUserProfile,
@@ -1631,9 +1631,21 @@ const FilterBar = ({ users, filters, setFilters, cfg, lockedState = "" }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 const RoleUsers = ({ role = "sales_manager" }) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const cfg = getRoleCfg(role);
   const RoleIcon = cfg.icon;
   const displayLabel = cfg.pluralLabel || `${cfg.label}s`;
+
+  const createdFrom =
+    searchParams.get("createdFrom") || searchParams.get("from") || "";
+  const createdTo =
+    searchParams.get("createdTo") || searchParams.get("to") || "";
+  const urlDay =
+    searchParams.get("date") ||
+    (searchParams.get("joined") === "today"
+      ? toDateInputValue(new Date())
+      : "") ||
+    (createdFrom && createdTo && createdFrom === createdTo ? createdFrom : "");
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1675,10 +1687,23 @@ const RoleUsers = ({ role = "sales_manager" }) => {
   }, []);
 
   useEffect(() => {
+    const day = urlDay || "";
+    setFilters((current) => ({
+      ...current,
+      joinedDate: day || "",
+    }));
+  }, [urlDay]);
+
+  useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        const response = await getUserSearch(role);
+        const params = { role };
+        const from = urlDay || createdFrom;
+        const to = urlDay || createdTo;
+        if (from) params.createdFrom = from;
+        if (to) params.createdTo = to;
+        const response = await getUserSearch(params);
         setUsers(response?.data?.results || []);
       } catch (err) {
         console.error(`Failed to fetch ${role}:`, err);
@@ -1689,8 +1714,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
     };
 
     fetchUsers();
-  }, [role]);
-
+  }, [role, urlDay, createdFrom, createdTo]);
   const handleWorkInProgress = (id) => navigate(`/dashboard/users/${id}`);
 
   const handleProfileUpdated = (id, payload) => {

@@ -11,6 +11,7 @@ import PermissionRoute from "./pages/PermissionRoute";
 
 // Lazy Loaded Pages
 const Dashboard = lazy(() => import("./pages/Dashboards/MainDashboard.jsx"));
+const FollowUpTrackingPage = lazy(() => import("./pages/Dashboards/FollowUpTrackingPage.jsx"));
 const MarketingHeadDashboard = lazy(() =>
   import("./pages/Dashboards/MarketingHeadDashboard.jsx"),
 );
@@ -324,6 +325,14 @@ function App() {
                   }
                 />
                 <Route path="/operations/reports" element={<PermissionRoute permission="dashboard:view_reports"><OperationsReportsPage /></PermissionRoute>} />
+                <Route
+                  path="/follow-up-tracking"
+                  element={
+                    <PermissionRoute anyPermissions={["user:view", "dashboard:view", "team:view"]}>
+                      <FollowUpTrackingPage />
+                    </PermissionRoute>
+                  }
+                />
 
                 {/* Projects */}
 
