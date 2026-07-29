@@ -34,6 +34,8 @@ import { filterTicketsByTab } from "./customerSupportTeamLeadDashboard/customerS
 import TlQueuePanel from "./customerSupportTeamLeadDashboard/components/TlQueuePanel";
 import CshWorkspacePanel from "./customerSupportHeadDashboard/components/CshWorkspacePanel";
 import CceTerritoryManagerModal from "./customerSupportTeamLeadDashboard/components/CceTerritoryManagerModal";
+import TlClientProgressPanel from "./customerSupportTeamLeadDashboard/TlClientProgressPanel";
+import { useTlClientProgressReport } from "./customerSupportTeamLeadDashboard/useTlClientProgressReport";
 import DashboardDateFilter from "./shared/DashboardDateFilter";
 import { followUpTrackHref } from "./superAdminDashboard/superAdminDashboardData";
 import {
@@ -66,6 +68,10 @@ const TABS = [
 export default function CustomerSupportTeamLeadDashboard() {
   const navigate = useNavigate();
   const dashboard = useCustomerSupportTeamLeadDashboard();
+  const clientProgress = useTlClientProgressReport(
+    dashboard.range || {},
+    dashboard.filters || {},
+  );
   const actions = useTicketActions();
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -206,7 +212,7 @@ export default function CustomerSupportTeamLeadDashboard() {
   }, [dashboard.teamMembers, dirRole, dirSearch, dirStatus]);
 
   const refreshAll = async () => {
-    await dashboard.refetch();
+    await Promise.all([dashboard.refetch(), clientProgress.refetch()]);
     if (selectedTicketId) ticketDetail.refetch();
     toast.success("Team lead dashboard refreshed");
   };
@@ -393,7 +399,7 @@ export default function CustomerSupportTeamLeadDashboard() {
               }
               className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
             >
-              Follow-up tracking
+              Client Progress Queue
             </button>
 
             {currentUser && (
@@ -450,6 +456,12 @@ export default function CustomerSupportTeamLeadDashboard() {
             transition={{ duration: 0.25 }}
             className="space-y-5"
           >
+            <TlClientProgressPanel
+              report={clientProgress.report}
+              isLoading={clientProgress.isLoading}
+              rangeLabel={dashboard.rangeLabel}
+            />
+
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm">

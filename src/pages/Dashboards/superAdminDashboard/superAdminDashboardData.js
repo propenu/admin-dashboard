@@ -812,7 +812,7 @@ export function mapSuperAdminData({
       hint: `${usersInPeriod} joined · ${periodLabel}`,
     },
     { label: "Onboarding", href: "/users?filter=onboarding", hint: `${onboardingUsers} pending` },
-    { label: "Follow-up tracking", href: followUpTrackHref("onboarding_all", fuRange), hint: "CCE journey lists" },
+    { label: "Client Progress Queue", href: followUpTrackHref("onboarding_all", fuRange), hint: "CCE journey lists" },
     {
       label: "Projects",
       href: inventoryPeriodHref("/projects", range),

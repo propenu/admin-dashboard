@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import {
@@ -32,6 +32,10 @@ import {
   todayIso,
 } from "./shared/dashboardDateRange";
 import FollowUpInventoryWorkspace from "./followUpTracking/FollowUpInventoryWorkspace";
+import FollowUpWorkStatusSelect, {
+  followUpWorkLabel,
+  normalizeFollowUpWorkStatus,
+} from "./followUpTracking/FollowUpWorkStatusSelect";
 import {
   formatTerritoryLabel,
   isCustomerCareExecutiveRole,
@@ -234,6 +238,31 @@ const normalizeRole = (value = "") =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_");
 
+const isFollowUpOversightRole = (roleName = "") => {
+  const key = normalizeRole(roleName);
+  return (
+    key === "super_admin" ||
+    key === "admin" ||
+    key === "team_lead" ||
+    key === "customer_support_team_lead" ||
+    key === "team_leads" ||
+    key.includes("team_lead") ||
+    key.includes("support_head") ||
+    key === "customer_support_head"
+  );
+};
+
+const assigneeIdOf = (user) => {
+  const raw = user?.followUpAssignedTo;
+  return String(raw?._id || raw || "").trim();
+};
+
+const workStatusOf = (user, overrides = {}) => {
+  const id = String(user?._id || user?.id || "");
+  if (id && overrides[id]) return normalizeFollowUpWorkStatus(overrides[id]);
+  return normalizeFollowUpWorkStatus(user?.followUpWorkStatus);
+};
+
 const journeyStage = (user) => {
   const status = String(user?.accountStatus || "").toLowerCase();
   if (status === "location_pending") return { key: "location", label: "Stuck at location", tone: "amber" };
@@ -321,11 +350,13 @@ const inferPresetFromRange = (from, to) => {
 
 export default function FollowUpTrackingPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [workStatusOverrides, setWorkStatusOverrides] = useState({});
 
   const track = searchParams.get("track") || "onboarding_all";
   const urlFrom = searchParams.get("from") || "";
@@ -425,6 +456,29 @@ export default function FollowUpTrackingPage() {
   const me = meQuery.data;
   const meId = String(me?._id || me?.id || "");
   const isCceViewer = isCustomerCareExecutiveRole(me?.roleName || me?.role);
+  const isOversightViewer = isFollowUpOversightRole(me?.roleName || me?.role);
+
+  const canEditWorkStatus = (user) => {
+    if (!user) return false;
+    if (isOversightViewer) return true;
+    if (!isCceViewer || !meId) return false;
+    return assigneeIdOf(user) === meId;
+  };
+
+  const handleWorkStatusUpdated = (userId, nextStatus) => {
+    const id = String(userId || "");
+    if (!id) return;
+    setWorkStatusOverrides((prev) => ({ ...prev, [id]: nextStatus }));
+    queryClient.setQueryData(
+      ["follow-up-tracking", "users", range.from, range.to, track],
+      (prev) => {
+        if (!Array.isArray(prev)) return prev;
+        return prev.map((u) =>
+          userIdOf(u) === id ? { ...u, followUpWorkStatus: nextStatus } : u,
+        );
+      },
+    );
+  };
 
   const territoriesQuery = useQuery({
     queryKey: ["follow-up-tracking", "territories", meId],
@@ -584,6 +638,7 @@ export default function FollowUpTrackingPage() {
           CreatedAt: user.createdAt ? new Date(user.createdAt).toLocaleString("en-IN") : "",
           LastLogin: user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("en-IN") : "",
           UserId: userIdOf(user),
+          FollowUpProcess: followUpWorkLabel(workStatusOf(user, workStatusOverrides)),
         };
       });
       const ws = XLSX.utils.json_to_sheet(sheetRows);
@@ -622,9 +677,9 @@ export default function FollowUpTrackingPage() {
             <ArrowLeft size={14} /> Back
           </button>
           <div>
-            <h1 className="text-base font-black text-slate-900">Follow-up tracking</h1>
+            <h1 className="text-base font-black text-slate-900">Client Progress Queue</h1>
             <p className="text-[11px] text-slate-500">
-              {meta.group} · {meta.label}
+              Assigned cases for onboarding, KYC and inventory · {meta.group} · {meta.label}
               <span className="mx-1 text-slate-300">·</span>
               {rangeLabel}
             </p>
@@ -858,17 +913,28 @@ export default function FollowUpTrackingPage() {
             ) : (
               <>
                 <div className="max-h-[min(62vh,640px)] overflow-auto">
-                  <table className="min-w-full text-left text-xs">
+                  <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-xs">
                     <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 shadow-sm">
                       <tr>
-                        <th className="px-3 py-2 font-bold">Name</th>
-                        <th className="px-3 py-2 font-bold">Role</th>
-                        <th className="px-3 py-2 font-bold">Location</th>
-                        <th className="px-3 py-2 font-bold">Journey stage</th>
-                        <th className="px-3 py-2 font-bold">KYC</th>
-                        <th className="px-3 py-2 font-bold">Created</th>
-                        <th className="px-3 py-2 font-bold">Last login</th>
-                        <th className="px-3 py-2 font-bold">Contact</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-left font-bold">Name</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-left font-bold">Role</th>
+                        <th className="min-w-[140px] whitespace-nowrap px-3 py-2.5 text-left font-bold">
+                          Location
+                        </th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-left font-bold">
+                          Journey stage
+                        </th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-left font-bold">KYC</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-left font-bold">Created</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-left font-bold">
+                          Last login
+                        </th>
+                        <th className="min-w-[140px] whitespace-nowrap px-3 py-2.5 text-left font-bold">
+                          Contact
+                        </th>
+                        <th className="sticky right-0 z-10 w-[132px] min-w-[132px] whitespace-nowrap bg-slate-50 px-3 py-2.5 text-left font-bold shadow-[-8px_0_10px_-8px_rgba(15,23,42,0.14)]">
+                          Process
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -887,34 +953,61 @@ export default function FollowUpTrackingPage() {
                               active ? "bg-emerald-50/80" : "hover:bg-emerald-50/40"
                             }`}
                           >
-                            <td className="px-3 py-2 font-semibold text-slate-900">
-                              {user.name || "—"}
+                            <td className="align-middle px-3 py-2.5 font-semibold text-slate-900">
+                              <span className="line-clamp-1">{user.name || "—"}</span>
                             </td>
-                            <td className="px-3 py-2 text-slate-600">
+                            <td className="align-middle whitespace-nowrap px-3 py-2.5 text-slate-600">
                               {user.roleName || user.role || "—"}
                             </td>
-                            <td className="max-w-[180px] px-3 py-2 text-slate-600">
-                              <span className="line-clamp-2">{loc || "—"}</span>
+                            <td className="align-middle px-3 py-2.5 text-slate-600">
+                              <span className="line-clamp-1" title={loc || undefined}>
+                                {loc || "—"}
+                              </span>
                             </td>
-                            <td className="px-3 py-2">
+                            <td className="align-middle whitespace-nowrap px-3 py-2.5">
                               <span
-                                className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-bold leading-none ${
                                   stageTone[stage.tone]
                                 }`}
                               >
                                 {stage.label}
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-slate-600">{user.kyc?.status || "—"}</td>
-                            <td className="px-3 py-2 tabular-nums text-slate-600">
+                            <td className="align-middle whitespace-nowrap px-3 py-2.5 text-slate-600">
+                              {user.kyc?.status || "—"}
+                            </td>
+                            <td className="align-middle whitespace-nowrap px-3 py-2.5 tabular-nums text-slate-600">
                               {toDay(user.createdAt) || "—"}
                             </td>
-                            <td className="px-3 py-2 tabular-nums text-slate-600">
+                            <td className="align-middle whitespace-nowrap px-3 py-2.5 tabular-nums text-slate-600">
                               {toDay(user.lastLoginAt) || "—"}
                             </td>
-                            <td className="px-3 py-2 text-slate-600">
-                              <div>{user.phone || "—"}</div>
-                              <div className="text-[10px] text-slate-400">{user.email || ""}</div>
+                            <td className="align-middle px-3 py-2.5 text-slate-600">
+                              <div className="leading-tight">
+                                <div className="whitespace-nowrap">{user.phone || "—"}</div>
+                                <div className="mt-0.5 truncate text-[10px] text-slate-400">
+                                  {user.email || ""}
+                                </div>
+                              </div>
+                            </td>
+                            <td
+                              className={`sticky right-0 w-[132px] min-w-[132px] align-middle px-3 py-2.5 shadow-[-8px_0_10px_-8px_rgba(15,23,42,0.1)] ${
+                                active ? "bg-emerald-50" : "bg-white"
+                              }`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {canEditWorkStatus(user) ? (
+                                <FollowUpWorkStatusSelect
+                                  userId={id}
+                                  value={workStatusOf(user, workStatusOverrides)}
+                                  compact
+                                  onUpdated={handleWorkStatusUpdated}
+                                />
+                              ) : (
+                                <span className="inline-flex h-8 items-center whitespace-nowrap rounded-lg bg-slate-100 px-2.5 text-[10px] font-bold text-slate-600">
+                                  {followUpWorkLabel(workStatusOf(user, workStatusOverrides))}
+                                </span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -996,6 +1089,26 @@ export default function FollowUpTrackingPage() {
                     {selectedStage.label}
                   </span>
                 ) : null}
+                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    CCE process
+                  </p>
+                  {canEditWorkStatus(selectedUser) ? (
+                    <FollowUpWorkStatusSelect
+                      userId={userIdOf(selectedUser)}
+                      value={workStatusOf(selectedUser, workStatusOverrides)}
+                      onUpdated={handleWorkStatusUpdated}
+                    />
+                  ) : (
+                    <p className="text-xs font-semibold text-slate-700">
+                      {followUpWorkLabel(workStatusOf(selectedUser, workStatusOverrides))}
+                    </p>
+                  )}
+                  <p className="mt-1.5 text-[10px] text-slate-400">
+                    Auto-starts as Assigned. Mark In progress or Completed after you work the case.
+                    Journey stage stays separate.
+                  </p>
+                </div>
                 <div className="space-y-2 text-xs text-slate-700">
                   <p className="inline-flex items-center gap-1">
                     <Phone size={12} className="text-slate-400" />

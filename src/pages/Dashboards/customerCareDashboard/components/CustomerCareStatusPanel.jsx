@@ -135,7 +135,7 @@ export default function CustomerCareStatusPanel({
           className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-50"
         >
           <ClipboardList className="h-3.5 w-3.5" />
-          Follow-up
+          Progress Queue
         </button>
       </header>
 
@@ -194,7 +194,7 @@ export default function CustomerCareStatusPanel({
           <header className="flex items-center justify-between gap-2.5 px-3.5 pb-2 pt-3">
             <div className="flex items-center gap-2.5">
               <ClipboardList className="h-[18px] w-[18px] text-emerald-600" />
-              <h3 className="text-[13px] font-bold text-slate-900">Follow-up tracking</h3>
+              <h3 className="text-[13px] font-bold text-slate-900">Client Progress Queue</h3>
             </div>
             <button
               type="button"

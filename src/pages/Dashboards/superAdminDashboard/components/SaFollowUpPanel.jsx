@@ -9,9 +9,9 @@ export default function SaFollowUpPanel({ onOpen, allTracksHref }) {
             <ListChecks size={16} />
           </span>
           <div className="min-w-0">
-            <h3 className="text-xs font-bold text-slate-900">Follow-up tracking</h3>
+            <h3 className="text-xs font-bold text-slate-900">Client Progress Queue</h3>
             <p className="text-[10px] text-slate-500">
-              Open the workspace for user journey, roles, and inventory follow-up lists
+              Open the workspace for user journey, roles, and inventory care lists
             </p>
           </div>
         </div>
@@ -20,7 +20,7 @@ export default function SaFollowUpPanel({ onOpen, allTracksHref }) {
           onClick={() => onOpen?.(allTracksHref || "/follow-up-tracking")}
           className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
         >
-          Open follow-up tracking <ChevronRight size={14} />
+          Open Client Progress Queue <ChevronRight size={14} />
         </button>
       </div>
     </article>

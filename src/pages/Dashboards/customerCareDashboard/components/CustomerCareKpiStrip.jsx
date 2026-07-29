@@ -62,7 +62,7 @@ export default function CustomerCareKpiStrip({
               className="inline-flex items-center gap-1.5 rounded-[10px] border border-emerald-200 bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700"
             >
               <ClipboardList className="h-4 w-4" />
-              Follow-up tracking
+              Client Progress Queue
             </button>
           ) : null}
           {onRefresh && (

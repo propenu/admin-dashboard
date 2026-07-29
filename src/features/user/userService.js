@@ -92,6 +92,13 @@ export const getAllUsers = (params) => {
   return apiClient.get(`${SERVICES.USER}/auth/all-users`, { params });
 };
 
+/** CCE / Team Lead: update follow-up work process (assigned | in_progress | completed). */
+export const updateFollowUpWorkStatus = (id, followUpWorkStatus) => {
+  return apiClient.patch(`${SERVICES.USER}/auth/${id}/follow-up-work-status`, {
+    followUpWorkStatus,
+  });
+};
+
 // User search — `role` may be a string, or params object ({ role, createdFrom, createdTo })
 export const getUserSearch = (queryOrParams, extraParams = {}) => {
   const params =

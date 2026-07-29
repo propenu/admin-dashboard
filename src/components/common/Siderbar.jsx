@@ -355,7 +355,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       canView("dashboard") && { path: "/", label: "Dashboard", icon: DashboardIcon },
       (canView("user") || canView("dashboard") || canView("team")) && {
         path: "/follow-up-tracking",
-        label: "Follow-up tracking",
+        label: "Client Progress Queue",
         icon: TeamManagementIcon,
       },
       allowed.has("dashboard:view_reports") &&
@@ -795,7 +795,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       ],
       customer_care: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
-        { path: "/follow-up-tracking", label: "Follow-up tracking", icon: TeamManagementIcon },
+        { path: "/follow-up-tracking", label: "Client Progress Queue", icon: TeamManagementIcon },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
@@ -807,7 +807,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       ],
       customer_care_executive: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
-        { path: "/follow-up-tracking", label: "Follow-up tracking", icon: TeamManagementIcon },
+        { path: "/follow-up-tracking", label: "Client Progress Queue", icon: TeamManagementIcon },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
