@@ -45,7 +45,7 @@ export default function CreateCredentialPage() {
       return;
     }
     let cancelled = false;
-    getEligibleReportsTo({ targetRole: form.role, state: form.state || undefined })
+    getEligibleReportsTo({ targetRole: form.role })
       .then((response) => {
         if (cancelled) return;
         const data = response.data || response;
@@ -62,7 +62,7 @@ export default function CreateCredentialPage() {
         setHierarchy(null);
       });
     return () => { cancelled = true; };
-  }, [form.role, form.state]);
+  }, [form.role]);
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const hierarchyHint = formatHierarchyHint(hierarchy);
@@ -147,9 +147,9 @@ export default function CreateCredentialPage() {
             {form.role && hierarchy && (
               <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600">
                 <div className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800"><Network size={16} className="text-emerald-600" /> Hierarchy for {cleanRoleLabel(form.role)}</div>
-                <p><span className="font-semibold text-slate-700">Above:</span> {hierarchyHint.aboveText}</p>
-                <p className="mt-1"><span className="font-semibold text-slate-700">Below:</span> {hierarchyHint.belowText}</p>
-                <p className="mt-1"><span className="font-semibold text-slate-700">Reports to (person):</span> {hierarchyHint.reportsToText}</p>
+                <p><span className="font-semibold text-slate-700">Above:</span> {hierarchyHint?.aboveText || "—"}</p>
+                <p className="mt-1"><span className="font-semibold text-slate-700">Below:</span> {hierarchyHint?.belowText || "—"}</p>
+                <p className="mt-1"><span className="font-semibold text-slate-700">Reports to (person):</span> {hierarchyHint?.reportsToText || "—"}</p>
               </div>
             )}
             {form.role && (hierarchy?.reportsToRoles || []).length > 0 && (
@@ -165,7 +165,10 @@ export default function CreateCredentialPage() {
                   </select>
                 </Field>
                 {!reportsToOptions.length && (
-                  <p className="mt-2 text-xs text-amber-700">No eligible managers found for this role yet. Create the parent-role users first, or assign reports-to later from Operations.</p>
+                  <p className="mt-2 text-xs text-amber-700">
+                    No Customer Support Team Lead accounts found yet. Create a Team Lead credential first,
+                    make sure that role is Active, then come back to assign reports-to.
+                  </p>
                 )}
               </div>
             )}
@@ -193,7 +196,7 @@ const ROLE_DISPLAY_LABELS = {
   ceo: "CEO",
   operations_head: "Operations Head",
   business_development_head: "Business Development Head",
-  regional_manager: "Regional Managers",
+  regional_manager: "Regional Manager",
   business_development_manager: "Business Development Manager",
   sales_manager: "Sales Manager",
   team_lead: "Customer Support Team Lead",
@@ -203,9 +206,9 @@ const ROLE_DISPLAY_LABELS = {
   customer_care: "Customer Care Executive",
   customer_care_executive: "Customer Care Executive",
   customer_care_executives: "Customer Care Executive",
-  relationship_manager: "Relationship Managers",
-  sales_executive: "Sales Executives",
-  sales_agent: "Sales Executives",
+  relationship_manager: "Relationship Manager",
+  sales_executive: "Sales Executive",
+  sales_agent: "Sales Executive",
   marketing_head: "Marketing Head",
   digital_marketing: "Digital Marketing",
   social_media: "Social Media",

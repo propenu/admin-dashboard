@@ -32,7 +32,7 @@ const ORG_CHILDREN_BY_ROLE = {
   ],
   sales_manager: ["sales_agent", "sales_executive"],
   customer_support_head: ["team_lead"],
-  team_lead: ["customer_care_executive", "customer_care", "relationship_manager"],
+  team_lead: ["customer_care_executive", "relationship_manager"],
   marketing_head: ["digital_marketing", "social_media", "content_team", "creative_team"],
   technical_support_head: ["technical_support_team"],
 };
@@ -85,16 +85,21 @@ const ROLE_LABELS = {
   founder: "Founder",
   operations_head: "Operations Head",
   business_development_head: "Business Development Head",
-  regional_manager: "Regional Managers",
+  regional_manager: "Regional Manager",
   business_development_manager: "Business Development Manager",
   sales_manager: "Sales Manager",
-  sales_executive: "Sales Executives",
-  sales_agent: "Sales Executives",
+  sales_executive: "Sales Executive",
+  sales_agent: "Sales Executive",
   customer_support_head: "Customer Support Head",
-  team_lead: "Customer Support Team Leads",
-  customer_care_executive: "Customer Care Executives",
-  customer_care: "Customer Care Executives",
-  relationship_manager: "Relationship Managers",
+  team_lead: "Customer Support Team Lead",
+  team_leads: "Customer Support Team Lead",
+  customer_support_team_lead: "Customer Support Team Lead",
+  customer_support_team_leads: "Customer Support Team Lead",
+  customer_care_executive: "Customer Care Executive",
+  customer_care_executives: "Customer Care Executive",
+  customer_care: "Customer Care Executive",
+  relationship_manager: "Relationship Manager",
+  relationship_managers: "Relationship Manager",
   marketing_head: "Marketing Head",
   digital_marketing: "Digital Marketing",
   social_media: "Social Media",
@@ -107,20 +112,45 @@ const ROLE_LABELS = {
   technical_support_team: "Technical Support Team",
 };
 
-export const cleanRoleLabel = (roleName = "") =>
-  ROLE_LABELS[String(roleName).toLowerCase()] ||
-  String(roleName || "")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+export const cleanRoleLabel = (roleName = "") => {
+  const key = canonicalRoleName(roleName);
+  return (
+    ROLE_LABELS[key] ||
+    ROLE_LABELS[String(roleName || "").toLowerCase()] ||
+    String(roleName || "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+};
 
 export const formatHierarchyHint = (hierarchy) => {
-  if (!hierarchy) return "";
+  if (!hierarchy) {
+    return {
+      aboveText: "—",
+      belowText: "—",
+      reportsToText: "—",
+    };
+  }
   const above = (hierarchy.above || []).map(cleanRoleLabel);
-  const below = (hierarchy.below || []).map(cleanRoleLabel);
+  // Prefer direct org children for the selected role (permission/hierarchy flow).
+  const selectedRole = hierarchy.role || hierarchy.targetRole || "";
+  const directBelow = (ORG_CHILDREN_BY_ROLE[canonicalRoleName(selectedRole)] || []).map(
+    (name) => canonicalRoleName(name),
+  );
+  const uniqueDirectBelow = [...new Set(directBelow)].filter(Boolean);
+  const belowSource =
+    uniqueDirectBelow.length > 0
+      ? uniqueDirectBelow
+      : (hierarchy.below || []).map((name) => canonicalRoleName(name));
+  const below = [...new Set(belowSource)].map(cleanRoleLabel);
   const reportsTo = (hierarchy.reportsToRoles || []).map(cleanRoleLabel);
   return {
     aboveText: above.length ? above.join(" → ") : "Top of tree",
-    belowText: below.length ? below.slice(0, 6).join(", ") + (below.length > 6 ? "…" : "") : "No roles below",
-    reportsToText: reportsTo.length ? reportsTo.join(" or ") : "No person reporting for this role",
+    belowText: below.length
+      ? below.slice(0, 8).join(", ") + (below.length > 8 ? "…" : "")
+      : "No roles below",
+    reportsToText: reportsTo.length
+      ? reportsTo.join(" or ")
+      : "No person reporting for this role",
   };
 };
