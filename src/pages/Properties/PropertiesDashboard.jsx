@@ -289,12 +289,17 @@ function StatusDonut({ overview, total }) {
 }
 
 function MiniLineChart({ values = [], color = "#27AE60" }) {
-  const max = Math.max(...values, 1);
-  const points = values
+  const numericValues = (Array.isArray(values) ? values : []).map((value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  });
+  const series = numericValues.length ? numericValues : [0, 0];
+  const max = Math.max(...series, 1);
+  const points = series
     .map((value, index) => {
-      const x = (index / Math.max(values.length - 1, 1)) * 100;
-      const y = 34 - (Number(value || 0) / max) * 28;
-      return `${x},${y}`;
+      const x = (index / Math.max(series.length - 1, 1)) * 100;
+      const y = 34 - (value / max) * 28;
+      return `${Number.isFinite(x) ? x : 0},${Number.isFinite(y) ? y : 34}`;
     })
     .join(" ");
 

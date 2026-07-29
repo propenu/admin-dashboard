@@ -41,6 +41,16 @@ export const updateAccessRole = async (roleId, payload) =>
 export const getAccessUsers = async (params = { scope: "team_directory" }) =>
   (await apiClient.get(`${SERVICES.USER}/auth/all-users`, { params })).data;
 
+export const updateAccessUserStatus = async (userId, isActive) =>
+  (await apiClient.patch(`${SERVICES.USER}/auth/${userId}/status`, { isActive })).data;
+
+export const deleteAccessUser = async (userId, reason) =>
+  (
+    await apiClient.delete(`${SERVICES.USER}/auth/${userId}`, {
+      data: reason ? { reason } : undefined,
+    })
+  ).data;
+
 export const requestCredentialOtp = async (email) =>
   (await apiClient.post(`${SERVICES.USER}/auth/admin-credentials/request-otp`, { email })).data;
 

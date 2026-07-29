@@ -50,23 +50,53 @@ import {
 } from "../../features/user/userDetailService";
 
 const roles = ["user", "builder", "builder_staff", "agent"];
+/** Never render raw API objects as React children (e.g. { type: "Point" }). */
+const asText = (value, fallback = "") => {
+  if (value == null || value === "") return fallback;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((part) => asText(part)).filter(Boolean).join(", ") || fallback;
+  }
+  if (typeof value === "object") {
+    const nested = [
+      value.label,
+      value.name,
+      value.title,
+      value.address,
+      value.locality,
+      value.city,
+      value.state,
+      value.displayName,
+      typeof value.type === "string" && !value.coordinates ? value.type : null,
+    ]
+      .map((part) => (typeof part === "string" || typeof part === "number" ? String(part).trim() : ""))
+      .filter(Boolean);
+    if (nested.length) return nested.join(", ");
+    return fallback;
+  }
+  return fallback;
+};
 const title = (value = "") =>
-  String(value || "Unknown")
+  asText(value, "Unknown")
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 const initials = (name = "User") =>
-  name
+  asText(name, "User")
     .split(" ")
     .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
 const listingName = (item = {}) =>
-  item.projectName || item.propertyTitle || item.title || item.name || "Untitled listing";
+  asText(
+    item.projectName || item.propertyTitle || item.title || item.name,
+    "Untitled listing",
+  );
 const listingLocation = (item = {}) =>
-  [item.locality, item.city, item.state].filter(Boolean).join(", ") ||
-  item.location ||
-  "Location unavailable";
+  [item.locality, item.city, item.state].map((part) => asText(part)).filter(Boolean).join(", ") ||
+  asText(item.location, "Location unavailable");
 const listingImage = (item = {}) => {
   const candidate =
     item.thumbnail ||
@@ -80,7 +110,7 @@ const listingImage = (item = {}) => {
     item.gallery?.[0];
   return typeof candidate === "string"
     ? candidate
-    : candidate?.url || candidate?.secure_url || candidate?.src || "";
+    : asText(candidate?.url || candidate?.secure_url || candidate?.src, "");
 };
 const maskPhone = (phone = "") =>
   phone ? `${phone.slice(0, 5)}••••${phone.slice(-2)}` : "Phone unavailable";
@@ -146,16 +176,31 @@ const demoProperties = [
 ];
 
 const eventLabel = (value = "activity") =>
-  title(String(value).replace(/([a-z])([A-Z])/g, "$1 $2"));
+  title(asText(value, "activity").replace(/([a-z])([A-Z])/g, "$1 $2"));
 const entityFor = (event = {}) =>
   event.entity || event.project || event.property || {};
 const entityName = (event = {}) =>
-  entityFor(event).title ||
-  event.metadata?.title ||
-  event.metadata?.name ||
-  event.pageUrl ||
-  "Propenu";
-const entityImage = (event = {}) => entityFor(event).image || null;
+  asText(
+    entityFor(event).title ||
+      event.metadata?.title ||
+      event.metadata?.name ||
+      event.pageUrl,
+    "Propenu",
+  );
+const entityImage = (event = {}) => {
+  const image = entityFor(event).image;
+  return typeof image === "string" ? image : asText(image?.url || image?.src, "") || null;
+};
+const entityLocation = (eventOrData = {}) =>
+  asText(
+    eventOrData.location ||
+      eventOrData.address ||
+      [eventOrData.locality, eventOrData.city, eventOrData.state]
+        .map((part) => asText(part))
+        .filter(Boolean)
+        .join(", "),
+    "",
+  );
 const normalizeJourney = (person, payload = {}) => {
   const rawEvents = Array.isArray(payload.events) ? payload.events : [];
   const summary = payload.summary || {};
@@ -175,18 +220,19 @@ const normalizeJourney = (person, payload = {}) => {
       : "--:--:--";
     const metadata = event.metadata || {};
     const entity = entityName(event);
-    const detail =
+    const detail = asText(
       metadata.query ||
-      metadata.section ||
-      metadata.promotionType ||
-      metadata.source ||
-      `Event ${index + 1}`;
+        metadata.section ||
+        metadata.promotionType ||
+        metadata.source,
+      `Event ${index + 1}`,
+    );
     return [
       time,
       eventLabel(event.eventType),
       entity,
       event.durationMs ? `${Math.round(event.durationMs / 1000)}s` : "—",
-      String(detail),
+      detail,
       /fail|error|abandon/i.test(event.eventType || "") ? "risk" : "",
     ];
   });
@@ -517,12 +563,14 @@ function DynamicJourneyMap({ journey }) {
         })
       : "Not reached";
   const detail = (event, fallback) =>
-    event?.metadata?.query ||
-    event?.searchContext?.query ||
-    event?.metadata?.title ||
-    event?.placement ||
-    event?.pageUrl ||
-    fallback;
+    asText(
+      event?.metadata?.query ||
+        event?.searchContext?.query ||
+        event?.metadata?.title ||
+        event?.placement ||
+        event?.pageUrl,
+      fallback,
+    );
   const search = find("search_performed", "search_result_click");
   const explore = find(
     "filter_applied",
@@ -575,8 +623,8 @@ function DynamicJourneyMap({ journey }) {
           data.category || data.kind || event.entityType || "listing",
         ),
         promotion: title(data.promotionType || event.promotionType || "normal"),
-        location: data.location,
-        price: data.price,
+        location: entityLocation(data),
+        price: asText(data.price, ""),
         interactions: 0,
         views: 0,
         duration: 0,
@@ -730,8 +778,8 @@ function DynamicJourneyMap({ journey }) {
             <strong>
               {stop ? eventLabel(stop.eventType) : "No activity captured"}
             </strong>
-            <em title={stop?.pageUrl}>
-              {stop?.pageUrl || "Tracking is ready"}
+            <em title={asText(stop?.pageUrl, "")}>
+              {asText(stop?.pageUrl, "Tracking is ready")}
             </em>
             <small>{formatTime(stop?.capturedAt)}</small>
           </div>
@@ -767,7 +815,12 @@ function ReferenceJourneyMap({ journey }) {
         id: event._id || `${event.sessionId}-${event.serverTimestamp}`,
         name: entityName(event),
         kind: event.projectId ? "Project" : event.propertyId ? "Property" : "Listing",
-        file: event.metadata?.fileName || event.metadata?.brochureName || event.metadata?.fileUrl || "Project brochure",
+        file: asText(
+          event.metadata?.fileName ||
+            event.metadata?.brochureName ||
+            event.metadata?.fileUrl,
+          "Project brochure",
+        ),
         time: time(event.serverTimestamp || event.capturedAt),
       };
     });
@@ -786,11 +839,13 @@ function ReferenceJourneyMap({ journey }) {
       ? `${Math.max(1, Math.floor(ms / 60000))}m ${Math.round(ms / 1000) % 60}s`
       : "—";
   const detail = (event, fallback) =>
-    event?.metadata?.query ||
-    event?.searchContext?.query ||
-    event?.metadata?.title ||
-    event?.placement ||
-    fallback;
+    asText(
+      event?.metadata?.query ||
+        event?.searchContext?.query ||
+        event?.metadata?.title ||
+        event?.placement,
+      fallback,
+    );
   const search = find("search_performed", "search_result_click"),
     explore = find(
       "filter_applied",
@@ -834,12 +889,13 @@ function ReferenceJourneyMap({ journey }) {
     : agent
       ? "Desktop"
       : "Unknown device";
-  const sourceValue =
+  const sourceValue = asText(
     first?.metadata?.utmSource ||
-    first?.searchContext?.utmSource ||
-    first?.metadata?.referrer ||
-    first?.source ||
-    "Direct";
+      first?.searchContext?.utmSource ||
+      first?.metadata?.referrer ||
+      first?.source,
+    "Direct",
+  );
   const stages = [
     [
       "Acquisition",
@@ -898,6 +954,7 @@ function ReferenceJourneyMap({ journey }) {
           promotion: title(
             data.promotionType || event.promotionType || "normal",
           ),
+          location: entityLocation(data),
           views: 0,
           duration: 0,
           interactions: 0,
@@ -1104,7 +1161,7 @@ function ReferenceJourneyMap({ journey }) {
               <strong>
                 {stop ? eventLabel(stop.eventType) : "No activity captured"}
               </strong>
-              <em>{stop?.pageUrl || "Tracking is ready"}</em>
+              <em>{asText(stop?.pageUrl, "Tracking is ready")}</em>
               <small>{time(stop?.capturedAt)}</small>
             </div>
           </section>
@@ -1143,7 +1200,7 @@ function ReferenceJourneyMap({ journey }) {
 function DynamicAttribution({ journey }) {
   const raw = journey?.rawEvents || [];
   const source = title([...raw].reverse()[0]?.source || "Direct");
-  const page = [...raw].reverse()[0]?.pageUrl || "No landing page";
+  const page = asText([...raw].reverse()[0]?.pageUrl, "No landing page");
   const steps = [
     ["S", source, "First touch"],
     ["L", "Landing Page", page],
@@ -1194,7 +1251,7 @@ function DynamicInsightRail({ journey, user, notify }) {
   const count = (...types) =>
     raw.filter((event) => types.includes(event.eventType)).length;
   const uniqueLocations = new Set(
-    raw.map((event) => entityFor(event)?.location).filter(Boolean),
+    raw.map((event) => entityLocation(entityFor(event))).filter(Boolean),
   ).size;
   const signalValues = [
     Math.min(100, 25 + uniqueLocations * 20),
@@ -1233,9 +1290,12 @@ function DynamicInsightRail({ journey, user, notify }) {
     ["Trust", signalValues[4]],
   ];
   const radarPoint = (index, value = 100) => {
+    const safeValue = Number.isFinite(Number(value)) ? Number(value) : 0;
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / signalItems.length;
-    const radius = 48 * (value / 100);
-    return `${80 + Math.cos(angle) * radius},${62 + Math.sin(angle) * radius}`;
+    const radius = 48 * (Math.max(0, Math.min(100, safeValue)) / 100);
+    const x = 80 + Math.cos(angle) * radius;
+    const y = 62 + Math.sin(angle) * radius;
+    return `${Number.isFinite(x) ? x : 80},${Number.isFinite(y) ? y : 62}`;
   };
   const summary = [
     `${journey?.sessions || 0} session${journey?.sessions === 1 ? "" : "s"} in the selected period`,
@@ -1348,13 +1408,14 @@ function DynamicInsightRail({ journey, user, notify }) {
             [
               Globe2,
               "Current URL",
-              journey?.currentContext?.pageUrl || "No active page",
+              asText(journey?.currentContext?.pageUrl, "No active page"),
             ],
             [Monitor, "Device", device],
             [
               MapPin,
               "Location",
               [user.locality, user.city, user.state]
+                .map((part) => asText(part))
                 .filter(Boolean)
                 .join(", ") || "Unavailable",
             ],
@@ -1373,8 +1434,8 @@ function DynamicInsightRail({ journey, user, notify }) {
               <Icon size={12} className="shrink-0 text-slate-400" />
               <span className="min-w-0">
                 <b className="block text-slate-500">{label}</b>
-                <span className="block truncate" title={value}>
-                  {value}
+                <span className="block truncate" title={asText(value)}>
+                  {asText(value)}
                 </span>
               </span>
             </div>
@@ -1583,8 +1644,8 @@ export default function LeadCaptureAnalytics() {
           category: title(
             data.category || data.kind || event.entityType || "Listing",
           ),
-          location: data.location || "",
-          price: data.price,
+          location: entityLocation(data),
+          price: asText(data.price, ""),
           views: 0,
           duration: 0,
           intent: 0,
@@ -1782,7 +1843,7 @@ export default function LeadCaptureAnalytics() {
           ],
         ]
   ).map(([name, interactions], index) => ({
-    name,
+    name: asText(name, "Location unavailable"),
     interactions,
     left: [24, 61, 76][index] || 50,
     top: [58, 48, 20][index] || 50,
@@ -2233,7 +2294,7 @@ export default function LeadCaptureAnalytics() {
                                 {item.kind}
                               </span>
                               <small className="block max-w-32 truncate text-slate-400">
-                                {item.location || item.category}
+                                {asText(item.location || item.category, "Listing")}
                               </small>
                             </span>
                           </div>

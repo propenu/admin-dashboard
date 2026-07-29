@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
   deleteAccessRole,
+  deleteAccessUser,
   getAccessRole,
   getAccessRoles,
   getAccessUsers,
@@ -28,6 +29,7 @@ import {
   getTeamDirectoryRoles,
   updateAccessRolePermissions,
   updateAccessRoleStatus,
+  updateAccessUserStatus,
 } from "../../features/accessControl/accessControlService";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 import {
@@ -38,8 +40,28 @@ import {
 } from "../../utils/roleHierarchy";
 
 const EXCLUDED_ROLES = new Set(["super_admin", "user", "builder", "builder_staff", "agent"]);
+const CUSTOMER_CARE_LIFECYCLE_ROLES = new Set([
+  "customer_care",
+  "customer_care_executive",
+  "customer_care_executives",
+]);
 
 const cleanRole = (value = "") => String(value || "").replace(/_/g, " ");
+
+/** Custom roles + Customer Care Executive (and legacy aliases). */
+const canManageRoleLifecycle = (role) => {
+  if (!role || role.isProtected || role.name === "super_admin") return false;
+  if (role.roleType === "custom") return true;
+  return CUSTOMER_CARE_LIFECYCLE_ROLES.has(String(role.name || "").toLowerCase());
+};
+
+const displayRoleLabel = (role) => {
+  if (!role) return "Role";
+  if (CUSTOMER_CARE_LIFECYCLE_ROLES.has(String(role.name || "").toLowerCase())) {
+    return "Customer Care Executive";
+  }
+  return role.label || cleanRole(role.name);
+};
 
 const formatDateTime = (value) => {
   if (!value) return "Never logged in";
@@ -71,6 +93,9 @@ export default function UserPermissionsPage() {
   const [statusSaving, setStatusSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [userStatusSaving, setUserStatusSaving] = useState(false);
+  const [userDeleting, setUserDeleting] = useState(false);
+  const [userDeleteConfirmation, setUserDeleteConfirmation] = useState("");
 
   useEffect(() => {
     fetchLoggedInUser()
@@ -150,6 +175,14 @@ export default function UserPermissionsPage() {
   }, [visibleUsers, selectedUserId]);
 
   useEffect(() => {
+    setUserDeleteConfirmation("");
+  }, [selectedUserId]);
+
+  useEffect(() => {
+    setDeleteConfirmation("");
+  }, [selectedRole]);
+
+  useEffect(() => {
     if (selectedUser?.roleId) {
       getAccessRole(selectedUser.roleId)
         .then(({ role: roleResult }) => {
@@ -185,6 +218,9 @@ export default function UserPermissionsPage() {
     .join(", ");
 
   const sharedCount = role ? users.filter((user) => String(user.roleId) === String(role._id)).length : 0;
+  const sharedCountForSelectedRole = selectedRoleRecord
+    ? users.filter((user) => String(user.roleId) === String(selectedRoleRecord._id)).length
+    : 0;
 
   const togglePermission = (key) =>
     setPermissions((current) => {
@@ -218,19 +254,26 @@ export default function UserPermissionsPage() {
   };
 
   const changeRoleStatus = async (isActive) => {
-    if (!role) return;
+    const targetRole = selectedRoleRecord || role;
+    if (!targetRole) return;
     setStatusSaving(true);
     try {
-      const result = await updateAccessRoleStatus(role._id, isActive);
-      const updatedRole = result.role || { ...role, isActive };
-      setRole(updatedRole);
+      const result = await updateAccessRoleStatus(targetRole._id, isActive);
+      const updatedRole = result.role || { ...targetRole, isActive };
+      if (role && String(role._id) === String(targetRole._id)) {
+        setRole(updatedRole);
+      }
       setRoles((current) =>
         current.map((item) =>
-          String(item._id) === String(role._id) ? { ...item, isActive: updatedRole.isActive } : item,
+          String(item._id) === String(targetRole._id)
+            ? { ...item, isActive: updatedRole.isActive }
+            : item,
         ),
       );
       setDeleteConfirmation("");
-      toast.success(`${role.label} ${isActive ? "activated" : "deactivated"}`);
+      toast.success(
+        `${displayRoleLabel(targetRole)} ${isActive ? "activated" : "deactivated"}`,
+      );
     } catch (error) {
       toast.error(error.response?.data?.message || "Unable to update role status");
     } finally {
@@ -239,11 +282,22 @@ export default function UserPermissionsPage() {
   };
 
   const deleteSelectedRole = async () => {
-    if (!role || role.isActive !== false || sharedCount > 0 || deleteConfirmation !== role.name) return;
+    const targetRole = selectedRoleRecord || role;
+    const assignedCount = targetRole
+      ? users.filter((user) => String(user.roleId) === String(targetRole._id)).length
+      : 0;
+    if (
+      !targetRole ||
+      targetRole.isActive !== false ||
+      assignedCount > 0 ||
+      deleteConfirmation !== targetRole.name
+    ) {
+      return;
+    }
     setDeleting(true);
     try {
-      const result = await deleteAccessRole(role._id);
-      setRoles((current) => current.filter((item) => String(item._id) !== String(role._id)));
+      const result = await deleteAccessRole(targetRole._id);
+      setRoles((current) => current.filter((item) => String(item._id) !== String(targetRole._id)));
       setSelectedRole("");
       setSelectedUserId("");
       setRole(null);
@@ -254,6 +308,41 @@ export default function UserPermissionsPage() {
       toast.error(error.response?.data?.message || "Role deletion failed");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const changeSelectedUserStatus = async (isActive) => {
+    if (!selectedUser) return;
+    setUserStatusSaving(true);
+    try {
+      const result = await updateAccessUserStatus(selectedUser._id, isActive);
+      const nextActive = result?.user?.isActive ?? isActive;
+      setUsers((current) =>
+        current.map((item) =>
+          String(item._id) === String(selectedUser._id) ? { ...item, isActive: nextActive } : item,
+        ),
+      );
+      toast.success(result.message || (isActive ? "User activated" : "User deactivated"));
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Unable to update user status");
+    } finally {
+      setUserStatusSaving(false);
+    }
+  };
+
+  const deleteSelectedUserPermanently = async () => {
+    if (!selectedUser || userDeleteConfirmation !== "DELETE") return;
+    setUserDeleting(true);
+    try {
+      const result = await deleteAccessUser(selectedUser._id, "Deleted by Super Admin from User permissions");
+      setUsers((current) => current.filter((item) => String(item._id) !== String(selectedUser._id)));
+      setSelectedUserId("");
+      setUserDeleteConfirmation("");
+      toast.success(result.message || "User permanently deleted");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "User deletion failed");
+    } finally {
+      setUserDeleting(false);
     }
   };
 
@@ -306,7 +395,7 @@ export default function UserPermissionsPage() {
                 {roleOptions.map((item) => (
                   <option key={item._id} value={item.name}>
                     {"\u00A0".repeat(Math.max(0, item.hierarchyDepth) * 2)}
-                    {item.label || cleanRole(item.name)} -{" "}
+                    {displayRoleLabel(item)} -{" "}
                     {item.userCount
                       ? `${item.userCount} ${item.userCount === 1 ? "user" : "users"}`
                       : "No users"}
@@ -314,6 +403,85 @@ export default function UserPermissionsPage() {
                 ))}
               </select>
             </label>
+
+            {isSuperAdmin && selectedRole && selectedRoleRecord && canManageRoleLifecycle(selectedRoleRecord) && (
+              <div
+                className={`rounded-xl border p-3 ${
+                  selectedRoleRecord.isActive === false
+                    ? "border-slate-200 bg-white"
+                    : "border-emerald-200 bg-emerald-50/80"
+                }`}
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Role controls (whole job)
+                </p>
+                <div className="mt-1.5 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${
+                          selectedRoleRecord.isActive === false ? "bg-slate-400" : "bg-emerald-500"
+                        }`}
+                      />
+                      <strong className="truncate text-xs text-slate-800">
+                        {displayRoleLabel(selectedRoleRecord)}:{" "}
+                        {selectedRoleRecord.isActive === false ? "Deactivated" : "Active"}
+                      </strong>
+                    </div>
+                    <p className="mt-1 text-[10px] leading-4 text-slate-500">
+                      {selectedRoleRecord.isActive === false
+                        ? "This job is off for everyone in the list below."
+                        : `Affects all ${sharedCountForSelectedRole} people in this role.`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={statusSaving || deleting}
+                    onClick={() => changeRoleStatus(selectedRoleRecord.isActive === false)}
+                    className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition disabled:opacity-50 ${
+                      selectedRoleRecord.isActive === false
+                        ? "border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+                        : "bg-amber-500 text-white hover:bg-amber-600"
+                    }`}
+                  >
+                    {statusSaving
+                      ? "…"
+                      : selectedRoleRecord.isActive === false
+                        ? "Activate role"
+                        : "Deactivate role"}
+                  </button>
+                </div>
+                {selectedRoleRecord.isActive === false && sharedCountForSelectedRole > 0 && (
+                  <p className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[10px] leading-4 text-blue-900">
+                    Role delete locked until you reassign {sharedCountForSelectedRole} user
+                    {sharedCountForSelectedRole === 1 ? "" : "s"}.
+                  </p>
+                )}
+                {selectedRoleRecord.isActive === false && sharedCountForSelectedRole === 0 && (
+                  <div className="mt-2 space-y-1.5 border-t border-slate-200 pt-2">
+                    <input
+                      value={deleteConfirmation}
+                      onChange={(event) => setDeleteConfirmation(event.target.value)}
+                      disabled={deleting || statusSaving}
+                      placeholder={`Type ${selectedRoleRecord.name}`}
+                      className="w-full rounded-lg border border-red-200 bg-white px-2 py-1.5 font-mono text-[11px] outline-none focus:border-red-500"
+                    />
+                    <button
+                      type="button"
+                      disabled={
+                        deleteConfirmation !== selectedRoleRecord.name || deleting || statusSaving
+                      }
+                      onClick={deleteSelectedRole}
+                      className="flex w-full items-center justify-center gap-1 rounded-lg bg-red-600 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      <Trash2 size={12} />
+                      {deleting ? "Deleting…" : "Delete role"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="relative">
               <Search className="absolute left-3 top-3 text-slate-400" size={17} />
               <input
@@ -369,7 +537,10 @@ export default function UserPermissionsPage() {
                         Last login: {formatDateTime(user.lastLoginAt)}
                       </span>
                       <span className="mt-1 block text-[11px] font-semibold capitalize text-emerald-700">
-                        {cleanRole(user.roleName)}
+                        {CUSTOMER_CARE_LIFECYCLE_ROLES.has(String(user.roleName || "").toLowerCase())
+                          ? "Customer Care Executive"
+                          : cleanRole(user.roleName)}
+                        {user.isActive === false ? " · Deactivated" : ""}
                       </span>
                     </span>
                   </button>
@@ -409,11 +580,12 @@ export default function UserPermissionsPage() {
                     {selectedUser ? "Assigned access" : "Role access"}
                   </p>
                   <h2 className="mt-1 text-2xl font-bold">
-                    {selectedUser?.name || role.label || cleanRole(role.name)}
+                    {selectedUser?.name || displayRoleLabel(role)}
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    Role: <strong className="text-slate-700">{role.label || selectedUser?.roleName}</strong> ·{" "}
+                    Role: <strong className="text-slate-700">{displayRoleLabel(role)}</strong> ·{" "}
                     {permissions.size} permissions
+                    {selectedUser?.isActive === false ? " · User deactivated" : ""}
                   </p>
                   {selectedUser ? (
                     <div className="mt-2 space-y-1.5 text-sm text-slate-600">
@@ -449,81 +621,75 @@ export default function UserPermissionsPage() {
                   </div>
                 )}
               </div>
-              {isSuperAdmin && role.roleType === "custom" && !role.isProtected && (
+              {isSuperAdmin && selectedUser && (
                 <div
                   className={`mt-5 rounded-2xl border p-4 ${
-                    role.isActive === false ? "border-slate-200 bg-slate-50" : "border-emerald-200 bg-emerald-50/60"
+                    selectedUser.isActive === false
+                      ? "border-slate-200 bg-slate-50"
+                      : "border-rose-100 bg-rose-50/50"
                   }`}
                 >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    User controls (this person only)
+                  </p>
+                  <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <div className="flex items-center gap-2">
                         <span
                           className={`h-2.5 w-2.5 rounded-full ${
-                            role.isActive === false ? "bg-slate-400" : "bg-emerald-500"
+                            selectedUser.isActive === false ? "bg-slate-400" : "bg-emerald-500"
                           }`}
                         />
                         <strong className="text-sm">
-                          Role status: {role.isActive === false ? "Deactivated" : "Active"}
+                          {selectedUser.name || "User"}:{" "}
+                          {selectedUser.isActive === false ? "Deactivated" : "Active"}
                         </strong>
                       </div>
                       <p className="mt-1 text-xs leading-5 text-slate-600">
-                        {role.isActive === false
-                          ? "Assigned users cannot use this role until it is activated again."
-                          : `Deactivating this role affects ${sharedCount} assigned ${
-                              sharedCount === 1 ? "user" : "users"
-                            }.`}
+                        Turns this one account on or off. Does not change the role for others.
                       </p>
                     </div>
                     <button
                       type="button"
-                      disabled={statusSaving || deleting}
-                      onClick={() => changeRoleStatus(role.isActive === false)}
+                      disabled={userStatusSaving || userDeleting}
+                      onClick={() => changeSelectedUserStatus(selectedUser.isActive === false)}
                       className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:opacity-50 ${
-                        role.isActive === false
+                        selectedUser.isActive === false
                           ? "border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
                           : "bg-amber-500 text-white hover:bg-amber-600"
                       }`}
                     >
-                      {role.isActive === false ? <RotateCcw size={16} /> : <Power size={16} />}
-                      {statusSaving
+                      {selectedUser.isActive === false ? <RotateCcw size={16} /> : <Power size={16} />}
+                      {userStatusSaving
                         ? "Updating..."
-                        : role.isActive === false
-                          ? "Activate role"
-                          : "Deactivate role"}
+                        : selectedUser.isActive === false
+                          ? "Activate user"
+                          : "Deactivate user"}
                     </button>
                   </div>
-                  {role.isActive === false && sharedCount > 0 && (
-                    <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-900">
-                      <strong>Permanent deletion is locked.</strong> Reassign all {sharedCount} users to another
-                      role first.
-                    </div>
-                  )}
-                  {role.isActive === false && sharedCount === 0 && (
-                    <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                      <label>
-                        <span className="block text-[11px] font-bold uppercase tracking-wider text-red-600">
-                          Type {role.name} to confirm permanent deletion
-                        </span>
-                        <input
-                          value={deleteConfirmation}
-                          onChange={(event) => setDeleteConfirmation(event.target.value)}
-                          disabled={deleting || statusSaving}
-                          placeholder={role.name}
-                          className="mt-1.5 w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 font-mono text-sm outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100"
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        disabled={deleteConfirmation !== role.name || deleting || statusSaving}
-                        onClick={deleteSelectedRole}
-                        className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Trash2 size={16} />
-                        {deleting ? "Deleting..." : "Delete this role"}
-                      </button>
-                    </div>
-                  )}
+                  <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                    <label>
+                      <span className="block text-[11px] font-bold uppercase tracking-wider text-red-600">
+                        Type DELETE to permanently remove {selectedUser.name || "this user"}
+                      </span>
+                      <input
+                        value={userDeleteConfirmation}
+                        onChange={(event) => setUserDeleteConfirmation(event.target.value)}
+                        disabled={userDeleting || userStatusSaving}
+                        placeholder="DELETE"
+                        className="mt-1.5 w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 font-mono text-sm outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={userDeleteConfirmation !== "DELETE" || userDeleting || userStatusSaving}
+                      onClick={deleteSelectedUserPermanently}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Trash2 size={16} />
+                      {userDeleting ? "Deleting..." : "Delete permanently"}
+                    </button>
+                  </div>
                 </div>
               )}
               <div className="mt-5 grid gap-3 xl:grid-cols-2">
