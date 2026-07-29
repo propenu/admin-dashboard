@@ -119,6 +119,26 @@ const propertyLocation = (row) =>
 
 const rowId = (row) => String(row?._id || row?.id || "");
 
+const creatorIdOf = (row) => {
+  const person = row?.createdBy;
+  if (!person) return "";
+  if (typeof person === "string") return person.trim();
+  return String(person?._id || person?.id || "").trim();
+};
+
+/** Exclusive CCE for a listing = creator's follow-up owner (one executive only). */
+const listingOwnerIdOf = (row, creatorAssigneeById = null) => {
+  const fromCreator = String(
+    row?.createdBy?.followUpAssignedTo?._id ||
+      row?.createdBy?.followUpAssignedTo ||
+      "",
+  ).trim();
+  if (fromCreator) return fromCreator;
+  const creatorId = creatorIdOf(row);
+  if (!creatorId || !creatorAssigneeById) return "";
+  return String(creatorAssigneeById[creatorId] || "").trim();
+};
+
 /** Listing / project creator only — never dashboard staff from postedBy. */
 const getCreatedByPerson = (row) => {
   const person = row?.createdBy;
@@ -182,6 +202,8 @@ export default function FollowUpInventoryWorkspace({
   meta,
   range = {},
   territoryFilter = null,
+  exclusiveAssigneeId = null,
+  creatorAssigneeById = null,
   onRefreshUsers,
 }) {
   const isProject = meta?.entity === "project" || meta?.path === "/projects";
@@ -325,6 +347,12 @@ export default function FollowUpInventoryWorkspace({
       })
       .filter((row) => inCreatedRange(row?.createdAt, range.from, range.to))
       .filter((row) => {
+        // CCE exclusive: one owner per listing (creator's follow-up CCE).
+        // Same territory as another CCE does NOT share the case.
+        if (exclusiveAssigneeId) {
+          const ownerId = listingOwnerIdOf(row, creatorAssigneeById);
+          if (!ownerId || ownerId !== String(exclusiveAssigneeId)) return false;
+        }
         if (!Array.isArray(territoryFilter) || !territoryFilter.length) return true;
         return anyTerritoryCovers(territoryFilter, locationFromUserLike(row));
       })
@@ -355,7 +383,18 @@ export default function FollowUpInventoryWorkspace({
         (a, b) =>
           new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime(),
       );
-  }, [rows, isProject, targetStatus, range.from, range.to, categoryFilter, search, territoryFilter]);
+  }, [
+    rows,
+    isProject,
+    targetStatus,
+    range.from,
+    range.to,
+    categoryFilter,
+    search,
+    territoryFilter,
+    exclusiveAssigneeId,
+    creatorAssigneeById,
+  ]);
 
   useEffect(() => {
     setPage(1);

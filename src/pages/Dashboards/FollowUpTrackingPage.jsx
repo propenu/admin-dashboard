@@ -458,6 +458,26 @@ export default function FollowUpTrackingPage() {
   const isCceViewer = isCustomerCareExecutiveRole(me?.roleName || me?.role);
   const isOversightViewer = isFollowUpOversightRole(me?.roleName || me?.role);
 
+  /** Creator → exclusive CCE map (inventory must not share across same-territory CCEs). */
+  const creatorAssigneeQuery = useQuery({
+    queryKey: ["follow-up-tracking", "creator-assignees"],
+    enabled: Boolean(isCceViewer && meId),
+    queryFn: async () => {
+      const response = await getAllUsers();
+      const list = unpackUsers(response?.data);
+      const map = {};
+      list.forEach((u) => {
+        const id = userIdOf(u);
+        const owner = assigneeIdOf(u);
+        if (id && owner) map[id] = owner;
+      });
+      return map;
+    },
+    staleTime: 60_000,
+  });
+
+  const creatorAssigneeById = creatorAssigneeQuery.data || {};
+
   const canEditWorkStatus = (user) => {
     if (!user) return false;
     if (isOversightViewer) return true;
@@ -850,7 +870,8 @@ export default function FollowUpTrackingPage() {
               Territories: {cceTerritories.map(formatTerritoryLabel).join(" · ")}
             </p>
             <p className="mt-1 text-[10px] text-slate-400">
-              Each follow-up is owned by one executive. Same location as another CCE does not share the case.
+              Each follow-up is owned by one executive. Same location as another CCE does not
+              share the case (people + their properties/projects).
             </p>
           </div>
         </div>
@@ -861,7 +882,12 @@ export default function FollowUpTrackingPage() {
           meta={meta}
           range={range}
           territoryFilter={territoryScoped ? cceTerritories : null}
-          onRefreshUsers={() => usersQuery.refetch()}
+          exclusiveAssigneeId={territoryScoped ? meId : null}
+          creatorAssigneeById={territoryScoped ? creatorAssigneeById : null}
+          onRefreshUsers={() => {
+            usersQuery.refetch();
+            creatorAssigneeQuery.refetch();
+          }}
         />
       ) : (
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_340px]">

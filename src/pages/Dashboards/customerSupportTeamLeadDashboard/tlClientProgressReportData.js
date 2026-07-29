@@ -91,20 +91,26 @@ const unpackList = (payload) => {
 
 const overviewBucket = (overview = {}) => {
   const pending =
-    Number(overview.pendingProjects ?? overview.pendingProperties ?? overview.pending || 0) || 0;
+    Number(
+      overview.pendingProjects ?? overview.pendingProperties ?? overview.pending ?? 0,
+    ) || 0;
   const active =
-    Number(overview.activeProjects ?? overview.activeProperties ?? overview.active || 0) || 0;
+    Number(overview.activeProjects ?? overview.activeProperties ?? overview.active ?? 0) ||
+    0;
   const draft =
     Number(
-      overview.draftProjects ?? overview.draftProperties ?? overview.inactive ?? overview.draft || 0,
+      overview.draftProjects ??
+        overview.draftProperties ??
+        overview.inactive ??
+        overview.draft ??
+        0,
     ) || 0;
   const rejected =
     Number(
-      overview.rejectedProjects ?? overview.rejectedProperties ?? overview.rejected || 0,
+      overview.rejectedProjects ?? overview.rejectedProperties ?? overview.rejected ?? 0,
     ) || 0;
   const total =
-    Number(overview.total || 0) ||
-    active + pending + draft + rejected;
+    Number(overview.total || 0) || active + pending + draft + rejected;
   return { total, active, pending, draft, rejected };
 };
 
