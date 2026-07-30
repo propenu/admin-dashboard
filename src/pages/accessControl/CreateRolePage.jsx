@@ -16,6 +16,7 @@ export default function CreateRolePage() {
   const [query, setQuery] = useState("");
   const [name, setName] = useState("");
   const [label, setLabel] = useState("");
+  const [roleKeyManual, setRoleKeyManual] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -191,9 +192,35 @@ export default function CreateRolePage() {
             <h2 className="flex items-center gap-2 text-lg font-bold"><ShieldCheck className="text-emerald-600" size={20} /> Role identity</h2>
             <p className="mt-1 text-sm text-slate-500">{isEditing ? "You are updating the assigned role." : "Use a clear job-based name."}</p>
             <label className="mt-7 block text-xs font-bold uppercase tracking-wider text-slate-500">Display label</label>
-            <input disabled={isEditing} value={label} onChange={(e) => { setLabel(e.target.value); if (!name) setName(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "_")); }} placeholder="Property Reviewer" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100" />
+            <input
+              disabled={isEditing}
+              value={label}
+              onChange={(e) => {
+                const nextLabel = e.target.value;
+                setLabel(nextLabel);
+                if (!isEditing && !roleKeyManual) {
+                  setName(toRoleKey(nextLabel));
+                }
+              }}
+              placeholder="Property Reviewer"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+            />
             <label className="mt-5 block text-xs font-bold uppercase tracking-wider text-slate-500">Role key</label>
-            <input disabled={isEditing} value={name} onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} placeholder="property_reviewer" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100" />
+            <input
+              disabled={isEditing}
+              value={name}
+              onChange={(e) => {
+                setRoleKeyManual(true);
+                setName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""));
+              }}
+              placeholder="property_reviewer"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+            />
+            {!isEditing && (
+              <p className="mt-1.5 text-[11px] leading-4 text-slate-500">
+                Auto-fills from display label as you type (e.g. Property Reviewer → property_reviewer). Edit role key manually only if you need a different key.
+              </p>
+            )}
             <label className="mt-5 block text-xs font-bold uppercase tracking-wider text-slate-500">Parent role</label>
             <select value={parentRoleId} onChange={(event) => setParentRoleId(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100">
               <option value="">No parent / top-level role</option>
@@ -271,4 +298,13 @@ export default function CreateRolePage() {
 
 function Metric({ value, label, accent }) {
   return <div className={`min-w-24 rounded-2xl border px-4 py-3 ${accent ? "border-emerald-400/30 bg-emerald-400/15" : "border-white/10 bg-white/5"}`}><div className="text-2xl font-bold">{value}</div><div className="text-xs text-slate-300">{label}</div></div>;
+}
+
+/** Display label → role key, live as words are typed. "Property Reviewer" → "property_reviewer" */
+function toRoleKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_");
 }
