@@ -122,6 +122,18 @@ const propertyTitle = (row) =>
 const propertyLocation = (row) =>
   [row?.locality, row?.city, row?.state].filter(Boolean).join(", ") || "—";
 
+const listingCompletionPercent = (row) => {
+  const raw = row?.completion?.percent ?? row?.completion;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.min(100, Math.round(n));
+};
+
+const listingCompletionStep = (row) => {
+  const step = Number(row?.completion?.step);
+  return Number.isFinite(step) && step > 0 ? step : null;
+};
+
 const rowId = (row) => String(row?._id || row?.id || "");
 
 const creatorIdOf = (row) => {
@@ -211,6 +223,40 @@ function DetailField({ label, children }) {
     <div className="space-y-0.5">
       <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
       <div className="text-xs text-slate-800">{children || "—"}</div>
+    </div>
+  );
+}
+
+function CompletionMeter({ percent, step = null, compact = false }) {
+  if (percent == null) {
+    return <span className="text-slate-400">—</span>;
+  }
+  const tone =
+    percent >= 100
+      ? "bg-emerald-500"
+      : percent >= 70
+        ? "bg-emerald-400"
+        : percent >= 45
+          ? "bg-amber-400"
+          : "bg-slate-400";
+  return (
+    <div className={`flex items-center gap-1.5 ${compact ? "min-w-[88px]" : "min-w-[120px]"}`}>
+      <span className="tabular-nums font-bold text-slate-800">{percent}%</span>
+      <div
+        className={`overflow-hidden rounded-full bg-slate-100 ${
+          compact ? "h-1.5 w-12" : "h-2 w-20"
+        }`}
+      >
+        <div
+          className={`h-full rounded-full transition-all ${tone}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      {step != null && !compact ? (
+        <span className="whitespace-nowrap rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+          Step {step}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -487,6 +533,12 @@ export default function FollowUpInventoryWorkspace({
           Category: row._category || "",
           Title: propertyTitle(row),
           Status: status,
+          Completion: !isProject
+            ? listingCompletionPercent(row) != null
+              ? `${listingCompletionPercent(row)}%`
+              : ""
+            : "",
+          CompletionStep: !isProject ? listingCompletionStep(row) || "" : "",
           Location: propertyLocation(row),
           City: row?.city || "",
           State: row?.state || "",
@@ -688,6 +740,11 @@ export default function FollowUpInventoryWorkspace({
                       <th className="whitespace-nowrap px-3 py-2.5 font-bold">Category</th>
                     ) : null}
                     <th className="whitespace-nowrap px-3 py-2.5 font-bold">Status</th>
+                    {!isProject ? (
+                      <th className="whitespace-nowrap px-3 py-2.5 font-bold">
+                        Completion
+                      </th>
+                    ) : null}
                     <th className="min-w-[140px] whitespace-nowrap px-3 py-2.5 font-bold">
                       Location
                     </th>
@@ -739,6 +796,14 @@ export default function FollowUpInventoryWorkspace({
                         <td className="align-middle whitespace-nowrap px-3 py-2.5">
                           <StatusBadge status={status} />
                         </td>
+                        {!isProject ? (
+                          <td className="align-middle whitespace-nowrap px-3 py-2.5">
+                            <CompletionMeter
+                              percent={listingCompletionPercent(row)}
+                              compact
+                            />
+                          </td>
+                        ) : null}
                         <td className="align-middle px-3 py-2.5">
                           <p className="max-w-[180px] truncate text-slate-600">
                             {propertyLocation(row)}
@@ -897,6 +962,21 @@ export default function FollowUpInventoryWorkspace({
                 you work this listing. Approval status stays separate.
               </p>
             </div>
+
+            {!isProject ? (
+              <div className="rounded-xl border border-slate-100 bg-white p-2.5">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  Property completion
+                </p>
+                <CompletionMeter
+                  percent={listingCompletionPercent(selected)}
+                  step={listingCompletionStep(selected)}
+                />
+                <p className="mt-1.5 text-[10px] text-slate-400">
+                  Listing wizard progress for this property (separate from CCE process).
+                </p>
+              </div>
+            ) : null}
 
             <DetailField label="Location">
               <span className="inline-flex items-start gap-1">

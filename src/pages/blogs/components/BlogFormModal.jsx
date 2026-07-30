@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import {
   BLOG_CONTENT_IMAGE,
   BLOG_FEATURED_IMAGE,
+  getBlogStatusConfig,
   resolveBlogImage,
   validateBlogFeaturedImage,
 } from "../utility/blogHelpers";
@@ -89,11 +90,17 @@ const BlogFormModal = ({
   const imageInputRef = useRef(null);
   const backendIssues = getBackendIssues(error);
   const fieldErrors = getFieldErrors(backendIssues);
+  const backendIssueKey = backendIssues
+    .map((i) => `${i.path}:${i.message}`)
+    .join("|");
 
   useEffect(() => {
     if (initialData) {
       setForm({
+        ...createEmptyForm(),
         ...initialData,
+        published: toBool(initialData.published),
+        featured: toBool(initialData.featured),
         tags: Array.isArray(initialData.tags)
           ? initialData.tags.join(", ")
           : initialData.tags || "",
@@ -152,34 +159,45 @@ const BlogFormModal = ({
     Object.entries(payload).forEach(([key, value]) => {
       if (key === "featuredImage") return;
       if (value === undefined || value === null) return;
+      if (typeof value === "boolean") {
+        formData.append(key, value ? "true" : "false");
+        return;
+      }
       if (Array.isArray(value) || typeof value === "object") {
         formData.append(key, JSON.stringify(value));
         return;
       }
       formData.append(key, value);
     });
-    formData.append("featuredImage", featuredImageFile);
+    if (featuredImageFile) {
+      formData.append("featuredImage", featuredImageFile);
+    }
     return formData;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const currentImage = resolveBlogImage(form.featuredImage);
-    if (!featuredImageFile && !featuredImagePreview && !currentImage) {
-      const message = "Featured image is required.";
-      setFeaturedImageError(message);
-      toast.error(message);
-      imageInputRef.current?.focus();
-      return;
-    }
+    setFeaturedImageError("");
 
+    const readTimeNum = Number(form.readTime);
     const payload = {
       ...form,
-      tags: form.tags
+      published: toBool(form.published),
+      featured: toBool(form.featured),
+      featuredImage: featuredImageFile
+        ? undefined
+        : resolveBlogImage(form.featuredImage) || featuredImagePreview || "",
+      readTime:
+        form.readTime === "" || form.readTime == null
+          ? undefined
+          : Number.isFinite(readTimeNum) && readTimeNum > 0
+            ? readTimeNum
+            : undefined,
+      tags: String(form.tags || "")
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
-      metaKeywords: form.metaKeywords
+      metaKeywords: String(form.metaKeywords || "")
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
@@ -187,6 +205,9 @@ const BlogFormModal = ({
     // Remove profileImage from author if present
     const { profileImage, ...authorClean } = payload.author || {};
     payload.author = authorClean;
+    if (payload.featuredImage === undefined) delete payload.featuredImage;
+    if (payload.readTime === undefined) delete payload.readTime;
+
     onSubmit(featuredImageFile ? buildMultipartPayload(payload) : payload);
   };
 
@@ -238,7 +259,45 @@ const BlogFormModal = ({
     set("faqs", updated);
   };
 
+  // Open sections that have backend field errors so the message is visible.
+  useEffect(() => {
+    if (!backendIssueKey) return;
+    const paths = backendIssueKey.split("|").map((part) => part.split(":")[0]);
+    setExpandedSections((prev) => ({
+      ...prev,
+      author:
+        prev.author ||
+        paths.some((p) => p === "author" || p.startsWith("author.")),
+      meta:
+        prev.meta ||
+        paths.some((p) =>
+          ["metaTitle", "metaDescription", "metaKeywords", "canonicalUrl"].includes(
+            p,
+          ),
+        ),
+      sections: prev.sections || paths.includes("articleSections"),
+      faqs: prev.faqs || paths.includes("faqs"),
+    }));
+  }, [backendIssueKey]);
+
   if (!isOpen) return null;
+
+  const isPublished = toBool(form.published);
+  const isFeatured = toBool(form.featured);
+  const statusCfg = getBlogStatusConfig(isPublished);
+  const authorError = fieldErrors.author || fieldErrors["author.name"];
+  const metaDescError = fieldErrors.metaDescription;
+  const metaTitleError = fieldErrors.metaTitle;
+
+  const submitLabel = loading
+    ? "Saving…"
+    : isEdit
+      ? isPublished
+        ? "Update & Publish"
+        : "Update Draft"
+      : isPublished
+        ? "Publish Blog"
+        : "Save as Draft";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -246,13 +305,25 @@ const BlogFormModal = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-base font-semibold text-gray-800">
-              {isEdit ? "Edit Blog" : "Create New Blog"}
-            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-semibold text-gray-800">
+                {isEdit ? "Edit Blog" : "Create New Blog"}
+              </h2>
+              <span
+                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${statusCfg.color}`}
+              >
+                {statusCfg.label}
+              </span>
+              {isFeatured && (
+                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
+                  Featured
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-400 mt-0.5">
               {isEdit
                 ? "Update blog details below"
-                : "Fill in the blog details to publish"}
+                : "Starts as Draft — turn on Published when ready to go live"}
             </p>
           </div>
           <button
@@ -288,61 +359,60 @@ const BlogFormModal = ({
           {/* Basic Info */}
           <Section title="Basic Information">
             <div className="grid grid-cols-1 gap-3">
-              <Field label="Title *">
+              <Field label="Title *" error={fieldErrors.title}>
                 <input
                   required
                   value={form.title}
                   onChange={(e) => handleTitleChange(e.target.value)}
                   placeholder="Enter blog title"
-                  className={inputCls}
+                  className={fieldInputCls(fieldErrors.title)}
                 />
               </Field>
-              <Field label="Excerpt *">
+              <Field label="Excerpt (optional)" error={fieldErrors.excerpt}>
                 <textarea
-                  required
                   rows={2}
                   value={form.excerpt}
                   onChange={(e) => set("excerpt", e.target.value)}
                   placeholder="Short summary of the blog"
-                  className={inputCls}
+                  className={fieldInputCls(fieldErrors.excerpt)}
                 />
               </Field>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Category">
+                <Field label="Category (optional)" error={fieldErrors.category}>
                   <input
                     value={form.category}
                     onChange={(e) => set("category", e.target.value)}
                     placeholder="e.g. Commercial Property"
-                    className={inputCls}
+                    className={fieldInputCls(fieldErrors.category)}
                   />
                 </Field>
-                <Field label="Read Time (mins)">
+                <Field label="Read Time (mins)" error={fieldErrors.readTime}>
                   <input
                     type="number"
                     min={1}
                     value={form.readTime}
                     onChange={(e) => set("readTime", e.target.value)}
-                    placeholder="e.g. 6"
-                    className={inputCls}
+                    placeholder="e.g. 6 (optional, default 5)"
+                    className={fieldInputCls(fieldErrors.readTime)}
                   />
                 </Field>
               </div>
-              <Field label="Tags (comma-separated)">
+              <Field label="Tags (comma-separated)" error={fieldErrors.tags}>
                 <input
                   value={form.tags}
                   onChange={(e) => set("tags", e.target.value)}
                   placeholder="Commercial Property, Office Space, ..."
-                  className={inputCls}
+                  className={fieldInputCls(fieldErrors.tags)}
                 />
               </Field>
-              <Field label="Featured Image * (main blog hero)">
+              <Field label="Featured Image (optional)">
                 <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-3 space-y-3">
                   <div className="rounded-lg border border-emerald-100 bg-white px-3 py-2.5 text-[11px] leading-relaxed text-gray-600">
                     <p className="font-bold text-emerald-800">
-                      Required size for propenu.com (no edge cutting)
+                      Optional hero image — add only if you want one
                     </p>
                     <p className="mt-1">
-                      Upload exactly{" "}
+                      Recommended{" "}
                       <span className="font-semibold text-gray-800">
                         {BLOG_FEATURED_IMAGE.label}
                       </span>{" "}
@@ -351,9 +421,9 @@ const BlogFormModal = ({
                       PNG / JPG / WebP
                     </p>
                     <p className="mt-1 text-gray-500">
-                      This matches the live article hero frame. Keep important
-                      text/logo inside the full canvas — wrong ratios are
-                      rejected on create and edit.
+                      You can create or update the blog without an image. If you
+                      upload one, it must match this size so edges are not cut
+                      on propenu.com.
                     </p>
                   </div>
 
@@ -377,10 +447,10 @@ const BlogFormModal = ({
                       <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
                         <ImageIcon size={22} className="text-emerald-600" />
                         <p className="mt-2 text-xs font-semibold text-gray-700">
-                          Live hero preview ({BLOG_FEATURED_IMAGE.label})
+                          No image yet (optional)
                         </p>
                         <p className="mt-0.5 text-[10px] text-gray-400">
-                          Image will display here exactly as on the website
+                          Preview appears here when you add one
                         </p>
                       </div>
                     )}
@@ -393,8 +463,9 @@ const BlogFormModal = ({
                           {featuredImageFile?.name || "Current featured image"}
                         </p>
                         <p className="text-[11px] text-gray-400">
-                          Replace with another {BLOG_FEATURED_IMAGE.label} image
-                          (max 1 MB)
+                          {isEdit
+                            ? "Remove current image, then upload a new one to replace it"
+                            : `Replace with another ${BLOG_FEATURED_IMAGE.label} image (max 1 MB)`}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -424,10 +495,10 @@ const BlogFormModal = ({
                         <Upload size={18} />
                       </span>
                       <span className="mt-2 text-sm font-semibold text-gray-700">
-                        Upload featured image
+                        Upload featured image (optional)
                       </span>
                       <span className="mt-1 text-xs text-gray-400">
-                        {BLOG_FEATURED_IMAGE.label} · max 1 MB · create & edit
+                        {BLOG_FEATURED_IMAGE.label} · max 1 MB — skip if not needed
                       </span>
                     </button>
                   )}
@@ -439,34 +510,67 @@ const BlogFormModal = ({
                   )}
                 </div>
               </Field>
-              <Field label="Image Alt Text">
+              <Field label="Image Alt Text" error={fieldErrors.imageAlt}>
                 <input
                   value={form.imageAlt}
                   onChange={(e) => set("imageAlt", e.target.value)}
                   placeholder="Describe the image"
-                  className={inputCls}
+                  className={fieldInputCls(fieldErrors.imageAlt)}
                 />
               </Field>
-              <Field label="Main Content">
+              <Field label="Main Content (optional)" error={fieldErrors.content}>
                 <textarea
                   rows={3}
                   value={form.content}
                   onChange={(e) => set("content", e.target.value)}
-                  placeholder="Main blog content..."
-                  className={inputCls}
+                  placeholder="Main blog content (optional)..."
+                  className={fieldInputCls(fieldErrors.content)}
                 />
               </Field>
-              <div className="flex items-center gap-6">
-                <Toggle
-                  label="Published"
-                  checked={form.published}
-                  onChange={(v) => set("published", v)}
-                />
-                <Toggle
-                  label="Featured"
-                  checked={form.featured}
-                  onChange={(v) => set("featured", v)}
-                />
+              <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Visibility
+                  </p>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusCfg.color}`}
+                  >
+                    {statusCfg.label}
+                  </span>
+                  {isFeatured ? (
+                    <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                      Featured on
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-medium text-gray-400">
+                      Featured off
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Toggle
+                    label="Published"
+                    description={
+                      isPublished
+                        ? "Live on propenu.com"
+                        : "Saved as Draft (not public)"
+                    }
+                    checked={isPublished}
+                    onChange={(v) => set("published", v)}
+                    onColor="bg-emerald-500"
+                  />
+                  <Toggle
+                    label="Featured"
+                    description={
+                      isFeatured
+                        ? "Highlighted in featured blogs"
+                        : "Not marked as featured"
+                    }
+                    checked={isFeatured}
+                    onChange={(v) => set("featured", v)}
+                    onColor="bg-amber-500"
+                  />
+                </div>
               </div>
             </div>
           </Section>
@@ -595,7 +699,7 @@ const BlogFormModal = ({
             onToggle={() => toggle("author")}
           >
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Author Name">
+              <Field label="Author Name (optional)" error={authorError}>
                 <input
                   value={form.author.name}
                   onChange={(e) =>
@@ -605,7 +709,7 @@ const BlogFormModal = ({
                     }))
                   }
                   placeholder="Full name"
-                  className={inputCls}
+                  className={fieldInputCls(authorError)}
                 />
               </Field>
               <Field label="Designation">
@@ -667,21 +771,21 @@ const BlogFormModal = ({
             open={expandedSections.meta}
             onToggle={() => toggle("meta")}
           >
-            <Field label="Meta Title">
+            <Field label="Meta Title (optional)" error={metaTitleError}>
               <input
                 value={form.metaTitle}
                 onChange={(e) => set("metaTitle", e.target.value)}
                 placeholder="SEO title"
-                className={inputCls}
+                className={fieldInputCls(metaTitleError)}
               />
             </Field>
-            <Field label="Meta Description">
+            <Field label="Meta Description (optional)" error={metaDescError}>
               <textarea
                 rows={2}
                 value={form.metaDescription}
                 onChange={(e) => set("metaDescription", e.target.value)}
                 placeholder="SEO description"
-                className={inputCls}
+                className={fieldInputCls(metaDescError)}
               />
             </Field>
             <Field label="Meta Keywords (comma-separated)">
@@ -717,9 +821,9 @@ const BlogFormModal = ({
             form="blog-form"
             disabled={loading}
             className="px-5 py-2 text-sm font-semibold text-white rounded-lg transition-all disabled:opacity-60"
-            style={{ background: "#27AE60" }}
+            style={{ background: isPublished ? "#27AE60" : "#d97706" }}
           >
-            {loading ? "Saving…" : isEdit ? "Update Blog" : "Create Blog"}
+            {submitLabel}
           </button>
         </div>
       </div>
@@ -758,29 +862,61 @@ const CollapsibleSection = ({ title, open, onToggle, children }) => (
   </div>
 );
 
-const Field = ({ label, children }) => (
+const Field = ({ label, error, children }) => (
   <div className="space-y-1">
     <label className="block text-xs font-medium text-gray-600">{label}</label>
     {children}
+    {error ? (
+      <p className="text-xs font-medium text-red-500">{error}</p>
+    ) : null}
   </div>
 );
 
-const Toggle = ({ label, checked, onChange }) => (
-  <label className="flex items-center gap-2 cursor-pointer">
-    <div
-      onClick={() => onChange(!checked)}
-      className={`relative w-9 h-5 rounded-full transition-colors ${checked ? "bg-emerald-500" : "bg-gray-200"}`}
+const Toggle = ({ label, description, checked, onChange, onColor = "bg-emerald-500" }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    onClick={() => onChange(!checked)}
+    className="flex w-full items-start gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-left transition hover:border-gray-300"
+  >
+    <span
+      className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors ${
+        checked ? onColor : "bg-gray-200"
+      }`}
     >
       <span
-        className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${checked ? "translate-x-4" : "translate-x-0"}`}
+        className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-4" : "translate-x-0"
+        }`}
       />
-    </div>
-    <span className="text-xs font-medium text-gray-600">{label}</span>
-  </label>
+    </span>
+    <span className="min-w-0">
+      <span className="block text-xs font-semibold text-gray-700">
+        {label}
+        <span className={`ml-1.5 font-medium ${checked ? "text-gray-800" : "text-gray-400"}`}>
+          {checked ? "On" : "Off"}
+        </span>
+      </span>
+      {description ? (
+        <span className="mt-0.5 block text-[11px] leading-snug text-gray-400">
+          {description}
+        </span>
+      ) : null}
+    </span>
+  </button>
 );
+
+const toBool = (value) =>
+  value === true || value === "true" || value === 1 || value === "1";
 
 const inputCls =
   "w-full text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-400 placeholder:text-gray-300 bg-white transition-all";
+
+const fieldInputCls = (error) =>
+  error
+    ? `${inputCls} border-red-300 focus:ring-red-200 focus:border-red-400`
+    : inputCls;
 
 const getBackendIssues = (error) => {
   const issues = error?.response?.data?.issues;

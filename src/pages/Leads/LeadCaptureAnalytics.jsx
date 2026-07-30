@@ -2227,8 +2227,8 @@ export default function LeadCaptureAnalytics() {
                     </tr>
                   </thead>
                   <tbody>
-                    {events.map((row) => (
-                      <tr key={`${row[0]}-${row[1]}`}>
+                    {events.map((row, index) => (
+                      <tr key={`${row[0]}-${row[1]}-${row[2]}-${row[3]}-${index}`}>
                         <td>{row[0]}</td>
                         <td
                           className={

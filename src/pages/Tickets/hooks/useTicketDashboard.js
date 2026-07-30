@@ -6,15 +6,21 @@ import {
 } from "../../../features/ticket/ticket_system";
 import { normalizeTicketOverview, normalizeTicketTrends } from "../utils/ticketNormalizers";
 
-const toOverviewParams = (filters = {}) => {
+const toOverviewParams = (filters = {}, scope = {}) => {
   const params = {};
   if (filters.from) params.from = `${filters.from}T00:00:00.000`;
   if (filters.to) params.to = `${filters.to}T23:59:59.999`;
+  if (scope.ownedBy) params.ownedBy = scope.ownedBy;
+  else if (scope.assignedTo) params.assignedTo = scope.assignedTo;
+  if (scope.department) params.department = scope.department;
   return params;
 };
 
-export function useTicketDashboard(enabled = true, dateFilters = {}) {
-  const overviewParams = useMemo(() => toOverviewParams(dateFilters), [dateFilters]);
+export function useTicketDashboard(enabled = true, dateFilters = {}, scope = {}) {
+  const overviewParams = useMemo(
+    () => toOverviewParams(dateFilters, scope),
+    [dateFilters, scope.ownedBy, scope.assignedTo, scope.department],
+  );
   const trendDays = useMemo(() => {
     if (!dateFilters.from || !dateFilters.to) return 90;
     const from = new Date(`${dateFilters.from}T00:00:00`);
@@ -35,7 +41,16 @@ export function useTicketDashboard(enabled = true, dateFilters = {}) {
 
   const trendsQuery = useQuery({
     queryKey: ["ticket-dashboard", "trends", trendDays, overviewParams],
-    queryFn: () => getTicketDashboardTrends({ days: trendDays }),
+    queryFn: () =>
+      getTicketDashboardTrends({
+        days: trendDays,
+        ...(scope.ownedBy
+          ? { ownedBy: scope.ownedBy }
+          : scope.assignedTo
+            ? { assignedTo: scope.assignedTo }
+            : {}),
+        ...(scope.department ? { department: scope.department } : {}),
+      }),
     enabled,
     refetchInterval: 60_000,
     staleTime: 20_000,

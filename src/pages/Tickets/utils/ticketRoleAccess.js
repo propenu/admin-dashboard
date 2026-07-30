@@ -1,7 +1,8 @@
 /**
  * Frontend-only ticket role access model.
  * Desk roles → shared Ticket Desk (Overview / Queue / Config).
- * Staff roles → personal inbox (assigned to me + created by me + requested by me).
+ * CCE desk → same Overview / Queue / Config UI, but data is exclusive to assigned-to-me.
+ * Staff roles → personal inbox (assigned / created / requested).
  */
 
 const normalizeRole = (role = "") =>
@@ -16,10 +17,27 @@ export const TICKET_DESK_ROLES = new Set([
   "super_admin",
   "admin",
   "customer_support_head",
+]);
+
+/**
+ * Customer Care Executive — same desk UI as before, exclusive assigned data only.
+ */
+export const TICKET_EXECUTIVE_ROLES = new Set([
   "customer_care",
   "customer_care_executive",
   "customer_care_executives",
 ]);
+
+export const isTicketExecutiveRole = (role = "") => {
+  const key = normalizeRole(role);
+  if (TICKET_EXECUTIVE_ROLES.has(key)) return true;
+  if (key.includes("customer_support_head") || key.includes("team_lead")) return false;
+  return (
+    key === "customer_care" ||
+    key.startsWith("customer_care_executive") ||
+    (key.includes("customer_care") && key.includes("executive"))
+  );
+};
 
 export const getTicketUserId = (user) =>
   String(user?._id || user?.id || user?.userId || "").trim();
@@ -29,10 +47,35 @@ export const createdByTagForUser = (userId) => {
   return id ? `created_by_${id}` : null;
 };
 
+export const involvedTagForUser = (userId) => {
+  const id = String(userId || "").trim();
+  return id ? `involved_${id}` : null;
+};
+
 export const resolveTicketRoleAccess = (user) => {
   const roleName = normalizeRole(user?.roleName || user?.role);
   const userId = getTicketUserId(user);
-  const isDeskRole = TICKET_DESK_ROLES.has(roleName);
+  const isExecutive = isTicketExecutiveRole(roleName);
+  const isDeskRole = !isExecutive && TICKET_DESK_ROLES.has(roleName);
+
+  // CCE: keep old Customer Care desk (Overview / Queue / Config).
+  // Unique data = assigned to me + created by me + reassigned by me to staff.
+  if (isExecutive) {
+    return {
+      mode: "desk",
+      roleName,
+      userId,
+      canUseFullDesk: true,
+      canAssign: true,
+      canCreate: true,
+      exclusiveAssignee: true,
+      title: "Ticket Desk",
+      subtitle: "Your assigned, created, and reassigned tickets.",
+      notice: null,
+      availableTabs: null,
+      personalScopes: null,
+    };
+  }
 
   if (isDeskRole) {
     return {
@@ -42,12 +85,11 @@ export const resolveTicketRoleAccess = (user) => {
       canUseFullDesk: true,
       canAssign: true,
       canCreate: true,
+      exclusiveAssignee: false,
       title: "Ticket Desk",
-      subtitle:
-        "Shared support inbox — Overview, full Queue, and Config. Create tickets and assign them to staff by user ID.",
-      notice:
-        "You see every ticket in the desk. When you create and assign a ticket, that staff member sees it under My Tickets. You keep seeing it here in the shared Queue.",
-      availableTabs: null, // default Overview / Queue / Config
+      subtitle: "Shared support inbox for overview, queue, and config.",
+      notice: null,
+      availableTabs: null,
       personalScopes: null,
     };
   }
@@ -59,11 +101,10 @@ export const resolveTicketRoleAccess = (user) => {
     canUseFullDesk: false,
     canAssign: false,
     canCreate: true,
+    exclusiveAssignee: false,
     title: "My Tickets",
-    subtitle:
-      "Tickets assigned to you, tickets you created, and tickets where you are the requester — based on your logged-in user.",
-    notice:
-      "This list is personal to your login. Create a ticket and send it to a teammate — you still see it under Created by me; they see it under Assigned to me.",
+    subtitle: "Tickets assigned to you or created by you.",
+    notice: null,
     availableTabs: [{ key: "queue", label: "My Tickets", icon: null }],
     personalScopes: [
       {
@@ -95,11 +136,23 @@ export const ticketInvolvesUser = (ticket, userId) => {
   const id = String(userId);
   const assigned = String(ticket?.assignedTo?.userId || "") === id;
   const requested = String(ticket?.requester?.userId || "") === id;
-  const tag = createdByTagForUser(id);
+  const createTag = createdByTagForUser(id);
+  const involveTag = involvedTagForUser(id);
+  const tags = Array.isArray(ticket?.tags) ? ticket.tags.map(String) : [];
   const created =
     String(ticket?.metadata?.createdByUserId || "") === id ||
-    (Array.isArray(ticket?.tags) && tag ? ticket.tags.includes(tag) : false);
-  return { assigned, requested, created, any: assigned || requested || created };
+    (createTag ? tags.includes(createTag) : false);
+  const involved =
+    (Array.isArray(ticket?.metadata?.involvedAssigneeIds) &&
+      ticket.metadata.involvedAssigneeIds.map(String).includes(id)) ||
+    (involveTag ? tags.includes(involveTag) : false);
+  return {
+    assigned,
+    requested,
+    created,
+    involved,
+    any: assigned || requested || created || involved,
+  };
 };
 
 export const involvementBadge = (ticket, userId) => {
@@ -107,7 +160,8 @@ export const involvementBadge = (ticket, userId) => {
   if (!flags) return null;
   if (flags.assigned && flags.created) return "Assigned · You created";
   if (flags.assigned) return "Assigned to you";
-  if (flags.created) return "Created by you";
+  if (flags.created && !flags.assigned) return "Created by you";
+  if (flags.involved && !flags.assigned) return "You reassigned";
   if (flags.requested) return "You are requester";
   return null;
 };

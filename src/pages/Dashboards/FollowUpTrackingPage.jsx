@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { getAllUsers, getUserDetails } from "../../features/user/userService";
+import { getUserProperties } from "../../features/user/userDetailService";
 import { getAllPropertiesAnalytics } from "../../features/property/propertyService";
 import { getUserWorkingLocations } from "../../features/accessControl/accessControlService";
 import {
@@ -294,6 +295,76 @@ const workStatusOf = (user, overrides = {}) => {
   if (id && overrides[id]) return normalizeFollowUpWorkStatus(overrides[id]);
   return normalizeFollowUpWorkStatus(user?.followUpWorkStatus);
 };
+
+const PROPERTY_COMPLETION_CATEGORIES = [
+  "residential",
+  "commercial",
+  "land",
+  "agricultural",
+];
+
+const listingCompletionOf = (property) => {
+  const percentRaw = property?.completion?.percent ?? property?.completion;
+  const percent = Number(percentRaw);
+  if (!Number.isFinite(percent) || percent < 0) return null;
+  const step = Number(property?.completion?.step);
+  return {
+    percent: Math.min(100, Math.round(percent)),
+    step: Number.isFinite(step) && step > 0 ? step : null,
+    title:
+      property?.buildingName ||
+      property?.landName ||
+      property?.title ||
+      property?.name ||
+      "Untitled listing",
+    status: String(property?.status || "draft").toLowerCase(),
+    category: property?._category || "",
+  };
+};
+
+/** Prefer incomplete listing that most needs CCE help (lowest %); else latest. */
+const pickPrimaryPropertyCompletion = (properties = []) => {
+  const scored = properties
+    .map(listingCompletionOf)
+    .filter(Boolean)
+    .sort((a, b) => {
+      const aDone = a.percent >= 100 ? 1 : 0;
+      const bDone = b.percent >= 100 ? 1 : 0;
+      if (aDone !== bDone) return aDone - bDone;
+      return a.percent - b.percent;
+    });
+  return scored[0] || null;
+};
+
+function PropertyCompletionMeter({ percent, step = null }) {
+  if (percent == null) {
+    return <span className="text-slate-400">—</span>;
+  }
+  const tone =
+    percent >= 100
+      ? "bg-emerald-500"
+      : percent >= 70
+        ? "bg-emerald-400"
+        : percent >= 45
+          ? "bg-amber-400"
+          : "bg-slate-400";
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="tabular-nums text-sm font-bold text-slate-800">{percent}%</span>
+      <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className={`h-full rounded-full ${tone}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      {step != null ? (
+        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+          Step {step}
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 const journeyStage = (user) => {
   const status = String(user?.accountStatus || "").toLowerCase();
@@ -646,6 +717,31 @@ export default function FollowUpTrackingPage() {
       setSelectedId(userIdOf(pageRows[0]));
     }
   }, [meta.kind, pageRows, selectedId]);
+
+  const selectedUserId = selectedId || "";
+
+  /** Property listing completion for the selected person (CCE assign snapshot). */
+  const selectedPropertyCompletionQuery = useQuery({
+    queryKey: ["follow-up-tracking", "person-property-completion", selectedUserId],
+    enabled: Boolean(meta.kind === "users" && selectedUserId),
+    queryFn: async () => {
+      const responses = await Promise.all(
+        PROPERTY_COMPLETION_CATEGORIES.map(async (category) => {
+          try {
+            const res = await getUserProperties(selectedUserId, category, 1, 50);
+            return (res?.data?.items || []).map((item) => ({
+              ...item,
+              _category: category,
+            }));
+          } catch {
+            return [];
+          }
+        }),
+      );
+      return pickPrimaryPropertyCompletion(responses.flat());
+    },
+    staleTime: 60_000,
+  });
 
   const selectedUser = useMemo(
     () => rows.find((u) => userIdOf(u) === selectedId) || null,
@@ -1247,6 +1343,37 @@ export default function FollowUpTrackingPage() {
                   <p className="mt-1.5 text-[10px] text-slate-400">
                     Auto-starts as Assigned. Mark In progress or Completed after you work the case.
                     Journey stage stays separate.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-white p-2.5">
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                    Property completion
+                  </p>
+                  {selectedPropertyCompletionQuery.isLoading ? (
+                    <p className="text-[11px] text-slate-400">Loading listing progress…</p>
+                  ) : selectedPropertyCompletionQuery.data ? (
+                    <div className="space-y-1">
+                      <PropertyCompletionMeter
+                        percent={selectedPropertyCompletionQuery.data.percent}
+                        step={selectedPropertyCompletionQuery.data.step}
+                      />
+                      <p className="truncate text-[11px] font-medium text-slate-700">
+                        {selectedPropertyCompletionQuery.data.title}
+                      </p>
+                      <p className="text-[10px] capitalize text-slate-400">
+                        {[
+                          selectedPropertyCompletionQuery.data.category,
+                          selectedPropertyCompletionQuery.data.status,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400">No property listing yet</p>
+                  )}
+                  <p className="mt-1.5 text-[10px] text-slate-400">
+                    Listing wizard % for this person’s property (separate from CCE process).
                   </p>
                 </div>
                 <div className="space-y-2 text-xs text-slate-700">

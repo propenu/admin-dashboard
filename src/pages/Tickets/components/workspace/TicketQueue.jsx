@@ -4,6 +4,13 @@ import { formatDateTime, formatDueDate, formatLabel, formatRelativeTime } from "
 import { involvementBadge } from "../../utils/ticketRoleAccess";
 import { ticketInput, ticketSurface } from "../ticketUi";
 
+const CCE_DESK_RELATION_OPTIONS = [
+  { value: "", label: "All customer care" },
+  { value: "assigned", label: "Assigned to me" },
+  { value: "created", label: "Created by me" },
+  { value: "reassigned", label: "Reassigned by me" },
+];
+
 export default function TicketQueue({
   tickets = [],
   meta,
@@ -14,6 +21,7 @@ export default function TicketQueue({
   isLoading,
   personalScopes = null,
   currentUserId = null,
+  exclusiveAssignee = false,
 }) {
   const update = (patch) =>
     onFiltersChange({
@@ -64,7 +72,24 @@ export default function TicketQueue({
           />
         </label>
 
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div
+          className={`grid gap-2 ${
+            exclusiveAssignee ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-3"
+          }`}
+        >
+          {exclusiveAssignee ? (
+            <FilterSelect
+              value={filters.deskRelation || ""}
+              onChange={(deskRelation) => update({ deskRelation: deskRelation || undefined })}
+            >
+              {CCE_DESK_RELATION_OPTIONS.map((option) => (
+                <option key={option.value || "all"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </FilterSelect>
+          ) : null}
+
           <FilterSelect
             value={filters.openBucket === "true" || filters.openBucket === true ? "" : filters.status || ""}
             onChange={(status) => update({ status, openBucket: undefined })}
@@ -93,13 +118,16 @@ export default function TicketQueue({
           </FilterSelect>
         </div>
 
-        <ActiveFilterChips filters={filters} onClear={(keys) => {
-          const next = { ...filters, page: 1 };
-          keys.forEach((key) => {
-            delete next[key];
-          });
-          onFiltersChange(next);
-        }} />
+        <ActiveFilterChips
+          filters={filters}
+          onClear={(keys) => {
+            const next = { ...filters, page: 1 };
+            keys.forEach((key) => {
+              delete next[key];
+            });
+            onFiltersChange(next);
+          }}
+        />
       </div>
 
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 text-[12px] font-semibold text-slate-500">
@@ -163,7 +191,7 @@ function FilterSelect({ value, onChange, children }) {
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className={`${ticketInput} min-w-0`}
+      className={`${ticketInput} h-9 w-full min-w-0 max-w-full px-2.5 text-[11px] leading-tight`}
     >
       {children}
     </select>

@@ -25,6 +25,8 @@ import {
   Subscript as SubIcon,
   Superscript as SuperIcon,
   Type,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 
 /* ── Toolbar button styles ─────────────────────────────────── */
@@ -47,6 +49,116 @@ const ToolBtn = ({ onClick, active, title, children, disabled }) => (
     {children}
   </button>
 );
+
+/** TipTap Image with an always-visible red ✕ remove control on every image. */
+const BlogImage = Image.extend({
+  name: "image",
+  addNodeView() {
+    return ({ node, getPos, editor }) => {
+      const outer = document.createElement("div");
+      outer.className = "blog-image-node";
+      outer.style.cssText =
+        "position:relative;display:flex;justify-content:center;margin:12px 0;padding:4px;";
+
+      const wrap = document.createElement("div");
+      wrap.style.cssText =
+        "position:relative;display:inline-block;max-width:100%;line-height:0;";
+
+      const img = document.createElement("img");
+      img.src = node.attrs.src || "";
+      img.alt = node.attrs.alt || "";
+      if (node.attrs.title) img.title = node.attrs.title;
+      img.className = "blog-editor-image";
+      img.draggable = false;
+      img.style.cssText =
+        "display:block;height:auto;max-height:10rem;width:auto;max-width:220px;border-radius:0.5rem;border:1px solid #e5e7eb;object-fit:contain;box-shadow:0 1px 2px rgba(0,0,0,.06);";
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.contentEditable = "false";
+      btn.title = "Remove this image";
+      btn.setAttribute("aria-label", "Remove this image");
+      btn.innerHTML =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+      btn.style.cssText = [
+        "position:absolute",
+        "top:6px",
+        "right:6px",
+        "z-index:50",
+        "width:28px",
+        "height:28px",
+        "display:flex",
+        "align-items:center",
+        "justify-content:center",
+        "border-radius:9999px",
+        "border:2px solid #ffffff",
+        "background:#dc2626",
+        "color:#ffffff",
+        "cursor:pointer",
+        "box-shadow:0 4px 14px rgba(0,0,0,.28)",
+        "padding:0",
+        "line-height:0",
+      ].join(";");
+
+      const remove = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const pos = typeof getPos === "function" ? getPos() : null;
+        if (typeof pos !== "number") return;
+        editor
+          .chain()
+          .focus()
+          .deleteRange({ from: pos, to: pos + node.nodeSize })
+          .run();
+        toast.success("Image removed");
+      };
+
+      const stop = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      };
+      btn.addEventListener("mousedown", stop);
+      btn.addEventListener("pointerdown", stop);
+      btn.addEventListener("click", remove);
+
+      wrap.appendChild(img);
+      wrap.appendChild(btn);
+      outer.appendChild(wrap);
+
+      return {
+        dom: outer,
+        // Keep custom ✕ UI; ProseMirror must not sync/replace our wrapper DOM.
+        ignoreMutation: () => true,
+        stopEvent: (event) => {
+          if (btn.contains(event.target) || event.target === btn) return true;
+          return false;
+        },
+        update: (updatedNode) => {
+          if (updatedNode.type.name !== "image") return false;
+          node = updatedNode;
+          img.src = updatedNode.attrs.src || "";
+          img.alt = updatedNode.attrs.alt || "";
+          img.title = updatedNode.attrs.title || "";
+          return true;
+        },
+        selectNode: () => {
+          wrap.style.outline = "2px solid #27AE60";
+          wrap.style.outlineOffset = "2px";
+          wrap.style.borderRadius = "0.5rem";
+        },
+        deselectNode: () => {
+          wrap.style.outline = "";
+          wrap.style.outlineOffset = "";
+        },
+        destroy: () => {
+          btn.removeEventListener("mousedown", stop);
+          btn.removeEventListener("pointerdown", stop);
+          btn.removeEventListener("click", remove);
+        },
+      };
+    };
+  },
+});
 
 const Divider = () => (
   <div className="w-px h-6 bg-gray-200 mx-1 self-center flex-shrink-0" />
@@ -113,6 +225,7 @@ const TiptapEditor = ({
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [, setSelectionTick] = useState(0);
 
   const editor = useEditor({
     extensions: [
@@ -125,8 +238,9 @@ const TiptapEditor = ({
         openOnClick: false,
         HTMLAttributes: { class: "text-[#27AE60] underline" },
       }),
-      Image.configure({
+      BlogImage.configure({
         // Do not bake preview size into saved HTML — live site should stay full width.
+        allowBase64: false,
         HTMLAttributes: { class: "blog-editor-image" },
       }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
@@ -139,6 +253,9 @@ const TiptapEditor = ({
       // word count
       const text = editor.getText();
       setWordCount(text.trim() ? text.trim().split(/\s+/).length : 0);
+    },
+    onSelectionUpdate: () => {
+      setSelectionTick((n) => n + 1);
     },
     editorProps: {
       attributes: {
@@ -178,34 +295,78 @@ const TiptapEditor = ({
     editor.chain().focus().setLink({ href: url.trim() }).run();
   };
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const handleImageUpload = async (e, { replace = false } = {}) => {
+    const files = Array.from(e.target.files || []);
     e.target.value = "";
-    if (!file || !editor) return;
-    if (!String(file.type || "").startsWith("image/")) {
-      toast.error("Only image files are allowed.");
-      return;
-    }
-    if (file.size > maxImageBytes) {
-      toast.error(
-        `Image must be under ${(maxImageBytes / (1024 * 1024)).toFixed(0)} MB.`,
-      );
-      return;
-    }
+    if (!files.length || !editor) return;
     if (typeof uploadImage !== "function") {
       toast.error("Image upload is not configured for this editor.");
       return;
     }
 
+    const shouldReplace = replace && editor.isActive("image") && files.length === 1;
     setUploadingImage(true);
-    const toastId = toast.loading("Uploading image…");
+    const toastId = toast.loading(
+      shouldReplace
+        ? "Replacing image…"
+        : files.length > 1
+          ? `Uploading ${files.length} images…`
+          : "Uploading image…",
+    );
+
+    let uploaded = 0;
     try {
-      const imageUrl = await uploadImage(file);
-      if (!imageUrl || typeof imageUrl !== "string") {
-        throw new Error("No image URL returned");
+      for (const file of files) {
+        if (!String(file.type || "").startsWith("image/")) {
+          toast.error(`${file.name || "File"}: only image files are allowed.`);
+          continue;
+        }
+        if (file.size > maxImageBytes) {
+          toast.error(
+            `${file.name || "Image"} must be under ${(maxImageBytes / (1024 * 1024)).toFixed(0)} MB.`,
+          );
+          continue;
+        }
+
+        const imageUrl = await uploadImage(file);
+        if (!imageUrl || typeof imageUrl !== "string") {
+          throw new Error("No image URL returned");
+        }
+
+        if (shouldReplace && uploaded === 0) {
+          editor.chain().focus().setImage({ src: imageUrl }).run();
+        } else if (editor.isActive("image")) {
+          // Keep existing image; insert the new one after it (unlimited images).
+          const insertPos = editor.state.selection.to;
+          editor
+            .chain()
+            .focus()
+            .insertContentAt(insertPos, [
+              { type: "image", attrs: { src: imageUrl } },
+              { type: "paragraph" },
+            ])
+            .run();
+        } else {
+          editor
+            .chain()
+            .focus()
+            .setImage({ src: imageUrl })
+            .createParagraphNear()
+            .run();
+        }
+        uploaded += 1;
       }
-      editor.chain().focus().setImage({ src: imageUrl }).run();
-      toast.success("Image uploaded", { id: toastId });
+
+      if (!uploaded) {
+        toast.error("No images uploaded.", { id: toastId });
+      } else if (shouldReplace) {
+        toast.success("Image replaced", { id: toastId });
+      } else {
+        toast.success(
+          uploaded === 1 ? "Image added" : `${uploaded} images added`,
+          { id: toastId },
+        );
+      }
     } catch (err) {
       toast.error(err?.message || "Image upload failed.", { id: toastId });
     } finally {
@@ -213,8 +374,14 @@ const TiptapEditor = ({
     }
   };
 
+  const handleRemoveImage = () => {
+    if (!editor || !editor.isActive("image")) return;
+    editor.chain().focus().deleteSelection().run();
+    toast.success("Image removed");
+  };
+
   return (
-    <div className="w-full border-2 border-gray-200 rounded-2xl bg-white overflow-hidden shadow-sm">
+    <div className="w-full overflow-visible rounded-2xl border-2 border-gray-200 bg-white shadow-sm">
       {/* ── Toolbar ── */}
       <div className="px-3 py-2.5 border-b border-gray-100 bg-gray-50">
         {/* Row 1: History + Formatting + Headings */}
@@ -399,7 +566,7 @@ const TiptapEditor = ({
             <Unlink size={16} />
           </ToolBtn>
 
-          {/* Image upload */}
+          {/* Image: add any number · replace selected · remove selected */}
           <label
             className={`
             relative p-2 rounded-lg transition-all duration-150 flex items-center justify-center
@@ -409,30 +576,70 @@ const TiptapEditor = ({
                 : "cursor-pointer text-gray-500 hover:text-gray-900 hover:bg-gray-100"
             }
           `}
-            title={imageHint || "Insert Image"}
+            title="Add image(s) — any number in this post"
           >
             <ImageIcon size={16} />
             <input
               type="file"
               hidden
+              multiple
               accept="image/png,image/jpeg,image/jpg,image/webp"
               disabled={uploadingImage || typeof uploadImage !== "function"}
-              onChange={handleImageUpload}
+              onChange={(e) => handleImageUpload(e, { replace: false })}
             />
           </label>
+          <label
+            className={`
+            relative p-2 rounded-lg transition-all duration-150 flex items-center justify-center
+            ${
+              uploadingImage ||
+              typeof uploadImage !== "function" ||
+              !editor.isActive("image")
+                ? "cursor-not-allowed opacity-40"
+                : "cursor-pointer text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+            }
+          `}
+            title="Replace selected image"
+          >
+            <RefreshCw size={16} />
+            <input
+              type="file"
+              hidden
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              disabled={
+                uploadingImage ||
+                typeof uploadImage !== "function" ||
+                !editor.isActive("image")
+              }
+              onChange={(e) => handleImageUpload(e, { replace: true })}
+            />
+          </label>
+          <ToolBtn
+            title="Remove selected image"
+            onClick={handleRemoveImage}
+            disabled={!editor.isActive("image")}
+          >
+            <Trash2 size={16} />
+          </ToolBtn>
         </div>
         {imageHint ? (
           <p className="mt-1.5 px-1 text-[10px] font-medium leading-snug text-emerald-700">
-            Image tip: {imageHint}
+            Image tip: {imageHint}. Add any number of images (each under 1 MB).
+            Each preview has ✕ to remove.
           </p>
-        ) : null}
+        ) : (
+          <p className="mt-1.5 px-1 text-[10px] font-medium leading-snug text-gray-400">
+            Add any number of images (each under 1 MB). Each preview has ✕ to remove.
+          </p>
+        )}
       </div>
 
       {/* ── Editor body ── */}
       <EditorContent
         editor={editor}
-        className="px-5 py-4 min-h-[220px] text-gray-800 text-sm leading-relaxed
-          [&_.ProseMirror]:outline-none
+        className="px-5 py-4 min-h-[220px] overflow-visible text-gray-800 text-sm leading-relaxed
+          [&_.ProseMirror]:outline-none [&_.ProseMirror]:overflow-visible
+          [&_.blog-image-node]:relative [&_.blog-image-node]:z-10
           [&_.ProseMirror_h1]:text-2xl [&_.ProseMirror_h1]:font-black [&_.ProseMirror_h1]:text-gray-900 [&_.ProseMirror_h1]:mb-2 [&_.ProseMirror_h1]:mt-4
           [&_.ProseMirror_h2]:text-xl  [&_.ProseMirror_h2]:font-black [&_.ProseMirror_h2]:text-gray-900 [&_.ProseMirror_h2]:mb-2 [&_.ProseMirror_h2]:mt-3
           [&_.ProseMirror_h3]:text-lg  [&_.ProseMirror_h3]:font-bold  [&_.ProseMirror_h3]:text-gray-900 [&_.ProseMirror_h3]:mb-1 [&_.ProseMirror_h3]:mt-3
@@ -442,11 +649,6 @@ const TiptapEditor = ({
           [&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-[#27AE60] [&_.ProseMirror_blockquote]:pl-4 [&_.ProseMirror_blockquote]:text-gray-500 [&_.ProseMirror_blockquote]:italic [&_.ProseMirror_blockquote]:my-3
           [&_.ProseMirror_a]:text-[#27AE60] [&_.ProseMirror_a]:underline [&_.ProseMirror_a]:font-semibold
           [&_.ProseMirror_mark]:bg-yellow-200 [&_.ProseMirror_mark]:rounded [&_.ProseMirror_mark]:px-0.5
-          [&_.ProseMirror_img]:my-2 [&_.ProseMirror_img]:mx-auto [&_.ProseMirror_img]:block
-          [&_.ProseMirror_img]:h-auto [&_.ProseMirror_img]:max-h-36 [&_.ProseMirror_img]:w-auto
-          [&_.ProseMirror_img]:max-w-[200px] [&_.ProseMirror_img]:rounded-lg
-          [&_.ProseMirror_img]:border [&_.ProseMirror_img]:border-gray-200
-          [&_.ProseMirror_img]:object-contain [&_.ProseMirror_img]:shadow-sm
           [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-gray-400 [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0
         "
       />

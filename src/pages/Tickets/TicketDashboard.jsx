@@ -71,14 +71,28 @@ export default function TicketDashboard() {
     subtitle,
     availableTabs,
     personalScopes,
+    exclusiveAssignee = false,
   } = roleAccess;
   const actor = useMemo(() => buildTicketActor(currentUser), [currentUser]);
 
-  const dashboard = useTicketDashboard(canUseFullDesk, overviewDateRange.filters);
+  const dashboardScope = useMemo(
+    () =>
+      exclusiveAssignee && currentUserId
+        ? { ownedBy: currentUserId, department: "customer-care" }
+        : {},
+    [exclusiveAssignee, currentUserId],
+  );
+
+  const dashboard = useTicketDashboard(
+    canUseFullDesk,
+    overviewDateRange.filters,
+    dashboardScope,
+  );
   const ticketList = useRoleScopedTicketList({
     mode,
     userId: currentUserId,
     filters,
+    exclusiveAssignee,
     enabled: Boolean(currentUser) && (canUseFullDesk || Boolean(currentUserId)),
   });
   const tickets = ticketList.tickets || [];
@@ -298,6 +312,7 @@ export default function TicketDashboard() {
             isLoading={ticketList.isLoading}
             personalScopes={personalScopes}
             currentUserId={currentUserId}
+            exclusiveAssignee={exclusiveAssignee}
           />
           <TicketDetailPanel
             ticket={detail.data}
@@ -316,6 +331,7 @@ export default function TicketDashboard() {
           onOpenTicket={openTicket}
           currentUserId={currentUserId}
           mode={mode}
+          exclusiveAssignee={exclusiveAssignee}
         />
       )}
 
@@ -342,7 +358,14 @@ export default function TicketDashboard() {
   );
 }
 
-function TicketNotificationsPage({ tickets, seenTicketIds, onOpenTicket, currentUserId, mode }) {
+function TicketNotificationsPage({
+  tickets,
+  seenTicketIds,
+  onOpenTicket,
+  currentUserId,
+  mode,
+  exclusiveAssignee = false,
+}) {
   return (
     <section className={`overflow-hidden ${ticketSurface}`}>
       <div className="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -350,7 +373,9 @@ function TicketNotificationsPage({ tickets, seenTicketIds, onOpenTicket, current
           <h2 className="text-[20px] font-black text-slate-950">Ticket Notifications</h2>
           <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
             {mode === "desk"
-              ? "Tickets in your current desk list. Open to mark as seen."
+              ? exclusiveAssignee
+                ? "Tickets on your CCE desk (assigned, created, or reassigned by you)."
+                : "Tickets in your current desk list. Open to mark as seen."
               : "Your personal tickets (assigned / created / requester). New ones show as New until opened."}
           </p>
         </div>

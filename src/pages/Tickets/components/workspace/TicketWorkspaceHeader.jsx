@@ -8,6 +8,9 @@ const tabs = [
   { key: "config", label: "Config", icon: Settings2 },
 ];
 
+/** Sidebar already shows ticket badge — set true later if header count is needed again. */
+const SHOW_HEADER_TICKET_COUNT = false;
+
 export default function TicketWorkspaceHeader({
   activeTab,
   onTabChange,
@@ -33,13 +36,13 @@ export default function TicketWorkspaceHeader({
             </span>
           )}
         </div>
-        <p className="mt-1 max-w-2xl text-[12px] font-medium leading-5 text-slate-500 sm:block">
+        <p className="mt-0.5 max-w-xl text-[11px] font-medium leading-4 text-slate-400 sm:block">
           {subtitle}
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-inner">
+      <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 lg:w-auto lg:justify-end">
+        <div className="flex shrink-0 rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-inner">
           {availableTabs.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
@@ -62,22 +65,22 @@ export default function TicketWorkspaceHeader({
         <button
           type="button"
           onClick={onOpenNotifications}
-          className={`${ghostButton} relative`}
+          className={`${ghostButton} relative h-9 shrink-0 px-3`}
           title="Ticket notifications"
         >
           <Bell className="h-3.5 w-3.5" />
           Tickets
-          {notificationCount > 0 && (
+          {SHOW_HEADER_TICKET_COUNT && notificationCount > 0 ? (
             <span className="ml-0.5 rounded-full bg-[#27AE60] px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-[0_6px_14px_rgba(39,174,96,0.3)]">
               {notificationCount}
             </span>
-          )}
+          ) : null}
         </button>
 
         <button
           type="button"
           onClick={onRefresh}
-          className={ghostButton}
+          className={`${ghostButton} h-9 shrink-0 px-3`}
         >
           <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -87,7 +90,7 @@ export default function TicketWorkspaceHeader({
           <button
             type="button"
             onClick={onCreate}
-            className={primaryButton}
+            className={`${primaryButton} h-9 shrink-0 px-3`}
           >
             <Plus className="h-3.5 w-3.5" />
             New Ticket

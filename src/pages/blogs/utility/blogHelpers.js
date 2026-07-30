@@ -42,10 +42,10 @@ export const readImageDimensions = (file) =>
     img.src = url;
   });
 
-/** Returns error message or "" if featured image is acceptable. */
+/** Returns error message or "" if featured image is acceptable (optional upload). */
 export const validateBlogFeaturedImage = async (file) => {
   const spec = BLOG_FEATURED_IMAGE;
-  if (!file) return "Featured image is required.";
+  if (!file) return "";
   if (!String(file.type || "").startsWith("image/")) {
     return "Only PNG, JPG, or WebP images are allowed.";
   }

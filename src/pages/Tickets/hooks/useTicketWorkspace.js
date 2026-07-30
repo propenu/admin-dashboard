@@ -15,7 +15,7 @@ import {
   listTicketDepartments,
   updateTicket,
 } from "../../../features/ticket/ticket_system";
-import { createdByTagForUser } from "../utils/ticketRoleAccess";
+import { createdByTagForUser, ticketInvolvesUser } from "../utils/ticketRoleAccess";
 
 export const ticketKeys = {
   all: ["tickets"],
@@ -56,10 +56,12 @@ const stripPersonalKeys = (filters = {}) => {
   delete next.personalScope;
   delete next.assignedOrRequested;
   delete next.assignedTo;
+  delete next.ownedBy;
   delete next.requesterId;
   delete next.tag;
   delete next.assignment;
   delete next.openBucket;
+  delete next.deskRelation;
   // Overview uses from/to; list API expects createdFrom/createdTo.
   if (next.from && !next.createdFrom) next.createdFrom = next.from;
   if (next.to && !next.createdTo) next.createdTo = next.to;
@@ -82,7 +84,7 @@ const dedupeTickets = (lists = []) => {
   });
 };
 
-const matchesLocalFilters = (ticket, filters = {}) => {
+const matchesLocalFilters = (ticket, filters = {}, { userId = "" } = {}) => {
   if (filters.openBucket === "true" || filters.openBucket === true) {
     if (!OPEN_BUCKET_STATUSES.has(String(ticket?.status || "").toLowerCase())) return false;
   } else if (filters.status) {
@@ -95,6 +97,13 @@ const matchesLocalFilters = (ticket, filters = {}) => {
   }
   if (filters.assignment === "unassigned") {
     if (ticket?.assignedTo?.userId || ticket?.assignedTo?.name) return false;
+  }
+  if (filters.deskRelation && userId) {
+    const flags = ticketInvolvesUser(ticket, userId);
+    const relation = String(filters.deskRelation).toLowerCase();
+    if (relation === "assigned" && !flags?.assigned) return false;
+    if (relation === "created" && !flags?.created) return false;
+    if (relation === "reassigned" && !(flags?.involved && !flags?.assigned)) return false;
   }
   if (filters.overdue === "true" || filters.overdue === true) {
     if (!ticket?.dueAt) return false;
@@ -132,7 +141,8 @@ const hasClientOnlyFilters = (filters = {}) =>
   filters.openBucket === "true" ||
   filters.openBucket === true ||
   filters.overdue === "false" ||
-  filters.overdue === false;
+  filters.overdue === false ||
+  Boolean(filters.deskRelation);
 
 const buildPersonalFilterSets = ({ personalScope, userId, base, createTag }) => {
   if (!userId) return [];
@@ -163,10 +173,16 @@ const buildPersonalFilterSets = ({ personalScope, userId, base, createTag }) => 
 };
 
 /**
- * Desk → single unscoped list.
+ * Desk → shared list (optionally exclusive to assignedTo when CCE).
  * Personal → only active scope queries (no stale merge from other pills).
  */
-export function useRoleScopedTicketList({ mode, userId, filters, enabled = true }) {
+export function useRoleScopedTicketList({
+  mode,
+  userId,
+  filters,
+  enabled = true,
+  exclusiveAssignee = false,
+}) {
   const personalScope = filters?.personalScope || "mine";
   const base = useMemo(() => stripPersonalKeys(filters || {}), [filters]);
   const createTag = createdByTagForUser(userId);
@@ -183,8 +199,14 @@ export function useRoleScopedTicketList({ mode, userId, filters, enabled = true 
       next.limit = Math.max(Number(next.limit) || 20, 100);
       next.page = 1;
     }
+    // CCE unique desk: assigned + created by me + reassigned by me to staff.
+    if (exclusiveAssignee && userId) {
+      next.ownedBy = userId;
+      delete next.assignedTo;
+      next.limit = Math.max(Number(next.limit) || 20, 100);
+    }
     return next;
-  }, [base, filters]);
+  }, [base, filters, exclusiveAssignee, userId]);
 
   const personalFilterSets = useMemo(
     () =>
@@ -194,7 +216,11 @@ export function useRoleScopedTicketList({ mode, userId, filters, enabled = true 
     [mode, personalScope, userId, base, createTag],
   );
 
-  const deskQuery = useTicketList(deskFilters, enabled && mode === "desk");
+  // Exclusive CCE desk uses ownedBy on the desk query (not personal pills).
+  const deskQuery = useTicketList(
+    deskFilters,
+    enabled && mode === "desk",
+  );
 
   const personalQueries = useQueries({
     queries: personalFilterSets.map((filterSet) => {
@@ -216,26 +242,35 @@ export function useRoleScopedTicketList({ mode, userId, filters, enabled = true 
       if (q.isPending && !q.data) return [];
       return q.data?.data || [];
     });
-    return dedupeTickets(lists).filter((ticket) => matchesLocalFilters(ticket, filters));
+    return dedupeTickets(lists).filter((ticket) =>
+      matchesLocalFilters(ticket, filters, { userId }),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- queryEpoch tracks query result identity
   }, [
     mode,
     personalScope,
     queryEpoch,
+    userId,
     filters.status,
     filters.priority,
     filters.q,
     filters.overdue,
     filters.assignment,
     filters.openBucket,
+    filters.deskRelation,
   ]);
 
   if (mode === "desk") {
-    const deskTickets = (deskQuery.data?.data || []).filter((ticket) =>
-      matchesLocalFilters(ticket, filters),
-    );
+    const mineId = exclusiveAssignee ? String(userId || "") : "";
+    const deskTickets = (deskQuery.data?.data || [])
+      .filter((ticket) => {
+        if (!mineId) return true;
+        const flags = ticketInvolvesUser(ticket, mineId);
+        return Boolean(flags?.assigned || flags?.created || flags?.involved);
+      })
+      .filter((ticket) => matchesLocalFilters(ticket, filters, { userId: mineId || userId }));
     const apiMeta = deskQuery.data?.meta || deskQuery.data?.pagination || {};
-    const clientOnly = hasClientOnlyFilters(filters);
+    const clientOnly = hasClientOnlyFilters(filters) || Boolean(mineId);
     return {
       data: deskQuery.data,
       tickets: deskTickets,
