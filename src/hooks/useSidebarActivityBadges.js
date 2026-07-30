@@ -22,6 +22,7 @@ import {
   todayKey,
   unreadFromSnapshot,
 } from "../utils/sidebarActivity";
+import { isCustomerCareExecutiveRole } from "../utils/workingLocations";
 
 const emptyAccountBucket = () => ({
   total: 0,
@@ -182,6 +183,7 @@ const pathForLocation = (pathname = "") => {
   if (pathname.startsWith("/all-agents")) return SIDEBAR_ACTIVITY_PATHS.agents;
   if (pathname.startsWith("/users")) return SIDEBAR_ACTIVITY_PATHS.users;
   if (pathname.startsWith("/propenu-team-members")) return SIDEBAR_ACTIVITY_PATHS.teamDirectory;
+  if (pathname.startsWith("/follow-up-tracking")) return SIDEBAR_ACTIVITY_PATHS.followUpTracking;
   return null;
 };
 
@@ -205,17 +207,30 @@ const countCreatedToday = (users = []) => {
   return bucket;
 };
 
+const assigneeIdOf = (row) => {
+  const raw = row?.followUpAssignedTo;
+  return String(raw?._id || raw || "").trim();
+};
+
 async function collectRawSnapshots(user) {
   const permissions = user?.permissions || [];
   const isSuper = normalizeRole(user?.roleName || user?.role) === "super_admin";
   const allow = (module) => isSuper || canView(permissions, module);
   const allowProperty =
     isSuper || hasAnyView(permissions, ["residential", "commercial", "land", "agricultural"]);
+  const meId = getUserId(user);
+  const isCce = isCustomerCareExecutiveRole(user?.roleName || user?.role);
+  // Client Progress Queue badge/counts are CCE-only (not TL / Super Admin / others).
+  const needFollowUpBadge = Boolean(isCce && meId);
 
   const today = todayKey();
   const locationScope = buildUserScopeParams(user);
   const ticketScope = buildTicketScopeParams(user);
   const tasks = [];
+  let followUpOnboardingUsers = 0;
+  let followUpPendingProperties = 0;
+  /** Creators assigned to this CCE — property queue counts must not mix other CCEs. */
+  const assignedCreatorIds = [];
   const raw = {
     projects: { total: 0, active: 0, pending: 0, inactive: 0 },
     properties: { total: 0, active: 0, pending: 0, inactive: 0 },
@@ -227,6 +242,7 @@ async function collectRawSnapshots(user) {
     agents: emptyAccountBucket(),
     builderStaff: emptyAccountBucket(),
     teamDirectory: emptyAccountBucket(),
+    followUpTracking: emptyAccountBucket(),
   };
 
   if (allow("project")) {
@@ -259,13 +275,18 @@ async function collectRawSnapshots(user) {
           const fromStatus = statusBucketFromRows(data.statusWise);
           const fromOverview = overviewToStatusBucket(data.overview || {});
           const base = fromStatus.total > 0 ? fromStatus : fromOverview;
+          const pending = Number(base.pending || fromOverview.pending || 0);
           raw.properties = normalizeInventoryBucket(
             {
               ...base,
-              pending: Number(base.pending || fromOverview.pending || 0),
+              pending,
             },
             { kind: "properties" },
           );
+          // TL / SA / oversight: full pending. CCE pending is computed later by assignee only.
+          if (!isCce) {
+            followUpPendingProperties = pending;
+          }
         })
         .catch(() => {}),
     );
@@ -320,8 +341,14 @@ async function collectRawSnapshots(user) {
   }
 
   // Propenu.com marketplace accounts (user / agent / builder / builder_staff) → Users sidebar
+  // Also used for Client Progress Queue onboarding counts (projects ignored).
   const needMarketplaceUsers =
-    allow("user") || allow("builder") || allow("builder_staff") || allow("agent") || isSuper;
+    allow("user") ||
+    allow("builder") ||
+    allow("builder_staff") ||
+    allow("agent") ||
+    isSuper ||
+    needFollowUpBadge;
   if (needMarketplaceUsers) {
     tasks.push(
       getAllUsers()
@@ -333,6 +360,7 @@ async function collectRawSnapshots(user) {
             agents: emptyAccountBucket(),
             builderStaff: emptyAccountBucket(),
           };
+          let onboardingInQueue = 0;
 
           users.forEach((u) => {
             const roleLabel =
@@ -340,12 +368,25 @@ async function collectRawSnapshots(user) {
               (typeof u.role === "string" ? u.role : u.role?.name) ||
               "";
             const bucket = roleBucket(roleLabel);
+            const onboarding = isOnboardingStatus(u.accountStatus);
+
+            // Client Progress Queue: open onboarding cases (CCE = assigned only).
+            const assignedToMe = Boolean(meId && assigneeIdOf(u) === meId);
+            if (isCce && assignedToMe) {
+              const uid = getUserId(u);
+              if (uid) assignedCreatorIds.push(uid);
+            }
+            if (bucket && onboarding) {
+              if (!isCce || assignedToMe) {
+                onboardingInQueue += 1;
+              }
+            }
+
             // Marketplace roles only — staff never inflate Users badges
             if (!bucket || !buckets[bucket]) return;
             if (!isCreatedToday(u.createdAt)) return;
 
             const target = buckets[bucket];
-            const onboarding = isOnboardingStatus(u.accountStatus);
             target.total += 1;
             if (u.isActive === false || String(u.accountStatus || "").toLowerCase() === "inactive") {
               target.inactive += 1;
@@ -358,6 +399,7 @@ async function collectRawSnapshots(user) {
             if (isCreatedToday(u.lastLoginAt)) target.login += 1;
           });
 
+          followUpOnboardingUsers = onboardingInQueue;
           raw.owners = buckets.owners;
           raw.builders = buckets.builders;
           raw.agents = buckets.agents;
@@ -386,6 +428,43 @@ async function collectRawSnapshots(user) {
   }
 
   await Promise.all(tasks);
+
+  // CCE sidebar badge: property pending only from creators assigned to THIS executive.
+  if (needFollowUpBadge && isCce && meId && allowProperty) {
+    const uniqueCreators = [...new Set(assignedCreatorIds.filter(Boolean))];
+    if (uniqueCreators.length) {
+      try {
+        const res = await getAllPropertiesAnalytics({
+          from: today,
+          to: today,
+          creatorIds: uniqueCreators.join(","),
+        });
+        const data = unpackAnalytics(res);
+        const fromStatus = statusBucketFromRows(data.statusWise);
+        const fromOverview = overviewToStatusBucket(data.overview || {});
+        const base = fromStatus.total > 0 ? fromStatus : fromOverview;
+        followUpPendingProperties = Number(base.pending || fromOverview.pending || 0);
+      } catch {
+        followUpPendingProperties = 0;
+      }
+    } else {
+      followUpPendingProperties = 0;
+    }
+  }
+
+  if (needFollowUpBadge) {
+    // Users onboarding + property pending only (project counts intentionally ignored).
+    // CCE totals never include other executives' cases.
+    raw.followUpTracking = {
+      total: followUpOnboardingUsers + followUpPendingProperties,
+      active: 0,
+      pending: followUpPendingProperties,
+      inactive: 0,
+      login: 0,
+      onboarding: followUpOnboardingUsers,
+    };
+  }
+
   return raw;
 }
 
@@ -412,6 +491,11 @@ function toPublishedCounts(raw, seenMap, caps, user) {
     SIDEBAR_ACTIVITY_PATHS.teamDirectory,
     seenMap,
   );
+  const unreadFollowUp = unreadFromSnapshot(
+    raw.followUpTracking,
+    SIDEBAR_ACTIVITY_PATHS.followUpTracking,
+    seenMap,
+  );
 
   const projects = caps.projects ? buildBadge(unreadProjects) : buildBadge({ total: 0 });
   const properties = caps.properties
@@ -428,6 +512,9 @@ function toPublishedCounts(raw, seenMap, caps, user) {
     : buildBadge({ total: 0 });
   const teamDirectory = caps.teamDirectory
     ? buildBadge(unreadTeamDirectory)
+    : buildBadge({ total: 0 });
+  const followUpTracking = caps.followUpTracking
+    ? buildBadge(unreadFollowUp)
     : buildBadge({ total: 0 });
 
   // Group total = marketplace individuals only (staff stays on Team Directory)
@@ -453,6 +540,7 @@ function toPublishedCounts(raw, seenMap, caps, user) {
     builderStaffToday: builderStaff.primary,
     teamDirectoryToday: teamDirectory.primary,
     usersGroupToday: usersGroupPrimary,
+    followUpToday: followUpTracking.primary,
     byPath: {
       [SIDEBAR_ACTIVITY_PATHS.projects]: projects,
       [SIDEBAR_ACTIVITY_PATHS.properties]: properties,
@@ -464,6 +552,7 @@ function toPublishedCounts(raw, seenMap, caps, user) {
       [SIDEBAR_ACTIVITY_PATHS.agents]: agents,
       [SIDEBAR_ACTIVITY_PATHS.builderStaff]: builderStaff,
       [SIDEBAR_ACTIVITY_PATHS.teamDirectory]: teamDirectory,
+      [SIDEBAR_ACTIVITY_PATHS.followUpTracking]: followUpTracking,
     },
     raw,
     day: todayKey(),
@@ -535,6 +624,8 @@ export function useSidebarActivityBadges() {
             canView(permissions, "builder"),
           teamDirectory:
             isSuper || canView(permissions, "team") || canView(permissions, "user"),
+          // Badge only for the logged-in CCE — Team Lead / Super Admin get none.
+          followUpTracking: isCustomerCareExecutiveRole(user.roleName || user.role),
         };
         capsRef.current = caps;
 

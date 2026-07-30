@@ -11,6 +11,7 @@ import Highlight from "@tiptap/extension-highlight";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import {
   Bold, Italic, Underline as UnderlineIcon,
@@ -102,6 +103,10 @@ const TiptapEditor = ({
   value,
   onChange,
   placeholder = "Start writing your property description here...",
+  /** Shown under toolbar — e.g. blog content image size guidance */
+  imageHint = "",
+  /** Max in-editor image upload size in bytes (default 1 MB) */
+  maxImageBytes = 1024 * 1024,
 }) => {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [wordCount, setWordCount] = useState(0);
@@ -170,8 +175,19 @@ const TiptapEditor = ({
   };
 
   const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
+    if (!String(file.type || "").startsWith("image/")) {
+      toast.error("Only image files are allowed.");
+      return;
+    }
+    if (file.size > maxImageBytes) {
+      toast.error(
+        `Image must be under ${(maxImageBytes / (1024 * 1024)).toFixed(0)} MB.`,
+      );
+      return;
+    }
     const formData = new FormData();
     formData.append("image", file);
     try {
@@ -180,9 +196,10 @@ const TiptapEditor = ({
         body: formData,
       });
       const data = await res.json();
+      if (!data?.imageUrl) throw new Error("No image URL");
       editor.chain().focus().setImage({ src: data.imageUrl }).run();
     } catch {
-      alert("Image upload failed.");
+      toast.error("Image upload failed.");
     }
   };
 
@@ -378,17 +395,22 @@ const TiptapEditor = ({
             relative p-2 rounded-lg transition-all duration-150 flex items-center justify-center cursor-pointer
             text-gray-500 hover:text-gray-900 hover:bg-gray-100
           `}
-            title="Insert Image"
+            title={imageHint || "Insert Image"}
           >
             <ImageIcon size={16} />
             <input
               type="file"
               hidden
-              accept="image/*"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
               onChange={handleImageUpload}
             />
           </label>
         </div>
+        {imageHint ? (
+          <p className="mt-1.5 px-1 text-[10px] font-medium leading-snug text-emerald-700">
+            Image tip: {imageHint}
+          </p>
+        ) : null}
       </div>
 
       {/* ── Editor body ── */}

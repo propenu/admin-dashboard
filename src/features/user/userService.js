@@ -162,12 +162,21 @@ export const assignManager = (formData) => {
   return apiClient.post(`${SERVICES.USER}/auth/assign-manager`, formData);
 };
 
-//Custom Notification
+//Custom Notification (multipart: title, body, audience, state, city, locality, image)
 export const adminCustomNotification = (formData) => {
   return apiClient.post(
     `${SERVICES.USER}/notifications/admin/notify/custom`,
     formData,
   );
+};
+
+/** Campaign history + platform admin alerts */
+export const getAdminNotificationFeed = (params = {}) => {
+  return apiClient.get(`${SERVICES.USER}/notifications/admin/feed`, { params });
+};
+
+export const markAdminNotificationsSeen = () => {
+  return apiClient.post(`${SERVICES.USER}/notifications/admin/feed/seen`);
 };
 
 //All email notifications

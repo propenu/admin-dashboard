@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { getAllUsers, getUserDetails } from "../../features/user/userService";
+import { getAllPropertiesAnalytics } from "../../features/property/propertyService";
 import { getUserWorkingLocations } from "../../features/accessControl/accessControlService";
 import {
   followUpTrackHref,
@@ -220,6 +221,37 @@ const DEFAULT_TRACK_BY_GROUP = {
   roles: "owners",
   properties: "property_pending",
   projects: "project_pending",
+};
+
+const unpackAnalytics = (response) => response?.data?.data || response?.data || {};
+
+const propertyStatusCountsFromAnalytics = (payload = {}) => {
+  const counts = { pending: 0, active: 0, draft: 0, rejected: 0 };
+  const statusWise = Array.isArray(payload.statusWise) ? payload.statusWise : [];
+  if (statusWise.length) {
+    statusWise.forEach((row) => {
+      const key = String(row?._id || row?.status || "").toLowerCase();
+      const n = Number(row?.total || row?.count || 0) || 0;
+      if (key === "pending" || key === "under_review" || key === "review") counts.pending += n;
+      else if (key === "active" || key === "approved" || key === "live") counts.active += n;
+      else if (key === "draft" || key === "onboarding" || key === "incomplete" || key === "inactive") {
+        counts.draft += n;
+      } else if (key === "rejected") counts.rejected += n;
+    });
+    return counts;
+  }
+  const overview = payload.overview || {};
+  counts.pending = Number(overview.pendingProperties || overview.pending || 0) || 0;
+  counts.active = Number(overview.activeProperties || overview.active || 0) || 0;
+  counts.draft =
+    Number(overview.draftProperties || overview.draft || overview.inactiveProperties || 0) || 0;
+  counts.rejected = Number(overview.rejectedProperties || overview.rejected || 0) || 0;
+  return counts;
+};
+
+const formatTrackCount = (n) => {
+  if (n == null || Number.isNaN(Number(n))) return null;
+  return Number(n).toLocaleString("en-IN");
 };
 
 const toDay = (value) => {
@@ -425,25 +457,6 @@ export default function FollowUpTrackingPage() {
     writeParams({ preset: "custom", from, to });
   };
 
-  const usersQuery = useQuery({
-    queryKey: ["follow-up-tracking", "users", range.from, range.to, track],
-    enabled: meta.kind === "users",
-    queryFn: async () => {
-      const params = {};
-      if (range.from) params.createdFrom = range.from;
-      if (range.to) params.createdTo = range.to;
-      const needsAll =
-        track === "login_today" ||
-        track === "stuck_location" ||
-        track === "stuck_kyc" ||
-        track === "kyc_rejected" ||
-        track === "onboarding_all";
-      const response = await getAllUsers(needsAll ? undefined : params);
-      return unpackUsers(response?.data);
-    },
-    staleTime: 60_000,
-  });
-
   const meQuery = useQuery({
     queryKey: ["follow-up-tracking", "me"],
     queryFn: async () => {
@@ -458,25 +471,62 @@ export default function FollowUpTrackingPage() {
   const isCceViewer = isCustomerCareExecutiveRole(me?.roleName || me?.role);
   const isOversightViewer = isFollowUpOversightRole(me?.roleName || me?.role);
 
-  /** Creator → exclusive CCE map (inventory must not share across same-territory CCEs). */
-  const creatorAssigneeQuery = useQuery({
-    queryKey: ["follow-up-tracking", "creator-assignees"],
-    enabled: Boolean(isCceViewer && meId),
+  /** Always load users so every User journey / Roles status can show a count. */
+  const usersQuery = useQuery({
+    queryKey: ["follow-up-tracking", "users", range.from, range.to],
     queryFn: async () => {
       const response = await getAllUsers();
-      const list = unpackUsers(response?.data);
-      const map = {};
-      list.forEach((u) => {
-        const id = userIdOf(u);
-        const owner = assigneeIdOf(u);
-        if (id && owner) map[id] = owner;
-      });
-      return map;
+      return unpackUsers(response?.data);
     },
     staleTime: 60_000,
   });
 
-  const creatorAssigneeById = creatorAssigneeQuery.data || {};
+  /** Creators exclusively owned by this CCE — used for property counts (no territory mix). */
+  const myAssignedCreatorIds = useMemo(() => {
+    if (!isCceViewer || !meId) return null;
+    return (usersQuery.data || [])
+      .filter((u) => assigneeIdOf(u) === meId)
+      .map((u) => userIdOf(u))
+      .filter(Boolean)
+      .sort();
+  }, [isCceViewer, meId, usersQuery.data]);
+
+  /** Property status totals — CCE only (own creators). TL / Super Admin: no counts. */
+  const propertyCountsQuery = useQuery({
+    queryKey: [
+      "follow-up-tracking",
+      "property-counts",
+      range.from,
+      range.to,
+      meId,
+      (myAssignedCreatorIds || []).join(","),
+    ],
+    enabled: Boolean(isCceViewer && meId && usersQuery.isSuccess),
+    queryFn: async () => {
+      const creatorIds = myAssignedCreatorIds || [];
+      if (!creatorIds.length) {
+        return { pending: 0, active: 0, draft: 0, rejected: 0 };
+      }
+      const params = { creatorIds: creatorIds.join(",") };
+      if (range.from) params.from = range.from;
+      if (range.to) params.to = range.to;
+      const response = await getAllPropertiesAnalytics(params);
+      return propertyStatusCountsFromAnalytics(unpackAnalytics(response));
+    },
+    staleTime: 60_000,
+  });
+
+  /** Creator → exclusive CCE map (inventory must not share across same-territory CCEs). */
+  const creatorAssigneeById = useMemo(() => {
+    if (!isCceViewer) return {};
+    const map = {};
+    (usersQuery.data || []).forEach((u) => {
+      const id = userIdOf(u);
+      const owner = assigneeIdOf(u);
+      if (id && owner) map[id] = owner;
+    });
+    return map;
+  }, [isCceViewer, usersQuery.data]);
 
   const canEditWorkStatus = (user) => {
     if (!user) return false;
@@ -490,7 +540,7 @@ export default function FollowUpTrackingPage() {
     if (!id) return;
     setWorkStatusOverrides((prev) => ({ ...prev, [id]: nextStatus }));
     queryClient.setQueryData(
-      ["follow-up-tracking", "users", range.from, range.to, track],
+      ["follow-up-tracking", "users", range.from, range.to],
       (prev) => {
         if (!Array.isArray(prev)) return prev;
         return prev.map((u) =>
@@ -521,21 +571,47 @@ export default function FollowUpTrackingPage() {
 
   const cceTerritories = territoriesQuery.data || [];
   const territoryScoped = isCceViewer && cceTerritories.length > 0;
+  /** Every CCE login is exclusive to their assigned cases — never mix other CCEs. */
+  const cceExclusive = Boolean(isCceViewer && meId);
+
+  const scopedUsers = useMemo(() => {
+    let list = usersQuery.data || [];
+    if (cceExclusive) {
+      list = list.filter((u) => assigneeIdOf(u) === meId);
+    }
+    return list;
+  }, [usersQuery.data, cceExclusive, meId]);
+
+  /** Per-status counts — CCE only. Team Lead / Super Admin see no count badges. */
+  const trackCounts = useMemo(() => {
+    const counts = {};
+    if (!cceExclusive) {
+      Object.keys(TRACK_META).forEach((key) => {
+        counts[key] = null;
+      });
+      return counts;
+    }
+    const propertyCounts = propertyCountsQuery.data || {};
+    Object.entries(TRACK_META).forEach(([key, item]) => {
+      if (item.kind === "users") {
+        counts[key] = scopedUsers.filter((u) => matchesTrack(u, key, range)).length;
+        return;
+      }
+      if (item.groupId === "properties") {
+        counts[key] = Number(propertyCounts[item.status] || 0);
+        return;
+      }
+      // Projects intentionally have no count badge.
+      counts[key] = null;
+    });
+    return counts;
+  }, [cceExclusive, scopedUsers, range.from, range.to, propertyCountsQuery.data]);
+
+  const showTrackCounts = cceExclusive;
 
   const rows = useMemo(() => {
     if (meta.kind !== "users") return [];
-    let list = (usersQuery.data || []).filter((u) => matchesTrack(u, track, range));
-
-    // CCE exclusivity: only cases assigned to this executive (one owner per user).
-    // Territory is still used as a soft check when assignee is missing (legacy).
-    if (territoryScoped) {
-      list = list.filter((u) => {
-        const raw = u.followUpAssignedTo;
-        const assigneeId = String(raw?._id || raw || "").trim();
-        if (assigneeId) return assigneeId === meId;
-        return false;
-      });
-    }
+    let list = scopedUsers.filter((u) => matchesTrack(u, track, range));
 
     const q = search.trim().toLowerCase();
     if (!q) return list;
@@ -544,16 +620,7 @@ export default function FollowUpTrackingPage() {
         .toLowerCase()
         .includes(q),
     );
-  }, [
-    meta.kind,
-    usersQuery.data,
-    track,
-    range.from,
-    range.to,
-    search,
-    territoryScoped,
-    meId,
-  ]);
+  }, [meta.kind, scopedUsers, track, range.from, range.to, search]);
 
   useEffect(() => {
     setPage(1);
@@ -826,14 +893,28 @@ export default function FollowUpTrackingPage() {
               onChange={(e) => selectTrack(e.target.value)}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             >
-              {tracksForGroup(meta.groupId || "user_journey").map((item) => (
-                <option key={item.key} value={item.key}>
-                  {item.label}
-                </option>
-              ))}
+              {tracksForGroup(meta.groupId || "user_journey").map((item) => {
+                const countLabel = showTrackCounts
+                  ? formatTrackCount(trackCounts[item.key])
+                  : null;
+                return (
+                  <option key={item.key} value={item.key}>
+                    {countLabel != null ? `${item.label} (${countLabel})` : item.label}
+                  </option>
+                );
+              })}
             </select>
             <span className="mt-1 block text-[10px] text-slate-400">
               Showing: <strong className="font-semibold text-slate-600">{meta.label}</strong>
+              {showTrackCounts && formatTrackCount(trackCounts[track]) != null ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  <strong className="font-semibold text-emerald-700">
+                    {formatTrackCount(trackCounts[track])}
+                  </strong>
+                </>
+              ) : null}
             </span>
           </label>
 
@@ -857,21 +938,55 @@ export default function FollowUpTrackingPage() {
             </button>
           </div>
         </div>
+
+        {showTrackCounts && meta.groupId !== "projects" ? (
+          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100 pt-3">
+            {tracksForGroup(meta.groupId || "user_journey").map((item) => {
+              const countLabel = formatTrackCount(trackCounts[item.key]);
+              const active = item.key === track;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => selectTrack(item.key)}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                    active
+                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  {countLabel != null ? (
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                        active ? "bg-white/20 text-white" : "bg-slate-900 text-white"
+                      }`}
+                    >
+                      {countLabel}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
-      {territoryScoped ? (
+      {cceExclusive ? (
         <div className="flex flex-wrap items-start gap-2 rounded-[14px] border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-[11px] text-white shadow-sm">
           <MapPin size={14} className="mt-0.5 shrink-0 text-emerald-400" />
           <div className="min-w-0">
             <p className="font-bold text-slate-100">
               Showing only cases assigned to you
             </p>
-            <p className="mt-0.5 text-slate-300">
-              Territories: {cceTerritories.map(formatTerritoryLabel).join(" · ")}
-            </p>
+            {territoryScoped ? (
+              <p className="mt-0.5 text-slate-300">
+                Territories: {cceTerritories.map(formatTerritoryLabel).join(" · ")}
+              </p>
+            ) : null}
             <p className="mt-1 text-[10px] text-slate-400">
-              Each follow-up is owned by one executive. Same location as another CCE does not
-              share the case (people + their properties/projects).
+              Counts and lists are exclusive to your assignments. Other CCEs in the same
+              location are not mixed into your queue.
             </p>
           </div>
         </div>
@@ -882,11 +997,10 @@ export default function FollowUpTrackingPage() {
           meta={meta}
           range={range}
           territoryFilter={territoryScoped ? cceTerritories : null}
-          exclusiveAssigneeId={territoryScoped ? meId : null}
-          creatorAssigneeById={territoryScoped ? creatorAssigneeById : null}
+          exclusiveAssigneeId={cceExclusive ? meId : null}
+          creatorAssigneeById={cceExclusive ? creatorAssigneeById : null}
           onRefreshUsers={() => {
             usersQuery.refetch();
-            creatorAssigneeQuery.refetch();
           }}
         />
       ) : (

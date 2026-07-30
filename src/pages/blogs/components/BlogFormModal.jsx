@@ -10,12 +10,16 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import { resolveBlogImage } from "../utility/blogHelpers";
+import {
+  BLOG_CONTENT_IMAGE,
+  BLOG_FEATURED_IMAGE,
+  resolveBlogImage,
+  validateBlogFeaturedImage,
+} from "../utility/blogHelpers";
 import TiptapEditor from "../../UpsertFeaturedProjects/CreateFeaturedProjects/Components/TiptapEditor";
 
 const EMPTY_SECTION = { heading: "", content: "" };
 const EMPTY_FAQ = { question: "", answer: "" };
-const MAX_FEATURED_IMAGE_SIZE = 1024 * 1024;
 
 const createEmptyForm = () => ({
   title: "",
@@ -170,15 +174,18 @@ const BlogFormModal = ({
     onSubmit(featuredImageFile ? buildMultipartPayload(payload) : payload);
   };
 
-  const handleFeaturedImageChange = (e) => {
+  const handleFeaturedImageChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > MAX_FEATURED_IMAGE_SIZE) {
-      setFeaturedImageError("Image must be below 1 MB.");
-      toast.error("Image must be below 1 MB.");
+
+    const message = await validateBlogFeaturedImage(file);
+    if (message) {
+      setFeaturedImageError(message);
+      toast.error(message);
       if (imageInputRef.current) imageInputRef.current.value = "";
       return;
     }
+
     if (featuredImagePreview?.startsWith("blob:")) {
       URL.revokeObjectURL(featuredImagePreview);
     }
@@ -186,6 +193,7 @@ const BlogFormModal = ({
     setFeaturedImagePreview(URL.createObjectURL(file));
     setFeaturedImageError("");
     set("featuredImage", "");
+    toast.success(`Featured image ready (${BLOG_FEATURED_IMAGE.label})`);
   };
 
   const clearFeaturedImage = () => {
@@ -311,73 +319,107 @@ const BlogFormModal = ({
                   className={inputCls}
                 />
               </Field>
-              <Field label="Featured Image">
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-3">
+              <Field label="Featured Image * (main blog hero)">
+                <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-3 space-y-3">
+                  <div className="rounded-lg border border-emerald-100 bg-white px-3 py-2.5 text-[11px] leading-relaxed text-gray-600">
+                    <p className="font-bold text-emerald-800">
+                      Required size for propenu.com (no edge cutting)
+                    </p>
+                    <p className="mt-1">
+                      Upload exactly{" "}
+                      <span className="font-semibold text-gray-800">
+                        {BLOG_FEATURED_IMAGE.label}
+                      </span>{" "}
+                      ({BLOG_FEATURED_IMAGE.ratioLabel}) · max{" "}
+                      <span className="font-semibold text-gray-800">1 MB</span> ·
+                      PNG / JPG / WebP
+                    </p>
+                    <p className="mt-1 text-gray-500">
+                      This matches the live article hero frame. Keep important
+                      text/logo inside the full canvas — wrong ratios are
+                      rejected on create and edit.
+                    </p>
+                  </div>
+
                   <input
                     ref={imageInputRef}
                     type="file"
-                    accept="image/*"
+                    accept={BLOG_FEATURED_IMAGE.accept}
                     className="hidden"
                     onChange={handleFeaturedImageChange}
                   />
-                  {featuredImagePreview ? (
-                    <div className="flex gap-3">
+
+                  {/* Same aspect frame as live site: 16/7.7 */}
+                  <div className="relative aspect-[16/7.7] w-full overflow-hidden rounded-xl border border-gray-200 bg-[#eef6f1]">
+                    {featuredImagePreview ? (
                       <img
                         src={featuredImagePreview}
                         alt={form.imageAlt || "Featured blog preview"}
-                        className="h-24 w-32 flex-shrink-0 rounded-lg border border-gray-200 object-cover"
+                        className="absolute inset-0 h-full w-full object-contain"
                       />
-                      <div className="flex min-w-0 flex-1 flex-col justify-center">
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
+                        <ImageIcon size={22} className="text-emerald-600" />
+                        <p className="mt-2 text-xs font-semibold text-gray-700">
+                          Live hero preview ({BLOG_FEATURED_IMAGE.label})
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-gray-400">
+                          Image will display here exactly as on the website
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {featuredImagePreview ? (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-gray-700">
                           {featuredImageFile?.name || "Current featured image"}
                         </p>
-                        <p className="mt-1 text-xs text-gray-400">
-                          Upload a new image below 1 MB to replace the current blog image.
+                        <p className="text-[11px] text-gray-400">
+                          Replace with another {BLOG_FEATURED_IMAGE.label} image
+                          (max 1 MB)
                         </p>
-                        {(featuredImageError || fieldErrors.featuredImage) && (
-                          <p className="mt-2 text-xs font-medium text-red-500">
-                            {featuredImageError || fieldErrors.featuredImage}
-                          </p>
-                        )}
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => imageInputRef.current?.click()}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-                          >
-                            <Upload size={13} /> Change Image
-                          </button>
-                          <button
-                            type="button"
-                            onClick={clearFeaturedImage}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100"
-                          >
-                            <X size={13} /> Remove
-                          </button>
-                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => imageInputRef.current?.click()}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                        >
+                          <Upload size={13} /> Change Image
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearFeaturedImage}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100"
+                        >
+                          <X size={13} /> Remove
+                        </button>
                       </div>
                     </div>
                   ) : (
                     <button
                       type="button"
                       onClick={() => imageInputRef.current?.click()}
-                      className="flex w-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-6 text-center transition hover:border-emerald-300 hover:bg-emerald-50/50"
+                      className="flex w-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-5 text-center transition hover:border-emerald-300 hover:bg-emerald-50/50"
                     >
                       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                        <ImageIcon size={18} />
+                        <Upload size={18} />
                       </span>
                       <span className="mt-2 text-sm font-semibold text-gray-700">
                         Upload featured image
                       </span>
                       <span className="mt-1 text-xs text-gray-400">
-                        PNG, JPG, JPEG or WebP below 1 MB
+                        {BLOG_FEATURED_IMAGE.label} · max 1 MB · create & edit
                       </span>
-                      {(featuredImageError || fieldErrors.featuredImage) && (
-                        <span className="mt-2 text-xs font-medium text-red-500">
-                          {featuredImageError || fieldErrors.featuredImage}
-                        </span>
-                      )}
                     </button>
+                  )}
+
+                  {(featuredImageError || fieldErrors.featuredImage) && (
+                    <p className="text-xs font-medium text-red-500">
+                      {featuredImageError || fieldErrors.featuredImage}
+                    </p>
                   )}
                 </div>
               </Field>
@@ -455,6 +497,8 @@ const BlogFormModal = ({
                   value={sec.content}
                   onChange={(html) => updateSection(idx, "content", html)}
                   placeholder="Write this section content..."
+                  imageHint={BLOG_CONTENT_IMAGE.hint}
+                  maxImageBytes={BLOG_CONTENT_IMAGE.maxBytes}
                 />
               </div>
             ))}
@@ -512,6 +556,8 @@ const BlogFormModal = ({
                   value={faq.answer}
                   onChange={(html) => updateFaq(idx, "answer", html)}
                   placeholder="Write this FAQ answer..."
+                  imageHint={BLOG_CONTENT_IMAGE.hint}
+                  maxImageBytes={BLOG_CONTENT_IMAGE.maxBytes}
                 />
               </div>
             ))}

@@ -43,6 +43,7 @@ import AssignReportsTo     from "./AssignReportsTo";
 import TransferCredentials from "./TransferCredentials";
 import {
   accountTodayHref,
+  followUpTodayHref,
   inventoryOnboardingCount,
   inventoryTodayHref,
   requestSidebarPathAck,
@@ -1012,6 +1013,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       ].includes(path);
       const isInventoryPath = path === "/projects" || path === "/properties";
       const isPropertiesPath = path === "/properties";
+      const isFollowUpPath = path === "/follow-up-tracking";
       const pending = Number(detail.pending || 0);
       const onboarding = inventoryOnboardingCount(
         detail,
@@ -1019,43 +1021,55 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       );
       // Account menus: only successfully created accounts today.
       // Properties: pending approvals only (drafts never notify).
+      // Client Progress Queue: users onboarding + property pending (projects ignored).
       // Projects: total today, with onboarding as secondary.
       const showPrimary = isAccountPath
         ? primary
-        : isPropertiesPath
-          ? pending
-          : Math.max(primary, onboarding, Number(detail.inactive || 0));
+        : isFollowUpPath
+          ? Math.max(primary, onboarding, pending)
+          : isPropertiesPath
+            ? pending
+            : Math.max(primary, onboarding, Number(detail.inactive || 0));
       if (showPrimary <= 0 && !isAccountPath && login <= 0) return null;
       if (showPrimary <= 0) return null;
       const parts = [];
-      if (detail.active) parts.push(`Active:${detail.active}`);
-      if (pending) parts.push(`Pending:${pending}`);
-      if (isPropertiesPath) {
-        // no draft/onboarding in properties tooltip
-      } else if (isInventoryPath && onboarding) parts.push(`Onboard:${onboarding}`);
-      else if (isAccountPath && onboarding) parts.push(`Onboard:${onboarding}`);
-      else if (!isInventoryPath && detail.inactive) parts.push(`Inactive:${detail.inactive}`);
-      if (login) parts.push(`Login:${login}`);
+      if (isFollowUpPath) {
+        if (onboarding) parts.push(`Users:${onboarding}`);
+        if (pending) parts.push(`Properties:${pending}`);
+      } else {
+        if (detail.active) parts.push(`Active:${detail.active}`);
+        if (pending) parts.push(`Pending:${pending}`);
+        if (isPropertiesPath) {
+          // no draft/onboarding in properties tooltip
+        } else if (isInventoryPath && onboarding) parts.push(`Onboard:${onboarding}`);
+        else if (isAccountPath && onboarding) parts.push(`Onboard:${onboarding}`);
+        else if (!isInventoryPath && detail.inactive) parts.push(`Inactive:${detail.inactive}`);
+        if (login) parts.push(`Login:${login}`);
+      }
       return {
         primary: showPrimary,
         secondary: isPropertiesPath
           ? undefined
-          : isInventoryPath
-            ? onboarding || undefined
-            : isAccountPath
-              ? undefined
-              : onboarding || login || undefined,
+          : isFollowUpPath
+            ? pending || undefined
+            : isInventoryPath
+              ? onboarding || undefined
+              : isAccountPath
+                ? undefined
+                : onboarding || login || undefined,
         title: parts.length
           ? parts.join(" · ")
           : isAccountPath
             ? "Accounts created today"
-            : isPropertiesPath
-              ? "Pending approvals today"
-              : isInventoryPath
-                ? onboarding
-                  ? "Today · onboarding"
-                  : "New today"
-                : "New today",
+            : isFollowUpPath
+              ? "Client progress queue"
+              : isPropertiesPath
+                ? "Pending approvals today"
+                : isInventoryPath
+                  ? onboarding
+                    ? "Today · onboarding"
+                    : "New today"
+                  : "New today",
         onboarding: isPropertiesPath ? pending : onboarding,
         inactive: Number(detail.inactive || 0),
         pending,
@@ -1088,11 +1102,17 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     const badge = pathBadge(path);
     const isInventory = path === "/properties" || path === "/projects";
     const isAccount = SIDEBAR_ACCOUNT_PATHS.has(path);
-    const hasToday = (isInventory || isAccount) && Number(badge?.primary || 0) > 0;
+    const isFollowUp = path === "/follow-up-tracking";
+    const hasToday =
+      (isInventory || isAccount || isFollowUp) && Number(badge?.primary || 0) > 0;
     // Clear badge on click (even if already on same route with different query)
     requestSidebarPathAck(path);
     if (hasToday && isAccount) {
       navigate(accountTodayHref(path));
+      return;
+    }
+    if (hasToday && isFollowUp) {
+      navigate(followUpTodayHref(path));
       return;
     }
     navigate(

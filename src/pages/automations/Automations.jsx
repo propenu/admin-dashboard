@@ -11,29 +11,88 @@ import {
   Zap,
   AlertCircle,
 } from "lucide-react";
-import { getEmailCampaignStatus } from "../../features/user/userService";
+import {
+  getCanpaingsAnalytics,
+  getEmailCampaignStatus,
+} from "../../features/user/userService";
 import { CampaignDetail } from "./automationcampaingcomponents/CampaignDetail";
-import { CampaignCard } from "./automationcampaingcomponents/CampaignCard";
+import { CampaignTable } from "./automationcampaingcomponents/CampaignTable";
+import { normalizeCampaign, unpackList } from "./campaignUtils";
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 const Automations = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
 
   const fetchAll = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       setError(null);
-      const res = await getEmailCampaignStatus();
-      const result = res?.data?.data ?? res?.data;
-      const list = Array.isArray(result) ? result : result ? [result] : [];
-      setCampaigns(list);
+
+      const [historyRes, liveRes] = await Promise.allSettled([
+        getCanpaingsAnalytics(),
+        getEmailCampaignStatus(),
+      ]);
+
+      if (historyRes.status === "rejected" && liveRes.status === "rejected") {
+        throw (
+          historyRes.reason ||
+          liveRes.reason ||
+          new Error("Failed to load campaigns")
+        );
+      }
+
+      const historyRaw =
+        historyRes.status === "fulfilled"
+          ? unpackList(historyRes.value?.data ?? historyRes.value)
+          : [];
+      const liveRaw =
+        liveRes.status === "fulfilled"
+          ? unpackList(liveRes.value?.data?.data ?? liveRes.value?.data)
+          : [];
+
+      const liveById = new Map(
+        liveRaw
+          .map(normalizeCampaign)
+          .filter((c) => c.campaignId)
+          .map((c) => [c.campaignId, c]),
+      );
+
+      const history = historyRaw
+        .map(normalizeCampaign)
+        .filter((c) => c.campaignId);
+
+      const merged = history.map((row) => {
+        const live = liveById.get(row.campaignId);
+        if (!live) return row;
+        return normalizeCampaign({
+          ...row,
+          waiting: Math.max(row.waiting, live.waiting),
+          active: Math.max(row.active, live.active),
+          processing: Math.max(row.processing, live.processing),
+          completed: Math.max(row.completed, live.completed),
+          failed: Math.max(row.failed, live.failed),
+          total: Math.max(row.total, live.total),
+        });
+      });
+
+      liveById.forEach((live, id) => {
+        if (!merged.some((c) => c.campaignId === id)) merged.unshift(live);
+      });
+
+      setCampaigns(merged);
     } catch (err) {
-      setError(err?.message || "Failed to load campaigns");
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to load campaigns",
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -43,6 +102,10 @@ const Automations = () => {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, pageSize, campaigns.length]);
 
   if (selected) {
     return (
@@ -56,19 +119,18 @@ const Automations = () => {
   const totalFailed = campaigns.reduce((s, c) => s + (c.failed || 0), 0);
 
   return (
-    <div className="min-h-screen  bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-1 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#27AE60] flex items-center justify-center shrink-0">
+    <div className="min-h-screen bg-gray-50">
+      <div className="sticky top-0 z-10 border-b border-gray-100 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-1 py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#27AE60]">
               <Zap size={14} className="text-white" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-gray-800 leading-tight">
+              <h1 className="text-sm font-bold leading-tight text-gray-800">
                 Automations
               </h1>
-              <p className="text-[10px] text-gray-400 leading-none">
+              <p className="text-[10px] leading-none text-gray-400">
                 Email campaigns
               </p>
             </div>
@@ -76,20 +138,21 @@ const Automations = () => {
           <button
             onClick={() => fetchAll(true)}
             disabled={refreshing}
-            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-[#27AE60]/5 hover:border-[#27AE60]/30 disabled:opacity-50 transition-colors group"
+            className="group flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 transition-colors hover:border-[#27AE60]/30 hover:bg-[#27AE60]/5 disabled:opacity-50"
           >
             <RefreshCw
               size={13}
-              className={`text-gray-500 group-hover:text-[#27AE60] transition-colors ${refreshing ? "animate-spin" : ""}`}
+              className={`text-gray-500 transition-colors group-hover:text-[#27AE60] ${
+                refreshing ? "animate-spin" : ""
+              }`}
             />
           </button>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-4 space-y-4">
-        {/* Summary tiles */}
+      <div className="mx-auto max-w-6xl space-y-4 px-4 py-4">
         {!loading && campaigns.length > 0 && (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 ">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {[
               {
                 label: "Campaigns",
@@ -122,42 +185,40 @@ const Automations = () => {
             ].map(({ label, value, icon: Icon, color, bg }) => (
               <div
                 key={label}
-                className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm"
+                className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
               >
                 <div
-                  className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center mb-1.5`}
+                  className={`mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg ${bg}`}
                 >
                   <Icon size={13} className={color} />
                 </div>
-                <p className="text-lg font-bold text-gray-800 leading-none">
-                  {value}
+                <p className="text-lg font-bold leading-none text-gray-800">
+                  {value.toLocaleString("en-IN")}
                 </p>
-                <p className="text-[11px] text-gray-400 mt-1">{label}</p>
+                <p className="mt-1 text-[11px] text-gray-400">{label}</p>
               </div>
             ))}
           </div>
         )}
 
-        {/* Loading */}
         {loading && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <Loader2 size={28} className="text-[#27AE60] animate-spin" />
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <Loader2 size={28} className="animate-spin text-[#27AE60]" />
             <p className="text-sm text-gray-500">Loading campaigns…</p>
           </div>
         )}
 
-        {/* Error */}
         {error && !loading && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-2.5">
-            <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-4">
+            <AlertCircle size={18} className="mt-0.5 shrink-0 text-red-500" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-700">
                 Could not load campaigns
               </p>
-              <p className="text-xs text-red-500 mt-0.5 mb-2.5">{error}</p>
+              <p className="mb-2.5 mt-0.5 text-xs text-red-500">{error}</p>
               <button
                 onClick={() => fetchAll()}
-                className="text-xs font-semibold text-red-600 border border-red-300 rounded-lg px-3 py-1.5 hover:bg-red-100 transition-colors"
+                className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-100"
               >
                 Try again
               </button>
@@ -165,37 +226,32 @@ const Automations = () => {
           </div>
         )}
 
-        {/* Empty */}
         {!loading && !error && campaigns.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 gap-3">
-            <div className="w-12 h-12 rounded-xl bg-[#27AE60]/10 flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center gap-3 py-16">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#27AE60]/10">
               <Mail size={22} className="text-[#27AE60]" />
             </div>
             <p className="text-sm font-semibold text-gray-700">
               No campaigns yet
             </p>
-            <p className="text-xs text-gray-400 text-center max-w-[220px]">
-              Email campaigns will appear here once sent.
+            <p className="max-w-[240px] text-center text-xs text-gray-400">
+              Email campaigns from Email Notifications will appear here after
+              they are sent.
             </p>
           </div>
         )}
 
-        {/* Campaign Cards */}
         {!loading && campaigns.length > 0 && (
-          <div>
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">
-              All Campaigns
-            </p>
-            <div className="space-y-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-2">
-              {campaigns.map((campaign) => (
-                <CampaignCard
-                  key={campaign.campaignId}
-                  campaign={campaign}
-                  onClick={(c) => setSelected(c.campaignId)}
-                />
-              ))}
-            </div>
-          </div>
+          <CampaignTable
+            campaigns={campaigns}
+            page={page}
+            pageSize={pageSize}
+            search={search}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            onSearchChange={setSearch}
+            onView={(c) => setSelected(c.campaignId)}
+          />
         )}
       </div>
     </div>

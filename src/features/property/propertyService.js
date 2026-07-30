@@ -234,6 +234,13 @@ export const getAllPropertiesAnalytics = (params = {}) => {
   );
 };
 
+/** CCE / Team Lead: update listing/project follow-up process. */
+export const updateListingFollowUpWorkStatus = (entity, id, followUpWorkStatus) => {
+  return apiClient.patch(
+    `${SERVICES.PROPERTY}/follow-up/${entity}/${id}/work-status`,
+    { followUpWorkStatus },
+  );
+};
 
 //src/features/property/propertyService.js
 {/* Blogs */ }

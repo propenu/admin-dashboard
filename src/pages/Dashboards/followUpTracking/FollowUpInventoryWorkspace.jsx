@@ -26,6 +26,11 @@ import {
   anyTerritoryCovers,
   locationFromUserLike,
 } from "../../../utils/workingLocations";
+import {
+  followUpWorkLabel,
+  normalizeFollowUpWorkStatus,
+} from "./FollowUpWorkStatusSelect";
+import ListingFollowUpWorkStatusSelect from "./ListingFollowUpWorkStatusSelect";
 
 const PAGE_SIZE = 40;
 const SERVER_PAGE = 100;
@@ -126,17 +131,29 @@ const creatorIdOf = (row) => {
   return String(person?._id || person?.id || "").trim();
 };
 
-/** Exclusive CCE for a listing = creator's follow-up owner (one executive only). */
+/** Exclusive CCE for a listing = listing owner, else creator's follow-up owner. */
 const listingOwnerIdOf = (row, creatorAssigneeById = null) => {
+  const fromListing = String(
+    row?.followUpAssignedTo?._id || row?.followUpAssignedTo || "",
+  ).trim();
+  if (fromListing) return fromListing;
+
   const fromCreator = String(
     row?.createdBy?.followUpAssignedTo?._id ||
       row?.createdBy?.followUpAssignedTo ||
       "",
   ).trim();
   if (fromCreator) return fromCreator;
+
   const creatorId = creatorIdOf(row);
   if (!creatorId || !creatorAssigneeById) return "";
   return String(creatorAssigneeById[creatorId] || "").trim();
+};
+
+const workStatusOfListing = (row, overrides = {}) => {
+  const id = rowId(row);
+  if (id && overrides[id]) return normalizeFollowUpWorkStatus(overrides[id]);
+  return normalizeFollowUpWorkStatus(row?.followUpWorkStatus);
 };
 
 /** Listing / project creator only — never dashboard staff from postedBy. */
@@ -219,8 +236,29 @@ export default function FollowUpInventoryWorkspace({
   const [error, setError] = useState("");
   const [progress, setProgress] = useState({ loaded: 0, total: null });
   const [exporting, setExporting] = useState(false);
+  const [workStatusOverrides, setWorkStatusOverrides] = useState({});
   const abortRef = useRef(null);
   const tableScrollRef = useRef(null);
+
+  const canEditListingProcess = useCallback(
+    (row) => {
+      if (!exclusiveAssigneeId) return true;
+      const ownerId = listingOwnerIdOf(row, creatorAssigneeById);
+      return Boolean(ownerId && ownerId === String(exclusiveAssigneeId));
+    },
+    [exclusiveAssigneeId, creatorAssigneeById],
+  );
+
+  const handleListingWorkUpdated = useCallback((listingId, nextStatus) => {
+    const id = String(listingId || "");
+    if (!id) return;
+    setWorkStatusOverrides((prev) => ({ ...prev, [id]: nextStatus }));
+    setRows((prev) =>
+      prev.map((row) =>
+        rowId(row) === id ? { ...row, followUpWorkStatus: nextStatus } : row,
+      ),
+    );
+  }, []);
 
   const load = useCallback(async () => {
     abortRef.current?.abort();
@@ -463,6 +501,9 @@ export default function FollowUpInventoryWorkspace({
           UpdatedAt: row?.updatedAt ? new Date(row.updatedAt).toLocaleString("en-IN") : "",
           Id: rowId(row),
           Slug: row?.slug || "",
+          FollowUpProcess: followUpWorkLabel(
+            workStatusOfListing(row, workStatusOverrides),
+          ),
         };
       });
 
@@ -638,17 +679,24 @@ export default function FollowUpInventoryWorkspace({
         ) : (
           <>
             <div ref={tableScrollRef} className="max-h-[min(62vh,640px)] overflow-auto">
-              <table className="min-w-full text-left text-xs">
+              <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-xs">
                 <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500 shadow-sm">
                   <tr>
-                    <th className="px-3 py-2 font-bold">#</th>
-                    <th className="px-3 py-2 font-bold">Title</th>
-                    {!isProject ? <th className="px-3 py-2 font-bold">Category</th> : null}
-                    <th className="px-3 py-2 font-bold">Status</th>
-                    <th className="px-3 py-2 font-bold">Location</th>
-                    <th className="px-3 py-2 font-bold">Created by</th>
-                    <th className="px-3 py-2 font-bold">Created</th>
-                    <th className="px-3 py-2 font-bold">Price</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-bold">#</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-bold">Title</th>
+                    {!isProject ? (
+                      <th className="whitespace-nowrap px-3 py-2.5 font-bold">Category</th>
+                    ) : null}
+                    <th className="whitespace-nowrap px-3 py-2.5 font-bold">Status</th>
+                    <th className="min-w-[140px] whitespace-nowrap px-3 py-2.5 font-bold">
+                      Location
+                    </th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-bold">Created by</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-bold">Created</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 font-bold">Price</th>
+                    <th className="sticky right-0 z-10 w-[132px] min-w-[132px] whitespace-nowrap bg-slate-50 px-3 py-2.5 font-bold shadow-[-8px_0_10px_-8px_rgba(15,23,42,0.14)]">
+                      Process
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -670,10 +718,10 @@ export default function FollowUpInventoryWorkspace({
                             : "hover:bg-slate-50/80"
                         }`}
                       >
-                        <td className="px-3 py-2 tabular-nums text-slate-400">
+                        <td className="align-middle px-3 py-2.5 tabular-nums text-slate-400">
                           {(safePage - 1) * PAGE_SIZE + index + 1}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="align-middle px-3 py-2.5">
                           <p className="max-w-[220px] truncate font-semibold text-slate-900">
                             {propertyTitle(row)}
                           </p>
@@ -684,19 +732,19 @@ export default function FollowUpInventoryWorkspace({
                           ) : null}
                         </td>
                         {!isProject ? (
-                          <td className="px-3 py-2 capitalize text-slate-600">
+                          <td className="align-middle whitespace-nowrap px-3 py-2.5 capitalize text-slate-600">
                             {row._category}
                           </td>
                         ) : null}
-                        <td className="px-3 py-2">
+                        <td className="align-middle whitespace-nowrap px-3 py-2.5">
                           <StatusBadge status={status} />
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="align-middle px-3 py-2.5">
                           <p className="max-w-[180px] truncate text-slate-600">
                             {propertyLocation(row)}
                           </p>
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="align-middle px-3 py-2.5">
                           <p className="max-w-[140px] truncate font-medium text-slate-700">
                             {creatorName}
                           </p>
@@ -704,16 +752,38 @@ export default function FollowUpInventoryWorkspace({
                             <p className="text-[10px] text-slate-400">{creatorRole}</p>
                           ) : null}
                         </td>
-                        <td className="px-3 py-2 tabular-nums text-slate-600">
+                        <td className="align-middle whitespace-nowrap px-3 py-2.5 tabular-nums text-slate-600">
                           {toDay(row.createdAt) || "—"}
                         </td>
-                        <td className="px-3 py-2 tabular-nums text-slate-700">
+                        <td className="align-middle whitespace-nowrap px-3 py-2.5 tabular-nums text-slate-700">
                           {formatPrice(
                             typeof row?.price === "number"
                               ? row.price
                               : typeof row?.minPrice === "number"
                                 ? row.minPrice
                                 : null,
+                          )}
+                        </td>
+                        <td
+                          className={`sticky right-0 w-[132px] min-w-[132px] align-middle px-3 py-2.5 shadow-[-8px_0_10px_-8px_rgba(15,23,42,0.1)] ${
+                            active ? "bg-emerald-50" : "bg-white"
+                          }`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {canEditListingProcess(row) ? (
+                            <ListingFollowUpWorkStatusSelect
+                              row={row}
+                              isProject={isProject}
+                              value={workStatusOfListing(row, workStatusOverrides)}
+                              compact
+                              onUpdated={handleListingWorkUpdated}
+                            />
+                          ) : (
+                            <span className="inline-flex h-8 items-center whitespace-nowrap rounded-lg bg-slate-100 px-2.5 text-[10px] font-bold text-slate-600">
+                              {followUpWorkLabel(
+                                workStatusOfListing(row, workStatusOverrides),
+                              )}
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -802,6 +872,30 @@ export default function FollowUpInventoryWorkspace({
                   {selected._category}
                 </span>
               </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                CCE process
+              </p>
+              {canEditListingProcess(selected) ? (
+                <ListingFollowUpWorkStatusSelect
+                  row={selected}
+                  isProject={isProject}
+                  value={workStatusOfListing(selected, workStatusOverrides)}
+                  onUpdated={handleListingWorkUpdated}
+                />
+              ) : (
+                <p className="text-xs font-semibold text-slate-700">
+                  {followUpWorkLabel(
+                    workStatusOfListing(selected, workStatusOverrides),
+                  )}
+                </p>
+              )}
+              <p className="mt-1.5 text-[10px] text-slate-400">
+                Auto-starts as Assigned when posted. Mark In progress or Completed after
+                you work this listing. Approval status stays separate.
+              </p>
             </div>
 
             <DetailField label="Location">

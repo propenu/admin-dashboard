@@ -1,6 +1,8 @@
-
 import { useEffect, useState, useCallback } from "react";
-import { getEmailCampaignStatus } from "../../../features/user/userService";
+import {
+  getCanpaingsAnalyticsByCampaignId,
+  getEmailCampaignStatus,
+} from "../../../features/user/userService";
 import {
   AlertCircle,
   ArrowLeft,
@@ -14,8 +16,7 @@ import {
   Activity,
 } from "lucide-react";
 import { ProgressBar } from "./ProgressBar";
-
-
+import { normalizeCampaign, unpackOne } from "../campaignUtils";
 
 export const CampaignDetail = ({ campaignId, onBack }) => {
   const [data, setData] = useState(null);
@@ -26,18 +27,59 @@ export const CampaignDetail = ({ campaignId, onBack }) => {
   const fetchDetail = useCallback(async () => {
     try {
       setError(null);
-      const res = await getEmailCampaignStatus(campaignId);
-      const result = res?.data?.data ?? res?.data;
-      setData(result);
+
+      const [historyRes, liveRes] = await Promise.allSettled([
+        getCanpaingsAnalyticsByCampaignId(campaignId),
+        getEmailCampaignStatus(campaignId),
+      ]);
+
+      const history =
+        historyRes.status === "fulfilled"
+          ? unpackOne(historyRes.value?.data ?? historyRes.value)
+          : null;
+      const live =
+        liveRes.status === "fulfilled"
+          ? unpackOne(liveRes.value?.data?.data ?? liveRes.value?.data)
+          : null;
+
+      if (!history && !live) {
+        throw (
+          (historyRes.status === "rejected" && historyRes.reason) ||
+          (liveRes.status === "rejected" && liveRes.reason) ||
+          new Error("Campaign not found")
+        );
+      }
+
+      const base = normalizeCampaign(history || live || {});
+      const overlay = live ? normalizeCampaign(live) : null;
+      const merged = overlay
+        ? normalizeCampaign({
+            ...base,
+            waiting: Math.max(base.waiting, overlay.waiting),
+            active: Math.max(base.active, overlay.active),
+            processing: Math.max(base.processing, overlay.processing),
+            completed: Math.max(base.completed, overlay.completed),
+            failed: Math.max(base.failed, overlay.failed),
+            total: Math.max(base.total, overlay.total),
+            lastUpdated: overlay.lastUpdated || base.lastUpdated,
+          })
+        : base;
+
+      setData(merged);
       setLastUpdated(new Date().toLocaleTimeString());
     } catch (err) {
-      setError(err?.message || "Failed to load campaign details");
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to load campaign details",
+      );
     } finally {
       setLoading(false);
     }
   }, [campaignId]);
 
   useEffect(() => {
+    setLoading(true);
     fetchDetail();
   }, [fetchDetail]);
 
@@ -130,7 +172,7 @@ export const CampaignDetail = ({ campaignId, onBack }) => {
                 {
                   label: "Waiting",
                   value: data.waiting,
-                  sub: "in queue",
+                  sub: "pending / in queue",
                   icon: Clock,
                   color: "text-yellow-500",
                 },
@@ -166,7 +208,9 @@ export const CampaignDetail = ({ campaignId, onBack }) => {
                       {label}
                     </span>
                   </div>
-                  <p className={`text-xl font-bold ${color}`}>{value}</p>
+                  <p className={`text-xl font-bold ${color}`}>
+                    {Number(value || 0).toLocaleString("en-IN")}
+                  </p>
                   <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>
                 </div>
               ))}

@@ -17,6 +17,8 @@ export const SIDEBAR_ACTIVITY_PATHS = {
   builderStaff: "/builder-staff",
   /** Admin-created staff (CCE, leads, ops, etc.) — Team Directory */
   teamDirectory: "/propenu-team-members",
+  /** Client Progress Queue (users onboarding + property pending; projects ignored) */
+  followUpTracking: "/follow-up-tracking",
 };
 
 /** Sidebar paths whose badges mean "accounts created today" (not inventory activity). */
@@ -101,6 +103,7 @@ export const emptySidebarCounts = (extras = {}) => ({
   builderStaffToday: 0,
   teamDirectoryToday: 0,
   usersGroupToday: 0,
+  followUpToday: 0,
   byPath: {},
   raw: null,
   day: todayKey(),
@@ -308,6 +311,18 @@ export const accountTodayHref = (path) => {
   const params = new URLSearchParams();
   params.set("createdFrom", day);
   params.set("createdTo", day);
+  return `${path}?${params.toString()}`;
+};
+
+/** Open Client Progress Queue focused on today's onboarding / pending work. */
+export const followUpTodayHref = (path = SIDEBAR_ACTIVITY_PATHS.followUpTracking) => {
+  if (path !== SIDEBAR_ACTIVITY_PATHS.followUpTracking) return path;
+  const day = todayKey();
+  const params = new URLSearchParams();
+  params.set("track", "onboarding_all");
+  params.set("preset", "today");
+  params.set("from", day);
+  params.set("to", day);
   return `${path}?${params.toString()}`;
 };
 
