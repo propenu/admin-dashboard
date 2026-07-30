@@ -16,7 +16,23 @@ import {
   resolveBlogImage,
   validateBlogFeaturedImage,
 } from "../utility/blogHelpers";
+import { uploadBlogContentImage } from "../../../features/property/propertyService";
 import TiptapEditor from "../../UpsertFeaturedProjects/CreateFeaturedProjects/Components/TiptapEditor";
+
+const uploadEditorImage = async (file) => {
+  try {
+    const response = await uploadBlogContentImage(file);
+    const data = response?.data || {};
+    const url =
+      data.imageUrl || data.url || data?.data?.imageUrl || data?.data?.url;
+    if (!url) throw new Error(data.message || "Image upload failed");
+    return url;
+  } catch (err) {
+    throw new Error(
+      err?.response?.data?.message || err?.message || "Image upload failed",
+    );
+  }
+};
 
 const EMPTY_SECTION = { heading: "", content: "" };
 const EMPTY_FAQ = { question: "", answer: "" };
@@ -499,6 +515,7 @@ const BlogFormModal = ({
                   placeholder="Write this section content..."
                   imageHint={BLOG_CONTENT_IMAGE.hint}
                   maxImageBytes={BLOG_CONTENT_IMAGE.maxBytes}
+                  uploadImage={uploadEditorImage}
                 />
               </div>
             ))}
@@ -558,6 +575,7 @@ const BlogFormModal = ({
                   placeholder="Write this FAQ answer..."
                   imageHint={BLOG_CONTENT_IMAGE.hint}
                   maxImageBytes={BLOG_CONTENT_IMAGE.maxBytes}
+                  uploadImage={uploadEditorImage}
                 />
               </div>
             ))}

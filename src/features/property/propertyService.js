@@ -262,6 +262,19 @@ export const deleteBlog = (id) => {
 
 export const createBlog = (payload) => {
   return apiClient.post(`${SERVICES.PROPERTY}/blogs`, payload);
+}
+
+/** TipTap / in-article blog images (field name: image) */
+export const uploadBlogContentImage = (file) => {
+  const formData = new FormData();
+  formData.append("image", file);
+  return apiClient.post(
+    `${SERVICES.PROPERTY}/blogs/upload-content-image`,
+    formData,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    },
+  );
 };
 
 export const updateBlog = (id, payload) => {

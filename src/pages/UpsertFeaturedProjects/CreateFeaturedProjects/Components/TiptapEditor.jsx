@@ -107,9 +107,12 @@ const TiptapEditor = ({
   imageHint = "",
   /** Max in-editor image upload size in bytes (default 1 MB) */
   maxImageBytes = 1024 * 1024,
+  /** async (file) => imageUrl — required for working uploads in admin dashboard */
+  uploadImage = null,
 }) => {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [wordCount, setWordCount] = useState(0);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -123,7 +126,8 @@ const TiptapEditor = ({
         HTMLAttributes: { class: "text-[#27AE60] underline" },
       }),
       Image.configure({
-        HTMLAttributes: { class: "rounded-xl max-w-full my-2" },
+        // Do not bake preview size into saved HTML — live site should stay full width.
+        HTMLAttributes: { class: "blog-editor-image" },
       }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder }),
@@ -177,7 +181,7 @@ const TiptapEditor = ({
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (!file || !editor) return;
     if (!String(file.type || "").startsWith("image/")) {
       toast.error("Only image files are allowed.");
       return;
@@ -188,18 +192,24 @@ const TiptapEditor = ({
       );
       return;
     }
-    const formData = new FormData();
-    formData.append("image", file);
+    if (typeof uploadImage !== "function") {
+      toast.error("Image upload is not configured for this editor.");
+      return;
+    }
+
+    setUploadingImage(true);
+    const toastId = toast.loading("Uploading image…");
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!data?.imageUrl) throw new Error("No image URL");
-      editor.chain().focus().setImage({ src: data.imageUrl }).run();
-    } catch {
-      toast.error("Image upload failed.");
+      const imageUrl = await uploadImage(file);
+      if (!imageUrl || typeof imageUrl !== "string") {
+        throw new Error("No image URL returned");
+      }
+      editor.chain().focus().setImage({ src: imageUrl }).run();
+      toast.success("Image uploaded", { id: toastId });
+    } catch (err) {
+      toast.error(err?.message || "Image upload failed.", { id: toastId });
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -392,8 +402,12 @@ const TiptapEditor = ({
           {/* Image upload */}
           <label
             className={`
-            relative p-2 rounded-lg transition-all duration-150 flex items-center justify-center cursor-pointer
-            text-gray-500 hover:text-gray-900 hover:bg-gray-100
+            relative p-2 rounded-lg transition-all duration-150 flex items-center justify-center
+            ${
+              uploadingImage || typeof uploadImage !== "function"
+                ? "cursor-not-allowed opacity-40"
+                : "cursor-pointer text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+            }
           `}
             title={imageHint || "Insert Image"}
           >
@@ -402,6 +416,7 @@ const TiptapEditor = ({
               type="file"
               hidden
               accept="image/png,image/jpeg,image/jpg,image/webp"
+              disabled={uploadingImage || typeof uploadImage !== "function"}
               onChange={handleImageUpload}
             />
           </label>
@@ -427,7 +442,11 @@ const TiptapEditor = ({
           [&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-[#27AE60] [&_.ProseMirror_blockquote]:pl-4 [&_.ProseMirror_blockquote]:text-gray-500 [&_.ProseMirror_blockquote]:italic [&_.ProseMirror_blockquote]:my-3
           [&_.ProseMirror_a]:text-[#27AE60] [&_.ProseMirror_a]:underline [&_.ProseMirror_a]:font-semibold
           [&_.ProseMirror_mark]:bg-yellow-200 [&_.ProseMirror_mark]:rounded [&_.ProseMirror_mark]:px-0.5
-          [&_.ProseMirror_img]:rounded-xl [&_.ProseMirror_img]:max-w-full [&_.ProseMirror_img]:my-2 [&_.ProseMirror_img]:shadow-sm
+          [&_.ProseMirror_img]:my-2 [&_.ProseMirror_img]:mx-auto [&_.ProseMirror_img]:block
+          [&_.ProseMirror_img]:h-auto [&_.ProseMirror_img]:max-h-36 [&_.ProseMirror_img]:w-auto
+          [&_.ProseMirror_img]:max-w-[200px] [&_.ProseMirror_img]:rounded-lg
+          [&_.ProseMirror_img]:border [&_.ProseMirror_img]:border-gray-200
+          [&_.ProseMirror_img]:object-contain [&_.ProseMirror_img]:shadow-sm
           [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-gray-400 [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0
         "
       />
