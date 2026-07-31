@@ -362,8 +362,31 @@ export default function PropertyCard({
   const [rankValue,   setRankValue]   = useState(p.rank ?? "");
   const [rankLoading, setRankLoading] = useState(false);
   const [renewLoading, setRenewLoading] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  const heroImage = p.heroImage || p.gallerySummary?.[0]?.url;
+  const galleryImages = (() => {
+    const raw = Array.isArray(p.gallerySummary)
+      ? p.gallerySummary.map((item) => item?.url).filter(Boolean)
+      : Array.isArray(p.gallery)
+        ? p.gallery
+            .map((item) => (typeof item === "string" ? item : item?.url))
+            .filter(Boolean)
+        : [];
+    const withHero = p.heroImage ? [p.heroImage, ...raw] : raw;
+    return [...new Set(withHero)];
+  })();
+  const safeImageIndex = Math.min(
+    activeImageIndex,
+    Math.max(galleryImages.length - 1, 0),
+  );
+  const heroImage = galleryImages[safeImageIndex] || null;
+  const thumbImages = galleryImages.slice(0, 4);
+  const creatorName =
+    p?.createdBy?.fullName ||
+    p?.createdBy?.name ||
+    p?.postedBy?.name ||
+    p?.builderName ||
+    "";
   const accent    = TYPE_RANK_ACCENT[type] || TYPE_RANK_ACCENT.normal;
 
   const handleCardClick = (e) => {
@@ -445,37 +468,37 @@ export default function PropertyCard({
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div
-      className="group relative h-full min-h-[224px] w-full min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:border-[#27AE60]/30 hover:shadow-md sm:h-[224px]"
+      className="group relative flex h-full min-h-[210px] w-full min-w-0 cursor-pointer overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:border-[#27AE60]/30 hover:shadow-md"
       onClick={handleCardClick}
     >
       {/* ── HORIZONTAL FLEX LAYOUT ─────────────────────────────────────── */}
       <div className="flex h-full w-full min-w-0 flex-row">
-        {/* ── LEFT: IMAGE (fixed width, full card height) ─────────────── */}
-        <div className="relative min-h-[224px] w-32 flex-shrink-0 overflow-hidden bg-slate-100 sm:h-full sm:w-40 lg:w-48">
+        {/* ── LEFT: full-height hero + equal square thumbs (no squash) ─── */}
+        <div className="relative w-[132px] shrink-0 self-stretch overflow-hidden bg-slate-100 sm:w-[148px]">
           {heroImage ? (
             <img
               src={heroImage}
               alt={p.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-slate-300">
-              <MapPin className="w-7 h-7" />
+            <div className="absolute inset-0 flex items-center justify-center text-slate-300">
+              <MapPin className="h-7 w-7" />
             </div>
           )}
 
           {/* Sale / Type badge */}
           <div
-            className={`absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full border capitalize ${
+            className={`absolute left-1.5 top-1.5 z-[1] text-[9px] font-bold px-1.5 py-0.5 rounded-full border capitalize shadow-sm ${
               TYPE_STYLES[type] || TYPE_STYLES.normal
             }`}
           >
             {type === "normal" ? "Sale" : titlePromotionType(type)}
           </div>
 
-          {/* Rank pill */}
+          {/* Rank pill — top right so it never clashes with thumbs */}
           <div
-            className="absolute bottom-1.5 left-1.5"
+            className="absolute right-1.5 top-1.5 z-[1]"
             data-action
             onClick={(e) => e.stopPropagation()}
           >
@@ -486,20 +509,53 @@ export default function PropertyCard({
                 border: `1px solid ${p.rank != null ? accent.ring : "transparent"}`,
                 color: p.rank != null ? accent.text : "#fff",
               }}
-              className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full transition-all hover:scale-105 active:scale-95"
+              className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold shadow-sm transition-all hover:scale-105 active:scale-95"
               title="Edit rank"
             >
               <Star
-                className="w-2 h-2"
+                className="h-2 w-2"
                 style={{
                   fill: p.rank != null ? accent.ring : "#FACC15",
                   color: p.rank != null ? accent.ring : "#FACC15",
                 }}
               />
               {p.rank != null ? `#${p.rank}` : "Rank"}
-              <Pencil className="w-1.5 h-1.5 opacity-60" />
+              <Pencil className="h-1.5 w-1.5 opacity-60" />
             </button>
           </div>
+
+          {/* Equal square thumbs — hide while edit-rank is open */}
+          {!rankOpen && thumbImages.length > 1 && (
+            <div
+              className="absolute inset-x-0 bottom-0 z-[1] flex items-center justify-center gap-1 bg-gradient-to-t from-black/55 via-black/25 to-transparent px-1.5 pb-1.5 pt-6"
+              data-action
+              onClick={(e) => e.stopPropagation()}
+            >
+              {thumbImages.map((src, index) => {
+                const isActive = index === safeImageIndex;
+                return (
+                  <button
+                    key={`${src}-${index}`}
+                    type="button"
+                    title={`Image ${index + 1}`}
+                    onClick={() => setActiveImageIndex(index)}
+                    className={`h-8 w-8 shrink-0 overflow-hidden rounded-md border-2 bg-slate-200 shadow-sm transition ${
+                      isActive
+                        ? "border-white ring-1 ring-emerald-400"
+                        : "border-white/70 opacity-90 hover:opacity-100"
+                    }`}
+                  >
+                    <img
+                      src={src}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* ── RIGHT: CONTENT ──────────────────────────────────────────── */}
@@ -518,6 +574,11 @@ export default function PropertyCard({
                   {p.city}
                 </span>
               </div>
+              {creatorName ? (
+                <p className="mt-0.5 truncate text-[10px] font-medium text-slate-400">
+                  Created by {creatorName}
+                </p>
+              ) : null}
             </div>
 
             {/* ⋮ Menu button */}
@@ -734,88 +795,105 @@ export default function PropertyCard({
             </div>
           </div>
         </div>
-        {/* ── RANK DRAWER (slides up over image) ───────────────────── */}
-        <div
-          data-action
-          onClick={(e) => e.stopPropagation()}
-          className="absolute inset-x-0 bottom-0 w-full transition-transform duration-300 ease-in-out"
-          style={{
-            transform: rankOpen ? "translateY(0)" : "translateY(100%)",
-            background: "rgba(255,255,255,0.97)",
-            backdropFilter: "blur(4px)",
-            borderTop: `2px solid ${accent.ring}`,
-            padding: "6px 8px",
-          }}
-        >
-          <p
-            className="text-[9px] font-semibold mb-1 flex items-center gap-1"
-            style={{ color: accent.text }}
+        {/* ── RANK PANEL (full-card overlay — no clip / no thumb clash) ─ */}
+        {rankOpen && (
+          <div
+            data-action
+            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-0 z-30 flex items-center justify-center bg-white/95 p-3 backdrop-blur-sm"
           >
-            <Star
-              className="w-2.5 h-2.5"
-              style={{ fill: accent.ring, color: accent.ring }}
-            />
-            Set Rank
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => stepRank(-1)}
-              className="w-5 h-5 rounded flex items-center justify-center border border-slate-200 hover:bg-slate-100 text-slate-500 flex-shrink-0"
+            <div
+              className="w-full max-w-[260px] rounded-xl border bg-white p-3 shadow-lg"
+              style={{ borderColor: accent.ring }}
             >
-              <Minus className="w-2 h-2" />
-            </button>
-            <input
-              ref={inputRef}
-              type="number"
-              min="1"
-              value={rankValue}
-              onChange={(e) => setRankValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleRankSave();
-                if (e.key === "Escape") handleRankCancel();
-                if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  stepRank(+1);
-                }
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  stepRank(-1);
-                }
-              }}
-              className="flex-1 min-w-0 text-center text-[10px] font-bold outline-none rounded py-0.5 border"
-              style={{
-                borderColor: accent.ring,
-                color: accent.text,
-                background: accent.bg,
-              }}
-              placeholder="1"
-            />
-            <button
-              onClick={() => stepRank(+1)}
-              className="w-5 h-5 rounded flex items-center justify-center border border-slate-200 hover:bg-slate-100 text-slate-500 flex-shrink-0"
-            >
-              <Plus className="w-2 h-2" />
-            </button>
-            <button
-              onClick={handleRankSave}
-              disabled={rankLoading}
-              className="w-5 h-5 rounded flex items-center justify-center text-white flex-shrink-0 disabled:opacity-50"
-              style={{ background: accent.ring }}
-            >
-              {rankLoading ? (
-                <span className="text-[8px] animate-pulse">…</span>
-              ) : (
-                <Check className="w-2 h-2" />
-              )}
-            </button>
-            <button
-              onClick={handleRankCancel}
-              className="w-5 h-5 rounded flex items-center justify-center border border-slate-200 hover:bg-red-50 text-slate-400 hover:text-red-500 flex-shrink-0"
-            >
-              <X className="w-2 h-2" />
-            </button>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p
+                  className="flex items-center gap-1.5 text-xs font-bold"
+                  style={{ color: accent.text }}
+                >
+                  <Star
+                    className="h-3.5 w-3.5"
+                    style={{ fill: accent.ring, color: accent.ring }}
+                  />
+                  Set Rank
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRankCancel}
+                  className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  title="Close"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => stepRank(-1)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-100"
+                  title="Decrease"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <input
+                  ref={inputRef}
+                  type="number"
+                  min="1"
+                  value={rankValue}
+                  onChange={(e) => setRankValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleRankSave();
+                    if (e.key === "Escape") handleRankCancel();
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      stepRank(+1);
+                    }
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      stepRank(-1);
+                    }
+                  }}
+                  className="h-9 w-20 shrink-0 rounded-lg border text-center text-sm font-bold outline-none focus:ring-2"
+                  style={{
+                    borderColor: accent.ring,
+                    color: accent.text,
+                    background: accent.bg,
+                    ["--tw-ring-color"]: accent.ring,
+                  }}
+                  placeholder="1"
+                />
+                <button
+                  type="button"
+                  onClick={() => stepRank(+1)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-100"
+                  title="Increase"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleRankCancel}
+                  className="h-9 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRankSave}
+                  disabled={rankLoading}
+                  className="h-9 rounded-lg text-xs font-semibold text-white transition disabled:opacity-50"
+                  style={{ background: accent.ring }}
+                >
+                  {rankLoading ? "Saving…" : "Save rank"}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ── LEADS MODAL ─────────────────────────────────────────────────── */}

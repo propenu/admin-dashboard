@@ -305,7 +305,7 @@ export function mapSuperAdminData({
   blogsPayload = {},
   usersPayload = [],
   range = {},
-  preset = "30d",
+  preset = "today",
 }) {
   const fuRange = { ...range, preset };
   const hasDateWindow = Boolean(range?.from && range?.to);
@@ -320,8 +320,11 @@ export function mapSuperAdminData({
   // Keep 0 as a valid period total — do not fall back to lifetime when window is set.
   const totalRevenue = hasDateWindow ? periodRevenue : lifetimeRevenue;
   const todayRevenue = asNumber(summary.todayRevenue);
+  // Prefer period-filtered summary count; keep 0 (do not fall back to unfiltered list).
   const activeSubs =
-    asNumber(summary.activeSubscriptions) || unpackList(subscriptions).length;
+    summary.activeSubscriptions != null
+      ? asNumber(summary.activeSubscriptions)
+      : unpackList(subscriptions).length;
 
   const paidList = unpackList(paidPayments);
   const failedList = unpackList(failedPayments);
@@ -912,7 +915,7 @@ export function mapSuperAdminData({
       key: "subs",
       label: "Active subs",
       value: activeSubs,
-      hint: `${failedPayCount} failed pays · ${periodLabel}`,
+      hint: `Started · ${periodLabel} · ${failedPayCount} failed pays`,
       tone: "violet",
       href: "/active-subscriptions",
     },

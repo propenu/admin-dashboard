@@ -699,21 +699,21 @@ function KPICard({ label, display, icon: Icon, onClick, isActive }) {
   return (
     <div
       onClick={onClick}
-      className={`group flex h-full min-h-[76px] min-w-0 items-center gap-2.5 rounded-xl border bg-white px-3 py-2.5 shadow-[0_4px_14px_rgba(22,163,74,0.10)] transition-colors duration-200 sm:gap-3 sm:px-3.5
+      className={`group flex h-full min-h-[58px] min-w-[118px] flex-1 items-center gap-2 rounded-lg border bg-white px-2.5 py-2 shadow-sm transition-colors duration-200
         ${onClick ? "cursor-pointer hover:border-emerald-300 hover:shadow-md" : "border-slate-200"}
         ${isActive ? "border-emerald-500 ring-2 ring-emerald-500/15 shadow-md" : "border-slate-200"}`}
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-        <Icon className="h-4 w-4" />
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-100 text-emerald-700">
+        <Icon className="h-3.5 w-3.5" />
       </div>
       <div className="min-w-0 flex-1">
         <p
-          className="truncate text-[11px] font-medium leading-none text-slate-600"
+          className="truncate text-[10px] font-medium leading-none text-slate-600"
           title={label}
         >
           {label}
         </p>
-        <p className="mt-1.5 truncate text-lg font-bold leading-none tracking-tight text-slate-900">
+        <p className="mt-1 truncate text-base font-bold leading-none tracking-tight text-slate-900">
           {display}
         </p>
       </div>
@@ -814,7 +814,7 @@ function AnalyticsOverviewRow({
   ];
 
   return (
-    <div className="grid auto-rows-fr grid-cols-2 items-stretch gap-2.5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
+    <div className="flex w-full flex-nowrap items-stretch gap-2 overflow-x-auto pb-0.5">
       {cards.map((c) => (
         <KPICard
           key={c.label}
@@ -1334,11 +1334,35 @@ export default function ProjectsDashboardPage() {
     normalHook.properties,
   ]);
 
-  const creatorRoleOptions = useMemo(() => [...new Set(
-    allProperties
-      .map((property) => property.createdBy?.roleName || property.createdByRole || property.creatorRole)
-      .filter(Boolean),
-  )].sort((a, b) => String(a).localeCompare(String(b))), [allProperties]);
+  const getProjectCreatorId = (property) => {
+    const raw =
+      property?.createdBy?._id ||
+      property?.createdBy?.id ||
+      (typeof property?.createdBy === "string" ? property.createdBy : "") ||
+      property?.postedBy?._id ||
+      property?.postedBy?.id ||
+      "";
+    return String(raw || "").trim();
+  };
+
+  const getProjectCreatorName = (property) =>
+    property?.createdBy?.fullName ||
+    property?.createdBy?.name ||
+    property?.postedBy?.name ||
+    property?.builderName ||
+    "Unknown builder";
+
+  const creatorBuilderOptions = useMemo(() => {
+    const map = new Map();
+    for (const property of allProperties) {
+      const id = getProjectCreatorId(property);
+      if (!id) continue;
+      if (!map.has(id)) map.set(id, getProjectCreatorName(property));
+    }
+    return [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  }, [allProperties]);
 
   console.log("Prime:", primeHook.properties.length);
   console.log("Featured:", featuredHook.properties.length);
@@ -1382,8 +1406,8 @@ export default function ProjectsDashboardPage() {
   const [propertyTypeFilter, setPropertyTypeFilter] = useState(
     () => searchParams.get("propertyType") || "all",
   );
-  const [creatorRoleFilter, setCreatorRoleFilter] = useState(
-    () => searchParams.get("creatorRole") || "all",
+  const [creatorBuilderFilter, setCreatorBuilderFilter] = useState(
+    () => searchParams.get("createdBy") || searchParams.get("creatorRole") || "all",
   );
   const [createdFrom, setCreatedFrom] = useState(
     () => searchParams.get("createdFrom") || searchParams.get("from") || "",
@@ -1432,7 +1456,7 @@ export default function ProjectsDashboardPage() {
     if (propertyTypeFilter !== "all") {
       next.set("propertyType", propertyTypeFilter);
     }
-    if (creatorRoleFilter !== "all") next.set("creatorRole", creatorRoleFilter);
+    if (creatorBuilderFilter !== "all") next.set("createdBy", creatorBuilderFilter);
     if (createdFrom) next.set("createdFrom", createdFrom);
     if (createdTo) next.set("createdTo", createdTo);
     if (sortBy !== "newest") next.set("sort", sortBy);
@@ -1443,7 +1467,7 @@ export default function ProjectsDashboardPage() {
     categoryFilter,
     createdFrom,
     createdTo,
-    creatorRoleFilter,
+    creatorBuilderFilter,
     currentPage,
     debouncedProjectSearch,
     promotionFilter,
@@ -1553,8 +1577,8 @@ export default function ProjectsDashboardPage() {
       list = list.filter((p) => p.propertyType === propertyTypeFilter);
       console.log("After propertyType", list.length);
     }
-    if (creatorRoleFilter !== "all") {
-      list = list.filter((p) => (p.createdBy?.roleName || p.createdByRole || p.creatorRole) === creatorRoleFilter);
+    if (creatorBuilderFilter !== "all") {
+      list = list.filter((p) => getProjectCreatorId(p) === creatorBuilderFilter);
     }
     if (createdFrom || createdTo) {
       list = list.filter((p) => {
@@ -1696,7 +1720,7 @@ export default function ProjectsDashboardPage() {
     categoryFilter,
     createdFrom,
     createdTo,
-    creatorRoleFilter,
+    creatorBuilderFilter,
     propertyTypeFilter,
     selectedLocation,
     debouncedProjectSearch,
@@ -1886,15 +1910,15 @@ export default function ProjectsDashboardPage() {
     trackingFilter !== "all",
     categoryFilter !== "all",
     propertyTypeFilter !== "all",
-    creatorRoleFilter !== "all",
+    creatorBuilderFilter !== "all",
     // One chip for the date range (not separate from/to)
     Boolean(createdFrom || createdTo),
-  ].filter(Boolean).length, [promotionFilter, statusFilter, trackingFilter, categoryFilter, propertyTypeFilter, creatorRoleFilter, createdFrom, createdTo]);
+  ].filter(Boolean).length, [promotionFilter, statusFilter, trackingFilter, categoryFilter, propertyTypeFilter, creatorBuilderFilter, createdFrom, createdTo]);
 
   const clearListFilters = useCallback(() => {
     setPromotionFilter("all"); setStatusFilter("all"); setTrackingFilter("all");
     setCategoryFilter("all");  setPropertyTypeFilter("all");
-    setCreatorRoleFilter("all"); setCreatedFrom(""); setCreatedTo("");
+    setCreatorBuilderFilter("all"); setCreatedFrom(""); setCreatedTo("");
   }, []);
 
   const clearAll = useCallback(() => {
@@ -2320,11 +2344,22 @@ export default function ProjectsDashboardPage() {
             </div>
           </div>
 
-          <label className="min-w-[170px]">
-            <span className="mb-2 block text-xs font-bold text-slate-600">Created by role</span>
-            <select value={creatorRoleFilter} onChange={(event) => setCreatorRoleFilter(event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold capitalize text-slate-600 outline-none focus:border-emerald-500">
-              <option value="all">All roles</option>
-              {creatorRoleOptions.map((role) => <option key={role} value={role}>{String(role).replace(/_/g, " ")}</option>)}
+          <label className="min-w-[200px] flex-1 sm:max-w-xs">
+            <span className="mb-2 block text-xs font-bold text-slate-600">Created by (builder)</span>
+            <select
+              value={creatorBuilderFilter}
+              onChange={(event) => {
+                setCreatorBuilderFilter(event.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
+            >
+              <option value="all">All builders</option>
+              {creatorBuilderOptions.map((builder) => (
+                <option key={builder.id} value={builder.id}>
+                  {builder.name}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -2577,10 +2612,10 @@ export default function ProjectsDashboardPage() {
         </div>
       ) : (
         <div
-          className={`grid w-full gap-4 ${
+          className={`grid w-full gap-3 ${
             isPendingApprovalsView || paginatedProperties.length === 1
               ? "grid-cols-1"
-              : "grid-cols-1 xl:grid-cols-2"
+              : "grid-cols-1 md:grid-cols-2"
           }`}
         >
           {paginatedProperties.map((p) => (

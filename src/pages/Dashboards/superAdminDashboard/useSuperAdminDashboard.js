@@ -30,7 +30,7 @@ const safe = async (fn, fallback) => {
 const unpackAnalytics = (response) => response?.data?.data || response?.data || {};
 
 export function useSuperAdminDashboard() {
-  const dateRange = useDashboardDateRange("30d", DATE_PRESETS);
+  const dateRange = useDashboardDateRange("today", DATE_PRESETS);
   const { range, filters } = dateRange;
 
   const currentUserQuery = useQuery({
@@ -63,12 +63,15 @@ export function useSuperAdminDashboard() {
     staleTime: 90_000,
   });
 
-  // Active subs are a live snapshot (not period-created); keep unfiltered.
+  // Active subs created/started within the selected date window (Today by default).
   const subsQuery = useQuery({
-    queryKey: ["super-admin-dashboard", "subs"],
+    queryKey: ["super-admin-dashboard", "subs", filters],
     queryFn: () =>
       safe(async () => {
-        const response = await getActiveSubscriptions({ status: "active" });
+        const response = await getActiveSubscriptions({
+          status: "active",
+          ...filters,
+        });
         return response?.data?.data || response?.data || [];
       }, []),
     staleTime: 90_000,
