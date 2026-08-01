@@ -1,5 +1,5 @@
 // src/features/users/UserDetailPage.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -390,6 +390,15 @@ const UserDetailPage = () => {
   ].filter(Boolean);
 
   const navItems = getNavItemsByRole(user?.roleName);
+
+  // When role loads, keep active tab only if that role is allowed to see it.
+  useEffect(() => {
+    if (!user?.roleName) return;
+    const allowed = new Set(getNavItemsByRole(user.roleName).map((i) => i.key));
+    if (!allowed.has(activeSection)) {
+      setActiveSection("profile");
+    }
+  }, [user?.roleName, activeSection]);
 
   return (
     <div

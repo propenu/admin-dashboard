@@ -1,5 +1,5 @@
 // src/features/users/components/PropertiesSection.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Home, Building, Landmark, Leaf, MapPin, Calendar } from "lucide-react";
 import AccordionSection from "./AccordionSection";
 import { C, Badge, Skel, Empty, fmtDate } from "./shared";
@@ -280,6 +280,7 @@ const PropertyCard = ({ p, catColor, category }) => {
 const PropertiesContent = ({ userId }) => {
   const [cat, setCat] = useState("residential");
   const [page, setPage] = useState(1);
+  const [userPickedCat, setUserPickedCat] = useState(false);
   const catObj = CATEGORIES.find((c) => c.key === cat);
 
   const { data, isLoading } = useUserProperties(userId, cat, page);
@@ -289,7 +290,16 @@ const PropertiesContent = ({ userId }) => {
   const properties = data?.items || data?.data || [];
   const totalPages = data?.meta?.totalPages || 1;
 
-        const counts = useUserPropertyCounts(userId);
+  const counts = useUserPropertyCounts(userId);
+
+  useEffect(() => {
+    if (userPickedCat || counts.isLoading) return;
+    const firstWithData = CATEGORIES.find((c) => (counts[c.key] || 0) > 0);
+    if (firstWithData && firstWithData.key !== cat) {
+      setCat(firstWithData.key);
+      setPage(1);
+    }
+  }, [counts, userPickedCat, cat]);
 
   return (
     <>
@@ -304,8 +314,8 @@ const PropertiesContent = ({ userId }) => {
         {CATEGORIES.map(({ key, label, color }) => (
           <button
             key={key}
-            // onClick={() => setCat(key)}
             onClick={() => {
+              setUserPickedCat(true);
               setCat(key);
               setPage(1);
             }}

@@ -45,28 +45,9 @@ export default function Users() {
   const [filterPhoneVerified, setFilterPhoneVerified] = useState("");
   const [filterIsActive, setFilterIsActive] = useState("");
   const [filterRole, setFilterRole] = useState("all");
-  const listParams = useMemo(() => {
-    const createdFrom =
-      searchParams.get("createdFrom") || searchParams.get("from") || "";
-    const createdTo =
-      searchParams.get("createdTo") || searchParams.get("to") || "";
-    const date = searchParams.get("date") || "";
-    const joined = searchParams.get("joined");
-    const day =
-      date ||
-      (joined === "today" ? todayIso() : "") ||
-      (createdFrom && createdTo && createdFrom === createdTo ? createdFrom : "");
-    const params = {};
-    if (day) {
-      params.createdFrom = day;
-      params.createdTo = day;
-    } else {
-      if (createdFrom) params.createdFrom = createdFrom;
-      if (createdTo) params.createdTo = createdTo;
-    }
-    return Object.keys(params).length ? params : undefined;
-  }, [searchParams]);
-  const { data: allUsers = [], isLoading, refetch } = useUsers(listParams);
+  // Always load full list; joined-date filter is client-side (same logic as "Joined today" card)
+  // so timezone mismatches on API day bounds cannot hide users that still show as today in the UI.
+  const { data: allUsers = [], isLoading, refetch } = useUsers();
   useSearchUsers(search);
   const [locationFilter, setLocationFilter] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");

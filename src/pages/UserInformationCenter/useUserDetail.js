@@ -198,11 +198,18 @@ export const useUserFeaturedProjectCounts = (userId) => {
   const normal = useUserFeaturedProjects(userId, "normal");
   const sponsored = useUserFeaturedProjects(userId, "sponsored");
 
+  // Use meta.total from the same filtered payload that renders cards
+  // (promotionCounts is not set by the client-scoped fetch).
+  const totalOf = (query) =>
+    Number(query.data?.meta?.total) ||
+    (Array.isArray(query.data?.items) ? query.data.items.length : 0) ||
+    0;
+
   return {
-    featured: featured.data?.meta?.promotionCounts?.featured ?? 0,
-    prime: prime.data?.meta?.promotionCounts?.prime ?? 0,
-    normal: normal.data?.meta?.promotionCounts?.normal ?? 0,
-    sponsored: sponsored.data?.meta?.promotionCounts?.sponsored ?? 0,
+    featured: totalOf(featured),
+    prime: totalOf(prime),
+    normal: totalOf(normal),
+    sponsored: totalOf(sponsored),
 
     isLoading:
       featured.isLoading ||

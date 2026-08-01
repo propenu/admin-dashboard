@@ -1,5 +1,5 @@
 // src/features/users/components/FeaturedProjectsSection.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Star, MapPin, Calendar } from "lucide-react";
 import AccordionSection from "./AccordionSection";
 import { C, Badge, Skel, Empty, fmtDate } from "./shared";
@@ -15,6 +15,12 @@ const PROJECT_TYPES = [
   { key: "normal", label: "📌 Normal", color: C.sub },
   { key: "sponsored", label: "📢 Sponsored", color: C.warn },
 ];
+
+const publicProjectPath = (type, slug) => {
+  if (!slug) return null;
+  const route = type === "prime" ? "prime" : "project";
+  return `https://propenu.com/${route}/${slug}`;
+};
 
 const ProjectCard = ({ p, type }) => {
     const navigate = useNavigate();
@@ -98,7 +104,10 @@ const thumb =
             color: "#fff",
             cursor: "pointer",
           }}
-          onClick={() => window.open(`https://propenu.com/prime/${p.slug}`, "_blank")}
+          onClick={() => {
+            const url = publicProjectPath(type, p.slug);
+            if (url) window.open(url, "_blank", "noopener,noreferrer");
+          }}
         >
           View
         </div>
@@ -218,6 +227,7 @@ const thumb =
 const FeaturedContent = ({ userId }) => {
   const [type, setType] = useState("featured");
   const [page, setPage] = useState(1);
+  const [userPickedType, setUserPickedType] = useState(false);
 
   const { data, isLoading } = useUserFeaturedProjects(userId, type, page);
 
@@ -227,6 +237,16 @@ const FeaturedContent = ({ userId }) => {
   const totalPages = data?.meta?.totalPages || data?.meta?.pages || 1;
 
   const counts = useUserFeaturedProjectCounts(userId);
+
+  // Open the first tab that actually has projects (avoids empty Featured while Normal has data).
+  useEffect(() => {
+    if (userPickedType || counts.isLoading) return;
+    const firstWithData = PROJECT_TYPES.find((t) => (counts[t.key] || 0) > 0);
+    if (firstWithData && firstWithData.key !== type) {
+      setType(firstWithData.key);
+      setPage(1);
+    }
+  }, [counts, userPickedType, type]);
 
   return (
     <>
@@ -241,8 +261,8 @@ const FeaturedContent = ({ userId }) => {
         {PROJECT_TYPES.map(({ key, label, color }) => (
           <button
             key={key}
-            // onClick={() => setType(key)}
             onClick={() => {
+              setUserPickedType(true);
               setType(key);
               setPage(1);
             }}
