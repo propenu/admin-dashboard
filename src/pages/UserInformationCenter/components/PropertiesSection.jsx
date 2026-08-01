@@ -5,6 +5,9 @@ import AccordionSection from "./AccordionSection";
 import { C, Badge, Skel, Empty, fmtDate } from "./shared";
 import { useUserProperties, useUserPropertyCounts } from "../../UserInformationCenter/useUserDetail";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { setActiveCategory } from "../../../store/Ui/uiSlice";
+import { actions } from "../../../store/newIndex";
 
 const CATEGORIES = [
   { key: "residential", label: "🏠 Residential", color: C.accent },
@@ -28,8 +31,23 @@ const formatPriceINR = (price) => {
   return `₹${num.toLocaleString("en-IN")}`;
 };
 const PropertyCard = ({ p, catColor, category }) => {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [imgErr, setImgErr] = useState(false);
+
+  const openEditProperty = () => {
+    const cat = category || "residential";
+    if (!p?._id) return;
+    localStorage.removeItem("editPropertyId");
+    localStorage.removeItem("editPropertyCategory");
+    dispatch(setActiveCategory(cat));
+    if (actions[cat]?.hydrateForm) {
+      dispatch(actions[cat].hydrateForm(p));
+    }
+    localStorage.setItem("editPropertyId", p._id);
+    localStorage.setItem("editPropertyCategory", cat);
+    navigate(`/edit-property/${p._id}`);
+  };
   const thumb =
     !imgErr &&
     (p.gallery?.[0]?.url ||
@@ -163,7 +181,7 @@ const PropertyCard = ({ p, catColor, category }) => {
             color: "#fff",
             cursor: "pointer",
           }}
-          onClick={() => navigate(`/edit-property/${p._id}`)}
+          onClick={openEditProperty}
         >
           Edit
         </div>
