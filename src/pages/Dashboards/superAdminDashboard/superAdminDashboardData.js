@@ -859,14 +859,6 @@ export function mapSuperAdminData({
       href: "/accounts-summary",
     },
     {
-      key: "today",
-      label: "Today's revenue",
-      value: formatINR(todayRevenue),
-      hint: "Collected today",
-      tone: "blue",
-      href: "/payments-list",
-    },
-    {
       key: "users",
       label: "New users",
       value: usersInPeriod,

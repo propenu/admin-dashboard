@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { useSuperAdminDashboard } from "./superAdminDashboard/useSuperAdminDashboard";
 import SaHeader from "./superAdminDashboard/components/SaHeader";
 import SaKpiStrip from "./superAdminDashboard/components/SaKpiStrip";
-import SaDomainHealth from "./superAdminDashboard/components/SaDomainHealth";
 import SaFinancePanel from "./superAdminDashboard/components/SaFinancePanel";
 import SaInventoryPanel from "./superAdminDashboard/components/SaInventoryPanel";
 import SaAlertsPanel from "./superAdminDashboard/components/SaAlertsPanel";
@@ -58,14 +57,9 @@ export default function SuperAdminDashboard() {
     return (
       <div className="space-y-3">
         <div className="h-24 animate-pulse rounded-[14px] bg-slate-100" />
-        <div className="grid grid-cols-4 gap-2 xl:grid-cols-8">
-          {Array.from({ length: 8 }).map((_, i) => (
+        <div className="grid grid-cols-7 gap-2">
+          {Array.from({ length: 7 }).map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-[14px] bg-slate-100" />
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-2 xl:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-[14px] bg-slate-100" />
           ))}
         </div>
       </div>
@@ -99,8 +93,6 @@ export default function SuperAdminDashboard() {
           go(kpi.href);
         }}
       />
-
-      <SaDomainHealth domains={dashboard.domains} onOpen={go} />
 
       <SaFollowUpPanel
         tracks={dashboard.followUpTracks || []}
