@@ -25,15 +25,15 @@ const PLOT_AREA_UNITS = [
   { label: "Hectare", value: "hectare" },
 ];
 
-const PLOT_AREA_TO_SQFT = {
-  sqft: 1,
-  sqmt: 10.7639104167,
-  sqyd: 9,
-  acre: 43560,
-  guntha: 1089,
-  cent: 435.6,
-  kanal: 5445,
-  hectare: 107639.104167,
+const RATE_UNIT_LABELS = {
+  sqft: "SQFT",
+  sqmt: "SQ.MT",
+  sqyd: "SQ.YD",
+  acre: "ACRE",
+  guntha: "GUNTHA",
+  cent: "CENT",
+  kanal: "KANAL",
+  hectare: "HECTARE",
 };
 
 const AGENT_PROJECT_TYPES = {
@@ -50,12 +50,23 @@ const AGENT_PROJECT_TYPES = {
   ],
 };
 
-const calculatePricePerSqft = (price, area) => {
+const calculatePricePerUnit = (price, area) => {
   const numericPrice = Number(price);
   const numericArea = Number(area);
 
   if (numericPrice <= 0 || numericArea <= 0) return null;
   return Math.round(numericPrice / numericArea);
+};
+
+const getRateUnitLabel = (unit) => {
+  const key = String(unit || "sqft")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/\./g, "")
+    .replace("acres", "acre")
+    .replace("acer", "acre");
+  return RATE_UNIT_LABELS[key] || String(unit || "SQFT").toUpperCase();
 };
 
 export default function StepBasicDetails({
@@ -84,24 +95,24 @@ export default function StepBasicDetails({
   );
   const isAgentProject = Boolean(data.isAgentProject || hasProjectInventory);
 
+  // Land rate = price ÷ plot area in the selected unit (sqft / sq.yd / acre…).
+  // Residential/commercial stay price ÷ carpet/built-up (always sqft).
   React.useEffect(() => {
-    let areaInSqft = 0;
+    let areaForRate = 0;
 
     if (cat === "residential" || cat === "commercial") {
-      areaInSqft = Number(
+      areaForRate = Number(
         data.priceCalculationBasis === "builtUpArea"
           ? data.builtUpArea
           : data.carpetArea,
       );
     } else if (cat === "land") {
-      areaInSqft =
-        Number(data.plotArea) *
-        (PLOT_AREA_TO_SQFT[data.plotAreaUnit || "sqft"] || 1);
+      areaForRate = Number(data.plotArea);
     } else if (cat === "agricultural") {
-      areaInSqft = Number(data.totalArea?.value);
+      areaForRate = Number(data.totalArea?.value);
     }
 
-    const calculated = calculatePricePerSqft(data.price, areaInSqft);
+    const calculated = calculatePricePerUnit(data.price, areaForRate);
     if (
       calculated !== null &&
       Number(data.pricePerSqft) !== calculated
@@ -128,7 +139,7 @@ export default function StepBasicDetails({
       // from the previously selected area until another field changes.
       const area =
         basis === "builtUpArea" ? data.builtUpArea : data.carpetArea;
-      const calculated = calculatePricePerSqft(data.price, area);
+      const calculated = calculatePricePerUnit(data.price, area);
 
       upd("priceCalculationBasis", basis);
       if (
@@ -146,6 +157,13 @@ export default function StepBasicDetails({
       upd,
     ],
   );
+
+  const rateUnitLabel =
+    cat === "land"
+      ? getRateUnitLabel(data.plotAreaUnit || "sqft")
+      : cat === "agricultural"
+        ? getRateUnitLabel(data.totalArea?.unit || "acre")
+        : "SQFT";
 
   const propertyTypes = () => ({ commercial: Enums.COMMERCIAL_TYPES, land: Enums.LAND_TYPES, agricultural: Enums.AGRI_TYPES })[cat] || Enums.PROPERTY_TYPES;
   const subTypes = () => ({ commercial: Enums.COMMERCIAL_SUB_TYPES, land: Enums.LAND_SUB_TYPES, agricultural: Enums.AGRI_SUB_TYPES })[cat] || [];
@@ -499,7 +517,7 @@ export default function StepBasicDetails({
                 prefix="₹"
               />
               <NumField
-                label="Price / sqft"
+                label={`Price / ${rateUnitLabel}`}
                 value={data.pricePerSqft || ""}
                 onChange={(v) => upd("pricePerSqft", v)}
                 prefix="₹"
@@ -508,7 +526,7 @@ export default function StepBasicDetails({
             {(cat === "residential" || cat === "commercial") && (
               <div className="mt-3">
                 <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  Calculate price / sqft using
+                  Calculate price / {rateUnitLabel} using
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {[

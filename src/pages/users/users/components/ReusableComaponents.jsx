@@ -1,89 +1,123 @@
 import { ACCOUNT_STATUS_MAP } from "../constants/accountStatusMap";
 import { AVATAR_COLORS } from "../constants/avatarColors";
 import { KYC_STATUS_MAP } from "../constants/kycStatusMap";
-import {
-  CheckCircle2,
-  XCircle,
-  ChevronDown,
-  AlertTriangle,
-} from "lucide-react";
+import { CheckCircle2, ChevronDown, XCircle } from "lucide-react";
 
-export const Avatar = ({ name }) => {
-//   const idx = (name?.charCodeAt(0) || 0) % AVATAR_COLORS.length;
-const firstChar = name?.charAt(0) || "A";
-const idx = firstChar.charCodeAt(0) % AVATAR_COLORS.length;
+export const Avatar = ({ name, imageUrl }) => {
+  const firstChar = name?.charAt(0) || "A";
+  const idx = firstChar.charCodeAt(0) % AVATAR_COLORS.length;
+  const initials = String(name || "?")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-white shadow-sm"
+      />
+    );
+  }
+
   return (
     <div
-      className={`w-9 h-9 rounded-xl bg-gradient-to-br ${AVATAR_COLORS[idx]}
-        flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0`}
+      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${AVATAR_COLORS[idx]} text-xs font-bold text-white shadow-sm`}
+      aria-hidden
     >
-      {name?.charAt(0).toUpperCase() || "?"}
+      {initials || "?"}
     </div>
   );
 };
 
 export const AccountBadge = ({ status }) => {
-  const s = ACCOUNT_STATUS_MAP[status] || {
-    label: status,
-    bg: "bg-gray-100",
-    text: "text-gray-500",
-    dot: "bg-gray-400",
+  const key = String(status || "").toLowerCase();
+  const s = ACCOUNT_STATUS_MAP[key] || {
+    label: status || "—",
+    bg: "bg-slate-100",
+    text: "text-slate-500",
+    dot: "bg-slate-400",
   };
+
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold ${s.bg} ${s.text}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.bg} ${s.text}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
       {s.label}
     </span>
   );
 };
 
 export const KycBadge = ({ kyc }) => {
-  const k = KYC_STATUS_MAP[kyc?.status] || KYC_STATUS_MAP.not_started;
+  const status = String(kyc?.status || "not_started").toLowerCase();
+  const mapped =
+    status === "not_started"
+      ? "pending"
+      : status in KYC_STATUS_MAP
+        ? status
+        : "not_started";
+  const k = KYC_STATUS_MAP[mapped] || KYC_STATUS_MAP.not_started;
   const Icon = k.icon;
 
   return (
     <span
       title={kyc?.remarks || ""}
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold
-        ${k.bg} ${k.text} ${kyc?.remarks ? "cursor-help underline decoration-dotted" : ""}`}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold ${k.bg} ${k.text} ${k.border}`}
     >
-      {Icon && <Icon className="w-3 h-3" />}
+      {Icon ? <Icon className="h-3 w-3" aria-hidden /> : null}
       {k.label}
-      {kyc?.remarks && <AlertTriangle className="w-3 h-3 ml-0.5" />}
     </span>
   );
 };
 
 export const PhoneBadge = ({ verified }) =>
   verified ? (
-    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#27AE60] bg-[#27AE60]/10 px-2 py-0.5 rounded-full">
-      <CheckCircle2 className="w-3 h-3" /> Verified
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-[#12A150]/25 bg-[#12A150]/10 px-2 py-0.5 text-[11px] font-semibold text-[#12A150]">
+      <CheckCircle2 className="h-3 w-3" aria-hidden />
+      Verified
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-      <XCircle className="w-3 h-3" /> Unverified
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+      <XCircle className="h-3 w-3" aria-hidden />
+      Not Verified
     </span>
   );
 
-export const StatCard = ({ label, value, icon, colorClass, onClick, active = false }) => {
-  const className = `bg-white rounded-xl border shadow-sm px-2.5 py-2 flex items-center gap-2 w-full text-left transition ${
-    active
-      ? "border-emerald-400 ring-1 ring-emerald-100"
-      : "border-gray-100"
-  } ${onClick ? "cursor-pointer hover:border-emerald-300 hover:shadow-md" : ""}`;
+export const StatCard = ({
+  label,
+  value,
+  icon,
+  onClick,
+  active = false,
+  highlightValue = false,
+  emphasize = false,
+}) => {
+  const className = `flex h-full w-full items-center gap-2.5 rounded-2xl border bg-gradient-to-br from-white to-[#f3faf6] px-3 py-2.5 text-left shadow-sm transition duration-150 ${
+    active || emphasize
+      ? "border-[#12A150]/50 ring-1 ring-[#12A150]/10"
+      : "border-[#dceee3]"
+  } ${onClick ? "cursor-pointer hover:-translate-y-0.5 hover:border-[#12A150]/40 hover:shadow-md" : ""}`;
 
   const content = (
     <>
-      <div
-        className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${colorClass}`}
-      >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#12A150]/10 text-[#12A150]">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-base font-extrabold text-gray-900 leading-none tabular-nums">{value}</p>
-        <p className="mt-0.5 truncate text-[10px] font-medium text-gray-400">{label}</p>
+        <p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+          {label}
+        </p>
+        <p
+          className={`mt-0.5 text-xl font-bold tabular-nums leading-none tracking-tight ${
+            highlightValue ? "text-[#12A150]" : "text-[#102033]"
+          }`}
+        >
+          {value}
+        </p>
       </div>
     </>
   );
@@ -99,14 +133,19 @@ export const StatCard = ({ label, value, icon, colorClass, onClick, active = fal
   return <div className={className}>{content}</div>;
 };
 
-export const FilterSelect = ({ value, onChange, options, placeholder }) => (
-  <div className="relative">
+export const FilterSelect = ({ value, onChange, options, placeholder, id, label }) => (
+  <div className="relative min-w-0 flex-1 basis-[140px] sm:max-w-[160px] sm:flex-none">
+    {label ? (
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+    ) : null}
     <select
+      id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="pl-3 pr-8 py-2.5 text-sm rounded-xl border border-gray-200 bg-white text-gray-700
-                 focus:outline-none focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10
-                 shadow-sm transition-all duration-200 appearance-none cursor-pointer w-full"
+      aria-label={label || placeholder}
+      className="h-10 w-full appearance-none rounded-xl border border-[#dceee3] bg-white py-2 pl-3 pr-8 text-sm text-[#102033] transition focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10"
     >
       <option value="">{placeholder}</option>
       {options.map((o) => (
@@ -115,15 +154,6 @@ export const FilterSelect = ({ value, onChange, options, placeholder }) => (
         </option>
       ))}
     </select>
-    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-  </div>
-);
-
-export const MobileChip = ({ icon, label, span2 = false }) => (
-  <div
-    className={`flex items-center gap-2 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-xl ${span2 ? "col-span-2" : ""}`}
-  >
-    {icon}
-    <span className="truncate font-medium">{label}</span>
+    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
   </div>
 );

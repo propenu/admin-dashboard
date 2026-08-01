@@ -210,6 +210,67 @@ const detectCategory = (property) => {
   return "residential";
 };
 
+/** Backend area-unit enums → display labels */
+const AREA_UNIT_LABELS = {
+  sqft: "Sqft",
+  sqmt: "Sq.mt",
+  sqyd: "Sq.yd",
+  acre: "Acre",
+  guntha: "Guntha",
+  cent: "Cent",
+  kanal: "Kanal",
+  hectare: "Hectare",
+};
+
+const normalizeAreaUnit = (unit) =>
+  String(unit || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/\./g, "")
+    .replace("acres", "acre")
+    .replace("acer", "acre")
+    .replace("sqfeet", "sqft")
+    .replace("squarefeet", "sqft")
+    .replace("squareyards", "sqyd")
+    .replace("squareyard", "sqyd");
+
+const formatAreaUnit = (unit, fallback = "sqft") => {
+  const key = normalizeAreaUnit(unit || fallback) || fallback;
+  return AREA_UNIT_LABELS[key] || capitalize(unit || fallback);
+};
+
+/** Resolve rate/area unit from live property payload by category. */
+const resolvePropertyAreaUnit = (property, category) => {
+  if (!property) return "sqft";
+  const cat = category || detectCategory(property);
+
+  if (cat === "land") {
+    return property.plotAreaUnit || property.areaUnit || "sqft";
+  }
+  if (cat === "agricultural") {
+    return (
+      property.totalArea?.unit ||
+      property.areaUnit ||
+      property.plotAreaUnit ||
+      "acre"
+    );
+  }
+  return (
+    property.carpetAreaUnit ||
+    property.builtUpAreaUnit ||
+    property.areaUnit ||
+    property.plotAreaUnit ||
+    "sqft"
+  );
+};
+
+const formatAreaValue = (value, unit, fallbackUnit = "sqft") => {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  const display = Number.isFinite(num) ? num.toLocaleString("en-IN") : value;
+  return `${display} ${formatAreaUnit(unit, fallbackUnit)}`;
+};
 
 const isAgentProperty =
   localStorage.getItem("LitsedByAgentResidentailProperty") === "true";
@@ -858,6 +919,7 @@ function LeadsSection({
 
 // Residential Details
 function ResidentialDetails({ property }) {
+  const areaUnit = resolvePropertyAreaUnit(property, "residential");
   return (
     <SectionCard>
       <SectionHeader
@@ -936,7 +998,9 @@ function ResidentialDetails({ property }) {
                 <p className="text-xs text-slate-500">Carpet Area</p>
                 <p className="text-lg font-extrabold text-slate-800">
                   {property.carpetArea?.toLocaleString() || 0}{" "}
-                  <span className="text-xs font-normal">sqft</span>
+                  <span className="text-xs font-normal">
+                    {formatAreaUnit(areaUnit)}
+                  </span>
                 </p>
               </div>
             </div>
@@ -946,7 +1010,9 @@ function ResidentialDetails({ property }) {
                 <p className="text-xs text-slate-500">Built-up Area</p>
                 <p className="text-lg font-extrabold text-slate-800">
                   {property.builtUpArea?.toLocaleString() || 0}{" "}
-                  <span className="text-xs font-normal">sqft</span>
+                  <span className="text-xs font-normal">
+                    {formatAreaUnit(areaUnit)}
+                  </span>
                 </p>
               </div>
             </div>
@@ -1021,6 +1087,7 @@ function ResidentialDetails({ property }) {
 
 // Commercial Details
 function CommercialDetails({ property }) {
+  const areaUnit = resolvePropertyAreaUnit(property, "commercial");
   return (
     <SectionCard>
       <SectionHeader
@@ -1083,14 +1150,18 @@ function CommercialDetails({ property }) {
               <p className="text-xs text-slate-500">Carpet Area</p>
               <p className="text-lg font-extrabold text-slate-800">
                 {property.carpetArea?.toLocaleString() || 0}{" "}
-                <span className="text-xs font-normal">sqft</span>
+                <span className="text-xs font-normal">
+                  {formatAreaUnit(areaUnit)}
+                </span>
               </p>
             </div>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
               <p className="text-xs text-slate-500">Built-up Area</p>
               <p className="text-lg font-extrabold text-slate-800">
                 {property.builtUpArea?.toLocaleString() || 0}{" "}
-                <span className="text-xs font-normal">sqft</span>
+                <span className="text-xs font-normal">
+                  {formatAreaUnit(areaUnit)}
+                </span>
               </p>
             </div>
             {property.seats > 0 && (
@@ -1266,6 +1337,7 @@ function CommercialDetails({ property }) {
 
 // Land Details
 function LandDetails({ property }) {
+  const areaUnit = resolvePropertyAreaUnit(property, "land");
   return (
     <SectionCard>
       <SectionHeader
@@ -1311,7 +1383,9 @@ function LandDetails({ property }) {
               <p className="text-xs text-slate-500">Plot Area</p>
               <p className="text-2xl font-extrabold text-[#27AE60]">
                 {property.plotArea?.toLocaleString() || 0}
-                <span className="text-sm font-normal ml-1">sqft</span>
+                <span className="text-sm font-normal ml-1">
+                  {formatAreaUnit(areaUnit)}
+                </span>
               </p>
             </div>
             {property.dimensions && (
@@ -1979,7 +2053,10 @@ const {
               </p>
               {property.pricePerSqft && (
                 <p className="text-xs text-slate-500 mt-0.5">
-                  ₹{property.pricePerSqft?.toLocaleString()} / sqft
+                  ₹{property.pricePerSqft?.toLocaleString("en-IN")} /{" "}
+                  {formatAreaUnit(
+                    resolvePropertyAreaUnit(property, category),
+                  ).toLowerCase()}
                 </p>
               )}
             </div>
@@ -2002,9 +2079,10 @@ const {
                   <MetaItem label="Bathrooms" value={property.bathrooms} />
                   <MetaItem
                     label="Carpet Area"
-                    value={
-                      property.carpetArea ? `${property.carpetArea} sqft` : null
-                    }
+                    value={formatAreaValue(
+                      property.carpetArea,
+                      resolvePropertyAreaUnit(property, category),
+                    )}
                   />
                   <MetaItem
                     label="Furnishing"
@@ -2025,9 +2103,10 @@ const {
                   />
                   <MetaItem
                     label="Carpet Area"
-                    value={
-                      property.carpetArea ? `${property.carpetArea} sqft` : null
-                    }
+                    value={formatAreaValue(
+                      property.carpetArea,
+                      resolvePropertyAreaUnit(property, category),
+                    )}
                   />
                   <MetaItem label="Seats" value={property.seats} />
                   <MetaItem label="Cabins" value={property.cabins} />
@@ -2046,11 +2125,10 @@ const {
                   />
                   <MetaItem
                     label="Plot Area"
-                    value={
-                      property.plotArea
-                        ? `${property.plotArea?.toLocaleString()} sqft`
-                        : null
-                    }
+                    value={formatAreaValue(
+                      property.plotArea,
+                      resolvePropertyAreaUnit(property, category),
+                    )}
                   />
                   <MetaItem
                     label="Land Use Zone"
@@ -2076,7 +2154,12 @@ const {
                   {property.totalArea && (
                     <MetaItem
                       label="Total Area"
-                      value={`${property.totalArea.value} ${property.totalArea.unit}`}
+                      value={formatAreaValue(
+                        property.totalArea.value,
+                        property.totalArea.unit ||
+                          resolvePropertyAreaUnit(property, category),
+                        "acre",
+                      )}
                     />
                   )}
                   <MetaItem

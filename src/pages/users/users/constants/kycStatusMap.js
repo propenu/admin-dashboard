@@ -1,24 +1,32 @@
-//src/pages/users/users/constants/kycStatusMap.js
-
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
 
 export const KYC_STATUS_MAP = {
   verified: {
     label: "Verified",
-    bg: "bg-[#27AE60]/10",
-    text: "text-[#27AE60]",
+    bg: "bg-[#12A150]/10",
+    text: "text-[#12A150]",
+    border: "border-[#12A150]/25",
     icon: CheckCircle2,
   },
+  pending: {
+    label: "Pending",
+    bg: "bg-sky-50",
+    text: "text-sky-600",
+    border: "border-sky-200",
+    icon: Clock,
+  },
   not_started: {
-    label: "Not Started",
-    bg: "bg-gray-100",
-    text: "text-gray-500",
+    label: "Pending",
+    bg: "bg-sky-50",
+    text: "text-sky-600",
+    border: "border-sky-200",
     icon: Clock,
   },
   rejected: {
     label: "Rejected",
     bg: "bg-red-50",
     text: "text-red-600",
+    border: "border-red-200",
     icon: XCircle,
   },
 };

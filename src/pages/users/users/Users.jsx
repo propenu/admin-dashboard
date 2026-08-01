@@ -1,20 +1,18 @@
-// frontend/admin-dashboard/src/pages/users/Users.jsx
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { Header } from "./components/Header";
 import { StatCards } from "./components/StatCards";
-import { SearchFiltersPanel } from "./components/SearchFiltersPanel";
-import { useUsers, useSearchUsers } from "./hook/useUserData";
+import { UserFilters } from "./components/UserFilters";
+import { useUsers } from "./hook/useUserData";
 import { MobileCardView } from "./components/MobileCardView";
 import { DesktopTable } from "./components/DesktopTable";
-import DashboardDateFilter from "../../Dashboards/shared/DashboardDateFilter";
+import { Pagination } from "./components/Pagination";
 
-const ONBOARDING_STATUSES = ["location_pending", "kyc_pending", "pending", "incomplete"];
-
-const USER_DATE_PRESETS = [
-  { key: "all", label: "All time" },
-  { key: "today", label: "Today" },
-  { key: "custom", label: "Custom" },
+const ONBOARDING_STATUSES = [
+  "location_pending",
+  "kyc_pending",
+  "pending",
+  "incomplete",
 ];
 
 const toLocalIso = (value) => {
@@ -33,35 +31,77 @@ const matchesAccountStatus = (userStatus, filterStatus) => {
   if (!filterStatus) return true;
   const status = String(userStatus || "").toLowerCase();
   if (filterStatus === "onboarding") return ONBOARDING_STATUSES.includes(status);
+  if (filterStatus === "inactive") {
+    return status === "inactive" || status === "";
+  }
   return status === filterStatus;
+};
+
+const matchesLocation = (user, query) => {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return [user.locality, user.city, user.state, user.pincode]
+    .filter(Boolean)
+    .some((part) => String(part).toLowerCase().includes(q));
+};
+
+const matchesKyc = (kyc, filterKycStatus) => {
+  if (!filterKycStatus) return true;
+  const kycStatus = String(kyc?.status || "not_started").toLowerCase();
+  if (filterKycStatus === "pending") {
+    return kycStatus === "pending" || kycStatus === "not_started";
+  }
+  if (filterKycStatus === "not_started") {
+    return kycStatus === "not_started";
+  }
+  return kycStatus === filterKycStatus;
 };
 
 export default function Users() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const tableTopRef = useRef(null);
+
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [locationInput, setLocationInput] = useState("");
+  const [locationSearch, setLocationSearch] = useState("");
   const [filterAccountStatus, setFilterAccountStatus] = useState("");
   const [filterKycStatus, setFilterKycStatus] = useState("");
   const [filterPhoneVerified, setFilterPhoneVerified] = useState("");
   const [filterIsActive, setFilterIsActive] = useState("");
   const [filterRole, setFilterRole] = useState("all");
-  // Always load full list; joined-date filter is client-side (same logic as "Joined today" card)
-  // so timezone mismatches on API day bounds cannot hide users that still show as today in the UI.
-  const { data: allUsers = [], isLoading, refetch } = useUsers();
-  useSearchUsers(search);
-  const [locationFilter, setLocationFilter] = useState(null);
+  const {
+    data: allUsers = [],
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useUsers();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [datePreset, setDatePreset] = useState("all");
   const [customFrom, setCustomFrom] = useState(() => todayIso());
   const [customTo, setCustomTo] = useState(() => todayIso());
+  const [customError, setCustomError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
-    refetch();
-  }, [refetch]);
+    const t = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
-  // Apply dashboard drill-down filters from URL (e.g. /users?createdFrom=&createdTo= / joined=today)
+  useEffect(() => {
+    const t = setTimeout(() => setLocationSearch(locationInput), 300);
+    return () => clearTimeout(t);
+  }, [locationInput]);
+
   useEffect(() => {
     const status =
       searchParams.get("status") ||
@@ -142,14 +182,17 @@ export default function Users() {
     setSearchParams(params, { replace: true });
   };
 
+  const currentFilterBase = () => ({
+    status: filterAccountStatus,
+    kyc: filterKycStatus,
+    phone: filterPhoneVerified,
+    active: filterIsActive,
+    role: filterRole,
+  });
+
   const applyDatePreset = (preset) => {
-    const base = {
-      status: filterAccountStatus,
-      kyc: filterKycStatus,
-      phone: filterPhoneVerified,
-      active: filterIsActive,
-      role: filterRole,
-    };
+    const base = currentFilterBase();
+    setCustomError("");
 
     if (preset === "all") {
       setDatePreset("all");
@@ -172,7 +215,6 @@ export default function Users() {
       return;
     }
 
-    // Custom — keep current window until Search is clicked
     const from = fromDate || selectedDate || customFrom || todayIso();
     const to = toDate || selectedDate || customTo || todayIso();
     setDatePreset("custom");
@@ -181,20 +223,21 @@ export default function Users() {
   };
 
   const applyCustomDateRange = () => {
-    if (!customFrom || !customTo) return;
+    if (!customFrom || !customTo) {
+      setCustomError("Select both from and to dates");
+      return;
+    }
     const from = customFrom <= customTo ? customFrom : customTo;
     const to = customFrom <= customTo ? customTo : customFrom;
+    if (customFrom > customTo) {
+      setCustomError("Date range was swapped to a valid order");
+    } else {
+      setCustomError("");
+    }
     setCustomFrom(from);
     setCustomTo(to);
     setDatePreset("custom");
-
-    const base = {
-      status: filterAccountStatus,
-      kyc: filterKycStatus,
-      phone: filterPhoneVerified,
-      active: filterIsActive,
-      role: filterRole,
-    };
+    const base = currentFilterBase();
 
     if (from === to) {
       setSelectedDate(from);
@@ -210,64 +253,88 @@ export default function Users() {
     syncUrl({ ...base, date: "", from, to });
   };
 
-  const users = allUsers.filter((u) => {
-    if (filterRole === "all") {
-      return ["user", "builder", "builder_staff", "agent"].includes(u.roleName);
-    }
-    return u.roleName === filterRole;
-  });
+  const clearCustomDates = () => {
+    setCustomError("");
+    setCustomFrom(todayIso());
+    setCustomTo(todayIso());
+    applyDatePreset("all");
+  };
+
+  const patchFilters = (patch) => {
+    const next = {
+      ...currentFilterBase(),
+      date: selectedDate,
+      from: fromDate,
+      to: toDate,
+      ...patch,
+    };
+    if ("status" in patch) setFilterAccountStatus(patch.status);
+    if ("kyc" in patch) setFilterKycStatus(patch.kyc);
+    if ("phone" in patch) setFilterPhoneVerified(patch.phone);
+    if ("active" in patch) setFilterIsActive(patch.active);
+    if ("role" in patch) setFilterRole(patch.role || "all");
+    syncUrl(next);
+  };
+
+  const users = useMemo(
+    () =>
+      allUsers.filter((u) => {
+        if (filterRole === "all") {
+          return ["user", "builder", "builder_staff", "agent"].includes(
+            u.roleName,
+          );
+        }
+        return u.roleName === filterRole;
+      }),
+    [allUsers, filterRole],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
 
     return users
       .filter((u) => {
-      if (
-        q &&
-        !u.name?.toLowerCase().includes(q) &&
-        !u.phone?.includes(q) &&
-        !u.email?.toLowerCase().includes(q) &&
-        !String(u._id || "").toLowerCase().includes(q) &&
-        !String(u.id || "").toLowerCase().includes(q) &&
-        !String(u.userId || "").toLowerCase().includes(q) &&
-        !toLocalIso(u.createdAt).includes(q)
-      ) {
-        return false;
-      }
+        if (
+          q &&
+          !u.name?.toLowerCase().includes(q) &&
+          !u.phone?.includes(q) &&
+          !u.email?.toLowerCase().includes(q) &&
+          !String(u._id || "").toLowerCase().includes(q) &&
+          !String(u.id || "").toLowerCase().includes(q) &&
+          !String(u.userId || "").toLowerCase().includes(q)
+        ) {
+          return false;
+        }
 
-      if (locationFilter) {
-        const { value, type } = locationFilter;
-        const field = u[type]?.toLowerCase() || "";
-        if (!field.includes(value.toLowerCase())) return false;
-      }
+        if (!matchesLocation(u, locationSearch)) return false;
+        if (!matchesAccountStatus(u.accountStatus, filterAccountStatus)) {
+          return false;
+        }
+        if (!matchesKyc(u.kyc, filterKycStatus)) return false;
 
-      if (!matchesAccountStatus(u.accountStatus, filterAccountStatus)) return false;
+        if (filterPhoneVerified) {
+          const verified = Boolean(u.phoneVerified);
+          if (filterPhoneVerified === "true" && !verified) return false;
+          if (filterPhoneVerified === "false" && verified) return false;
+        }
 
-      if (filterKycStatus && u.kyc?.status !== filterKycStatus) return false;
+        // Active = already onboarded (accountStatus === "active")
+        if (filterIsActive) {
+          const onboarded = String(u.accountStatus || "").toLowerCase() === "active";
+          if (filterIsActive === "true" && !onboarded) return false;
+          if (filterIsActive === "false" && onboarded) return false;
+        }
 
-      if (filterPhoneVerified) {
-        const verified = Boolean(u.phoneVerified);
-        if (filterPhoneVerified === "true" && !verified) return false;
-        if (filterPhoneVerified === "false" && verified) return false;
-      }
+        const createdDay = toLocalIso(u.createdAt);
+        if (selectedDate && createdDay !== selectedDate) return false;
+        if (fromDate || toDate) {
+          if (!createdDay) return false;
+          if (fromDate && createdDay < fromDate) return false;
+          if (toDate && createdDay > toDate) return false;
+        }
 
-      if (filterIsActive) {
-        const active = u.isActive !== false && u.accountStatus === "active";
-        if (filterIsActive === "true" && !active) return false;
-        if (filterIsActive === "false" && active) return false;
-      }
-
-      const createdDay = toLocalIso(u.createdAt);
-      if (selectedDate && createdDay !== selectedDate) return false;
-
-      if (fromDate || toDate) {
-        if (!createdDay) return false;
-        if (fromDate && createdDay < fromDate) return false;
-        if (toDate && createdDay > toDate) return false;
-      }
-
-      return true;
-    })
+        return true;
+      })
       .sort(
         (a, b) =>
           new Date(b.createdAt || 0).getTime() -
@@ -276,7 +343,7 @@ export default function Users() {
   }, [
     users,
     search,
-    locationFilter,
+    locationSearch,
     filterAccountStatus,
     filterKycStatus,
     filterPhoneVerified,
@@ -289,22 +356,51 @@ export default function Users() {
   const stats = useMemo(
     () => ({
       total: users.length,
-      active: users.filter((u) => u.accountStatus === "active").length,
+      active: users.filter(
+        (u) => String(u.accountStatus || "").toLowerCase() === "active",
+      ).length,
       kycVerified: users.filter((u) => u.kyc?.status === "verified").length,
       phoneVerified: users.filter((u) => u.phoneVerified).length,
-      locPending: users.filter((u) => u.accountStatus === "location_pending").length,
-      joinedToday: users.filter((u) => toLocalIso(u.createdAt) === todayIso()).length,
+      locPending: users.filter((u) => u.accountStatus === "location_pending")
+        .length,
+      joinedToday: users.filter((u) => toLocalIso(u.createdAt) === todayIso())
+        .length,
     }),
     [users],
   );
 
+  useEffect(() => {
+    setPage(1);
+  }, [
+    search,
+    locationSearch,
+    filterAccountStatus,
+    filterKycStatus,
+    filterPhoneVerified,
+    filterIsActive,
+    filterRole,
+    selectedDate,
+    fromDate,
+    toDate,
+    pageSize,
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const pagedUsers = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, safePage, pageSize]);
+  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safePage * pageSize, filtered.length);
+
   const hasFilters = Boolean(
-    search ||
+    searchInput ||
+      locationInput ||
       filterAccountStatus ||
       filterKycStatus ||
       filterPhoneVerified ||
       filterIsActive ||
-      locationFilter ||
       selectedDate ||
       fromDate ||
       toDate ||
@@ -312,12 +408,14 @@ export default function Users() {
   );
 
   const clearAll = () => {
+    setSearchInput("");
     setSearch("");
+    setLocationInput("");
+    setLocationSearch("");
     setFilterAccountStatus("");
     setFilterKycStatus("");
     setFilterPhoneVerified("");
     setFilterIsActive("");
-    setLocationFilter(null);
     setFilterRole("all");
     setSelectedDate("");
     setFromDate("");
@@ -325,6 +423,8 @@ export default function Users() {
     setDatePreset("all");
     setCustomFrom(todayIso());
     setCustomTo(todayIso());
+    setCustomError("");
+    setMoreOpen(false);
     setSearchParams({}, { replace: true });
   };
 
@@ -365,21 +465,41 @@ export default function Users() {
     }
   };
 
-  const formatLocation = (u) => {
-    const parts = [u.locality, u.city, u.state, u.pincode].filter(Boolean);
-    return parts.length ? parts : null;
+  const handleRefresh = async () => {
+    if (isRefreshing || isFetching) return;
+    setIsRefreshing(true);
+    setRefreshError("");
+    try {
+      await refetch();
+    } catch {
+      setRefreshError("Could not refresh users. Try again.");
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
-  const locQuery = locationFilter?.value || "";
+  const goToPage = (nextPage) => {
+    setPage(nextPage);
+    tableTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const loadError =
+    refreshError ||
+    (isError
+      ? error?.message || "Failed to load users. Please try again."
+      : "");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50/40 p-4 md:p-6 lg:p-8">
+    <div className="w-full max-w-full pb-16">
       <Header
         isLoading={isLoading}
-        users={users}
-        filtered={filtered}
-        onRefresh={refetch}
+        isRefreshing={isRefreshing || isFetching}
+        usersCount={users.length}
+        filteredCount={filtered.length}
+        onRefresh={handleRefresh}
+        error={refreshError}
       />
+
       <StatCards
         stats={stats}
         activeKey={
@@ -400,81 +520,73 @@ export default function Users() {
         onStatClick={applyStatFilter}
       />
 
-      <div className="mb-3">
-        <DashboardDateFilter
-          preset={datePreset}
-          onPresetChange={applyDatePreset}
-          customFrom={customFrom}
-          customTo={customTo}
-          onCustomFromChange={setCustomFrom}
-          onCustomToChange={setCustomTo}
-          onApplyCustom={applyCustomDateRange}
-          presets={USER_DATE_PRESETS}
-          label="Joined date"
-          trailing="Filter users by account created date"
-        />
-      </div>
-
-      <SearchFiltersPanel
-        search={search}
-        setSearch={setSearch}
-        locationFilter={locationFilter}
-        setLocationFilter={setLocationFilter}
-        users={users}
-        filterAccountStatus={filterAccountStatus}
-        setFilterAccountStatus={(value) => {
-          setFilterAccountStatus(value);
-          syncUrl({
-            status: value,
-            kyc: filterKycStatus,
-            phone: filterPhoneVerified,
-            active: filterIsActive,
-            role: filterRole,
-            date: selectedDate,
-            from: fromDate,
-            to: toDate,
-          });
+      <UserFilters
+        datePreset={datePreset}
+        onDatePreset={applyDatePreset}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFromChange={(v) => {
+          setCustomError("");
+          setCustomFrom(v);
         }}
+        onCustomToChange={(v) => {
+          setCustomError("");
+          setCustomTo(v);
+        }}
+        onApplyCustom={applyCustomDateRange}
+        onClearCustom={clearCustomDates}
+        customError={customError}
+        search={searchInput}
+        setSearch={setSearchInput}
+        locationSearch={locationInput}
+        setLocationSearch={setLocationInput}
+        filterAccountStatus={filterAccountStatus}
+        setFilterAccountStatus={(value) => patchFilters({ status: value })}
         filterKycStatus={filterKycStatus}
-        setFilterKycStatus={setFilterKycStatus}
+        setFilterKycStatus={(value) => patchFilters({ kyc: value })}
         filterPhoneVerified={filterPhoneVerified}
-        setFilterPhoneVerified={setFilterPhoneVerified}
-        filterIsActive={filterIsActive}
-        setFilterIsActive={setFilterIsActive}
+        setFilterPhoneVerified={(value) => patchFilters({ phone: value })}
         filterRole={filterRole}
-        setFilterRole={setFilterRole}
+        setFilterRole={(value) => patchFilters({ role: value || "all" })}
+        filterIsActive={filterIsActive}
+        setFilterIsActive={(value) => patchFilters({ active: value })}
+        moreOpen={moreOpen}
+        setMoreOpen={setMoreOpen}
         hasFilters={hasFilters}
-        selectedDate={selectedDate}
-        fromDate={fromDate}
-        toDate={toDate}
-        onClearDate={() => applyDatePreset("all")}
         clearAll={clearAll}
       />
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div
+        ref={tableTopRef}
+        className="overflow-hidden rounded-[18px] border border-[#d9ebe0] bg-white shadow-[0_1px_3px_rgba(23,33,43,0.04)]"
+      >
         <DesktopTable
-          filtered={filtered}
-          loading={isLoading}
+          filtered={pagedUsers}
+          loading={isLoading && !allUsers.length}
+          error={loadError && !allUsers.length ? loadError : ""}
           hasFilters={hasFilters}
-          formatLocation={formatLocation}
-          locQuery={locQuery}
+          rowOffset={(safePage - 1) * pageSize}
+          onRetry={handleRefresh}
+          onClearFilters={clearAll}
         />
         <MobileCardView
-          filtered={filtered}
-          loading={isLoading}
-          formatLocation={formatLocation}
-          locQuery={locQuery}
+          filtered={pagedUsers}
+          loading={isLoading && !allUsers.length}
+          hasFilters={hasFilters}
+          onClearFilters={clearAll}
+        />
+        <Pagination
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          totalFiltered={filtered.length}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          page={safePage}
+          totalPages={totalPages}
+          onPrev={() => goToPage(Math.max(1, safePage - 1))}
+          onNext={() => goToPage(Math.min(totalPages, safePage + 1))}
         />
       </div>
-      {!isLoading && filtered.length > 0 && (
-        <p className="text-center text-xs text-gray-400 mt-4">
-          Showing {filtered.length} of {users.length} users
-          {locationFilter &&
-            ` in ${locationFilter.type === "city" ? "city" : locationFilter.type} "${locationFilter.value}"`}
-          {selectedDate && ` · joined ${selectedDate}`}
-          {fromDate && toDate && ` · joined ${fromDate} → ${toDate}`}
-        </p>
-      )}
     </div>
   );
 }
