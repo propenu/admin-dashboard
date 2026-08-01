@@ -44,7 +44,7 @@ export const StatCards = ({ stats, onStatClick, activeKey }) => {
   ];
 
   return (
-    <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+    <div className="mb-3 grid grid-cols-6 gap-2">
       {cards.map((card) => (
         <StatCard
           key={card.key}

@@ -50,6 +50,15 @@ import {
 } from "../../features/user/userDetailService";
 
 const roles = ["user", "builder", "builder_staff", "agent"];
+const ROLE_LABELS = {
+  all: "All roles",
+  user: "User",
+  builder: "Builder",
+  builder_staff: "Builder Staff",
+  agent: "Agent",
+};
+const roleLabel = (role) =>
+  ROLE_LABELS[String(role || "").toLowerCase()] || title(role || "Unknown");
 /** Never render raw API objects as React children (e.g. { type: "Point" }). */
 const asText = (value, fallback = "") => {
   if (value == null || value === "") return fallback;
@@ -328,19 +337,33 @@ function Chip({ children, tone = "green" }) {
   };
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[8px] font-bold ${tones[tone]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none ${tones[tone]}`}
     >
       {children}
+    </span>
+  );
+}
+
+function RoleBadge({ role, className = "" }) {
+  return (
+    <span
+      className={`inline-flex h-6 min-w-[7.5rem] items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold uppercase tracking-wide text-emerald-700 ${className}`}
+    >
+      {roleLabel(role)}
     </span>
   );
 }
 function Panel({ title: heading, subtitle, children, action, className = "" }) {
   return (
     <section className={`uj-panel ${className}`}>
-      <header className="flex min-h-11 items-center justify-between border-b border-slate-100 px-3 py-2">
-        <div>
-          <h2 className="text-[11px] font-black text-slate-800">{heading}</h2>
-          {subtitle && <p className="text-[8px] text-slate-400">{subtitle}</p>}
+      <header className="flex min-h-12 items-center justify-between gap-3 border-b border-slate-100 px-3.5 py-2.5">
+        <div className="min-w-0">
+          <h2 className="truncate text-sm font-bold tracking-tight text-slate-800">
+            {heading}
+          </h2>
+          {subtitle && (
+            <p className="mt-0.5 truncate text-xs text-slate-400">{subtitle}</p>
+          )}
         </div>
         {action}
       </header>
@@ -356,16 +379,25 @@ function Metric({ icon, label, value, suffix, change, tone = "green" }) {
     violet: "text-violet-600",
   };
   return (
-    <div className="min-w-0 border-r border-slate-100 px-3 py-2 last:border-r-0">
-      <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500">
-        {createElement(icon, { size: 11, className: colors[tone] })}
-        {label}
+    <div className="uj-metric flex min-w-0 flex-col justify-center border-r border-slate-100 px-2.5 py-3 last:border-r-0 sm:px-3">
+      <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-500">
+        {createElement(icon, {
+          size: 13,
+          className: `shrink-0 ${colors[tone]}`,
+        })}
+        <span className="truncate">{label}</span>
       </div>
-      <div className="mt-1 flex items-end gap-1">
-        <strong className="text-xl leading-none text-slate-900">{value}</strong>
-        {suffix && <span className="text-[8px] text-slate-500">{suffix}</span>}
+      <div className="mt-1.5 flex min-w-0 items-baseline gap-1">
+        <strong className="truncate text-lg font-black leading-none text-slate-900 sm:text-xl">
+          {value}
+        </strong>
+        {suffix != null && suffix !== "" && (
+          <span className="shrink-0 text-[11px] font-semibold text-slate-500">
+            {suffix}
+          </span>
+        )}
         {change && (
-          <span className="ml-auto text-[8px] font-bold text-emerald-600">
+          <span className="ml-auto shrink-0 text-[10px] font-bold text-emerald-600">
             ↗ {change}
           </span>
         )}
@@ -1870,17 +1902,17 @@ export default function LeadCaptureAnalytics() {
           {toast}
         </div>
       )}
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
-        <div>
-          <h1 className="text-xl font-black tracking-tight">
+      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">
             User Journey Intelligence
           </h1>
-          <p className="text-[9px] text-slate-500">
+          <p className="mt-1 text-sm text-slate-500">
             Behavior, intent, friction and conversion tracing · First-party
             consented data
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={range}
             onChange={(e) => setRange(e.target.value)}
@@ -1891,6 +1923,7 @@ export default function LeadCaptureAnalytics() {
             <option value="90">Last 90 days</option>
           </select>
           <button
+            type="button"
             onClick={() => setLive((value) => !value)}
             className={`uj-control gap-2 ${live ? "text-emerald-700" : "text-slate-500"}`}
           >
@@ -1900,36 +1933,46 @@ export default function LeadCaptureAnalytics() {
             {live ? "Live" : "Paused"}
             <ChevronDown size={12} />
           </button>
-          <button onClick={() => window.print()} className="uj-control">
-            <Download size={13} />
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="uj-control"
+          >
+            <Download size={14} />
             Export
           </button>
-          <button onClick={() => loadJourney(user)} className="uj-icon-button">
-            <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+          <button
+            type="button"
+            onClick={() => loadJourney(user)}
+            className="uj-icon-button"
+            aria-label="Refresh journey"
+          >
+            <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
           </button>
         </div>
       </header>
-      <section className="mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-        <div className="grid items-center gap-2 xl:grid-cols-[minmax(430px,1fr)_auto]">
+      <section className="mt-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="grid items-center gap-3 xl:grid-cols-[minmax(430px,1fr)_auto]">
           <div
             className={`relative ${pickerOpen ? "uj-user-picker-open" : ""}`}
           >
-            <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50/60 p-1 focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-100">
+            <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50/60 p-1 focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-100">
               <select
                 value={roleFilter}
                 onChange={(e) => {
                   setRoleFilter(e.target.value);
                   setPickerOpen(true);
                 }}
-                className="h-8 w-32 border-0 border-r border-slate-200 bg-transparent px-2 text-[9px] font-bold text-slate-700 outline-none"
+                className="h-9 w-36 border-0 border-r border-slate-200 bg-transparent px-2.5 text-xs font-semibold text-slate-700 outline-none"
               >
-                <option value="all">All roles</option>
-                <option value="user">Users</option>
-                <option value="builder">Builders</option>
-                <option value="builder_staff">Builder staff</option>
-                <option value="agent">Agents</option>
+                <option value="all">{ROLE_LABELS.all}</option>
+                {roles.map((role) => (
+                  <option key={role} value={role}>
+                    {ROLE_LABELS[role]}
+                  </option>
+                ))}
               </select>
-              <Search className="ml-3 shrink-0 text-slate-400" size={14} />
+              <Search className="ml-3 shrink-0 text-slate-400" size={15} />
               <input
                 value={query}
                 onFocus={() => setPickerOpen(true)}
@@ -1938,104 +1981,127 @@ export default function LeadCaptureAnalytics() {
                   setPickerOpen(true);
                 }}
                 placeholder="Search name, phone, email, city, state or locality"
-                className="h-8 min-w-0 flex-1 bg-transparent px-2 text-[10px] outline-none"
+                className="h-9 min-w-0 flex-1 bg-transparent px-2.5 text-sm outline-none placeholder:text-slate-400"
               />
-              <span className="mr-2 rounded-full bg-emerald-50 px-2 py-1 text-[8px] font-bold text-emerald-700">
+              <span className="mr-2 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
                 {filteredUsers.length} found
               </span>
             </div>
             {pickerOpen && (
-              <div className="absolute z-40 mt-1 max-h-72 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl">
-                <div className="flex items-center justify-between px-2 py-1 text-[8px] font-bold uppercase tracking-wide text-slate-400">
-                  <span>Select tracked account</span>
+              <div className="uj-picker-list absolute z-40 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
+                  <span className="text-xs font-bold uppercase tracking-[0.06em] text-slate-500">
+                    Select tracked account
+                  </span>
                   <button
+                    type="button"
                     onClick={() => setPickerOpen(false)}
-                    className="text-slate-500 hover:text-slate-900"
+                    className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-600 transition hover:bg-rose-100"
                   >
                     Close
                   </button>
                 </div>
-                {filteredUsers.length ? (
-                  filteredUsers.map((item) => (
-                    <button
-                      key={item._id}
-                      onClick={() => {
-                        setSelectedId(item._id);
-                        setQuery("");
-                        setPickerOpen(false);
-                      }}
-                      className={`grid w-full grid-cols-[auto_1fr_auto] items-center gap-2 rounded-lg p-2 text-left transition hover:bg-emerald-50 ${item._id === user?._id ? "bg-emerald-50 ring-1 ring-emerald-100" : ""}`}
-                    >
-                      <Avatar user={item} size="h-8 w-8" />
-                      <span className="min-w-0">
-                        <strong className="block truncate text-[9px] text-slate-800">
-                          {item.name || "Unnamed account"}
-                        </strong>
-                        <small className="block truncate text-[8px] text-slate-400">
-                          {item.email || maskPhone(item.phone)}
-                        </small>
-                      </span>
-                      <span className="text-right">
-                        <b className="block text-[8px] text-emerald-700">
-                          {title(item.roleName)}
-                        </b>
-                        <small className="block max-w-36 truncate text-[7px] text-slate-400">
-                          {[item.locality, item.city, item.state]
-                            .filter(Boolean)
-                            .join(", ") || "Location unavailable"}
-                        </small>
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-4 py-8 text-center">
-                    <Search className="mx-auto text-slate-300" size={22} />
-                    <strong className="mt-2 block text-[10px]">
-                      No matching account
-                    </strong>
-                    <p className="mt-1 text-[8px] text-slate-400">
-                      Try another role, name, contact or location.
-                    </p>
-                  </div>
-                )}
+                <div className="max-h-[min(420px,calc(100vh-200px))] overflow-y-auto p-1.5">
+                  {filteredUsers.length ? (
+                    filteredUsers.map((item) => {
+                      const selected = item._id === user?._id;
+                      const location =
+                        [item.locality, item.city, item.state]
+                          .filter(Boolean)
+                          .join(", ") || "Location unavailable";
+                      return (
+                        <button
+                          key={item._id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedId(item._id);
+                            setQuery("");
+                            setPickerOpen(false);
+                          }}
+                          className={`group grid w-full grid-cols-[auto_minmax(0,1fr)_9.5rem] items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                            selected
+                              ? "border border-emerald-200 bg-emerald-50 shadow-sm ring-1 ring-emerald-100"
+                              : "border border-transparent hover:border-emerald-100 hover:bg-emerald-50/70"
+                          }`}
+                        >
+                          <Avatar user={item} size="h-10 w-10" />
+                          <span className="min-w-0">
+                            <strong className="block truncate text-sm font-bold text-slate-900">
+                              {item.name || "Unnamed account"}
+                            </strong>
+                            <small className="mt-0.5 block truncate text-xs text-slate-500">
+                              {item.email || maskPhone(item.phone) || "No contact"}
+                            </small>
+                          </span>
+                          <span className="flex min-w-0 flex-col items-end gap-1">
+                            <RoleBadge role={item.roleName} />
+                            <small
+                              title={location}
+                              className="w-full truncate text-right text-[11px] text-slate-400"
+                            >
+                              {location}
+                            </small>
+                          </span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="px-4 py-10 text-center">
+                      <Search className="mx-auto text-slate-300" size={28} />
+                      <strong className="mt-3 block text-sm font-bold text-slate-700">
+                        No matching account
+                      </strong>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Try another role, name, contact or location.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <button
+              type="button"
               onClick={() => notify("Contact request opened")}
               className="uj-action-primary"
             >
-              <Phone size={13} />
+              <Phone size={14} />
               Contact
             </button>
             <button
+              type="button"
               onClick={() => notify("User assigned to sales agent")}
               className="uj-action"
             >
-              <UserRound size={13} />
+              <UserRound size={14} />
               Assign agent
             </button>
             <button
+              type="button"
               onClick={() => notify("Follow-up task created")}
               className="uj-action"
             >
-              <CircleDot size={13} />
+              <CircleDot size={14} />
               Create task
             </button>
-            <button onClick={() => setPickerOpen(true)} className="uj-action">
-              <Users size={13} />
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="uj-action"
+            >
+              <Users size={14} />
               Change user
             </button>
           </div>
         </div>
-        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 border-t border-slate-100 px-1 pt-2">
-          <Avatar user={user} />
-          <div className="mr-2 min-w-[150px]">
-            <strong className="block truncate text-[12px]">
+        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2.5 border-t border-slate-100 pt-3">
+          <Avatar user={user} size="h-11 w-11" />
+          <div className="mr-1 min-w-[180px] max-w-xs">
+            <strong className="block truncate text-base font-bold text-slate-900">
               {user.name || "Registered user"}
             </strong>
-            <span className="block truncate text-[8px] text-slate-500">
+            <span className="mt-0.5 block truncate text-xs text-slate-500">
               {maskPhone(user.phone)} ·{" "}
               {[user.locality, user.city, user.state]
                 .filter(Boolean)
@@ -2043,44 +2109,44 @@ export default function LeadCaptureAnalytics() {
             </span>
           </div>
           <Chip tone="blue">
-            <UserCheck size={11} />
-            {title(user.roleName)}
+            <UserCheck size={12} />
+            {roleLabel(user.roleName)}
           </Chip>
           <Chip tone={journey?.online ? "green" : "slate"}>
-            <CircleDot size={10} />
+            <CircleDot size={11} />
             {journey?.online
               ? "Online now"
               : `Last active ${journey?.summary?.lastActiveAt ? new Date(journey.summary.lastActiveAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "unavailable"}`}
           </Chip>
           <Chip tone="orange">
-            <Target size={10} />
+            <Target size={11} />
             High intent
           </Chip>
           <Chip>
-            <BadgeCheck size={10} />
+            <BadgeCheck size={11} />
             Verified
           </Chip>
           <Chip>
-            <ShieldCheck size={10} />
+            <ShieldCheck size={11} />
             Consent active
           </Chip>
         </div>
       </section>
       {journeyError && (
-        <div className="mt-2 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[9px] text-red-700">
-          <AlertTriangle size={12} />
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-700">
+          <AlertTriangle size={14} />
           <strong>Live data unavailable:</strong>
           {journeyError}
         </div>
       )}
       {journey?.isPreview && (
-        <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[9px] text-amber-800">
-          <AlertTriangle size={12} />
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800">
+          <AlertTriangle size={14} />
           <strong>Preview behavior data:</strong> identity is live; journey data
           becomes live automatically when the tracking endpoint is connected.
         </div>
       )}
-      <section className="mt-2 grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm sm:grid-cols-4 xl:grid-cols-9">
+      <section className="uj-metric-strip mt-3 grid grid-cols-9 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <Metric
           icon={Gauge}
           label="Journey Score"
@@ -2136,7 +2202,7 @@ export default function LeadCaptureAnalytics() {
           tone="orange"
         />
       </section>
-      <section className="mt-2 grid gap-2 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <section className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-2">
           <Panel
             className="uj-map-panel"
@@ -2216,7 +2282,7 @@ export default function LeadCaptureAnalytics() {
                 </label>
               </div>
               <div className="uj-table-scroll">
-                <table className="w-full min-w-[560px] text-left text-[8px]">
+                <table className="w-full min-w-[560px] text-left text-xs">
                   <thead>
                     <tr>
                       <th>Time</th>
@@ -2256,7 +2322,7 @@ export default function LeadCaptureAnalytics() {
               subtitle="Ranked by behavioral match score"
             >
               <div className="uj-table-scroll">
-                <table className="w-full text-left text-[8px]">
+                <table className="w-full text-left text-xs">
                   <thead>
                     <tr>
                       <th>Explored listing</th>
@@ -2513,14 +2579,14 @@ export default function LeadCaptureAnalytics() {
         </div>
         <DynamicInsightRail journey={journey} user={user} notify={notify} />
       </section>
-      <footer className="mt-2 flex flex-wrap items-center justify-center gap-3 rounded-lg border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-[8px] text-emerald-800">
-        <ShieldCheck size={13} />
+      <footer className="mt-3 flex flex-wrap items-center justify-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-2.5 text-xs text-emerald-800">
+        <ShieldCheck size={15} />
         <b>Consent active</b>
         <span>· PII masked</span>
         <span>· Role-based access</span>
         <span>· Audit logged</span>
         <span>· Retention 90 days</span>
-        <span className="ml-auto flex items-center gap-1">
+        <span className="ml-auto flex items-center gap-1.5 font-semibold">
           <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
           Live
         </span>

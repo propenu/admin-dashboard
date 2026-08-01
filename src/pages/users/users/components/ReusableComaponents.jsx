@@ -1,7 +1,14 @@
 import { ACCOUNT_STATUS_MAP } from "../constants/accountStatusMap";
 import { AVATAR_COLORS } from "../constants/avatarColors";
 import { KYC_STATUS_MAP } from "../constants/kycStatusMap";
+import { roleLabel } from "../constants/roleLabels";
 import { CheckCircle2, ChevronDown, XCircle } from "lucide-react";
+
+export const RoleBadge = ({ role }) => (
+  <span className="inline-flex h-6 min-w-[6.75rem] items-center justify-center whitespace-nowrap rounded-full border border-[#12A150]/25 bg-[#12A150]/10 px-2.5 text-[11px] font-bold uppercase tracking-wide text-[#12A150]">
+    {roleLabel(role)}
+  </span>
+);
 
 export const Avatar = ({ name, imageUrl }) => {
   const firstChar = name?.charAt(0) || "A";
@@ -96,7 +103,7 @@ export const StatCard = ({
   highlightValue = false,
   emphasize = false,
 }) => {
-  const className = `flex h-full w-full items-center gap-2.5 rounded-2xl border bg-gradient-to-br from-white to-[#f3faf6] px-3 py-2.5 text-left shadow-sm transition duration-150 ${
+  const className = `flex h-full w-full min-w-0 items-center gap-2 rounded-2xl border bg-gradient-to-br from-white to-[#f3faf6] px-2.5 py-2.5 text-left shadow-sm transition duration-150 ${
     active || emphasize
       ? "border-[#12A150]/50 ring-1 ring-[#12A150]/10"
       : "border-[#dceee3]"
@@ -104,15 +111,15 @@ export const StatCard = ({
 
   const content = (
     <>
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#12A150]/10 text-[#12A150]">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#12A150]/10 text-[#12A150]">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+        <p className="truncate text-[8px] font-semibold uppercase tracking-[0.06em] text-slate-400 sm:text-[9px]">
           {label}
         </p>
         <p
-          className={`mt-0.5 text-xl font-bold tabular-nums leading-none tracking-tight ${
+          className={`mt-0.5 text-lg font-bold tabular-nums leading-none tracking-tight sm:text-xl ${
             highlightValue ? "text-[#12A150]" : "text-[#102033]"
           }`}
         >
@@ -134,7 +141,7 @@ export const StatCard = ({
 };
 
 export const FilterSelect = ({ value, onChange, options, placeholder, id, label }) => (
-  <div className="relative min-w-0 flex-1 basis-[140px] sm:max-w-[160px] sm:flex-none">
+  <div className="relative w-full min-w-[140px] max-w-[180px] shrink-0 sm:w-[160px]">
     {label ? (
       <label htmlFor={id} className="sr-only">
         {label}

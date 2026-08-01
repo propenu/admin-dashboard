@@ -77,10 +77,10 @@ export const SearchFiltersPanel = ({
             placeholder="Select Role"
             options={[
               { value: "all", label: "All Users" },
-              { value: "user", label: "Owners" },
-              { value: "builder", label: "Builders" },
+              { value: "user", label: "User" },
+              { value: "builder", label: "Builder" },
               { value: "builder_staff", label: "Builder Staff" },
-              { value: "agent", label: "Agents" },
+              { value: "agent", label: "Agent" },
             ]}
           />
 

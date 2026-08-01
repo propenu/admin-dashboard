@@ -1,3 +1,4 @@
+import { ROLE_OPTIONS } from "../constants/roleLabels";
 import { FilterSelect } from "./ReusableComaponents";
 
 export const MoreFiltersPanel = ({
@@ -36,17 +37,12 @@ export const MoreFiltersPanel = ({
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">
         <FilterSelect
-          id="users-role-filter"
+          id="users-role-filter-more"
           label="User role"
           value={filterRole === "all" ? "" : filterRole}
           onChange={(value) => setFilterRole(value || "all")}
-          placeholder="All Users"
-          options={[
-            { value: "user", label: "Owners" },
-            { value: "builder", label: "Builders" },
-            { value: "builder_staff", label: "Builder Staff" },
-            { value: "agent", label: "Agents" },
-          ]}
+          placeholder="All Roles"
+          options={ROLE_OPTIONS}
         />
         <FilterSelect
           id="users-active-filter"

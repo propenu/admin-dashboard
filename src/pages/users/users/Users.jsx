@@ -7,6 +7,7 @@ import { useUsers } from "./hook/useUserData";
 import { MobileCardView } from "./components/MobileCardView";
 import { DesktopTable } from "./components/DesktopTable";
 import { Pagination } from "./components/Pagination";
+import { todayIstIso, toIstIso } from "./utils/dateTime";
 
 const ONBOARDING_STATUSES = [
   "location_pending",
@@ -14,18 +15,6 @@ const ONBOARDING_STATUSES = [
   "pending",
   "incomplete",
 ];
-
-const toLocalIso = (value) => {
-  if (!value) return "";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-
-const todayIso = () => toLocalIso(new Date());
 
 const matchesAccountStatus = (userStatus, filterStatus) => {
   if (!filterStatus) return true;
@@ -85,8 +74,8 @@ export default function Users() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [datePreset, setDatePreset] = useState("all");
-  const [customFrom, setCustomFrom] = useState(() => todayIso());
-  const [customTo, setCustomTo] = useState(() => todayIso());
+  const [customFrom, setCustomFrom] = useState(() => todayIstIso());
+  const [customTo, setCustomTo] = useState(() => todayIstIso());
   const [customError, setCustomError] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -121,7 +110,7 @@ export default function Users() {
     const to = searchParams.get("createdTo") || searchParams.get("to") || "";
 
     let nextDate = dateParam;
-    if (!nextDate && joined === "today") nextDate = todayIso();
+    if (!nextDate && joined === "today") nextDate = todayIstIso();
     if (!nextDate && from && to && from === to) nextDate = from;
 
     const rangeFrom = from && to && from !== to ? from : "";
@@ -140,7 +129,7 @@ export default function Users() {
       setDatePreset("custom");
       setCustomFrom(rangeFrom);
       setCustomTo(rangeTo);
-    } else if (nextDate && nextDate === todayIso()) {
+    } else if (nextDate && nextDate === todayIstIso()) {
       setDatePreset("today");
       setCustomFrom(nextDate);
       setCustomTo(nextDate);
@@ -204,7 +193,7 @@ export default function Users() {
     }
 
     if (preset === "today") {
-      const today = todayIso();
+      const today = todayIstIso();
       setDatePreset("today");
       setSelectedDate(today);
       setFromDate("");
@@ -215,8 +204,8 @@ export default function Users() {
       return;
     }
 
-    const from = fromDate || selectedDate || customFrom || todayIso();
-    const to = toDate || selectedDate || customTo || todayIso();
+    const from = fromDate || selectedDate || customFrom || todayIstIso();
+    const to = toDate || selectedDate || customTo || todayIstIso();
     setDatePreset("custom");
     setCustomFrom(from);
     setCustomTo(to);
@@ -255,8 +244,8 @@ export default function Users() {
 
   const clearCustomDates = () => {
     setCustomError("");
-    setCustomFrom(todayIso());
-    setCustomTo(todayIso());
+    setCustomFrom(todayIstIso());
+    setCustomTo(todayIstIso());
     applyDatePreset("all");
   };
 
@@ -325,7 +314,7 @@ export default function Users() {
           if (filterIsActive === "false" && onboarded) return false;
         }
 
-        const createdDay = toLocalIso(u.createdAt);
+        const createdDay = toIstIso(u.createdAt);
         if (selectedDate && createdDay !== selectedDate) return false;
         if (fromDate || toDate) {
           if (!createdDay) return false;
@@ -363,7 +352,7 @@ export default function Users() {
       phoneVerified: users.filter((u) => u.phoneVerified).length,
       locPending: users.filter((u) => u.accountStatus === "location_pending")
         .length,
-      joinedToday: users.filter((u) => toLocalIso(u.createdAt) === todayIso())
+      joinedToday: users.filter((u) => toIstIso(u.createdAt) === todayIstIso())
         .length,
     }),
     [users],
@@ -421,8 +410,8 @@ export default function Users() {
     setFromDate("");
     setToDate("");
     setDatePreset("all");
-    setCustomFrom(todayIso());
-    setCustomTo(todayIso());
+    setCustomFrom(todayIstIso());
+    setCustomTo(todayIstIso());
     setCustomError("");
     setMoreOpen(false);
     setSearchParams({}, { replace: true });
@@ -461,7 +450,7 @@ export default function Users() {
       return;
     }
     if (key === "joinedToday") {
-      syncUrl({ ...base, date: todayIso() });
+      syncUrl({ ...base, date: todayIstIso() });
     }
   };
 
@@ -503,7 +492,7 @@ export default function Users() {
       <StatCards
         stats={stats}
         activeKey={
-          selectedDate === todayIso() && !filterAccountStatus && !fromDate
+          selectedDate === todayIstIso() && !filterAccountStatus && !fromDate
             ? "joinedToday"
             : filterAccountStatus === "active"
               ? "active"

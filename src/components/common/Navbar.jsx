@@ -34,7 +34,15 @@ export default function Navbar({ toggleSidebar }) {
 
   const roleLabels = {
     sales_agent: "Sales Executive",
+    super_admin: "Super Admin",
+    admin: "Admin",
   };
+
+  const displayRole = (
+    roleLabels[user?.roleName] ||
+    user?.roleName?.replace(/_/g, " ") ||
+    ""
+  ).replace(/\b\w/g, (c) => c.toUpperCase());
 
 
   return (
@@ -112,24 +120,20 @@ export default function Navbar({ toggleSidebar }) {
                   <User className="w-4 h-4 text-white" />
                 </div>
 
-                <div className="hidden sm:block text-left min-w-0">
+                <div className="hidden sm:block text-left min-w-0 max-w-[180px]">
                   <p
-                    className="text-[12px] font-semibold truncate max-w-[120px] "
+                    className="text-[13px] font-semibold truncate leading-tight"
                     style={{ color: "#1e293b" }}
+                    title={user?.name || "Sign In"}
                   >
                     {user?.name || "Sign In"}
                   </p>
-                  {/* <p className="text-[10px] truncate mt-0.5 capitalize " style={{ color: "#94a3b8" }}>
-                    {user?.roleName?.replace(/_/g, " ") || ""}
-                  </p> */}
                   <p
-                    className="text-[10px] truncate mt-0.5"
-                    style={{ color: "#94a3b8" }}
+                    className="text-[11px] font-medium truncate leading-tight mt-0.5"
+                    style={{ color: "#27AE60" }}
+                    title={displayRole}
                   >
-                    {(
-                      roleLabels[user?.roleName] ||
-                      user?.roleName?.replace(/_/g, " ")
-                    )?.replace(/\b\w/g, (c) => c.toUpperCase())}
+                    {displayRole}
                   </p>
                 </div>
 
@@ -188,16 +192,10 @@ export default function Navbar({ toggleSidebar }) {
                           {user?.name}
                         </p>
                         <p
-                          className="text-[11px] capitalize truncate mt-0.5"
+                          className="text-[11px] font-medium truncate mt-0.5"
                           style={{ color: "#27AE60" }}
                         >
-                          {/* {user?.roleName
-                            ?.replace(/_/g, " ")
-                            ?.replace(/\b\w/g, (c) => c.toUpperCase())} */}
-                          {(
-                            roleLabels[user?.roleName] ||
-                            user?.roleName?.replace(/_/g, " ")
-                          )?.replace(/\b\w/g, (c) => c.toUpperCase())}
+                          {displayRole}
                         </p>
                       </div>
                     </div>

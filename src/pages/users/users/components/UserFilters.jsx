@@ -1,6 +1,45 @@
 import { Filter, Search, X } from "lucide-react";
+import { ROLE_OPTIONS } from "../constants/roleLabels";
 import { FilterSelect } from "./ReusableComaponents";
 import { MoreFiltersPanel } from "./MoreFiltersPanel";
+
+const SearchField = ({
+  id,
+  label,
+  value,
+  onChange,
+  onClear,
+  placeholder,
+  className = "",
+}) => (
+  <div className={`relative min-w-0 ${className}`}>
+    <label htmlFor={id} className="sr-only">
+      {label}
+    </label>
+    <Search
+      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+      aria-hidden
+    />
+    <input
+      id={id}
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="h-10 w-full rounded-xl border border-[#dceee3] bg-white py-2 pl-10 pr-9 text-sm text-[#102033] placeholder:text-slate-400 focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10"
+    />
+    {value ? (
+      <button
+        type="button"
+        aria-label={`Clear ${label}`}
+        onClick={onClear}
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-slate-400 hover:text-slate-600"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    ) : null}
+  </div>
+);
 
 export const UserFilters = ({
   datePreset,
@@ -33,7 +72,7 @@ export const UserFilters = ({
 }) => {
   return (
     <section className="mb-3 rounded-[18px] border border-[#d9ebe0] bg-white p-3 shadow-[0_1px_3px_rgba(23,33,43,0.03)] sm:mb-4 sm:p-4">
-      <div className="mb-2.5 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
         <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
           Joined Date
         </span>
@@ -63,7 +102,7 @@ export const UserFilters = ({
       </div>
 
       {datePreset === "custom" ? (
-        <div className="mb-2.5 flex flex-wrap items-end gap-2">
+        <div className="mb-3 flex flex-wrap items-end gap-2">
           <div>
             <label
               htmlFor="users-custom-from"
@@ -114,123 +153,98 @@ export const UserFilters = ({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
-        <div className="relative min-w-0 flex-1 basis-[220px]">
-          <label htmlFor="users-search" className="sr-only">
-            Search by name, email or phone
-          </label>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            id="users-search"
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, email or phone"
-            className="h-10 w-full rounded-xl border border-[#dceee3] bg-white py-2 pl-10 pr-9 text-sm text-[#102033] placeholder:text-slate-400 focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10"
-          />
-          {search ? (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setSearch("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-slate-400 hover:text-slate-600"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          ) : null}
-        </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <SearchField
+          id="users-search"
+          label="Search by name, email or phone"
+          value={search}
+          onChange={setSearch}
+          onClear={() => setSearch("")}
+          placeholder="Search by name, email or phone"
+        />
+        <SearchField
+          id="users-location-search"
+          label="Search by location"
+          value={locationSearch}
+          onChange={setLocationSearch}
+          onClear={() => setLocationSearch("")}
+          placeholder="Search by location"
+        />
+      </div>
 
-        <div className="relative min-w-0 flex-1 basis-[180px] xl:max-w-[220px]">
-          <label htmlFor="users-location-search" className="sr-only">
-            Search by location
-          </label>
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            id="users-location-search"
-            type="search"
-            value={locationSearch}
-            onChange={(e) => setLocationSearch(e.target.value)}
-            placeholder="Search by location"
-            className="h-10 w-full rounded-xl border border-[#dceee3] bg-white py-2 pl-10 pr-9 text-sm text-[#102033] placeholder:text-slate-400 focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10"
-          />
-          {locationSearch ? (
-            <button
-              type="button"
-              aria-label="Clear location search"
-              onClick={() => setLocationSearch("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-slate-400 hover:text-slate-600"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          ) : null}
-        </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <FilterSelect
+          id="users-role-filter"
+          label="Role"
+          value={filterRole === "all" ? "" : filterRole}
+          onChange={(value) => setFilterRole(value || "all")}
+          placeholder="All Roles"
+          options={ROLE_OPTIONS}
+        />
+        <FilterSelect
+          id="users-account-status"
+          label="Account Status"
+          value={filterAccountStatus}
+          onChange={setFilterAccountStatus}
+          placeholder="Account Status"
+          options={[
+            { value: "active", label: "Active" },
+            { value: "location_pending", label: "Location Pending" },
+            { value: "kyc_pending", label: "KYC Pending" },
+            { value: "inactive", label: "Inactive" },
+            { value: "suspended", label: "Suspended" },
+            { value: "blocked", label: "Blocked" },
+            { value: "onboarding", label: "Onboarding" },
+          ]}
+        />
+        <FilterSelect
+          id="users-kyc-status"
+          label="KYC Status"
+          value={filterKycStatus}
+          onChange={setFilterKycStatus}
+          placeholder="KYC Status"
+          options={[
+            { value: "verified", label: "Verified" },
+            { value: "pending", label: "Pending" },
+            { value: "rejected", label: "Rejected" },
+            { value: "not_started", label: "Not Submitted" },
+          ]}
+        />
+        <FilterSelect
+          id="users-phone-status"
+          label="Phone Status"
+          value={filterPhoneVerified}
+          onChange={setFilterPhoneVerified}
+          placeholder="Phone Status"
+          options={[
+            { value: "true", label: "Verified" },
+            { value: "false", label: "Not Verified" },
+          ]}
+        />
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2 xl:flex-nowrap">
-          <FilterSelect
-            id="users-account-status"
-            label="Account Status"
-            value={filterAccountStatus}
-            onChange={setFilterAccountStatus}
-            placeholder="Account Status"
-            options={[
-              { value: "active", label: "Active" },
-              { value: "location_pending", label: "Location Pending" },
-              { value: "kyc_pending", label: "KYC Pending" },
-              { value: "inactive", label: "Inactive" },
-              { value: "suspended", label: "Suspended" },
-              { value: "blocked", label: "Blocked" },
-              { value: "onboarding", label: "Onboarding" },
-            ]}
-          />
-          <FilterSelect
-            id="users-kyc-status"
-            label="KYC Status"
-            value={filterKycStatus}
-            onChange={setFilterKycStatus}
-            placeholder="KYC Status"
-            options={[
-              { value: "verified", label: "Verified" },
-              { value: "pending", label: "Pending" },
-              { value: "rejected", label: "Rejected" },
-              { value: "not_started", label: "Not Submitted" },
-            ]}
-          />
-          <FilterSelect
-            id="users-phone-status"
-            label="Phone Status"
-            value={filterPhoneVerified}
-            onChange={setFilterPhoneVerified}
-            placeholder="Phone Status"
-            options={[
-              { value: "true", label: "Verified" },
-              { value: "false", label: "Not Verified" },
-            ]}
-          />
+        <button
+          type="button"
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
+          className={`inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition focus:outline-none focus:ring-4 focus:ring-[#12A150]/15 ${
+            moreOpen
+              ? "border-[#12A150] bg-[#12A150]/10 text-[#12A150]"
+              : "border-[#dceee3] bg-white text-[#12A150] hover:bg-[#12A150]/5"
+          }`}
+        >
+          <Filter className="h-4 w-4" aria-hidden />
+          More Filters
+        </button>
 
+        {hasFilters ? (
           <button
             type="button"
-            onClick={() => setMoreOpen((v) => !v)}
-            aria-expanded={moreOpen}
-            className={`inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition focus:outline-none focus:ring-4 focus:ring-[#12A150]/15 ${
-              moreOpen
-                ? "border-[#12A150] bg-[#12A150]/10 text-[#12A150]"
-                : "border-[#dceee3] bg-white text-[#12A150] hover:bg-[#12A150]/5"
-            }`}
+            onClick={clearAll}
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 px-3 text-sm font-semibold text-red-500 transition hover:bg-red-100 focus:outline-none focus:ring-4 focus:ring-red-100"
           >
-            <Filter className="h-4 w-4" aria-hidden />
-            More Filters
+            Clear
           </button>
-
-          {hasFilters ? (
-            <button
-              type="button"
-              onClick={clearAll}
-              className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 px-3 text-sm font-semibold text-red-500 transition hover:bg-red-100 focus:outline-none focus:ring-4 focus:ring-red-100"
-            >
-              Clear
-            </button>
-          ) : null}
-        </div>
+        ) : null}
       </div>
 
       <MoreFiltersPanel

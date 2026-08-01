@@ -1,7 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import { Calendar, MapPin, Phone, Users as UsersIcon } from "lucide-react";
-import { AccountBadge, Avatar, KycBadge, PhoneBadge } from "./ReusableComaponents";
+import {
+  AccountBadge,
+  Avatar,
+  KycBadge,
+  PhoneBadge,
+  RoleBadge,
+} from "./ReusableComaponents";
 import { RowActionsMenu } from "./RowActionsMenu";
+import { formatJoinedIst } from "../utils/dateTime";
 
 const getKycReason = (u) =>
   String(u?.kyc?.remarks || u?.kycReason || u?.kyc?.reason || "").trim();
@@ -76,6 +83,7 @@ export const MobileCardView = ({
               </div>
 
               <div className="mb-3 flex flex-wrap gap-2">
+                <RoleBadge role={u.roleName || u.role} />
                 <AccountBadge status={u.accountStatus} />
                 <KycBadge kyc={u.kyc} />
                 <PhoneBadge verified={u.phoneVerified} />
@@ -98,13 +106,7 @@ export const MobileCardView = ({
 
               <div className="inline-flex items-center gap-1.5 text-xs text-slate-500">
                 <Calendar className="h-3.5 w-3.5" />
-                {u.createdAt
-                  ? new Date(u.createdAt).toLocaleDateString("en-GB", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : "—"}
+                {formatJoinedIst(u.createdAt)}
               </div>
 
               {reason ? (
