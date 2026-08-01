@@ -39,6 +39,10 @@ import FollowUpWorkStatusSelect, {
   normalizeFollowUpWorkStatus,
 } from "./followUpTracking/FollowUpWorkStatusSelect";
 import {
+  requestSidebarPathAck,
+  SIDEBAR_ACTIVITY_PATHS,
+} from "../../utils/sidebarActivity";
+import {
   formatTerritoryLabel,
   isCustomerCareExecutiveRole,
   sanitizeWorkingLocations,
@@ -460,6 +464,11 @@ export default function FollowUpTrackingPage() {
   const [selectedId, setSelectedId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [workStatusOverrides, setWorkStatusOverrides] = useState({});
+
+  // Opening this page clears the sidebar badge; it returns only for newer cases.
+  useEffect(() => {
+    requestSidebarPathAck(SIDEBAR_ACTIVITY_PATHS.followUpTracking);
+  }, []);
 
   const track = searchParams.get("track") || "onboarding_all";
   const urlFrom = searchParams.get("from") || "";

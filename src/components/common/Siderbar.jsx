@@ -37,7 +37,19 @@ import pushnotification        from "../../assets/pushnotification.svg";
 import sponsored               from "../../assets/sponsored.svg";
 import whatsappnotifications   from "../../assets/whatsappnotifications.svg";
 import aumattionnotifications  from "../../assets/automationsnotifications.svg";
-import { UserCircle, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  UserCircle,
+  ChevronDown,
+  ChevronRight,
+  Ticket,
+  Newspaper,
+  Briefcase,
+  Shield,
+  ClipboardList,
+  FileText,
+  KeyRound,
+  UsersRound,
+} from "lucide-react";
 import CreateUserModal     from "./CreateUserModal";
 import AssignReportsTo     from "./AssignReportsTo";
 import TransferCredentials from "./TransferCredentials";
@@ -200,9 +212,35 @@ const FloatTooltip = ({ label, show }) => (
   </div>
 );
 
-/* ─── Nav icon wrapper ───────────────────────────────────────────────── */
+/* ─── Nav icon wrapper (SVG url string or Lucide/React component) ────── */
 const NavIcon = ({ src, active, isParent = false, size = "md" }) => {
   const dim = size === "sm" ? S.iconSm : S.iconMd;
+  // Vite SVG imports are strings; Lucide icons are forwardRef objects/functions.
+  const isComponent = Boolean(src) && typeof src !== "string";
+
+  if (isComponent) {
+    const Icon = src;
+    const color = active
+      ? isParent
+        ? "#27AE60"
+        : "#ffffff"
+      : "#475569";
+    const px = size === "sm" ? 12 : 16;
+    return (
+      <span className={`inline-flex ${S.iconBox} shrink-0 items-center justify-center`}>
+        <Icon
+          className={dim}
+          width={px}
+          height={px}
+          color={color}
+          stroke={color}
+          strokeWidth={2.1}
+          aria-hidden
+        />
+      </span>
+    );
+  }
+
   const filterStyle = active
     ? isParent
       ? { filter: "invert(47%) sepia(72%) saturate(500%) hue-rotate(104deg) brightness(92%) contrast(90%)" }
@@ -348,39 +386,39 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       canView("agent") && { path: "/all-agents", label: "Agents", icon: AgentIcon },
     ].filter(Boolean);
     const accessControlChildren = [
-      allowed.has("role:create") && { path: "/access-control/roles/new", label: "Create Role & Access", icon: TeamManagementIcon },
-      allowed.has("user:create") && { path: "/access-control/credentials/new", label: "Create Credentials", icon: CreateCredentialsIcon },
-      (allowed.has("role:view") || allowed.has("role:update_permissions")) && { path: "/access-control/users", label: "Role Permissions", icon: TeamManagementIcon },
+      allowed.has("role:create") && { path: "/access-control/roles/new", label: "Create Role & Access", icon: Shield },
+      allowed.has("user:create") && { path: "/access-control/credentials/new", label: "Create Credentials", icon: KeyRound },
+      (allowed.has("role:view") || allowed.has("role:update_permissions")) && { path: "/access-control/users", label: "Role Permissions", icon: FileText },
     ].filter(Boolean);
     return [
       canView("dashboard") && { path: "/", label: "Dashboard", icon: DashboardIcon },
       (canView("user") || canView("dashboard") || canView("team")) && {
         path: "/follow-up-tracking",
         label: "Client Progress Queue",
-        icon: TeamManagementIcon,
+        icon: ClipboardList,
       },
       allowed.has("dashboard:view_reports") &&
         currentRoleName !== "regional_manager" && {
           path: "/operations/reports",
           label: "Reports",
-          icon: PropertyProgressIcon,
+          icon: RevenueByPlanIcon,
         },
       canView("project") && { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
       propertyAccess && { path: "/properties", label: "Properties", icon: PropertiesIcon },
-      canView("lead") && { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
+      canView("lead") && { path: "/leads", label: "Lead Management", icon: UsersRound },
       (canView("lead") || canView("user") || canView("builder") || canView("agent")) && { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
       (canView("project") || propertyAccess) && { path: "/property-progress", label: "Property Progress", icon: PropertyProgressIcon },
       canView("location") && { path: "/locations", label: "Locations", icon: LocationsIcon },
-      canView("blog") && { path: "/blogs", label: "Blogs", icon: mailnotifications },
-      canView("ticket") && { path: "/tickets", label: "Tickets", icon: mailnotifications },
-      operationsChildren.length && { label: "Operations", icon: UserIcon, key: "permission-operations", children: operationsChildren },
-      accessControlChildren.length && { label: "Access Control", icon: TeamManagementIcon, key: "permission-access-control", children: accessControlChildren },
+      canView("blog") && { path: "/blogs", label: "Blogs", icon: Newspaper },
+      canView("ticket") && { path: "/tickets", label: "Tickets", icon: Ticket },
+      operationsChildren.length && { label: "Operations", icon: Briefcase, key: "permission-operations", children: operationsChildren },
+      accessControlChildren.length && { label: "Access Control", icon: Shield, key: "permission-access-control", children: accessControlChildren },
       userChildren.length && { label: "Users", icon: UserIcon, key: "permission-users", children: userChildren },
-      canView("payment") && { path: "/payments-list", label: "Payments", icon: AccountsIcon },
-      canView("subscription") && { path: "/active-subscriptions", label: "Subscriptions", icon: AccountsIcon },
+      canView("payment") && { path: "/payments-list", label: "Payments", icon: PaymentsListIcon },
+      canView("subscription") && { path: "/active-subscriptions", label: "Subscriptions", icon: SubcriptinIcon },
       canView("email_campaign") && { path: "/email-notifications", label: "Email Campaigns", icon: mailnotifications },
-      canView("whatsapp_campaign") && { path: "/whatsapp-notifications", label: "WhatsApp Campaigns", icon: mailnotifications },
-      canView("notification") && { path: "/push-notifications", label: "Notifications", icon: mailnotifications },
+      canView("whatsapp_campaign") && { path: "/whatsapp-notifications", label: "WhatsApp Campaigns", icon: whatsappnotifications },
+      canView("notification") && { path: "/push-notifications", label: "Notifications", icon: pushnotification },
     ].filter(Boolean);
   };
 
@@ -392,34 +430,34 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
 
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
-        { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
+        { path: "/leads", label: "Lead Management", icon: UsersRound },
         { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
-        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
 
         {
           label: "Operations",
-          icon: UserIcon,
+          icon: Briefcase,
           key: "Operations",
           children: [
             {
               path: "/access-control/roles/new",
               label: "Create Role & Access",
-              icon: TeamManagementIcon,
+              icon: Shield,
             },
             {
               path: "/access-control/credentials/new",
               label: "Create Credentials",
-              icon: CreateCredentialsIcon,
+              icon: KeyRound,
             },
             {
               path: "/access-control/users",
               label: "User Permissions",
-              icon: TeamManagementIcon,
+              icon: FileText,
             },
             {
               path: "/propenu-team-members",
@@ -453,7 +491,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           children: [
             { path: "/users", label: "All Users", icon: AllUsersIcon },
             { path: "/builders", label: "Builders", icon: BuilderIcon },
-            { path: "/builder-staff", label: "Builder Staff", icon: BuilderIcon },
+            { path: "/builder-staff", label: "Builder Staff", icon: SalesAgentIcon },
             { path: "/all-agents", label: "Agents", icon: AgentIcon },
             { path: "/owners", label: "Owners", icon: OwnerIcon },
           ],
@@ -558,7 +596,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         {
           path: "/blogs",
           label: "Blogs",
-          icon: mailnotifications,
+          icon: Newspaper,
         },
       ],
       admin: [
@@ -585,18 +623,18 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         // },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
-        { path: "/leads", label: "Lead Management", icon: AllUsersIcon },
+        { path: "/leads", label: "Lead Management", icon: UsersRound },
         { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
-        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
 
         {
           label: "Operations",
-          icon: UserIcon,
+          icon: Briefcase,
           key: "Operations",
           children: [
             {
@@ -631,7 +669,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           children: [
             { path: "/users", label: "All Users", icon: AllUsersIcon },
             { path: "/builders", label: "Builders", icon: BuilderIcon },
-            { path: "/builder-staff", label: "Builder Staff", icon: BuilderIcon },
+            { path: "/builder-staff", label: "Builder Staff", icon: SalesAgentIcon },
             { path: "/all-agents", label: "Agents", icon: AgentIcon },
             { path: "/owners", label: "Owners", icon: OwnerIcon },
           ],
@@ -736,7 +774,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         {
           path: "/blogs",
           label: "Blogs",
-          icon: mailnotifications,
+          icon: Newspaper,
         },
       ],
       sales_manager: [
@@ -762,7 +800,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         //   ],
         // },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
-        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
       ],
       sales_agent: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
@@ -792,11 +830,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
-        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
       ],
       customer_care: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
-        { path: "/follow-up-tracking", label: "Client Progress Queue", icon: TeamManagementIcon },
+        { path: "/follow-up-tracking", label: "Client Progress Queue", icon: ClipboardList },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
@@ -804,11 +842,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
-        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
       ],
       customer_care_executive: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
-        { path: "/follow-up-tracking", label: "Client Progress Queue", icon: TeamManagementIcon },
+        { path: "/follow-up-tracking", label: "Client Progress Queue", icon: ClipboardList },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
@@ -816,12 +854,12 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           label: "Property Progress",
           icon: PropertyProgressIcon,
         },
-        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
       ],
       relationship_manager: [
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
-        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -831,10 +869,10 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       regional_manager: [
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
-        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
         {
           label: "Operations",
-          icon: UserIcon,
+          icon: Briefcase,
           key: "Operations",
           children: [
             {
@@ -869,7 +907,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       ],
       accounts: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
-        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
         // {
         //   label: "Properties",
         //   icon: PropertiesIcon,
@@ -970,11 +1008,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/", label: "Dashboard", icon: DashboardIcon },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
-        { path: "/tickets", label: "Tickets", icon: mailnotifications },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
         {
           path: "/blogs",
           label: "Blogs",
-          icon: mailnotifications,
+          icon: Newspaper,
         },
       ],
     })[role] || getPermissionMenu(user?.permissions || []);
@@ -1021,12 +1059,12 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       );
       // Account menus: only successfully created accounts today.
       // Properties: pending approvals only (drafts never notify).
-      // Client Progress Queue: users onboarding + property pending (projects ignored).
+      // Client Progress Queue: use unread primary only (already onboarding + pending delta).
       // Projects: total today, with onboarding as secondary.
       const showPrimary = isAccountPath
         ? primary
         : isFollowUpPath
-          ? Math.max(primary, onboarding, pending)
+          ? primary
           : isPropertiesPath
             ? pending
             : Math.max(primary, onboarding, Number(detail.inactive || 0));

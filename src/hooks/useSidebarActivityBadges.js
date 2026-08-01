@@ -22,6 +22,14 @@ import {
   todayKey,
   unreadFromSnapshot,
 } from "../utils/sidebarActivity";
+
+const snapshotHasActivity = (snapshot = {}) =>
+  Number(snapshot.total || 0) > 0 ||
+  Number(snapshot.active || 0) > 0 ||
+  Number(snapshot.pending || 0) > 0 ||
+  Number(snapshot.inactive || 0) > 0 ||
+  Number(snapshot.login || 0) > 0 ||
+  Number(snapshot.onboarding || 0) > 0;
 import { isCustomerCareExecutiveRole } from "../utils/workingLocations";
 
 const emptyAccountBucket = () => ({
@@ -636,12 +644,29 @@ export function useSidebarActivityBadges() {
         const userKey = getSidebarUserKey(user);
         let seen = readSidebarSeen(userKey);
 
-        // Ack only after scoped data is ready (click / open clears badge for that path)
+        // Ack after scoped data is ready so opening a page clears its badge.
+        // Re-ack only when: explicit click pending, first enter of this path,
+        // or a prior ack saved an empty baseline before API data arrived.
         const pendingPath = pendingAckPathRef.current;
-        if (pendingPath && pendingPath !== lastAckedPathRef.current) {
-          seen = acknowledgePath(pendingPath, raw, user);
-          pendingAckPathRef.current = null;
-        }
+        const viewingPath = pathForLocation(
+          typeof window !== "undefined" ? window.location.pathname : "",
+        );
+        const pathsToAck = [...new Set([pendingPath, viewingPath].filter(Boolean))];
+        pathsToAck.forEach((pathToAck) => {
+          const snapshotKey = pathKeyFromRoute(pathToAck);
+          const snapshot = snapshotKey ? raw[snapshotKey] : null;
+          if (!snapshot) return;
+          const prior = seen?.[pathToAck]?.snapshot;
+          const isPendingClick = pendingPath === pathToAck;
+          const isFreshEnter =
+            viewingPath === pathToAck && lastAckedPathRef.current !== pathToAck;
+          const emptyBaselineRace =
+            snapshotHasActivity(snapshot) && prior && !snapshotHasActivity(prior);
+          if (isPendingClick || isFreshEnter || emptyBaselineRace) {
+            seen = acknowledgePath(pathToAck, raw, user);
+          }
+        });
+        if (pendingPath) pendingAckPathRef.current = null;
 
         publishSidebarCounts(toPublishedCounts(raw, seen, caps, user));
       } finally {

@@ -135,6 +135,14 @@ export const inventoryOnboardingCount = (bucket = {}, options = {}) => {
   );
 };
 
+const snapshotHasActivity = (snapshot = {}) =>
+  Number(snapshot.total || 0) > 0 ||
+  Number(snapshot.active || 0) > 0 ||
+  Number(snapshot.pending || 0) > 0 ||
+  Number(snapshot.inactive || 0) > 0 ||
+  Number(snapshot.login || 0) > 0 ||
+  Number(snapshot.onboarding || 0) > 0;
+
 export const unreadFromSnapshot = (current = {}, path, seenMap = {}) => {
   const seen = seenMap?.[path];
   const dayStart = startOfTodayMs();
@@ -145,8 +153,9 @@ export const unreadFromSnapshot = (current = {}, path, seenMap = {}) => {
   const curOnboarding = inventoryOnboardingCount(current, countOpts);
   const baseOnboarding = inventoryOnboardingCount(baseline || {}, countOpts);
 
-  // Never opened today → show full present-day totals
-  if (!seen || !baseline || seenAt < dayStart) {
+  // Never opened today, or ack happened before data loaded (empty baseline) → full totals
+  const baselineEmpty = Boolean(baseline) && !snapshotHasActivity(baseline);
+  if (!seen || !baseline || seenAt < dayStart || baselineEmpty) {
     return {
       total: isProperties ? Number(current.pending || 0) : Number(current.total || 0),
       active: Number(current.active || 0),
