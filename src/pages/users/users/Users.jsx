@@ -239,7 +239,8 @@ export default function Users() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    return users.filter((u) => {
+    return users
+      .filter((u) => {
       if (
         q &&
         !u.name?.toLowerCase().includes(q) &&
@@ -285,7 +286,12 @@ export default function Users() {
       }
 
       return true;
-    });
+    })
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt || 0).getTime() -
+          new Date(a.createdAt || 0).getTime(),
+      );
   }, [
     users,
     search,
