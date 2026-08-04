@@ -171,7 +171,12 @@ const shouldHideTowerFields =
     async function loadRelationshipManagers() {
       try {
         const res = await getUserSearch("relationship_manager");
-        setRelationshipManagers(res?.data?.results || []);
+        const results = Array.isArray(res?.data?.results)
+          ? res.data.results
+          : Array.isArray(res?.results)
+            ? res.results
+            : [];
+        setRelationshipManagers(results);
         setRelationshipManagersLoaded(true);
       } catch (err) {
         console.error("Failed to load relationship managers", err);
