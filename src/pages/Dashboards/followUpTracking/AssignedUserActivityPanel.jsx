@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Activity, ChevronRight, Loader2 } from "lucide-react";
 import { getAssignedUserActivity } from "../../../features/activity/allUsersActivityService";
 import {
@@ -16,6 +16,9 @@ import {
 
 const PAGE_SIZE = 25;
 
+const toIstBound = (day, end = false) =>
+  end ? `${day}T23:59:59.999+05:30` : `${day}T00:00:00+05:30`;
+
 /**
  * Day-wise (or range) actions for one Client Progress Queue user.
  * Default range = Today. Does not alter assignment / queue list logic.
@@ -25,6 +28,14 @@ export default function AssignedUserActivityPanel({ userId, enabled = true }) {
   const [customFrom, setCustomFrom] = useState(todayIso());
   const [customTo, setCustomTo] = useState(todayIso());
   const [page, setPage] = useState(1);
+
+  // New person → reset to Today so clicks always start clean.
+  useEffect(() => {
+    setPreset("today");
+    setCustomFrom(todayIso());
+    setCustomTo(todayIso());
+    setPage(1);
+  }, [userId]);
 
   const resolved = useMemo(() => {
     if (preset === "custom") {
@@ -46,7 +57,7 @@ export default function AssignedUserActivityPanel({ userId, enabled = true }) {
 
   useEffect(() => {
     setPage(1);
-  }, [userId, preset, resolved.from, resolved.to]);
+  }, [preset, resolved.from, resolved.to]);
 
   const query = useQuery({
     queryKey: [
@@ -57,13 +68,15 @@ export default function AssignedUserActivityPanel({ userId, enabled = true }) {
       resolved.to,
       page,
     ],
-    enabled: Boolean(enabled && userId),
+    enabled: Boolean(enabled && userId && resolved.from && resolved.to),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
     queryFn: () =>
       getAssignedUserActivity(userId, {
         range: apiRange,
-        from: apiRange === "custom" ? `${resolved.from}T00:00:00+05:30` : undefined,
-        to: apiRange === "custom" ? `${resolved.to}T23:59:59.999+05:30` : undefined,
+        // Always send bounds so Today / 7d / Month / Year / Custom match UI labels.
+        from: toIstBound(resolved.from, false),
+        to: toIstBound(resolved.to, true),
         page,
         limit: PAGE_SIZE,
       }),
@@ -89,7 +102,10 @@ export default function AssignedUserActivityPanel({ userId, enabled = true }) {
             User activity
           </p>
         </div>
-        <span className="text-[10px] font-semibold tabular-nums text-slate-400">
+        <span className="inline-flex items-center gap-1 text-[10px] font-semibold tabular-nums text-slate-400">
+          {query.isFetching ? (
+            <Loader2 className="h-3 w-3 animate-spin text-emerald-600" />
+          ) : null}
           {pagination.total || 0} actions
         </span>
       </div>
@@ -143,7 +159,7 @@ export default function AssignedUserActivityPanel({ userId, enabled = true }) {
         {resolved.label || "Today"} · all actions this user did in range
       </p>
 
-      {query.isLoading ? (
+      {query.isLoading && !query.data ? (
         <div className="flex items-center justify-center gap-2 py-6 text-[11px] text-slate-400">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
           Loading activity…
@@ -166,21 +182,30 @@ export default function AssignedUserActivityPanel({ userId, enabled = true }) {
           No actions in this date range.
         </p>
       ) : (
-        <ul className="max-h-[280px] space-y-1.5 overflow-y-auto pr-0.5 [scrollbar-width:thin]">
+        <ul
+          className={`max-h-[280px] space-y-1.5 overflow-y-auto pr-0.5 [scrollbar-width:thin] ${
+            query.isFetching ? "opacity-70" : ""
+          }`}
+        >
           {items.map((row) => (
             <li
               key={row.id}
               className="rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-2"
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-[12px] font-semibold leading-snug text-slate-900" title={row.what}>
+                <p
+                  className="text-[12px] font-semibold leading-snug text-slate-900"
+                  title={row.what}
+                >
                   {truncateText(row.what, 56)}
                 </p>
                 <div className="shrink-0 text-right">
                   <p className="text-[10px] font-semibold text-slate-500">
                     {formatActivityTime(row.when)}
                   </p>
-                  <p className="text-[9px] text-slate-400">{formatExactTime(row.when)}</p>
+                  <p className="text-[9px] text-slate-400">
+                    {formatExactTime(row.when)}
+                  </p>
                 </div>
               </div>
               {row.entity?.title || row.entity?.location ? (

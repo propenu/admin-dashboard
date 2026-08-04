@@ -76,6 +76,34 @@ const CATEGORIES = [
   { value: "land", label: "Land", fetcher: fetchLand },
 ];
 
+/** Scalable listing-type sub-filters (Sale / Rent). Add values here as needed. */
+const LISTING_TYPE_FILTERS = [
+  { value: "all", label: "All", match: null },
+  { value: "sale", label: "Sale", match: ["sale", "sell"] },
+  { value: "rent", label: "Rent", match: ["rent", "rental", "lease"] },
+];
+
+const normalizeListingType = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+const getPropertyListingType = (property) =>
+  normalizeListingType(property?.listingType || property?.lookingTo || "sale");
+
+const matchesListingTypeFilter = (property, listingTypeFilter) => {
+  if (!listingTypeFilter || listingTypeFilter === "all") return true;
+  const filter = LISTING_TYPE_FILTERS.find(
+    (item) => item.value === listingTypeFilter,
+  );
+  if (!filter?.match?.length) return true;
+  const propertyType = getPropertyListingType(property);
+  return filter.match.some(
+    (token) => normalizeListingType(token) === propertyType,
+  );
+};
+
 const normalizeSearchText = (value) =>
   String(value || "")
     .normalize("NFKD")
@@ -464,6 +492,13 @@ function PropertyCard({
           <span className="rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-700 shadow-sm">
             {category}
           </span>
+          <span className="rounded-full bg-slate-800/90 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white shadow-sm">
+            {getPropertyListingType(property) === "rent" ||
+            getPropertyListingType(property) === "lease" ||
+            getPropertyListingType(property) === "rental"
+              ? "Rent"
+              : "Sale"}
+          </span>
           <span
             className={`rounded-full px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide shadow-sm ${
               status === "active"
@@ -748,6 +783,12 @@ export default function PropertiesDashboard() {
   const [category, setCategory] = useState(
     () => searchParams.get("category") || "all",
   );
+  const [listingType, setListingType] = useState(() => {
+    const raw = String(searchParams.get("listingType") || "all")
+      .trim()
+      .toLowerCase();
+    return LISTING_TYPE_FILTERS.some((item) => item.value === raw) ? raw : "all";
+  });
   const [status, setStatus] = useState(
     () => normalizeStatusParam(searchParams.get("status") || "all"),
   );
@@ -803,6 +844,7 @@ export default function PropertiesDashboard() {
   useEffect(() => {
     const next = new URLSearchParams();
     if (category !== "all") next.set("category", category);
+    if (listingType !== "all") next.set("listingType", listingType);
     if (status !== "all") next.set("status", status);
     if (locationFilters.state) next.set("state", locationFilters.state);
     if (locationFilters.city) next.set("city", locationFilters.city);
@@ -818,6 +860,7 @@ export default function PropertiesDashboard() {
     category,
     createdFrom,
     createdTo,
+    listingType,
     locationFilters,
     locationSearch,
     page,
@@ -937,6 +980,7 @@ export default function PropertiesDashboard() {
     const term = normalizeSearchText(debouncedSearch);
     return allProperties
       .filter((property) => category === "all" || property._category === category)
+      .filter((property) => matchesListingTypeFilter(property, listingType))
       .filter((property) => status === "all" || getStatus(property) === status)
       .filter((property) => !locationFilters.state || property?.state?.trim() === locationFilters.state)
       .filter((property) => !locationFilters.city || property?.city?.trim() === locationFilters.city)
@@ -969,6 +1013,7 @@ export default function PropertiesDashboard() {
     createdFrom,
     createdTo,
     debouncedSearch,
+    listingType,
     locationFilters,
     sort,
     status,
@@ -996,9 +1041,10 @@ export default function PropertiesDashboard() {
       return;
     }
     setPage(1);
-  }, [category, status, debouncedSearch, locationFilters, sort, createdFrom, createdTo]);
+  }, [category, listingType, status, debouncedSearch, locationFilters, sort, createdFrom, createdTo]);
   const activeFilterCount = [
     category !== "all",
+    listingType !== "all",
     status !== "all",
     !!locationFilters.state,
     !!locationFilters.city,
@@ -1020,6 +1066,7 @@ export default function PropertiesDashboard() {
 
   const clearFilters = () => {
     setCategory("all");
+    setListingType("all");
     setStatus("all");
     setSearch("");
     setLocationSearch("");
@@ -1675,7 +1722,7 @@ export default function PropertiesDashboard() {
                 cards
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                Cards below follow location, category, status, date, search and sort.
+                Cards below follow location, category, sale/rent, status, date, search and sort.
               </p>
             </div>
             <button
@@ -1692,21 +1739,46 @@ export default function PropertiesDashboard() {
             </button>
           </div>
 
-          <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-            {CATEGORIES.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setCategory(item.value)}
-                className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
-                  category === item.value
-                    ? "border-emerald-600 bg-emerald-600 text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
+          <div className="mb-3 space-y-2">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {CATEGORIES.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setCategory(item.value)}
+                  className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+                    category === item.value
+                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Sub-filter: Sale / Rent — works with every category (scalable config) */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                Listing
+              </span>
+              <div className="flex gap-1.5">
+                {LISTING_TYPE_FILTERS.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setListingType(item.value)}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition ${
+                      listingType === item.value
+                        ? "border-slate-800 bg-slate-800 text-white"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-400 hover:bg-white"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_160px]">

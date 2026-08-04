@@ -40,6 +40,7 @@ import {
   salesmanagerApproveAProject,
   salesmanagerRejectAProject,
 } from "../../../../../features/property/propertyService";
+import { getUserSearch } from "../../../../../features/user/userService";
 import { requestSidebarRefresh } from "../../../../../utils/sidebarActivity";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1334,13 +1335,12 @@ export default function ProjectsDashboardPage() {
     normalHook.properties,
   ]);
 
+  // Builder ownership only (Select Builder / createdBy) — not postedBy staff.
   const getProjectCreatorId = (property) => {
     const raw =
       property?.createdBy?._id ||
       property?.createdBy?.id ||
       (typeof property?.createdBy === "string" ? property.createdBy : "") ||
-      property?.postedBy?._id ||
-      property?.postedBy?.id ||
       "";
     return String(raw || "").trim();
   };
@@ -1348,21 +1348,77 @@ export default function ProjectsDashboardPage() {
   const getProjectCreatorName = (property) =>
     property?.createdBy?.fullName ||
     property?.createdBy?.name ||
-    property?.postedBy?.name ||
+    property?.createdBy?.companyName ||
     property?.builderName ||
     "Unknown builder";
 
+  const isBuilderRole = (roleLike) => {
+    const role = String(roleLike || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_");
+    // Strict: builder only — never builder_staff.
+    return role === "builder";
+  };
+
+  // Builder role only (not builder_staff). Options = all builders; filter uses createdBy.
+  const { data: allBuildersSearch } = useQuery({
+    queryKey: ["project-page-builders-only"],
+    queryFn: () => getUserSearch("builder"),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const creatorBuilderOptions = useMemo(() => {
     const map = new Map();
+
+    const searchResults = Array.isArray(allBuildersSearch?.data?.results)
+      ? allBuildersSearch.data.results
+      : Array.isArray(allBuildersSearch?.results)
+        ? allBuildersSearch.results
+        : [];
+
+    for (const builder of searchResults) {
+      const role =
+        builder?.role ||
+        builder?.roleName ||
+        builder?.roleId?.name ||
+        "builder";
+      if (!isBuilderRole(role) && String(role).trim()) continue;
+
+      const id = String(builder?._id || builder?.userId || "").trim();
+      if (!id) continue;
+      const name =
+        builder?.name ||
+        builder?.companyName ||
+        builder?.email ||
+        "Builder";
+      map.set(id, name);
+    }
+
+    // Enrich names from projects when createdBy is a builder (never builder_staff).
     for (const property of allProperties) {
       const id = getProjectCreatorId(property);
       if (!id) continue;
-      if (!map.has(id)) map.set(id, getProjectCreatorName(property));
+
+      const createdByRole =
+        property?.createdBy?.roleName ||
+        property?.createdBy?.role ||
+        property?.createdBy?.roleId?.name ||
+        "";
+
+      const knownBuilder = map.has(id);
+      if (!knownBuilder && !isBuilderRole(createdByRole)) continue;
+
+      const name = getProjectCreatorName(property);
+      if (!knownBuilder || map.get(id) === "Unknown builder") {
+        map.set(id, name);
+      }
     }
+
     return [...map.entries()]
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => String(a.name).localeCompare(String(b.name)));
-  }, [allProperties]);
+  }, [allBuildersSearch, allProperties]);
 
   console.log("Prime:", primeHook.properties.length);
   console.log("Featured:", featuredHook.properties.length);
@@ -1407,8 +1463,9 @@ export default function ProjectsDashboardPage() {
     () => searchParams.get("propertyType") || "all",
   );
   const [creatorBuilderFilter, setCreatorBuilderFilter] = useState(
-    () => searchParams.get("createdBy") || searchParams.get("creatorRole") || "all",
+    () => searchParams.get("createdBy") || "all",
   );
+  const [builderSearch, setBuilderSearch] = useState("");
   const [createdFrom, setCreatedFrom] = useState(
     () => searchParams.get("createdFrom") || searchParams.get("from") || "",
   );
@@ -1918,7 +1975,8 @@ export default function ProjectsDashboardPage() {
   const clearListFilters = useCallback(() => {
     setPromotionFilter("all"); setStatusFilter("all"); setTrackingFilter("all");
     setCategoryFilter("all");  setPropertyTypeFilter("all");
-    setCreatorBuilderFilter("all"); setCreatedFrom(""); setCreatedTo("");
+    setCreatorBuilderFilter("all"); setBuilderSearch("");
+    setCreatedFrom(""); setCreatedTo("");
   }, []);
 
   const clearAll = useCallback(() => {
@@ -2270,10 +2328,10 @@ export default function ProjectsDashboardPage() {
             </button>
           )}
         </div>
-        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
           {/* Category */}
-          <div>
-            <p className="text-xs font-bold text-slate-600 mb-2">Category</p>
+          <div className="shrink-0">
+            <p className="mb-2 text-xs font-bold text-slate-600">Category</p>
             <div className="flex flex-wrap gap-2">
               {CATEGORY_TYPES.map((cat) => (
                 <button
@@ -2282,8 +2340,8 @@ export default function ProjectsDashboardPage() {
                     setCategoryFilter(cat.value);
                     setPropertyTypeFilter("all");
                   }}
-                  className={`px-4 py-2 rounded-xl border text-xs font-semibold transition
-                    ${categoryFilter === cat.value ? "bg-[#27AE60] text-white border-[#27AE60] shadow-sm" : "bg-white text-slate-600 border-slate-200 hover:border-[#27AE60]"}`}
+                  className={`rounded-xl border px-4 py-2 text-xs font-semibold transition
+                    ${categoryFilter === cat.value ? "border-[#27AE60] bg-[#27AE60] text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-[#27AE60]"}`}
                 >
                   {cat.label}
                 </button>
@@ -2291,26 +2349,9 @@ export default function ProjectsDashboardPage() {
             </div>
           </div>
 
-          {/* Status */}
-          {/* <div>
-            <p className="text-xs font-bold text-slate-600 mb-2">Status</p>
-            <div className="flex flex-wrap gap-2">
-              {STATUS_FILTERS.map((sf) => (
-                <button
-                  key={sf.value}
-                  onClick={() => setStatusFilter(sf.value)}
-                  className={`px-3 py-2 rounded-xl border text-xs font-semibold transition
-                    ${statusFilter === sf.value ? "bg-slate-700 text-white border-slate-700" : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"}`}
-                >
-                  {sf.label}
-                </button>
-              ))}
-            </div>
-          </div> */}
-
           {/* Promotion tracking */}
-          <div>
-            <p className="text-xs font-bold text-slate-600 mb-2">
+          <div className="min-w-0 flex-1">
+            <p className="mb-2 text-xs font-bold text-slate-600">
               Promotion Tracking
             </p>
             <div className="flex flex-wrap gap-2">
@@ -2327,15 +2368,15 @@ export default function ProjectsDashboardPage() {
                       setStatusFilter("all");
                     }
                   }}
-                  className={`px-3 py-2 rounded-xl border text-xs font-semibold transition
+                  className={`rounded-xl border px-3 py-2 text-xs font-semibold transition
                     ${
                       trackingFilter === item.value
                         ? item.value === "expired"
-                          ? "bg-red-600 text-white border-red-600"
+                          ? "border-red-600 bg-red-600 text-white"
                           : item.value === "expiringSoon"
-                            ? "bg-amber-500 text-white border-amber-500"
-                            : "bg-slate-700 text-white border-slate-700"
-                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-400"
+                            ? "border-amber-500 bg-amber-500 text-white"
+                            : "border-slate-700 bg-slate-700 text-white"
+                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-400"
                     }`}
                 >
                   {item.label}
@@ -2344,38 +2385,81 @@ export default function ProjectsDashboardPage() {
             </div>
           </div>
 
-          <label className="min-w-[200px] flex-1 sm:max-w-xs">
-            <span className="mb-2 block text-xs font-bold text-slate-600">Created by (builder)</span>
-            <select
-              value={creatorBuilderFilter}
-              onChange={(event) => {
-                setCreatorBuilderFilter(event.target.value);
-                setCurrentPage(1);
-              }}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
-            >
-              <option value="all">All builders</option>
-              {creatorBuilderOptions.map((builder) => (
-                <option key={builder.id} value={builder.id}>
-                  {builder.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* Created by — same label rhythm + one control row (aligned with chips) */}
+          <div className="w-full shrink-0 lg:w-64">
+            <p className="mb-2 text-xs font-bold text-slate-600">
+              Created by (builder)
+            </p>
+            <div className="flex h-9 items-stretch gap-1.5">
+              <div className="relative min-w-0 flex-1">
+                <Search
+                  size={14}
+                  className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="text"
+                  value={builderSearch}
+                  onChange={(event) => setBuilderSearch(event.target.value)}
+                  placeholder="Search…"
+                  className="h-9 w-full rounded-xl border border-slate-200 bg-white py-0 pl-8 pr-7 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
+                />
+                {builderSearch ? (
+                  <button
+                    type="button"
+                    onClick={() => setBuilderSearch("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label="Clear builder search"
+                  >
+                    <X size={12} />
+                  </button>
+                ) : null}
+              </div>
+              <select
+                value={creatorBuilderFilter}
+                onChange={(event) => {
+                  setCreatorBuilderFilter(event.target.value);
+                  setCurrentPage(1);
+                }}
+                title={`${creatorBuilderOptions.length} builders`}
+                className="h-9 min-w-0 flex-[1.35] rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
+              >
+                <option value="all">All builders</option>
+                {creatorBuilderOptions
+                  .filter((builder) => {
+                    if (
+                      creatorBuilderFilter !== "all" &&
+                      builder.id === creatorBuilderFilter
+                    ) {
+                      return true;
+                    }
+                    const query = builderSearch.trim().toLowerCase();
+                    if (!query) return true;
+                    return String(builder.name || "")
+                      .toLowerCase()
+                      .includes(query);
+                  })
+                  .map((builder) => (
+                    <option key={builder.id} value={builder.id}>
+                      {builder.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
 
-          {/* Clear list filters — always reserved to avoid layout jump */}
+          {/* Clear — align with control row under labels */}
           <button
             type="button"
             onClick={clearListFilters}
             disabled={activeFiltersCount === 0}
-            className={`flex h-10 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition sm:ml-auto ${
+            className={`flex h-9 shrink-0 items-center gap-1.5 self-stretch rounded-xl border px-3 text-xs font-semibold transition lg:mt-7 lg:self-start ${
               activeFiltersCount > 0
                 ? "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:text-slate-900"
                 : "invisible border-slate-100 bg-slate-50 text-slate-300"
             }`}
           >
-            <X className="w-3 h-3" />
-            Clear filters
+            <X className="h-3 w-3" />
+            Clear
             <span className="rounded-full bg-red-200 px-1.5 py-0.5 font-bold text-red-700">
               {activeFiltersCount}
             </span>

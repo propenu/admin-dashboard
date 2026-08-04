@@ -17,6 +17,17 @@ import {
   LucideCalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
+import { todayIstIso, toIstIso } from "../users/utils/dateTime";
+
+/** Calendar-day gap in IST (0 = today, 1 = yesterday, …). */
+const istCalendarDiffDays = (createdAt) => {
+  const createdDay = toIstIso(createdAt);
+  const today = todayIstIso();
+  if (!createdDay || !today) return Number.POSITIVE_INFINITY;
+  const createdMs = new Date(`${createdDay}T00:00:00+05:30`).getTime();
+  const todayMs = new Date(`${today}T00:00:00+05:30`).getTime();
+  return Math.floor((todayMs - createdMs) / 86_400_000);
+};
 
 // ─── Profile Completion Check ──────────────────────────────────────────────
 const isProfileCompleted = (agent) => {
@@ -1080,15 +1091,19 @@ const EditAgentModal = ({ agent, onClose, fetchAgents }) => {
 
 
 const getMemberBadge = (createdAt) => {
-  const created = new Date(createdAt);
-  const now = new Date();
+  // Use IST calendar days — NOT rolling 24h (that wrongly tags yesterday as "New Today").
+  const diffDays = istCalendarDiffDays(createdAt);
 
-  const diffDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
-
-  if (diffDays <= 1)
+  if (diffDays === 0)
     return {
       label: "New Today",
       color: "bg-green-100 text-green-700",
+    };
+
+  if (diffDays === 1)
+    return {
+      label: "Joined Yesterday",
+      color: "bg-emerald-50 text-emerald-700",
     };
 
   if (diffDays <= 7)
@@ -1224,11 +1239,14 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
               </span>
 
               <span className="text-xs text-[#27AE60]">
-                {new Date(agent.createdAt).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
+                {agent.createdAt
+                  ? new Intl.DateTimeFormat("en-GB", {
+                      timeZone: "Asia/Kolkata",
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    }).format(new Date(agent.createdAt))
+                  : "—"}
               </span>
             </div>
           </div>
@@ -1604,16 +1622,6 @@ const Select = ({ icon, placeholder, value, onChange, options, disabled }) => (
 
 
 // ─── Main Component ────────────────────────────────────────────────────────
-const toLocalIsoDay = (value) => {
-  if (!value) return "";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-
 const AllAgents = () => {
   const [searchParams] = useSearchParams();
   const createdFrom =
@@ -1622,7 +1630,7 @@ const AllAgents = () => {
     searchParams.get("createdTo") || searchParams.get("to") || "";
   const urlDay =
     searchParams.get("date") ||
-    (searchParams.get("joined") === "today" ? toLocalIsoDay(new Date()) : "") ||
+    (searchParams.get("joined") === "today" ? todayIstIso() : "") ||
     (createdFrom && createdTo && createdFrom === createdTo ? createdFrom : "");
 
   const [agents, setAgents] = useState([]);
@@ -1696,15 +1704,14 @@ const AllAgents = () => {
       if (filters.locality && a.locality !== filters.locality) return false;
       if (filters.pincode && !a.pincode?.includes(filters.pincode)) return false;
       if (filters.joinedDate) {
-        // Exact calendar day from sidebar (YYYY-MM-DD)
+        const createdDay = toIstIso(a.createdAt);
+        // Exact calendar day from sidebar / Today filter (YYYY-MM-DD, IST)
         if (/^\d{4}-\d{2}-\d{2}$/.test(filters.joinedDate)) {
-          if (toLocalIsoDay(a.createdAt) !== filters.joinedDate) return false;
+          if (createdDay !== filters.joinedDate) return false;
         } else {
-          const created = new Date(a.createdAt);
-          const now = new Date();
-          const diffDays = (now - created) / (1000 * 60 * 60 * 24);
+          const diffDays = istCalendarDiffDays(a.createdAt);
           if (
-            (filters.joinedDate === "today" && diffDays > 1) ||
+            (filters.joinedDate === "today" && diffDays !== 0) ||
             (filters.joinedDate === "week" && diffDays > 7) ||
             (filters.joinedDate === "month" && diffDays > 30) ||
             (filters.joinedDate === "3months" && diffDays > 90) ||

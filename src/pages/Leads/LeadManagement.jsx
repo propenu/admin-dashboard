@@ -3,12 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Filter, Loader2, MapPin, RotateCcw, Search, Users, X } from "lucide-react";
 import { apiClient } from "../../api/apiClient";
 import { rangeFromPreset, todayIso } from "../Dashboards/shared/dashboardDateRange";
+import LeadDetailDrawer from "./LeadDetailDrawer";
 
 const categories = ["all", "featured", "residential", "commercial", "land", "agricultural"];
 const statuses = ["", "new_lead", "interested", "not_interested", "follow_up", "site_visit", "sale"];
 const categoryLabels = {
   all: "All project & property leads",
-  featured: "Featured project leads",
+  featured: "Project leads",
   residential: "Residential property leads",
   commercial: "Commercial property leads",
   land: "Land property leads",
@@ -28,8 +29,72 @@ const emptyData = {
   pagination: { page: 1, pages: 0, total: 0 },
 };
 const label = (value) => (value ? value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "All");
-const tone = { featured: "bg-violet-50 text-violet-700", residential: "bg-blue-50 text-blue-700", commercial: "bg-amber-50 text-amber-700", land: "bg-emerald-50 text-emerald-700", agricultural: "bg-lime-50 text-lime-700" };
-const statusTone = { new_lead: "bg-blue-50 text-blue-700", interested: "bg-emerald-50 text-emerald-700", not_interested: "bg-rose-50 text-rose-700", sale: "bg-violet-50 text-violet-700" };
+const tone = {
+  featured: "bg-violet-50 text-violet-700 ring-1 ring-violet-100",
+  residential: "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
+  commercial: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
+  land: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
+  agricultural: "bg-lime-50 text-lime-700 ring-1 ring-lime-100",
+};
+
+/** Project promotion badge — "featured" type displays as Top Selling (never "Featured"). */
+const promotionLabel = (type) => {
+  const key = String(type || "normal")
+    .trim()
+    .toLowerCase();
+  if (key === "featured" || key === "top_selling" || key === "topselling") {
+    return "Top Selling";
+  }
+  if (key === "prime") return "Prime";
+  if (key === "sponsored") return "Sponsored";
+  if (key === "normal") return "Normal";
+  return label(key);
+};
+
+const promotionTone = {
+  "top selling": "bg-rose-50 text-rose-700 ring-1 ring-rose-100",
+  featured: "bg-rose-50 text-rose-700 ring-1 ring-rose-100",
+  top_selling: "bg-rose-50 text-rose-700 ring-1 ring-rose-100",
+  prime: "bg-amber-50 text-amber-800 ring-1 ring-amber-100",
+  sponsored: "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100",
+  normal: "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+};
+
+const categoryDisplay = (project = {}) => {
+  if (String(project.category || "").toLowerCase() === "featured") {
+    const promo = String(project.promotionType || "normal").toLowerCase();
+    const text = promotionLabel(promo);
+    const toneKey =
+      promo === "featured" || promo === "top_selling" || promo === "topselling"
+        ? "top selling"
+        : promo || "normal";
+    return {
+      text,
+      className: promotionTone[toneKey] || promotionTone.normal,
+    };
+  }
+  return {
+    text: label(project.category),
+    className: tone[project.category] || "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+  };
+};
+/** Each status has its own color — New Lead stands out. */
+const statusTone = {
+  new_lead: "bg-sky-500 text-white ring-1 ring-sky-400",
+  interested: "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200",
+  follow_up: "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
+  site_visit: "bg-cyan-100 text-cyan-800 ring-1 ring-cyan-200",
+  sale: "bg-violet-100 text-violet-800 ring-1 ring-violet-200",
+  not_interested: "bg-rose-100 text-rose-800 ring-1 ring-rose-200",
+};
+const rowTone = {
+  new_lead: "bg-sky-50/50 hover:bg-sky-50",
+  interested: "hover:bg-emerald-50/50",
+  follow_up: "hover:bg-amber-50/50",
+  site_visit: "hover:bg-cyan-50/40",
+  sale: "hover:bg-violet-50/50",
+  not_interested: "hover:bg-rose-50/40",
+};
 
 const detectPreset = (from, to) => {
   if (!from && !to) return "all";
@@ -60,7 +125,7 @@ const filtersFromSearchParams = (searchParams) => {
     from,
     to,
     page: Math.max(1, Number(searchParams.get("page")) || 1),
-    limit: Math.min(100, Math.max(1, Number(searchParams.get("limit")) || 20)),
+    limit: Math.min(100, Math.max(1, Number(searchParams.get("limit")) || 50)),
   };
 };
 
@@ -98,6 +163,7 @@ export default function LeadManagement() {
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const [projectSearch, setProjectSearch] = useState("");
   const [exporting, setExporting] = useState("");
+  const [selectedLead, setSelectedLead] = useState(null);
 
   useEffect(() => {
     const next = filtersFromSearchParams(searchParams);
@@ -119,7 +185,7 @@ export default function LeadManagement() {
   useEffect(() => {
     const next = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
-      if (value === "" || value === "all" || (key === "page" && Number(value) === 1) || (key === "limit" && Number(value) === 20)) return;
+      if (value === "" || value === "all" || (key === "page" && Number(value) === 1) || (key === "limit" && Number(value) === 50)) return;
       next.set(key, String(value));
     });
     const nextQuery = next.toString();
@@ -230,7 +296,7 @@ export default function LeadManagement() {
       from: "",
       to: "",
       page: 1,
-      limit: 20,
+      limit: 50,
     });
   };
 
@@ -309,19 +375,21 @@ export default function LeadManagement() {
 
   const cards = [
     ["total", "Total leads", hasLoaded ? data.summary.total : null, `${projectLeadCount} project · ${propertyLeadCount} property`, Users, "bg-emerald-500", filters.category === "all" && !filters.status],
-    ["featured", "Project leads", hasLoaded ? projectLeadCount : null, "Enquiries for featured projects", MapPin, "bg-violet-500", filters.category === "featured"],
+    ["featured", "Project leads", hasLoaded ? projectLeadCount : null, "Top Selling · Prime · Normal · Sponsored", MapPin, "bg-violet-500", filters.category === "featured"],
     ["property", "Property leads", hasLoaded ? propertyLeadCount : null, "Residential, commercial, land & agricultural", Filter, "bg-blue-500", ["residential", "commercial", "land", "agricultural"].includes(filters.category)],
     ["new", "New leads", hasLoaded ? data.summary.byStatus.new_lead || 0 : null, `${data.summary.byStatus.sale || 0} converted to Sale`, Users, "bg-amber-500", filters.status === "new_lead"],
   ];
 
   return (
-    <div className="min-h-full bg-slate-50/70 p-4 sm:p-6">
+    <div className="min-h-full bg-slate-50/70">
       <div className="mx-auto max-w-[1600px] space-y-5">
         <header>
           <div>
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[.22em] text-emerald-600">Sales intelligence</p>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Lead management</h1>
-            <p className="mt-1 text-xs text-slate-500">One workspace for featured projects and every property enquiry.</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Unique enquiries only (duplicates collapsed) · click a row for project details and lead origin.
+            </p>
           </div>
         </header>
 
@@ -564,13 +632,19 @@ export default function LeadManagement() {
           )}
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-4 py-3">
+        <section className="flex h-[min(72vh,760px)] min-h-[420px] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+          <div className="shrink-0 border-b border-slate-100 px-4 py-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-              <div className="shrink-0 lg:w-40">
+              <div className="shrink-0 lg:w-48">
                 <h2 className="text-sm font-bold text-slate-800">Lead directory</h2>
                 <p className="text-[10px] text-slate-400">
-                  {data.pagination.total} matching records {selectedProjectIds.length > 0 && `from ${selectedProjectIds.length} selected items`}
+                  {data.pagination.total} unique leads
+                  {data.summary.duplicatesHidden
+                    ? ` · ${data.summary.duplicatesHidden} duplicate submissions hidden`
+                    : ""}
+                  {selectedProjectIds.length > 0
+                    ? ` · from ${selectedProjectIds.length} selected items`
+                    : ""}
                 </p>
               </div>
               <div className="relative min-w-0 flex-1">
@@ -588,6 +662,18 @@ export default function LeadManagement() {
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                <select
+                  value={filters.limit}
+                  onChange={(event) => update("limit", Number(event.target.value))}
+                  className="h-9 rounded-xl border border-slate-200 bg-white px-2 text-[10px] font-bold text-slate-600 outline-none focus:border-emerald-400"
+                  title="Rows per page"
+                >
+                  {[25, 50, 75, 100].map((size) => (
+                    <option key={size} value={size}>
+                      {size} / page
+                    </option>
+                  ))}
+                </select>
                 <button disabled={loading || exporting} onClick={() => downloadLeads("csv")} className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[10px] font-bold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-50">
                   {exporting === "csv" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} CSV
                 </button>
@@ -608,59 +694,136 @@ export default function LeadManagement() {
               <p className="mt-1 text-xs text-slate-400">Try clearing some filters.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] text-left">
-                <thead className="bg-slate-50 text-[9px] uppercase tracking-wider text-slate-400">
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
+              <table className="w-full table-fixed text-left">
+                <colgroup>
+                  <col className="w-[14%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[7%]" />
+                </colgroup>
+                <thead className="sticky top-0 z-10 bg-slate-50 text-[9px] uppercase tracking-wider text-slate-400 shadow-sm">
                   <tr>
-                    {["Lead", "Contact", "Project / property", "Location", "Category", "Source", "Status", "Created"].map((h) => (
-                      <th key={h} className="px-4 py-3 font-bold">
+                    {["Lead", "Contact", "Project / property", "Location", "Category", "Where from", "Status", "Last touch"].map((h) => (
+                      <th key={h} className="truncate bg-slate-50 px-2.5 py-3 font-bold sm:px-3">
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {data.leads.map((lead) => (
-                    <tr key={lead._id} className="transition hover:bg-emerald-50/30">
-                      <td className="px-4 py-3">
-                        <p className="text-xs font-semibold text-slate-800">{lead.name}</p>
-                        <p className="mt-0.5 max-w-[150px] truncate text-[10px] text-slate-400">{lead.message || lead.purchaseTimeline || "No note"}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="text-xs text-slate-700">{lead.phone}</p>
-                        <p className="text-[10px] text-slate-400">{lead.email || "—"}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="max-w-[210px] truncate text-xs font-semibold text-slate-700">{lead.project.title}</p>
-                        <p className="text-[10px] text-slate-400">{lead.project.code || "No property code"}</p>
-                      </td>
-                      <td className="px-4 py-3 text-[10px] text-slate-600">
-                        {[lead.project.locality, lead.project.city, lead.project.state].filter(Boolean).join(", ") || "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full px-2 py-1 text-[9px] font-bold ${tone[lead.project.category] || "bg-slate-100 text-slate-600"}`}>
-                          {label(lead.project.category)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-[10px] font-semibold text-slate-600">{label(lead.source)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full px-2 py-1 text-[9px] font-bold ${statusTone[lead.status] || "bg-slate-100 text-slate-600"}`}>
-                          {label(lead.status)}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-[10px] text-slate-500">
-                        {new Date(lead.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
-                      </td>
-                    </tr>
-                  ))}
+                  {data.leads.map((lead) => {
+                    const statusKey = String(lead.status || "new_lead");
+                    const locationText =
+                      [lead.project.locality, lead.project.city, lead.project.state]
+                        .filter(Boolean)
+                        .join(", ") || "—";
+                    return (
+                      <tr
+                        key={lead._id}
+                        onClick={() => setSelectedLead(lead)}
+                        className={`cursor-pointer transition ${rowTone[statusKey] || "hover:bg-slate-50"}`}
+                      >
+                        <td className="px-2.5 py-2.5 sm:px-3">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <p className="truncate text-xs font-semibold text-slate-800" title={lead.name}>
+                              {lead.name}
+                            </p>
+                            {lead.duplicateCount > 0 ? (
+                              <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
+                                +{lead.duplicateCount}
+                              </span>
+                            ) : null}
+                          </div>
+                          <p
+                            className="mt-0.5 truncate text-[10px] text-slate-400"
+                            title={lead.message || lead.purchaseTimeline || ""}
+                          >
+                            {lead.message || lead.purchaseTimeline || "No note"}
+                          </p>
+                        </td>
+                        <td className="px-2.5 py-2.5 sm:px-3">
+                          <p className="truncate text-xs text-slate-700" title={lead.phone}>
+                            {lead.phone}
+                          </p>
+                          <p className="truncate text-[10px] text-slate-400" title={lead.email || ""}>
+                            {lead.email || "—"}
+                          </p>
+                        </td>
+                        <td className="px-2.5 py-2.5 sm:px-3">
+                          <p
+                            className="truncate text-xs font-semibold text-emerald-700"
+                            title={lead.project.title}
+                          >
+                            {lead.project.title}
+                          </p>
+                          <p className="truncate text-[10px] text-slate-400" title={lead.project.code || ""}>
+                            {lead.project.code || "No code"}
+                          </p>
+                        </td>
+                        <td className="px-2.5 py-2.5 text-[10px] text-slate-600 sm:px-3">
+                          <p className="truncate" title={locationText}>
+                            {locationText}
+                          </p>
+                        </td>
+                        <td className="px-2.5 py-2.5 sm:px-3">
+                          {(() => {
+                            const display = categoryDisplay(lead.project);
+                            return (
+                              <span
+                                className={`inline-block max-w-full truncate rounded-full px-2 py-1 text-[9px] font-bold ${display.className}`}
+                                title={display.text}
+                              >
+                                {display.text}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-2.5 py-2.5 sm:px-3">
+                          <p
+                            className="truncate text-[10px] font-semibold text-slate-700"
+                            title={lead.origin?.label || label(lead.source)}
+                          >
+                            {lead.origin?.label || label(lead.source)}
+                          </p>
+                          <p
+                            className="mt-0.5 truncate text-[9px] text-slate-400"
+                            title={lead.origin?.entryPoint || label(lead.source)}
+                          >
+                            {lead.origin?.entryPoint || label(lead.source)}
+                          </p>
+                        </td>
+                        <td className="px-2.5 py-2.5 sm:px-3">
+                          <span
+                            className={`inline-block max-w-full truncate rounded-full px-2 py-1 text-[9px] font-bold ${statusTone[statusKey] || "bg-slate-100 text-slate-600"}`}
+                            title={label(lead.status)}
+                          >
+                            {label(lead.status)}
+                          </span>
+                        </td>
+                        <td className="px-2.5 py-2.5 text-[10px] text-slate-500 sm:px-3">
+                          <p className="truncate" title={new Date(lead.lastTouchAt || lead.createdAt).toLocaleString("en-IN")}>
+                            {new Date(lead.lastTouchAt || lead.createdAt).toLocaleDateString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                            })}
+                          </p>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
 
-          <footer className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+          <footer className="flex shrink-0 items-center justify-between border-t border-slate-100 px-4 py-3">
             <p className="text-[10px] text-slate-400">
-              Showing {data.pagination.total ? (data.pagination.page - 1) * filters.limit + 1 : 0}–{Math.min(data.pagination.page * filters.limit, data.pagination.total)} of {data.pagination.total} leads · Page {data.pagination.page} of {Math.max(1, data.pagination.pages)}
+              Showing {data.pagination.total ? (data.pagination.page - 1) * filters.limit + 1 : 0}–{Math.min(data.pagination.page * filters.limit, data.pagination.total)} of {data.pagination.total} unique leads · Page {data.pagination.page} of {Math.max(1, data.pagination.pages)}
             </p>
             <div className="flex gap-2">
               <button disabled={filters.page <= 1} onClick={() => update("page", filters.page - 1)} className="rounded-lg border border-slate-200 p-2 text-slate-500 disabled:opacity-30">
@@ -673,6 +836,13 @@ export default function LeadManagement() {
           </footer>
         </section>
       </div>
+
+      {selectedLead ? (
+        <LeadDetailDrawer
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
+        />
+      ) : null}
     </div>
   );
 }
