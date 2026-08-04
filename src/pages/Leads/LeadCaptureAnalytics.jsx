@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
@@ -1517,8 +1518,10 @@ function DynamicInsightRail({ journey, user, notify }) {
 }
 
 export default function LeadCaptureAnalytics() {
+  const [searchParams] = useSearchParams();
+  const deepLinkUserId = searchParams.get("user") || "";
   const [users, setUsers] = useState([]),
-    [selectedId, setSelectedId] = useState(""),
+    [selectedId, setSelectedId] = useState(deepLinkUserId),
     [journey, setJourney] = useState(null);
   const [loading, setLoading] = useState(true),
     [refreshing, setRefreshing] = useState(false),
@@ -1546,11 +1549,16 @@ export default function LeadCaptureAnalytics() {
         Array.isArray(payload) ? payload : payload?.users || []
       ).filter((item) => roles.includes(item.roleName));
       setUsers(list);
-      setSelectedId((current) => current || list[0]?._id || "");
+      setSelectedId((current) => {
+        if (deepLinkUserId && list.some((item) => item._id === deepLinkUserId)) {
+          return deepLinkUserId;
+        }
+        return current || list[0]?._id || "";
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [deepLinkUserId]);
   const loadJourney = useCallback(
     async (person) => {
       if (!person) return;

@@ -197,19 +197,25 @@ const shouldHideTowerFields =
   }, [relationshipManagersLoaded, relationshipManagers, payload.relationshipManagerId]);
 
   useEffect(() => {
-    // ✅ If no builders available
-    // auto assign current user
+    // Only self-assign when the poster is a builder account and no owner is set.
+    // Admin / staff must always pick a builder from the dropdown (never force /me).
+    const role = String(payload?.me?.roleName || payload?.me?.role || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_");
+    const isSelfOwnerRole = role === "builder" || role === "builder_staff";
+    const selfId = payload?.me?._id || payload?.me?.id;
 
-    if (builders.length === 0 && payload?.me?._id && !payload.createdBy) {
-      console.log("✅ No builders found → using /me");
-
-      update({
-        createdBy: payload.me._id,
-      });
-
+    if (
+      isSelfOwnerRole &&
+      builders.length === 0 &&
+      selfId &&
+      !payload.createdBy
+    ) {
+      update({ createdBy: selfId });
       clr("createdBy");
     }
-  }, [builders, payload?.me?._id]);
+  }, [builders, payload?.me?._id, payload?.me?.id, payload?.me?.roleName, payload?.me?.role]);
 
   const normalized = (value) => String(value || "").trim().toLowerCase();
   const matchesLocationValue = (itemValue, filterValue) =>

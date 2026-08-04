@@ -49,6 +49,7 @@ import {
   FileText,
   KeyRound,
   UsersRound,
+  Activity,
 } from "lucide-react";
 import CreateUserModal     from "./CreateUserModal";
 import AssignReportsTo     from "./AssignReportsTo";
@@ -406,6 +407,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       canView("project") && { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
       propertyAccess && { path: "/properties", label: "Properties", icon: PropertiesIcon },
       canView("lead") && { path: "/leads", label: "Lead Management", icon: UsersRound },
+      (canView("lead") || canView("user") || canView("builder") || canView("agent")) && { path: "/all-users-activity", label: "All Users Activity", icon: Activity },
       (canView("lead") || canView("user") || canView("builder") || canView("agent")) && { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
       (canView("project") || propertyAccess) && { path: "/property-progress", label: "Property Progress", icon: PropertyProgressIcon },
       canView("location") && { path: "/locations", label: "Locations", icon: LocationsIcon },
@@ -431,6 +433,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         { path: "/leads", label: "Lead Management", icon: UsersRound },
+        { path: "/all-users-activity", label: "All Users Activity", icon: Activity },
         { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
         {
           path: "/property-progress",
@@ -624,6 +627,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         { path: "/leads", label: "Lead Management", icon: UsersRound },
+        { path: "/all-users-activity", label: "All Users Activity", icon: Activity },
         { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
         {
           path: "/property-progress",

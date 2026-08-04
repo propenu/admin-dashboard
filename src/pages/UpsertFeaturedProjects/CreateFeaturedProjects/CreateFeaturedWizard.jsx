@@ -92,19 +92,27 @@ export default function CreateFeaturedWizard() {
     }
   }, [current]);
 
-  // Load logged-in user into payload
+  // Load logged-in user as poster/actor. Ownership (createdBy) = selected builder only.
   useEffect(() => {
     async function loadUser() {
       try {
         const user = await fetchLoggedInUser();
         if (!user) return;
-        // setPayload((prev) => ({
-        //   ...prev,
-        //   createdBy: user.id ?? user._id ?? "",
-        // }));
+        const role = String(user.roleName || user.role || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_");
+        const isSelfOwnerRole = role === "builder" || role === "builder_staff";
+        const selfId = user.id || user._id || "";
+
         setPayload((prev) => ({
           ...prev,
-          createdBy: prev.createdBy || user.id || user._id || "",
+          me: user,
+          // Admin / staff must pick a builder — do not force /me into createdBy.
+          // Builder accounts posting themselves may default ownership to self.
+          ...(isSelfOwnerRole && !prev.createdBy && selfId
+            ? { createdBy: selfId }
+            : {}),
         }));
       } catch (err) {
         console.warn("User load failed", err);

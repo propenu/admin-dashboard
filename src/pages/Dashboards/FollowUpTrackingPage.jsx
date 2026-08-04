@@ -34,6 +34,7 @@ import {
   todayIso,
 } from "./shared/dashboardDateRange";
 import FollowUpInventoryWorkspace from "./followUpTracking/FollowUpInventoryWorkspace";
+import AssignedUserActivityPanel from "./followUpTracking/AssignedUserActivityPanel";
 import FollowUpWorkStatusSelect, {
   followUpWorkLabel,
   normalizeFollowUpWorkStatus,
@@ -50,6 +51,45 @@ import {
 
 const ONBOARDING = new Set(["location_pending", "kyc_pending", "pending", "incomplete"]);
 const USER_PAGE_SIZE = 40;
+
+/** Client Progress Queue: only these 4 platform roles (never staff / admin). */
+const PLATFORM_CLIENT_ROLES = new Set([
+  "user",
+  "owner",
+  "agent",
+  "builder",
+  "builder_staff",
+  "buyer",
+  "tenant",
+]);
+
+const STAFF_OR_INTERNAL_ROLES = new Set([
+  "super_admin",
+  "admin",
+  "customer_care",
+  "customer_care_executive",
+  "customer_care_executives",
+  "team_lead",
+  "customer_support_team_lead",
+  "team_leads",
+  "customer_support_head",
+  "sales_manager",
+  "accounts",
+  "content_team",
+  "marketing_head",
+  "ceo",
+  "operations",
+]);
+
+const isPlatformClientRole = (roleName = "") => {
+  const key = normalizeRole(roleName);
+  if (!key) return false;
+  if (STAFF_OR_INTERNAL_ROLES.has(key)) return false;
+  if (key.includes("admin") || key.includes("team_lead") || key.includes("customer_care")) {
+    return false;
+  }
+  return PLATFORM_CLIENT_ROLES.has(key);
+};
 
 const TRACK_META = {
   created_today: {
@@ -410,16 +450,16 @@ const matchesTrack = (user, trackKey, range) => {
   const role = normalizeRole(user?.roleName || user?.role);
   const inPeriod = inCreatedPeriod(user?.createdAt, range);
   const loginInPeriod = inCreatedPeriod(user?.lastLoginAt, range);
+  // Every people-list track: only Owner / Agent / Builder / Builder staff (+ owner aliases)
+  if (!isPlatformClientRole(role)) return false;
 
   switch (trackKey) {
     case "created_today":
       return inPeriod;
     case "created_period":
-      return inPeriod && ["user", "owner", "agent", "builder", "builder_staff"].includes(role);
+      return inPeriod;
     case "login_today":
-      return (
-        loginInPeriod && ["user", "owner", "agent", "builder", "builder_staff"].includes(role)
-      );
+      return loginInPeriod;
     case "active_success":
       return status === "active" && inPeriod;
     case "stuck_location":
@@ -655,7 +695,9 @@ export default function FollowUpTrackingPage() {
   const cceExclusive = Boolean(isCceViewer && meId);
 
   const scopedUsers = useMemo(() => {
-    let list = usersQuery.data || [];
+    let list = (usersQuery.data || []).filter((u) =>
+      isPlatformClientRole(u?.roleName || u?.role),
+    );
     if (cceExclusive) {
       list = list.filter((u) => assigneeIdOf(u) === meId);
     }
@@ -1385,6 +1427,10 @@ export default function FollowUpTrackingPage() {
                     Listing wizard % for this person’s property (separate from CCE process).
                   </p>
                 </div>
+                <AssignedUserActivityPanel
+                  userId={userIdOf(selectedUser)}
+                  enabled={Boolean(userIdOf(selectedUser))}
+                />
                 <div className="space-y-2 text-xs text-slate-700">
                   <p className="inline-flex items-center gap-1">
                     <Phone size={12} className="text-slate-400" />
