@@ -44,7 +44,12 @@ const normalizeRole = (value = "") =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_");
 
-const isPlatformUser = (user) => PLATFORM_ROLES.has(normalizeRole(user?.roleName || user?.role));
+const roleOf = (user = {}) =>
+  normalizeRole(
+    user?.roleName || user?.role || user?.roleId?.name || user?.roleId?.label || "",
+  );
+
+const isPlatformUser = (user) => PLATFORM_ROLES.has(roleOf(user));
 
 const isCceMember = (member) => {
   const key = normalizeRole(member?.roleName || member?.roleKey || member?.role || "");

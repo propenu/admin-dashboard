@@ -127,6 +127,20 @@ const isOverdue = (ticket = {}) => {
 
 const isUnassigned = (ticket = {}) => !getAssigneeId(ticket);
 
+/** Ticket counts toward the selected period if any activity date falls in range. */
+const ticketInPeriod = (ticket = {}, range = {}) => {
+  if (!range?.from && !range?.to) return true;
+  const dates = [ticket.createdAt, ticket.updatedAt, ticket.resolvedAt, ticket.assignedAt];
+  return dates.some((value) => {
+    if (!value) return false;
+    const ms = new Date(value).getTime();
+    if (!Number.isFinite(ms)) return false;
+    if (range.from && ms < new Date(`${range.from}T00:00:00`).getTime()) return false;
+    if (range.to && ms > new Date(`${range.to}T23:59:59.999`).getTime()) return false;
+    return true;
+  });
+};
+
 export const filterTicketsByTab = (tickets = [], tab = "all") => {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -154,6 +168,8 @@ export const mapTicketQueueItem = (ticket = {}) => {
   const unassigned = isUnassigned(ticket);
   const overdue = isOverdue(ticket);
 
+  const assignedToId = getAssigneeId(ticket);
+
   return {
     id: ticket._id || ticket.id,
     raw: ticket,
@@ -164,6 +180,7 @@ export const mapTicketQueueItem = (ticket = {}) => {
     title: ticket.title || ticket.subject || "Support enquiry",
     customerName: getRequesterName(ticket),
     assigneeName: unassigned ? "Unassigned" : getAssigneeName(ticket),
+    assignedToId: assignedToId ? String(assignedToId) : null,
     priority: titleCase(priority),
     priorityKey: priority,
     status,
@@ -232,8 +249,10 @@ export const mapCustomerSupportHeadData = ({
   agentPerformance = [],
   currentUser = null,
   trends = [],
+  range = {},
 }) => {
-  const normalizedTickets = Array.isArray(tickets) ? tickets : [];
+  const allTickets = Array.isArray(tickets) ? tickets : [];
+  const normalizedTickets = allTickets.filter((t) => ticketInPeriod(t, range));
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const now = Date.now();
@@ -292,12 +311,17 @@ export const mapCustomerSupportHeadData = ({
         overdue: 0,
       };
       const lastLoginAt = safeDate(user.lastLoginAt || user.last_login_at || user.updatedAt);
+      const managerRaw = user.managerId || user.reportsTo;
+      const managerId = String(
+        managerRaw?._id || managerRaw?.id || managerRaw || "",
+      ).trim();
       return {
         id,
         name: user.name || user.fullName || "Team member",
         email: user.email || "",
         role: titleCase(getUserRole(user)),
         roleKey: getUserRole(user),
+        managerId: managerId || null,
         open: stats.open,
         resolved: stats.resolved,
         overdue: stats.overdue,
@@ -308,23 +332,6 @@ export const mapCustomerSupportHeadData = ({
     })
     .sort((a, b) => b.open - a.open || b.overdue - a.overdue);
 
-  // Include agents that appear in performance but are missing from user list
-  performanceByAgent.forEach((stats, id) => {
-    if (!id || teamMembers.some((m) => m.id === id)) return;
-    teamMembers.push({
-      id,
-      name: stats.name,
-      email: stats.email,
-      role: "Assignee",
-      roleKey: "assignee",
-      open: stats.open,
-      resolved: stats.resolved,
-      overdue: stats.overdue,
-      total: stats.total,
-      lastLoginAt: null,
-      isOnline: false,
-    });
-  });
   teamMembers.sort((a, b) => b.open - a.open || b.overdue - a.overdue);
 
   const performanceWeek = mapPerformanceWeek(trends, normalizedTickets);
@@ -340,16 +347,19 @@ export const mapCustomerSupportHeadData = ({
     asNumber(overview.sla?.avgResolutionMinutes ?? overview.avgResolutionMinutes ?? 0),
   );
 
-  const overviewUnassigned = asNumber(overview.unassigned);
-  const overviewOverdue = asNumber(overview.overdue);
-  const overviewOpen = asNumber(overview.open ?? overview.openTickets);
+  const pickOverviewCount = (keys, fallback) => {
+    for (const key of keys) {
+      if (overview[key] != null && overview[key] !== "") return asNumber(overview[key]);
+    }
+    return fallback;
+  };
 
   return {
     summary: {
-      openTickets: overviewOpen || openTickets,
+      openTickets: pickOverviewCount(["open", "openTickets"], openTickets),
       urgentCount,
-      unassignedCount: overviewUnassigned || unassignedCount,
-      overdueCount: overviewOverdue || overdueCount,
+      unassignedCount: pickOverviewCount(["unassigned"], unassignedCount),
+      overdueCount: pickOverviewCount(["overdue"], overdueCount),
       awaitingCount,
       resolvedToday,
       firstResponseMinutes,
@@ -361,6 +371,7 @@ export const mapCustomerSupportHeadData = ({
     queueItems,
     teamMembers,
     performanceWeek,
+    periodTickets: normalizedTickets,
     currentUserName: currentUser?.name || currentUser?.fullName || "Support Head",
     currentRole: "Customer Support Head",
   };

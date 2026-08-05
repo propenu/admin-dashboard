@@ -268,12 +268,38 @@ export default function Users() {
   const users = useMemo(
     () =>
       allUsers.filter((u) => {
+        const roleKey = String(u.roleName || u.role || u.roleId?.name || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_");
+        const platformRoles = new Set([
+          "user",
+          "users",
+          "owner",
+          "owners",
+          "builder",
+          "builders",
+          "builder_staff",
+          "builderstaff",
+          "agent",
+          "agents",
+        ]);
         if (filterRole === "all") {
-          return ["user", "builder", "builder_staff", "agent"].includes(
-            u.roleName,
-          );
+          return platformRoles.has(roleKey);
         }
-        return u.roleName === filterRole;
+        const wanted = String(filterRole || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_");
+        if (wanted === "user") {
+          return ["user", "users", "owner", "owners"].includes(roleKey);
+        }
+        if (wanted === "agent") return roleKey === "agent" || roleKey === "agents";
+        if (wanted === "builder") return roleKey === "builder" || roleKey === "builders";
+        if (wanted === "builder_staff") {
+          return roleKey === "builder_staff" || roleKey === "builderstaff";
+        }
+        return roleKey === wanted;
       }),
     [allUsers, filterRole],
   );

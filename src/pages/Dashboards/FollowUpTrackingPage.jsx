@@ -51,16 +51,39 @@ import {
 const ONBOARDING = new Set(["location_pending", "kyc_pending", "pending", "incomplete"]);
 const USER_PAGE_SIZE = 40;
 
-/** Client Progress Queue: only these 4 platform roles (never staff / admin). */
+/** Client Progress Queue: only these platform roles (never staff / admin). */
 const PLATFORM_CLIENT_ROLES = new Set([
   "user",
+  "users",
   "owner",
+  "owners",
   "agent",
+  "agents",
   "builder",
+  "builders",
   "builder_staff",
+  "builderstaff",
+  "builder_staffs",
   "buyer",
   "tenant",
+  "propenu_user",
 ]);
+
+const ROLE_DISPLAY_ALIASES = {
+  user: "Owner",
+  users: "Owner",
+  owner: "Owner",
+  owners: "Owner",
+  buyer: "Owner",
+  tenant: "Owner",
+  agent: "Agent",
+  agents: "Agent",
+  builder: "Builder",
+  builders: "Builder",
+  builder_staff: "Builder staff",
+  builderstaff: "Builder staff",
+  builder_staffs: "Builder staff",
+};
 
 const STAFF_OR_INTERNAL_ROLES = new Set([
   "super_admin",
@@ -81,7 +104,10 @@ const STAFF_OR_INTERNAL_ROLES = new Set([
 ]);
 
 const isPlatformClientRole = (roleName = "") => {
-  const key = normalizeRole(roleName);
+  const key = String(roleName || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
   if (!key) return false;
   if (STAFF_OR_INTERNAL_ROLES.has(key)) return false;
   if (key.includes("admin") || key.includes("team_lead") || key.includes("customer_care")) {
@@ -332,6 +358,18 @@ const normalizeRole = (value = "") =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_");
 
+const roleOf = (user = {}) =>
+  normalizeRole(
+    user?.roleName || user?.role || user?.roleId?.name || user?.roleId?.label || "",
+  );
+
+const displayRoleOf = (user = {}) => {
+  const key = roleOf(user);
+  if (!key) return "—";
+  if (ROLE_DISPLAY_ALIASES[key]) return ROLE_DISPLAY_ALIASES[key];
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 const isFollowUpOversightRole = (roleName = "") => {
   const key = normalizeRole(roleName);
   return (
@@ -474,13 +512,21 @@ const inActivityPeriod = (user, range = {}) => {
 
 const matchesTrack = (user, trackKey, range) => {
   const status = String(user?.accountStatus || "").toLowerCase();
-  const role = normalizeRole(user?.roleName || user?.role);
+  const role = roleOf(user);
   const inPeriod = inCreatedPeriod(user?.createdAt, range);
   const loginInPeriod = inCreatedPeriod(user?.lastLoginAt, range);
   const activeInPeriod = inActivityPeriod(user, range);
   const process = workStatusOf(user);
   // Every people-list track: only Owner / Agent / Builder / Builder staff (+ owner aliases)
   if (!isPlatformClientRole(role)) return false;
+
+  const isOwner = ["user", "users", "owner", "owners", "buyer", "tenant", "propenu_user"].includes(
+    role,
+  );
+  const isAgent = role === "agent" || role === "agents";
+  const isBuilder = role === "builder" || role === "builders";
+  const isBuilderStaff =
+    role === "builder_staff" || role === "builderstaff" || role === "builder_staffs";
 
   switch (trackKey) {
     case "created_today":
@@ -490,7 +536,7 @@ const matchesTrack = (user, trackKey, range) => {
     case "login_today":
       return loginInPeriod;
     case "active_success":
-      return status === "active" && inPeriod;
+      return status === "active" && activeInPeriod;
     case "stuck_location":
       return status === "location_pending" && activeInPeriod;
     case "stuck_kyc":
@@ -506,13 +552,13 @@ const matchesTrack = (user, trackKey, range) => {
     case "process_completed":
       return Boolean(assigneeIdOf(user)) && process === "completed" && activeInPeriod;
     case "owners":
-      return inPeriod && ["user", "owner", "buyer", "tenant"].includes(role);
+      return isOwner && activeInPeriod;
     case "agents":
-      return inPeriod && role === "agent";
+      return isAgent && activeInPeriod;
     case "builders":
-      return inPeriod && role === "builder";
+      return isBuilder && activeInPeriod;
     case "builder_staff":
-      return inPeriod && role === "builder_staff";
+      return isBuilderStaff && activeInPeriod;
     default:
       return false;
   }
@@ -550,6 +596,15 @@ export default function FollowUpTrackingPage() {
   const urlTo = searchParams.get("to") || "";
   const urlPreset = searchParams.get("preset") || "";
   const urlAssigneeId = String(searchParams.get("assigneeId") || "").trim();
+  const urlAssigneeIdsParam = String(searchParams.get("assigneeIds") || "").trim();
+  const urlAssigneeIds = useMemo(
+    () =>
+      urlAssigneeIdsParam
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean),
+    [urlAssigneeIdsParam],
+  );
   const urlAssigneeName = String(searchParams.get("assigneeName") || "").trim();
 
   const preset =
@@ -591,6 +646,10 @@ export default function FollowUpTrackingPage() {
       next.assigneeId === null || next.assigneeId === ""
         ? ""
         : (next.assigneeId ?? urlAssigneeId);
+    const nextAssigneeIds =
+      next.assigneeIds === null || next.assigneeIds === ""
+        ? ""
+        : (next.assigneeIds ?? urlAssigneeIdsParam);
     const nextAssigneeName =
       next.assigneeName === null || next.assigneeName === ""
         ? ""
@@ -601,6 +660,9 @@ export default function FollowUpTrackingPage() {
     if (nextTo) params.set("to", nextTo);
     if (nextAssigneeId) {
       params.set("assigneeId", nextAssigneeId);
+      if (nextAssigneeName) params.set("assigneeName", nextAssigneeName);
+    } else if (nextAssigneeIds) {
+      params.set("assigneeIds", nextAssigneeIds);
       if (nextAssigneeName) params.set("assigneeName", nextAssigneeName);
     }
     setSearchParams(params, { replace: true });
@@ -744,17 +806,26 @@ export default function FollowUpTrackingPage() {
   const cceExclusive = Boolean(isCceViewer && meId);
 
   const scopedUsers = useMemo(() => {
-    let list = (usersQuery.data || []).filter((u) =>
-      isPlatformClientRole(u?.roleName || u?.role),
-    );
+    let list = (usersQuery.data || []).filter((u) => isPlatformClientRole(roleOf(u)));
     if (cceExclusive) {
       list = list.filter((u) => assigneeIdOf(u) === meId);
     } else if (isOversightViewer && urlAssigneeId) {
       // Team Lead / Head: drill into one CCE’s assigned cases
       list = list.filter((u) => assigneeIdOf(u) === urlAssigneeId);
+    } else if (isOversightViewer && urlAssigneeIds.length) {
+      // Support Head: drill into a Team Lead pod (multiple CCEs)
+      const allowed = new Set(urlAssigneeIds);
+      list = list.filter((u) => allowed.has(assigneeIdOf(u)));
     }
     return list;
-  }, [usersQuery.data, cceExclusive, meId, isOversightViewer, urlAssigneeId]);
+  }, [
+    usersQuery.data,
+    cceExclusive,
+    meId,
+    isOversightViewer,
+    urlAssigneeId,
+    urlAssigneeIds,
+  ]);
 
   /** Per-status counts — CCE only. Team Lead / Super Admin see no count badges. */
   const trackCounts = useMemo(() => {
@@ -912,7 +983,7 @@ export default function FollowUpTrackingPage() {
           PeriodTo: range.to || "",
           Track: meta.label || "",
           Name: user.name || "",
-          Role: user.roleName || user.role || "",
+          Role: displayRoleOf(user),
           State: user.state || "",
           City: user.city || "",
           Locality: user.locality || "",
@@ -961,17 +1032,25 @@ export default function FollowUpTrackingPage() {
             <span className="mx-1 text-slate-300">·</span>
             {rangeLabel}
           </p>
-          {isOversightViewer && urlAssigneeId ? (
+          {isOversightViewer && (urlAssigneeId || urlAssigneeIds.length) ? (
             <div className="mt-1.5 inline-flex flex-wrap items-center gap-1.5">
               <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                CCE: {urlAssigneeName || "Selected executive"}
+                {urlAssigneeIds.length
+                  ? `Pod: ${urlAssigneeName || "Team Lead pod"}`
+                  : `CCE: ${urlAssigneeName || "Selected executive"}`}
               </span>
               <button
                 type="button"
-                onClick={() => writeParams({ assigneeId: null, assigneeName: null })}
+                onClick={() =>
+                  writeParams({
+                    assigneeId: null,
+                    assigneeIds: null,
+                    assigneeName: null,
+                  })
+                }
                 className="rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
               >
-                Clear CCE filter
+                Clear filter
               </button>
             </div>
           ) : null}
@@ -1301,7 +1380,7 @@ export default function FollowUpTrackingPage() {
                               <span className="line-clamp-1">{user.name || "—"}</span>
                             </td>
                             <td className="align-middle whitespace-nowrap px-3 py-2.5 text-slate-600">
-                              {user.roleName || user.role || "—"}
+                              {displayRoleOf(user)}
                             </td>
                             <td className="align-middle px-3 py-2.5 text-slate-600">
                               <span className="line-clamp-1" title={loc || undefined}>
@@ -1420,7 +1499,7 @@ export default function FollowUpTrackingPage() {
                   <div>
                     <p className="text-sm font-bold text-slate-900">{selectedUser.name || "—"}</p>
                     <p className="text-[11px] text-slate-500">
-                      {selectedUser.roleName || selectedUser.role || "—"}
+                      {displayRoleOf(selectedUser)}
                     </p>
                   </div>
                 </div>

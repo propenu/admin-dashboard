@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiClient } from "../../../api/apiClient";
 import {
   getTicketAgentPerformance,
@@ -22,16 +22,32 @@ const safeList = async (fn, fallback = []) => {
   }
 };
 
+const unpackUsers = (response) => {
+  const payload = response?.data;
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.users)) return payload.users;
+  return [];
+};
+
 const fetchTeamAssignees = async () => {
   try {
     const response = await apiClient.get(`${SERVICES.USER}/auth/all-users`, {
       params: { scope: "ticket_assignees" },
     });
-    const payload = response?.data;
-    if (Array.isArray(payload)) return payload;
-    if (Array.isArray(payload?.data)) return payload.data;
-    if (Array.isArray(payload?.users)) return payload.users;
+    return unpackUsers(response);
+  } catch {
     return [];
+  }
+};
+
+/** Hierarchy under Support Head (Team Leads + CCEs + RMs) for pod analysis. */
+const fetchTeamDirectory = async () => {
+  try {
+    const response = await apiClient.get(`${SERVICES.USER}/auth/all-users`, {
+      params: { scope: "team_directory" },
+    });
+    return unpackUsers(response);
   } catch {
     return [];
   }
@@ -40,7 +56,7 @@ const fetchTeamAssignees = async () => {
 export function useCustomerSupportHeadDashboard() {
   const dateRange = useDashboardDateRange("30d");
   const { range, filters } = dateRange;
-  const trendDays = range.days || 7;
+  const trendDays = range.days || 30;
 
   const overviewQuery = useQuery({
     queryKey: ["customer-support-head-dashboard", "overview", CUSTOMER_CARE_DEPARTMENT, filters],
@@ -53,20 +69,23 @@ export function useCustomerSupportHeadDashboard() {
       }),
     staleTime: 60_000,
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
   });
 
+  // Fetch recent tickets by activity; period filter applied in map (created/updated/resolved).
   const ticketsQuery = useQuery({
     queryKey: ["customer-support-head-dashboard", "tickets", CUSTOMER_CARE_DEPARTMENT],
     queryFn: () =>
       getTickets({
         page: 1,
-        limit: 80,
+        limit: 100,
         sortBy: "updatedAt",
         sortOrder: "desc",
         department: CUSTOMER_CARE_DEPARTMENT,
       }),
     staleTime: 30_000,
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
   });
 
   const agentsQuery = useQuery({
@@ -85,6 +104,7 @@ export function useCustomerSupportHeadDashboard() {
       ),
     staleTime: 60_000,
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
   });
 
   const teamUsersQuery = useQuery({
@@ -92,6 +112,15 @@ export function useCustomerSupportHeadDashboard() {
     queryFn: fetchTeamAssignees,
     staleTime: 60_000,
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
+  });
+
+  const teamDirectoryQuery = useQuery({
+    queryKey: ["customer-support-head-dashboard", "team-directory"],
+    queryFn: fetchTeamDirectory,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
   });
 
   const currentUserQuery = useQuery({
@@ -114,11 +143,12 @@ export function useCustomerSupportHeadDashboard() {
         department: CUSTOMER_CARE_DEPARTMENT,
       }),
     staleTime: 120_000,
+    placeholderData: keepPreviousData,
   });
 
   const tickets = ticketsQuery.data?.data || ticketsQuery.data || [];
 
-  const derived = useMemo(
+  const assignDerived = useMemo(
     () =>
       mapCustomerSupportHeadData({
         overview: overviewQuery.data?.data || overviewQuery.data || {},
@@ -127,11 +157,39 @@ export function useCustomerSupportHeadDashboard() {
         agentPerformance: agentsQuery.data || [],
         currentUser: currentUserQuery.data,
         trends: trendsQuery.data?.data || trendsQuery.data || {},
+        range,
       }),
     [
       agentsQuery.data,
       currentUserQuery.data,
       overviewQuery.data,
+      range,
+      teamUsersQuery.data,
+      tickets,
+      trendsQuery.data,
+    ],
+  );
+
+  /** Prefer hierarchy directory for Command Overview pods (has managerId). */
+  const directoryDerived = useMemo(
+    () =>
+      mapCustomerSupportHeadData({
+        overview: overviewQuery.data?.data || overviewQuery.data || {},
+        tickets,
+        teamUsers: teamDirectoryQuery.data?.length
+          ? teamDirectoryQuery.data
+          : teamUsersQuery.data || [],
+        agentPerformance: agentsQuery.data || [],
+        currentUser: currentUserQuery.data,
+        trends: trendsQuery.data?.data || trendsQuery.data || {},
+        range,
+      }),
+    [
+      agentsQuery.data,
+      currentUserQuery.data,
+      overviewQuery.data,
+      range,
+      teamDirectoryQuery.data,
       teamUsersQuery.data,
       tickets,
       trendsQuery.data,
@@ -139,13 +197,15 @@ export function useCustomerSupportHeadDashboard() {
   );
 
   return {
-    ...derived,
+    ...directoryDerived,
+    assignMembers: assignDerived.teamMembers,
     ...dateRange,
     tickets,
     overviewQuery,
     ticketsQuery,
     agentsQuery,
     teamUsersQuery,
+    teamDirectoryQuery,
     currentUserQuery,
     trendsQuery,
     isLoading: overviewQuery.isLoading || ticketsQuery.isLoading || currentUserQuery.isLoading,
@@ -154,6 +214,7 @@ export function useCustomerSupportHeadDashboard() {
       ticketsQuery.isFetching ||
       agentsQuery.isFetching ||
       teamUsersQuery.isFetching ||
+      teamDirectoryQuery.isFetching ||
       currentUserQuery.isFetching ||
       trendsQuery.isFetching,
     isError: overviewQuery.isError || ticketsQuery.isError || currentUserQuery.isError,
@@ -164,6 +225,7 @@ export function useCustomerSupportHeadDashboard() {
         ticketsQuery.refetch(),
         agentsQuery.refetch(),
         teamUsersQuery.refetch(),
+        teamDirectoryQuery.refetch(),
         currentUserQuery.refetch(),
         trendsQuery.refetch(),
       ]);

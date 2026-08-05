@@ -178,7 +178,7 @@ export const DesktopTable = ({
                   </td>
 
                   <td className="px-3 py-3 align-middle">
-                    <RoleBadge role={u.roleName || u.role} />
+                    <RoleBadge role={u.roleName || u.role || u.roleId?.name} />
                   </td>
 
                   <td className="px-3 py-3 align-middle">

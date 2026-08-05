@@ -83,7 +83,7 @@ export const MobileCardView = ({
               </div>
 
               <div className="mb-3 flex flex-wrap gap-2">
-                <RoleBadge role={u.roleName || u.role} />
+                <RoleBadge role={u.roleName || u.role || u.roleId?.name} />
                 <AccountBadge status={u.accountStatus} />
                 <KycBadge kyc={u.kyc} />
                 <PhoneBadge verified={u.phoneVerified} />
