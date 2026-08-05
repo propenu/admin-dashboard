@@ -82,6 +82,17 @@ const inCreatedPeriod = (value, range = {}) => {
   return true;
 };
 
+/** Case counts for a period: created, assigned, or work-updated in range. */
+const inActivityPeriod = (user, range = {}) => {
+  if (!range?.from && !range?.to) return true;
+  return (
+    inCreatedPeriod(user?.createdAt, range) ||
+    inCreatedPeriod(user?.followUpAssignedAt, range) ||
+    inCreatedPeriod(user?.followUpWorkUpdatedAt, range) ||
+    inCreatedPeriod(user?.updatedAt, range)
+  );
+};
+
 const unpackList = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
@@ -138,7 +149,7 @@ export function mapTlClientProgressReport({
   range = {},
 } = {}) {
   const usersAll = unpackList(usersPayload).filter(isPlatformUser);
-  const inPeriod = usersAll.filter((u) => inCreatedPeriod(u?.createdAt, range));
+  const inPeriod = usersAll.filter((u) => inActivityPeriod(u, range));
 
   const incomplete = inPeriod.filter((u) => ONBOARDING.has(accountStatusOf(u)));
   const withAssignee = inPeriod.filter((u) => Boolean(assigneeIdOf(u)));
@@ -232,10 +243,11 @@ export function mapTlClientProgressReport({
   };
 
   const journeyHref = {
-    assigned: followUpTrackHref("onboarding_all", range),
+    assigned: followUpTrackHref("process_assigned", range),
+    inProgress: followUpTrackHref("process_in_progress", range),
     stuckLocation: followUpTrackHref("stuck_location", range),
     stuckKyc: followUpTrackHref("stuck_kyc", range),
-    completed: followUpTrackHref("active_success", range),
+    completed: followUpTrackHref("process_completed", range),
     all: followUpTrackHref("onboarding_all", range),
   };
 

@@ -68,31 +68,31 @@ export default function CshWorkspacePanel({
 
   return (
     <section className={panelShell}>
-      <header className="shrink-0 border-b border-slate-100 bg-gradient-to-r from-white to-emerald-50/80 px-3.5 py-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <header className="shrink-0 border-b border-slate-100 bg-gradient-to-r from-white to-emerald-50/80 px-3 py-2.5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 flex-1 basis-[180px]">
-            <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${priorityClass(ticket.priority)}`}>
+            <span className={`inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${priorityClass(ticket.priority)}`}>
               {ticket.priority || "Medium"}
             </span>
-            <h2 className="mt-1.5 break-words text-sm font-bold leading-snug text-slate-900 sm:text-[15px]">
+            <h2 className="mt-1 break-words text-[13px] font-black leading-snug text-slate-900">
               {ticket.title}
             </h2>
-            <p className="mt-1 break-words text-[11px] leading-relaxed text-slate-500">
+            <p className="mt-0.5 break-words text-[10px] text-slate-500">
               {ticket.ticketId} · {requesterName}
               {requesterContact ? ` · ${requesterContact}` : ""}
             </p>
-            <p className="mt-1 text-[11px] font-medium text-slate-600">
+            <p className="mt-0.5 text-[10px] font-semibold text-slate-600">
               Assigned: {ticket.assignedTo?.name || "Unassigned"}
             </p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[180px]">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="flex w-full flex-col gap-1 sm:w-auto sm:min-w-[160px]">
+            <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">
               Status
               <select
                 value={ticket.status || "open"}
                 onChange={(e) => onStatusChange?.(e.target.value)}
                 disabled={submitting}
-                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500"
+                className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 outline-none focus:border-emerald-500"
               >
                 {statusOptions.map((status) => (
                   <option key={status} value={status}>
@@ -104,14 +104,14 @@ export default function CshWorkspacePanel({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white/80 p-2.5">
-          <label className="min-w-0 flex-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        <div className="mt-2 flex flex-wrap items-end gap-1.5 rounded-[10px] border border-slate-200 bg-white/80 p-2">
+          <label className="min-w-0 flex-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
             Reassign executive
             <select
               value={assigneeId || currentAssigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
               disabled={submitting}
-              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500"
+              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700 outline-none focus:border-emerald-500"
             >
               <option value="">Select team member</option>
               {teamMembers.map((member) => (
@@ -130,7 +130,7 @@ export default function CshWorkspacePanel({
               if (!member) return;
               onAssign?.(member);
             }}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
           >
             <UserPlus className="h-3.5 w-3.5" />
             Assign
@@ -138,9 +138,9 @@ export default function CshWorkspacePanel({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3 [scrollbar-width:thin]">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2.5 [scrollbar-width:thin]">
         {ticket.description && (
-          <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
+          <div className="rounded-[10px] border border-slate-100 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
             {ticket.description}
           </div>
         )}
@@ -148,21 +148,21 @@ export default function CshWorkspacePanel({
           publicComments.slice(-8).map((comment, index) => (
             <article
               key={comment._id || index}
-              className="rounded-xl border border-slate-100 bg-white px-3 py-2.5"
+              className="rounded-[10px] border border-slate-100 bg-white px-2.5 py-2"
             >
-              <p className="text-[11px] font-bold text-slate-800">
+              <p className="text-[10px] font-bold text-slate-800">
                 {comment.author?.name || "Agent"}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-600">{comment.message}</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-slate-600">{comment.message}</p>
             </article>
           ))
         ) : (
-          <p className="py-6 text-center text-xs text-slate-400">No public replies yet</p>
+          <p className="py-4 text-center text-[11px] text-slate-400">No public replies yet</p>
         )}
       </div>
 
-      <footer className="shrink-0 border-t border-slate-100 bg-slate-50/60 p-3">
-        <div className="mb-2 flex gap-2">
+      <footer className="shrink-0 border-t border-slate-100 bg-slate-50/60 p-2.5">
+        <div className="mb-1.5 flex gap-1.5">
           {[
             { key: "public", label: "Public Reply" },
             { key: "internal", label: "Internal Note" },
@@ -171,17 +171,17 @@ export default function CshWorkspacePanel({
               key={mode.key}
               type="button"
               onClick={() => setReplyMode(mode.key)}
-              className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+              className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
                 replyMode === mode.key
                   ? "bg-emerald-600 text-white"
-                  : "bg-white text-slate-600 border border-slate-200"
+                  : "border border-slate-200 bg-white text-slate-600"
               }`}
             >
               {mode.label}
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <textarea
             value={draft}
             onChange={(e) => onDraftChange?.(e.target.value)}
@@ -191,13 +191,13 @@ export default function CshWorkspacePanel({
                 ? "Reply to the buyer…"
                 : "Note for team leads / executives…"
             }
-            className="min-h-[64px] w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-emerald-500"
+            className="min-h-[52px] w-full resize-none rounded-[10px] border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] text-slate-700 outline-none focus:border-emerald-500"
           />
           <button
             type="button"
             disabled={submitting || !draft?.trim()}
             onClick={() => (replyMode === "public" ? onSendReply?.() : onSendNote?.())}
-            className="inline-flex h-auto shrink-0 items-center justify-center self-stretch rounded-xl bg-emerald-600 px-3 text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex h-auto shrink-0 items-center justify-center self-stretch rounded-[10px] bg-emerald-600 px-2.5 text-white hover:bg-emerald-700 disabled:opacity-50"
           >
             <Send className="h-4 w-4" />
           </button>

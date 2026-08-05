@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiClient } from "../../../api/apiClient";
 import { SERVICES } from "../../../config/services";
 import {
@@ -43,7 +43,9 @@ const fetchTeamMembers = async () => {
  * Additive Client Progress report for Team Lead.
  * Reads existing user + inventory APIs only (not ticket-service).
  */
-export function useTlClientProgressReport(range = {}, filters = {}) {
+export function useTlClientProgressReport(range = {}, filters = {}, options = {}) {
+  const enabled = options.enabled !== false;
+
   const usersQuery = useQuery({
     queryKey: ["tl-client-progress-report", "users"],
     queryFn: () =>
@@ -51,15 +53,19 @@ export function useTlClientProgressReport(range = {}, filters = {}) {
         const response = await getAllUsers();
         return unpackUsers(response);
       }, []),
-    staleTime: 90_000,
-    refetchInterval: 120_000,
+    enabled,
+    staleTime: 180_000,
+    refetchInterval: enabled ? 180_000 : false,
+    placeholderData: keepPreviousData,
   });
 
   const teamUsersQuery = useQuery({
     queryKey: ["customer-support-team-lead-dashboard", "team-users"],
     queryFn: fetchTeamMembers,
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    enabled,
+    staleTime: 120_000,
+    refetchInterval: enabled ? 120_000 : false,
+    placeholderData: keepPreviousData,
   });
 
   const propertiesQuery = useQuery({
@@ -69,7 +75,9 @@ export function useTlClientProgressReport(range = {}, filters = {}) {
         const response = await getAllPropertiesAnalytics(filters);
         return unpackAnalytics(response);
       }, {}),
-    staleTime: 60_000,
+    enabled,
+    staleTime: 120_000,
+    placeholderData: keepPreviousData,
   });
 
   const projectsQuery = useQuery({
@@ -79,7 +87,9 @@ export function useTlClientProgressReport(range = {}, filters = {}) {
         const response = await getAllProjectsAnalytics(filters);
         return unpackAnalytics(response);
       }, {}),
-    staleTime: 60_000,
+    enabled,
+    staleTime: 120_000,
+    placeholderData: keepPreviousData,
   });
 
   const report = useMemo(

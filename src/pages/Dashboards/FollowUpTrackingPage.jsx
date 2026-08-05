@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import {
-  ArrowLeft,
   CalendarRange,
   ChevronLeft,
   ChevronRight,
@@ -136,6 +135,24 @@ const TRACK_META = {
   },
   onboarding_all: {
     label: "All incomplete onboarding",
+    group: "User journey",
+    groupId: "user_journey",
+    kind: "users",
+  },
+  process_assigned: {
+    label: "CCE process · Assigned",
+    group: "User journey",
+    groupId: "user_journey",
+    kind: "users",
+  },
+  process_in_progress: {
+    label: "CCE process · In progress",
+    group: "User journey",
+    groupId: "user_journey",
+    kind: "users",
+  },
+  process_completed: {
+    label: "CCE process · Completed",
     group: "User journey",
     groupId: "user_journey",
     kind: "users",
@@ -445,11 +462,23 @@ const inCreatedPeriod = (value, range) => {
   return true;
 };
 
+const inActivityPeriod = (user, range = {}) => {
+  if (!range?.from && !range?.to) return true;
+  return (
+    inCreatedPeriod(user?.createdAt, range) ||
+    inCreatedPeriod(user?.followUpAssignedAt, range) ||
+    inCreatedPeriod(user?.followUpWorkUpdatedAt, range) ||
+    inCreatedPeriod(user?.updatedAt, range)
+  );
+};
+
 const matchesTrack = (user, trackKey, range) => {
   const status = String(user?.accountStatus || "").toLowerCase();
   const role = normalizeRole(user?.roleName || user?.role);
   const inPeriod = inCreatedPeriod(user?.createdAt, range);
   const loginInPeriod = inCreatedPeriod(user?.lastLoginAt, range);
+  const activeInPeriod = inActivityPeriod(user, range);
+  const process = workStatusOf(user);
   // Every people-list track: only Owner / Agent / Builder / Builder staff (+ owner aliases)
   if (!isPlatformClientRole(role)) return false;
 
@@ -463,13 +492,19 @@ const matchesTrack = (user, trackKey, range) => {
     case "active_success":
       return status === "active" && inPeriod;
     case "stuck_location":
-      return status === "location_pending" && inPeriod;
+      return status === "location_pending" && activeInPeriod;
     case "stuck_kyc":
-      return status === "kyc_pending" && inPeriod;
+      return status === "kyc_pending" && activeInPeriod;
     case "kyc_rejected":
-      return status === "kyc_rejected" && inPeriod;
+      return status === "kyc_rejected" && activeInPeriod;
     case "onboarding_all":
-      return ONBOARDING.has(status) && inPeriod;
+      return ONBOARDING.has(status) && activeInPeriod;
+    case "process_assigned":
+      return Boolean(assigneeIdOf(user)) && process === "assigned" && activeInPeriod;
+    case "process_in_progress":
+      return Boolean(assigneeIdOf(user)) && process === "in_progress" && activeInPeriod;
+    case "process_completed":
+      return Boolean(assigneeIdOf(user)) && process === "completed" && activeInPeriod;
     case "owners":
       return inPeriod && ["user", "owner", "buyer", "tenant"].includes(role);
     case "agents":
@@ -514,6 +549,8 @@ export default function FollowUpTrackingPage() {
   const urlFrom = searchParams.get("from") || "";
   const urlTo = searchParams.get("to") || "";
   const urlPreset = searchParams.get("preset") || "";
+  const urlAssigneeId = String(searchParams.get("assigneeId") || "").trim();
+  const urlAssigneeName = String(searchParams.get("assigneeName") || "").trim();
 
   const preset =
     urlPreset ||
@@ -550,10 +587,22 @@ export default function FollowUpTrackingPage() {
     const nextPreset = next.preset ?? preset;
     const nextFrom = next.from ?? range.from;
     const nextTo = next.to ?? range.to;
+    const nextAssigneeId =
+      next.assigneeId === null || next.assigneeId === ""
+        ? ""
+        : (next.assigneeId ?? urlAssigneeId);
+    const nextAssigneeName =
+      next.assigneeName === null || next.assigneeName === ""
+        ? ""
+        : (next.assigneeName ?? urlAssigneeName);
     params.set("track", nextTrack);
     if (nextPreset) params.set("preset", nextPreset);
     if (nextFrom) params.set("from", nextFrom);
     if (nextTo) params.set("to", nextTo);
+    if (nextAssigneeId) {
+      params.set("assigneeId", nextAssigneeId);
+      if (nextAssigneeName) params.set("assigneeName", nextAssigneeName);
+    }
     setSearchParams(params, { replace: true });
   };
 
@@ -700,9 +749,12 @@ export default function FollowUpTrackingPage() {
     );
     if (cceExclusive) {
       list = list.filter((u) => assigneeIdOf(u) === meId);
+    } else if (isOversightViewer && urlAssigneeId) {
+      // Team Lead / Head: drill into one CCE’s assigned cases
+      list = list.filter((u) => assigneeIdOf(u) === urlAssigneeId);
     }
     return list;
-  }, [usersQuery.data, cceExclusive, meId]);
+  }, [usersQuery.data, cceExclusive, meId, isOversightViewer, urlAssigneeId]);
 
   /** Per-status counts — CCE only. Team Lead / Super Admin see no count badges. */
   const trackCounts = useMemo(() => {
@@ -748,7 +800,7 @@ export default function FollowUpTrackingPage() {
     setPage(1);
     setSelectedId(null);
     setSearch("");
-  }, [track, range.from, range.to]);
+  }, [track, range.from, range.to, urlAssigneeId]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / USER_PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -902,22 +954,27 @@ export default function FollowUpTrackingPage() {
   return (
     <div className="mx-auto max-w-[1480px] space-y-3 pb-8 text-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
-          <div>
-            <h1 className="text-base font-black text-slate-900">Client Progress Queue</h1>
-            <p className="text-[11px] text-slate-500">
-              Assigned cases for onboarding, KYC and inventory · {meta.group} · {meta.label}
-              <span className="mx-1 text-slate-300">·</span>
-              {rangeLabel}
-            </p>
-          </div>
+        <div className="min-w-0">
+          <h1 className="text-base font-black text-slate-900">Client Progress Queue</h1>
+          <p className="text-[11px] text-slate-500">
+            Assigned cases for onboarding, KYC and inventory · {meta.group} · {meta.label}
+            <span className="mx-1 text-slate-300">·</span>
+            {rangeLabel}
+          </p>
+          {isOversightViewer && urlAssigneeId ? (
+            <div className="mt-1.5 inline-flex flex-wrap items-center gap-1.5">
+              <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                CCE: {urlAssigneeName || "Selected executive"}
+              </span>
+              <button
+                type="button"
+                onClick={() => writeParams({ assigneeId: null, assigneeName: null })}
+                className="rounded-lg border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
+              >
+                Clear CCE filter
+              </button>
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-1.5">
           {meta.kind === "users" ? (

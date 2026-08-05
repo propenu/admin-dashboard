@@ -2,7 +2,6 @@ import { CalendarRange, Download, Filter, RefreshCw, Search, Shield } from "luci
 import { DATE_PRESETS, formatRelativeClock, formatINR } from "../superAdminDashboardData";
 
 export default function SaHeader({
-  userName,
   rangeLabel,
   refreshedAt,
   preset,
@@ -21,16 +20,9 @@ export default function SaHeader({
     <section className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-600">
-            Super Admin
-          </p>
-          <h1 className="mt-0.5 text-lg font-black leading-tight text-slate-950 sm:text-xl">
-            Platform Command Center · {userName}
+          <h1 className="text-lg font-black leading-tight text-[#27AE60] sm:text-xl">
+            Dashboard
           </h1>
-          <p className="mt-1 max-w-3xl text-xs text-slate-500">
-            Cross-domain control of finance, inventory, acquisition, support, content, and access —
-            one real-time operating picture for Propenu.
-          </p>
           <p className="mt-1.5 text-[11px] text-slate-400">
             Period <strong className="font-semibold text-slate-600">{rangeLabel}</strong>
             <span className="mx-1.5 text-slate-300">·</span>

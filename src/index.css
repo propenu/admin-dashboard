@@ -1019,5 +1019,23 @@ body{
 .uj-session-grid .uj-time-6{top:22%}.uj-session-grid .uj-time-12{top:49%}.uj-session-grid .uj-time-18{top:76%}
 .uj-page>section:nth-of-type(3)>div:first-child>div:nth-child(3) .uj-map-dot{width:14px;height:14px;box-shadow:0 0 0 9px rgb(250 204 21/.25),0 0 0 18px rgb(16 185 129/.10)}
 
-
-
+/* Support Team Lead — Command Overview motion */
+@keyframes tlFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes tlSpark {
+  from { opacity: 0.2; clip-path: inset(0 100% 0 0); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+@keyframes tlBarGrow {
+  from { transform: scaleX(0.15); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[tlFadeUp"],
+  [class*="animate-[tlSpark"],
+  [class*="animate-[tlBarGrow"] {
+    animation: none !important;
+  }
+}

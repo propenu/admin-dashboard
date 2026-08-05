@@ -179,6 +179,9 @@ export const followUpTrackHref = (trackKey, range = {}, extras = {}) => {
   if (preset) params.set("preset", preset);
   if (range?.from) params.set("from", range.from);
   if (range?.to) params.set("to", range.to);
+  if (extras.assigneeId) params.set("assigneeId", String(extras.assigneeId));
+  if (extras.assigneeName) params.set("assigneeName", String(extras.assigneeName));
+  if (extras.workStatus) params.set("workStatus", String(extras.workStatus));
   return `/follow-up-tracking?${params.toString()}`;
 };
 

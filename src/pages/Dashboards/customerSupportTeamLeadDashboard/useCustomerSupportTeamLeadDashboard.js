@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiClient } from "../../../api/apiClient";
 import {
   getTicketAgentPerformance,
@@ -57,22 +57,25 @@ export function useCustomerSupportTeamLeadDashboard() {
         scope: "customer_care",
         department: CUSTOMER_CARE_DEPARTMENT,
       }),
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: 90_000,
+    refetchInterval: 90_000,
+    placeholderData: keepPreviousData,
   });
 
+  // Fetch recent tickets by activity; period filter applied in map (created/updated/resolved).
   const ticketsQuery = useQuery({
     queryKey: ["customer-support-team-lead-dashboard", "tickets", CUSTOMER_CARE_DEPARTMENT],
     queryFn: () =>
       getTickets({
         page: 1,
-        limit: 80,
+        limit: 100,
         sortBy: "updatedAt",
         sortOrder: "desc",
         department: CUSTOMER_CARE_DEPARTMENT,
       }),
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    staleTime: 45_000,
+    refetchInterval: 90_000,
+    placeholderData: keepPreviousData,
   });
 
   const agentsQuery = useQuery({
@@ -91,15 +94,17 @@ export function useCustomerSupportTeamLeadDashboard() {
         });
         return Array.isArray(data) ? data : data?.data || [];
       }, []),
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: 120_000,
+    refetchInterval: 120_000,
+    placeholderData: keepPreviousData,
   });
 
   const teamUsersQuery = useQuery({
     queryKey: ["customer-support-team-lead-dashboard", "team-users"],
     queryFn: fetchTeamMembers,
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: 120_000,
+    refetchInterval: 120_000,
+    placeholderData: keepPreviousData,
   });
 
   const currentUserQuery = useQuery({
@@ -108,7 +113,7 @@ export function useCustomerSupportTeamLeadDashboard() {
       const response = await getUserDetails();
       return response?.data?.user || response?.data || null;
     },
-    staleTime: 120_000,
+    staleTime: 300_000,
   });
 
   const trendsQuery = useQuery({
@@ -127,7 +132,8 @@ export function useCustomerSupportTeamLeadDashboard() {
         scope: "customer_care",
         department: CUSTOMER_CARE_DEPARTMENT,
       }),
-    staleTime: 120_000,
+    staleTime: 180_000,
+    placeholderData: keepPreviousData,
   });
 
   const tickets = ticketsQuery.data?.data || ticketsQuery.data || [];
@@ -141,11 +147,13 @@ export function useCustomerSupportTeamLeadDashboard() {
         agentPerformance: agentsQuery.data || [],
         currentUser: currentUserQuery.data,
         trends: trendsQuery.data?.data || trendsQuery.data || {},
+        range,
       }),
     [
       agentsQuery.data,
       currentUserQuery.data,
       overviewQuery.data,
+      range,
       teamUsersQuery.data,
       tickets,
       trendsQuery.data,

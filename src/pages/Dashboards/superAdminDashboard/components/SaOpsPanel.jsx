@@ -15,7 +15,7 @@ export default function SaOpsPanel({
     <article className="flex h-full min-h-0 flex-col overflow-hidden rounded-[14px] border border-slate-200 bg-white shadow-sm">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5">
         <div>
-          <h3 className="text-xs font-bold text-slate-900">Operations mix</h3>
+          <h3 className="text-xs font-bold text-slate-900">Lead, ticket & role summary</h3>
           <p className="text-[10px] text-slate-500">
             Leads {summary?.totalLeads || 0} · Tickets open {summary?.openTickets || 0} ·{" "}
             <button

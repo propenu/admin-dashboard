@@ -29,7 +29,7 @@ export default function SuperAdminDashboard() {
   const handleExport = async () => {
     const s = dashboard.summary;
     const lines = [
-      `Platform Command Center — ${dashboard.currentUserName}`,
+      `Super Admin — ${dashboard.currentUserName}`,
       `Period: ${dashboard.rangeLabel}`,
       `Period revenue: ${formatINR(s.periodRevenue ?? s.totalRevenue)}`,
       `Lifetime revenue: ${formatINR(s.lifetimeRevenue ?? s.totalRevenue)}`,
@@ -69,7 +69,6 @@ export default function SuperAdminDashboard() {
   return (
     <div className="mx-auto max-w-[1680px] space-y-3 pb-6 text-slate-900">
       <SaHeader
-        userName={dashboard.currentUserName}
         rangeLabel={dashboard.rangeLabel}
         refreshedAt={dashboard.refreshedAt}
         preset={dashboard.preset}

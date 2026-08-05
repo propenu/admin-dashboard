@@ -2059,7 +2059,7 @@ export default function ProjectsDashboardPage() {
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_6px_20px_rgba(22,163,74,0.12)] sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight text-[#27AE60] sm:text-3xl">
             Projects
           </h1>

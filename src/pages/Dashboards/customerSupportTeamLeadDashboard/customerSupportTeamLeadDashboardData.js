@@ -134,6 +134,19 @@ const mapPerformanceWeek = (trends = {}, tickets = []) => {
   return week;
 };
 
+const ticketInPeriod = (ticket = {}, range = {}) => {
+  if (!range?.from && !range?.to) return true;
+  const dates = [ticket.createdAt, ticket.updatedAt, ticket.resolvedAt, ticket.assignedAt];
+  return dates.some((value) => {
+    if (!value) return false;
+    const ms = new Date(value).getTime();
+    if (!Number.isFinite(ms)) return false;
+    if (range.from && ms < new Date(`${range.from}T00:00:00`).getTime()) return false;
+    if (range.to && ms > new Date(`${range.to}T23:59:59.999`).getTime()) return false;
+    return true;
+  });
+};
+
 export const mapCustomerSupportTeamLeadData = ({
   overview = {},
   tickets = [],
@@ -141,8 +154,10 @@ export const mapCustomerSupportTeamLeadData = ({
   agentPerformance = [],
   currentUser = null,
   trends = [],
+  range = {},
 }) => {
-  const normalizedTickets = Array.isArray(tickets) ? tickets : [];
+  const allTickets = Array.isArray(tickets) ? tickets : [];
+  const normalizedTickets = allTickets.filter((t) => ticketInPeriod(t, range));
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const now = Date.now();

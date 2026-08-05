@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Siderbar";
+import PageBackNav from "../common/PageBackNav";
 import { useSidebarActivityBadges } from "../../hooks/useSidebarActivityBadges";
 
 const SIDEBAR_EXPANDED = 256;
@@ -70,6 +71,7 @@ export default function MainLayout() {
           }}
         >
           <div className="min-w-0 max-w-full p-3 sm:p-4 lg:p-6">
+            <PageBackNav />
             <Outlet />
           </div>
         </main>
