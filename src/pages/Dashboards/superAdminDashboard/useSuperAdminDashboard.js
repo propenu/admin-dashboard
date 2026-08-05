@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiClient } from "../../../api/apiClient";
 import {
   getAccountsSummary,
@@ -15,6 +15,7 @@ import {
 } from "../../../features/property/propertyService";
 import { getAllUsers, getUserDetails } from "../../../features/user/userService";
 import { getTicketDashboardOverview } from "../../../features/ticket/ticket_system";
+import { getPlatformEngagement } from "../../../features/activity/allUsersActivityService";
 import { useDashboardDateRange } from "../shared/useDashboardDateRange";
 import { DATE_PRESETS } from "../shared/dashboardDateRange";
 import { mapSuperAdminData } from "./superAdminDashboardData";
@@ -175,6 +176,35 @@ export function useSuperAdminDashboard() {
     staleTime: 90_000,
   });
 
+  const emptyEngagement = (granularity = "day") => ({
+    summary: { clicks: 0, views: 0, actions: 0, clickRate: null },
+    daily: [],
+    actionMix: [],
+    topEvents: [],
+    granularity,
+  });
+
+  const engagementQuery = useQuery({
+    queryKey: ["super-admin-dashboard", "engagement", filters, dateRange.preset],
+    queryFn: async () => {
+      const params = {
+        range: dateRange.preset === "custom" ? "custom" : dateRange.preset,
+        ...filters,
+      };
+      try {
+        return await getPlatformEngagement(params);
+      } catch (error) {
+        const status = error?.response?.status;
+        if (status === 401 || status === 403) throw error;
+        return emptyEngagement(dateRange.preset === "today" ? "hour" : "day");
+      }
+    },
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+
   const mapped = useMemo(
     () =>
       mapSuperAdminData({
@@ -227,6 +257,7 @@ export function useSuperAdminDashboard() {
     ticketsQuery,
     blogsQuery,
     usersQuery,
+    engagementQuery,
     currentUserQuery,
   ].some((q) => q.isFetching);
 
@@ -245,12 +276,16 @@ export function useSuperAdminDashboard() {
       ticketsQuery.refetch(),
       blogsQuery.refetch(),
       usersQuery.refetch(),
+      engagementQuery.refetch(),
     ]);
   };
 
   return {
     ...mapped,
     ...dateRange,
+    engagement: engagementQuery.data,
+    engagementLoading: engagementQuery.isLoading,
+    engagementError: engagementQuery.isError,
     isLoading,
     isFetching,
     refetch,

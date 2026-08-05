@@ -4,8 +4,10 @@ export default function SaModuleGrid({ modules = [], onOpen }) {
   return (
     <article className="overflow-hidden rounded-[14px] border border-slate-200 bg-white shadow-sm">
       <header className="border-b border-slate-100 px-3.5 py-2.5">
-        <h3 className="text-xs font-bold text-slate-900">Module launcher</h3>
-        <p className="text-[10px] text-slate-500">Jump into any operating desk with live context</p>
+        <h3 className="text-xs font-bold text-slate-900">Operations hub</h3>
+        <p className="text-[10px] text-slate-500">
+          Jump to listings, leads, users, payments and care desks
+        </p>
       </header>
       <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {modules.map((mod) => (

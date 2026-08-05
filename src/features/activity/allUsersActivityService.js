@@ -8,6 +8,15 @@ export const getAllUsersActivity = async (params = {}, config = {}) => {
   return response.data?.data ?? response.data;
 };
 
+/** Super Admin: website/app clicks + actions for dashboard date range. */
+export const getPlatformEngagement = async (params = {}, config = {}) => {
+  const response = await apiClient.get(
+    "/api/properties/interactions/platform-engagement",
+    { params, ...config },
+  );
+  return response.data?.data ?? response.data;
+};
+
 /**
  * Paginated flat event timeline for one user (admin drawer).
  */

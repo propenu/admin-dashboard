@@ -1,4 +1,12 @@
-import { CalendarRange, Download, Filter, RefreshCw, Search, Shield } from "lucide-react";
+import {
+  CalendarRange,
+  Download,
+  Filter,
+  RefreshCw,
+  Search,
+  Shield,
+  Users,
+} from "lucide-react";
 import { DATE_PRESETS, formatRelativeClock, formatINR } from "../superAdminDashboardData";
 
 export default function SaHeader({
@@ -15,6 +23,7 @@ export default function SaHeader({
   isFetching,
   onExport,
   summary,
+  onOpenClientProgress,
 }) {
   return (
     <section className="space-y-3">
@@ -118,15 +127,14 @@ export default function SaHeader({
           </div>
         )}
 
-        <span className="ml-auto hidden text-[10px] text-slate-400 lg:inline">
-          Pay success{" "}
-          <strong className="text-slate-700">
-            {summary?.paymentSuccess == null ? "N/A" : `${summary.paymentSuccess}%`}
-          </strong>
-          <span className="mx-1.5 text-slate-300">·</span>
-          Listing views{" "}
-          <strong className="text-slate-700">{summary?.listingViews || 0}</strong>
-        </span>
+        <button
+          type="button"
+          onClick={onOpenClientProgress}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-emerald-700"
+        >
+          <Users className="h-3.5 w-3.5" />
+          Open Client Progress Queue
+        </button>
       </div>
     </section>
   );

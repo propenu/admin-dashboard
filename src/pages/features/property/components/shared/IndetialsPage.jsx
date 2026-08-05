@@ -649,6 +649,9 @@ function LeadsSection({
   contactedLeads,
   analyticsError,
   projectId,
+  metaViews = 0,
+  metaClicks = 0,
+  metaInquiries = 0,
 }) {
   const [activeTab, setActiveTab] = useState("leads");
   const [leadSearch, setLeadSearch] = useState("");
@@ -970,22 +973,30 @@ function LeadsSection({
             {[
               {
                 label: "Views",
-                value: 5,
-                pct: 30,
+                value: metaViews,
+                pct: Math.min(100, Number(metaViews) || 0),
                 color: "bg-[#27AE60]",
                 icon: Eye,
               },
               {
                 label: "Clicks",
-                value: 0,
-                pct: 0,
+                value: metaClicks,
+                pct: Math.min(
+                  100,
+                  metaViews ? Math.round((metaClicks / metaViews) * 100) : 0,
+                ),
                 color: "bg-blue-500",
                 icon: MousePointerClick,
               },
               {
                 label: "Inquiries",
-                value: 0,
-                pct: 0,
+                value: metaInquiries || totalLeads,
+                pct: Math.min(
+                  100,
+                  metaViews
+                    ? Math.round(((metaInquiries || totalLeads) / metaViews) * 100)
+                    : 0,
+                ),
                 color: "bg-amber-500",
                 icon: BarChart3,
               },
@@ -1088,12 +1099,7 @@ export default function FeaturedPropertyDetails() {
     enabled: !!id,
   });
 
-
-  
-
   const property = listData?.data?.data || null;
-  
-  
 
   const {
     data: analyticsData,
@@ -1808,6 +1814,9 @@ export default function FeaturedPropertyDetails() {
         contactedLeads={contactedLeads}
         analyticsError={analyticsError}
         projectId={property._id}
+        metaViews={views}
+        metaClicks={property.meta?.clicks ?? 0}
+        metaInquiries={property.meta?.inquiries ?? 0}
       />
 
       {/* ── RECORD META ───────────────────────────────────────────────── */}

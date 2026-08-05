@@ -8,7 +8,7 @@ import SaFinancePanel from "./superAdminDashboard/components/SaFinancePanel";
 import SaInventoryPanel from "./superAdminDashboard/components/SaInventoryPanel";
 import SaAlertsPanel from "./superAdminDashboard/components/SaAlertsPanel";
 import SaOpsPanel from "./superAdminDashboard/components/SaOpsPanel";
-import SaFollowUpPanel from "./superAdminDashboard/components/SaFollowUpPanel";
+import SaEngagementPanel from "./superAdminDashboard/components/SaEngagementPanel";
 import SaModuleGrid from "./superAdminDashboard/components/SaModuleGrid";
 import { formatINR } from "./superAdminDashboard/superAdminDashboardData";
 
@@ -43,6 +43,9 @@ export default function SuperAdminDashboard() {
       `Active subscriptions: ${s.activeSubs}`,
       `Failed payments (period): ${s.failedPayCount}`,
       `Published blogs (period): ${s.publishedBlogs}`,
+      `Website/app clicks: ${dashboard.engagement?.summary?.clicks ?? 0}`,
+      `Total actions: ${dashboard.engagement?.summary?.actions ?? 0}`,
+      `Views: ${dashboard.engagement?.summary?.views ?? 0}`,
     ].join("\n");
 
     try {
@@ -82,6 +85,12 @@ export default function SuperAdminDashboard() {
         isFetching={dashboard.isFetching}
         onExport={handleExport}
         summary={dashboard.summary}
+        onOpenClientProgress={() => {
+          const href =
+            dashboard.followUpTracks?.[0]?.items?.find((i) => i.key === "onboarding_all")
+              ?.href || "/follow-up-tracking";
+          go(href);
+        }}
       />
 
       <SaKpiStrip
@@ -93,13 +102,12 @@ export default function SuperAdminDashboard() {
         }}
       />
 
-      <SaFollowUpPanel
-        tracks={dashboard.followUpTracks || []}
-        onOpen={go}
-        allTracksHref={
-          dashboard.followUpTracks?.[0]?.items?.find((i) => i.key === "onboarding_all")?.href ||
-          "/follow-up-tracking"
-        }
+      <SaEngagementPanel
+        engagement={dashboard.engagement}
+        rangeLabel={dashboard.rangeLabel}
+        isLoading={dashboard.engagementLoading}
+        isError={dashboard.engagementError && !dashboard.engagement}
+        onOpenActivity={() => go("/all-users-activity")}
       />
 
       <div className="grid gap-3 lg:grid-cols-12 lg:items-stretch">
