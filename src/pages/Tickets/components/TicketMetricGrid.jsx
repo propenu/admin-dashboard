@@ -1,4 +1,4 @@
-import { ClipboardCheck, Clock3, Inbox, UserRoundCheck } from "lucide-react";
+import { ClipboardCheck, Clock3, Inbox, RefreshCw } from "lucide-react";
 import { ticketSurfaceHover } from "./ticketUi";
 
 const metrics = [
@@ -33,14 +33,14 @@ const metrics = [
       overview.overdue > 0 ? "Past due — act now" : "All on track",
   },
   {
-    key: "unassigned",
-    title: "Unassigned Tickets",
-    icon: UserRoundCheck,
-    tone: "bg-rose-50 text-rose-600 border-rose-100",
-    accent: "from-rose-500 to-pink-300",
-    filter: { assignment: "unassigned" },
+    key: "reassigned",
+    title: "Reassigned Tickets",
+    icon: RefreshCw,
+    tone: "bg-violet-50 text-violet-700 border-violet-100",
+    accent: "from-violet-500 to-fuchsia-300",
+    filter: { assignment: "reassigned", reassigned: "true" },
     subtitle: (overview) =>
-      overview.unassigned > 0 ? "Assign them now" : "Everyone assigned",
+      overview.reassigned > 0 ? "Handed off — review owners" : "No handoffs in period",
   },
 ];
 

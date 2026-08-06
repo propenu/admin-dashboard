@@ -55,13 +55,41 @@ const stripPersonalKeys = (filters = {}) => {
   const next = { ...filters };
   delete next.personalScope;
   delete next.assignedOrRequested;
-  delete next.assignedTo;
+  // Keep assignedTo for desk drill-down (Assignment Load → one agent).
   delete next.ownedBy;
   delete next.requesterId;
   delete next.tag;
-  delete next.assignment;
-  delete next.openBucket;
   delete next.deskRelation;
+
+  // Map Overview KPI chips → list API flags (server-side = correct totals).
+  if (next.openBucket === "true" || next.openBucket === true) {
+    next.openBucket = true;
+    delete next.status; // open bucket is multi-status
+  } else {
+    delete next.openBucket;
+  }
+
+  if (next.assignment === "unassigned" || next.unassigned === "true" || next.unassigned === true) {
+    next.unassigned = true;
+  } else {
+    delete next.unassigned;
+  }
+
+  if (next.assignment === "reassigned" || next.reassigned === "true" || next.reassigned === true) {
+    next.reassigned = true;
+  } else {
+    delete next.reassigned;
+  }
+  delete next.assignment;
+
+  if (next.overdue === "true" || next.overdue === true) {
+    next.overdue = true;
+  } else if (next.overdue === "false" || next.overdue === false) {
+    // Kept for client-only “not overdue” filter
+  } else {
+    delete next.overdue;
+  }
+
   // Overview uses from/to; list API expects createdFrom/createdTo.
   if (next.from && !next.createdFrom) next.createdFrom = next.from;
   if (next.to && !next.createdTo) next.createdTo = next.to;
@@ -97,6 +125,19 @@ const matchesLocalFilters = (ticket, filters = {}, { userId = "" } = {}) => {
   }
   if (filters.assignment === "unassigned") {
     if (ticket?.assignedTo?.userId || ticket?.assignedTo?.name) return false;
+  }
+  if (
+    filters.assignment === "reassigned" ||
+    filters.reassigned === "true" ||
+    filters.reassigned === true
+  ) {
+    const meta = ticket?.metadata || {};
+    const involved = Array.isArray(meta.involvedAssigneeIds) ? meta.involvedAssigneeIds : [];
+    const wasReassigned = Boolean(
+      meta.lastReassignedAt || meta.lastReassignedFrom || involved.length > 0,
+    );
+    if (!wasReassigned) return false;
+    if (!OPEN_BUCKET_STATUSES.has(String(ticket?.status || "").toLowerCase())) return false;
   }
   if (filters.deskRelation && userId) {
     const flags = ticketInvolvesUser(ticket, userId);
@@ -137,9 +178,6 @@ const matchesLocalFilters = (ticket, filters = {}, { userId = "" } = {}) => {
 };
 
 const hasClientOnlyFilters = (filters = {}) =>
-  filters.assignment === "unassigned" ||
-  filters.openBucket === "true" ||
-  filters.openBucket === true ||
   filters.overdue === "false" ||
   filters.overdue === false ||
   Boolean(filters.deskRelation);
@@ -151,6 +189,8 @@ const buildPersonalFilterSets = ({ personalScope, userId, base, createTag }) => 
     page: 1,
     limit: Math.max(Number(base.limit) || 20, 100),
   };
+  // Personal scopes always use the logged-in user — drop desk drill-down assignee.
+  delete common.assignedTo;
   // Drop API overdue=false (backend ignores false); we filter that client-side.
   if (common.overdue === "false" || common.overdue === false) {
     delete common.overdue;
@@ -190,11 +230,7 @@ export function useRoleScopedTicketList({
   const deskFilters = useMemo(() => {
     const next = { ...base };
     if (next.overdue === "false" || next.overdue === false) delete next.overdue;
-    // Client-only open bucket — do not send a single status to the API.
-    if (filters?.openBucket === "true" || filters?.openBucket === true) {
-      delete next.status;
-    }
-    // Fetch a wider page when client-side filters need to match overview counts.
+    // Wider fetch only when we still need client-side filtering.
     if (hasClientOnlyFilters(filters)) {
       next.limit = Math.max(Number(next.limit) || 20, 100);
       next.page = 1;
@@ -203,7 +239,6 @@ export function useRoleScopedTicketList({
     if (exclusiveAssignee && userId) {
       next.ownedBy = userId;
       delete next.assignedTo;
-      next.limit = Math.max(Number(next.limit) || 20, 100);
     }
     return next;
   }, [base, filters, exclusiveAssignee, userId]);
@@ -270,13 +305,22 @@ export function useRoleScopedTicketList({
       })
       .filter((ticket) => matchesLocalFilters(ticket, filters, { userId: mineId || userId }));
     const apiMeta = deskQuery.data?.meta || deskQuery.data?.pagination || {};
-    const clientOnly = hasClientOnlyFilters(filters) || Boolean(mineId);
+    // KPI filters (open/overdue/reassigned/unassigned) are server-side — use API total.
+    // Only override when a true client-only filter shrinks the page.
+    const clientOnly = hasClientOnlyFilters(filters);
     return {
       data: deskQuery.data,
       tickets: deskTickets,
       meta: {
         ...apiMeta,
-        total: clientOnly ? deskTickets.length : Number(apiMeta.total ?? deskTickets.length),
+        total: clientOnly
+          ? deskTickets.length
+          : Number(apiMeta.total ?? deskTickets.length),
+        page: Number(apiMeta.page || filters.page || 1),
+        limit: Number(apiMeta.limit || filters.limit || 20),
+        pages: clientOnly
+          ? 1
+          : Number(apiMeta.pages || Math.ceil(Number(apiMeta.total || 0) / Number(apiMeta.limit || 20)) || 1),
       },
       isLoading: deskQuery.isLoading,
       isFetching: deskQuery.isFetching,

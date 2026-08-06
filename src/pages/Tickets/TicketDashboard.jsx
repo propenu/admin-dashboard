@@ -189,13 +189,17 @@ export default function TicketDashboard() {
   };
 
   const openQueueWithFilters = (patch = {}) => {
-    const needsWideFetch =
+    const isReassigned =
+      patch.assignment === "reassigned" ||
+      patch.reassigned === "true" ||
+      patch.reassigned === true;
+    const isUnassigned =
       patch.assignment === "unassigned" ||
-      patch.openBucket === "true" ||
-      patch.openBucket === true ||
-      patch.overdue === "true" ||
-      patch.overdue === true;
+      patch.unassigned === "true" ||
+      patch.unassigned === true;
+    const isOpenBucket = patch.openBucket === "true" || patch.openBucket === true;
     const hasExplicitDates = Boolean(patch.createdFrom || patch.createdTo);
+    // Always carry the Overview period into Queue so KPI clicks match the cards.
     const dateBounds = hasExplicitDates
       ? toListDateBounds(patch.createdFrom, patch.createdTo)
       : toListDateBounds(overviewDateRange.filters.from, overviewDateRange.filters.to);
@@ -205,10 +209,19 @@ export default function TicketDashboard() {
     delete nextPatch.createdTo;
     delete nextPatch.from;
     delete nextPatch.to;
+    if (isOpenBucket) nextPatch.openBucket = true;
+    if (isUnassigned) {
+      nextPatch.assignment = "unassigned";
+      nextPatch.unassigned = true;
+    }
+    if (isReassigned) {
+      nextPatch.assignment = "reassigned";
+      nextPatch.reassigned = true;
+    }
 
     setFilters({
       page: 1,
-      limit: needsWideFetch ? 100 : 50,
+      limit: 50,
       sortBy: "updatedAt",
       sortOrder: "desc",
       personalScope: "mine",
@@ -295,6 +308,7 @@ export default function TicketDashboard() {
           trends={dashboard.trends}
           trendsLoading={dashboard.isFetching}
           dateRange={overviewDateRange}
+          listScope={dashboardScope}
           onOpenQueue={openQueueWithFilters}
           onOpenTicket={openTicket}
         />
@@ -456,6 +470,7 @@ function OverviewTab({
   trends,
   trendsLoading,
   dateRange,
+  listScope = {},
   onOpenQueue,
   onOpenTicket,
 }) {
@@ -500,7 +515,8 @@ function OverviewTab({
 
       <div>
         <RecentTicketsTable
-          tickets={overview.recent}
+          dateFilters={dateRange.filters}
+          scope={listScope}
           onOpenQueue={onOpenQueue}
           onOpenTicket={onOpenTicket}
         />

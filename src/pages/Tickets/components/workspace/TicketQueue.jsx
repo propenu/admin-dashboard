@@ -212,8 +212,30 @@ function ActiveFilterChips({ filters, onClear }) {
   if (filters.openBucket === "true" || filters.openBucket === true) {
     chips.push({ key: "openBucket", label: "Open (all active)", clearKeys: ["openBucket"] });
   }
-  if (filters.assignment === "unassigned") {
-    chips.push({ key: "assignment", label: "Unassigned", clearKeys: ["assignment"] });
+  if (filters.assignment === "unassigned" || filters.unassigned === true) {
+    chips.push({
+      key: "unassigned",
+      label: "Unassigned",
+      clearKeys: ["assignment", "unassigned"],
+    });
+  }
+  if (
+    filters.assignment === "reassigned" ||
+    filters.reassigned === "true" ||
+    filters.reassigned === true
+  ) {
+    chips.push({
+      key: "reassigned",
+      label: "Reassigned",
+      clearKeys: ["assignment", "reassigned"],
+    });
+  }
+  if (filters.assignedTo) {
+    chips.push({
+      key: "assignedTo",
+      label: "One assignee",
+      clearKeys: ["assignedTo"],
+    });
   }
   if (filters.department) {
     chips.push({

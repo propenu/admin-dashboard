@@ -31,6 +31,7 @@ export function normalizeTicketOverview(data = {}) {
           row?.agent?.name ||
           row?.agent?.email ||
           (row?._id ? `Agent ${String(row._id).slice(-6)}` : "Unassigned"),
+        agentRole: row?.agent?.role || "",
         count: Number(row?.count || 0),
       }))
     : [];
@@ -40,6 +41,7 @@ export function normalizeTicketOverview(data = {}) {
     open: Number(data?.open || 0),
     overdue: Number(data?.overdue || 0),
     unassigned: Number(data?.unassigned || 0),
+    reassigned: Number(data?.reassigned || 0),
     byStatus: orderedCounts(dashboardStatusOrder, data?.byStatus),
     byPriority: orderedCounts(dashboardPriorityOrder, data?.byPriority),
     byDepartment: Array.isArray(data?.byDepartment) ? data.byDepartment : [],
