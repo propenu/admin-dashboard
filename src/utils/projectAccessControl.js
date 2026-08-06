@@ -5,8 +5,8 @@ const ROLE_ALIASES = {
   customer_care_executives: "customer_care_executive",
   relationship_managers: "relationship_manager",
   sales_executives: "sales_executive",
-  team_leads: "team_lead",
-  customer_support_team_lead: "team_lead",
+  team_lead: "customer_support_team_lead",
+  team_leads: "customer_support_team_lead",
   operation_head: "operations_head",
 };
 
@@ -17,6 +17,7 @@ const ROLE_RANK = {
   sales_executive: 10,
   agent: 10,
   user: 5,
+  customer_support_team_lead: 20,
   team_lead: 20,
   customer_support_head: 30,
   sales_manager: 40,
@@ -78,6 +79,7 @@ export const canCreateProject = (user) => {
     "operations_head",
     "business_development_head",
     "ceo",
+    "customer_support_team_lead",
     "team_lead",
   ].includes(role);
 };

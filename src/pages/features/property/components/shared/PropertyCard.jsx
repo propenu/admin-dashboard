@@ -445,6 +445,22 @@ export default function PropertyCard({
       ? `Was ${titlePromotionType(tracking.previousType)}`
       : "Promotion running";
 
+  const createdAtLabel = (() => {
+    const raw = p.createdAt || p.created_at || p.postedAt;
+    if (!raw) return "";
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  })();
+
 
     const handleRenew = async () => {
       try {
@@ -574,9 +590,12 @@ export default function PropertyCard({
                   {p.city}
                 </span>
               </div>
-              {creatorName ? (
+              {(creatorName || createdAtLabel) ? (
                 <p className="mt-0.5 truncate text-[10px] font-medium text-slate-400">
-                  Created by {creatorName}
+                  {creatorName ? `Created by ${creatorName}` : "Created"}
+                  {createdAtLabel ? (
+                    <span className="text-slate-500"> · {createdAtLabel}</span>
+                  ) : null}
                 </p>
               ) : null}
             </div>

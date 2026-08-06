@@ -31,30 +31,28 @@ const BlogCard = ({
 
   return (
     <div className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
-      {/* Featured Image */}
-      <div className="relative h-44 overflow-hidden bg-gray-100">
+      {/* Same frame + fill for every card (matches first-two pattern) */}
+      <div className="relative aspect-[16/7.7] w-full overflow-hidden border-b border-slate-100 bg-[#eef6f1]">
         {featuredImage ? (
           <img
             src={featuredImage}
             alt={blog?.imageAlt || blog?.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="absolute inset-0 h-full w-full object-cover object-center"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100">
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100">
             <Tag size={36} className="text-emerald-300" />
           </div>
         )}
 
-        {/* Status Badge */}
         <span
-          className={`absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full border ${status.color}`}
+          className={`absolute top-2.5 left-2.5 z-10 text-xs font-semibold px-2.5 py-1 rounded-full border shadow-sm backdrop-blur-sm ${status.color}`}
         >
           {status.label}
         </span>
 
-        {/* Featured Badge */}
         {blog?.featured && (
-          <span className="absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="absolute top-2.5 right-2.5 z-10 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shadow-sm">
             Featured
           </span>
         )}

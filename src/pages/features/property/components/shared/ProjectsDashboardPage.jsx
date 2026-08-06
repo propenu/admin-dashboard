@@ -1259,8 +1259,21 @@ export default function ProjectsDashboardPage() {
 
   
 
+  // Date filters declared later — hooks use these via state synced from URL.
+  // Keep declarations above hooks by reading URL immediately for first fetch.
+  const urlCreatedFrom =
+    searchParams.get("createdFrom") || searchParams.get("from") || "";
+  const urlCreatedTo =
+    searchParams.get("createdTo") || searchParams.get("to") || "";
+
   // ── Property hooks ───────────────────────────────────────────────────────
-  const projectQueryOptions = { search: debouncedProjectSearch };
+  const projectQueryOptions = {
+    search: debouncedProjectSearch,
+    from: urlCreatedFrom,
+    to: urlCreatedTo,
+    // When filtering by day, load all statuses so sidebar "today" matches the list.
+    status: urlCreatedFrom || urlCreatedTo ? "all" : undefined,
+  };
   const primeHook     = useFeaturedProjects("prime", projectQueryOptions);
   const featuredHook  = useFeaturedProjects("featured", projectQueryOptions);
   const sponsoredHook = useFeaturedProjects("sponsored", projectQueryOptions);
@@ -1268,6 +1281,9 @@ export default function ProjectsDashboardPage() {
   const lifecycleHook = useFeaturedProjects(null, {
     promotionStatus: serverPromotionStatus,
     search: debouncedProjectSearch,
+    from: urlCreatedFrom,
+    to: urlCreatedTo,
+    status: urlCreatedFrom || urlCreatedTo ? "all" : undefined,
     enabled: !!serverPromotionStatus,
   });
 
@@ -1497,8 +1513,11 @@ export default function ProjectsDashboardPage() {
     return Number.isInteger(savedPage) && savedPage > 0 ? savedPage : 1;
   });
   const hasMountedProjectFilters = useRef(false);
+  /** Avoid wiping sidebar drill-down query before state syncs from URL. */
+  const allowUrlWrite = useRef(false);
 
   useEffect(() => {
+    if (!allowUrlWrite.current) return;
     const next = new URLSearchParams();
     if (trackingFilter !== "all") next.set("tracking", trackingFilter);
     if (selectedLocation) next.set("location", JSON.stringify(selectedLocation));
@@ -1580,6 +1599,8 @@ export default function ProjectsDashboardPage() {
     const nextTo = searchParams.get("createdTo") || searchParams.get("to") || "";
     if (nextFrom !== createdFrom) setCreatedFrom(nextFrom);
     if (nextTo !== createdTo) setCreatedTo(nextTo);
+    // Enable URL write-back only after we've absorbed the current query (sidebar click).
+    allowUrlWrite.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -1641,8 +1662,12 @@ export default function ProjectsDashboardPage() {
       list = list.filter((p) => {
         const createdAt = new Date(p.createdAt || 0);
         if (Number.isNaN(createdAt.getTime())) return false;
-        if (createdFrom && createdAt < new Date(`${createdFrom}T00:00:00`)) return false;
-        if (createdTo && createdAt > new Date(`${createdTo}T23:59:59.999`)) return false;
+        // Compare calendar day in IST so sidebar "today" matches list rows.
+        const day = createdAt.toLocaleDateString("en-CA", {
+          timeZone: "Asia/Kolkata",
+        });
+        if (createdFrom && day < createdFrom) return false;
+        if (createdTo && day > createdTo) return false;
         return true;
       });
     }
@@ -1843,6 +1868,8 @@ export default function ProjectsDashboardPage() {
     selectedLocation,
     debouncedProjectSearch,
     sortBy,
+    createdFrom,
+    createdTo,
   ]);
 
   const handleNextPage = useCallback(async () => {

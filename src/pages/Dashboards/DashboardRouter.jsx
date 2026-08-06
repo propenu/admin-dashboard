@@ -46,6 +46,7 @@ const DashboardRouter = ({ role, permissions = [] }) => {
       return <ContentTeamDashboard />;
 
     case "digital_marketing":
+    case "performance_marketing":
       return <DigitalMarket />;
 
     case "operations_head":

@@ -26,6 +26,11 @@ export const getFeaturedProjectsByType = (
   if (params.search?.trim()) {
     query.set("search", params.search.trim());
   }
+  if (params.status) query.set("status", params.status);
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  if (params.createdFrom) query.set("createdFrom", params.createdFrom);
+  if (params.createdTo) query.set("createdTo", params.createdTo);
 
   query.set("page", String(page));
   query.set("limit", String(limit));

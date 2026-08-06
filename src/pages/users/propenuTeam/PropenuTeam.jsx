@@ -34,6 +34,7 @@ const todayIso = () => {
 };
 
 const cleanRole = (value = "") => String(value).replace(/_/g, " ");
+/** Section / filter titles (plural bands). */
 const TEAM_ROLE_LABELS = {
   ceo: "CEO",
   operations_head: "Operations Head",
@@ -44,9 +45,10 @@ const TEAM_ROLE_LABELS = {
   sales_manager: "Sales Manager",
   sales_agent: "Sales Executives",
   sales_executive: "Sales Executives",
+  customer_support_team_lead: "Customer Support Team Leads",
+  customer_support_team_leads: "Customer Support Team Leads",
   team_lead: "Customer Support Team Leads",
   team_leads: "Customer Support Team Leads",
-  customer_support_team_lead: "Customer Support Team Leads",
   customer_support_head: "Customer Support Head",
   customer_care: "Customer Care Executives",
   customer_care_executive: "Customer Care Executives",
@@ -61,14 +63,67 @@ const TEAM_ROLE_LABELS = {
   social_media: "Social Media",
   content_team: "Content Team",
   creative_team: "Creative Team",
+  performance_marketing: "Performance Marketing",
   technical_support_head: "Technical Support Head",
   technical_support_team: "Technical Support Team",
+};
+/** Single-person card/table role name (singular — matches DB role label). */
+const PERSON_ROLE_LABELS = {
+  customer_support_team_lead: "Customer Support Team Lead",
+  customer_support_team_leads: "Customer Support Team Lead",
+  team_lead: "Customer Support Team Lead",
+  team_leads: "Customer Support Team Lead",
+  customer_care: "Customer Care Executive",
+  customer_care_executive: "Customer Care Executive",
+  customer_care_executives: "Customer Care Executive",
+  relationship_manager: "Relationship Manager",
+  relationship_managers: "Relationship Manager",
+  sales_agent: "Sales Executive",
+  sales_executive: "Sales Executive",
+  regional_manager: "Regional Manager",
 };
 const teamRoleLabel = (role) =>
   TEAM_ROLE_LABELS[canonicalTeamRole(role?.name)] ||
   TEAM_ROLE_LABELS[String(role?.name || "").toLowerCase()] ||
   role?.label ||
   cleanRole(role?.name);
+/** Always show the real role title on a person (never raw slug like "team lead"). */
+const personRoleLabel = (roleName, roleOptions = []) => {
+  const key = canonicalTeamRole(roleName);
+  const raw = String(roleName || "").toLowerCase();
+  // Prefer canonical singular labels so table badges stay consistent
+  // (DB labels like "Customer Care" can be short/legacy duplicates).
+  if (PERSON_ROLE_LABELS[key] || PERSON_ROLE_LABELS[raw]) {
+    return PERSON_ROLE_LABELS[key] || PERSON_ROLE_LABELS[raw];
+  }
+  const fromOptions = roleOptions.find(
+    (role) =>
+      canonicalTeamRole(role?.name) === key ||
+      String(role?.name || "").toLowerCase() === String(roleName || "").toLowerCase(),
+  );
+  if (fromOptions?.label) return fromOptions.label;
+  return TEAM_ROLE_LABELS[key] || cleanRole(roleName);
+};
+/** Title-case person names for table/cards (e.g. pawan → Pawan). */
+const displayPersonName = (value = "") => {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text
+    .split(/\s+/)
+    .map((part) =>
+      part
+        .split(/([-'.])/g)
+        .map((chunk) =>
+          /[-'.]/.test(chunk)
+            ? chunk
+            : chunk
+              ? chunk.charAt(0).toUpperCase() + chunk.slice(1).toLowerCase()
+              : "",
+        )
+        .join(""),
+    )
+    .join(" ");
+};
 const unique = (items) => [...new Set(items.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
 
 export default function PropenuTeam() {
@@ -105,7 +160,7 @@ export default function PropenuTeam() {
       id: String(user._id || user.id),
       name: user.name || "Executive",
       email: user.email || "",
-      role: cleanRole(user.roleName),
+      role: personRoleLabel(user.roleName, roleOptions),
       roleKey: user.roleName,
     });
   };
@@ -259,12 +314,12 @@ export default function PropenuTeam() {
         const active = user.accountStatus === "active" && user.isActive !== false;
         return <article key={user._id} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 to-emerald-300" />
-          <div className="flex items-start gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700">{initials}</div><div className="min-w-0 flex-1"><h3 className="truncate text-base font-black text-slate-800">{user.name || "Unnamed user"}</h3><p className="mt-0.5 truncate text-[11px] font-bold uppercase tracking-wide text-emerald-600">{cleanRole(user.roleName)}</p></div><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} title={active ? "Active" : "Pending"} /></div>
+          <div className="flex items-start gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700">{initials}</div><div className="min-w-0 flex-1"><h3 className="truncate text-base font-black text-slate-800">{displayPersonName(user.name) || "Unnamed user"}</h3><p className="mt-0.5 truncate text-[11px] font-bold tracking-wide text-emerald-600">{personRoleLabel(user.roleName, roleOptions)}</p></div><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} title={active ? "Active" : "Pending"} /></div>
           <div className="mt-4 grid gap-2 border-t border-slate-100 pt-3 text-xs">
             <p className="flex items-center gap-2 text-slate-600"><Hash size={13} className="shrink-0 text-emerald-600" /><span className="font-mono font-bold">{user.userCode || String(user._id).slice(-10).toUpperCase()}</span></p>
             <p className="flex items-center gap-2 text-slate-600"><Mail size={13} className="shrink-0 text-emerald-600" /><span className="truncate">{user.email || "No email"}</span></p>
             <p className="flex items-center gap-2 text-slate-600"><Phone size={13} className="shrink-0 text-emerald-600" /><span>{user.phone || "No phone"}</span></p>
-            <p className="flex items-center gap-2 text-slate-600"><Network size={13} className="shrink-0 text-emerald-600" /><span className="truncate">{user.reportsTo?.name ? `Reports to ${user.reportsTo.name}` : "No person reporting line"}</span></p>
+            <p className="flex items-start gap-2 text-slate-600"><Network size={13} className="mt-0.5 shrink-0 text-emerald-600" /><span className="min-w-0 truncate">{user.reportsTo?.name ? <>Reports to <span className="font-semibold text-slate-800">{displayPersonName(user.reportsTo.name)}</span>{(user.reportsTo.roleLabel || user.reportsTo.roleName) ? <span className="text-slate-500"> · {personRoleLabel(user.reportsTo.roleName, roleOptions) || user.reportsTo.roleLabel}</span> : null}</> : "No person reporting line"}</span></p>
             <p className="flex items-start gap-2 text-slate-600"><MapPin size={13} className="mt-0.5 shrink-0 text-emerald-600" /><span className="line-clamp-2">{location || "Work location not provided"}</span></p>
           </div>
           <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
@@ -284,12 +339,115 @@ export default function PropenuTeam() {
             ) : null}
           </div>
         </article>;
-      })}</div> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-xs"><thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Team member</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Reports to</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Work location</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Joined</th><th className="px-4 py-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((user) => {
-        const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
-        const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-        const active = user.accountStatus === "active" && user.isActive !== false;
-        return <tr key={user._id} className="transition hover:bg-emerald-50/40"><td className="px-4 py-3"><div className="flex items-center gap-2.5"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 font-black text-emerald-700">{initials}</div><div className="min-w-0"><p className="max-w-[190px] truncate font-bold text-slate-800">{user.name || "Unnamed user"}</p><p className="mt-0.5 font-mono text-[10px] text-slate-400">{user.userCode || String(user._id).slice(-10).toUpperCase()}</p></div></div></td><td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2.5 py-1 font-bold capitalize text-emerald-700">{cleanRole(user.roleName)}</span></td><td className="px-4 py-3 text-slate-600"><span className="line-clamp-2">{user.reportsTo?.name || "—"}</span></td><td className="px-4 py-3 text-slate-600"><p className="max-w-[210px] truncate">{user.email || "No email"}</p><p className="mt-0.5 text-slate-400">{user.phone || "No phone"}</p></td><td className="max-w-[260px] px-4 py-3 text-slate-600"><span className="line-clamp-2">{location || "Work location not provided"}</span></td><td className="px-4 py-3"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} />{String(user.accountStatus || "pending").replace(/_/g, " ")}</span></td><td className="whitespace-nowrap px-4 py-3 text-slate-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</td><td className="px-4 py-3">{isCceRole(user.roleName) ? <button type="button" onClick={() => openTerritoryManager(user)} className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"><MapPin size={12} /> Align locations</button> : <span className="text-slate-300">—</span>}</td></tr>;
-      })}</tbody></table></div></div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center"><UsersRound className="mx-auto mb-3 text-slate-300" size={36} /><p className="font-bold text-slate-600">{filters.role ? `No members are assigned to ${teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role })} yet.` : "No team members match these filters."}</p><p className="mt-1 text-xs text-slate-400">{filters.role ? "Create credentials for this role to add its first team member." : "Clear or change the filters to view more people."}</p></div>}
+      })}</div> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed border-collapse text-left text-xs">
+            <colgroup>
+              <col className="w-[16%]" />
+              <col className="w-[16%]" />
+              <col className="w-[15%]" />
+              <col className="w-[16%]" />
+              <col className="w-[14%]" />
+              <col className="w-[8%]" />
+              <col className="w-[7%]" />
+              <col className="w-[8%]" />
+            </colgroup>
+            <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <tr>
+                <th className="whitespace-nowrap px-3 py-3">Team member</th>
+                <th className="whitespace-nowrap px-3 py-3">Role</th>
+                <th className="whitespace-nowrap px-3 py-3">Reports to</th>
+                <th className="whitespace-nowrap px-3 py-3">Contact</th>
+                <th className="whitespace-nowrap px-3 py-3">Work location</th>
+                <th className="whitespace-nowrap px-3 py-3">Status</th>
+                <th className="whitespace-nowrap px-3 py-3">Joined</th>
+                <th className="whitespace-nowrap px-3 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map((user) => {
+                const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
+                const memberName = displayPersonName(user.name) || "Unnamed user";
+                const active = user.accountStatus === "active" && user.isActive !== false;
+                const roleLabel = personRoleLabel(user.roleName, roleOptions);
+                const managerId = user.reportsTo?._id || user.managerId;
+                const managerFromList = managerId
+                  ? users.find((item) => String(item._id) === String(managerId))
+                  : null;
+                const reportsToName = displayPersonName(
+                  user.reportsTo?.name || managerFromList?.name || "",
+                );
+                const reportsToRole =
+                  personRoleLabel(
+                    user.reportsTo?.roleName || managerFromList?.roleName,
+                    roleOptions,
+                  ) ||
+                  user.reportsTo?.roleLabel ||
+                  "";
+                const reportsToTitle = [reportsToName, reportsToRole].filter(Boolean).join(" · ");
+                return (
+                  <tr key={user._id} className="align-middle transition hover:bg-emerald-50/40">
+                    <td className="min-w-0 px-3 py-3">
+                      <p className="truncate font-bold text-slate-800" title={memberName}>{memberName}</p>
+                    </td>
+                    <td className="min-w-0 px-3 py-3">
+                      <span
+                        title={roleLabel}
+                        className="inline-block max-w-full truncate rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold leading-4 text-emerald-800"
+                      >
+                        {roleLabel}
+                      </span>
+                    </td>
+                    <td className="min-w-0 px-3 py-3">
+                      {reportsToName ? (
+                        <div className="min-w-0" title={reportsToTitle}>
+                          <p className="truncate font-semibold text-slate-800">{reportsToName}</p>
+                          {reportsToRole ? (
+                            <p className="mt-0.5 truncate text-[10px] font-medium text-emerald-700">{reportsToRole}</p>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">
+                      <p className="truncate" title={user.email || undefined}>{user.email || "No email"}</p>
+                      <p className="mt-0.5 truncate text-slate-400">{user.phone || "No phone"}</p>
+                    </td>
+                    <td className="px-3 py-3 text-slate-600">
+                      <span className="block truncate" title={location || undefined}>{location || "—"}</span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} />
+                        {String(user.accountStatus || "pending").replace(/_/g, " ")}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "—"}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      {isCceRole(user.roleName) ? (
+                        <button
+                          type="button"
+                          onClick={() => openTerritoryManager(user)}
+                          title="Align working locations"
+                          className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"
+                        >
+                          <MapPin size={12} />
+                          Align
+                        </button>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div> : <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-14 text-center"><UsersRound className="mx-auto mb-3 text-slate-300" size={36} /><p className="font-bold text-slate-600">{filters.role ? `No members are assigned to ${teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role })} yet.` : "No team members match these filters."}</p><p className="mt-1 text-xs text-slate-400">{filters.role ? "Create credentials for this role to add its first team member." : "Clear or change the filters to view more people."}</p></div>}
     </section>
 
     <CceTerritoryManagerModal

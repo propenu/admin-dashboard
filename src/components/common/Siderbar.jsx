@@ -138,7 +138,7 @@ const LEAF_HIERARCHY_ROLES = new Set([
   "technical_support_team",
   "content_team",
   "creative_team",
-  "digital_marketing",
+  "performance_marketing",
   "social_media",
   "accounts",
   "accounts_finance",
@@ -155,9 +155,9 @@ const normalizeSidebarRoleName = (value = "") =>
     .replace(/^_+|_+$/g, "");
 
 const SIDEBAR_ROLE_ALIASES = {
-  customer_support_team_lead: "team_lead",
-  customer_support_team_leads: "team_lead",
-  team_leads: "team_lead",
+  team_lead: "customer_support_team_lead",
+  team_leads: "customer_support_team_lead",
+  customer_support_team_leads: "customer_support_team_lead",
   customer_care_executives: "customer_care_executive",
   relationship_managers: "relationship_manager",
   sales_executives: "sales_executive",

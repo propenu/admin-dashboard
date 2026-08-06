@@ -295,18 +295,10 @@ export const inventoryTodayHref = (path, detail = {}) => {
   params.set("createdFrom", day);
   params.set("createdTo", day);
 
-  const pending = Number(detail.pending || 0);
-  const draftLike = Math.max(
-    Number(detail.onboarding || 0),
-    Number(detail.inactive || 0),
-  );
-
-  // Prefer the status that explains the badge (pending approvals first for projects).
-  if (path === SIDEBAR_ACTIVITY_PATHS.projects) {
-    if (pending > 0) params.set("status", "pending");
-    else if (draftLike > 0) params.set("status", "inactive");
-  } else if (path === SIDEBAR_ACTIVITY_PATHS.properties) {
-    // Properties badge = pending approval queue only (never draft).
+  // Properties badge = pending approvals only.
+  // Projects badge = all created today — do NOT force status (pending/inactive),
+  // or the list looks empty while the sidebar count shows a total.
+  if (path === SIDEBAR_ACTIVITY_PATHS.properties) {
     params.set("status", "pending");
   }
 

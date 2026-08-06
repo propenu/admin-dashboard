@@ -136,8 +136,8 @@ const WORK = {
       { label: "Properties", path: "/properties", hint: "Listing-linked issues" },
     ],
   },
-  team_lead: {
-    title: "Customer Support Team Leads",
+  customer_support_team_lead: {
+    title: "Customer Support Team Lead",
     summary: "Distributes tickets to Care Executives and Relationship Managers.",
     primaryJob: "Assign tickets and keep the queue moving",
     steps: [
@@ -158,7 +158,7 @@ const WORK = {
     steps: [
       "Open Tickets assigned to them",
       "Update progress / comment",
-      "Resolve or escalate to Team Lead",
+      "Resolve or escalate to Customer Support Team Lead",
     ],
     modules: [
       { label: "Tickets", path: "/tickets", hint: "Active support work" },
@@ -184,10 +184,10 @@ const WORK = {
   },
   marketing_head: {
     title: "Marketing Head",
-    summary: "Owns demand and brand teams: Digital, Social, Content, Creative.",
-    primaryJob: "Run campaigns and content output",
+    summary: "Owns Digital Marketing and the brand / performance teams under it.",
+    primaryJob: "Guide Digital Marketing and campaign outcomes",
     steps: [
-      "Review marketing sub-teams",
+      "Review Digital Marketing lead and sub-teams",
       "Check campaigns / blogs / creatives",
       "Align campaigns with sales locations if needed",
     ],
@@ -200,18 +200,23 @@ const WORK = {
   },
   digital_marketing: {
     title: "Digital Marketing",
-    summary: "Runs digital acquisition and performance campaigns.",
-    primaryJob: "Launch and track digital campaigns",
-    steps: ["Plan campaigns", "Publish / schedule", "Report performance to Marketing Head"],
+    summary: "Leads Social, Content, Creative, and Performance Marketing.",
+    primaryJob: "Run digital teams and campaign delivery",
+    steps: [
+      "Coordinate Social / Content / Creative / Performance",
+      "Publish / schedule campaigns",
+      "Report results to Marketing Head",
+    ],
     modules: [
       { label: "WhatsApp Campaigns", path: "/whatsapp-notifications", hint: "Digital outreach" },
       { label: "Email Campaigns", path: "/email-notifications", hint: "Email" },
       { label: "Blogs", path: "/blogs", hint: "Landing content" },
+      { label: "Team Directory", path: "/propenu-team-members", hint: "Your marketing pod" },
     ],
   },
   social_media: {
     title: "Social Media",
-    summary: "Owns social channels and engagement posts.",
+    summary: "Owns social channels and engagement posts under Digital Marketing.",
     primaryJob: "Post and manage social presence",
     steps: ["Create social content", "Schedule posts", "Track engagement"],
     modules: [
@@ -221,19 +226,34 @@ const WORK = {
   },
   content_team: {
     title: "Content Team",
-    summary: "Writes and maintains content for the platform.",
+    summary: "Writes and maintains content under Digital Marketing.",
     primaryJob: "Produce and update content",
     steps: ["Draft content", "Publish blogs", "Support campaign copy"],
     modules: [{ label: "Blogs", path: "/blogs", hint: "Content workspace" }],
   },
   creative_team: {
     title: "Creative Team",
-    summary: "Creates visuals and creative assets for marketing and listings support.",
+    summary: "Creates visuals under Digital Marketing for campaigns and listings.",
     primaryJob: "Deliver creatives on time",
-    steps: ["Take creative briefs", "Produce assets", "Hand off to marketing / sales"],
+    steps: ["Take creative briefs", "Produce assets", "Hand off to digital / sales"],
     modules: [
       { label: "Blogs", path: "/blogs", hint: "Creative placements" },
       { label: "Projects", path: "/projects", hint: "Project creatives context" },
+    ],
+  },
+  performance_marketing: {
+    title: "Performance Marketing",
+    summary: "Owns paid / performance campaigns under Digital Marketing.",
+    primaryJob: "Drive measurable acquisition campaigns",
+    steps: [
+      "Plan paid / performance campaigns",
+      "Track conversions and spend",
+      "Report performance to Digital Marketing",
+    ],
+    modules: [
+      { label: "WhatsApp Campaigns", path: "/whatsapp-notifications", hint: "Performance outreach" },
+      { label: "Email Campaigns", path: "/email-notifications", hint: "Email" },
+      { label: "Leads", path: "/leads", hint: "Campaign leads" },
     ],
   },
   accounts: {
@@ -300,7 +320,7 @@ export const ROLE_WORK_BRANCH = {
   sales_manager: "Sales & Business Development",
   sales_executive: "Sales & Business Development",
   customer_support_head: "Customer Support",
-  team_lead: "Customer Support",
+  customer_support_team_lead: "Customer Support",
   customer_care_executive: "Customer Support",
   relationship_manager: "Customer Support",
   marketing_head: "Marketing",
@@ -308,6 +328,7 @@ export const ROLE_WORK_BRANCH = {
   social_media: "Marketing",
   content_team: "Marketing",
   creative_team: "Marketing",
+  performance_marketing: "Marketing",
   accounts: "Accounts · Legal · HR",
   legal_compliance: "Accounts · Legal · HR",
   hr_administration: "Accounts · Legal · HR",
@@ -344,7 +365,7 @@ const ROLE_PANELS = {
   sales_manager: ["overview", "projects", "properties", "tickets"],
   sales_executive: ["overview", "projects", "properties", "tickets"],
   customer_support_head: ["overview", "tickets", "properties"],
-  team_lead: ["overview", "tickets", "properties"],
+  customer_support_team_lead: ["overview", "tickets", "properties"],
   customer_care_executive: ["overview", "tickets", "properties", "projects"],
   relationship_manager: ["overview", "tickets", "properties", "projects"],
   marketing_head: ["overview", "tickets"],
@@ -352,6 +373,7 @@ const ROLE_PANELS = {
   social_media: ["overview", "tickets"],
   content_team: ["overview", "tickets"],
   creative_team: ["overview", "projects", "tickets"],
+  performance_marketing: ["overview", "tickets"],
   accounts: ["overview", "payments", "tickets"],
   legal_compliance: ["overview", "tickets", "projects"],
   hr_administration: ["overview"],
@@ -375,7 +397,7 @@ const ROLE_ACTIONS = {
     { key: "properties", label: "Listing context", tab: "properties" },
     { key: "projects", label: "Project context", tab: "projects" },
   ],
-  team_lead: [
+  customer_support_team_lead: [
     { key: "tickets", label: "Assign / clear tickets", tab: "tickets" },
   ],
   relationship_manager: [

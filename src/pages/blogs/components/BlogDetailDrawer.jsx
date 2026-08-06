@@ -69,13 +69,13 @@ const BlogDetailDrawer = ({ blog, isOpen, onClose, onShare }) => {
 
         <article>
           {featuredImage ? (
-            <div className="relative h-64 sm:h-80 bg-gray-100 overflow-hidden">
+            <div className="relative aspect-[16/7.7] w-full overflow-hidden bg-[#eef6f1]">
               <img
                 src={featuredImage}
                 alt={blog?.imageAlt || blog?.title || "Blog image"}
-                className="w-full h-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover object-center"
               />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-5 sm:px-7 py-5">
+              <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/55 via-black/15 to-transparent px-5 sm:px-7 py-5">
                 <HeroBadges status={status} blog={blog} />
               </div>
             </div>

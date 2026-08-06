@@ -7,9 +7,9 @@ const normalizeTeamRole = (value = "") =>
 
 const TEAM_ROLE_ALIASES = {
   operation_head: "operations_head",
-  customer_support_team_lead: "team_lead",
-  team_leads: "team_lead",
-  customer_support_team_leads: "team_lead",
+  team_lead: "customer_support_team_lead",
+  team_leads: "customer_support_team_lead",
+  customer_support_team_leads: "customer_support_team_lead",
   customer_care: "customer_care_executive",
   customer_care_executives: "customer_care_executive",
   relationship_managers: "relationship_manager",
@@ -18,16 +18,35 @@ const TEAM_ROLE_ALIASES = {
   regional_managers: "regional_manager",
   // Legacy "Accounts & Finance" role → same Accounts row
   accounts_finance: "accounts",
+  // Legacy short / custom names that duplicate hierarchy labels in Create Credentials
+  hr: "hr_administration",
+  hr_admin: "hr_administration",
+  hr_and_administration: "hr_administration",
+  human_resources: "hr_administration",
+  legal: "legal_compliance",
+  legal_and_compliance: "legal_compliance",
+  compliance: "legal_compliance",
+};
+
+/** When label is HR/Legal but name is a custom slug, still collapse to hierarchy role. */
+const LABEL_ALIASES_TO_CANONICAL = {
+  hr: "hr_administration",
+  human_resources: "hr_administration",
+  legal: "legal_compliance",
+  legal_compliance: "legal_compliance",
+  hr_administration: "hr_administration",
 };
 
 /** Preferred DB role name when collapsing aliases for display. */
 const PREFERRED_ROLE_NAME = {
   customer_care_executive: "customer_care_executive",
-  team_lead: "team_lead",
+  customer_support_team_lead: "customer_support_team_lead",
   sales_executive: "sales_agent",
   relationship_manager: "relationship_manager",
   operations_head: "operations_head",
   accounts: "accounts",
+  hr_administration: "hr_administration",
+  legal_compliance: "legal_compliance",
 };
 
 /**
@@ -35,8 +54,8 @@ const PREFERRED_ROLE_NAME = {
  * ├── CEO
  * └── Operations Head
  *     ├── BD Head → Regional Managers → (BD Manager, Sales Executives)
- *     ├── Support Head → Team Leads → (Care Executives, Relationship Managers)
- *     ├── Marketing Head → Digital / Social / Content / Creative
+ *     ├── Support Head → Customer Support Team Lead → (Care Executives, Relationship Managers)
+ *     ├── Marketing Head → Digital Marketing → (Social / Content / Creative / Performance)
  *     ├── Accounts · Legal · HR
  *     └── Tech Support Head → Tech Support Team
  */
@@ -52,14 +71,15 @@ const TEAM_CANONICAL_PARENT = {
   sales_executive: "regional_manager",
   sales_agent: "regional_manager",
   customer_support_head: "operations_head",
-  team_lead: "customer_support_head",
-  customer_care_executive: "team_lead",
-  relationship_manager: "team_lead",
+  customer_support_team_lead: "customer_support_head",
+  customer_care_executive: "customer_support_team_lead",
+  relationship_manager: "customer_support_team_lead",
   marketing_head: "operations_head",
   digital_marketing: "marketing_head",
-  social_media: "marketing_head",
-  content_team: "marketing_head",
-  creative_team: "marketing_head",
+  social_media: "digital_marketing",
+  content_team: "digital_marketing",
+  creative_team: "digital_marketing",
+  performance_marketing: "digital_marketing",
   accounts: "operations_head",
   accounts_finance: "operations_head",
   legal_compliance: "operations_head",
@@ -80,14 +100,15 @@ const TEAM_ROLE_HIERARCHY = [
   ["sales_executive", 4],
   ["sales_agent", 4],
   ["customer_support_head", 2],
-  ["team_lead", 3],
+  ["customer_support_team_lead", 3],
   ["customer_care_executive", 4],
   ["relationship_manager", 4],
   ["marketing_head", 2],
   ["digital_marketing", 3],
-  ["social_media", 3],
-  ["content_team", 3],
-  ["creative_team", 3],
+  ["social_media", 4],
+  ["content_team", 4],
+  ["creative_team", 4],
+  ["performance_marketing", 4],
   ["accounts", 2],
   ["accounts_finance", 2],
   ["legal_compliance", 2],
@@ -106,13 +127,18 @@ export const canonicalTeamRole = (value = "") => {
 };
 
 /**
- * Collapse alias duplicates (e.g. customer_care + customer_care_executive)
- * into one display row so the hierarchy is not confusing.
+ * Collapse alias duplicates (e.g. customer_care + customer_care_executive,
+ * or custom "HR"/"Legal" + hr_administration/legal_compliance) into one row.
  */
 export const dedupeRolesForHierarchyDisplay = (roles = []) => {
   const groups = new Map();
   roles.forEach((role) => {
-    const key = canonicalTeamRole(role.name);
+    const nameKey = canonicalTeamRole(role.name);
+    const labelKey = normalizeTeamRole(role.label || "");
+    const key =
+      LABEL_ALIASES_TO_CANONICAL[labelKey] ||
+      LABEL_ALIASES_TO_CANONICAL[nameKey] ||
+      nameKey;
     const list = groups.get(key) || [];
     list.push(role);
     groups.set(key, list);
@@ -120,15 +146,21 @@ export const dedupeRolesForHierarchyDisplay = (roles = []) => {
 
   return [...groups.entries()].map(([canonical, group]) => {
     const preferred = PREFERRED_ROLE_NAME[canonical];
+    const preferredRole =
+      preferred && group.find((role) => role.name === preferred);
     const primary =
-      (preferred && group.find((role) => role.name === preferred)) ||
+      preferredRole ||
+      group.find((role) => teamHierarchyRank.has(canonicalTeamRole(role.name))) ||
       group.find((role) => canonicalTeamRole(role.name) === role.name) ||
       group.find((role) => role.parentRoleId) ||
       group[0];
     return {
       ...primary,
+      // Prefer hierarchy slug when that role doc exists; keep aliases for counts.
+      name: preferredRole ? preferred : primary.name,
+      label: preferredRole?.label || primary.label || preferred || primary.name,
       canonicalName: canonical,
-      aliasRoleNames: group.map((role) => role.name).filter(Boolean),
+      aliasRoleNames: [...new Set(group.map((role) => role.name).filter(Boolean))],
       aliasRoleIds: group.map((role) => role._id).filter(Boolean),
     };
   });

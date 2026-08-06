@@ -72,6 +72,7 @@ const FloatingInput = ({
   label,
   value,
   onChange,
+  onBlur,
   placeholder,
   error,
   inputRef,
@@ -138,7 +139,10 @@ const FloatingInput = ({
             value={value || ""}
             placeholder={lifted ? placeholder : ""}
             onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
+            onBlur={(e) => {
+              setFocused(false);
+              onBlur?.(e);
+            }}
             onChange={onChange}
             className="w-full bg-transparent text-gray-900 text-sm font-semibold outline-none placeholder:text-gray-300 mt-0.5"
           />
@@ -568,10 +572,12 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
           error={errors.title}
           inputRef={titleRef}
           onChange={(e) => {
-            update({
-              title: capitalizeWords(e.target.value),
-            });
+            // Keep raw text while typing so cursor can move/edit in the middle.
+            update({ title: e.target.value });
             clr("title");
+          }}
+          onBlur={(e) => {
+            update({ title: capitalizeWords(e.target.value) });
           }}
         />
         <FloatingInput
@@ -583,10 +589,11 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
           error={errors.address}
           inputRef={addressRef}
           onChange={(e) => {
-            update({
-              address: capitalizeFirst(e.target.value),
-            });
+            update({ address: e.target.value });
             clr("address");
+          }}
+          onBlur={(e) => {
+            update({ address: capitalizeFirst(e.target.value) });
           }}
         />
         <FloatingInput
@@ -700,11 +707,11 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
           value={payload?.locality}
           inputRef={localityRef}
           onChange={(e) => {
-            update({
-              locality: capitalizeFirst(e.target.value),
-            });
-
+            update({ locality: e.target.value });
             clr("locality");
+          }}
+          onBlur={(e) => {
+            update({ locality: capitalizeFirst(e.target.value) });
           }}
         />
 

@@ -13,19 +13,26 @@ import { toast } from "sonner";
 /**
  * Central hook for any featured-project type.
  * @param {"prime"|"featured"|"normal"|"sponsored"|null} type
- * @param {{promotionStatus?: string|null, search?: string, enabled?: boolean}} options
+ * @param {{promotionStatus?: string|null, search?: string, enabled?: boolean, from?: string, to?: string, status?: string}} options
  */
 export function useFeaturedProjects(type, options = {}) {
   const queryClient = useQueryClient();
   const promotionStatus = options.promotionStatus || null;
   const search = options.search?.trim() || "";
+  const from = options.from || options.createdFrom || "";
+  const to = options.to || options.createdTo || "";
+  const status = options.status || "";
   const enabled = options.enabled ?? true;
+  const hasDateRange = Boolean(from || to);
   
 const queryKey = [
   "featured-projects",
   type || "all",
   promotionStatus || "all",
   search,
+  from || "",
+  to || "",
+  status || "",
 ];
 
 const {
@@ -40,14 +47,18 @@ const {
   queryKey,
   enabled,
   initialPageParam: 1,
+  staleTime: hasDateRange ? 0 : 30_000,
 
   queryFn: async ({ pageParam }) => {
     console.log("REQUEST PAGE:", pageParam);
 
-    const limit = search ? 100 : 20;
+    const limit = search || hasDateRange ? 100 : 20;
     const res = await getFeaturedProjectsByType(type, pageParam, limit, {
-      promotionStatus,
+      promotionStatus: hasDateRange ? promotionStatus || "all" : promotionStatus,
       search,
+      from: from || undefined,
+      to: to || undefined,
+      status: status || (hasDateRange ? "all" : undefined),
     });
 
     // The deployed API may ignore `search`. Merge every server page while
@@ -58,8 +69,13 @@ const {
         const remainingPages = await Promise.all(
           Array.from({ length: pages - 1 }, (_, index) =>
             getFeaturedProjectsByType(type, index + 2, limit, {
-              promotionStatus,
+              promotionStatus: hasDateRange
+                ? promotionStatus || "all"
+                : promotionStatus,
               search,
+              from: from || undefined,
+              to: to || undefined,
+              status: status || (hasDateRange ? "all" : undefined),
             }),
           ),
         );
