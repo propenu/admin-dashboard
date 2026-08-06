@@ -65,8 +65,11 @@ export default function CreateCredentialPage() {
   }, [form.role]);
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
-  const hierarchyHint = formatHierarchyHint(hierarchy);
+  const hierarchyHint = formatHierarchyHint(hierarchy, form.role);
   const selectedReportsTo = reportsToOptions.find((user) => String(user._id) === String(form.reportsToUserId));
+  const preferredReportsLabel = hierarchyHint?.preferredReportsToRole
+    ? cleanRoleLabel(hierarchyHint.preferredReportsToRole)
+    : "parent role";
 
   const sendOtp = async (event) => {
     event.preventDefault();
@@ -166,8 +169,8 @@ export default function CreateCredentialPage() {
                 </Field>
                 {!reportsToOptions.length && (
                   <p className="mt-2 text-xs text-amber-700">
-                    No Customer Support Team Lead accounts found yet. Create a Team Lead credential first,
-                    make sure that role is Active, then come back to assign reports-to.
+                    No {preferredReportsLabel} account found yet. Create a {preferredReportsLabel} credential
+                    first (or assign someone to that role), then come back to set who this person reports to.
                   </p>
                 )}
               </div>

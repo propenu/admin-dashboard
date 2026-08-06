@@ -13,6 +13,47 @@ const ROLE_NAME_ALIASES = {
   accounts_finance: "accounts",
 };
 
+/** Canonical parent chain — must match backend reportsToPolicy / roleHierarchy. */
+const ORG_PARENT_BY_ROLE = {
+  ceo: "super_admin",
+  founder: "super_admin",
+  operations_head: "super_admin",
+  business_development_head: "operations_head",
+  regional_manager: "business_development_head",
+  business_development_manager: "regional_manager",
+  sales_manager: "regional_manager",
+  sales_executive: "regional_manager",
+  customer_support_head: "operations_head",
+  customer_support_team_lead: "customer_support_head",
+  customer_care_executive: "customer_support_team_lead",
+  relationship_manager: "customer_support_team_lead",
+  marketing_head: "operations_head",
+  digital_marketing: "marketing_head",
+  social_media: "digital_marketing",
+  content_team: "digital_marketing",
+  creative_team: "digital_marketing",
+  performance_marketing: "digital_marketing",
+  accounts: "operations_head",
+  legal_compliance: "operations_head",
+  hr_administration: "operations_head",
+  technical_support_head: "operations_head",
+  technical_support_team: "technical_support_head",
+};
+
+/** Preferred reports-to role first; optional skip-level fallback after. */
+const REPORTS_TO_ROLE_OPTIONS = {
+  marketing_head: ["operations_head"],
+  digital_marketing: ["marketing_head"],
+  social_media: ["digital_marketing", "marketing_head"],
+  content_team: ["digital_marketing", "marketing_head"],
+  creative_team: ["digital_marketing", "marketing_head"],
+  performance_marketing: ["digital_marketing", "marketing_head"],
+  customer_support_team_lead: ["customer_support_head"],
+  customer_care_executive: ["customer_support_team_lead"],
+  relationship_manager: ["customer_support_team_lead"],
+  technical_support_team: ["technical_support_head"],
+};
+
 const ORG_CHILDREN_BY_ROLE = {
   super_admin: ["ceo", "operations_head"],
   operations_head: [
@@ -131,34 +172,72 @@ export const cleanRoleLabel = (roleName = "") => {
   );
 };
 
-export const formatHierarchyHint = (hierarchy) => {
-  if (!hierarchy) {
+const getOrgRolesAbove = (roleName = "") => {
+  const chain = [];
+  let current = canonicalRoleName(roleName);
+  const seen = new Set();
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    const parent = ORG_PARENT_BY_ROLE[current];
+    if (!parent) break;
+    chain.push(parent);
+    current = parent;
+  }
+  return chain;
+};
+
+export const getReportsToRoleOptionsForUi = (roleName = "") => {
+  const key = canonicalRoleName(roleName);
+  return REPORTS_TO_ROLE_OPTIONS[key] ? [...REPORTS_TO_ROLE_OPTIONS[key]] : [];
+};
+
+export const formatHierarchyHint = (hierarchy, roleName = "") => {
+  const selectedRole = canonicalRoleName(
+    roleName || hierarchy?.role || hierarchy?.targetRole || "",
+  );
+  if (!hierarchy && !selectedRole) {
     return {
       aboveText: "—",
       belowText: "—",
       reportsToText: "—",
+      preferredReportsToRole: null,
     };
   }
-  const above = (hierarchy.above || []).map(cleanRoleLabel);
-  // Prefer direct org children for the selected role (permission/hierarchy flow).
-  const selectedRole = hierarchy.role || hierarchy.targetRole || "";
-  const directBelow = (ORG_CHILDREN_BY_ROLE[canonicalRoleName(selectedRole)] || []).map(
-    (name) => canonicalRoleName(name),
+
+  // Always prefer canonical client tree so Create Credentials stays correct
+  // even if an older user-service process is still running.
+  const aboveCanonical = selectedRole
+    ? getOrgRolesAbove(selectedRole)
+    : (hierarchy?.above || []).map((name) => canonicalRoleName(name));
+  const above = aboveCanonical.map(cleanRoleLabel);
+
+  const directBelow = (ORG_CHILDREN_BY_ROLE[selectedRole] || []).map((name) =>
+    canonicalRoleName(name),
   );
   const uniqueDirectBelow = [...new Set(directBelow)].filter(Boolean);
   const belowSource =
     uniqueDirectBelow.length > 0
       ? uniqueDirectBelow
-      : (hierarchy.below || []).map((name) => canonicalRoleName(name));
+      : (hierarchy?.below || []).map((name) => canonicalRoleName(name));
   const below = [...new Set(belowSource)].map(cleanRoleLabel);
-  const reportsTo = (hierarchy.reportsToRoles || []).map(cleanRoleLabel);
+
+  const reportsToRoles =
+    getReportsToRoleOptionsForUi(selectedRole).length > 0
+      ? getReportsToRoleOptionsForUi(selectedRole)
+      : (hierarchy?.reportsToRoles || []).map((name) => canonicalRoleName(name));
+  const preferred = reportsToRoles[0] || null;
+  const reportsTo = reportsToRoles.map(cleanRoleLabel);
+
   return {
     aboveText: above.length ? above.join(" → ") : "Top of tree",
     belowText: below.length
       ? below.slice(0, 8).join(", ") + (below.length > 8 ? "…" : "")
       : "No roles below",
     reportsToText: reportsTo.length
-      ? reportsTo.join(" or ")
+      ? reportsTo.length > 1
+        ? `${reportsTo[0]} (preferred)${reportsTo.slice(1).length ? ` · fallback: ${reportsTo.slice(1).join(" or ")}` : ""}`
+        : reportsTo[0]
       : "No person reporting for this role",
+    preferredReportsToRole: preferred,
   };
 };
