@@ -1,7 +1,7 @@
 // src/pages/post-property/featured-create/steps/PropertyProfilesStep.jsx
 
 import { forwardRef, useImperativeHandle, useRef, useState,useEffect } from "react";
-import { Building2, FileText, BadgeCheck, Globe, Map, Tag, UserCheck } from "lucide-react";
+import { Building2, FileText, BadgeCheck, Globe, Map, Tag, UserCheck, Mail } from "lucide-react";
 import { getUserSearch } from "../../../../features/user/userService";
 import { saveImage, deleteImage } from "../utils/indexedDB";
 import { compressPdfAdvanced } from "../utils/compressPdfAdvanced";
@@ -201,26 +201,7 @@ const shouldHideTowerFields =
     }
   }, [relationshipManagersLoaded, relationshipManagers, payload.relationshipManagerId]);
 
-  useEffect(() => {
-    // Only self-assign when the poster is a builder account and no owner is set.
-    // Admin / staff must always pick a builder from the dropdown (never force /me).
-    const role = String(payload?.me?.roleName || payload?.me?.role || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_");
-    const isSelfOwnerRole = role === "builder" || role === "builder_staff";
-    const selfId = payload?.me?._id || payload?.me?.id;
-
-    if (
-      isSelfOwnerRole &&
-      builders.length === 0 &&
-      selfId &&
-      !payload.createdBy
-    ) {
-      update({ createdBy: selfId });
-      clr("createdBy");
-    }
-  }, [builders, payload?.me?._id, payload?.me?.id, payload?.me?.roleName, payload?.me?.role]);
+  // Staff invite flow: do not auto-set createdBy. Builder claims via invite + mobile OTP.
 
   const normalized = (value) => String(value || "").trim().toLowerCase();
   const matchesLocationValue = (itemValue, filterValue) =>
@@ -346,21 +327,16 @@ const shouldHideTowerFields =
         console.log("❌ RERA missing");
       }
 
-      // Builder
-      console.log("createdBy =>", payload.createdBy);
-
-    
-
-    const hasBuilders = builders.length > 0;
-
-    if (hasBuilders && !payload.createdBy) {
-      e.createdBy = "Please select builder from dropdown";
-
-      console.log("❌ Builder not selected");
-    } else {
-      console.log("createdBy =>", payload.createdBy);
-      console.log("✅ Builder selected");
-    }
+      // Invite-only: one or more builder emails
+      const inviteEmails = (payload.builderInviteEmails || [])
+        .map((x) => String(x || "").trim().toLowerCase())
+        .filter(Boolean);
+      const invalidEmail = inviteEmails.find((em) => !/^\S+@\S+\.\S+$/.test(em));
+      if (!inviteEmails.length) {
+        e.builderInviteEmails = "Add at least one builder invite email";
+      } else if (invalidEmail) {
+        e.builderInviteEmails = `Invalid email: ${invalidEmail}`;
+      }
 
     const hasRelationshipManagers = relationshipManagers.length > 0;
 
@@ -395,7 +371,8 @@ const shouldHideTowerFields =
       if (Object.keys(e).length > 0) {
         console.log("❌ Validation Failed");
 
-        const scrollTarget = e.createdBy || e.relationshipManagerId ? builderRef : profileRef;
+        const scrollTarget =
+          e.builderInviteEmails || e.relationshipManagerId ? builderRef : profileRef;
 
         scrollTarget.current?.scrollIntoView({
           behavior: "smooth",
@@ -983,315 +960,78 @@ const shouldHideTowerFields =
       </SectionCard>
 
       <div ref={builderRef}>
-        <SectionCard icon={Building2} title="Select Builder" sub="Builder">
-          {/* Search bar */}
-          <div className="mb-4">
-            <label className={LABEL}>Search Builder</label>
-            <div className="relative">
-              <svg
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="M21 21l-4.35-4.35" />
-              </svg>
-              <input
-                type="text"
-                className={`${inp()} pl-10`}
-                placeholder="Search by name, email or phone..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                }}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          </div>
+        <SectionCard icon={Mail} title="Invite Builder by Email" sub="Builder Invite">
+          <p className="text-xs text-gray-600 mb-4">
+            Add one or more builder emails. Each email receives the Launch Partner invite with
+            <strong> View Preview</strong> and <strong> Approve &amp; Onboard</strong> buttons.
+            First builder who completes mobile OTP onboarding claims the project.
+          </p>
 
-          {/* Location filters — optional; start empty so all builders/staff show */}
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-gray-500">
-              Showing builder &amp; builder staff. Use filters below to narrow the list.
-            </p>
-            {(payload.state || payload.city || payload.pincode || payload.locality) && (
-              <button
-                type="button"
-                onClick={() =>
-                  setFilters({
-                    state: payload.state || "",
-                    city: payload.city || "",
-                    pincode: payload.pincode || "",
-                    locality: payload.locality || "",
-                  })
-                }
-                className="text-xs font-bold text-emerald-700 hover:text-emerald-800"
-              >
-                Match project location
-              </button>
+          <div className="space-y-2 mb-3">
+            <label className={LABEL}>Builder invite emails *</label>
+            {(payload.builderInviteEmails || [""]).map((email, idx) => (
+              <div key={`invite-email-${idx}`} className="flex gap-2">
+                <input
+                  className={inp(errors.builderInviteEmails)}
+                  type="email"
+                  placeholder="builder@company.com"
+                  value={email || ""}
+                  onChange={(e) => {
+                    const list = [...(payload.builderInviteEmails || [""])];
+                    list[idx] = e.target.value;
+                    handleChange("builderInviteEmails", list);
+                  }}
+                />
+                {(payload.builderInviteEmails || []).length > 1 && (
+                  <button
+                    type="button"
+                    className="px-3 rounded-xl border-2 border-gray-200 text-sm font-bold text-red-500"
+                    onClick={() => {
+                      const list = [...(payload.builderInviteEmails || [])];
+                      list.splice(idx, 1);
+                      handleChange(
+                        "builderInviteEmails",
+                        list.length ? list : [""],
+                      );
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+            {errors.builderInviteEmails && (
+              <p className={ERR}>⚠ {errors.builderInviteEmails}</p>
             )}
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-            <div>
-              <label className={LABEL}>State</label>
-              <select
-                className={inp()}
-                value={filters.state}
-                onChange={(e) => {
-                  setFilters({
-                    state: e.target.value,
-                    city: "",
-                    pincode: "",
-                    locality: "",
-                  });
-                }}
-              >
-                <option value="">All States</option>
-                {uniqueStates.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
 
-            <div>
-              <label className={LABEL}>City</label>
-              <select
-                className={inp()}
-                value={filters.city}
-                onChange={(e) => {
-                  setFilters((f) => ({
-                    ...f,
-                    city: e.target.value,
-                    pincode: "",
-                    locality: "",
-                  }));
-                }}
-              >
-                <option value="">All Cities</option>
-                {uniqueCities.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <button
+            type="button"
+            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 mb-4"
+            onClick={() =>
+              handleChange("builderInviteEmails", [
+                ...(payload.builderInviteEmails || []),
+                "",
+              ])
+            }
+          >
+            + Add another email
+          </button>
 
-            <div>
-              <label className={LABEL}>Pincode</label>
-              <select
-                className={inp()}
-                value={filters.pincode}
-                onChange={(e) => {
-                  setFilters((f) => ({
-                    ...f,
-                    pincode: e.target.value,
-                    locality: "",
-                  }));
-                }}
-              >
-                <option value="">All Pincodes</option>
-                {uniquePincodes.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className={LABEL}>Locality</label>
-              <select
-                className={inp()}
-                value={filters.locality}
-                onChange={(e) => {
-                  setFilters((f) => ({ ...f, locality: e.target.value }));
-                }}
-              >
-                <option value="">All Localities</option>
-                {uniqueLocalities.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Active filter chips + clear all */}
-          {(searchQuery ||
-            filters.state ||
-            filters.city ||
-            filters.pincode ||
-            filters.locality) && (
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              {searchQuery && (
-                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
-                  "{searchQuery}"
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery("");
-                    }}
-                    className="ml-1 hover:text-red-500"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.state && (
-                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
-                  {filters.state}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilters({
-                        state: "",
-                        city: "",
-                        pincode: "",
-                        locality: "",
-                      });
-                    }}
-                    className="ml-1 hover:text-red-500"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.city && (
-                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
-                  {filters.city}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilters((f) => ({
-                        ...f,
-                        city: "",
-                        pincode: "",
-                        locality: "",
-                      }));
-                    }}
-                    className="ml-1 hover:text-red-500"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.pincode && (
-                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
-                  {filters.pincode}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilters((f) => ({ ...f, pincode: "", locality: "" }));
-                    }}
-                    className="ml-1 hover:text-red-500"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.locality && (
-                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#f0fdf6] border border-[#bbf7d0] text-[#1e8449] text-xs font-bold rounded-lg">
-                  {filters.locality}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilters((f) => ({ ...f, locality: "" }));
-                    }}
-                    className="ml-1 hover:text-red-500"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setFilters({
-                    state: "",
-                    city: "",
-                    pincode: "",
-                    locality: "",
-                  });
-                  setSearchQuery("");
-                }}
-                className="text-xs text-red-400 font-bold hover:text-red-600 ml-1"
-              >
-                Clear all
-              </button>
-            </div>
-          )}
-
-          {/* Final builder dropdown */}
           <div>
-            <label className={LABEL}>Select Builder *</label>
-            <select
-              className={inp(errors.createdBy)}
-              value={payload.createdBy || ""}
-              // onChange={(e) => {
-              //   console.log("SELECTED BUILDER =>", e.target.value);
-
-              //   handleChange("createdBy", e.target.value);
-              // }}
-
-              onChange={(e) => {
-                const value = e.target.value;
-
-                console.log("SELECTED BUILDER =>", value);
-
-                setSelectedBuilderId(value);
-
-                handleChange("createdBy", value);
-              }}
-            >
-              <option value="">
-                {filteredBuilders.length === 0
-                  ? "No builders found"
-                  : "Select Builder"}
-              </option>
-              {visibleBuilders.map((builder) => {
-                const displayName = String(builder.name || "Unnamed")
-                  .charAt(0)
-                  .toUpperCase() + String(builder.name || "Unnamed").slice(1);
-                const roleLabel = String(builder.role || "builder").replace(/_/g, " ");
-                const place = [builder.city, builder.state].filter(Boolean).join(", ");
-                return (
-                  <option key={builder._id} value={builder._id}>
-                    {displayName} — {roleLabel}
-                    {place ? ` — ${place}` : ""}
-                  </option>
-                );
-              })}
-            </select>
-            {errors.createdBy && <p className={ERR}>⚠ {errors.createdBy}</p>}
-            {filteredBuilders.length > 0 ? (
-              <p className="text-xs text-gray-400 mt-1">
-                {filteredBuilders.length} account(s) found · use search / location filters to narrow
-              </p>
-            ) : builders.length > 0 ? (
-              <p className="text-xs text-amber-600 mt-1">
-                No matches for current filters. Clear location filters or search to see all builders.
-              </p>
-            ) : null}
+            <label className={LABEL}>Company name (optional)</label>
+            <input
+              className={inp()}
+              placeholder="Shown in invite email greeting"
+              value={payload.builderInviteCompany || ""}
+              onChange={(e) =>
+                handleChange("builderInviteCompany", e.target.value)
+              }
+            />
           </div>
+        </SectionCard>
 
-          <div className="mt-6 rounded-2xl border-2 border-gray-200 bg-gray-50/70 p-4">
+        <div className="mt-6 rounded-2xl border-2 border-gray-200 bg-gray-50/70 p-4">
             <div className="flex items-center gap-3 mb-4">
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -1569,7 +1309,6 @@ const shouldHideTowerFields =
               )}
             </div>
           </div>
-        </SectionCard>
       </div>
     </div>
   );

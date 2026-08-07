@@ -36,6 +36,10 @@ export const INITIAL_PAYLOAD = {
   heroDescription: "",
   color: "",
   createdBy: "",
+  /** invite-only flow */
+  builderAssignMode: "invite_link",
+  builderInviteEmails: [""],
+  builderInviteCompany: "",
   relationshipManagerId: "",
   mapEmbedUrl: "",
   metaTitle: "",

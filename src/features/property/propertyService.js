@@ -45,6 +45,39 @@ export const getAllFeaturedProjects = (id) => apiClient.get(`${BASE}`);
 export const createFeaturedProject = (formData, config = {}) =>
   withSidebarRefresh(apiClient.post(BASE, formData, config));
 
+/** Draft create — builder assignment can be pending */
+export const createFeaturedProjectDraft = (formData, config = {}) =>
+  withSidebarRefresh(apiClient.post(`${BASE}/draft`, formData, config));
+
+export const lookupFeaturedBuilders = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.email) query.set("email", params.email);
+  if (params.phone) query.set("phone", params.phone);
+  if (params.q) query.set("q", params.q);
+  return apiClient.get(`${BASE}/builders/lookup?${query.toString()}`);
+};
+
+export const assignExistingBuilderToProject = (projectId, builderId) =>
+  apiClient.post(`${BASE}/${projectId}/builder/assign-existing`, { builderId });
+
+export const sendBuilderInviteEmail = (projectId, payload) =>
+  apiClient.post(`${BASE}/${projectId}/builder/invite`, payload);
+
+export const requestBuilderDirectOtp = (projectId, payload) =>
+  apiClient.post(`${BASE}/${projectId}/builder/direct-otp/request`, payload);
+
+export const verifyBuilderDirectOtp = (projectId, payload) =>
+  apiClient.post(`${BASE}/${projectId}/builder/direct-otp/verify`, payload);
+
+export const saveProjectContacts = (projectId, contacts) =>
+  apiClient.put(`${BASE}/${projectId}/project-contacts`, { contacts });
+
+export const submitProjectForApproval = (projectId) =>
+  apiClient.post(`${BASE}/${projectId}/submit-for-approval`);
+
+export const getBuilderOnboardingState = (projectId) =>
+  apiClient.get(`${BASE}/${projectId}/builder-onboarding`);
+
 // ── PATCH ────────────────────────────────────────────────────────────────────
 export const editFeaturedProject = (id, formData) =>
   apiClient.patch(`${BASE}/${id}`, formData);

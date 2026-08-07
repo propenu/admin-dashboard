@@ -2,7 +2,11 @@ import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import {getAllFeaturedProjects,  createFeaturedProject } from "../../../../features/property/propertyService";
+import {
+  getAllFeaturedProjects,
+  createFeaturedProjectDraft,
+  sendBuilderInviteEmail,
+} from "../../../../features/property/propertyService";
 import { getUploadProgressConfig } from "../utils/uploadWithProgress";
 import { INITIAL_PAYLOAD } from "../Constants/constants";
 import { buildFormData } from "../utils/buildFormData";
@@ -233,25 +237,60 @@ export const useFeaturedProject = (projectType) => {
       const formData = await buildFormData(updatedPayload);
       const config = getUploadProgressConfig(setProgress);
 
-      return createFeaturedProject(formData, config);
+      // Invite-only: save draft, then email all builder invite addresses
+      const draftRes = await createFeaturedProjectDraft(formData, config);
+      const project =
+        draftRes?.data?.data || draftRes?.data || draftRes?.project || draftRes;
+      const projectId = project?._id || project?.id;
+
+      if (!projectId) {
+        throw new Error("Draft created but project id missing");
+      }
+
+      const emails = (payload.builderInviteEmails || [])
+        .map((e) => String(e || "").trim().toLowerCase())
+        .filter(Boolean);
+
+      const inviteRes = await sendBuilderInviteEmail(projectId, {
+        emails,
+        companyName:
+          String(payload.builderInviteCompany || "").trim() || undefined,
+      });
+
+      return {
+        mode: "invite_link",
+        projectId,
+        invite: inviteRes?.data?.data || inviteRes?.data || inviteRes,
+      };
     },
 
 
-    onSuccess: async () => {
-      toast.success("Property created successfully ✅");
-
-   //  await clearAllImages();
-
-      //localStorage.removeItem("featuredPayload");
-     // localStorage.removeItem("featured_step");
-     // localStorage.removeItem("featured_max_completed");
+    onSuccess: async (result) => {
       setProgress(0);
 
+      if (result?.mode === "invite_link") {
+        const sentCount =
+          result?.invite?.sent?.length ||
+          (result?.invite?.email ? 1 : 0) ||
+          1;
+        toast.success(
+          `Draft saved & invite sent to ${sentCount} email(s).`,
+        );
+        navigate("/Projects");
+        return;
+      }
+
+      toast.success("Property created successfully ✅");
       navigate("/Projects");
     },
 
     onError: (err) => {
-      toast.error(err?.message || "Something went wrong ❌");
+      const message =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong ❌";
+      toast.error(message);
     },
   });
 
