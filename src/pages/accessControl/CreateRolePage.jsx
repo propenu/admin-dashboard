@@ -6,8 +6,9 @@ import { createAccessRole, deleteAccessRole, getAccessRole, getAccessRoles, getP
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 
 /**
- * Never shown for delete / status in this modal.
- * Super Admin can manage every other role (hierarchy + custom + admin).
+ * Absolute platform roles — never activate/deactivate/delete.
+ * Super Admin may permanently delete every other role (hierarchy, custom, mistaken duplicates)
+ * after transferring assigned users.
  */
 const NON_DELETABLE_PLATFORM_ROLE_NAMES = new Set([
   "super_admin",
@@ -24,13 +25,13 @@ function normalizeRoleKey(name) {
     .replace(/[^a-z0-9]+/g, "_");
 }
 
-/** Super Admin: all dashboard roles (hierarchy + custom). Not limited to custom. */
+/** Super Admin modal: show hierarchy + custom + admin (ignore isProtected flag). */
 function canManageRoleInModal(role) {
-  if (!role?.name || role.isProtected) return false;
+  if (!role?.name) return false;
   return !NON_DELETABLE_PLATFORM_ROLE_NAMES.has(normalizeRoleKey(role.name));
 }
 
-/** Same set — permanent delete allowed for Super Admin with safe transfer */
+/** Permanent delete allowed for Super Admin with safe transfer */
 function canPermanentlyDeleteRole(role) {
   return canManageRoleInModal(role);
 }
@@ -346,7 +347,7 @@ export default function CreateRolePage() {
                 <Trash2 className="text-red-600" size={21} /> Manage existing roles
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Super Admin can activate, deactivate, or safely delete any dashboard role. Assigned users must be transferred first.
+                Super Admin can permanently delete any mistaken role (hierarchy or custom). If users are assigned, transfer them first — then delete.
               </p>
             </div>
             <button type="button" disabled={deleting} onClick={() => setDeleteOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X size={19} /></button>
@@ -435,7 +436,7 @@ export default function CreateRolePage() {
               </div>
             )}
             <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-              <strong>Safe delete (any role):</strong> deactivate → transfer assigned users (if any) → type role key → permanently delete. Hierarchy and custom roles both appear here. Super Admin / marketplace roles are never listed.
+              <strong>Safe delete:</strong> deactivate → transfer assigned users to another active role (required if count &gt; 0) → type role key → permanently delete. Only Super Admin / User / Builder / Agent stay undeletable.
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3 sm:px-6 sm:py-4">
