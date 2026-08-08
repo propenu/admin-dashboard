@@ -26,8 +26,9 @@ export const getAccessRole = async (roleId) =>
 export const getAccessRoles = async () =>
   (await apiClient.get(ROLES)).data;
 
-export const deleteAccessRole = async (roleId) =>
-  (await apiClient.delete(`${ROLES}/${roleId}`)).data;
+/** Safe delete: optional transferToRoleId moves assigned users + child roles first */
+export const deleteAccessRole = async (roleId, payload = {}) =>
+  (await apiClient.delete(`${ROLES}/${roleId}`, { data: payload })).data;
 
 export const updateAccessRoleStatus = async (roleId, isActive) =>
   (await apiClient.patch(`${ROLES}/${roleId}/status`, { isActive })).data;

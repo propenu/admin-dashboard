@@ -93,6 +93,7 @@ export default function UserPermissionsPage() {
   const [statusSaving, setStatusSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [transferToRoleId, setTransferToRoleId] = useState("");
   const [userStatusSaving, setUserStatusSaving] = useState(false);
   const [userDeleting, setUserDeleting] = useState(false);
   const [userDeleteConfirmation, setUserDeleteConfirmation] = useState("");
@@ -286,23 +287,34 @@ export default function UserPermissionsPage() {
     const assignedCount = targetRole
       ? users.filter((user) => String(user.roleId) === String(targetRole._id)).length
       : 0;
-    if (
-      !targetRole ||
-      targetRole.isActive !== false ||
-      assignedCount > 0 ||
-      deleteConfirmation !== targetRole.name
-    ) {
+    if (!targetRole || targetRole.isActive !== false || deleteConfirmation !== targetRole.name) {
       return;
+    }
+    if (assignedCount > 0 && !transferToRoleId) {
+      return toast.error("Select a transfer role for assigned users before deleting");
     }
     setDeleting(true);
     try {
-      const result = await deleteAccessRole(targetRole._id);
+      const result = await deleteAccessRole(
+        targetRole._id,
+        transferToRoleId ? { transferToRoleId } : {},
+      );
+      if (transferToRoleId && assignedCount > 0) {
+        setUsers((current) =>
+          current.map((user) =>
+            String(user.roleId) === String(targetRole._id)
+              ? { ...user, roleId: transferToRoleId }
+              : user,
+          ),
+        );
+      }
       setRoles((current) => current.filter((item) => String(item._id) !== String(targetRole._id)));
       setSelectedRole("");
       setSelectedUserId("");
       setRole(null);
       setPermissions(new Set());
       setDeleteConfirmation("");
+      setTransferToRoleId("");
       toast.success(result.message || "Role deleted successfully");
     } catch (error) {
       toast.error(error.response?.data?.message || "Role deletion failed");
@@ -451,14 +463,35 @@ export default function UserPermissionsPage() {
                         : "Deactivate role"}
                   </button>
                 </div>
-                {selectedRoleRecord.isActive === false && sharedCountForSelectedRole > 0 && (
-                  <p className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[10px] leading-4 text-blue-900">
-                    Role delete locked until you reassign {sharedCountForSelectedRole} user
-                    {sharedCountForSelectedRole === 1 ? "" : "s"}.
-                  </p>
-                )}
-                {selectedRoleRecord.isActive === false && sharedCountForSelectedRole === 0 && (
+                {selectedRoleRecord.isActive === false && (
                   <div className="mt-2 space-y-1.5 border-t border-slate-200 pt-2">
+                    {sharedCountForSelectedRole > 0 && (
+                      <>
+                        <p className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[10px] leading-4 text-blue-900">
+                          Safe delete: transfer {sharedCountForSelectedRole} user
+                          {sharedCountForSelectedRole === 1 ? "" : "s"} first.
+                        </p>
+                        <select
+                          value={transferToRoleId}
+                          onChange={(event) => setTransferToRoleId(event.target.value)}
+                          disabled={deleting || statusSaving}
+                          className="w-full rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-blue-500"
+                        >
+                          <option value="">Transfer users to…</option>
+                          {roles
+                            .filter(
+                              (item) =>
+                                String(item._id) !== String(selectedRoleRecord._id) &&
+                                item.isActive !== false,
+                            )
+                            .map((item) => (
+                              <option key={item._id} value={item._id}>
+                                {displayRoleLabel(item)}
+                              </option>
+                            ))}
+                        </select>
+                      </>
+                    )}
                     <input
                       value={deleteConfirmation}
                       onChange={(event) => setDeleteConfirmation(event.target.value)}
@@ -469,13 +502,20 @@ export default function UserPermissionsPage() {
                     <button
                       type="button"
                       disabled={
-                        deleteConfirmation !== selectedRoleRecord.name || deleting || statusSaving
+                        deleteConfirmation !== selectedRoleRecord.name ||
+                        deleting ||
+                        statusSaving ||
+                        (sharedCountForSelectedRole > 0 && !transferToRoleId)
                       }
                       onClick={deleteSelectedRole}
                       className="flex w-full items-center justify-center gap-1 rounded-lg bg-red-600 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-red-700 disabled:opacity-50"
                     >
                       <Trash2 size={12} />
-                      {deleting ? "Deleting…" : "Delete role"}
+                      {deleting
+                        ? "Deleting…"
+                        : sharedCountForSelectedRole > 0
+                          ? "Transfer & delete"
+                          : "Delete role"}
                     </button>
                   </div>
                 )}

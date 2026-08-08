@@ -5,6 +5,36 @@ import { toast } from "sonner";
 import { createAccessRole, deleteAccessRole, getAccessRole, getAccessRoles, getPermissionCatalog, updateAccessRole, updateAccessRolePermissions, updateAccessRoleStatus } from "../../features/accessControl/accessControlService";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 
+/**
+ * Never shown for delete / status in this modal.
+ * Super Admin can manage every other role (hierarchy + custom + admin).
+ */
+const NON_DELETABLE_PLATFORM_ROLE_NAMES = new Set([
+  "super_admin",
+  "user",
+  "builder",
+  "builder_staff",
+  "agent",
+]);
+
+function normalizeRoleKey(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
+}
+
+/** Super Admin: all dashboard roles (hierarchy + custom). Not limited to custom. */
+function canManageRoleInModal(role) {
+  if (!role?.name || role.isProtected) return false;
+  return !NON_DELETABLE_PLATFORM_ROLE_NAMES.has(normalizeRoleKey(role.name));
+}
+
+/** Same set — permanent delete allowed for Super Admin with safe transfer */
+function canPermanentlyDeleteRole(role) {
+  return canManageRoleInModal(role);
+}
+
 export default function CreateRolePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,6 +57,7 @@ export default function CreateRolePage() {
   const [deleting, setDeleting] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [transferToRoleId, setTransferToRoleId] = useState("");
   const [parentRoles, setParentRoles] = useState([]);
   const [parentRoleId, setParentRoleId] = useState("");
 
@@ -41,9 +72,17 @@ export default function CreateRolePage() {
     setRolesLoading(true);
     setDeleteRoleId("");
     setDeleteConfirmation("");
+    setTransferToRoleId("");
     try {
       const result = await getAccessRoles();
-      setRoles((result.roles || []).filter((role) => role.roleType === "custom" && !role.isProtected));
+      const manageable = (result.roles || [])
+        .filter(canManageRoleInModal)
+        .sort((a, b) => {
+          const activeDiff = Number(a.isActive === false) - Number(b.isActive === false);
+          if (activeDiff !== 0) return activeDiff;
+          return String(a.label || "").localeCompare(String(b.label || ""));
+        });
+      setRoles(manageable);
     } catch (error) {
       toast.error(error.response?.data?.message || "Unable to load roles");
       setDeleteOpen(false);
@@ -52,18 +91,53 @@ export default function CreateRolePage() {
     }
   };
 
+  const transferTargets = useMemo(
+    () =>
+      roles.filter(
+        (role) =>
+          String(role._id) !== String(deleteRoleId) &&
+          role.isActive !== false &&
+          canManageRoleInModal(role),
+      ),
+    [roles, deleteRoleId],
+  );
+
   const confirmDeleteRole = async () => {
     const role = roles.find((item) => item._id === deleteRoleId);
     if (!role) return toast.error("Select a role to delete");
+    if (!isSuperAdmin) return toast.error("Only Super Admin can permanently delete roles");
+    if (!canPermanentlyDeleteRole(role)) {
+      return toast.error("This platform role cannot be deleted");
+    }
     if (role.isActive !== false) return toast.error("Deactivate this role before deleting it");
     if (deleteConfirmation !== role.name) return toast.error("Enter the exact role key to confirm deletion");
+
+    const assigned = role.assignedUserCount || 0;
+    if (assigned > 0 && !transferToRoleId) {
+      return toast.error("Select a transfer role for assigned users before deleting");
+    }
+
     setDeleting(true);
     try {
-      const result = await deleteAccessRole(role._id);
+      const payload = transferToRoleId ? { transferToRoleId } : {};
+      const result = await deleteAccessRole(role._id, payload);
       toast.success(result.message || `${role.label} deleted`);
-      setRoles((current) => current.filter((item) => item._id !== role._id));
+      setRoles((current) =>
+        current
+          .filter((item) => item._id !== role._id)
+          .map((item) =>
+            String(item._id) === String(transferToRoleId)
+              ? {
+                  ...item,
+                  assignedUserCount:
+                    (item.assignedUserCount || 0) + (result.transferredUsers || assigned),
+                }
+              : item,
+          ),
+      );
       setDeleteRoleId("");
       setDeleteConfirmation("");
+      setTransferToRoleId("");
     } catch (error) {
       toast.error(error.response?.data?.message || "Role deletion failed");
     } finally {
@@ -166,7 +240,7 @@ export default function CreateRolePage() {
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-emerald-700">
           <ArrowLeft size={17} /> Back
         </button>
-        {!isEditing && isSuperAdmin && <button type="button" onClick={openDeleteRoles} className="flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-600 shadow-sm transition hover:bg-red-50"><Trash2 size={17} /> Delete existing role</button>}
+        {!isEditing && isSuperAdmin && <button type="button" onClick={openDeleteRoles} className="flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-600 shadow-sm transition hover:bg-red-50"><Trash2 size={17} /> Manage existing roles</button>}
       </div>
 
       <div className="overflow-hidden rounded-[28px] border border-emerald-100 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
@@ -267,28 +341,125 @@ export default function CreateRolePage() {
       {deleteOpen && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:p-5" onMouseDown={(event) => { if (event.target === event.currentTarget && !deleting) setDeleteOpen(false); }}>
         <div role="dialog" aria-modal="true" aria-labelledby="delete-role-title" className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2.5rem)]">
           <div className="flex shrink-0 items-start justify-between border-b border-slate-200 px-5 py-4 sm:px-6 sm:py-5">
-            <div><h2 id="delete-role-title" className="flex items-center gap-2 text-xl font-black text-slate-900"><Trash2 className="text-red-600" size={21} /> Delete existing role</h2><p className="mt-1 text-sm text-slate-500">Only unassigned custom roles can be deleted.</p></div>
+            <div>
+              <h2 id="delete-role-title" className="flex items-center gap-2 text-xl font-black text-slate-900">
+                <Trash2 className="text-red-600" size={21} /> Manage existing roles
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Super Admin can activate, deactivate, or safely delete any dashboard role. Assigned users must be transferred first.
+              </p>
+            </div>
             <button type="button" disabled={deleting} onClick={() => setDeleteOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X size={19} /></button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Custom role</label>
-            <select disabled={rolesLoading || deleting || statusSaving} value={deleteRoleId} onChange={(event) => { setDeleteRoleId(event.target.value); setDeleteConfirmation(""); }} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Dashboard role</label>
+            <select
+              disabled={rolesLoading || deleting || statusSaving}
+              value={deleteRoleId}
+              onChange={(event) => {
+                setDeleteRoleId(event.target.value);
+                setDeleteConfirmation("");
+                setTransferToRoleId("");
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-red-400 focus:ring-4 focus:ring-red-100"
+            >
               <option value="">{rolesLoading ? "Loading roles..." : "Select a role"}</option>
-              {roles.map((role) => <option key={role._id} value={role._id}>{role.label} ({role.name}) - {role.isActive === false ? "Deactivated" : "Active"}</option>)}
+              {roles.map((role) => (
+                <option key={role._id} value={role._id}>
+                  {role.label} ({role.name}) — {role.isActive === false ? "Deactivated" : "Active"}
+                  {role.roleType === "system" ? " · Hierarchy" : " · Custom"}
+                  {(role.assignedUserCount || 0) > 0 ? ` · ${role.assignedUserCount} users` : ""}
+                </option>
+              ))}
             </select>
-            {!rolesLoading && roles.length === 0 && <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">No deletable custom roles are available.</p>}
-            {selectedDeleteRole && <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2"><strong>{selectedDeleteRole.label}</strong><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedDeleteRole.isActive === false ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-700"}`}>{selectedDeleteRole.isActive === false ? "Deactivated" : "Active"}</span></div>
-              <p className="mt-2 text-slate-600">Assigned users: <strong>{selectedDeleteRole.assignedUserCount || 0}</strong></p>
-              <button type="button" disabled={statusSaving || deleting} onClick={() => changeSelectedRoleStatus(selectedDeleteRole.isActive === false)} className={`mt-3 w-full rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:opacity-50 ${selectedDeleteRole.isActive === false ? "border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50" : "bg-amber-500 text-white hover:bg-amber-600"}`}>{statusSaving ? "Updating..." : selectedDeleteRole.isActive === false ? "Activate role" : "Deactivate role"}</button>
-            </div>}
-            {selectedDeleteRole?.isActive === false && (selectedDeleteRole.assignedUserCount || 0) > 0 && <p className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm leading-6 text-blue-900"><strong>Deletion is locked.</strong> Transfer {selectedDeleteRole.assignedUserCount} assigned {selectedDeleteRole.assignedUserCount === 1 ? "user" : "users"} to another role. You can activate this role again at any time.</p>}
-            {selectedDeleteRole?.isActive === false && (selectedDeleteRole.assignedUserCount || 0) === 0 && <div className="mt-4"><label className="block text-xs font-bold uppercase tracking-wider text-red-600">Type {selectedDeleteRole.name} to confirm</label><input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} disabled={deleting || statusSaving} className="mt-2 w-full rounded-xl border border-red-200 px-4 py-3 font-mono text-sm outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100" placeholder={selectedDeleteRole.name} /></div>}
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><strong>Safe deletion order:</strong> deactivate the role, reassign every user, then permanently delete it. Deactivation is reversible; permanent deletion is not.</div>
+            {!rolesLoading && roles.length === 0 && (
+              <p className="mt-3 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
+                No manageable dashboard roles are available.
+              </p>
+            )}
+            {selectedDeleteRole && (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <strong>{selectedDeleteRole.label}</strong>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedDeleteRole.isActive === false ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-700"}`}>
+                    {selectedDeleteRole.isActive === false ? "Deactivated" : "Active"}
+                  </span>
+                </div>
+                <p className="mt-2 text-slate-600">
+                  Type: <strong>{selectedDeleteRole.roleType === "system" ? "Hierarchy / system" : "Custom"}</strong>
+                  {" · "}Assigned users: <strong>{selectedDeleteRole.assignedUserCount || 0}</strong>
+                </p>
+                <button
+                  type="button"
+                  disabled={statusSaving || deleting}
+                  onClick={() => changeSelectedRoleStatus(selectedDeleteRole.isActive === false)}
+                  className={`mt-3 w-full rounded-xl px-4 py-2.5 text-sm font-bold transition disabled:opacity-50 ${selectedDeleteRole.isActive === false ? "border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50" : "bg-amber-500 text-white hover:bg-amber-600"}`}
+                >
+                  {statusSaving ? "Updating..." : selectedDeleteRole.isActive === false ? "Activate role" : "Deactivate role"}
+                </button>
+              </div>
+            )}
+            {selectedDeleteRole?.isActive === false && (selectedDeleteRole.assignedUserCount || 0) > 0 && (
+              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm leading-6 text-blue-900">
+                  <strong>Safe transfer required.</strong> Move {selectedDeleteRole.assignedUserCount} assigned {selectedDeleteRole.assignedUserCount === 1 ? "user" : "users"} to another active role, then confirm delete. No user is left without a role.
+                </p>
+                <label className="mt-3 block text-xs font-bold uppercase tracking-wider text-blue-800">Transfer users to</label>
+                <select
+                  disabled={deleting || statusSaving || transferTargets.length === 0}
+                  value={transferToRoleId}
+                  onChange={(event) => setTransferToRoleId(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                >
+                  <option value="">
+                    {transferTargets.length === 0 ? "No active transfer role available" : "Select transfer role"}
+                  </option>
+                  {transferTargets.map((role) => (
+                    <option key={role._id} value={role._id}>
+                      {role.label} ({role.name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {selectedDeleteRole?.isActive === false && canPermanentlyDeleteRole(selectedDeleteRole) && (
+              <div className="mt-4">
+                <label className="block text-xs font-bold uppercase tracking-wider text-red-600">Type {selectedDeleteRole.name} to confirm</label>
+                <input
+                  value={deleteConfirmation}
+                  onChange={(event) => setDeleteConfirmation(event.target.value)}
+                  disabled={deleting || statusSaving}
+                  className="mt-2 w-full rounded-xl border border-red-200 px-4 py-3 font-mono text-sm outline-none focus:border-red-500 focus:ring-4 focus:ring-red-100"
+                  placeholder={selectedDeleteRole.name}
+                />
+              </div>
+            )}
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+              <strong>Safe delete (any role):</strong> deactivate → transfer assigned users (if any) → type role key → permanently delete. Hierarchy and custom roles both appear here. Super Admin / marketplace roles are never listed.
+            </div>
           </div>
           <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-slate-200 bg-slate-50 px-5 py-3 sm:px-6 sm:py-4">
             <button type="button" disabled={deleting || statusSaving} onClick={() => setDeleteOpen(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100">Cancel</button>
-            {selectedDeleteRole?.isActive === false && (selectedDeleteRole.assignedUserCount || 0) === 0 && <button type="button" disabled={deleteConfirmation !== selectedDeleteRole.name || deleting || statusSaving} onClick={confirmDeleteRole} className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-600/20 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"><Trash2 size={16} /> {deleting ? "Deleting..." : "Delete this role"}</button>}
+            {selectedDeleteRole?.isActive === false && canPermanentlyDeleteRole(selectedDeleteRole) && (
+              <button
+                type="button"
+                disabled={
+                  deleteConfirmation !== selectedDeleteRole.name ||
+                  deleting ||
+                  statusSaving ||
+                  ((selectedDeleteRole.assignedUserCount || 0) > 0 && !transferToRoleId)
+                }
+                onClick={confirmDeleteRole}
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-600/20 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Trash2 size={16} />{" "}
+                {deleting
+                  ? "Deleting..."
+                  : (selectedDeleteRole.assignedUserCount || 0) > 0
+                    ? "Transfer & delete"
+                    : "Delete this role"}
+              </button>
+            )}
           </div>
         </div>
       </div>}
