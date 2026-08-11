@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import GalleryLightbox from "../../../../components/common/GalleryLightbox";
 import { updateResidentialDocumentStatus } from "../../../../services/ResidentialServices/ResidentialServices";
 import { updateCommercialDocumentStatus } from "../../../../services/CommercialServices/CommercialServices";
 import { updateAgriculturalDocumentStatus } from "../../../../services/AgricuturalServices/AgricuturalServices";
@@ -103,6 +104,47 @@ const formatTime = (iso) =>
 
 const capitalize = (str) =>
   str ? str.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
+
+/** Labels for slug enums used on details pages */
+const PROPERTY_AGE_LABELS = {
+  "0-1-year": "0-1 Year",
+  "1-5-years": "1-5 Years",
+  "5-10-years": "5-10 Years",
+  "10-20-years": "10+ Years",
+  "20-plus-years": "20+ Years",
+  "under-construction": "Under Construction",
+};
+
+const CONSTRUCTION_STATUS_LABELS = {
+  "ready-to-move": "Ready to Move",
+  "under-construction": "Under Construction",
+};
+
+const formatPropertyAge = (value) => {
+  if (!value) return "—";
+  const key = String(value).trim().toLowerCase();
+  if (PROPERTY_AGE_LABELS[key]) return PROPERTY_AGE_LABELS[key];
+  // Fallback: keep numeric ranges like 5-10, only humanize the trailing word(s)
+  const rangeMatch = key.match(/^(\d+)\s*-\s*(\d+)\s*-?\s*(years?|yrs?)?$/i);
+  if (rangeMatch) {
+    const unit = (rangeMatch[3] || "year").toLowerCase().startsWith("year")
+      ? Number(rangeMatch[2]) === 1
+        ? "Year"
+        : "Years"
+      : "Years";
+    return `${rangeMatch[1]}-${rangeMatch[2]} ${unit}`;
+  }
+  const plusMatch = key.match(/^(\d+)\s*-?\s*plus\s*-?\s*(years?|yrs?)?$/i);
+  if (plusMatch) return `${plusMatch[1]}+ Years`;
+  return capitalize(value);
+};
+
+const formatConstructionStatus = (value) => {
+  if (!value) return "—";
+  const key = String(value).trim().toLowerCase();
+  return CONSTRUCTION_STATUS_LABELS[key] || capitalize(value);
+};
+
 const formatRoleName = (role) => {
   const roles = {
     sales_agent: "Sales Executive",
@@ -131,14 +173,18 @@ const normalizeAuditPerson = (person, fallbackDate) => {
       user.role ||
       user.roleId?.name ||
       user.roleId?.label,
+    createdAt: person.createdAt || fallbackDate,
     postedAt: person.postedAt || fallbackDate,
     updatedAt: person.updatedAt || fallbackDate,
   };
 };
 
+const getCreatedBy = (property) =>
+  normalizeAuditPerson(property?.createdBy, property?.createdAt);
+
 const getPostedBy = (property) =>
   normalizeAuditPerson(
-    property?.postedBy || property?.createdBy,
+    property?.postedBy,
     property?.postedBy?.postedAt || property?.createdAt,
   );
 
@@ -449,141 +495,108 @@ function RecordMeta({ property }) {
   );
 }
 
-// ─── CreatedByCard ────────────────────────────────────────────────────────────
-function PostedByCard({ person }) {
+// ─── Compact audit person row cards ───────────────────────────────────────────
+const AUDIT_CARD_STYLES = {
+  created: {
+    label: "Created By",
+    icon: UserPlus,
+    headerBg: "bg-violet-50",
+    headerText: "text-violet-600",
+    iconBg: "bg-violet-50",
+  },
+  posted: {
+    label: "Posted By",
+    icon: Send,
+    headerBg: "bg-green-50",
+    headerText: "text-[#27AE60]",
+    iconBg: "bg-[#27AE60]/10",
+  },
+  updated: {
+    label: "Last Updated By",
+    icon: RefreshCw,
+    headerBg: "bg-blue-50",
+    headerText: "text-blue-600",
+    iconBg: "bg-blue-50",
+  },
+};
+
+function AuditPersonCard({ type, person, when, extra }) {
   if (!person) return null;
+  const style = AUDIT_CARD_STYLES[type];
+  const Icon = style.icon;
+  const idTail = String(person._id || person.userId || "").slice(-4);
+
   return (
-    <SectionCard>
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 bg-green-50">
-        <UserPlus className="w-3.5 h-3.5 text-[#27AE60]" />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[#27AE60]">
-          Posted By
+    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden min-w-0">
+      <div
+        className={`flex items-center gap-1.5 px-3 py-1.5 border-b border-slate-100 ${style.headerBg}`}
+      >
+        <Icon className={`w-3 h-3 shrink-0 ${style.headerText}`} />
+        <span
+          className={`text-[9px] font-bold uppercase tracking-widest ${style.headerText}`}
+        >
+          {style.label}
         </span>
       </div>
-      <div className="p-4 flex flex-col gap-2">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#27AE60]/10 flex items-center justify-center">
-            <User className="w-4 h-4 text-[#27AE60]" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-800 capitalize">
+      <div className="px-3 py-2.5 flex items-center gap-2.5 min-w-0">
+        <div
+          className={`w-7 h-7 rounded-md ${style.iconBg} flex items-center justify-center shrink-0`}
+        >
+          <User className={`w-3.5 h-3.5 ${style.headerText}`} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-xs font-bold text-slate-800 capitalize truncate">
               {person.name || "—"}
             </p>
-            <p className="text-[9px] text-slate-400 font-mono">
-              ID: ...{(person._id || "").slice(-4)}
-            </p>
+            {idTail && (
+              <span className="text-[9px] text-slate-400 font-mono shrink-0">
+                …{idTail}
+              </span>
+            )}
+            {person.roleName && (
+              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-100 capitalize shrink-0">
+                {formatRoleName(person.roleName)}
+              </span>
+            )}
           </div>
+          <p className="text-[10px] text-slate-500 truncate mt-0.5">
+            {[person.email, person.phone].filter(Boolean).join(" · ") || "—"}
+          </p>
+          <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+            {when ? formatDateTime(when) : "—"}
+            {extra ? ` · ${extra}` : ""}
+          </p>
         </div>
-        {person.roleName && (
-          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-              Role
-            </p>
-            <p className="text-[11px] font-semibold text-slate-700 capitalize">
-              {formatRoleName(person.roleName)}
-            </p>
-          </div>
-        )}
-        {person.postedAt && (
-          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-              Posted On
-            </p>
-            <p className="text-[11px] font-semibold text-slate-700">
-              {formatDateTime(person.postedAt)}
-            </p>
-          </div>
-        )}
-        {person.email && (
-          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-              Email
-            </p>
-            <p className="text-[11px] font-semibold text-slate-700 truncate">
-              {person.email}
-            </p>
-          </div>
-        )}
-        {person.phone && (
-          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-              Phone
-            </p>
-            <p className="text-[11px] font-semibold text-slate-700">
-              {person.phone}
-            </p>
-          </div>
-        )}
       </div>
-    </SectionCard>
+    </div>
   );
 }
 
-// ─── LeadRow ──────────────────────────────────────────────────────────────────
-function LastUpdatedByCard({ person, updateCount }) {
-  if (!person) return null;
+function CreatedByCard({ person }) {
   return (
-    <SectionCard>
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 bg-blue-50">
-        <RefreshCw className="w-3.5 h-3.5 text-blue-600" />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600">
-          Last Updated By
-        </span>
-      </div>
-      <div className="p-4 flex flex-col gap-2">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-            <User className="w-4 h-4 text-blue-600" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-800 capitalize">
-              {person.name || "Unknown user"}
-            </p>
-            {person._id && (
-              <p className="text-[9px] text-slate-400 font-mono">
-                ID: ...{String(person._id).slice(-4)}
-              </p>
-            )}
-          </div>
-        </div>
-        {person.roleName && (
-          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-              Role
-            </p>
-            <p className="text-[11px] font-semibold text-slate-700 capitalize">
-              {formatRoleName(person.roleName)}
-            </p>
-          </div>
-        )}
-        <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-          <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-            Updated On
-          </p>
-          <p className="text-[11px] font-semibold text-slate-700">
-            {formatDateTime(person.updatedAt)}
-          </p>
-        </div>
-        <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-          <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-            Total Updates
-          </p>
-          <p className="text-[11px] font-semibold text-slate-700">
-            {updateCount || 0}
-          </p>
-        </div>
-        {person.email && (
-          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
-              Email
-            </p>
-            <p className="text-[11px] font-semibold text-slate-700 truncate">
-              {person.email}
-            </p>
-          </div>
-        )}
-      </div>
-    </SectionCard>
+    <AuditPersonCard
+      type="created"
+      person={person}
+      when={person?.createdAt || person?.postedAt || person?.updatedAt}
+    />
+  );
+}
+
+function PostedByCard({ person }) {
+  return (
+    <AuditPersonCard type="posted" person={person} when={person?.postedAt} />
+  );
+}
+
+function LastUpdatedByCard({ person, updateCount }) {
+  return (
+    <AuditPersonCard
+      type="updated"
+      person={person}
+      when={person?.updatedAt}
+      extra={`${updateCount || 0} updates`}
+    />
   );
 }
 
@@ -944,11 +957,11 @@ function ResidentialDetails({ property }) {
           />
           <MetaItem
             label="Construction Status"
-            value={capitalize(property.constructionStatus)}
+            value={formatConstructionStatus(property.constructionStatus)}
           />
           <MetaItem
             label="Property Age"
-            value={capitalize(property.propertyAge)}
+            value={formatPropertyAge(property.propertyAge)}
           />
           <MetaItem
             label="Furnishing"
@@ -1116,7 +1129,7 @@ function CommercialDetails({ property }) {
           />
           <MetaItem
             label="Construction Status"
-            value={capitalize(property.constructionStatus)}
+            value={formatConstructionStatus(property.constructionStatus)}
           />
           <MetaItem
             label="Furnished Status"
@@ -1124,7 +1137,7 @@ function CommercialDetails({ property }) {
           />
           <MetaItem
             label="Property Age"
-            value={capitalize(property.propertyAge)}
+            value={formatPropertyAge(property.propertyAge)}
           />
           <MetaItem label="Floor Number" value={property.floorNumber} />
           <MetaItem label="Total Floors" value={property.totalFloors} />
@@ -1681,58 +1694,76 @@ function VerificationDocs({ docs }) {
         title="Verification Documents"
         sub={`${docs.length} document(s)`}
       />
-      <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {docs.map((doc, i) => (
-          <div
-            key={i}
-            className="border border-slate-100 rounded-xl overflow-hidden"
-          >
-            {doc.mimetype?.startsWith("image") ? (
-              <img
-                src={doc.url}
-                alt={doc.filename}
-                className="w-full h-32 object-cover"
-                onError={(e) => {
-                  e.target.src = Fallback;
-                }}
-              />
-            ) : (
-              <div className="h-32 bg-slate-50 flex items-center justify-center">
-                <ShieldCheck className="w-8 h-8 text-slate-300" />
+      <div className="p-3 space-y-2">
+        {docs.map((doc, i) => {
+          const isImage = Boolean(doc.mimetype?.startsWith("image") || /\.(png|jpe?g|webp|gif)$/i.test(doc.filename || doc.url || ""));
+          return (
+            <div
+              key={doc.key || doc.url || i}
+              className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-2.5 py-2"
+            >
+              <div className="w-12 h-12 rounded-lg overflow-hidden bg-white border border-slate-100 shrink-0 flex items-center justify-center">
+                {isImage && doc.url ? (
+                  <img
+                    src={doc.url}
+                    alt={doc.filename || "document"}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = Fallback;
+                    }}
+                  />
+                ) : (
+                  <ShieldCheck className="w-5 h-5 text-slate-300" />
+                )}
               </div>
-            )}
-            <div className="p-3 flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-700 truncate">
-                  {doc.filename || doc.title}
+
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-slate-800 truncate">
+                  {doc.filename || doc.title || "Document"}
                 </p>
-                <p className="text-[10px] text-slate-400 capitalize">
-                  {doc.type?.replace(/_/g, " ")}
-                </p>
+                <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-slate-400 capitalize">
+                    {doc.type?.replace(/_/g, " ") || "Document"}
+                  </span>
+                  <span
+                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border capitalize ${
+                      statusStyle[doc.status] ||
+                      "bg-slate-100 text-slate-600 border-slate-200"
+                    }`}
+                  >
+                    {doc.status || "pending"}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-[10px] font-bold px-2 py-1 rounded-full border capitalize ${
-                    statusStyle[doc.status] ||
-                    "bg-slate-100 text-slate-600 border-slate-200"
-                  }`}
-                >
-                  {doc.status}
-                </span>
-                {doc.url && (
+
+              {doc.url && (
+                <div className="flex items-center gap-1.5 shrink-0">
                   <a
                     href={doc.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition"
+                    className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-[#27AE60]/30 bg-[#27AE60]/10 text-[#27AE60] text-[11px] font-bold hover:bg-[#27AE60]/15 transition"
+                    title="View document"
                   >
-                    <Download className="w-3.5 h-3.5 text-slate-500" />
+                    <Eye className="w-3.5 h-3.5" />
+                    View
                   </a>
-                )}
-              </div>
+                  <a
+                    href={doc.url}
+                    download={doc.filename || true}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[11px] font-bold hover:bg-slate-100 transition"
+                    title="Download document"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download
+                  </a>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </SectionCard>
   );
@@ -1745,7 +1776,7 @@ export default function IndetailsProperty({
 }) {
   const navigate = useNavigate();
   const [activeImage, setActiveImage] = useState(0);
-
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const { category, id } = useParams();
 
@@ -1822,6 +1853,7 @@ const {
   const displayImage = images[activeImage]?.url || Fallback;
   const isActive = property.status === "active";
   const completion = property.completion?.percent || 0;
+  const createdBy = getCreatedBy(property);
   const postedBy = getPostedBy(property);
   const lastUpdatedBy = getLastUpdatedBy(property);
   const updateCount = property.updateCount ?? getUpdateHistory(property).length;
@@ -1884,7 +1916,12 @@ const {
         <div className="grid grid-cols-1 lg:grid-cols-5">
           {/* Image column */}
           <div className="lg:col-span-2 relative">
-            <div className="h-64 sm:h-80 lg:h-full min-h-[200px] max-h-[400px] bg-slate-100 relative overflow-hidden">
+            <button
+              type="button"
+              onClick={() => images.length > 0 && setGalleryOpen(true)}
+              className="block w-full h-64 sm:h-80 lg:h-full min-h-[200px] max-h-[400px] bg-slate-100 relative overflow-hidden text-left"
+              title={images.length ? "Open gallery" : undefined}
+            >
               <img
                 src={displayImage}
                 alt={property.title}
@@ -1893,13 +1930,13 @@ const {
                   e.target.src = Fallback;
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-              <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute top-3 left-3 flex gap-2 flex-wrap pointer-events-none">
                 <StatusBadge status={property.status} />
                 <CategoryBadge category={category} />
               </div>
               {/* Completion bar */}
-              <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
+              <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 pointer-events-none">
                 <div className="flex items-center justify-between text-white text-[10px] mb-1">
                   <span className="font-semibold">Profile Completion</span>
                   <span className="font-bold">{completion}%</span>
@@ -1915,13 +1952,22 @@ const {
               <div className="absolute top-3 right-3 px-2 py-1 bg-black/50 backdrop-blur-sm text-white text-[10px] rounded-lg flex items-center gap-1">
                 <ImageIcon className="w-3 h-3" /> {images.length}
               </div>
-            </div>
+              {images.length > 0 && (
+                <span className="absolute bottom-10 right-3 px-2.5 py-1 rounded-lg bg-[#27AE60] text-white text-[10px] font-bold shadow">
+                  Open gallery
+                </span>
+              )}
+            </button>
             {images.length > 1 && (
               <div className="flex gap-2 p-3 overflow-x-auto bg-slate-50 border-t">
                 {images.map((img, i) => (
                   <button
                     key={i}
-                    onClick={() => setActiveImage(i)}
+                    type="button"
+                    onClick={() => {
+                      setActiveImage(i);
+                      setGalleryOpen(true);
+                    }}
                     className={`flex-shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all ${
                       activeImage === i
                         ? "border-[#27AE60] scale-105"
@@ -2090,7 +2136,7 @@ const {
                   />
                   <MetaItem
                     label="Construction"
-                    value={capitalize(property.constructionStatus)}
+                    value={formatConstructionStatus(property.constructionStatus)}
                   />
                 </>
               )}
@@ -2112,7 +2158,7 @@ const {
                   <MetaItem label="Cabins" value={property.cabins} />
                   <MetaItem
                     label="Construction"
-                    value={capitalize(property.constructionStatus)}
+                    value={formatConstructionStatus(property.constructionStatus)}
                   />
                 </>
               )}
@@ -2217,13 +2263,22 @@ const {
         </div>
       </SectionCard>
 
-      {/* ── POSTED BY ─────────────────────────────────────────────────── */}
-      {(postedBy || lastUpdatedBy) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-5xl">
+      {/* ── CREATED / POSTED / LAST UPDATED (compact row) ─────────────── */}
+      {(createdBy || postedBy || lastUpdatedBy) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+          <CreatedByCard person={createdBy} />
           <PostedByCard person={postedBy} />
           <LastUpdatedByCard person={lastUpdatedBy} updateCount={updateCount} />
         </div>
       )}
+
+      <GalleryLightbox
+        open={galleryOpen}
+        images={images}
+        initialIndex={activeImage}
+        onClose={() => setGalleryOpen(false)}
+        title={property.title || "Property gallery"}
+      />
 
       <UpdateHistoryPanel property={property} />
 

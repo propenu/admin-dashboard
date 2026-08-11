@@ -73,6 +73,31 @@ export const isCustomerCareExecutiveRole = (roleName = "") => {
   );
 };
 
+/** Hierarchy field roles that use workingLocations territories (CCE + BD/Sales). */
+export const isTerritoryRole = (roleName = "") => {
+  const key = String(roleName)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return (
+    isCustomerCareExecutiveRole(key) ||
+    key === "relationship_manager" ||
+    key === "relationship_managers" ||
+    key === "operations_head" ||
+    key === "operation_head" ||
+    key === "business_development_head" ||
+    key === "regional_manager" ||
+    key === "regional_managers" ||
+    key === "business_development_manager" ||
+    key === "sales_manager" ||
+    key === "sales_managers" ||
+    key === "sales_executive" ||
+    key === "sales_executives" ||
+    key === "sales_agent"
+  );
+};
+
 export const locationFromUserLike = (user) => ({
   state: user?.state || user?.workState || user?.address?.state || "",
   city: user?.city || user?.workCity || user?.address?.city || "",

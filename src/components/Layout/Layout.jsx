@@ -2,7 +2,7 @@
 
 // src/components/Layout/Layout.jsx
 import { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Siderbar";
 import PageBackNav from "../common/PageBackNav";
@@ -10,6 +10,9 @@ import { useSidebarActivityBadges } from "../../hooks/useSidebarActivityBadges";
 
 const SIDEBAR_EXPANDED = 256;
 const SIDEBAR_COLLAPSED = 68;
+
+/** Full-bleed flows (no sidebar) — email-style SE user onboarding, etc. */
+const HIDE_SIDEBAR_PREFIXES = ["/sales-executives/onboard-user"];
 
 const APP_BACKGROUND = {
   backgroundColor: "#f8fffb",
@@ -24,6 +27,10 @@ const CONTENT_BACKGROUND = {
 };
 
 export default function MainLayout() {
+  const { pathname } = useLocation();
+  const hideSidebar = HIDE_SIDEBAR_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   useSidebarActivityBadges();
@@ -41,37 +48,52 @@ export default function MainLayout() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    if (hideSidebar) setIsMobileOpen(false);
+  }, [hideSidebar]);
+
   return (
-    <div className="min-h-screen" style={APP_BACKGROUND}>
+    <div className="min-h-screen" style={hideSidebar ? { backgroundColor: "#eef1f4" } : APP_BACKGROUND}>
       
       {/* Navbar */}
-      <Navbar toggleSidebar={() => setIsMobileOpen(true)} />
+      <Navbar
+        toggleSidebar={() => setIsMobileOpen(true)}
+        hideSidebarToggle={hideSidebar}
+      />
 
       {/* Body */}
       <div className="flex min-w-0 pt-16">
 
-        <Sidebar
-          expanded={isHovered}
-          isMobileOpen={isMobileOpen}
-          closeMobile={() => setIsMobileOpen(false)}
-          onHoverStart={() => setIsHovered(true)}
-          onHoverEnd={() => setIsHovered(false)}
-        />
+        {!hideSidebar ? (
+          <Sidebar
+            expanded={isHovered}
+            isMobileOpen={isMobileOpen}
+            closeMobile={() => setIsMobileOpen(false)}
+            onHoverStart={() => setIsHovered(true)}
+            onHoverEnd={() => setIsHovered(false)}
+          />
+        ) : null}
 
         {/* Main Content */}
         <main
           className="min-h-[calc(100vh-64px)] min-w-0 flex-1 transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
           style={{
-            ...CONTENT_BACKGROUND,
-            marginLeft: isDesktop
-              ? isHovered
-                ? `${SIDEBAR_EXPANDED}px`
-                : `${SIDEBAR_COLLAPSED}px`
-              : "0px",
+            ...(hideSidebar ? { backgroundColor: "#eef1f4" } : CONTENT_BACKGROUND),
+            marginLeft: hideSidebar
+              ? "0px"
+              : isDesktop
+                ? isHovered
+                  ? `${SIDEBAR_EXPANDED}px`
+                  : `${SIDEBAR_COLLAPSED}px`
+                : "0px",
           }}
         >
-          <div className="min-w-0 max-w-full p-3 sm:p-4 lg:p-6">
-            <PageBackNav />
+          <div
+            className={`min-w-0 max-w-full ${
+              hideSidebar ? "p-0" : "p-3 sm:p-4 lg:p-6"
+            }`}
+          >
+            {!hideSidebar ? <PageBackNav /> : null}
             <Outlet />
           </div>
         </main>

@@ -34,6 +34,8 @@ const DashboardRouter = ({ role, permissions = [] }) => {
       return <SalesManagerDashboard />;
 
     case "sales_agent":
+    case "sales_executive":
+    case "sales_executives":
       return <SalesAgentDashboard />;
 
     case "accounts":

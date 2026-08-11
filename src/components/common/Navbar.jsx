@@ -6,7 +6,7 @@ import { useEffect, useState, useRef } from "react";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 import { clearAuthToken } from "../../utils/authToken";
 
-export default function Navbar({ toggleSidebar }) {
+export default function Navbar({ toggleSidebar, hideSidebarToggle = false }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(false);
@@ -68,14 +68,16 @@ export default function Navbar({ toggleSidebar }) {
         <div className="w-full px-4 sm:px-5 flex items-center justify-between h-full">
           {/* ── LEFT: Logo ── */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={toggleSidebar}
-              className="lg:hidden p-2 rounded-lg transition-colors nav-menu-btn"
-              style={{ color: "#64748b" }}
-              aria-label="Toggle Sidebar"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
+            {!hideSidebarToggle ? (
+              <button
+                onClick={toggleSidebar}
+                className="lg:hidden p-2 rounded-lg transition-colors nav-menu-btn"
+                style={{ color: "#64748b" }}
+                aria-label="Toggle Sidebar"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            ) : null}
 
             <div
               onClick={() => navigate("/")}

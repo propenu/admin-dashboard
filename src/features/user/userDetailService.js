@@ -58,56 +58,73 @@ const normalizeUserIds = (userIds) =>
     .filter(Boolean)
     .map(String))];
 
+const dedupeItems = (items) => {
+  const seenIds = new Set();
+  return items.filter((item) => {
+    const recordId = String(item?._id || "");
+    if (recordId && seenIds.has(recordId)) return false;
+    if (recordId) seenIds.add(recordId);
+    return true;
+  });
+};
+
+const wrapItems = (items) => ({
+  data: {
+    items,
+    meta: {
+      total: items.length,
+      page: 1,
+      limit: items.length || 20,
+      pages: 1,
+      totalPages: 1,
+    },
+  },
+});
+
 /**
- * The property APIs do not consistently apply the createdBy query before
- * pagination. Prefer createdBy query when backend supports it; always
- * match creator / postedBy IDs client-side so sales-exec posts are not missed.
+ * Fetch inventory owned (createdBy) or posted (postedBy) by a user.
+ * SE posts use postedBy; builder ownership stays on createdBy.
+ * Always requests status=all so draft/pending/active all return.
  */
-const getAllCreatedBy = async (url, query, userIds) => {
+const getAllForUser = async (url, query, userIds, { isProject = false } = {}) => {
   const validUserIds = normalizeUserIds(userIds);
-  const baseQuery = new URLSearchParams(query);
   const [primaryUserId = ""] = validUserIds;
+  if (!primaryUserId) return wrapItems([]);
 
-  // Try scoped fetch first (much faster when backend honors createdBy).
-  const scopedQuery = new URLSearchParams(baseQuery);
-  if (primaryUserId) scopedQuery.set("createdBy", primaryUserId);
-  scopedQuery.set("page", "1");
-  scopedQuery.set("limit", String(Math.max(Number(baseQuery.get("limit")) || 100, 100)));
+  const baseQuery = new URLSearchParams(query);
+  baseQuery.set("status", "all");
+  if (isProject) baseQuery.set("promotionStatus", "all");
+  baseQuery.set("page", "1");
+  baseQuery.set("limit", String(Math.max(Number(baseQuery.get("limit")) || 100, 100)));
 
-  let scopedItems = [];
-  try {
-    const scopedResponse = await apiClient.get(`${url}?${scopedQuery.toString()}`);
-    scopedItems = getItems(scopedResponse.data).filter((item) => matchesUserId(item, validUserIds));
-  } catch {
-    scopedItems = [];
-  }
+  const fetchScoped = async (key) => {
+    const scoped = new URLSearchParams(baseQuery);
+    scoped.delete("createdBy");
+    scoped.delete("postedBy");
+    scoped.set(key, primaryUserId);
+    try {
+      const response = await apiClient.get(`${url}?${scoped.toString()}`);
+      return getItems(response.data).filter((item) => matchesUserId(item, validUserIds));
+    } catch {
+      return [];
+    }
+  };
 
-  // Fallback: unscoped pages (legacy behaviour) when scoped returns nothing.
-  if (scopedItems.length > 0) {
-    const seenIds = new Set();
-    const items = scopedItems.filter((item) => {
-      const recordId = String(item?._id || "");
-      if (recordId && seenIds.has(recordId)) return false;
-      if (recordId) seenIds.add(recordId);
-      return true;
-    });
-    return {
-      data: {
-        items,
-        meta: { total: items.length, page: 1, limit: items.length || 20, pages: 1, totalPages: 1 },
-      },
-    };
-  }
+  const [byCreated, byPosted] = await Promise.all([
+    fetchScoped("createdBy"),
+    fetchScoped("postedBy"),
+  ]);
 
+  let items = dedupeItems([...byCreated, ...byPosted]);
+  if (items.length > 0) return wrapItems(items);
+
+  // Legacy fallback: unscoped pages + client match (capped).
   const effectiveQuery = new URLSearchParams(baseQuery);
   effectiveQuery.delete("createdBy");
-  effectiveQuery.set("page", "1");
-  effectiveQuery.set("limit", "100");
+  effectiveQuery.delete("postedBy");
   const firstResponse = await apiClient.get(`${url}?${effectiveQuery.toString()}`);
   const firstPayload = firstResponse.data;
-  // Cap pages to avoid loading the entire inventory for one member view.
   const pages = Math.min(getPageCount(firstPayload), 10);
-
   const remainingResponses =
     pages > 1
       ? await Promise.all(
@@ -119,18 +136,12 @@ const getAllCreatedBy = async (url, query, userIds) => {
         )
       : [];
 
-  const allItems = [
-    ...getItems(firstPayload),
-    ...remainingResponses.flatMap((response) => getItems(response.data)),
-  ];
-  const seenIds = new Set();
-  const items = allItems.filter((item) => {
-    if (!matchesUserId(item, validUserIds)) return false;
-    const recordId = String(item?._id || "");
-    if (recordId && seenIds.has(recordId)) return false;
-    if (recordId) seenIds.add(recordId);
-    return true;
-  });
+  items = dedupeItems(
+    [
+      ...getItems(firstPayload),
+      ...remainingResponses.flatMap((response) => getItems(response.data)),
+    ].filter((item) => matchesUserId(item, validUserIds)),
+  );
 
   return {
     ...firstResponse,
@@ -164,7 +175,7 @@ export const getUserSubscriptions = (userId) =>
 export const getUserSubscriptionHistory = (userId) =>
   apiClient.get(`${PAYMENT_BASE}/subscription-history?userId=${userId}`);
 
-// ── Featured Projects by createdBy userId ─────────────────────────────────────
+// ── Featured Projects by createdBy / postedBy userId ─────────────────────────
 // types: featured | prime | normal | sponsored
 export const getUserFeaturedProjects = (
   userIds,
@@ -172,14 +183,12 @@ export const getUserFeaturedProjects = (
   page = 1,
   limit = 20,
 ) => {
-  const [primaryUserId = ""] = normalizeUserIds(userIds);
   const query = new URLSearchParams({
-    createdBy: primaryUserId,
     page: "1",
     limit: String(Math.max(limit, 100)),
   });
   if (type) query.set("type", type);
-  return getAllCreatedBy(PROPERTY_BASE, query, userIds);
+  return getAllForUser(PROPERTY_BASE, query, userIds, { isProject: true });
 };
 
 // ── Properties (residential / commercial / land / agricultural) ───────────────
@@ -189,11 +198,9 @@ export const getUserProperties = (
   page = 1,
   limit = 20,
 ) => {
-  const [primaryUserId = ""] = normalizeUserIds(userIds);
   const query = new URLSearchParams({
-    createdBy: primaryUserId,
     page: "1",
     limit: String(Math.max(limit, 100)),
   });
-  return getAllCreatedBy(`${SERVICES.PROPERTY}/${category}`, query, userIds);
+  return getAllForUser(`${SERVICES.PROPERTY}/${category}`, query, userIds);
 };

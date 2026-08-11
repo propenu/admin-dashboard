@@ -11,6 +11,7 @@ import {
   canonicalTeamRole,
 } from "../../utils/roleHierarchy";
 import { requestSidebarRefresh } from "../../utils/sidebarActivity";
+import { isTerritoryRole } from "../../utils/workingLocations";
 
 const EMPTY = { name: "", email: "", role: "", reportsToUserId: "", otp: "", locality: "", city: "", state: "", pincode: "" };
 
@@ -176,9 +177,9 @@ export default function CreateCredentialPage() {
               </div>
             )}
             <Field label="State" icon={MapPin}><input value={form.state} onChange={update("state")} placeholder="e.g. Andhra Pradesh" /></Field><Field label="City" icon={Building2}><input value={form.city} onChange={update("city")} placeholder="e.g. Pitapuram" /></Field><Field label="Locality" icon={MapPin}><input value={form.locality} onChange={update("locality")} placeholder="Enter locality" /></Field><Field label="Pincode" icon={MapPin}><input inputMode="numeric" maxLength={6} value={form.pincode} onChange={(event) => setForm((current) => ({ ...current, pincode: event.target.value.replace(/\D/g, "") }))} placeholder="500081" /></Field>
-            {String(form.role || "").includes("customer_care") && (
+            {isTerritoryRole(form.role) && (
               <div className="sm:col-span-2 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
-                <strong>CCE territory tip.</strong> This work location is their first territory. Team Lead can later expand to entire Telangana / AP or add cities & localities from Team Directory → Manage working locations.
+                <strong>Territory tip.</strong> This work location becomes their first working territory (same as CCE). Parent managers can later expand to entire Telangana / AP or add cities & localities from Team Directory → Align working locations.
               </div>
             )}
             <div className="sm:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><strong>Role + reporting line.</strong> The selected role places them in the org tree. Optionally pick the specific person they report to (e.g. which Regional Manager / Sales Manager).</div><div className="sm:col-span-2"><Primary busy={busy}>Send verification code <ArrowRight size={17} /></Primary></div></form>}

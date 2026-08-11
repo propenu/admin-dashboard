@@ -92,6 +92,39 @@ export const getAllUsers = (params) => {
   return apiClient.get(`${SERVICES.USER}/auth/all-users`, { params });
 };
 
+/** Public user signup OTP (propenu.com path) — used by SE client onboarding */
+export const seCreateRequestOtp = (payload) =>
+  apiClient.post(`${SERVICES.USER}/auth/request-otp/create`, payload);
+
+export const seCreateVerifyOtp = (payload) =>
+  apiClient.post(`${SERVICES.USER}/auth/verify-otp/create`, payload);
+
+/** Complete location with the NEW user's token (do not replace staff session cookie). */
+export const seCreateUpdateLocation = (payload, onboardingToken) =>
+  apiClient.post(`${SERVICES.USER}/auth/update-location/create`, payload, {
+    headers: { Authorization: `Bearer ${onboardingToken}` },
+  });
+
+/** DigiLocker KYC start — uses NEW user's onboarding token (not staff session). */
+export const seStartKyc = (onboardingToken) =>
+  apiClient.get(`${SERVICES.USER}/kyc/start`, {
+    headers: { Authorization: `Bearer ${onboardingToken}` },
+  });
+
+/** Poll client account / KYC status with onboarding token. */
+export const seGetOnboardingMe = (onboardingToken) =>
+  apiClient.get(`${SERVICES.USER}/auth/me`, {
+    headers: { Authorization: `Bearer ${onboardingToken}` },
+  });
+
+/** Assign marketplace client (user/agent/builder) → Sales Executive */
+export const seClaimClient = (payload) =>
+  apiClient.post(`${SERVICES.USER}/auth/se-claim-client`, payload);
+
+/** Clients owned by a Sales Executive */
+export const getSeClients = (salesExecutiveId) =>
+  getAllUsers({ managerId: salesExecutiveId });
+
 /** CCE / Team Lead: update follow-up work process (assigned | in_progress | completed). */
 export const updateFollowUpWorkStatus = (id, followUpWorkStatus) => {
   return apiClient.patch(`${SERVICES.USER}/auth/${id}/follow-up-work-status`, {

@@ -244,6 +244,15 @@ const CreateRolePage = lazy(() =>
 const CreateCredentialPage = lazy(() =>
   import("./pages/accessControl/CreateCredentialPage")
 );
+const SalesExecutiveDetailPage = lazy(() =>
+  import("./pages/salesExecutive/SalesExecutiveDetailPage")
+);
+const SalesExecutiveOnboardUserPage = lazy(() =>
+  import("./pages/salesExecutive/SalesExecutiveOnboardUserPage")
+);
+const FieldMeetingsPage = lazy(() =>
+  import("./pages/fieldMeetings/FieldMeetingsPage")
+);
 const UserPermissionsPage = lazy(() =>
   import("./pages/accessControl/UserPermissionsPage")
 );
@@ -555,6 +564,41 @@ function App() {
                 <Route
                   path="/dashboard/team-management/member/:userId"
                   element={<PermissionRoute permission="team:view"><TeamMemberWorkPage /></PermissionRoute>}
+                />
+                <Route
+                  path="/sales-executives/work/:userId"
+                  element={
+                    <PermissionRoute anyPermissions={["dashboard:view", "user:view", "team:view", "user:create"]}>
+                      <SalesExecutiveDetailPage />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/sales-executives/onboard-user"
+                  element={
+                    <PermissionRoute anyPermissions={["user:create", "dashboard:view"]} legacyRoles={["sales_executive", "sales_agent", "sales_manager", "regional_manager"]}>
+                      <SalesExecutiveOnboardUserPage />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/field-meetings"
+                  element={
+                    <PermissionRoute
+                      anyPermissions={["dashboard:view", "user:view", "team:view", "user:create"]}
+                      legacyRoles={[
+                        "sales_executive",
+                        "sales_agent",
+                        "sales_manager",
+                        "business_development_manager",
+                        "regional_manager",
+                        "business_development_head",
+                        "operations_head",
+                      ]}
+                    >
+                      <FieldMeetingsPage />
+                    </PermissionRoute>
+                  }
                 />
 
                 <Route

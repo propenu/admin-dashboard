@@ -28,6 +28,7 @@ const HIDDEN_PREFIXES = [
   "/commercial/",
   "/residential/",
   "/agricultural/",
+  "/sales-executives/onboard-user",
 ];
 
 function shouldHideBack(pathname) {

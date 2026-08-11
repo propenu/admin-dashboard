@@ -54,6 +54,7 @@ import {
 } from "../../../../../services/PropertyService";
 import { getFeaturedProjectById } from "../../../../../features/property/propertyService";
 import LoadingSpinner from "../../../../../components/common/LoadingSpinner";
+import GalleryLightbox from "../../../../../components/common/GalleryLightbox";
 import Fallback from "../../../../../assets/fallback.svg";
 import {
   formatPromotionDate,
@@ -1091,6 +1092,7 @@ export default function FeaturedPropertyDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeImage, setActiveImage] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
   const { data: listData, isLoading: listLoading } = useQuery({
@@ -1136,10 +1138,19 @@ export default function FeaturedPropertyDetails() {
 
   // Derived
   const isLand = property.categoryType === "land";
+  const galleryRaw = Array.isArray(property.gallery)
+    ? property.gallery
+    : Array.isArray(property.gallerySummary)
+      ? property.gallerySummary
+      : [];
   const images = [
     ...(property.heroImage ? [{ url: property.heroImage, title: "Hero" }] : []),
-    ...(property.gallerySummary || []),
-  ];
+    ...galleryRaw,
+  ].filter((img, index, arr) => {
+    const url = typeof img === "string" ? img : img?.url;
+    if (!url) return false;
+    return arr.findIndex((x) => (typeof x === "string" ? x : x?.url) === url) === index;
+  });
   const displayImage = images[activeImage]?.url || Fallback;
 
   const priceFrom =
@@ -1249,7 +1260,12 @@ export default function FeaturedPropertyDetails() {
         <div className="grid grid-cols-1 lg:grid-cols-5">
           {/* Image column */}
           <div className="lg:col-span-2 relative">
-            <div className="h-64 sm:h-80 lg:h-full min-h-[100px] max-h-[400px] bg-slate-100 relative overflow-hidden">
+            <button
+              type="button"
+              onClick={() => images.length > 0 && setGalleryOpen(true)}
+              className="block w-full h-64 sm:h-80 lg:h-full min-h-[100px] max-h-[400px] bg-slate-100 relative overflow-hidden text-left"
+              title={images.length ? "Open gallery" : undefined}
+            >
               <img
                 src={displayImage}
                 alt={property.title}
@@ -1258,8 +1274,8 @@ export default function FeaturedPropertyDetails() {
                   e.target.src = Fallback;
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-              <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute top-3 left-3 flex gap-2 flex-wrap pointer-events-none">
                 <span
                   className={`text-[11px] font-bold px-2.5 py-1 rounded-full shadow ${
                     status === "Active"
@@ -1278,12 +1294,12 @@ export default function FeaturedPropertyDetails() {
                 )}
               </div>
               {property.rank != null && (
-                <div className="absolute top-3 right-3 flex items-center gap-1 bg-[#27AE60] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow">
+                <div className="absolute top-3 right-3 flex items-center gap-1 bg-[#27AE60] text-white text-xs font-bold px-2.5 py-1 rounded-full shadow pointer-events-none">
                   <GripVertical className="w-3 h-3" />#{property.rank}
                 </div>
               )}
               {property.logo?.url && (
-                <div className="absolute bottom-3 left-3 w-10 h-10 rounded-xl overflow-hidden bg-white shadow border">
+                <div className="absolute bottom-3 left-3 w-10 h-10 rounded-xl overflow-hidden bg-white shadow border pointer-events-none">
                   <img
                     src={property.logo.url}
                     alt="logo"
@@ -1294,13 +1310,22 @@ export default function FeaturedPropertyDetails() {
                   />
                 </div>
               )}
-            </div>
+              {images.length > 0 && (
+                <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-[#27AE60] text-white text-[10px] font-bold shadow">
+                  Open gallery · {images.length}
+                </span>
+              )}
+            </button>
             {images.length > 1 && (
               <div className="flex gap-2 p-3 overflow-x-auto bg-slate-50 border-t">
                 {images.map((img, i) => (
                   <button
                     key={i}
-                    onClick={() => setActiveImage(i)}
+                    type="button"
+                    onClick={() => {
+                      setActiveImage(i);
+                      setGalleryOpen(true);
+                    }}
                     className={`flex-shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all ${
                       activeImage === i
                         ? "border-[#27AE60] scale-105"
@@ -1308,7 +1333,7 @@ export default function FeaturedPropertyDetails() {
                     }`}
                   >
                     <img
-                      src={img.url}
+                      src={img.url || img}
                       alt=""
                       className="w-full h-full object-cover"
                       onError={(e) => {
@@ -1432,6 +1457,7 @@ export default function FeaturedPropertyDetails() {
             type="created"
             person={createdBy}
             timestamp={property.createdAt}
+            role={createdBy.roleName}
           />
         )}
         {postedBy && (
@@ -1459,6 +1485,14 @@ export default function FeaturedPropertyDetails() {
           />
         )}
       </div>
+
+      <GalleryLightbox
+        open={galleryOpen}
+        images={images}
+        initialIndex={activeImage}
+        onClose={() => setGalleryOpen(false)}
+        title={property.title || "Project gallery"}
+      />
 
       {/* ── PROMOTION DETAILS (horizontal) ───────────────────────────── */}
       <PromotionHorizontal promotion={property.promotion} />

@@ -44,6 +44,7 @@ import {
   Ticket,
   Newspaper,
   Briefcase,
+  CalendarDays,
   Shield,
   ClipboardList,
   FileText,
@@ -367,6 +368,17 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     const rawRoleName = normalizeSidebarRoleName(user?.roleName || user?.roleLabel || user?.role || "");
     const currentRoleName = SIDEBAR_ROLE_ALIASES[rawRoleName] || rawRoleName;
     const isLeafHierarchyRole = LEAF_HIERARCHY_ROLES.has(currentRoleName);
+    const isSalesExecutive =
+      currentRoleName === "sales_executive" || currentRoleName === "sales_agent";
+    const isFieldMeetingsRole = [
+      "sales_executive",
+      "sales_agent",
+      "sales_manager",
+      "business_development_manager",
+      "regional_manager",
+      "business_development_head",
+      "operations_head",
+    ].includes(currentRoleName);
     const canView = (module) => allowed.has(`${module}:view`);
     const propertyAccess = canView("residential") || canView("commercial") || canView("land") || canView("agricultural");
     const operationsChildren = [
@@ -393,6 +405,18 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     ].filter(Boolean);
     return [
       canView("dashboard") && { path: "/", label: "Dashboard", icon: DashboardIcon },
+      isSalesExecutive &&
+        canView("dashboard") && {
+          path: "/sales-executives/work/me",
+          label: "My workspace",
+          icon: Briefcase,
+        },
+      isFieldMeetingsRole &&
+        (canView("dashboard") || canView("user") || canView("team")) && {
+          path: "/field-meetings",
+          label: "Field Meetings",
+          icon: CalendarDays,
+        },
       (canView("user") || canView("dashboard") || canView("team")) && {
         path: "/follow-up-tracking",
         label: "Client Progress Queue",

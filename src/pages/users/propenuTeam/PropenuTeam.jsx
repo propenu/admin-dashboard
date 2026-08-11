@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Check, ChevronDown, Hash, LayoutGrid, List, Mail, MapPin, Network, Phone, RefreshCw, Search, ShieldCheck, UsersRound, X } from "lucide-react";
 import { useUsers } from "./hook/useUserData";
 import { getTeamDirectoryRoles } from "../../../features/accessControl/accessControlService";
+import { getUserDetails } from "../../../features/user/userService";
 import {
   orderRolesByHierarchy,
   getExactRoleMatch,
@@ -11,19 +12,7 @@ import {
   canonicalTeamRole,
 } from "../../../utils/roleHierarchy";
 import CceTerritoryManagerModal from "../../Dashboards/customerSupportTeamLeadDashboard/components/CceTerritoryManagerModal";
-
-const isCceRole = (roleName = "") => {
-  const key = String(roleName)
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_");
-  return (
-    key === "customer_care" ||
-    key === "customer_care_executive" ||
-    key === "customer_care_executives" ||
-    key.includes("customer_care")
-  );
-};
+import { isTerritoryRole } from "../../../utils/workingLocations";
 
 const todayIso = () => {
   const d = new Date();
@@ -154,14 +143,17 @@ export default function PropenuTeam() {
   const [viewMode, setViewMode] = useState("cards");
   const [filters, setFilters] = useState({ role: "", state: "", city: "", locality: "", pincode: "", status: "", fromDate: "", toDate: "", search: "" });
   const [territoryMember, setTerritoryMember] = useState(null);
+  const [viewerId, setViewerId] = useState("");
 
   const openTerritoryManager = (user) => {
+    const id = String(user._id || user.id);
     setTerritoryMember({
-      id: String(user._id || user.id),
+      id,
       name: user.name || "Executive",
       email: user.email || "",
       role: personRoleLabel(user.roleName, roleOptions),
       roleKey: user.roleName,
+      readOnly: Boolean(viewerId && id && viewerId === id),
     });
   };
 
@@ -169,6 +161,12 @@ export default function PropenuTeam() {
     getTeamDirectoryRoles()
       .then((result) => setRoleOptions(result.roles || []))
       .catch(() => setRoleOptions([]));
+    getUserDetails()
+      .then((res) => {
+        const user = res?.data?.user || res?.data || res?.user || null;
+        setViewerId(String(user?._id || user?.id || "").trim());
+      })
+      .catch(() => setViewerId(""));
   }, []);
 
   useEffect(() => {
@@ -307,7 +305,7 @@ export default function PropenuTeam() {
 
     <section className="mt-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><UsersRound size={17} className="text-emerald-600" /><h2 className="text-sm font-bold capitalize">{filters.role ? teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role }) : "All team members"}</h2></div><div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">Showing {filtered.length} of {users.length}</span><div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "cards" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><LayoutGrid size={14} /> Cards</button><button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><List size={14} /> Table</button></div></div></div>
-      <p className="mb-3 text-xs text-slate-500">Role filter shows the org band. <span className="font-semibold text-slate-700">Reports to</span> shows the specific person they work under when assigned. For Customer Care Executives, use <span className="font-semibold text-slate-700">Align working locations</span> to set state / city / locality territories for auto ticket assign.</p>
+      <p className="mb-3 text-xs text-slate-500">Role filter shows the org band. <span className="font-semibold text-slate-700">Reports to</span> shows the specific person they work under when assigned. For hierarchy field roles (CCE, Sales Executive, RM, BD Manager, …), use <span className="font-semibold text-slate-700">Align working locations</span> to set state / city / locality territories.</p>
       {isLoading ? <div className="rounded-2xl border border-slate-200 bg-white p-14 text-center text-sm text-slate-500">Loading team members...</div> : filtered.length ? viewMode === "cards" ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filtered.map((user) => {
         const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
         const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -327,7 +325,7 @@ export default function PropenuTeam() {
               <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{String(user.accountStatus || "pending").replace(/_/g, " ")}</span>
               <span className="text-[10px] text-slate-400">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</span>
             </div>
-            {isCceRole(user.roleName) ? (
+            {isTerritoryRole(user.roleName) ? (
               <button
                 type="button"
                 onClick={() => openTerritoryManager(user)}
@@ -427,7 +425,7 @@ export default function PropenuTeam() {
                       {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "—"}
                     </td>
                     <td className="px-3 py-3 text-right">
-                      {isCceRole(user.roleName) ? (
+                      {isTerritoryRole(user.roleName) ? (
                         <button
                           type="button"
                           onClick={() => openTerritoryManager(user)}
@@ -453,6 +451,7 @@ export default function PropenuTeam() {
     <CceTerritoryManagerModal
       open={Boolean(territoryMember)}
       member={territoryMember}
+      readOnly={Boolean(territoryMember?.readOnly)}
       onClose={() => setTerritoryMember(null)}
       onSaved={() => refetch()}
     />
