@@ -1,5 +1,7 @@
 const STORAGE_KEY = "propenu.users.pageFilters.v1";
 
+export const DEFAULT_PAGE_SIZE = 20;
+
 export const readUsersFilterStorage = () => {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -27,6 +29,7 @@ export const clearUsersFilterStorage = () => {
   }
 };
 
+/** True when URL already has working list state (filters and/or pagination). */
 export const urlHasUsersFilters = (searchParams) => {
   if (!searchParams) return false;
   const keys = [
@@ -46,9 +49,16 @@ export const urlHasUsersFilters = (searchParams) => {
     "q",
     "search",
     "location",
+    "page",
+    "pageSize",
   ];
   return keys.some((key) => {
     const value = searchParams.get(key);
     return value != null && String(value).trim() !== "";
   });
+};
+
+export const parsePositiveInt = (value, fallback) => {
+  const n = Number.parseInt(String(value ?? ""), 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
 };

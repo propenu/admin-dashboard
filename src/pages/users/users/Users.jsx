@@ -14,6 +14,8 @@ import { roleLabel } from "./constants/roleLabels";
 import { todayIstIso, toIstIso } from "./utils/dateTime";
 import {
   clearUsersFilterStorage,
+  DEFAULT_PAGE_SIZE,
+  parsePositiveInt,
   readUsersFilterStorage,
   urlHasUsersFilters,
   writeUsersFilterStorage,
@@ -92,7 +94,7 @@ export default function Users() {
   const [customTo, setCustomTo] = useState(() => todayIstIso());
   const [customError, setCustomError] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
@@ -105,7 +107,7 @@ export default function Users() {
     return () => clearTimeout(t);
   }, [locationInput]);
 
-  // Restore last working filters when sidebar opens /users without query
+  // Restore last working filters + page when sidebar opens /users without query
   useEffect(() => {
     if (restoredRef.current) return;
     restoredRef.current = true;
@@ -139,6 +141,12 @@ export default function Users() {
     }
     if (stored.q) params.set("q", stored.q);
     if (stored.location) params.set("location", stored.location);
+    const storedPage = parsePositiveInt(stored.page, 1);
+    const storedPageSize = parsePositiveInt(stored.pageSize, DEFAULT_PAGE_SIZE);
+    if (storedPage > 1) params.set("page", String(storedPage));
+    if (storedPageSize !== DEFAULT_PAGE_SIZE) {
+      params.set("pageSize", String(storedPageSize));
+    }
 
     if ([...params.keys()].length === 0) return;
     skipPersistRef.current = true;
@@ -146,6 +154,8 @@ export default function Users() {
     setSearch(stored.q || "");
     setLocationInput(stored.location || "");
     setLocationSearch(stored.location || "");
+    setPage(storedPage);
+    setPageSize(storedPageSize);
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
 
@@ -168,6 +178,11 @@ export default function Users() {
     const to = searchParams.get("createdTo") || searchParams.get("to") || "";
     const q = searchParams.get("q") || searchParams.get("search") || "";
     const loc = searchParams.get("location") || "";
+    const nextPage = parsePositiveInt(searchParams.get("page"), 1);
+    const nextPageSize = parsePositiveInt(
+      searchParams.get("pageSize"),
+      DEFAULT_PAGE_SIZE,
+    );
 
     let nextDate = dateParam;
     if (!nextDate && joined === "today") nextDate = todayIstIso();
@@ -184,6 +199,8 @@ export default function Users() {
     setSelectedDate(nextDate);
     setFromDate(rangeFrom);
     setToDate(rangeTo);
+    setPage(nextPage);
+    setPageSize(nextPageSize);
     if (lastUrlTextRef.current.q !== q) {
       lastUrlTextRef.current.q = q;
       setSearchInput(q);
@@ -241,6 +258,12 @@ export default function Users() {
     }
     if (next.q) params.set("q", next.q);
     if (next.location) params.set("location", next.location);
+    const nextPage = parsePositiveInt(next.page, 1);
+    const nextPageSize = parsePositiveInt(next.pageSize, DEFAULT_PAGE_SIZE);
+    if (nextPage > 1) params.set("page", String(nextPage));
+    if (nextPageSize !== DEFAULT_PAGE_SIZE) {
+      params.set("pageSize", String(nextPageSize));
+    }
     return params;
   };
 
@@ -260,6 +283,8 @@ export default function Users() {
       to: next.to || "",
       q: next.q || "",
       location: next.location || "",
+      page: parsePositiveInt(next.page, 1),
+      pageSize: parsePositiveInt(next.pageSize, DEFAULT_PAGE_SIZE),
     };
     const hasAny =
       Boolean(state.status) ||
@@ -271,7 +296,9 @@ export default function Users() {
       Boolean(state.to) ||
       Boolean(state.q) ||
       Boolean(state.location) ||
-      (state.role && state.role !== "all");
+      (state.role && state.role !== "all") ||
+      state.page > 1 ||
+      state.pageSize !== DEFAULT_PAGE_SIZE;
     if (!hasAny) {
       clearUsersFilterStorage();
       return;
@@ -280,8 +307,13 @@ export default function Users() {
   };
 
   const syncUrl = (next) => {
-    const params = buildParams(next);
-    persistFilters(next);
+    const payload = {
+      ...next,
+      page: parsePositiveInt(next.page, page),
+      pageSize: parsePositiveInt(next.pageSize, pageSize),
+    };
+    const params = buildParams(payload);
+    persistFilters(payload);
     setSearchParams(params, { replace: true });
   };
 
@@ -293,6 +325,8 @@ export default function Users() {
     role: filterRole,
     q: searchInput,
     location: locationInput,
+    page,
+    pageSize,
   });
 
   // Debounce text filters into URL + session (survives leaving All Users)
@@ -302,6 +336,7 @@ export default function Users() {
       const urlLoc = searchParams.get("location") || "";
       if (searchInput === urlQ && locationInput === urlLoc) return;
       lastUrlTextRef.current = { q: searchInput, location: locationInput };
+      setPage(1);
       syncUrl({
         status: filterAccountStatus,
         kyc: filterKycStatus,
@@ -313,6 +348,8 @@ export default function Users() {
         to: toDate,
         q: searchInput,
         location: locationInput,
+        page: 1,
+        pageSize,
       });
     }, 300);
     return () => clearTimeout(t);
@@ -320,7 +357,7 @@ export default function Users() {
   }, [searchInput, locationInput]);
 
   const applyDatePreset = (preset) => {
-    const base = currentFilterBase();
+    const base = { ...currentFilterBase(), page: 1 };
     setCustomError("");
 
     if (preset === "all") {
@@ -328,6 +365,7 @@ export default function Users() {
       setSelectedDate("");
       setFromDate("");
       setToDate("");
+      setPage(1);
       syncUrl({ ...base, date: "", from: "", to: "" });
       return;
     }
@@ -340,6 +378,7 @@ export default function Users() {
       setToDate("");
       setCustomFrom(today);
       setCustomTo(today);
+      setPage(1);
       syncUrl({ ...base, date: today, from: "", to: "" });
       return;
     }
@@ -366,7 +405,8 @@ export default function Users() {
     setCustomFrom(from);
     setCustomTo(to);
     setDatePreset("custom");
-    const base = currentFilterBase();
+    const base = { ...currentFilterBase(), page: 1 };
+    setPage(1);
 
     if (from === to) {
       setSelectedDate(from);
@@ -390,18 +430,21 @@ export default function Users() {
   };
 
   const patchFilters = (patch) => {
+    const nextPage = "page" in patch ? parsePositiveInt(patch.page, 1) : 1;
     const next = {
       ...currentFilterBase(),
       date: selectedDate,
       from: fromDate,
       to: toDate,
       ...patch,
+      page: nextPage,
     };
     if ("status" in patch) setFilterAccountStatus(patch.status);
     if ("kyc" in patch) setFilterKycStatus(patch.kyc);
     if ("phone" in patch) setFilterPhoneVerified(patch.phone);
     if ("active" in patch) setFilterIsActive(patch.active);
     if ("role" in patch) setFilterRole(patch.role || "all");
+    setPage(nextPage);
     syncUrl(next);
   };
 
@@ -524,24 +567,23 @@ export default function Users() {
     [users],
   );
 
-  useEffect(() => {
-    setPage(1);
-  }, [
-    search,
-    locationSearch,
-    filterAccountStatus,
-    filterKycStatus,
-    filterPhoneVerified,
-    filterIsActive,
-    filterRole,
-    selectedDate,
-    fromDate,
-    toDate,
-    pageSize,
-  ]);
-
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
+
+  // Keep URL page in range after data is loaded (avoid wiping page while loading)
+  useEffect(() => {
+    if (isLoading && !allUsers.length) return;
+    if (page === safePage) return;
+    setPage(safePage);
+    syncUrl({
+      ...currentFilterBase(),
+      date: selectedDate,
+      from: fromDate,
+      to: toDate,
+      page: safePage,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safePage, isLoading, allUsers.length]);
   const pagedUsers = useMemo(() => {
     const start = (safePage - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
@@ -584,6 +626,7 @@ export default function Users() {
     setCustomError("");
     setMoreOpen(false);
     setPage(1);
+    setPageSize(DEFAULT_PAGE_SIZE);
     setSearchParams({}, { replace: true });
   };
 
@@ -599,7 +642,10 @@ export default function Users() {
       to: "",
       q: searchInput,
       location: locationInput,
+      page: 1,
+      pageSize,
     };
+    setPage(1);
 
     if (key === "total") {
       syncUrl(base);
@@ -687,8 +733,31 @@ export default function Users() {
   };
 
   const goToPage = (nextPage) => {
-    setPage(nextPage);
+    const target = Math.max(1, Number(nextPage) || 1);
+    setPage(target);
+    syncUrl({
+      ...currentFilterBase(),
+      date: selectedDate,
+      from: fromDate,
+      to: toDate,
+      page: target,
+      pageSize,
+    });
     tableTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const changePageSize = (size) => {
+    const nextSize = parsePositiveInt(size, DEFAULT_PAGE_SIZE);
+    setPageSize(nextSize);
+    setPage(1);
+    syncUrl({
+      ...currentFilterBase(),
+      date: selectedDate,
+      from: fromDate,
+      to: toDate,
+      page: 1,
+      pageSize: nextSize,
+    });
   };
 
   const loadError =
@@ -791,7 +860,7 @@ export default function Users() {
           rangeEnd={rangeEnd}
           totalFiltered={filtered.length}
           pageSize={pageSize}
-          onPageSizeChange={setPageSize}
+          onPageSizeChange={changePageSize}
           page={safePage}
           totalPages={totalPages}
           onPrev={() => goToPage(Math.max(1, safePage - 1))}
