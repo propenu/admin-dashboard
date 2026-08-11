@@ -1,4 +1,4 @@
-import { Filter, Search, X } from "lucide-react";
+import { Download, Filter, Loader2, Search, X } from "lucide-react";
 import { ROLE_OPTIONS } from "../constants/roleLabels";
 import { FilterSelect } from "./ReusableComaponents";
 import { MoreFiltersPanel } from "./MoreFiltersPanel";
@@ -69,6 +69,9 @@ export const UserFilters = ({
   setMoreOpen,
   hasFilters,
   clearAll,
+  filteredCount = 0,
+  isExporting = false,
+  onExportExcel,
 }) => {
   return (
     <section className="mb-3 rounded-[18px] border border-[#d9ebe0] bg-white p-3 shadow-[0_1px_3px_rgba(23,33,43,0.03)] sm:mb-4 sm:p-4">
@@ -234,6 +237,25 @@ export const UserFilters = ({
         >
           <Filter className="h-4 w-4" aria-hidden />
           More Filters
+        </button>
+
+        <button
+          type="button"
+          onClick={onExportExcel}
+          disabled={isExporting || filteredCount === 0}
+          className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#dceee3] bg-white px-3 text-sm font-semibold text-[#12A150] transition hover:bg-[#12A150]/5 focus:outline-none focus:ring-4 focus:ring-[#12A150]/15 disabled:cursor-not-allowed disabled:opacity-50"
+          title={
+            filteredCount === 0
+              ? "No filtered users to download"
+              : `Download ${filteredCount} filtered users`
+          }
+        >
+          {isExporting ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Download className="h-4 w-4" aria-hidden />
+          )}
+          Excel
         </button>
 
         {hasFilters ? (

@@ -32,7 +32,7 @@ export const updateFieldMeetingPrepTask = async (meetingId, taskId, completed) =
   return unwrap(response);
 };
 
-/** Complete or skip CRM next action (due 15 min after punch-out). */
+/** Complete or skip CRM next action (due immediately after punch-out). */
 export const completeFieldMeetingNextAction = async (
   meetingId,
   payload = { status: "done" },

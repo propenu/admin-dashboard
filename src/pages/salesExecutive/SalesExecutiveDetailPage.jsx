@@ -8,12 +8,10 @@ import {
   Plus,
   RefreshCw,
   Search,
-  Ticket,
   UserPlus,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getTickets } from "../../features/ticket/ticket_system";
 import {
   getUserById,
   getUserFeaturedProjects,
@@ -46,7 +44,6 @@ const TABS = [
   { key: "properties", label: "Properties handled", icon: Home },
   { key: "clients", label: "My clients", icon: Users },
   { key: "client_activity", label: "Client activity", icon: UserPlus },
-  { key: "blockers", label: "Blockers", icon: Ticket },
 ];
 
 const PROPERTY_CATEGORIES = ["residential", "commercial", "land", "agricultural"];
@@ -179,7 +176,6 @@ export default function SalesExecutiveDetailPage() {
   const [projects, setProjects] = useState([]);
   const [properties, setProperties] = useState([]);
   const [clients, setClients] = useState([]);
-  const [tickets, setTickets] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState(searchParams.get("client") || "");
   const [clientPayments, setClientPayments] = useState([]);
   const [clientProperties, setClientProperties] = useState([]);
@@ -229,7 +225,7 @@ export default function SalesExecutiveDetailPage() {
         : profilePayload;
       setSeUser(profile || null);
 
-      const [projectChunks, propertyChunks, clientRes, ticketRes] = await Promise.all([
+      const [projectChunks, propertyChunks, clientRes] = await Promise.all([
         Promise.all(
           PROJECT_TYPES.map((type) =>
             getUserFeaturedProjects(id, type, 1, 100)
@@ -250,19 +246,11 @@ export default function SalesExecutiveDetailPage() {
           ),
         ),
         getSeClients(id).catch(() => ({ data: [] })),
-        getTickets({
-          assignedOrRequested: id,
-          page: 1,
-          limit: 100,
-          sortBy: "updatedAt",
-          sortOrder: "desc",
-        }).catch(() => ({ data: [] })),
       ]);
 
       setProjects(dedupeById(projectChunks.flat()));
       setProperties(dedupeById(propertyChunks.flat()));
       setClients(pickItems(clientRes?.data || clientRes));
-      setTickets(pickItems(ticketRes?.data || ticketRes));
     } catch (error) {
       toast.error(error?.response?.data?.message || error.message || "Unable to load SE detail");
     } finally {
@@ -325,19 +313,6 @@ export default function SalesExecutiveDetailPage() {
   const rangedClients = useMemo(
     () => clients.filter((item) => inPeriod(item, dateRange.range)),
     [clients, dateRange.range],
-  );
-  const rangedTickets = useMemo(
-    () => tickets.filter((item) => inPeriod(item, dateRange.range)),
-    [tickets, dateRange.range],
-  );
-
-  const openTickets = useMemo(
-    () =>
-      rangedTickets.filter((t) => {
-        const s = String(t?.status || "").toLowerCase();
-        return !["resolved", "closed", "cancelled", "canceled"].includes(s);
-      }),
-    [rangedTickets],
   );
 
   const projectCounts = useMemo(() => countByBucket(rangedProjects), [rangedProjects]);
@@ -517,20 +492,14 @@ export default function SalesExecutiveDetailPage() {
               setTab("properties");
             }}
           />
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <MiniStat label="My clients" value={rangedClients.length} onClick={() => setTab("clients")} />
-            <MiniStat label="Open blockers" value={openTickets.length} onClick={() => setTab("blockers")} />
             <MiniStat
               label="Total inventory"
               value={rangedProjects.length + rangedProperties.length}
               onClick={() => setTab("projects")}
             />
           </div>
-          {openTickets.length > 0 ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-              <strong>Open blockers:</strong> {openTickets.length}. Use the Blockers tab to clear go-live issues.
-            </div>
-          ) : null}
         </section>
       )}
 
@@ -769,20 +738,6 @@ export default function SalesExecutiveDetailPage() {
             </div>
           )}
         </section>
-      )}
-
-      {tab === "blockers" && (
-        <DataTable
-          empty="No open blocker tickets."
-          rows={openTickets}
-          columns={[
-            { key: "title", label: "Ticket", render: (r) => titleOf(r) },
-            { key: "code", label: "Code", render: (r) => r.ticketId || r.code || "—" },
-            { key: "priority", label: "Priority", render: (r) => r.priority || "—" },
-            { key: "status", label: "Status", render: (r) => <Badge status={r.status || "—"} /> },
-            { key: "date", label: "Updated", render: (r) => fmtDate(r.updatedAt || r.createdAt) },
-          ]}
-        />
       )}
 
       <CceTerritoryManagerModal

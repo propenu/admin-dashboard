@@ -29,9 +29,11 @@ import {
 import ScheduleMeetingModal from "./components/ScheduleMeetingModal";
 import MeetingStatusBadge from "./components/MeetingStatusBadge";
 import {
+  CRM_STAGE_COPY,
   formatLongDate,
   formatMeetingDate,
   formatMeetingTime,
+  formatPunchWaitLabel,
   getPageMeta,
   initials,
   locationLine,
@@ -71,8 +73,15 @@ export default function FieldMeetingsPage() {
         status: statusFilter === "all" ? undefined : statusFilter,
         limit: 80,
       }),
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    staleTime: 15_000,
+    // Refresh faster while staff are in the 15m punch-out wait window
+    refetchInterval: (q) => {
+      const list = Array.isArray(q.state.data?.meetings) ? q.state.data.meetings : [];
+      const waiting = list.some(
+        (m) => m.punchInAt && !m.punchOutAt && m.canPunchOut === false,
+      );
+      return waiting ? 30_000 : 60_000;
+    },
   });
 
   const territoryQuery = useQuery({
@@ -113,6 +122,13 @@ export default function FieldMeetingsPage() {
 
   const openPrepPending = prepTasks.filter((t) => !t.completed);
 
+  // Keep open detail drawer in sync with list (countdown / punch chips)
+  useEffect(() => {
+    if (!detail?.id) return;
+    const fresh = meetings.find((m) => m.id === detail.id);
+    if (fresh) setDetail(fresh);
+  }, [meetings, detail?.id]);
+
   const crmNextActions = useMemo(() => {
     const nowMs = Date.now();
     return meetings
@@ -149,13 +165,26 @@ export default function FieldMeetingsPage() {
       setMenuId(null);
       return;
     }
+    if (
+      status === "completed" &&
+      meeting.punchInAt &&
+      !meeting.punchOutAt &&
+      meeting.canPunchOut === false
+    ) {
+      const mins = meeting.punchOutWaitMinutesRemaining || 15;
+      toast.message(
+        `CRM rule: wait ${mins} more minute(s) after punch in before punch out`,
+      );
+      setMenuId(null);
+      return;
+    }
     setActionBusy(meeting.id);
     setMenuId(null);
     try {
       const updated = await updateFieldMeeting(meeting.id, { status });
       toast.success(
         status === "completed"
-          ? "Punched out — next CRM action due in 15 minutes"
+          ? "Punched out — do the CRM follow-up next action now"
           : `Meeting marked ${status.replace(/_/g, " ")}`,
       );
       await meetingsQuery.refetch();
@@ -210,7 +239,7 @@ export default function FieldMeetingsPage() {
             </span>
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            Schedule field visits, prepare before meetings, and keep hierarchy visibility intact.
+            CRM field visit: create → punch in → wait 15 minutes → punch out → do follow-up.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -460,8 +489,15 @@ export default function FieldMeetingsPage() {
                     <div className="flex shrink-0 flex-wrap items-center gap-2 sm:flex-col sm:items-end">
                       <MeetingStatusBadge status={m.status} />
                       {m.punchInAt && !m.punchOutAt ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                          <LogIn className="h-3 w-3" /> Punched in
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                            m.canPunchOut
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                              : "border-sky-200 bg-sky-50 text-sky-800"
+                          }`}
+                        >
+                          <LogIn className="h-3 w-3" />
+                          {formatPunchWaitLabel(m)}
                         </span>
                       ) : null}
                       {m.punchOutAt ? (
@@ -469,19 +505,12 @@ export default function FieldMeetingsPage() {
                           <LogOut className="h-3 w-3" /> Punched out
                         </span>
                       ) : null}
-                      {m.nextAction &&
+                      {m.punchOutAt &&
+                      m.nextAction &&
                       m.nextAction.status !== "done" &&
                       m.nextAction.status !== "skipped" ? (
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${
-                            m.nextAction.isDue || m.nextAction.status === "due"
-                              ? "border-amber-300 bg-amber-50 text-amber-800"
-                              : "border-sky-200 bg-sky-50 text-sky-800"
-                          }`}
-                        >
-                          {m.nextAction.isDue || m.nextAction.status === "due"
-                            ? "Next action due"
-                            : "Next action in 15m"}
+                        <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                          Follow-up due now
                         </span>
                       ) : null}
                       {m.loggingMode && m.loggingMode !== "scheduled" ? (
@@ -515,20 +544,34 @@ export default function FieldMeetingsPage() {
                           </button>
                           {menuId === m.id ? (
                             <div className="absolute right-0 z-20 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-                              {MEETING_STATUS_ACTIONS.map(({ value: status, label }) => (
-                                <button
-                                  key={status}
-                                  type="button"
-                                  disabled={actionBusy === m.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    runStatusAction(m, status);
-                                  }}
-                                  className="block w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                                >
-                                  {label}
-                                </button>
-                              ))}
+                              {MEETING_STATUS_ACTIONS.map(({ value: status, label }) => {
+                                const punchBlocked =
+                                  status === "completed" &&
+                                  m.punchInAt &&
+                                  !m.punchOutAt &&
+                                  m.canPunchOut === false;
+                                return (
+                                  <button
+                                    key={status}
+                                    type="button"
+                                    disabled={actionBusy === m.id || punchBlocked}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      runStatusAction(m, status);
+                                    }}
+                                    className="block w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45"
+                                    title={
+                                      punchBlocked
+                                        ? `Wait ${m.punchOutWaitMinutesRemaining || 15}m after punch in`
+                                        : undefined
+                                    }
+                                  >
+                                    {punchBlocked
+                                      ? `Punch out locked (${m.punchOutWaitMinutesRemaining || 15}m left)`
+                                      : label}
+                                  </button>
+                                );
+                              })}
                             </div>
                           ) : null}
                         </div>
@@ -563,11 +606,11 @@ export default function FieldMeetingsPage() {
               <CheckCircle2 className="h-4 w-4 text-amber-600" />
             </div>
             <p className="text-[11px] text-slate-500">
-              After punch-out, follow-up is due in 15 minutes.
+              After punch-out, follow-up is due immediately. The 15‑minute wait is before punch out.
             </p>
             {crmNextActions.length === 0 ? (
               <p className="mt-3 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-5 text-center text-xs text-slate-500">
-                No open next actions. Complete a meeting to start the 15‑min CRM follow-up.
+                No open follow-ups. Punch out a meeting to create the CRM next action.
               </p>
             ) : (
               <ul className="mt-3 space-y-2">
@@ -585,7 +628,7 @@ export default function FieldMeetingsPage() {
                     </p>
                     <p className="text-[11px] text-slate-500">
                       Due {formatMeetingTime(m.nextAction?.dueAt)} ·{" "}
-                      {isDue ? "Due now" : "Waiting 15 min"}
+                      {isDue ? "Due now" : "Upcoming"}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       <button
@@ -716,6 +759,38 @@ export default function FieldMeetingsPage() {
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 text-sm">
               <MeetingStatusBadge status={detail.status} />
 
+              {(() => {
+                const stageKey = detail.crmStage || (
+                  detail.punchOutAt
+                    ? detail.nextAction?.status === "done" ||
+                      detail.nextAction?.status === "skipped"
+                      ? "closed"
+                      : "follow_up"
+                    : detail.punchInAt
+                      ? detail.canPunchOut
+                        ? "ready_to_punch_out"
+                        : "waiting_punch_out"
+                      : "not_started"
+                );
+                const stage = CRM_STAGE_COPY[stageKey] || CRM_STAGE_COPY.not_started;
+                return (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-sky-700">
+                      Progress · {stage.label}
+                    </p>
+                    <p className="mt-0.5 text-xs font-semibold text-sky-950">{stage.hint}</p>
+                    {detail.punchInAt && !detail.punchOutAt ? (
+                      <p className="mt-1 text-[11px] font-bold text-sky-800">
+                        {formatPunchWaitLabel(detail)}
+                        {detail.punchOutAllowedAt
+                          ? ` · unlocks ${formatMeetingTime(detail.punchOutAllowedAt)}`
+                          : ""}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })()}
+
               {/* CRM punch in / punch out */}
               <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -729,7 +804,7 @@ export default function FieldMeetingsPage() {
                     <p className="mt-1 text-xs font-semibold text-slate-800">
                       {detail.punchInAt
                         ? `${formatMeetingDate(detail.punchInAt)} · ${formatMeetingTime(detail.punchInAt)}`
-                        : "When meeting is scheduled"}
+                        : "When meeting is created"}
                     </p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
@@ -739,13 +814,15 @@ export default function FieldMeetingsPage() {
                     <p className="mt-1 text-xs font-semibold text-slate-800">
                       {detail.punchOutAt
                         ? `${formatMeetingDate(detail.punchOutAt)} · ${formatMeetingTime(detail.punchOutAt)}`
-                        : "On Mark completed"}
+                        : detail.canPunchOut
+                          ? "Ready — use Punch out (complete)"
+                          : `Locked · wait ${detail.punchOutWaitMinutesRemaining || 15}m after punch in`}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Next CRM action — due 15 min after punch-out */}
+              {/* Next CRM action — due immediately after punch-out */}
               {detail.nextAction ? (
                 <div
                   className={`rounded-xl border p-3 ${
@@ -764,7 +841,7 @@ export default function FieldMeetingsPage() {
                   </p>
                   <p className="mt-0.5 text-xs text-slate-600">
                     {detail.nextAction.note ||
-                      "Follow up 15 minutes after punch-out."}
+                      "Call / WhatsApp next step, update interest, and log CRM outcome."}
                   </p>
                   <p className="mt-1 text-[11px] font-semibold text-slate-500">
                     Due:{" "}
@@ -798,8 +875,8 @@ export default function FieldMeetingsPage() {
                 </div>
               ) : detail.status === "completed" ? null : (
                 <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
-                  Punch out via <strong>Mark completed</strong> — then a CRM next action is due in
-                  15 minutes.
+                  Wait 15 minutes after punch in, then <strong>Punch out (complete)</strong> — CRM
+                  follow-up is due immediately after that.
                 </p>
               )}
 

@@ -442,10 +442,10 @@ export default function ScheduleMeetingModal({
         draft
           ? "Draft saved"
           : form.loggingMode === "already_visited"
-            ? "Visit logged as completed"
+            ? "Visit logged as completed — CRM follow-up is due now"
             : form.loggingMode === "walk_in"
-              ? "Walk-in visit confirmed"
-              : "Meeting scheduled successfully",
+              ? "Walk-in confirmed — punched in. Wait 15 minutes, then punch out"
+              : "Meeting created — punched in. Wait 15 minutes, then punch out",
       );
       setDirty(false);
       onCreated?.();
@@ -554,8 +554,8 @@ export default function ScheduleMeetingModal({
                     Visit logging mode
                   </p>
                   <p className="mt-0.5 text-[11px] text-slate-500">
-                    Choose how this visit enters the CRM — schedule ahead, walk-in now, or log a
-                    visit that already happened.
+                    Create punches you in. After 15 minutes you can punch out, then do the CRM
+                    follow-up. “Already visited” skips the wait.
                   </p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-3">
                     {VISIT_LOGGING_MODES.map((mode) => {

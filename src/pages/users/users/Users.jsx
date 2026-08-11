@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import { toast } from "sonner";
 import { Header } from "./components/Header";
 import { StatCards } from "./components/StatCards";
 import { UserFilters } from "./components/UserFilters";
@@ -7,7 +10,14 @@ import { useUsers } from "./hook/useUserData";
 import { MobileCardView } from "./components/MobileCardView";
 import { DesktopTable } from "./components/DesktopTable";
 import { Pagination } from "./components/Pagination";
+import { roleLabel } from "./constants/roleLabels";
 import { todayIstIso, toIstIso } from "./utils/dateTime";
+import {
+  clearUsersFilterStorage,
+  readUsersFilterStorage,
+  urlHasUsersFilters,
+  writeUsersFilterStorage,
+} from "./utils/usersFilterStorage";
 
 const ONBOARDING_STATUSES = [
   "location_pending",
@@ -50,6 +60,9 @@ export default function Users() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const tableTopRef = useRef(null);
+  const restoredRef = useRef(false);
+  const skipPersistRef = useRef(false);
+  const lastUrlTextRef = useRef({ q: null, location: null });
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -70,6 +83,7 @@ export default function Users() {
   } = useUsers();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -91,6 +105,50 @@ export default function Users() {
     return () => clearTimeout(t);
   }, [locationInput]);
 
+  // Restore last working filters when sidebar opens /users without query
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    if (urlHasUsersFilters(searchParams)) return;
+    const stored = readUsersFilterStorage();
+    if (!stored) return;
+
+    const params = new URLSearchParams();
+    if (stored.status) {
+      if (stored.status === "onboarding") params.set("filter", "onboarding");
+      else params.set("status", stored.status);
+    }
+    if (stored.kyc) params.set("kyc", stored.kyc);
+    if (stored.phone) params.set("phone", stored.phone);
+    if (stored.active) params.set("active", stored.active);
+    if (stored.role && stored.role !== "all") params.set("role", stored.role);
+    if (stored.date) {
+      params.set("date", stored.date);
+      params.set("createdFrom", stored.date);
+      params.set("createdTo", stored.date);
+    }
+    if (stored.from && stored.to) {
+      params.set("createdFrom", stored.from);
+      params.set("createdTo", stored.to);
+      if (stored.from !== stored.to) {
+        params.set("from", stored.from);
+        params.set("to", stored.to);
+      } else {
+        params.set("date", stored.from);
+      }
+    }
+    if (stored.q) params.set("q", stored.q);
+    if (stored.location) params.set("location", stored.location);
+
+    if ([...params.keys()].length === 0) return;
+    skipPersistRef.current = true;
+    setSearchInput(stored.q || "");
+    setSearch(stored.q || "");
+    setLocationInput(stored.location || "");
+    setLocationSearch(stored.location || "");
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   useEffect(() => {
     const status =
       searchParams.get("status") ||
@@ -108,6 +166,8 @@ export default function Users() {
     const from =
       searchParams.get("createdFrom") || searchParams.get("from") || "";
     const to = searchParams.get("createdTo") || searchParams.get("to") || "";
+    const q = searchParams.get("q") || searchParams.get("search") || "";
+    const loc = searchParams.get("location") || "";
 
     let nextDate = dateParam;
     if (!nextDate && joined === "today") nextDate = todayIstIso();
@@ -124,6 +184,16 @@ export default function Users() {
     setSelectedDate(nextDate);
     setFromDate(rangeFrom);
     setToDate(rangeTo);
+    if (lastUrlTextRef.current.q !== q) {
+      lastUrlTextRef.current.q = q;
+      setSearchInput(q);
+      setSearch(q);
+    }
+    if (lastUrlTextRef.current.location !== loc) {
+      lastUrlTextRef.current.location = loc;
+      setLocationInput(loc);
+      setLocationSearch(loc);
+    }
 
     if (rangeFrom && rangeTo) {
       setDatePreset("custom");
@@ -140,9 +210,10 @@ export default function Users() {
     } else {
       setDatePreset("all");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate from URL only
   }, [searchParams, location.pathname]);
 
-  const syncUrl = (next) => {
+  const buildParams = (next) => {
     const params = new URLSearchParams();
     if (next.status) {
       if (next.status === "onboarding") params.set("filter", "onboarding");
@@ -168,6 +239,49 @@ export default function Users() {
       params.set("createdFrom", next.date);
       params.set("createdTo", next.date);
     }
+    if (next.q) params.set("q", next.q);
+    if (next.location) params.set("location", next.location);
+    return params;
+  };
+
+  const persistFilters = (next) => {
+    if (skipPersistRef.current) {
+      skipPersistRef.current = false;
+      return;
+    }
+    const state = {
+      status: next.status || "",
+      kyc: next.kyc || "",
+      phone: next.phone || "",
+      active: next.active || "",
+      role: next.role || "all",
+      date: next.date || "",
+      from: next.from || "",
+      to: next.to || "",
+      q: next.q || "",
+      location: next.location || "",
+    };
+    const hasAny =
+      Boolean(state.status) ||
+      Boolean(state.kyc) ||
+      Boolean(state.phone) ||
+      Boolean(state.active) ||
+      Boolean(state.date) ||
+      Boolean(state.from) ||
+      Boolean(state.to) ||
+      Boolean(state.q) ||
+      Boolean(state.location) ||
+      (state.role && state.role !== "all");
+    if (!hasAny) {
+      clearUsersFilterStorage();
+      return;
+    }
+    writeUsersFilterStorage(state);
+  };
+
+  const syncUrl = (next) => {
+    const params = buildParams(next);
+    persistFilters(next);
     setSearchParams(params, { replace: true });
   };
 
@@ -177,7 +291,33 @@ export default function Users() {
     phone: filterPhoneVerified,
     active: filterIsActive,
     role: filterRole,
+    q: searchInput,
+    location: locationInput,
   });
+
+  // Debounce text filters into URL + session (survives leaving All Users)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const urlQ = searchParams.get("q") || searchParams.get("search") || "";
+      const urlLoc = searchParams.get("location") || "";
+      if (searchInput === urlQ && locationInput === urlLoc) return;
+      lastUrlTextRef.current = { q: searchInput, location: locationInput };
+      syncUrl({
+        status: filterAccountStatus,
+        kyc: filterKycStatus,
+        phone: filterPhoneVerified,
+        active: filterIsActive,
+        role: filterRole,
+        date: selectedDate,
+        from: fromDate,
+        to: toDate,
+        q: searchInput,
+        location: locationInput,
+      });
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput, locationInput]);
 
   const applyDatePreset = (preset) => {
     const base = currentFilterBase();
@@ -423,6 +563,9 @@ export default function Users() {
   );
 
   const clearAll = () => {
+    skipPersistRef.current = true;
+    clearUsersFilterStorage();
+    lastUrlTextRef.current = { q: "", location: "" };
     setSearchInput("");
     setSearch("");
     setLocationInput("");
@@ -440,6 +583,7 @@ export default function Users() {
     setCustomTo(todayIstIso());
     setCustomError("");
     setMoreOpen(false);
+    setPage(1);
     setSearchParams({}, { replace: true });
   };
 
@@ -453,6 +597,8 @@ export default function Users() {
       date: "",
       from: "",
       to: "",
+      q: searchInput,
+      location: locationInput,
     };
 
     if (key === "total") {
@@ -482,6 +628,8 @@ export default function Users() {
 
   const handleRefresh = async () => {
     if (isRefreshing || isFetching) return;
+    // In-page Refresh = reset working filters to initial + reload data
+    clearAll();
     setIsRefreshing(true);
     setRefreshError("");
     try {
@@ -490,6 +638,51 @@ export default function Users() {
       setRefreshError("Could not refresh users. Try again.");
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (!filtered.length) {
+      toast.message("No users to download for the current filters");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const rows = filtered.map((u, i) => ({
+        NO: i + 1,
+        Name: u.name || "",
+        Email: u.email || "",
+        Phone: u.phone || "",
+        Role: roleLabel(u.roleName || u.role || u.roleId?.name),
+        AccountStatus: String(u.accountStatus || "").replace(/_/g, " "),
+        KycStatus: String(u.kyc?.status || "not_started").replace(/_/g, " "),
+        KycReason: u.kyc?.rejectionReason || u.kyc?.reason || "",
+        PhoneVerified: u.phoneVerified ? "Verified" : "Not Verified",
+        Locality: u.locality || "",
+        City: u.city || "",
+        State: u.state || "",
+        Pincode: u.pincode || "",
+        JoinedAt: u.createdAt
+          ? new Date(u.createdAt).toLocaleString("en-IN")
+          : "",
+        UserId: String(u._id || u.id || u.userId || ""),
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Users");
+      const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const stamp = todayIstIso();
+      saveAs(
+        new Blob([buf], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        `users-filtered-${stamp}.xlsx`,
+      );
+      toast.success(`Downloaded ${filtered.length} user${filtered.length === 1 ? "" : "s"}`);
+    } catch {
+      toast.error("Could not export Excel. Try again.");
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -569,6 +762,9 @@ export default function Users() {
         setMoreOpen={setMoreOpen}
         hasFilters={hasFilters}
         clearAll={clearAll}
+        filteredCount={filtered.length}
+        isExporting={isExporting}
+        onExportExcel={handleExportExcel}
       />
 
       <div

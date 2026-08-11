@@ -12,10 +12,42 @@ export const MEETING_STATUS_OPTIONS = [
 
 /** Menu actions — cancel intentionally omitted (CRM: complete / confirm / reschedule). */
 export const MEETING_STATUS_ACTIONS = [
-  { value: "completed", label: "Mark completed (punch out)" },
+  { value: "completed", label: "Punch out (complete)" },
   { value: "confirmed", label: "Mark confirmed" },
   { value: "rescheduled", label: "Mark rescheduled" },
 ];
+
+/** Salesforce-style CRM stages shown to staff */
+export const CRM_STAGE_COPY = {
+  not_started: {
+    label: "Not started",
+    hint: "Create the meeting to punch in.",
+  },
+  waiting_punch_out: {
+    label: "Punched in — waiting",
+    hint: "Stay in the field visit. Punch out unlocks after 15 minutes.",
+  },
+  ready_to_punch_out: {
+    label: "Ready to punch out",
+    hint: "15 minutes done. Use Punch out (complete).",
+  },
+  follow_up: {
+    label: "Follow-up due",
+    hint: "Meeting punched out. Do the next CRM action now.",
+  },
+  closed: {
+    label: "Closed",
+    hint: "Visit and follow-up finished.",
+  },
+};
+
+export const formatPunchWaitLabel = (meeting) => {
+  if (meeting?.punchOutAt) return "Punched out";
+  if (!meeting?.punchInAt) return "Not punched in";
+  const mins = Number(meeting.punchOutWaitMinutesRemaining || 0);
+  if (meeting.canPunchOut || mins <= 0) return "Ready to punch out";
+  return `Punch out in ${mins}m`;
+};
 
 /** Active meeting types in the schedule wizard (shown separately). */
 export const MEETING_TYPES = [
@@ -89,19 +121,19 @@ export const VISIT_LOGGING_MODES = [
     value: "scheduled",
     label: "Schedule ahead",
     short: "Plan",
-    hint: "Book a future visit. Prep tasks apply; status starts as Planned.",
+    hint: "Book a visit — punches you in. Wait 15m before punch out.",
   },
   {
     value: "walk_in",
     label: "Walk-in now",
     short: "Walk-in",
-    hint: "Sudden / unplanned visit happening now. Logged as Confirmed.",
+    hint: "Visit starting now — punches you in. Wait 15m before punch out.",
   },
   {
     value: "already_visited",
     label: "Already visited",
     short: "Done",
-    hint: "Visit already happened. Confirm once, add outcome, log as Completed.",
+    hint: "Past visit — completed immediately; CRM follow-up due now.",
   },
 ];
 
