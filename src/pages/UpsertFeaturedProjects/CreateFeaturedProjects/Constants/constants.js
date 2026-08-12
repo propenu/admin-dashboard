@@ -36,8 +36,8 @@ export const INITIAL_PAYLOAD = {
   heroDescription: "",
   color: "",
   createdBy: "",
-  /** invite-only flow */
-  builderAssignMode: "invite_link",
+  /** "" = pick mode; existing_builder = search card; invite_link = email card */
+  builderAssignMode: "",
   builderInviteEmails: [""],
   builderInviteCompany: "",
   relationshipManagerId: "",

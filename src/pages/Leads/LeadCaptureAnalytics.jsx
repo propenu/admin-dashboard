@@ -905,7 +905,7 @@ function ReferenceJourneyMap({ journey }) {
     "project_click",
     "property_click",
   );
-  const agent = first?.userAgent || latest?.userAgent || "";
+  const agent = first?.userAgent || latest?.userAgent |first?.deviceType | "" 
   const browser = /edg/i.test(agent)
     ? "Edge"
     : /opr|opera/i.test(agent)

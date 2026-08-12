@@ -1,4 +1,5 @@
 const STORAGE_KEY = "propenu.users.pageFilters.v1";
+const RETURN_KEY = "propenu.users.listReturnTo";
 
 export const DEFAULT_PAGE_SIZE = 20;
 
@@ -26,6 +27,28 @@ export const clearUsersFilterStorage = () => {
     sessionStorage.removeItem(STORAGE_KEY);
   } catch {
     /* ignore */
+  }
+};
+
+/** Remember All Users list URL (filters + page) before opening a user detail. */
+export const rememberUsersListReturn = (returnTo) => {
+  try {
+    if (!returnTo) return;
+    sessionStorage.setItem(RETURN_KEY, String(returnTo));
+  } catch {
+    /* ignore */
+  }
+};
+
+export const readUsersListReturn = () => {
+  try {
+    const value = sessionStorage.getItem(RETURN_KEY);
+    if (!value) return "";
+    // Only allow return into All Users list
+    if (value === "/users" || value.startsWith("/users?")) return value;
+    return "";
+  } catch {
+    return "";
   }
 };
 

@@ -98,8 +98,14 @@ export const DesktopTable = ({
   rowOffset = 0,
   onRetry,
   onClearFilters,
+  onOpenUser,
 }) => {
   const navigate = useNavigate();
+  const openUser = (id) => {
+    if (!id) return;
+    if (typeof onOpenUser === "function") onOpenUser(id);
+    else navigate(`/dashboard/users/${id}`);
+  };
 
   return (
     <div className="hidden max-w-full overflow-x-auto md:block">
@@ -147,7 +153,7 @@ export const DesktopTable = ({
               return (
                 <tr
                   key={u._id}
-                  onClick={() => u._id && navigate(`/dashboard/users/${u._id}`)}
+                  onClick={() => openUser(u._id)}
                   className="cursor-pointer border-t border-[#eef5f0] transition hover:bg-[#f5fbf7]"
                 >
                   <td className="px-3 py-3 align-middle text-sm tabular-nums text-slate-400">
@@ -262,7 +268,7 @@ export const DesktopTable = ({
                     className="px-3 py-3 pr-4 align-middle"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <RowActionsMenu user={u} />
+                    <RowActionsMenu user={u} onOpenUser={onOpenUser} />
                   </td>
                 </tr>
               );

@@ -1,7 +1,7 @@
 // src/pages/post-property/featured-create/steps/PropertyProfilesStep.jsx
 
-import { forwardRef, useImperativeHandle, useRef, useState,useEffect } from "react";
-import { Building2, FileText, BadgeCheck, Globe, Map, Tag, UserCheck, Mail } from "lucide-react";
+import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
+import { Building2, FileText, BadgeCheck, Globe, Map, Tag, UserCheck } from "lucide-react";
 import { getUserSearch } from "../../../../features/user/userService";
 import { saveImage, deleteImage } from "../utils/indexedDB";
 import { compressPdfAdvanced } from "../utils/compressPdfAdvanced";
@@ -252,7 +252,21 @@ const shouldHideTowerFields =
 
   
 
-  const filteredBuilders = builders.filter((b) => {
+  const builderRoleKey = (user) =>
+    String(user?.roleName || user?.role?.name || user?.role || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_");
+
+  // Prefer true builder accounts (API assign rejects builder_staff)
+  const assignableBuilders = builders.filter((b) => {
+    const role = builderRoleKey(b);
+    if (!role) return true;
+    if (role.includes("staff")) return false;
+    return role === "builder" || role === "builders" || role.includes("builder");
+  });
+
+  const filteredBuilders = assignableBuilders.filter((b) => {
     const matchesState = matchesLocationValue(b.state, filters.state);
     const matchesCity = matchesLocationValue(b.city, filters.city);
     const matchesPincode = matchesLocationValue(b.pincode, filters.pincode);
@@ -270,6 +284,24 @@ const shouldHideTowerFields =
       matchesSearch
     );
   });
+
+  const selectedBuilder =
+    assignableBuilders.find(
+      (b) => String(b._id) === String(payload.createdBy || selectedBuilderId),
+    ) || null;
+
+  const inviteEmailList =
+    Array.isArray(payload.builderInviteEmails) &&
+    payload.builderInviteEmails.length
+      ? payload.builderInviteEmails
+      : [""];
+
+  const assignMode =
+    payload.builderAssignMode === "invite_link"
+      ? "invite_link"
+      : payload.builderAssignMode === "existing_builder"
+        ? "existing_builder"
+        : "";
 
   const filteredRelationshipManagers = relationshipManagers.filter((manager) => {
     const matchesState = matchesLocationValue(manager.state, filters.state);
@@ -327,15 +359,31 @@ const shouldHideTowerFields =
         console.log("❌ RERA missing");
       }
 
-      // Invite-only: one or more builder emails
-      const inviteEmails = (payload.builderInviteEmails || [])
-        .map((x) => String(x || "").trim().toLowerCase())
-        .filter(Boolean);
-      const invalidEmail = inviteEmails.find((em) => !/^\S+@\S+\.\S+$/.test(em));
-      if (!inviteEmails.length) {
-        e.builderInviteEmails = "Add at least one builder invite email";
-      } else if (invalidEmail) {
-        e.builderInviteEmails = `Invalid email: ${invalidEmail}`;
+      const assignMode =
+        payload.builderAssignMode === "invite_link"
+          ? "invite_link"
+          : payload.builderAssignMode === "existing_builder"
+            ? "existing_builder"
+            : "";
+
+      if (!assignMode) {
+        e.builderAssignMode = "Choose Existing Builder or Builder Invite";
+      } else if (assignMode === "existing_builder") {
+        if (!String(payload.createdBy || "").trim()) {
+          e.createdBy = "Select an existing builder";
+        }
+      } else {
+        const inviteEmails = (payload.builderInviteEmails || [])
+          .map((x) => String(x || "").trim().toLowerCase())
+          .filter(Boolean);
+        const invalidEmail = inviteEmails.find(
+          (em) => !/^\S+@\S+\.\S+$/.test(em),
+        );
+        if (!inviteEmails.length) {
+          e.builderInviteEmails = "Add at least one builder invite email";
+        } else if (invalidEmail) {
+          e.builderInviteEmails = `Invalid email: ${invalidEmail}`;
+        }
       }
 
     const hasRelationshipManagers = relationshipManagers.length > 0;
@@ -372,7 +420,12 @@ const shouldHideTowerFields =
         console.log("❌ Validation Failed");
 
         const scrollTarget =
-          e.builderInviteEmails || e.relationshipManagerId ? builderRef : profileRef;
+          e.builderAssignMode ||
+          e.builderInviteEmails ||
+          e.createdBy ||
+          e.relationshipManagerId
+            ? builderRef
+            : profileRef;
 
         scrollTarget.current?.scrollIntoView({
           behavior: "smooth",
@@ -470,17 +523,10 @@ const shouldHideTowerFields =
     return null;
   };
 
-  const selectedBuilder = builders.find((b) => b._id === payload.createdBy);
   const selectedRelationshipManager = relationshipManagers.find(
-    (manager) => manager._id === payload.relationshipManagerId,
+    (manager) =>
+      String(manager._id) === String(payload.relationshipManagerId),
   );
-
-  const visibleBuilders = selectedBuilder
-    ? [
-        selectedBuilder,
-        ...filteredBuilders.filter((b) => b._id !== selectedBuilder._id),
-      ]
-    : filteredBuilders;
 
   const visibleRelationshipManagers = selectedRelationshipManager
     ? [
@@ -612,7 +658,7 @@ const shouldHideTowerFields =
 
           {/* Available Units */}
           <div>
-            <label className={LABEL}>Available Units *</label>
+            <label className={LABEL}>Available Units</label>
             <input
               type="number"
               min="0"
@@ -959,79 +1005,326 @@ const shouldHideTowerFields =
         </div>
       </SectionCard>
 
-      <div ref={builderRef}>
-        <SectionCard icon={Mail} title="Invite Builder by Email" sub="Builder Invite">
-          <p className="text-xs text-gray-600 mb-4">
-            Add one or more builder emails. Each email receives the Launch Partner invite with
-            <strong> View Preview</strong> and <strong> Approve &amp; Onboard</strong> buttons.
-            First builder who completes mobile OTP onboarding claims the project.
-          </p>
+      <div ref={builderRef} className="space-y-6">
+        {/* One card: mode dropdown + existing search OR invite emails */}
+        <div className="rounded-2xl border-2 border-gray-200 bg-white p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-3">
+            <div
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
+              style={{
+                background: "linear-gradient(135deg,#f0fdf6,#dcfce7)",
+                border: "2px solid #bbf7d0",
+              }}
+            >
+              <Building2 size={17} style={{ color: "#27AE60" }} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                Builder attach
+              </p>
+              <h3 className="text-sm font-black text-gray-900">
+                How do you want to attach the builder?
+              </h3>
+            </div>
+          </div>
 
-          <div className="space-y-2 mb-3">
-            <label className={LABEL}>Builder invite emails *</label>
-            {(payload.builderInviteEmails || [""]).map((email, idx) => (
-              <div key={`invite-email-${idx}`} className="flex gap-2">
-                <input
-                  className={inp(errors.builderInviteEmails)}
-                  type="email"
-                  placeholder="builder@company.com"
-                  value={email || ""}
-                  onChange={(e) => {
-                    const list = [...(payload.builderInviteEmails || [""])];
-                    list[idx] = e.target.value;
-                    handleChange("builderInviteEmails", list);
-                  }}
-                />
-                {(payload.builderInviteEmails || []).length > 1 && (
-                  <button
-                    type="button"
-                    className="px-3 rounded-xl border-2 border-gray-200 text-sm font-bold text-red-500"
-                    onClick={() => {
-                      const list = [...(payload.builderInviteEmails || [])];
-                      list.splice(idx, 1);
-                      handleChange(
-                        "builderInviteEmails",
-                        list.length ? list : [""],
-                      );
-                    }}
+          <label className={LABEL}>Builder option *</label>
+          <select
+            className={inp(errors.builderAssignMode)}
+            value={assignMode}
+            onChange={(e) => {
+              const mode = String(e.target.value || "");
+              if (mode === "existing_builder") {
+                setSelectedBuilderId(String(payload.createdBy || ""));
+                update({
+                  builderAssignMode: "existing_builder",
+                  builderInviteEmails: [""],
+                  builderInviteCompany: "",
+                });
+              } else if (mode === "invite_link") {
+                setSelectedBuilderId("");
+                update({
+                  builderAssignMode: "invite_link",
+                  createdBy: "",
+                });
+              } else {
+                setSelectedBuilderId("");
+                update({
+                  builderAssignMode: "",
+                  createdBy: "",
+                  builderInviteEmails: [""],
+                  builderInviteCompany: "",
+                });
+              }
+              clr("builderAssignMode");
+              clr("createdBy");
+              clr("builderInviteEmails");
+            }}
+          >
+            <option value="">— Select Existing Builder or Builder Invite —</option>
+            <option value="existing_builder">Existing Builder</option>
+            <option value="invite_link">Builder Invite</option>
+          </select>
+          {errors.builderAssignMode ? (
+            <p className={ERR}>⚠ {errors.builderAssignMode}</p>
+          ) : (
+            <p className="mt-2 text-[11px] font-semibold text-slate-500">
+              Existing Builder shows search below. Builder Invite shows email fields below.
+            </p>
+          )}
+
+          {/* Existing Builder fields — same card */}
+          {assignMode === "existing_builder" ? (
+            <div className="mt-5 border-t border-gray-100 pt-5">
+              <p className="mb-4 text-xs font-semibold text-gray-600">
+                Pick an already onboarded builder (sets <strong>Created By</strong>). Team can
+                approve live.
+              </p>
+
+              <div className="mb-4">
+                <label className={LABEL}>Search Builder</label>
+                <div className="relative">
+                  <svg
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
                   >
-                    ×
-                  </button>
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35" />
+                  </svg>
+                  <input
+                    type="text"
+                    className={`${inp(errors.createdBy)} pl-10`}
+                    placeholder="Search by name, email or phone..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-lg leading-none text-gray-400 hover:text-gray-600"
+                    >
+                      x
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <div>
+                  <label className={LABEL}>State</label>
+                  <select
+                    className={inp()}
+                    value={filters.state}
+                    onChange={(e) =>
+                      setFilters({
+                        state: e.target.value,
+                        city: "",
+                        pincode: "",
+                        locality: "",
+                      })
+                    }
+                  >
+                    <option value="">All States</option>
+                    {uniqueStates.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>City</label>
+                  <select
+                    className={inp()}
+                    value={filters.city}
+                    onChange={(e) =>
+                      setFilters((f) => ({
+                        ...f,
+                        city: e.target.value,
+                        pincode: "",
+                        locality: "",
+                      }))
+                    }
+                  >
+                    <option value="">All Cities</option>
+                    {uniqueCities.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Pincode</label>
+                  <select
+                    className={inp()}
+                    value={filters.pincode}
+                    onChange={(e) =>
+                      setFilters((f) => ({
+                        ...f,
+                        pincode: e.target.value,
+                        locality: "",
+                      }))
+                    }
+                  >
+                    <option value="">All Pincodes</option>
+                    {uniquePincodes.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={LABEL}>Locality</label>
+                  <select
+                    className={inp()}
+                    value={filters.locality}
+                    onChange={(e) =>
+                      setFilters((f) => ({ ...f, locality: e.target.value }))
+                    }
+                  >
+                    <option value="">All Localities</option>
+                    {uniqueLocalities.map((l) => (
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className={LABEL}>Select Builder *</label>
+                <select
+                  className={inp(errors.createdBy)}
+                  value={String(payload.createdBy || "")}
+                  disabled={!buildersLoaded}
+                  onChange={(e) => {
+                    const id = String(e.target.value || "").trim();
+                    setSelectedBuilderId(id);
+                    update({
+                      createdBy: id,
+                      builderAssignMode: "existing_builder",
+                    });
+                    clr("createdBy");
+                  }}
+                >
+                  <option value="">
+                    {buildersLoaded
+                      ? filteredBuilders.length
+                        ? "— Select existing builder —"
+                        : "No builders for this filter"
+                      : "Loading builders…"}
+                  </option>
+                  {filteredBuilders.map((b) => {
+                    const loc = [b.locality, b.city, b.state]
+                      .filter(Boolean)
+                      .join(", ");
+                    return (
+                      <option key={b._id} value={String(b._id)}>
+                        {b.name || "Unnamed"}
+                        {loc ? ` - ${loc}` : ""}
+                        {b.email ? ` (${b.email})` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                <p className="mt-2 text-[11px] font-semibold text-slate-500">
+                  {buildersLoaded
+                    ? `${filteredBuilders.length} builder(s) found`
+                    : "Loading…"}
+                  {selectedBuilder
+                    ? ` · Selected: ${selectedBuilder.name || "Builder"}`
+                    : ""}
+                </p>
+                {errors.createdBy ? (
+                  <p className={ERR}>⚠ {errors.createdBy}</p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Builder Invite fields — same card */}
+          {assignMode === "invite_link" ? (
+            <div className="mt-5 border-t border-gray-100 pt-5">
+              <p className="mb-4 text-xs text-gray-600">
+                Add one or more builder emails. Each email receives the Launch Partner invite with
+                <strong> View Preview</strong> and <strong> Approve &amp; Onboard</strong> buttons.
+                First builder who completes mobile OTP onboarding claims the project.
+              </p>
+
+              <div className="mb-3 space-y-2">
+                <label className={LABEL}>Builder invite emails *</label>
+                {inviteEmailList.map((email, idx) => (
+                  <div key={`invite-email-${idx}`} className="flex gap-2">
+                    <input
+                      className={inp(errors.builderInviteEmails)}
+                      type="email"
+                      placeholder="builder@company.com"
+                      value={email || ""}
+                      onChange={(e) => {
+                        const list = [...inviteEmailList];
+                        list[idx] = e.target.value;
+                        handleChange("builderInviteEmails", list);
+                        clr("builderInviteEmails");
+                      }}
+                    />
+                    {inviteEmailList.length > 1 && (
+                      <button
+                        type="button"
+                        className="rounded-xl border-2 border-gray-200 px-3 text-sm font-bold text-red-500"
+                        onClick={() => {
+                          const list = [...inviteEmailList];
+                          list.splice(idx, 1);
+                          handleChange(
+                            "builderInviteEmails",
+                            list.length ? list : [""],
+                          );
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {errors.builderInviteEmails && (
+                  <p className={ERR}>⚠ {errors.builderInviteEmails}</p>
                 )}
               </div>
-            ))}
-            {errors.builderInviteEmails && (
-              <p className={ERR}>⚠ {errors.builderInviteEmails}</p>
-            )}
-          </div>
 
-          <button
-            type="button"
-            className="text-xs font-bold text-emerald-700 hover:text-emerald-800 mb-4"
-            onClick={() =>
-              handleChange("builderInviteEmails", [
-                ...(payload.builderInviteEmails || []),
-                "",
-              ])
-            }
-          >
-            + Add another email
-          </button>
+              <button
+                type="button"
+                className="mb-4 text-xs font-bold text-emerald-700 hover:text-emerald-800"
+                onClick={() =>
+                  handleChange("builderInviteEmails", [...inviteEmailList, ""])
+                }
+              >
+                + Add another email
+              </button>
 
-          <div>
-            <label className={LABEL}>Company name (optional)</label>
-            <input
-              className={inp()}
-              placeholder="Shown in invite email greeting"
-              value={payload.builderInviteCompany || ""}
-              onChange={(e) =>
-                handleChange("builderInviteCompany", e.target.value)
-              }
-            />
-          </div>
-        </SectionCard>
+              <div>
+                <label className={LABEL}>Company name (optional)</label>
+                <input
+                  className={inp()}
+                  placeholder="Shown in invite email greeting"
+                  value={payload.builderInviteCompany || ""}
+                  onChange={(e) =>
+                    handleChange("builderInviteCompany", e.target.value)
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
 
-        <div className="mt-6 rounded-2xl border-2 border-gray-200 bg-gray-50/70 p-4">
+        <div className="rounded-2xl border-2 border-gray-200 bg-gray-50/70 p-4">
             <div className="flex items-center gap-3 mb-4">
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"

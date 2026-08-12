@@ -6,6 +6,8 @@ import {
   getAllFeaturedProjects,
   createFeaturedProjectDraft,
   sendBuilderInviteEmail,
+  assignExistingBuilderToProject,
+  submitProjectForApproval,
 } from "../../../../features/property/propertyService";
 import { getUploadProgressConfig } from "../utils/uploadWithProgress";
 import { INITIAL_PAYLOAD } from "../Constants/constants";
@@ -237,7 +239,6 @@ export const useFeaturedProject = (projectType) => {
       const formData = await buildFormData(updatedPayload);
       const config = getUploadProgressConfig(setProgress);
 
-      // Invite-only: save draft, then email all builder invite addresses
       const draftRes = await createFeaturedProjectDraft(formData, config);
       const project =
         draftRes?.data?.data || draftRes?.data || draftRes?.project || draftRes;
@@ -247,9 +248,59 @@ export const useFeaturedProject = (projectType) => {
         throw new Error("Draft created but project id missing");
       }
 
+      const assignMode =
+        payload.builderAssignMode === "invite_link"
+          ? "invite_link"
+          : payload.builderAssignMode === "existing_builder"
+            ? "existing_builder"
+            : "";
+
+      if (!assignMode) {
+        throw new Error("Choose Existing Builder or Builder Invite");
+      }
+
+      // Existing builder → Created By; RM/higher may go live immediately
+      if (assignMode === "existing_builder") {
+        const builderId = String(payload.createdBy || "").trim();
+        if (!builderId) {
+          throw new Error("Select an existing builder");
+        }
+
+        const assignRes = await assignExistingBuilderToProject(
+          projectId,
+          builderId,
+        );
+        const assignData =
+          assignRes?.data?.data || assignRes?.data || assignRes || {};
+
+        let approval = null;
+        if (
+          !assignData?.wentLive &&
+          String(assignData?.status || "draft").toLowerCase() === "draft"
+        ) {
+          try {
+            const submitRes = await submitProjectForApproval(projectId);
+            approval = submitRes?.data?.data || submitRes?.data || submitRes;
+          } catch (submitErr) {
+            console.warn("submit-for-approval:", submitErr);
+          }
+        }
+
+        return {
+          mode: "existing_builder",
+          projectId,
+          assign: assignData,
+          approval,
+        };
+      }
+
+      // Invite path — builder claims via email + OTP
       const emails = (payload.builderInviteEmails || [])
         .map((e) => String(e || "").trim().toLowerCase())
         .filter(Boolean);
+      if (!emails.length) {
+        throw new Error("Add at least one builder invite email");
+      }
 
       const inviteRes = await sendBuilderInviteEmail(projectId, {
         emails,
@@ -276,6 +327,22 @@ export const useFeaturedProject = (projectType) => {
         toast.success(
           `Draft saved & invite sent to ${sentCount} email(s).`,
         );
+        navigate("/Projects");
+        return;
+      }
+
+      if (result?.mode === "existing_builder") {
+        if (result?.assign?.wentLive) {
+          toast.success("Builder assigned — project is live ✅");
+        } else if (result?.approval) {
+          toast.success(
+            "Builder assigned — submitted for team approval (RM / higher)",
+          );
+        } else {
+          toast.success(
+            "Builder assigned. Team can approve from pending projects to go live.",
+          );
+        }
         navigate("/Projects");
         return;
       }

@@ -231,16 +231,14 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
           if (payload.categoryType === "residential") {
             if (!u.minSqft) e[`bhk-${bi}-unit-${ui}-minSqft`] = "Required";
             if (!u.maxSqft) e[`bhk-${bi}-unit-${ui}-maxSqft`] = "Required";
-            if (!u.minPrice) e[`bhk-${bi}-unit-${ui}-minPrice`] = "Required";
-            if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
+            // Min/Max Price optional on frontend (backend unchanged)
             //if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";
             if (!u.planFileName)
               e[`bhk-${bi}-unit-${ui}-plan`] = "Floor plan required";
           } else if (payload.categoryType === "land") {
             if (!String(u.area?.value || "").trim())
               e[`bhk-${bi}-unit-${ui}-area`] = "Plot area required";
-            if (!u.minPrice) e[`bhk-${bi}-unit-${ui}-minPrice`] = "Required";
-            //if (!u.maxPrice) e[`bhk-${bi}-unit-${ui}-maxPrice`] = "Required";
+            // Min Price optional on frontend (backend unchanged)
             //if (!u.availableCount) e[`bhk-${bi}-unit-${ui}-count`] = "Required";
             if (!u.planFileName)
               e[`bhk-${bi}-unit-${ui}-plan`] = "Floor plan required";
@@ -271,23 +269,9 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
 
         for (let u of b.units) {
           if (payload.categoryType === "residential") {
-            if (
-              !u.minSqft ||
-              !u.maxSqft ||
-              !u.minPrice ||
-              !u.maxPrice ||
-              !u.availableCount ||
-              !u.planFileName
-            )
-              return false;
+            if (!u.minSqft || !u.maxSqft || !u.planFileName) return false;
           } else if (payload.categoryType === "land") {
-            if (
-              !String(u.area?.value || "").trim() ||
-              !u.maxPrice ||
-              !u.minPrice ||
-              !u.availableCount ||
-              !u.planFileName
-            )
+            if (!String(u.area?.value || "").trim() || !u.planFileName)
               return false;
           }
         }
@@ -671,11 +655,9 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                     </>
                   )}
 
-                  {/* ── MIN PRICE (for land this is "Total Price") ── */}
+                  {/* ── MIN PRICE (optional on UI) ── */}
                   <div>
-                    <label className={LABEL}>
-                      {isLand ? "Min Price *" : "Min Price"}
-                    </label>
+                    <label className={LABEL}>Min Price</label>
                     <input
                       type="text"
                       className={inp(errors[`bhk-${bi}-unit-${ui}-minPrice`])}
@@ -719,7 +701,7 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                   {/* ── MAX PRICE ONLY FOR RESIDENTIAL ── */}
                   {!isLand && (
                     <div>
-                      <label className={LABEL}>Max Price *</label>
+                      <label className={LABEL}>Max Price</label>
 
                       <input
                         type="text"
@@ -859,7 +841,7 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
 
                   {/* ── COUNT ── */}
                   <div>
-                    <label className={LABEL}>Available Units *</label>
+                    <label className={LABEL}>Available Units</label>
                     {/* <input
                       type="number"
                       className={inp(errors[`bhk-${bi}-unit-${ui}-count`])}

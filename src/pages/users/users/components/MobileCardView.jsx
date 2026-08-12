@@ -18,8 +18,14 @@ export const MobileCardView = ({
   loading,
   hasFilters,
   onClearFilters,
+  onOpenUser,
 }) => {
   const navigate = useNavigate();
+  const openUser = (id) => {
+    if (!id) return;
+    if (typeof onOpenUser === "function") onOpenUser(id);
+    else navigate(`/dashboard/users/${id}`);
+  };
 
   return (
     <div className="divide-y divide-[#eef5f0] md:hidden">
@@ -55,9 +61,9 @@ export const MobileCardView = ({
             <div
               key={u._id}
               className="p-4 transition hover:bg-[#f5fbf7]"
-              onClick={() => u._id && navigate(`/dashboard/users/${u._id}`)}
+              onClick={() => openUser(u._id)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && u._id) navigate(`/dashboard/users/${u._id}`);
+                if (e.key === "Enter") openUser(u._id);
               }}
               role="button"
               tabIndex={0}
@@ -78,7 +84,7 @@ export const MobileCardView = ({
                   </div>
                 </div>
                 <div onClick={(e) => e.stopPropagation()}>
-                  <RowActionsMenu user={u} />
+                  <RowActionsMenu user={u} onOpenUser={onOpenUser} />
                 </div>
               </div>
 

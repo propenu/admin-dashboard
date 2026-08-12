@@ -453,10 +453,13 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
       }
       if (!isValidCount(form.totalUnits))
         e.totalUnits = "Total units are required";
-      if (!isValidCount(form.availableUnits))
-        e.availableUnits = "Available units are required";
-      if (Number(form.availableUnits) > Number(form.totalUnits))
+      // Available units optional — only validate when filled
+      if (
+        String(form.availableUnits ?? "").trim() !== "" &&
+        Number(form.availableUnits) > Number(form.totalUnits)
+      ) {
         e.availableUnits = "Available units cannot exceed total units";
+      }
     }
 
     if (category === "residential") {

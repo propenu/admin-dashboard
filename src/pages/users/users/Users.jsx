@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import {
   DEFAULT_PAGE_SIZE,
   parsePositiveInt,
   readUsersFilterStorage,
+  rememberUsersListReturn,
   urlHasUsersFilters,
   writeUsersFilterStorage,
 } from "./utils/usersFilterStorage";
@@ -60,16 +61,25 @@ const matchesKyc = (kyc, filterKycStatus) => {
 
 export default function Users() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tableTopRef = useRef(null);
   const restoredRef = useRef(false);
   const skipPersistRef = useRef(false);
   const lastUrlTextRef = useRef({ q: null, location: null });
 
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [locationInput, setLocationInput] = useState("");
-  const [locationSearch, setLocationSearch] = useState("");
+  const [searchInput, setSearchInput] = useState(
+    () => searchParams.get("q") || searchParams.get("search") || "",
+  );
+  const [search, setSearch] = useState(
+    () => searchParams.get("q") || searchParams.get("search") || "",
+  );
+  const [locationInput, setLocationInput] = useState(
+    () => searchParams.get("location") || "",
+  );
+  const [locationSearch, setLocationSearch] = useState(
+    () => searchParams.get("location") || "",
+  );
   const [filterAccountStatus, setFilterAccountStatus] = useState("");
   const [filterKycStatus, setFilterKycStatus] = useState("");
   const [filterPhoneVerified, setFilterPhoneVerified] = useState("");
@@ -93,8 +103,12 @@ export default function Users() {
   const [customFrom, setCustomFrom] = useState(() => todayIstIso());
   const [customTo, setCustomTo] = useState(() => todayIstIso());
   const [customError, setCustomError] = useState("");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useState(() =>
+    parsePositiveInt(searchParams.get("page"), 1),
+  );
+  const [pageSize, setPageSize] = useState(() =>
+    parsePositiveInt(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE),
+  );
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
@@ -157,6 +171,9 @@ export default function Users() {
     setPage(storedPage);
     setPageSize(storedPageSize);
     setSearchParams(params, { replace: true });
+    queueMicrotask(() => {
+      skipPersistRef.current = false;
+    });
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
@@ -570,20 +587,6 @@ export default function Users() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
 
-  // Keep URL page in range after data is loaded (avoid wiping page while loading)
-  useEffect(() => {
-    if (isLoading && !allUsers.length) return;
-    if (page === safePage) return;
-    setPage(safePage);
-    syncUrl({
-      ...currentFilterBase(),
-      date: selectedDate,
-      from: fromDate,
-      to: toDate,
-      page: safePage,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [safePage, isLoading, allUsers.length]);
   const pagedUsers = useMemo(() => {
     const start = (safePage - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
@@ -735,6 +738,7 @@ export default function Users() {
   const goToPage = (nextPage) => {
     const target = Math.max(1, Number(nextPage) || 1);
     setPage(target);
+    skipPersistRef.current = false;
     syncUrl({
       ...currentFilterBase(),
       date: selectedDate,
@@ -750,6 +754,7 @@ export default function Users() {
     const nextSize = parsePositiveInt(size, DEFAULT_PAGE_SIZE);
     setPageSize(nextSize);
     setPage(1);
+    skipPersistRef.current = false;
     syncUrl({
       ...currentFilterBase(),
       date: selectedDate,
@@ -759,6 +764,47 @@ export default function Users() {
       pageSize: nextSize,
     });
   };
+
+  /** Save filters + page, then open user — Back returns to same list state */
+  const openUserDetail = useCallback(
+    (userId) => {
+      const id = String(userId || "").trim();
+      if (!id) return;
+      const working = {
+        ...currentFilterBase(),
+        date: selectedDate,
+        from: fromDate,
+        to: toDate,
+        page: safePage,
+        pageSize,
+      };
+      skipPersistRef.current = false;
+      writeUsersFilterStorage(working);
+      const params = buildParams(working);
+      const qs = params.toString();
+      const returnTo = qs ? `/users?${qs}` : "/users";
+      rememberUsersListReturn(returnTo);
+      setSearchParams(params, { replace: true });
+      navigate(`/dashboard/users/${id}`);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      filterAccountStatus,
+      filterKycStatus,
+      filterPhoneVerified,
+      filterIsActive,
+      filterRole,
+      searchInput,
+      locationInput,
+      selectedDate,
+      fromDate,
+      toDate,
+      safePage,
+      pageSize,
+      navigate,
+      setSearchParams,
+    ],
+  );
 
   const loadError =
     refreshError ||
@@ -848,12 +894,14 @@ export default function Users() {
           rowOffset={(safePage - 1) * pageSize}
           onRetry={handleRefresh}
           onClearFilters={clearAll}
+          onOpenUser={openUserDetail}
         />
         <MobileCardView
           filtered={pagedUsers}
           loading={isLoading && !allUsers.length}
           hasFilters={hasFilters}
           onClearFilters={clearAll}
+          onOpenUser={openUserDetail}
         />
         <Pagination
           rangeStart={rangeStart}

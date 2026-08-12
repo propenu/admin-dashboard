@@ -18,6 +18,7 @@ import PaymentsSection from "./components/PaymentsSection";
 import SubscriptionsSection from "./components/SubscriptionsSection";
 import FeaturedProjectsSection from "./components/FeaturedProjectsSection";
 import PropertiesSection from "./components/PropertiesSection";
+import { readUsersListReturn } from "../users/users/utils/usersFilterStorage";
 
 // ─── Nav items config ─────────────────────────────────────────────────────────
 // const NAV_ITEMS = [
@@ -429,7 +430,20 @@ const UserDetailPage = () => {
         }}
       >
         <button
-          onClick={() => navigate(-1)}
+          type="button"
+          aria-label="Go back"
+          onClick={() => {
+            const returnTo = readUsersListReturn();
+            if (returnTo) {
+              navigate(returnTo);
+              return;
+            }
+            if (typeof window !== "undefined" && window.history.length > 1) {
+              navigate(-1);
+              return;
+            }
+            navigate("/users");
+          }}
           style={{
             width: "36px",
             height: "36px",

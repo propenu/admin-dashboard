@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { MoreVertical } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-export const RowActionsMenu = ({ user }) => {
+export const RowActionsMenu = ({ user, onOpenUser }) => {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -53,7 +53,8 @@ export const RowActionsMenu = ({ user }) => {
             onClick={(e) => {
               e.stopPropagation();
               setOpen(false);
-              navigate(`/dashboard/users/${userId}`);
+              if (typeof onOpenUser === "function") onOpenUser(userId);
+              else navigate(`/dashboard/users/${userId}`);
             }}
           >
             View user
