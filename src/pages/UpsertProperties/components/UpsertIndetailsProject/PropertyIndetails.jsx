@@ -1,5 +1,5 @@
 // propenuadmindashborad/src/pages/UpsertProperties/components/UpsertIndetailsProject/PropertyIndetails.jsx
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import GalleryLightbox from "../../../../components/common/GalleryLightbox";
@@ -12,6 +12,7 @@ import { getUserDetails } from "../../../../features/user/userService";
 import {
   canApproveProperty,
   isPropertyAwaitingApproval,
+  isPropertyReverification,
 } from "../../../../utils/propertyAccessControl";
 import { getPropertyCreatorTag } from "../../../../utils/propertyCreatorRole";
 import {
@@ -102,8 +103,17 @@ const formatTime = (iso) =>
       })
     : "—";
 
-const capitalize = (str) =>
-  str ? str.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "—";
+const capitalize = (str) => {
+  if (str == null || str === "") return "—";
+  const text =
+    typeof str === "string"
+      ? str
+      : typeof str === "object"
+        ? String(str.name || str.label || str.roleName || "")
+        : String(str);
+  if (!text) return "—";
+  return text.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+};
 
 /** Labels for slug enums used on details pages */
 const PROPERTY_AGE_LABELS = {
@@ -146,11 +156,29 @@ const formatConstructionStatus = (value) => {
 };
 
 const formatRoleName = (role) => {
+  const key =
+    typeof role === "string"
+      ? role
+      : typeof role === "object" && role
+        ? String(role.name || role.label || role.roleName || "")
+        : String(role || "");
   const roles = {
     sales_agent: "Sales Executive",
+    sales_executive: "Sales Executive",
   };
+  return roles[key] || capitalize(key);
+};
 
-  return roles[role] || capitalize(role);
+const pickRoleName = (...candidates) => {
+  for (const value of candidates) {
+    if (!value) continue;
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "object") {
+      const nested = value.name || value.label || value.roleName;
+      if (typeof nested === "string" && nested.trim()) return nested.trim();
+    }
+  }
+  return undefined;
 };
 
 const normalizeAuditPerson = (person, fallbackDate) => {
@@ -166,13 +194,14 @@ const normalizeAuditPerson = (person, fallbackDate) => {
     name: person.name || user.name,
     email: person.email || user.email,
     phone: person.phone || person.contact || user.phone || user.contact,
-    roleName:
-      person.roleName ||
-      person.role ||
-      user.roleName ||
-      user.role ||
-      user.roleId?.name ||
-      user.roleId?.label,
+    roleName: pickRoleName(
+      person.roleName,
+      person.role,
+      user.roleName,
+      user.role,
+      user.roleId,
+      person.roleId,
+    ),
     createdAt: person.createdAt || fallbackDate,
     postedAt: person.postedAt || fallbackDate,
     updatedAt: person.updatedAt || fallbackDate,
@@ -518,12 +547,19 @@ const AUDIT_CARD_STYLES = {
     headerText: "text-blue-600",
     iconBg: "bg-blue-50",
   },
+  approved: {
+    label: "Approved By",
+    icon: ShieldCheck,
+    headerBg: "bg-emerald-50",
+    headerText: "text-emerald-700",
+    iconBg: "bg-emerald-50",
+  },
 };
 
 function AuditPersonCard({ type, person, when, extra }) {
   if (!person) return null;
-  const style = AUDIT_CARD_STYLES[type];
-  const Icon = style.icon;
+  const style = AUDIT_CARD_STYLES[type] || AUDIT_CARD_STYLES.updated;
+  const Icon = style.icon || User;
   const idTail = String(person._id || person.userId || "").slice(-4);
 
   return (
@@ -599,6 +635,29 @@ function LastUpdatedByCard({ person, updateCount }) {
     />
   );
 }
+
+function ApprovedByCard({ person, when }) {
+  return (
+    <AuditPersonCard
+      type="approved"
+      person={person}
+      when={when}
+      extra="Went live"
+    />
+  );
+}
+
+const getApprovedBy = (property) => {
+  const raw = property?.approvedBy;
+  if (!raw) return null;
+  if (typeof raw === "object") {
+    return normalizeAuditPerson(raw, property?.approvedAt || property?.approval?.approvedAt);
+  }
+  return normalizeAuditPerson(
+    { _id: raw, name: "Approver" },
+    property?.approvedAt || property?.approval?.approvedAt,
+  );
+};
 
 function UpdateHistoryPanel({ property }) {
   const history = getUpdateHistory(property);
@@ -1769,6 +1828,14 @@ function VerificationDocs({ docs }) {
   );
 }
 
+/** Scroll page to top without fighting nested containers. */
+const scrollPageToTop = () => {
+  if (typeof window === "undefined") return;
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function IndetailsProperty({
   propertyData,
@@ -1777,29 +1844,43 @@ export default function IndetailsProperty({
   const navigate = useNavigate();
   const [activeImage, setActiveImage] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const pageTopRef = useRef(null);
 
   const { category, id } = useParams();
 
-  console.log("category", category);
-  console.log("id", id);
+  // Always land at top when opening / returning to this property (no mid-page jump)
+  useEffect(() => {
+    setActiveImage(0);
+    setGalleryOpen(false);
+    scrollPageToTop();
+    // After paint (images/banners) keep top stable
+    const t1 = window.requestAnimationFrame(() => scrollPageToTop());
+    const t2 = window.setTimeout(() => {
+      scrollPageToTop();
+      pageTopRef.current?.scrollIntoView?.({ block: "start", behavior: "auto" });
+    }, 0);
+    return () => {
+      window.cancelAnimationFrame(t1);
+      window.clearTimeout(t2);
+    };
+  }, [category, id]);
 
-  
-const {
-  data: propertyResponse,
-  isLoading,
-  error: analyticsError,
-} = useQuery({
-  queryKey: ["property", category, id],
+  const {
+    data: propertyResponse,
+    isLoading,
+    isError,
+    error: analyticsError,
+  } = useQuery({
+    queryKey: ["property", category, id],
+    queryFn: async () => {
+      const res = await getPropertyById(category, id);
+      return res.data;
+    },
+    enabled: !!category && !!id,
+    staleTime: 30_000,
+  });
 
-  queryFn: async () => {
-    const res = await getPropertyById(category, id);
-    return res.data;
-  },
-
-  enabled: !!category && !!id,
-});
-
-  const { data: meResponse } = useQuery({
+  const { data: meResponse, isLoading: meLoading } = useQuery({
     queryKey: ["current-user"],
     queryFn: getUserDetails,
     staleTime: 60_000,
@@ -1807,23 +1888,36 @@ const {
   const currentUser =
     meResponse?.data?.user || meResponse?.data || meResponse?.user || null;
 
-  const analyticsLoading = isLoading;
-
   const property = propertyResponse?.data;
   const analyticsData = propertyResponse?.data?.analytics;
+  // Wait for current user before deciding Approve UI — avoids top banner popping in and shifting layout
   const showApproveActions = Boolean(
     property &&
+      !meLoading &&
       isPropertyAwaitingApproval(property) &&
       canApproveProperty(currentUser, property),
   );
+  const needsReverification = Boolean(
+    property && isPropertyReverification(property),
+  );
   const creatorTag = property ? getPropertyCreatorTag(property) : "User";
+  const approvedByPerson = property ? getApprovedBy(property) : null;
+  const approvedAtValue =
+    property?.approvedAt || property?.approval?.approvedAt || null;
 
-  if (isLoading) {
+  // First visit only — keep previous paint when revisiting so the screen does not jump
+  if (isLoading && !property) {
     return <LoadingSpinner />;
   }
 
-  if (analyticsLoading) {
-    return <div>Failed to load property</div>;
+  if (isError && !property) {
+    return (
+      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-6 text-sm font-semibold text-rose-700">
+        {analyticsError?.response?.data?.message ||
+          analyticsError?.message ||
+          "Failed to load property"}
+      </div>
+    );
   }
 
   if (!property) {
@@ -1867,10 +1961,11 @@ const {
   };
 
   return (
-    <div className="space-y-5 pb-12">
+    <div ref={pageTopRef} className="space-y-5 pb-12 scroll-mt-20">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-sm text-slate-500 flex-wrap">
         <button
+          type="button"
           onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 text-[#27AE60] hover:text-green-700 font-semibold transition"
         >
@@ -1906,7 +2001,7 @@ const {
         <StatCard
           icon={Users}
           label="Total Leads"
-          value={analyticsLoading ? "..." : totalLeads}
+          value={isLoading ? "..." : totalLeads}
           color="purple"
         />
       </div>
@@ -1992,19 +2087,42 @@ const {
           <div className="lg:col-span-3 p-6 flex flex-col gap-4">
             <div className="flex w-full flex-col gap-2">
               {showApproveActions && (
-                <div className="mt-3 flex w-full items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                <div
+                  className={`mt-3 flex w-full items-center justify-between rounded-xl border px-4 py-3 ${
+                    needsReverification
+                      ? "border-amber-200 bg-amber-50"
+                      : "border-blue-200 bg-blue-50"
+                  }`}
+                >
                   <div>
-                    <p className="text-sm font-bold text-blue-700">
-                      Pending approval · Created by {creatorTag}
+                    <p
+                      className={`text-sm font-bold ${
+                        needsReverification ? "text-amber-800" : "text-blue-700"
+                      }`}
+                    >
+                      {needsReverification
+                        ? `Re-verification required · Edited after live · ${creatorTag}`
+                        : `Pending approval · Created by ${creatorTag}`}
                     </p>
-                    <p className="mt-1 text-xs text-blue-500">
-                      Higher hierarchy can approve this listing to go live.
-                      {completion === 70
-                        ? " Agent listing — approve from this details page."
-                        : " Review documents, then approve."}
+                    <p
+                      className={`mt-1 text-xs ${
+                        needsReverification ? "text-amber-700" : "text-blue-500"
+                      }`}
+                    >
+                      {needsReverification
+                        ? "Data or documents changed after go-live. Only higher hierarchy can approve again. Approve button is hidden for other staff and after live."
+                        : "Only higher hierarchy can approve this listing to go live. Once approved, Approve is hidden for everyone."}
+                      {!needsReverification &&
+                        (completion === 70
+                          ? " Agent listing — approve from this details page."
+                          : " Review documents, then approve.")}
                     </p>
                   </div>
-                  <BadgeCheck className="h-8 w-8 shrink-0 text-blue-600" />
+                  <BadgeCheck
+                    className={`h-8 w-8 shrink-0 ${
+                      needsReverification ? "text-amber-600" : "text-blue-600"
+                    }`}
+                  />
                 </div>
               )}
 
@@ -2022,7 +2140,9 @@ const {
                       );
 
                       toast.success(
-                        "Property verified successfully and published live",
+                        needsReverification
+                          ? "Re-verified — property is live again"
+                          : "Property verified successfully and published live",
                       );
                       navigate(`/properties`);
                     } catch (err) {
@@ -2034,9 +2154,24 @@ const {
                   className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 font-bold text-white transition hover:bg-green-700"
                 >
                   <BadgeCheck className="h-5 w-5" />
-                  Approve → Live
+                  {needsReverification ? "Re-approve → Live" : "Approve → Live"}
                 </button>
               )}
+
+              {isActive && approvedByPerson ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <p className="text-sm font-bold text-emerald-800">
+                    Live · Approved by {approvedByPerson.name || "staff"}
+                  </p>
+                  <p className="mt-1 text-xs text-emerald-700">
+                    Approved{" "}
+                    {approvedAtValue
+                      ? formatDateTime(approvedAtValue)
+                      : "—"}{" "}
+                    · Created time stays original. Edit will require re-verification.
+                  </p>
+                </div>
+              ) : null}
             </div>
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -2263,11 +2398,12 @@ const {
         </div>
       </SectionCard>
 
-      {/* ── CREATED / POSTED / LAST UPDATED (compact row) ─────────────── */}
-      {(createdBy || postedBy || lastUpdatedBy) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+      {/* ── CREATED / POSTED / APPROVED / LAST UPDATED ─────────────── */}
+      {(createdBy || postedBy || lastUpdatedBy || approvedByPerson) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
           <CreatedByCard person={createdBy} />
           <PostedByCard person={postedBy} />
+          <ApprovedByCard person={approvedByPerson} when={approvedAtValue} />
           <LastUpdatedByCard person={lastUpdatedBy} updateCount={updateCount} />
         </div>
       )}

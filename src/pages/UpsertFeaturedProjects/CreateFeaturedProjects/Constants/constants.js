@@ -36,7 +36,7 @@ export const INITIAL_PAYLOAD = {
   heroDescription: "",
   color: "",
   createdBy: "",
-  /** "" = pick mode; existing_builder = search card; invite_link = email card */
+  /** "" = add later (no builder); existing_builder | invite_link */
   builderAssignMode: "",
   builderInviteEmails: [""],
   builderInviteCompany: "",

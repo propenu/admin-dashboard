@@ -63,6 +63,7 @@ import {
   promotionLifecycleCopy,
   titlePromotionType,
 } from "./promotionTracking";
+import BuilderAttachPanel from "./BuilderAttachPanel";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // export const formatPrice = (price) =>
@@ -1091,6 +1092,7 @@ function LeadsSection({
 export default function FeaturedPropertyDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeImage, setActiveImage] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -1171,6 +1173,11 @@ export default function FeaturedPropertyDetails() {
 
   // Audit users may be returned directly or nested under `user`.
   const createdBy = property.createdBy?.user || property.createdBy || null;
+  const hasBuilderAttached = Boolean(
+    (typeof createdBy === "object" && (createdBy?._id || createdBy?.id)) ||
+      (typeof createdBy === "string" && createdBy.trim()),
+  );
+  // Show attach UI only when create left createdBy empty
   const postedBy =
     property.postedBy?.user || property.postedBy || createdBy;
   const lastUpdatedBy =
@@ -1450,9 +1457,22 @@ export default function FeaturedPropertyDetails() {
         </div>
       </SectionCard>
 
+      {/* Add / change builder (Created By) */}
+      {id ? (
+        <BuilderAttachPanel
+          projectId={id}
+          currentBuilder={property?.createdBy}
+          onAttached={() => {
+            queryClient.invalidateQueries({
+              queryKey: ["getFeaturedProjectById", id],
+            });
+          }}
+        />
+      ) : null}
+
       {/* ── PEOPLE ROW: Created By | Posted By | Last Updated By ──────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {createdBy && (
+        {createdBy && hasBuilderAttached && (
           <PersonCard
             type="created"
             person={createdBy}

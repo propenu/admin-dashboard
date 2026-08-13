@@ -116,16 +116,21 @@ export async function buildFormData(payload) {
     "metaKeywords",
     "possessionDate",
     "reraNumber",
-    "createdBy",
     "relationshipManagerId",
     "status",
     "mapEmbedUrl",
     "redirectUrl",
   ].forEach((key) => {
-    if (payload[key] !== undefined && payload[key] !== null) {
+    if (payload[key] !== undefined && payload[key] !== null && payload[key] !== "") {
       fd.append(key, payload[key]);
     }
   });
+
+  // Only send createdBy when a real builder id is selected (never empty string)
+  const builderId = String(payload.createdBy || "").trim();
+  if (builderId && builderId !== "undefined" && builderId !== "null") {
+    fd.append("createdBy", builderId);
+  }
 
 
   

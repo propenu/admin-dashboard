@@ -255,8 +255,12 @@ export const useFeaturedProject = (projectType) => {
             ? "existing_builder"
             : "";
 
+      // No builder at create — draft only (attach later on edit)
       if (!assignMode) {
-        throw new Error("Choose Existing Builder or Builder Invite");
+        return {
+          mode: "draft_no_builder",
+          projectId,
+        };
       }
 
       // Existing builder → Created By; RM/higher may go live immediately
@@ -343,6 +347,14 @@ export const useFeaturedProject = (projectType) => {
             "Builder assigned. Team can approve from pending projects to go live.",
           );
         }
+        navigate("/Projects");
+        return;
+      }
+
+      if (result?.mode === "draft_no_builder") {
+        toast.success(
+          "Project draft saved without builder. Attach builder when you edit.",
+        );
         navigate("/Projects");
         return;
       }

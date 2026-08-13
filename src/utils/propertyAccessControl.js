@@ -13,14 +13,20 @@ import { getPropertyCreatorRole } from "./propertyCreatorRole";
 
 /**
  * True only for listings waiting in the approval queue.
- * Incomplete drafts (even at ~70%) are NOT awaiting approval.
+ * Active/live listings never show Approve (even if nested approval was stale).
+ * After an edit on a live listing, status becomes pending again → Approve returns.
  */
 export const isPropertyAwaitingApproval = (property) => {
   if (!property) return false;
   const status = String(property.status || "").toLowerCase();
-  const approval = String(property.approval?.status || "").toLowerCase();
-  return status === "pending" || approval === "pending";
+  if (status === "active") return false;
+  return status === "pending";
 };
+
+/** Previously live listing edited → needs hierarchy re-approve + doc re-verify */
+export const isPropertyReverification = (property) =>
+  Boolean(property?.approval?.reverificationRequired) &&
+  isPropertyAwaitingApproval(property);
 
 export const canViewPropertyApprovals = (user) =>
   canViewPendingProjectApprovals(user);

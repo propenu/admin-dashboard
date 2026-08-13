@@ -359,6 +359,7 @@ const shouldHideTowerFields =
         console.log("❌ RERA missing");
       }
 
+      // Builder optional at create — can attach later on edit
       const assignMode =
         payload.builderAssignMode === "invite_link"
           ? "invite_link"
@@ -366,13 +367,11 @@ const shouldHideTowerFields =
             ? "existing_builder"
             : "";
 
-      if (!assignMode) {
-        e.builderAssignMode = "Choose Existing Builder or Builder Invite";
-      } else if (assignMode === "existing_builder") {
+      if (assignMode === "existing_builder") {
         if (!String(payload.createdBy || "").trim()) {
           e.createdBy = "Select an existing builder";
         }
-      } else {
+      } else if (assignMode === "invite_link") {
         const inviteEmails = (payload.builderInviteEmails || [])
           .map((x) => String(x || "").trim().toLowerCase())
           .filter(Boolean);
@@ -385,6 +384,7 @@ const shouldHideTowerFields =
           e.builderInviteEmails = `Invalid email: ${invalidEmail}`;
         }
       }
+      // assignMode "" = add later — no builder fields required / no empty data required
 
     const hasRelationshipManagers = relationshipManagers.length > 0;
 
@@ -1028,7 +1028,7 @@ const shouldHideTowerFields =
             </div>
           </div>
 
-          <label className={LABEL}>Builder option *</label>
+          <label className={LABEL}>Builder option</label>
           <select
             className={inp(errors.builderAssignMode)}
             value={assignMode}
@@ -1061,15 +1061,16 @@ const shouldHideTowerFields =
               clr("builderInviteEmails");
             }}
           >
-            <option value="">— Select Existing Builder or Builder Invite —</option>
+            <option value="">— Add later (no builder now) —</option>
             <option value="existing_builder">Existing Builder</option>
-            <option value="invite_link">Builder Invite</option>
+            <option value="invite_link">Builder Invite (email)</option>
           </select>
           {errors.builderAssignMode ? (
             <p className={ERR}>⚠ {errors.builderAssignMode}</p>
           ) : (
             <p className="mt-2 text-[11px] font-semibold text-slate-500">
-              Existing Builder shows search below. Builder Invite shows email fields below.
+              Optional now. Existing Builder / Invite show fields below. Or leave
+              empty and attach builder when you edit the project.
             </p>
           )}
 

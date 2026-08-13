@@ -29,6 +29,7 @@ import AboutUsEditor from "./FeaturedPreviewPageComponents/AboutUsEditor";
 import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import PropertyDetailsEditor from "./FeaturedPreviewPageComponents/PropertyDetailsEditor";
 import PropertyDetailsSection from "./FeaturedPreviewPageComponents/PropertyDetailsSection";
+import BuilderAttachPanel from "../../features/property/components/shared/BuilderAttachPanel";
 import { Video } from "lucide-react";
 
 const getSections = (categoryType) => [
@@ -273,6 +274,17 @@ export default function FeaturedPreviewPage() {
 
   if (!formData) return <LoadingSpinner />;
 
+  const reloadProject = async () => {
+    try {
+      const result = await fetchPostFeaturedPropertyById(id);
+      const data = result?.data ?? result;
+      setFormData(data);
+      setLivePreviewData(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50/60">
       {/* ── TOP NAV BAR ── */}
@@ -389,6 +401,14 @@ export default function FeaturedPreviewPage() {
 
       {/* ── PAGE CONTENT ── */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-8 space-y-10 sm:space-y-12">
+        {id ? (
+          <BuilderAttachPanel
+            projectId={id}
+            currentBuilder={formData?.createdBy}
+            onAttached={reloadProject}
+          />
+        ) : null}
+
         <SectionWrapper
           id="hero"
           title="Hero Section"
