@@ -10,14 +10,14 @@ const TABS = [
 export { TABS };
 
 /**
- * Sticky bottom nav for mobile + tablet.
- * Hidden on large desktop (xl / 1280px+).
+ * Sticky bottom nav — only mounted on compact (phone / tablet) layout.
+ * Parent decides visibility via matchMedia so it never sticks on large desktops.
  */
 export default function SaMobileSectionTabs({ active, onChange }) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 xl:hidden"
-      style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom))" }}
+      className="fixed inset-x-0 bottom-0 z-40"
+      style={{ paddingBottom: "max(0.35rem, env(safe-area-inset-bottom, 0px))" }}
       aria-label="Dashboard sections"
     >
       <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-emerald-900/10 to-transparent" />

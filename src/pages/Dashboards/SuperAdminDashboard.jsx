@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useSuperAdminDashboard } from "./superAdminDashboard/useSuperAdminDashboard";
+import { useDashboardLayoutMode } from "./superAdminDashboard/useDashboardLayoutMode";
 import SaHeader from "./superAdminDashboard/components/SaHeader";
 import SaKpiStrip from "./superAdminDashboard/components/SaKpiStrip";
 import SaFinancePanel from "./superAdminDashboard/components/SaFinancePanel";
@@ -18,6 +19,7 @@ import { formatINR } from "./superAdminDashboard/superAdminDashboardData";
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const dashboard = useSuperAdminDashboard();
+  const { isDesktop, isCompact } = useDashboardLayoutMode();
   const [activeKpi, setActiveKpi] = useState(null);
   const [mobileTab, setMobileTab] = useState("overview");
   const contentTopRef = useRef(null);
@@ -83,19 +85,25 @@ export default function SuperAdminDashboard() {
   const activeTabMeta = TABS.find((t) => t.key === mobileTab) || TABS[0];
 
   useEffect(() => {
+    if (!isCompact) return;
     if (skipScrollRef.current) {
       skipScrollRef.current = false;
       return;
     }
-    // On tab click: bring section content to the top (above sticky bottom tabs)
     contentTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [mobileTab]);
+  }, [mobileTab, isCompact]);
 
   if (dashboard.isLoading) {
     return (
-      <div className="space-y-3 pb-24 xl:pb-6">
+      <div className={`space-y-3 ${isCompact ? "pb-24" : "pb-6"}`}>
         <div className="h-20 animate-pulse rounded-2xl bg-emerald-50" />
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
+        <div
+          className={`grid gap-2 ${
+            isDesktop
+              ? "grid-cols-7"
+              : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
+          }`}
+        >
           {Array.from({ length: 7 }).map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-2xl bg-emerald-50" />
           ))}
@@ -153,7 +161,13 @@ export default function SuperAdminDashboard() {
   const hubBlock = <SaModuleGrid modules={dashboard.modules} onOpen={go} />;
 
   return (
-    <div className="mx-auto max-w-[1680px] space-y-3 pb-[calc(5.25rem+env(safe-area-inset-bottom))] text-slate-900 xl:pb-6">
+    <div
+      className={`mx-auto max-w-[1680px] space-y-3 text-slate-900 ${
+        isCompact
+          ? "pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]"
+          : "pb-6"
+      }`}
+    >
       <SaHeader
         rangeLabel={dashboard.rangeLabel}
         refreshedAt={dashboard.refreshedAt}
@@ -180,61 +194,69 @@ export default function SuperAdminDashboard() {
       <SaKpiStrip
         kpis={dashboard.kpis}
         activeKey={activeKpi}
+        layout={isDesktop ? "desktop" : "compact"}
         onMetricClick={(kpi) => {
           setActiveKpi((current) => (current === kpi.key ? null : kpi.key));
           go(kpi.href);
         }}
       />
 
-      {/* Mobile + tablet — section tabs (hidden on large desktop xl+) */}
-      <div className="xl:hidden" ref={contentTopRef} style={{ scrollMarginTop: "4.75rem" }}>
-        <section className="sa-panel-enter overflow-hidden rounded-2xl border border-emerald-200/90 bg-gradient-to-b from-emerald-50/90 via-white to-lime-50/40 shadow-[0_12px_40px_rgba(16,185,129,0.14)] ring-1 ring-emerald-100">
-          <header className="relative overflow-hidden border-b border-emerald-100 bg-gradient-to-r from-emerald-600 via-emerald-500 to-lime-500 px-3.5 py-3 text-white sm:px-4">
-            <span className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/15 blur-2xl sa-orb" />
-            <span className="pointer-events-none absolute -bottom-10 left-10 h-20 w-20 rounded-full bg-lime-200/30 blur-2xl sa-orb-delay" />
-            <p className="relative text-sm font-black tracking-tight sm:text-base">
-              {activeTabMeta.label}
-            </p>
-            <p className="relative mt-0.5 text-[10px] font-medium text-emerald-50 sm:text-[11px]">
-              {activeTabMeta.hint} · use tabs below to switch
-            </p>
-          </header>
+      {isCompact ? (
+        <>
+          <div ref={contentTopRef} style={{ scrollMarginTop: "4.75rem" }}>
+            <section className="sa-panel-enter overflow-hidden rounded-2xl border border-emerald-200/90 bg-gradient-to-b from-emerald-50/90 via-white to-lime-50/40 shadow-[0_12px_40px_rgba(16,185,129,0.14)] ring-1 ring-emerald-100">
+              <header className="relative overflow-hidden border-b border-emerald-100 bg-gradient-to-r from-emerald-600 via-emerald-500 to-lime-500 px-3.5 py-3 text-white sm:px-4">
+                <span className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/15 blur-2xl sa-orb" />
+                <span className="pointer-events-none absolute -bottom-10 left-10 h-20 w-20 rounded-full bg-lime-200/30 blur-2xl sa-orb-delay" />
+                <p className="relative text-sm font-black tracking-tight sm:text-base">
+                  {activeTabMeta.label}
+                </p>
+                <p className="relative mt-0.5 text-[10px] font-medium text-emerald-50 sm:text-[11px]">
+                  {activeTabMeta.hint} · use tabs below to switch
+                </p>
+              </header>
 
-          <div
-            key={mobileTab}
-            role="tabpanel"
-            className="sa-tab-content min-h-[16rem] space-y-3 p-2.5 sm:min-h-[20rem] sm:p-3 md:min-h-[22rem] md:p-4"
-          >
-            {mobileTab === "overview" ? (
-              <div className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
-                <div className="md:col-span-2">{engagementBlock}</div>
-                <div>{alertsBlock}</div>
-                <div>{inventoryBlock}</div>
+              <div
+                key={mobileTab}
+                role="tabpanel"
+                className="sa-tab-content min-h-[16rem] space-y-3 p-2.5 sm:min-h-[20rem] sm:p-3 md:min-h-[22rem] md:p-4"
+              >
+                {mobileTab === "overview" ? (
+                  <div className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
+                    <div className="md:col-span-2">{engagementBlock}</div>
+                    <div>{alertsBlock}</div>
+                    <div>{inventoryBlock}</div>
+                  </div>
+                ) : null}
+                {mobileTab === "finance" ? (
+                  <div className="md:mx-auto md:max-w-3xl">{financeBlock}</div>
+                ) : null}
+                {mobileTab === "ops" ? opsBlock : null}
+                {mobileTab === "hub" ? hubBlock : null}
               </div>
-            ) : null}
-            {mobileTab === "finance" ? (
-              <div className="md:mx-auto md:max-w-3xl">{financeBlock}</div>
-            ) : null}
-            {mobileTab === "ops" ? opsBlock : null}
-            {mobileTab === "hub" ? hubBlock : null}
+            </section>
           </div>
-        </section>
-      </div>
 
-      {/* Sticky bottom tabs — mobile + tablet only */}
-      <SaMobileSectionTabs active={mobileTab} onChange={setMobileTab} />
-
-      {/* Large desktop (xl+) — full layout, no bottom tabs */}
-      <div className="hidden space-y-3 xl:block">
-        {engagementBlock}
-        <div className="grid gap-3 xl:grid-cols-12 xl:items-stretch">
-          <div className="min-h-[320px] xl:col-span-5">{financeBlock}</div>
-          <div className="min-h-[320px] xl:col-span-4">{inventoryBlock}</div>
-          <div className="min-h-[320px] xl:col-span-3">{alertsBlock}</div>
+          <SaMobileSectionTabs active={mobileTab} onChange={setMobileTab} />
+        </>
+      ) : (
+        <div className="space-y-3">
+          {engagementBlock}
+          <div className="grid grid-cols-1 items-stretch gap-3 min-[1100px]:grid-cols-12">
+            <div className="min-h-[320px] min-[1100px]:col-span-5">
+              {financeBlock}
+            </div>
+            <div className="min-h-[320px] min-[1100px]:col-span-4">
+              {inventoryBlock}
+            </div>
+            <div className="min-h-[320px] min-[1100px]:col-span-3">
+              {alertsBlock}
+            </div>
+          </div>
+          <div className="min-h-[260px]">{opsBlock}</div>
+          {hubBlock}
         </div>
-        <div className="min-h-[260px]">{opsBlock}</div>
-        {hubBlock}
-      </div>
+      )}
     </div>
   );
 }

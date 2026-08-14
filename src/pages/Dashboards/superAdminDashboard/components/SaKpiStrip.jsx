@@ -26,7 +26,6 @@ const toneIcon = {
   violet: "bg-violet-50 text-violet-700 border-violet-100",
 };
 
-/** Mobile-first compact KPI tile — fits narrow screens without oversized cards */
 function KpiCard({ kpi, active, onClick, size = "mobile" }) {
   const Icon = ICONS[kpi.key] || Users;
   const isMobile = size === "mobile";
@@ -77,10 +76,28 @@ function KpiCard({ kpi, active, onClick, size = "mobile" }) {
   );
 }
 
-export default function SaKpiStrip({ kpis = [], onMetricClick, activeKey }) {
+/**
+ * @param {"desktop"|"compact"} layout
+ * desktop → one row of 7 (large screens)
+ * compact → 2 / 3 / 4 cols (phone + tablet)
+ */
+export default function SaKpiStrip({
+  kpis = [],
+  onMetricClick,
+  activeKey,
+  layout = "compact",
+}) {
+  const isDesktop = layout === "desktop";
+
   if (!kpis.length) {
     return (
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
+      <div
+        className={`grid gap-1.5 ${
+          isDesktop
+            ? "grid-cols-7 gap-2"
+            : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
+        }`}
+      >
         {Array.from({ length: 7 }).map((_, i) => (
           <div
             key={i}
@@ -91,9 +108,24 @@ export default function SaKpiStrip({ kpis = [], onMetricClick, activeKey }) {
     );
   }
 
+  if (isDesktop) {
+    return (
+      <div className="grid grid-cols-7 gap-2">
+        {kpis.map((kpi) => (
+          <KpiCard
+            key={kpi.key}
+            kpi={kpi}
+            size="desktop"
+            active={activeKey === kpi.key}
+            onClick={() => onMetricClick?.(kpi)}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Phone: tight 2-col grid */}
       <div className="grid grid-cols-2 gap-1.5 sm:hidden">
         {kpis.map((kpi) => (
           <KpiCard
@@ -106,8 +138,7 @@ export default function SaKpiStrip({ kpis = [], onMetricClick, activeKey }) {
         ))}
       </div>
 
-      {/* Tablet: 3–4 cols · Large desktop: one row of 7 */}
-      <div className="hidden gap-2 sm:grid sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
+      <div className="hidden gap-2 sm:grid sm:grid-cols-3 md:grid-cols-4">
         {kpis.map((kpi) => (
           <KpiCard
             key={kpi.key}
