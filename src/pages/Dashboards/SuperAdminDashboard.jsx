@@ -95,7 +95,7 @@ export default function SuperAdminDashboard() {
     return (
       <div className="space-y-3 pb-24 xl:pb-6">
         <div className="h-20 animate-pulse rounded-2xl bg-emerald-50" />
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-7">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
           {Array.from({ length: 7 }).map((_, i) => (
             <div key={i} className="h-16 animate-pulse rounded-2xl bg-emerald-50" />
           ))}
@@ -186,7 +186,7 @@ export default function SuperAdminDashboard() {
         }}
       />
 
-      {/* Content ABOVE sticky bottom tabs (mobile + tablet) */}
+      {/* Mobile + tablet — section tabs (hidden on large desktop xl+) */}
       <div className="xl:hidden" ref={contentTopRef} style={{ scrollMarginTop: "4.75rem" }}>
         <section className="sa-panel-enter overflow-hidden rounded-2xl border border-emerald-200/90 bg-gradient-to-b from-emerald-50/90 via-white to-lime-50/40 shadow-[0_12px_40px_rgba(16,185,129,0.14)] ring-1 ring-emerald-100">
           <header className="relative overflow-hidden border-b border-emerald-100 bg-gradient-to-r from-emerald-600 via-emerald-500 to-lime-500 px-3.5 py-3 text-white sm:px-4">
@@ -196,7 +196,7 @@ export default function SuperAdminDashboard() {
               {activeTabMeta.label}
             </p>
             <p className="relative mt-0.5 text-[10px] font-medium text-emerald-50 sm:text-[11px]">
-              {activeTabMeta.hint} · swipe tabs below to switch
+              {activeTabMeta.hint} · use tabs below to switch
             </p>
           </header>
 
@@ -221,10 +221,10 @@ export default function SuperAdminDashboard() {
         </section>
       </div>
 
-      {/* Sticky bottom tabs — phone & tablet */}
+      {/* Sticky bottom tabs — mobile + tablet only */}
       <SaMobileSectionTabs active={mobileTab} onChange={setMobileTab} />
 
-      {/* Desktop xl+ full layout */}
+      {/* Large desktop (xl+) — full layout, no bottom tabs */}
       <div className="hidden space-y-3 xl:block">
         {engagementBlock}
         <div className="grid gap-3 xl:grid-cols-12 xl:items-stretch">

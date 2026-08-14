@@ -93,7 +93,7 @@ export default function SaKpiStrip({ kpis = [], onMetricClick, activeKey }) {
 
   return (
     <>
-      {/* Phone: tight 2-col grid — smaller cards */}
+      {/* Phone: tight 2-col grid */}
       <div className="grid grid-cols-2 gap-1.5 sm:hidden">
         {kpis.map((kpi) => (
           <KpiCard
@@ -106,7 +106,7 @@ export default function SaKpiStrip({ kpis = [], onMetricClick, activeKey }) {
         ))}
       </div>
 
-      {/* Tablet / desktop */}
+      {/* Tablet: 3–4 cols · Large desktop: one row of 7 */}
       <div className="hidden gap-2 sm:grid sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7">
         {kpis.map((kpi) => (
           <KpiCard

@@ -10,8 +10,8 @@ const TABS = [
 export { TABS };
 
 /**
- * Sticky bottom nav for mobile/tablet dashboard.
- * Content for the active tab renders ABOVE this bar.
+ * Sticky bottom nav for mobile + tablet.
+ * Hidden on large desktop (xl / 1280px+).
  */
 export default function SaMobileSectionTabs({ active, onChange }) {
   return (
