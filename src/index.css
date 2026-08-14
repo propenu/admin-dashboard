@@ -1039,3 +1039,175 @@ body{
     animation: none !important;
   }
 }
+
+/* Mobile-first admin shell helpers */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+.sa-hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.sa-hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  /* Prefer touch-friendly tap targets in dashboard cards */
+  .sa-mobile-tap {
+    min-height: 44px;
+  }
+
+  img,
+  svg {
+    max-width: 100%;
+  }
+}
+
+/* Super Admin mobile dashboard — vibrant green motion */
+@keyframes saKpiEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes saShimmerLine {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0.2;
+  }
+}
+@keyframes saTabPop {
+  0% {
+    transform: scale(0.92);
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes saIconBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+@keyframes saTabGlow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scaleX(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+@keyframes saPanelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes saTabContent {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes saOrbFloat {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-8px, 6px) scale(1.08);
+  }
+}
+
+.sa-kpi-enter {
+  animation: saKpiEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sa-shimmer {
+  animation: saShimmerLine 2.8s ease-in-out infinite;
+}
+.sa-tab-pop {
+  animation: saTabPop 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sa-icon-bounce {
+  animation: saIconBounce 1.2s ease-in-out infinite;
+}
+.sa-tab-glow {
+  animation: saTabGlow 1.6s ease-in-out infinite;
+}
+.sa-panel-enter {
+  animation: saPanelEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sa-tab-content {
+  animation: saTabContent 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sa-orb {
+  animation: saOrbFloat 5s ease-in-out infinite;
+}
+.sa-orb-delay {
+  animation: saOrbFloat 6.5s ease-in-out infinite reverse;
+}
+@keyframes saHeaderEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.sa-header-enter {
+  animation: saHeaderEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-kpi-enter,
+  .sa-shimmer,
+  .sa-tab-pop,
+  .sa-icon-bounce,
+  .sa-tab-glow,
+  .sa-panel-enter,
+  .sa-tab-content,
+  .sa-orb,
+  .sa-orb-delay,
+  .sa-header-enter {
+    animation: none !important;
+  }
+}
+
+

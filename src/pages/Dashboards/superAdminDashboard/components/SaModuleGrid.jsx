@@ -2,7 +2,7 @@ import { ArrowUpRight } from "lucide-react";
 
 export default function SaModuleGrid({ modules = [], onOpen }) {
   return (
-    <article className="overflow-hidden rounded-[14px] border border-slate-200 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:rounded-[14px]">
       <header className="border-b border-slate-100 px-3.5 py-2.5">
         <h3 className="text-xs font-bold text-slate-900">Operations hub</h3>
         <p className="text-[10px] text-slate-500">
@@ -15,13 +15,13 @@ export default function SaModuleGrid({ modules = [], onOpen }) {
             key={mod.href}
             type="button"
             onClick={() => onOpen?.(mod.href)}
-            className="group rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2.5 text-left transition hover:border-emerald-300 hover:bg-emerald-50"
+            className="group min-h-[4.5rem] rounded-2xl border border-slate-200 bg-slate-50/60 px-3 py-3 text-left transition active:scale-[0.98] active:border-emerald-300 active:bg-emerald-50 sm:min-h-0 sm:rounded-xl sm:py-2.5 sm:hover:border-emerald-300 sm:hover:bg-emerald-50"
           >
             <div className="flex items-center justify-between gap-1">
-              <p className="text-[11px] font-bold text-slate-800">{mod.label}</p>
-              <ArrowUpRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-emerald-600" />
+              <p className="text-[12px] font-bold text-slate-800 sm:text-[11px]">{mod.label}</p>
+              <ArrowUpRight className="h-3.5 w-3.5 text-slate-300 group-active:text-emerald-600 sm:group-hover:text-emerald-600" />
             </div>
-            <p className="mt-1 truncate text-[10px] text-slate-500">{mod.hint}</p>
+            <p className="mt-1 line-clamp-2 text-[10px] text-slate-500 sm:truncate">{mod.hint}</p>
           </button>
         ))}
       </div>

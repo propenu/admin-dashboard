@@ -5,15 +5,31 @@ import { Menu, User, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 import { clearAuthToken } from "../../utils/authToken";
+import {
+  SIDEBAR_ACTIVITY_EVENT,
+  getSidebarHamburgerTotal,
+  readSidebarCounts,
+} from "../../utils/sidebarActivity";
 
 export default function Navbar({ toggleSidebar, hideSidebarToggle = false }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(false);
+  const [menuBadge, setMenuBadge] = useState(0);
   const dropRef = useRef(null);
 
   useEffect(() => {
     fetchLoggedInUser().then(setUser).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const syncBadge = (counts) => {
+      setMenuBadge(getSidebarHamburgerTotal(counts || readSidebarCounts()));
+    };
+    syncBadge(readSidebarCounts());
+    const onCounts = (event) => syncBadge(event.detail);
+    window.addEventListener(SIDEBAR_ACTIVITY_EVENT, onCounts);
+    return () => window.removeEventListener(SIDEBAR_ACTIVITY_EVENT, onCounts);
   }, []);
 
   useEffect(() => {
@@ -31,7 +47,6 @@ export default function Navbar({ toggleSidebar, hideSidebarToggle = false }) {
     navigate("/signin");
   };
 
-
   const roleLabels = {
     sales_agent: "Sales Executive",
     super_admin: "Super Admin",
@@ -44,7 +59,6 @@ export default function Navbar({ toggleSidebar, hideSidebarToggle = false }) {
     ""
   ).replace(/\b\w/g, (c) => c.toUpperCase());
 
-
   return (
     <>
       <style>{`
@@ -52,10 +66,21 @@ export default function Navbar({ toggleSidebar, hideSidebarToggle = false }) {
           from { opacity: 0; transform: translateY(-6px) scale(0.97); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
+        @keyframes nav-badge-pop {
+          0% { transform: scale(0.6); opacity: 0.4; }
+          60% { transform: scale(1.12); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes nav-badge-ping {
+          0% { transform: scale(1); opacity: 0.55; }
+          75%, 100% { transform: scale(1.85); opacity: 0; }
+        }
         .nav-dropdown-animate { animation: dropdown-in 0.15s ease forwards; }
         .nav-menu-btn:hover { background: #f0fdf4 !important; }
         .nav-drop-item:hover { background: #f0fdf4 !important; color: #27AE60 !important; }
         .nav-drop-logout:hover { background: #fef2f2 !important; color: #dc2626 !important; }
+        .nav-badge-pop { animation: nav-badge-pop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .nav-badge-ping { animation: nav-badge-ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite; }
       `}</style>
 
       <nav
@@ -66,27 +91,38 @@ export default function Navbar({ toggleSidebar, hideSidebarToggle = false }) {
         }}
       >
         <div className="w-full px-4 sm:px-5 flex items-center justify-between h-full">
-          {/* ── LEFT: Logo ── */}
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             {!hideSidebarToggle ? (
               <button
                 onClick={toggleSidebar}
-                className="lg:hidden p-2 rounded-lg transition-colors nav-menu-btn"
+                className="nav-menu-btn relative lg:hidden flex h-10 w-10 items-center justify-center rounded-xl transition-colors"
                 style={{ color: "#64748b" }}
-                aria-label="Toggle Sidebar"
+                aria-label={
+                  menuBadge > 0
+                    ? `Open menu, ${menuBadge} new alerts`
+                    : "Toggle Sidebar"
+                }
               >
                 <Menu className="w-5 h-5" />
+                {menuBadge > 0 ? (
+                  <span className="pointer-events-none absolute -right-0.5 -top-0.5">
+                    <span className="nav-badge-ping absolute inline-flex h-full w-full rounded-full bg-red-400" />
+                    <span className="nav-badge-pop relative inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-black leading-none text-white shadow-sm ring-2 ring-white">
+                      {menuBadge > 99 ? "99+" : menuBadge}
+                    </span>
+                  </span>
+                ) : null}
               </button>
             ) : null}
 
             <div
               onClick={() => navigate("/")}
-              className="flex items-center gap-2 cursor-pointer select-none"
+              className="flex min-w-0 cursor-pointer select-none items-center gap-2"
             >
               <img
                 src={LOGO}
                 alt="Logo"
-                className="h-9 w-auto object-contain"
+                className="h-8 w-auto object-contain sm:h-9"
               />
             </div>
           </div>

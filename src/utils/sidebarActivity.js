@@ -339,4 +339,61 @@ export const requestSidebarRefresh = () => {
   window.dispatchEvent(new CustomEvent(SIDEBAR_REFRESH_EVENT));
 };
 
+export const readSidebarCounts = () => {
+  if (typeof window === "undefined") return emptySidebarCounts();
+  return safeParse(window.localStorage.getItem(COUNTS_KEY), emptySidebarCounts());
+};
+
+/**
+ * Primary badge number for one sidebar path (matches Sidebar pathBadge rules).
+ */
+export const primaryBadgeForPath = (counts, path) => {
+  if (!counts?.ready || !path) return 0;
+  const detail = counts?.byPath?.[path];
+  if (detail) {
+    const primary = Number(detail.primary || 0);
+    const pending = Number(detail.pending || 0);
+    const isAccountPath = SIDEBAR_ACCOUNT_PATHS.has(path);
+    const isPropertiesPath = path === SIDEBAR_ACTIVITY_PATHS.properties;
+    const isFollowUpPath = path === SIDEBAR_ACTIVITY_PATHS.followUpTracking;
+    const onboarding = inventoryOnboardingCount(
+      detail,
+      isPropertiesPath ? { kind: "properties" } : {},
+    );
+    if (isAccountPath || isFollowUpPath) return Math.max(0, primary);
+    if (isPropertiesPath) return Math.max(0, pending);
+    return Math.max(primary, onboarding, Number(detail.inactive || 0));
+  }
+  if (path === "/projects") return Number(counts.projectsToday || 0);
+  if (path === "/properties") return Number(counts.propertiesToday || 0);
+  if (path === "/tickets") return Number(counts.ticketsToday || 0);
+  if (path === "/leads") return Number(counts.leadsToday || 0);
+  return 0;
+};
+
+/**
+ * Total unread-style count for the mobile hamburger badge.
+ * Avoids double-counting All Users vs owners/builders/agents/staff.
+ */
+export const getSidebarHamburgerTotal = (counts) => {
+  if (!counts?.ready) return 0;
+  const paths = [
+    SIDEBAR_ACTIVITY_PATHS.projects,
+    SIDEBAR_ACTIVITY_PATHS.properties,
+    SIDEBAR_ACTIVITY_PATHS.tickets,
+    SIDEBAR_ACTIVITY_PATHS.leads,
+    SIDEBAR_ACTIVITY_PATHS.followUpTracking,
+    SIDEBAR_ACTIVITY_PATHS.owners,
+    SIDEBAR_ACTIVITY_PATHS.builders,
+    SIDEBAR_ACTIVITY_PATHS.agents,
+    SIDEBAR_ACTIVITY_PATHS.builderStaff,
+    SIDEBAR_ACTIVITY_PATHS.teamDirectory,
+  ];
+  let total = paths.reduce((sum, path) => sum + primaryBadgeForPath(counts, path), 0);
+  if (total <= 0 && Number(counts.usersGroupToday || 0) > 0) {
+    total = Number(counts.usersGroupToday || 0);
+  }
+  return total;
+};
+
 export { todayKey, startOfTodayMs };

@@ -137,13 +137,13 @@ export default function SaEngagementPanel({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+          <div className="inline-flex max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-0.5" style={{ scrollbarWidth: "none" }}>
             {METRIC_MODES.map((item) => (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => setMode(item.key)}
-                className={`rounded-md px-2 py-1 text-[10px] font-bold transition ${
+                className={`shrink-0 rounded-md px-2.5 py-1.5 text-[10px] font-bold transition sm:px-2 sm:py-1 ${
                   mode === item.key
                     ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100"
                     : "text-slate-500 hover:text-slate-800"
@@ -189,21 +189,21 @@ export default function SaEngagementPanel({
       <div className="grid items-stretch gap-3 p-3 lg:grid-cols-12">
         <div className="flex flex-col lg:col-span-8">
           {isLoading ? (
-            <div className="flex h-[380px] items-center justify-center text-xs text-slate-400 lg:h-[420px]">
+            <div className="flex h-[220px] items-center justify-center text-xs text-slate-400 sm:h-[320px] lg:h-[420px]">
               Loading engagement…
             </div>
           ) : isError ? (
-            <div className="flex h-[380px] flex-col items-center justify-center gap-1 text-center text-xs text-slate-400 lg:h-[420px]">
+            <div className="flex h-[220px] flex-col items-center justify-center gap-1 text-center text-xs text-slate-400 sm:h-[320px] lg:h-[420px]">
               <p className="font-semibold text-slate-500">Engagement unavailable</p>
               <p>Requires Super Admin activity access (user:view).</p>
             </div>
           ) : !hasData ? (
-            <div className="flex h-[380px] flex-col items-center justify-center gap-1 text-center text-xs text-slate-400 lg:h-[420px]">
+            <div className="flex h-[220px] flex-col items-center justify-center gap-1 text-center text-xs text-slate-400 sm:h-[320px] lg:h-[420px]">
               <p className="font-semibold text-slate-500">No clicks or actions in this period</p>
               <p>Try another date range or check All Users Activity.</p>
             </div>
           ) : (
-            <div className="h-[380px] w-full lg:h-[420px]">
+            <div className="h-[220px] w-full sm:h-[320px] lg:h-[420px]">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 12, right: 8, left: -8, bottom: 8 }}>
                 <defs>

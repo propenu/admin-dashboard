@@ -40,7 +40,7 @@ export default function SaOpsPanel({
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 lg:grid-cols-3">
+      <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 sm:grid-cols-2 lg:grid-cols-3">
         <Column title="Lead sources" empty="No leads for this date range" rows={leadSourceRows} max={maxLead} valueKey="leads" />
         <Column title="Ticket status" empty="No tickets for this date range" rows={ticketStatusRows} max={maxTicket} valueKey="count" />
         <Column

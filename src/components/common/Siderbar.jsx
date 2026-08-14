@@ -1226,8 +1226,11 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     if (!badge || Number(badge.primary) <= 0) return null;
     if (compact) {
       return (
-        <span className="absolute right-0.5 top-0.5 grid h-3.5 min-w-3.5 place-items-center rounded-full bg-rose-500 px-0.5 text-[7px] font-black text-white">
-          {badge.primary > 99 ? "99+" : badge.primary}
+        <span className="absolute right-0.5 top-0.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-60" />
+          <span className="relative grid h-3.5 min-w-3.5 place-items-center rounded-full bg-red-600 px-0.5 text-[7px] font-black text-white shadow-sm ring-1 ring-white">
+            {badge.primary > 99 ? "99+" : badge.primary}
+          </span>
         </span>
       );
     }
@@ -1237,7 +1240,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
         className={`ml-auto flex min-w-5 shrink-0 items-center justify-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black tabular-nums ${
           active
             ? "border-white/25 bg-white/20 text-white"
-            : "border-rose-100 bg-rose-50 text-rose-600"
+            : "border-red-200 bg-red-50 text-red-600"
         }`}
       >
         <b>{badge.primary}</b>
