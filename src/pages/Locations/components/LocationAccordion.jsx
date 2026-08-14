@@ -97,6 +97,31 @@ export default function LocationAccordion({
                           </span>
                         </div>
 
+                        <div className="flex flex-wrap gap-1.5">
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${
+                              selectedLoc?._id === city._id
+                                ? "bg-white/20 text-white"
+                                : "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {city.category || "city"}
+                          </span>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase ${
+                              selectedLoc?._id === city._id
+                                ? city.isHome === true
+                                  ? "bg-emerald-300/40 text-white"
+                                  : "bg-red-500/80 text-white"
+                                : city.isHome === true
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-red-100 text-red-600"
+                            }`}
+                          >
+                            {city.isHome === true ? "Home" : "Hidden"}
+                          </span>
+                        </div>
+
                         {/* LOCALITIES LIST */}
                         {city.localities && city.localities.length > 0 && (
                           <div className="space-y-2 mt-3">

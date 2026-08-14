@@ -371,11 +371,33 @@ export default function PropertyListPage({
       {/* ── PROMOTE MODAL ─────────────────────────────────────────────────── */}
       <PromoteModal
         open={!!promoteTarget}
-        currentType={type}
+        projectId={promoteTarget}
+        projectStatus={
+          properties.find((p) => p._id === promoteTarget)?.status
+        }
+        currentType={
+          properties.find((p) => p._id === promoteTarget)?.promotion?.type ||
+          type
+        }
+        currentVisibleLeadLimit={
+          properties.find((p) => p._id === promoteTarget)?.promotion
+            ?.visibleLeadLimit
+        }
+        canSetLeadCount={
+          ["super_admin", "admin"].includes(
+            String(user?.user?.roleName || user?.roleName || "")
+              .trim()
+              .toLowerCase(),
+          )
+        }
         isLoading={promoteMutation.isPending}
-        onConfirm={(newType) =>
+        onConfirm={(newType, options = {}) =>
           promoteMutation.mutate(
-            { id: promoteTarget, newType },
+            {
+              id: promoteTarget,
+              newType,
+              visibleLeadLimit: options.visibleLeadLimit,
+            },
             { onSettled: () => setPromoteTarget(null) },
           )
         }

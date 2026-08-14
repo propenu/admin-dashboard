@@ -52,7 +52,7 @@ const {
   queryFn: async ({ pageParam }) => {
     console.log("REQUEST PAGE:", pageParam);
 
-    const limit = search || hasDateRange ? 100 : 20;
+    const limit = search || hasDateRange || status ? 100 : 20;
     const res = await getFeaturedProjectsByType(type, pageParam, limit, {
       promotionStatus: hasDateRange ? promotionStatus || "all" : promotionStatus,
       search,
@@ -63,7 +63,7 @@ const {
 
     // The deployed API may ignore `search`. Merge every server page while
     // searching so a match can never be hidden outside the first page.
-    if (search && pageParam === 1) {
+    if ((search || (status && status !== "active")) && pageParam === 1) {
       const pages = res?.data?.meta?.pages ?? 1;
       if (pages > 1) {
         const remainingPages = await Promise.all(
@@ -179,13 +179,11 @@ const invalidate = () =>
 
 
   const promoteMutation = useMutation({
-    mutationFn: async ({ id, newType }) => {
+    mutationFn: async ({ id, newType, visibleLeadLimit }) => {
       // STEP 1 — fetch target type projects
       const res = await getFeaturedProjectsByType(newType);
 
       const targetProjects = res?.data?.items || [];
-
-      
 
       // STEP 2 — calculate next rank
       const maxRank = Math.max(
@@ -195,19 +193,25 @@ const invalidate = () =>
 
       const nextRank = maxRank + 1;
 
-      
-
-      // STEP 3 — update promotion type
-      await promoteProjectWithRank(id, {
+      // STEP 3 — update promotion type + optional lead visibility
+      const promotePayload = {
         type: newType,
-      });
+      };
+      if (
+        visibleLeadLimit !== undefined &&
+        visibleLeadLimit !== null &&
+        visibleLeadLimit !== ""
+      ) {
+        const parsed = Number(visibleLeadLimit);
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          promotePayload.visibleLeadLimit = Math.trunc(parsed);
+        }
+      }
 
-      
+      await promoteProjectWithRank(id, promotePayload);
 
       // STEP 4 — update rank separately
       await updateProjectRank(id, nextRank);
-
-      
 
       return {
         success: true,

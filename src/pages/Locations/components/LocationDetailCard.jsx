@@ -32,6 +32,15 @@ export default function LocationDetailCard({
               <span className="inline-block mt-2 px-3 py-1 bg-white/20 backdrop-blur-sm text-xs font-bold rounded-full uppercase">
                 {data.category}
               </span>
+              <span
+                className={`inline-block mt-2 ml-2 px-3 py-1 backdrop-blur-sm text-xs font-bold rounded-full uppercase ${
+                  data.isHome === true
+                    ? "bg-emerald-400/30 text-white"
+                    : "bg-red-500/80 text-white"
+                }`}
+              >
+                {data.isHome === true ? "Home · Live" : "Home · Hidden"}
+              </span>
             </div>
           </div>
 

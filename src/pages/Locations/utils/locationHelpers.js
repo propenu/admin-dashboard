@@ -22,6 +22,7 @@ export const buildPayload = (form, type = "LOCALITY") => {
 
       // IMPORTANT
       category: form.category || "city",
+      isHome: form.isHome === true,
     };
   }
 
@@ -34,6 +35,7 @@ export const buildPayload = (form, type = "LOCALITY") => {
 
     // IMPORTANT
     category: form.category || "city",
+    isHome: form.isHome === true,
 
     locality: {
       name: form.localityName.trim(),

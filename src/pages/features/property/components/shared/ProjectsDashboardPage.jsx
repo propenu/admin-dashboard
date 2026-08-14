@@ -105,6 +105,7 @@ const normalizeProjectStatusParam = (value = "") => {
 const matchesProjectStatusFilter = (project, statusFilter) => {
   if (!statusFilter || statusFilter === "all") return true;
   const raw = String(project?.status || "").toLowerCase();
+  const approval = String(project?.approvalStatus || "").toLowerCase();
 
   if (statusFilter === "draft") {
     return (
@@ -115,12 +116,21 @@ const matchesProjectStatusFilter = (project, statusFilter) => {
     );
   }
   if (statusFilter === "pending") {
-    return raw === "pending";
+    return raw === "pending" || approval === "pending";
   }
   if (statusFilter === "approved") {
-    return raw === "active" || raw === "approved";
+    return raw === "active" || raw === "approved" || approval === "approved";
   }
   return raw === statusFilter;
+};
+
+/** Map UI Status dropdown → API status query (admin projects board). */
+const toServerProjectStatus = (statusFilter = "all") => {
+  const key = normalizeProjectStatusParam(statusFilter);
+  if (key === "draft") return "draft";
+  if (key === "pending") return "pending";
+  if (key === "approved") return "active";
+  return "all";
 };
 
 const TRACKING_FILTERS = [
@@ -1270,14 +1280,19 @@ export default function ProjectsDashboardPage() {
     searchParams.get("createdFrom") || searchParams.get("from") || "";
   const urlCreatedTo =
     searchParams.get("createdTo") || searchParams.get("to") || "";
+  const urlStatusFilter = normalizeProjectStatusParam(
+    searchParams.get("status") ||
+      (searchParams.get("promotion") === "pending" ? "pending" : "all"),
+  );
+  // Admin Status dropdown must hit the API (default API is active-only).
+  const serverListStatus = toServerProjectStatus(urlStatusFilter);
 
   // ── Property hooks ───────────────────────────────────────────────────────
   const projectQueryOptions = {
     search: debouncedProjectSearch,
     from: urlCreatedFrom,
     to: urlCreatedTo,
-    // When filtering by day, load all statuses so sidebar "today" matches the list.
-    status: urlCreatedFrom || urlCreatedTo ? "all" : undefined,
+    status: serverListStatus,
   };
   const primeHook     = useFeaturedProjects("prime", projectQueryOptions);
   const featuredHook  = useFeaturedProjects("featured", projectQueryOptions);
@@ -1288,7 +1303,7 @@ export default function ProjectsDashboardPage() {
     search: debouncedProjectSearch,
     from: urlCreatedFrom,
     to: urlCreatedTo,
-    status: urlCreatedFrom || urlCreatedTo ? "all" : undefined,
+    status: serverListStatus,
     enabled: !!serverPromotionStatus,
   });
 
@@ -1956,7 +1971,41 @@ export default function ProjectsDashboardPage() {
     categoryFilter,
     propertyTypeFilter,
   ]);
-  
+
+  const statusFilterOptions = useMemo(() => {
+    const ov = analytics?.overview || {};
+    const withCount = (label, count) =>
+      Number.isFinite(Number(count)) ? `${label} (${Number(count)})` : label;
+
+    return STATUS_FILTERS.map((item) => {
+      if (item.value === "all") {
+        return {
+          ...item,
+          label: withCount(item.label, ov.totalProjects),
+        };
+      }
+      if (item.value === "draft") {
+        return {
+          ...item,
+          label: withCount(item.label, ov.inactiveProjects),
+        };
+      }
+      if (item.value === "pending") {
+        return {
+          ...item,
+          label: withCount(item.label, ov.pendingProjects),
+        };
+      }
+      if (item.value === "approved") {
+        return {
+          ...item,
+          label: withCount(item.label, ov.activeProjects),
+        };
+      }
+      return item;
+    });
+  }, [analytics]);
+
   const getHook = useCallback((id) => {
     const type = allProperties.find((p) => p._id === id)?.promotion?.type || "normal";
     return { prime: primeHook, featured: featuredHook, sponsored: sponsoredHook, normal: normalHook }[type] ?? normalHook;
@@ -1983,14 +2032,29 @@ export default function ProjectsDashboardPage() {
   }, [deleteLoading, refreshAllProjects]);
   const handleExpire  = useCallback((id) => getHook(id).expireMutation.mutate(id,  { onSuccess: refreshAllProjects, onSettled: () => setExpireTarget(null)  }), [getHook, refreshAllProjects]);
   const handleReset   = useCallback((id) => getHook(id).resetMutation.mutate(id,   { onSuccess: refreshAllProjects, onSettled: () => setResetTarget(null)   }), [getHook, refreshAllProjects]);
-  const handlePromote = useCallback((newType) =>
-    getHook(promoteTarget).promoteMutation.mutate({ id: promoteTarget, newType }, { onSuccess: refreshAllProjects, onSettled: () => setPromoteTarget(null) }),
+  const handlePromote = useCallback((newType, options = {}) =>
+    getHook(promoteTarget).promoteMutation.mutate(
+      {
+        id: promoteTarget,
+        newType,
+        visibleLeadLimit: options.visibleLeadLimit,
+      },
+      {
+        onSuccess: refreshAllProjects,
+        onSettled: () => setPromoteTarget(null),
+      },
+    ),
   [getHook, promoteTarget, refreshAllProjects]);
 
   const openPromoteModal = useCallback((id) => {
     setPromoteCurrentType(allProperties.find((p) => p._id === id)?.promotion?.type || "normal");
     setPromoteTarget(id);
   }, [allProperties]);
+
+  const promoteTargetProject = useMemo(
+    () => allProperties.find((p) => p._id === promoteTarget) || null,
+    [allProperties, promoteTarget],
+  );
 
   /** Promotions expiring within 3 days (includes today) — for red badge on Tracking dropdown */
   const expiringSoon3DayCount = useMemo(() => {
@@ -2099,7 +2163,13 @@ export default function ProjectsDashboardPage() {
       />
       <PromoteModal
         open={!!promoteTarget}
+        projectId={promoteTarget}
+        projectStatus={promoteTargetProject?.status}
         currentType={promoteCurrentType}
+        currentVisibleLeadLimit={
+          promoteTargetProject?.promotion?.visibleLeadLimit
+        }
+        canSetLeadCount={isSuperAdmin || isAdmin}
         isLoading={getHook(promoteTarget)?.promoteMutation?.isPending}
         onConfirm={handlePromote}
         onCancel={() => setPromoteTarget(null)}
@@ -2397,7 +2467,7 @@ export default function ProjectsDashboardPage() {
             </select>
           </div>
 
-          <div className="w-[8rem] shrink-0">
+          <div className="w-[10rem] shrink-0">
             <p className="mb-1 text-[11px] font-bold text-slate-600">Status</p>
             <select
               value={statusFilter}
@@ -2413,7 +2483,7 @@ export default function ProjectsDashboardPage() {
               }}
               className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500"
             >
-              {STATUS_FILTERS.map((item) => (
+              {statusFilterOptions.map((item) => (
                 <option key={item.value} value={item.value}>
                   {item.label}
                 </option>

@@ -13,6 +13,7 @@ export default function DeleteConfirmModal({
   loading,
   success,
   clearSuccess,
+  error,
 }) {
   useEffect(() => {
     if (!success) return;
@@ -102,6 +103,28 @@ export default function DeleteConfirmModal({
                   {title}
                 </p>
               </div>
+
+              {error && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-sm text-red-700 space-y-1">
+                  <p className="font-semibold">Access denied</p>
+                  <p>
+                    {typeof error === "string"
+                      ? error
+                      : error.message || error.error || "Permission denied"}
+                  </p>
+                  {typeof error === "object" && error.allowedRoles?.length > 0 && (
+                    <p className="text-xs">
+                      Allowed roles:{" "}
+                      {error.allowedRoles
+                        .map((r) => r.label || r.name)
+                        .join(", ")}
+                    </p>
+                  )}
+                  {typeof error === "object" && error.howToGetAccess && (
+                    <p className="text-xs">{error.howToGetAccess}</p>
+                  )}
+                </div>
+              )}
 
               {/* ACTION BUTTONS */}
               <div className="flex gap-3 pt-2">

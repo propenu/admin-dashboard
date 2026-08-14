@@ -21,6 +21,7 @@ export default function LocationsPage() {
     errorMsg,
     successMsg,
     setSuccessMsg,
+    setErrorMsg,
     saveLocation,
     deleteLocation,
     deleteLocality,
@@ -52,12 +53,14 @@ export default function LocationsPage() {
   // ADD HANDLERS
   const handleAddNew = () => {
     setSuccessMsg("");
+    setErrorMsg("");
     setEditItem(null);
     setShowAdd(true);
   };
 
   const handleAddLocalityToCity = (city) => {
     setSuccessMsg("");
+    setErrorMsg("");
     setEditItem(city);
     setShowAdd(true);
   };
@@ -65,12 +68,14 @@ export default function LocationsPage() {
   // EDIT HANDLERS
   const handleEditCity = (city) => {
     setSuccessMsg("");
+    setErrorMsg("");
     setEditItem(city);
     setShowEdit(true);
   };
 
   const handleEditLocality = (city, locality) => {
     setSuccessMsg("");
+    setErrorMsg("");
     setEditItem({ ...city, localities: [locality] });
     setShowEdit(true);
   };
@@ -189,6 +194,7 @@ export default function LocationsPage() {
               setShowAdd(false);
               setEditItem(null);
               setSuccessMsg("");
+              setErrorMsg("");
             }}
             onSubmit={(form) =>
               saveLocation({
@@ -215,6 +221,7 @@ export default function LocationsPage() {
               setShowEdit(false);
               setEditItem(null);
               setSuccessMsg("");
+              setErrorMsg("");
             }}
             onSubmit={(form) =>
               saveLocation({
@@ -234,10 +241,12 @@ export default function LocationsPage() {
             title={getDeleteTitle()}
             type={deleteTarget?.type}
             loading={loading}
+            error={errorMsg}
             onClose={() => {
               setShowDelete(false);
               setDeleteTarget(null);
               setSuccessMsg("");
+              setErrorMsg("");
             }}
             onConfirm={confirmDelete}
             success={successMsg}

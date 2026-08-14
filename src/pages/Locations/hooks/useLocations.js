@@ -8,6 +8,26 @@ import {
   deleteLocalityService,
 } from "../../../services/LocationsServices/LocationServices";
 
+function extractApiError(err, fallback = "Operation failed") {
+  const data = err?.response?.data;
+  if (!data) return fallback;
+
+  if (data.code === "PERMISSION_REQUIRED" || data.requiredPermission) {
+    return {
+      message: data.message || data.error || fallback,
+      error: data.error || data.message || fallback,
+      code: data.code || "PERMISSION_REQUIRED",
+      requiredPermission: data.requiredPermission,
+      yourRole: data.yourRole,
+      yourRoleLabel: data.yourRoleLabel,
+      allowedRoles: data.allowedRoles || [],
+      howToGetAccess: data.howToGetAccess || "",
+    };
+  }
+
+  return data.error || data.message || fallback;
+}
+
 export default function useLocations() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -19,8 +39,8 @@ export default function useLocations() {
     try {
       const res = await fetchLocationsService();
       setData(res);
-    } catch {
-      setErrorMsg("Failed to fetch locations");
+    } catch (err) {
+      setErrorMsg(extractApiError(err, "Failed to fetch locations"));
     } finally {
       setLoading(false);
     }
@@ -48,7 +68,7 @@ export default function useLocations() {
 
       fetchLocations();
     } catch (err) {
-      setErrorMsg(err?.response?.data?.error || "Operation failed");
+      setErrorMsg(extractApiError(err, "Operation failed"));
     } finally {
       setLoading(false);
     }
@@ -63,8 +83,8 @@ export default function useLocations() {
       await deleteLocationService(id);
       setSuccessMsg("City deleted successfully");
       fetchLocations();
-    } catch {
-      setErrorMsg("Failed to delete city");
+    } catch (err) {
+      setErrorMsg(extractApiError(err, "Failed to delete city"));
     } finally {
       setLoading(false);
     }
@@ -79,8 +99,8 @@ export default function useLocations() {
       await deleteLocalityService({ locationId, localityName });
       setSuccessMsg(`Locality '${localityName}' deleted`);
       fetchLocations();
-    } catch {
-      setErrorMsg("Failed to delete locality");
+    } catch (err) {
+      setErrorMsg(extractApiError(err, "Failed to delete locality"));
     } finally {
       setLoading(false);
     }
@@ -94,7 +114,7 @@ export default function useLocations() {
     setErrorMsg,
     setSuccessMsg,
     saveLocation,
-    deleteLocation, 
-    deleteLocality, 
+    deleteLocation,
+    deleteLocality,
   };
 }
