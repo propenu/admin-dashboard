@@ -88,34 +88,39 @@ const PROPERTY_TYPES = {
 
 const STATUS_FILTERS = [
   { value: "all", label: "All Status" },
-  { value: "active", label: "Active" },
-  { value: "scheduled", label: "Scheduled" },
-  { value: "expiringSoon", label: "Expiring Soon" },
-  { value: "expired", label: "Expired" },
-  { value: "inactive", label: "Inactive / Onboarding" },
+  { value: "draft", label: "Draft" },
   { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
 ];
 
 const normalizeProjectStatusParam = (value = "") => {
   const key = String(value || "").trim().toLowerCase();
-  if (key === "draft" || key === "onboarding" || key === "incomplete") return "inactive";
+  if (key === "approved" || key === "live") return "approved";
+  if (key === "active") return "approved";
+  if (key === "onboarding" || key === "incomplete") return "draft";
+  if (key === "inactive") return "draft";
   return key || "all";
 };
 
 const matchesProjectStatusFilter = (project, statusFilter) => {
   if (!statusFilter || statusFilter === "all") return true;
-  const resolved = getProjectStatus(project).status;
   const raw = String(project?.status || "").toLowerCase();
-  if (statusFilter === "inactive") {
+
+  if (statusFilter === "draft") {
     return (
-      resolved === "inactive" ||
-      raw === "inactive" ||
       raw === "draft" ||
       raw === "onboarding" ||
-      raw === "incomplete"
+      raw === "incomplete" ||
+      raw === "inactive"
     );
   }
-  return resolved === statusFilter || raw === statusFilter;
+  if (statusFilter === "pending") {
+    return raw === "pending";
+  }
+  if (statusFilter === "approved") {
+    return raw === "active" || raw === "approved";
+  }
+  return raw === statusFilter;
 };
 
 const TRACKING_FILTERS = [
@@ -739,14 +744,14 @@ function AnalyticsOverviewRow({
       border: "border-slate-200",
     },
     {
-      label: "Active",
+      label: "Approved",
       display: String(ov.activeProjects ?? 0),
       sub: `${pct(ov.activeProjects, total)}% of total`,
       icon: CheckCircle2,
       color: "text-emerald-700",
       iconBg: "bg-emerald-50",
       border: "border-emerald-100",
-      filter: "active",
+      filter: "approved",
     },
     // {
     //   label: "Scheduled",
@@ -780,13 +785,13 @@ function AnalyticsOverviewRow({
       filter: "pending",
     },
     {
-      label: "Onboarding",
+      label: "Draft",
       display: String(ov.inactiveProjects ?? 0),
       icon: AlertCircle,
       color: "text-purple-700",
       iconBg: "bg-purple-50",
       border: "border-purple-100",
-      filter: "inactive",
+      filter: "draft",
     },
     {
       label: "Total Views",
@@ -1931,10 +1936,10 @@ export default function ProjectsDashboardPage() {
       return analytics?.overview?.normalProjects ?? 0;
 
     // Status
-    if (statusFilter === "active")
+    if (statusFilter === "approved" || statusFilter === "active")
       return analytics?.overview?.activeProjects ?? 0;
 
-    if (statusFilter === "inactive")
+    if (statusFilter === "draft" || statusFilter === "inactive")
       return analytics?.overview?.inactiveProjects ?? 0;
 
     if (statusFilter === "pending")
@@ -1985,6 +1990,22 @@ export default function ProjectsDashboardPage() {
   const openPromoteModal = useCallback((id) => {
     setPromoteCurrentType(allProperties.find((p) => p._id === id)?.promotion?.type || "normal");
     setPromoteTarget(id);
+  }, [allProperties]);
+
+  /** Promotions expiring within 3 days (includes today) — for red badge on Tracking dropdown */
+  const expiringSoon3DayCount = useMemo(() => {
+    return allProperties.filter((project) => {
+      const tracking = getPromotionTracking(project);
+      if (!tracking || tracking.currentType === "normal") return false;
+      if (
+        tracking.lifecycle === "expired" ||
+        tracking.lifecycle === "scheduled"
+      ) {
+        return false;
+      }
+      const days = tracking.daysLeft;
+      return typeof days === "number" && days >= 0 && days <= 3;
+    }).length;
   }, [allProperties]);
 
   // ── Active filter count + clear ───────────────────────────────────────────
@@ -2355,89 +2376,139 @@ export default function ProjectsDashboardPage() {
             </button>
           )}
         </div>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
-          {/* Category */}
-          <div className="shrink-0">
-            <p className="mb-2 text-xs font-bold text-slate-600">Category</p>
-            <div className="flex flex-wrap gap-2">
+        {/* Compact filter row — fixed narrow widths for Category / Status / Tracking */}
+        <div className="flex flex-wrap items-end gap-2.5">
+          <div className="w-[7.5rem] shrink-0">
+            <p className="mb-1 text-[11px] font-bold text-slate-600">Category</p>
+            <select
+              value={categoryFilter}
+              onChange={(event) => {
+                setCategoryFilter(event.target.value);
+                setPropertyTypeFilter("all");
+                setCurrentPage(1);
+              }}
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500"
+            >
               {CATEGORY_TYPES.map((cat) => (
-                <button
-                  key={cat.value}
-                  onClick={() => {
-                    setCategoryFilter(cat.value);
-                    setPropertyTypeFilter("all");
-                  }}
-                  className={`rounded-xl border px-4 py-2 text-xs font-semibold transition
-                    ${categoryFilter === cat.value ? "border-[#27AE60] bg-[#27AE60] text-white shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-[#27AE60]"}`}
-                >
+                <option key={cat.value} value={cat.value}>
                   {cat.label}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
-          {/* Promotion tracking */}
-          <div className="min-w-0 flex-1">
-            <p className="mb-2 text-xs font-bold text-slate-600">
-              Promotion Tracking
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {TRACKING_FILTERS.map((item) => (
-                <button
-                  key={item.value}
-                  onClick={() => {
-                    setTrackingFilter(item.value);
-                    if (
-                      item.value === "expired" ||
-                      item.value === "scheduled"
-                    ) {
-                      setPromotionFilter("all");
-                      setStatusFilter("all");
-                    }
-                  }}
-                  className={`rounded-xl border px-3 py-2 text-xs font-semibold transition
-                    ${
-                      trackingFilter === item.value
-                        ? item.value === "expired"
-                          ? "border-red-600 bg-red-600 text-white"
-                          : item.value === "expiringSoon"
-                            ? "border-amber-500 bg-amber-500 text-white"
-                            : "border-slate-700 bg-slate-700 text-white"
-                        : "border-slate-200 bg-white text-slate-500 hover:border-slate-400"
-                    }`}
-                >
+          <div className="w-[8rem] shrink-0">
+            <p className="mb-1 text-[11px] font-bold text-slate-600">Status</p>
+            <select
+              value={statusFilter}
+              onChange={(event) => {
+                const next = event.target.value;
+                setStatusFilter(next);
+                setCurrentPage(1);
+                if (next !== "pending") {
+                  setPromotionFilter((prev) =>
+                    prev === "pending" ? "all" : prev,
+                  );
+                }
+              }}
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500"
+            >
+              {STATUS_FILTERS.map((item) => (
+                <option key={item.value} value={item.value}>
                   {item.label}
-                </button>
+                </option>
               ))}
+            </select>
+          </div>
+
+          <div className="relative w-[11.5rem] shrink-0">
+            <div className="mb-1 flex items-center gap-1.5">
+              <p className="text-[11px] font-bold text-slate-600">
+                Promotion Tracking
+              </p>
+              {expiringSoon3DayCount > 0 ? (
+                <span
+                  className="relative inline-flex"
+                  title={`${expiringSoon3DayCount} promotion(s) expire within 3 days`}
+                >
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-60" />
+                  <span className="relative inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-600 px-1 py-0.5 text-[9px] font-black leading-none text-white shadow-sm animate-pulse">
+                    {expiringSoon3DayCount}
+                  </span>
+                </span>
+              ) : null}
+            </div>
+            <div className="relative">
+              <select
+                value={trackingFilter}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setTrackingFilter(next);
+                  setCurrentPage(1);
+                  if (next === "expired" || next === "scheduled") {
+                    setPromotionFilter("all");
+                    setStatusFilter("all");
+                  }
+                }}
+                className={`h-9 w-full rounded-lg border bg-white px-2 pr-7 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 ${
+                  expiringSoon3DayCount > 0
+                    ? "border-red-300 ring-1 ring-red-100"
+                    : "border-slate-200"
+                }`}
+              >
+                {TRACKING_FILTERS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.value === "expiringSoon" && expiringSoon3DayCount > 0
+                      ? `${item.label} (${expiringSoon3DayCount})`
+                      : item.label}
+                  </option>
+                ))}
+              </select>
+              {expiringSoon3DayCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTrackingFilter("expiringSoon");
+                    setCurrentPage(1);
+                  }}
+                  className="absolute -right-1.5 -top-1.5 z-10 inline-flex"
+                  title="Show expiring within 3 days"
+                  aria-label={`${expiringSoon3DayCount} expiring soon`}
+                >
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-70" />
+                  <span className="relative inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white shadow-md animate-pulse">
+                    {expiringSoon3DayCount}
+                  </span>
+                </button>
+              ) : null}
             </div>
           </div>
 
-          {/* Created by — same label rhythm + one control row (aligned with chips) */}
-          <div className="w-full shrink-0 lg:w-64">
-            <p className="mb-2 text-xs font-bold text-slate-600">
+          <div className="min-w-0 w-full max-w-xs shrink-0 sm:w-auto sm:flex-1 sm:max-w-sm">
+            <p className="mb-1 text-[11px] font-bold text-slate-600">
               Created by (builder)
             </p>
             <div className="flex h-9 items-stretch gap-1.5">
               <div className="relative min-w-0 flex-1">
                 <Search
-                  size={14}
-                  className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={13}
+                  className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
                   type="text"
                   value={builderSearch}
                   onChange={(event) => setBuilderSearch(event.target.value)}
                   placeholder="Search…"
-                  className="h-9 w-full rounded-xl border border-slate-200 bg-white py-0 pl-8 pr-7 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white py-0 pl-7 pr-6 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
                 />
                 {builderSearch ? (
                   <button
                     type="button"
                     onClick={() => setBuilderSearch("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                     aria-label="Clear builder search"
                   >
-                    <X size={12} />
+                    <X size={11} />
                   </button>
                 ) : null}
               </div>
@@ -2448,7 +2519,7 @@ export default function ProjectsDashboardPage() {
                   setCurrentPage(1);
                 }}
                 title={`${creatorBuilderOptions.length} builders`}
-                className="h-9 min-w-0 flex-[1.35] rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
+                className="h-9 w-[7rem] shrink-0 rounded-lg border border-slate-200 bg-white px-1.5 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
               >
                 <option value="all">All builders</option>
                 {creatorBuilderOptions
@@ -2474,22 +2545,23 @@ export default function ProjectsDashboardPage() {
             </div>
           </div>
 
-          {/* Clear — align with control row under labels */}
           <button
             type="button"
             onClick={clearListFilters}
             disabled={activeFiltersCount === 0}
-            className={`flex h-9 shrink-0 items-center gap-1.5 self-stretch rounded-xl border px-3 text-xs font-semibold transition lg:mt-7 lg:self-start ${
+            className={`mb-0 flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition ${
               activeFiltersCount > 0
                 ? "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                : "invisible border-slate-100 bg-slate-50 text-slate-300"
+                : "pointer-events-none border-transparent bg-transparent text-transparent"
             }`}
           >
             <X className="h-3 w-3" />
             Clear
-            <span className="rounded-full bg-red-200 px-1.5 py-0.5 font-bold text-red-700">
-              {activeFiltersCount}
-            </span>
+            {activeFiltersCount > 0 ? (
+              <span className="rounded-full bg-red-200 px-1.5 py-0.5 font-bold text-red-700">
+                {activeFiltersCount}
+              </span>
+            ) : null}
           </button>
         </div>
 
@@ -2609,7 +2681,8 @@ export default function ProjectsDashboardPage() {
               </span>
             ) : statusFilter !== "all" ? (
               <span className="inline-flex items-center gap-1.5 text-xs bg-purple-50 border border-purple-200 text-purple-700 rounded-full px-2.5 py-1 font-medium capitalize">
-                {statusFilter}
+                {STATUS_FILTERS.find((s) => s.value === statusFilter)?.label ||
+                  statusFilter}
                 <button type="button" onClick={() => setStatusFilter("all")}>
                   <X className="w-3 h-3 hover:text-red-500" />
                 </button>

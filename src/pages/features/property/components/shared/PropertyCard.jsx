@@ -39,6 +39,11 @@ import {
   User,
   BarChart3,
   AlertTriangle,
+  Mail,
+  UserPlus,
+  Building2,
+  Eye,
+  MousePointerClick,
 } from "lucide-react";
 import { updateProjectRank } from "../../../../../features/property/propertyService";
 import { projectAnalytics } from "../../../../../features/property/propertyService";
@@ -50,6 +55,10 @@ import {
   promotionLifecycleCopy,
   titlePromotionType,
 } from "./promotionTracking";
+import {
+  formatInviteShortDate,
+  getBuilderInviteTracking,
+} from "./builderInviteTracking";
 
 // ─────────────────────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
@@ -444,6 +453,13 @@ export default function PropertyCard({
     tracking.previousType && tracking.previousType !== tracking.currentType
       ? `Was ${titlePromotionType(tracking.previousType)}`
       : "Promotion running";
+  const builderTrack = getBuilderInviteTracking(p);
+  const BuilderKindIcon =
+    builderTrack.kind === "attached"
+      ? Building2
+      : builderTrack.kind === "invite"
+        ? Mail
+        : UserPlus;
 
   const createdAtLabel = (() => {
     const raw = p.createdAt || p.created_at || p.postedAt;
@@ -734,6 +750,110 @@ export default function PropertyCard({
               </div>
             </div>
           )}
+
+          {/* Builder / invite tracking — same card pattern as promotion */}
+          <div
+            className={`mt-2 min-h-[74px] rounded-xl border px-2.5 py-2 text-[10px] transition-all duration-500 ${
+              builderTrack.kind === "none"
+                ? "border-rose-200 bg-gradient-to-r from-rose-50/90 via-white to-rose-50/40"
+                : builderTrack.kind === "invite"
+                  ? "border-sky-200 bg-gradient-to-r from-sky-50/90 via-white to-emerald-50/40"
+                  : "border-emerald-200 bg-gradient-to-r from-emerald-50/80 via-white to-emerald-50/30"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 items-start gap-1.5">
+                <span
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md ${
+                    builderTrack.kind === "none"
+                      ? "bg-rose-100 text-rose-600"
+                      : builderTrack.kind === "invite"
+                        ? "bg-sky-100 text-sky-700"
+                        : "bg-emerald-100 text-emerald-700"
+                  } ${builderTrack.animate ? "animate-pulse" : ""}`}
+                >
+                  <BuilderKindIcon className="h-3 w-3" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-slate-700">
+                    {builderTrack.headline}
+                  </p>
+                  <p className="mt-0.5 truncate text-slate-400">
+                    {builderTrack.subline}
+                  </p>
+                </div>
+              </div>
+              <span className="relative inline-flex shrink-0">
+                {builderTrack.animate ? (
+                  <span
+                    className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-40 ${
+                      builderTrack.kind === "none"
+                        ? "bg-rose-400"
+                        : builderTrack.uiStatus === "not_opened"
+                          ? "bg-amber-400"
+                          : "bg-sky-400"
+                    }`}
+                  />
+                ) : null}
+                <span
+                  className={`relative rounded-full border px-1.5 py-0.5 font-semibold capitalize ${builderTrack.badgeClass} ${
+                    builderTrack.animate ? "animate-pulse" : ""
+                  }`}
+                >
+                  {builderTrack.badgeLabel}
+                </span>
+              </span>
+            </div>
+
+            {builderTrack.kind === "invite" ? (
+              <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-slate-400">
+                <span>Sent {formatInviteShortDate(builderTrack.sentAt)}</span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex items-center gap-0.5">
+                    <Eye className="h-2.5 w-2.5 text-emerald-600" />
+                    {builderTrack.openedAt
+                      ? formatInviteShortDate(builderTrack.openedAt)
+                      : "—"}
+                  </span>
+                  <span className="inline-flex items-center gap-0.5">
+                    <MousePointerClick className="h-2.5 w-2.5 text-blue-600" />
+                    {builderTrack.clickedAt
+                      ? formatInviteShortDate(builderTrack.clickedAt)
+                      : "—"}
+                  </span>
+                </span>
+              </div>
+            ) : null}
+
+            {builderTrack.kind === "none" ? (
+              <button
+                type="button"
+                data-action
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/featured-project/${p._id}`);
+                }}
+                className="mt-1.5 rounded bg-rose-600 px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-rose-700"
+              >
+                Add builder
+              </button>
+            ) : null}
+
+            {builderTrack.kind === "invite" ? (
+              <button
+                type="button"
+                data-action
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/featured-project/${p._id}`);
+                }}
+                className="mt-1.5 rounded bg-sky-600 px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-sky-700"
+              >
+                View tracking
+              </button>
+            ) : null}
+          </div>
+
           {/* Bottom row: status + action buttons */}
           <div
             className="mt-auto flex min-h-[32px] flex-wrap items-center justify-between gap-2 pt-2"

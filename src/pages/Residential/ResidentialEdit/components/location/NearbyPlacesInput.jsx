@@ -889,10 +889,6 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
     const rawDistance = manualDistanceText.trim();
     if (!name || !rawDistance) return;
 
-    const distanceText = /\b(km|m)\b/i.test(rawDistance)
-      ? rawDistance
-      : `${rawDistance} km`;
-
     const alreadyAdded = value.some(
       (place) => place.name.toLowerCase() === name.toLowerCase()
     );
@@ -904,7 +900,7 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
         name,
         type: "manual",
         icon: "📍",
-        distanceText,
+        distanceText: rawDistance,
         order: value.length,
       },
     ]);
@@ -1038,7 +1034,7 @@ export default function NearbyPlacesInput({ value = [], onChange, coordinates })
               onKeyDown={(event) => {
                 if (event.key === "Enter") handleAddManualPlace();
               }}
-              placeholder="Distance (e.g. 1.2 km)"
+              placeholder="Distance (e.g. 2)"
               className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-medium text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/10"
             />
           </div>

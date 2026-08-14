@@ -1,58 +1,11 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/PropertyDetailsEditor.jsx
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { compressPdfAdvanced } from "../../CreateFeaturedProjects/utils/compressPdfAdvanced";
 import { compressImage } from "./imageCompressor";
 import { toast } from "sonner";
 
 /* ─── PINCODE AUTOFILL ───── */
-
-async function geocodePincode(pincode, signal) {
-
-  const url =
-    `https://nominatim.openstreetmap.org/search` +
-    `?postalcode=${pincode}` +
-    `&country=India` +
-    `&format=json` +
-    `&addressdetails=1` +
-    `&limit=1`;
-
-  const res = await fetch(url, { signal });
-
-  if (!res.ok) {
-    throw new Error("Pincode fetch failed");
-  }
-
-  const data = await res.json();
-
-  if (!Array.isArray(data) || !data.length) {
-    return null;
-  }
-
-  const a = data[0].address || {};
-
-  return {
-
-    locality: (
-      a.suburb ||
-      a.neighbourhood ||
-      a.village ||
-      a.town ||
-      ""
-    )
-      .replace(/^Ward\s*\d+\s*/i, "")
-      .trim(),
-
-    city:
-      a.city ||
-      a.town ||
-      a.village ||
-      "",
-
-    state:
-      a.state || "",
-  };
-}
 
 const PROPERTY_TYPES = {
   residential: [
@@ -85,8 +38,6 @@ export default function PropertyDetailsEditor({
   const [newBank, setNewBank] = useState("");
   const [newVideo, setNewVideo] = useState({ title: "", url: "", order: "" });
   const [brochureFile, setBrochureFile] = useState(null);
-
-  const pincodeAbortRef = useRef(null);
 
   useEffect(() => {
     setLocal({
@@ -139,45 +90,6 @@ export default function PropertyDetailsEditor({
   function change(field, value) {
     sync({ [field]: value });
   }
-
-  /* ─── PINCODE AUTOFILL ───── */
-
-  useEffect(() => {
-    const pin = (local?.pincode || "").replace(/\D/g, "");
-
-    if (pin.length !== 6) {
-      return;
-    }
-
-    pincodeAbortRef.current?.abort();
-
-    const ctrl = new AbortController();
-
-    pincodeAbortRef.current = ctrl;
-
-    const timer = setTimeout(async () => {
-      try {
-        const geo = await geocodePincode(pin, ctrl.signal);
-
-        if (!geo) return;
-
-        sync({
-          state: geo.state,
-          city: geo.city,
-          locality: geo.locality,
-        });
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.error(err);
-        }
-      }
-    }, 500);
-
-    return () => {
-      ctrl.abort();
-      clearTimeout(timer);
-    };
-  }, [local?.pincode]);
 
   /* ── Banks ── */
   function addBank() {
@@ -441,8 +353,15 @@ export default function PropertyDetailsEditor({
               <input
                 className={inputCls}
                 value={local.pincode ?? ""}
-                onChange={(e) => change("pincode", e.target.value)}
-                placeholder="500084"
+                onChange={(e) =>
+                  change(
+                    "pincode",
+                    e.target.value.replace(/\D/g, "").slice(0, 6),
+                  )
+                }
+                placeholder="6-digit pincode"
+                maxLength={6}
+                inputMode="numeric"
               />
             </FieldGroup>
 
@@ -816,9 +735,9 @@ function WarningTooltip() {
             z-50
           "
         >
-          ⚠ Use correct spelling.
+          ⚠ PIN is manual (6 digits).
           <br />
-          Use pincode autofill.
+          Edit State / City / Locality below.
         </div>
       )}
     </div>

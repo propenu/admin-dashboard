@@ -634,16 +634,16 @@ function WizardSection({ children, step, total, title, description, icon, accent
       </div>
 
       <div
-        className="bg-white rounded-3xl overflow-hidden shadow-sm transition-shadow duration-300 hover:shadow-md"
+        className="relative z-10 overflow-visible rounded-3xl bg-white shadow-sm transition-shadow duration-300 hover:shadow-md"
         style={{ border: `1.5px solid ${accentColor}18`, boxShadow: `0 2px 20px ${accentColor}08` }}
       >
-        <div className="h-0.5" style={{ background: `linear-gradient(90deg, ${accentColor}60, ${accentColor}20, transparent)` }} />
+        <div className="h-0.5 overflow-hidden rounded-t-3xl" style={{ background: `linear-gradient(90deg, ${accentColor}60, ${accentColor}20, transparent)` }} />
         {description && (
           <div className="border-b border-slate-100 bg-slate-50/60 px-4 py-3 sm:px-7">
             <p className="text-xs text-slate-500">{description}</p>
           </div>
         )}
-        <div className="p-3 sm:p-7 lg:p-8">{children}</div>
+        <div className="relative z-20 overflow-visible p-3 sm:p-7 lg:p-8">{children}</div>
       </div>
     </section>
   );

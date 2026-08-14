@@ -42,17 +42,19 @@ import {
   Upload,
   Search,
   Trash2,
+  Mail,
 } from "lucide-react";
 import {
   deleteAllProjectLeads,
   deleteProjectLead,
   projectAnalytics,
   projectExternalFileAddLeads,
+  getBuilderOnboardingState,
+  getFeaturedProjectById,
 } from "../../../../../features/property/propertyService";
 import {
   fetchFeaturedProperties,
 } from "../../../../../services/PropertyService";
-import { getFeaturedProjectById } from "../../../../../features/property/propertyService";
 import LoadingSpinner from "../../../../../components/common/LoadingSpinner";
 import GalleryLightbox from "../../../../../components/common/GalleryLightbox";
 import Fallback from "../../../../../assets/fallback.svg";
@@ -217,6 +219,289 @@ const getLeadSearchText = (lead) =>
     .map((value) => formatLeadText(value))
     .join(" ")
     .toLowerCase();
+
+/** Invite email journey steps for project detail tracking card */
+const INVITE_TRACK_STEPS = [
+  { key: "sent", label: "Sent", hint: "Email sent" },
+  { key: "delivered", label: "Delivered", hint: "In inbox" },
+  { key: "opened", label: "Opened", hint: "They opened it" },
+  { key: "clicked", label: "Clicked", hint: "Link clicked" },
+  { key: "onboarded", label: "Onboarded", hint: "Builder joined" },
+];
+
+const inviteStepRank = (uiStatus, emailStatus) => {
+  const s = String(uiStatus || emailStatus || "").toLowerCase();
+  if (["onboarded", "verified"].includes(s)) return 5;
+  if (["interested", "otp_pending"].includes(s)) return 4;
+  if (s === "clicked") return 4;
+  if (s === "opened") return 3;
+  if (s === "not_opened") return 2; // delivered but not opened
+  if (["delivered", "sent", "queued", "invited"].includes(s)) {
+    return s === "delivered" || s === "not_opened" ? 2 : 1;
+  }
+  if (["failed", "bounced", "expired", "revoked", "rejected"].includes(s)) {
+    return -1;
+  }
+  return 0;
+};
+
+const inviteStatusLabel = (uiStatus, emailStatus) => {
+  const s = String(uiStatus || emailStatus || "").toLowerCase();
+  const map = {
+    queued: "Queued",
+    sent: "Sent",
+    delivered: "Delivered",
+    not_opened: "Not opened",
+    opened: "Opened",
+    clicked: "Clicked",
+    interested: "Interested",
+    otp_pending: "OTP pending",
+    onboarded: "Onboarded",
+    verified: "Onboarded",
+    failed: "Send failed",
+    bounced: "Bounced",
+    expired: "Expired",
+    revoked: "Revoked",
+    rejected: "Rejected",
+  };
+  return map[s] || (s ? s.replace(/_/g, " ") : "No invite yet");
+};
+
+const inviteBadgeClass = (uiStatus, emailStatus) => {
+  const s = String(uiStatus || emailStatus || "").toLowerCase();
+  if (s === "not_opened") return "bg-amber-50 text-amber-800 border-amber-200";
+  if (s === "opened") return "bg-emerald-50 text-emerald-800 border-emerald-200";
+  if (s === "clicked" || s === "interested" || s === "otp_pending")
+    return "bg-blue-50 text-blue-800 border-blue-200";
+  if (s === "onboarded" || s === "verified")
+    return "bg-green-50 text-green-800 border-green-200";
+  if (["failed", "bounced", "expired", "revoked", "rejected"].includes(s))
+    return "bg-red-50 text-red-700 border-red-200";
+  return "bg-slate-50 text-slate-700 border-slate-200";
+};
+
+/** One invite email row with its own sent → opened → clicked tracing */
+function SingleInviteTrace({ invite, index, total, isLatest }) {
+  const uiStatus = invite?.emailUiStatus || "";
+  const emailStatus = invite?.emailStatus || "";
+  const rank = inviteStepRank(uiStatus, emailStatus);
+  const isFailed = rank < 0;
+  const email = invite?.email || "—";
+  const sentAt = invite?.sentAt || null;
+  const deliveredAt = invite?.deliveredAt || null;
+  const openedAt = invite?.openedAt || null;
+  const clickedAt = invite?.clickedAt || null;
+  const openCount = invite?.openCount || 0;
+  const clickCount = invite?.clickCount || 0;
+  const openedConfirmed =
+    Boolean(openedAt) || Boolean(clickedAt) || rank >= 3;
+  const openedViaClickOnly = !openedAt && (Boolean(clickedAt) || rank >= 4);
+  const superseded = invite?.isActive === false && !["onboarded", "verified"].includes(
+    String(uiStatus).toLowerCase(),
+  );
+
+  const stepDone = (stepKey) => {
+    if (isFailed && stepKey !== "sent") return false;
+    if (stepKey === "sent") return rank >= 1 || Boolean(sentAt) || Boolean(deliveredAt);
+    if (stepKey === "delivered")
+      return rank >= 2 || Boolean(deliveredAt) || uiStatus === "not_opened";
+    if (stepKey === "opened") return openedConfirmed;
+    if (stepKey === "clicked") return rank >= 4 || Boolean(clickedAt);
+    if (stepKey === "onboarded") return rank >= 5;
+    return false;
+  };
+
+  return (
+    <div
+      className={`rounded-xl border px-3 py-2.5 ${
+        isLatest
+          ? "border-emerald-200 bg-emerald-50/30"
+          : "border-slate-100 bg-white"
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+              Email {total - index}
+              {isLatest ? " · latest" : ""}
+            </p>
+            {superseded ? (
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[8px] font-semibold text-slate-500">
+                Older send (still tracked)
+              </span>
+            ) : null}
+            {invite?.isActive ? (
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-700">
+                Active link
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-0.5 truncate text-[12px] font-semibold text-slate-800">
+            {email}
+          </p>
+        </div>
+        <span
+          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold capitalize ${inviteBadgeClass(
+            uiStatus,
+            emailStatus,
+          )}`}
+        >
+          {inviteStatusLabel(uiStatus, emailStatus)}
+        </span>
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-5">
+        {INVITE_TRACK_STEPS.map((step, idx) => {
+          const done = stepDone(step.key);
+          const current =
+            !isFailed &&
+            ((step.key === "sent" && rank === 1) ||
+              (step.key === "delivered" &&
+                (rank === 2 || uiStatus === "not_opened")) ||
+              (step.key === "opened" && rank === 3) ||
+              (step.key === "clicked" && rank === 4) ||
+              (step.key === "onboarded" && rank >= 5));
+          return (
+            <div
+              key={step.key}
+              className={`rounded-lg border px-1.5 py-1.5 text-center ${
+                done
+                  ? "border-emerald-200 bg-emerald-50/70"
+                  : current
+                    ? "border-[#27AE60] bg-[#f0fdf4]"
+                    : "border-slate-100 bg-slate-50/80"
+              }`}
+            >
+              <div
+                className={`mx-auto mb-1 flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold ${
+                  done
+                    ? "bg-[#27AE60] text-white"
+                    : "border border-slate-200 bg-white text-slate-400"
+                }`}
+              >
+                {done ? <CheckCircle2 className="h-3 w-3" /> : idx + 1}
+              </div>
+              <p
+                className={`text-[10px] font-semibold leading-tight ${
+                  done || current ? "text-slate-800" : "text-slate-400"
+                }`}
+              >
+                {step.label}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {openedViaClickOnly ? (
+        <p className="mt-1.5 text-[9px] leading-snug text-sky-700">
+          Opened ✓ via click (exact open time blocked by inbox).
+        </p>
+      ) : null}
+
+      <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+        <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-1.5">
+          <p className="text-[8px] font-semibold uppercase tracking-wide text-slate-400">
+            Sent
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-slate-800">
+            {sentAt ? formatLeadDateTime(sentAt) : "Not sent yet"}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-1.5">
+          <p className="text-[8px] font-semibold uppercase tracking-wide text-slate-400">
+            Opened
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-slate-800">
+            {openedAt
+              ? formatLeadDateTime(openedAt)
+              : openedViaClickOnly
+                ? "Yes — confirmed by click"
+                : openedConfirmed
+                  ? "Yes"
+                  : "Not opened yet"}
+            {openCount > 1 ? (
+              <span className="ml-1 text-[9px] text-emerald-600">×{openCount}</span>
+            ) : null}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-1.5">
+          <p className="text-[8px] font-semibold uppercase tracking-wide text-slate-400">
+            Clicked
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-slate-800">
+            {clickedAt
+              ? formatLeadDateTime(clickedAt)
+              : stepDone("clicked")
+                ? "Yes"
+                : "Not clicked yet"}
+            {clickCount > 1 ? (
+              <span className="ml-1 text-[9px] text-blue-600">×{clickCount}</span>
+            ) : null}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BuilderInviteTrackingCard({ onboardingData, isLoading }) {
+  const onboarding = onboardingData?.project?.builderOnboarding || null;
+  const invites = Array.isArray(onboardingData?.invites)
+    ? onboardingData.invites
+    : onboardingData?.latestInvite
+      ? [onboardingData.latestInvite]
+      : [];
+  const mode = String(
+    onboarding?.mode || invites[0]?.mode || "",
+  ).toLowerCase();
+
+  if (!isLoading && invites.length === 0 && mode !== "invite_link") return null;
+
+  return (
+    <SectionCard>
+      <SectionHeader
+        icon={Mail}
+        title="Builder invite tracking"
+        sub={
+          invites.length > 1
+            ? `All ${invites.length} invite emails — each tracked separately`
+            : "Sent → opened → clicked → onboarded"
+        }
+      />
+      <div className="space-y-3 p-4">
+        {isLoading ? (
+          <p className="text-[11px] text-slate-500">Loading invite tracking…</p>
+        ) : invites.length === 0 ? (
+          <p className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+            No invite email yet. Use <strong>Builder Invite</strong> to send one.
+          </p>
+        ) : (
+          <>
+            {invites.length > 1 ? (
+              <p className="text-[10px] text-slate-500">
+                Every sent email is listed below with its own open / click
+                status. Older sends stay tracked even after a new invite.
+              </p>
+            ) : null}
+            <div className="space-y-2.5">
+              {invites.map((invite, index) => (
+                <SingleInviteTrace
+                  key={invite.id || `${invite.email}-${invite.sentAt}-${index}`}
+                  invite={invite}
+                  index={index}
+                  total={invites.length}
+                  isLatest={index === 0}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </SectionCard>
+  );
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function SectionCard({ children, className = "" }) {
@@ -1115,6 +1400,20 @@ export default function FeaturedPropertyDetails() {
     enabled: !!id,
   });
 
+  const {
+    data: onboardingRes,
+    isLoading: onboardingLoading,
+    refetch: refetchOnboarding,
+  } = useQuery({
+    queryKey: ["builderOnboarding", id],
+    queryFn: () => getBuilderOnboardingState(id),
+    enabled: !!id,
+    staleTime: 15_000,
+  });
+
+  const onboardingData =
+    onboardingRes?.data?.data || onboardingRes?.data || null;
+
   if (listLoading || analyticsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -1466,9 +1765,19 @@ export default function FeaturedPropertyDetails() {
             queryClient.invalidateQueries({
               queryKey: ["getFeaturedProjectById", id],
             });
+            queryClient.invalidateQueries({
+              queryKey: ["builderOnboarding", id],
+            });
+            refetchOnboarding();
           }}
         />
       ) : null}
+
+      {/* Builder invite email: Sent / Opened / Clicked tracking */}
+      <BuilderInviteTrackingCard
+        onboardingData={onboardingData}
+        isLoading={onboardingLoading}
+      />
 
       {/* ── PEOPLE ROW: Created By | Posted By | Last Updated By ──────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

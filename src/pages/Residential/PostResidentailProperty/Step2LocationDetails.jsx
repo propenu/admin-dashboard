@@ -3,8 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { actions } from "../../../store/newIndex";
 import {
   Phone, X, Check, MapPin, Navigation, Search,
-  Loader2, Plus, LocateFixed,
+  Loader2, Plus, LocateFixed, ChevronDown,
 } from "lucide-react";
+import { City, State } from "country-state-city";
 import { savePropertyData } from "../../../store/common/propertyThunks";
 import { useEffect, useState, useRef, useCallback, useId, useMemo } from "react";
 import { toast } from "sonner";
@@ -36,6 +37,148 @@ const titleCase = (str) => {
 
 // Strip "Ward 4B " prefix Nominatim sometimes adds
 const stripWard = (s) => (s ? s.replace(/^ward\s*\d+[a-z]?\s+/i, "").trim() : "");
+
+const normalizeComparisonValue = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+const matchesSearchPrefix = (label, query) => {
+  const normalizedLabel = normalizeComparisonValue(label);
+  const normalizedQuery = normalizeComparisonValue(query);
+  if (!normalizedLabel || !normalizedQuery) return false;
+  if (normalizedLabel.startsWith(normalizedQuery)) return true;
+  const labelSegments = normalizedLabel.split(" ").filter(Boolean);
+  const querySegments = normalizedQuery.split(" ").filter(Boolean);
+  if (!querySegments.length) return false;
+  return querySegments.every((qs) =>
+    labelSegments.some((ls) => ls.startsWith(qs)),
+  );
+};
+
+// India bounding box for Photon locality search (same as propenu.com)
+const INDIA_BBOX = "68.1766451354,7.96553477623,97.4025614766,35.4940095078";
+
+async function searchLocalitiesWithPhoton(
+  query,
+  signal,
+  activeState,
+  activeCity,
+  searchText,
+) {
+  if (!query?.trim()) return [];
+  try {
+    const fullQuery = [query, activeCity, activeState].filter(Boolean).join(", ");
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(fullQuery)}&lang=en&limit=12&bbox=${INDIA_BBOX}`;
+    const res = await fetch(url, { signal });
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    const features = data?.features || [];
+    const seen = new Set();
+    const suggestions = [];
+    const wardPattern = /ward\s*\d+/i;
+
+    for (const feature of features) {
+      const p = feature.properties || {};
+      if (p.country && p.country !== "India") continue;
+
+      const rawSource = p.suburb || p.locality || p.name || "";
+      if (
+        wardPattern.test(rawSource) ||
+        wardPattern.test(p.name || "") ||
+        wardPattern.test(p.suburb || "") ||
+        wardPattern.test(p.locality || "")
+      ) {
+        continue;
+      }
+
+      const localityName = titleCase(stripWard(rawSource));
+      if (!localityName || wardPattern.test(localityName)) continue;
+
+      const rawCity = titleCase(stripWard(p.city || p.district || ""));
+      const city = wardPattern.test(rawCity) ? "" : rawCity;
+      const state = titleCase(p.state || "");
+
+      if (searchText && !matchesSearchPrefix(localityName, searchText)) continue;
+      if (
+        activeCity &&
+        city &&
+        normalizeComparisonValue(city) !== normalizeComparisonValue(activeCity)
+      ) {
+        continue;
+      }
+      if (
+        activeState &&
+        state &&
+        normalizeComparisonValue(state) !== normalizeComparisonValue(activeState)
+      ) {
+        continue;
+      }
+
+      const key = normalizeComparisonValue(`${localityName}|${city}|${state}`);
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const coords = feature.geometry?.coordinates;
+      if (!Array.isArray(coords) || coords.length !== 2) continue;
+
+      suggestions.push({
+        label: localityName,
+        city,
+        state,
+        coordinates: coords,
+      });
+    }
+    return suggestions;
+  } catch (err) {
+    if (err?.name !== "AbortError") console.error("Photon locality search:", err);
+    return [];
+  }
+}
+
+function getStateSuggestions(query) {
+  return State.getStatesOfCountry("IN")
+    .map((state) => ({ label: state.name, isoCode: state.isoCode }))
+    .filter((state) =>
+      query.trim() ? matchesSearchPrefix(state.label, query) : true,
+    );
+}
+
+function getCitySuggestions(stateName, query) {
+  if (!stateName) return [];
+  const selectedState = State.getStatesOfCountry("IN").find(
+    (state) =>
+      normalizeComparisonValue(state.name) ===
+      normalizeComparisonValue(stateName),
+  );
+  if (!selectedState) return [];
+  return City.getCitiesOfState("IN", selectedState.isoCode)
+    .map((city) => ({
+      label: city.name,
+      state: selectedState.name,
+      stateCode: selectedState.isoCode,
+    }))
+    .filter((city) =>
+      query?.trim() ? matchesSearchPrefix(city.label, query) : true,
+    );
+}
+
+async function geocodeLocationWithPhoton(query, signal) {
+  if (!query?.trim()) return null;
+  try {
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lang=en&limit=1&bbox=${INDIA_BBOX}`;
+    const res = await fetch(url, { signal });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const coordinates = data?.features?.[0]?.geometry?.coordinates;
+    return coordinates?.length === 2 ? coordinates : null;
+  } catch (err) {
+    if (err?.name !== "AbortError") console.error("Photon geocode:", err);
+    return null;
+  }
+}
 
 // ─────────────────────────────────────────────
 // Mappls SDK loader  (map rendering ONLY)
@@ -98,8 +241,8 @@ function recenterMap(map, lat, lng, zoom) {
 // ─────────────────────────────────────────────
 
 /**
- * Reverse geocode lat/lng → { pincode, locality, city, state }
- * Called on every map click and on GPS fix.
+ * Reverse geocode lat/lng → { locality, city, state }
+ * Used for map click / GPS. PIN Code is never set from this (manual only).
  */
 async function reverseGeocode(lat, lng, signal) {
   const res = await fetch(
@@ -110,86 +253,12 @@ async function reverseGeocode(lat, lng, signal) {
   const data = await res.json();
   const a    = data?.address || {};
   return {
-    pincode:  a.postcode || "",
     locality: titleCase(stripWard(
       a.suburb || a.neighbourhood || a.hamlet ||
       a.village || a.town || a.city_district || a.county || ""
     )),
     city:  titleCase(a.city || a.town || a.village || a.city_district || a.state_district || a.county || ""),
     state: titleCase(a.state || ""),
-  };
-}
-
-/**
- * Forward geocode a 6-digit pincode → { lat, lng, locality, city, state }
- * Called when user manually types pincode.
- */
-async function lookupPostalPin(pincode, signal) {
-  try {
-    const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal });
-    if (!res.ok) return { city: "", state: "" };
-
-    const data = await res.json();
-    const firstOffice = data?.[0]?.PostOffice?.[0] || {};
-
-    return {
-      locality: titleCase(firstOffice.Name || firstOffice.Block || ""),
-      city: titleCase(firstOffice.District || ""),
-      state: titleCase(firstOffice.State || ""),
-    };
-  } catch (err) {
-    if (err?.name !== "AbortError") console.error("Postal PIN lookup error:", err);
-    return { city: "", state: "" };
-  }
-}
-
-async function lookupNominatimPincode(pincode, signal) {
-  const urls = [
-    `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=India&format=json&addressdetails=1&limit=1&accept-language=en`,
-    `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&accept-language=en&q=${encodeURIComponent(`${pincode}, India`)}`,
-  ];
-
-  for (const url of urls) {
-    const res = await fetch(url, { signal, headers: { "Accept-Language": "en" } });
-    if (!res.ok) continue;
-
-    const data = await res.json();
-    if (Array.isArray(data) && data.length) return data[0];
-  }
-
-  return null;
-}
-
-async function geocodePincode(pincode, signal) {
-  const [postal, best] = await Promise.all([
-    lookupPostalPin(pincode, signal),
-    lookupNominatimPincode(pincode, signal),
-  ]);
-
-  // Postal PIN data can still fill the address if Nominatim has no coordinate
-  // match for this pincode.
-  if (!best) {
-    return {
-      lat: NaN,
-      lng: NaN,
-      locality: postal.locality || "",
-      city: postal.city || "",
-      state: postal.state || "",
-    };
-  }
-
-  const a = best?.address || {};
-  return {
-    lat: parseFloat(best.lat),
-    lng: parseFloat(best.lon),
-    // Locality/coordinates come from OpenStreetMap; India Post is the
-    // authoritative source used below for city and state.
-    locality: titleCase(stripWard(
-      a.suburb || a.neighbourhood || a.hamlet ||
-      a.village || a.town || a.city_district || a.county || ""
-    )) || postal.locality || "",
-    city: postal.city || titleCase(a.city || a.town || a.village || a.city_district || a.state_district || a.county || ""),
-    state: postal.state || titleCase(a.state || ""),
   };
 }
 
@@ -348,8 +417,12 @@ const SectionLabel = ({ children }) => (
   <p className="text-[11px] font-bold text-[#6b7280] uppercase tracking-widest mb-3">{children}</p>
 );
 
-const CardWrapper = ({ children, className = "" }) => (
-  <div className={`bg-white rounded-2xl border border-[#e6f4ec] p-6 shadow-sm ${className}`}>
+const CardWrapper = ({ children, className = "", elevate = false }) => (
+  <div
+    className={`bg-white rounded-2xl border border-[#e6f4ec] p-6 shadow-sm overflow-visible ${
+      elevate ? "relative z-30" : "relative z-0"
+    } ${className}`}
+  >
     {children}
   </div>
 );
@@ -365,6 +438,115 @@ const FieldWrapper = ({ label, children, error }) => (
 const inputCls =
   "w-full border border-[#d1d5db] rounded-xl px-3.5 py-3 text-sm font-medium text-[#111827] " +
   "focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10 outline-none transition-all placeholder:text-[#9ca3af]";
+
+/** Searchable dropdown matching propenu.com State / City / Locality UX */
+function SearchableSelect({
+  label,
+  value,
+  placeholder,
+  error,
+  disabled = false,
+  open,
+  onToggle,
+  searchValue,
+  onSearchChange,
+  searchPlaceholder,
+  loading = false,
+  options = [],
+  onSelect,
+  emptyHint,
+  dropdownRef,
+  optionKey = (opt, idx) => `${opt.label}-${idx}`,
+  renderOption,
+}) {
+  return (
+    <FieldWrapper label={label} error={error}>
+      <div
+        ref={dropdownRef}
+        className={`relative w-full ${open ? "z-[60]" : "z-10"}`}
+      >
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onToggle}
+          className={`${inputCls} flex items-center justify-between gap-2 text-left ${
+            error ? "border-red-500" : ""
+          } ${open ? "border-[#27AE60]" : ""} ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+        >
+          <span
+            className={`min-w-0 flex-1 truncate ${
+              value ? "text-[#111827]" : "text-[#9ca3af]"
+            }`}
+          >
+            {value || placeholder}
+          </span>
+          <ChevronDown
+            size={16}
+            className={`shrink-0 text-gray-500 transition-transform ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {open && (
+          <div className="absolute left-0 right-0 top-full z-[70] mt-1 max-h-60 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+            <div className="relative border-b border-gray-100 p-2">
+              <input
+                autoFocus
+                type="text"
+                value={searchValue}
+                placeholder={searchPlaceholder}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/20"
+              />
+              {loading && (
+                <span className="absolute right-4 top-1/2 -translate-y-1/2">
+                  <Loader2 size={14} className="animate-spin text-gray-400" />
+                </span>
+              )}
+            </div>
+            <div className="max-h-48 overflow-y-auto py-1" role="listbox">
+              {options.length > 0 ? (
+                options.map((opt, idx) => {
+                  const isSelected =
+                    normalizeComparisonValue(value) ===
+                    normalizeComparisonValue(opt.label);
+                  return (
+                    <button
+                      key={optionKey(opt, idx)}
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => onSelect(opt)}
+                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition ${
+                        isSelected
+                          ? "bg-[#f0fdf4] text-[#27AE60]"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {renderOption ? (
+                        renderOption(opt)
+                      ) : (
+                        <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                      )}
+                      {isSelected && (
+                        <Check size={14} className="shrink-0 text-[#27AE60]" />
+                      )}
+                    </button>
+                  );
+                })
+              ) : !loading ? (
+                <p className="px-3 py-3 text-sm text-gray-400">{emptyHint}</p>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
+    </FieldWrapper>
+  );
+}
 
 // ─────────────────────────────────────────────
 // NearbyPlacesPanel
@@ -518,17 +700,10 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
     const name = manualPlaceName.trim();
     if (!name || selectedPlaces.some((p) => p.name.toLowerCase() === name.toLowerCase())) return;
 
-    const rawDistance = manualDistance.trim();
-    const distanceText = rawDistance
-      ? /\b(km|m)\b/i.test(rawDistance)
-        ? rawDistance.toUpperCase()
-        : `${rawDistance} KM`
-      : "";
-
     onAdd({
       name,
       type: "manual",
-      distanceText,
+      distanceText: manualDistance.trim(),
       isManual: true,
     });
 
@@ -556,7 +731,7 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
           value={manualDistance}
           onChange={(e) => setManualDistance(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && addManualPlace()}
-          placeholder="2 KM"
+          placeholder="Distance (e.g. 2)"
           className="w-full border border-[#d1d5db] rounded-xl px-3.5 py-2.5 text-sm font-medium text-[#111827] focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10 outline-none transition-all placeholder:text-[#9ca3af]"
         />
         <button
@@ -824,14 +999,13 @@ function MapplsPinMap({ coordinates, onPinChange }) {
             // Notify parent instantly (coordinates only)
             onPinChangeRef.current?.({ coordinates: [lng, lat] });
 
-            // Then reverse geocode via Nominatim → fills pincode + locality + city + state
+            // Reverse geocode → State / City / Locality (PIN stays manual)
             geocodeAbortRef.current?.abort();
             const ctrl = new AbortController();
             geocodeAbortRef.current = ctrl;
 
             reverseGeocode(lat, lng, ctrl.signal)
               .then((geo) => {
-                // geo = { pincode, locality, city, state }
                 onPinChangeRef.current?.({ coordinates: [lng, lat], ...geo });
               })
               .catch((err) => {
@@ -908,41 +1082,239 @@ export default function Step2LocationDetails({ next, back, category }) {
   const [locatingUser, setLocatingUser] = useState(false);
   const [mapPopup,     setMapPopup]     = useState(null);
 
+  // State / City / Locality searchable dropdowns (propenu.com parity)
+  const [stateOpen, setStateOpen] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
+  const [localityOpen, setLocalityOpen] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
+  const [citySearch, setCitySearch] = useState("");
+  const [localitySearch, setLocalitySearch] = useState("");
+  const [stateSuggestions, setStateSuggestions] = useState([]);
+  const [citySuggestions, setCitySuggestions] = useState([]);
+  const [localitySuggestions, setLocalitySuggestions] = useState([]);
+  const [stateLoading, setStateLoading] = useState(false);
+  const [cityLoading, setCityLoading] = useState(false);
+  const [localityLoading, setLocalityLoading] = useState(false);
+
   const topRef               = useRef(null);
   const gpsAbortRef          = useRef(null);   // GPS reverse geocode
-  const pincodeAbortRef      = useRef(null);   // pincode forward geocode
   const coordinatesAbortRef  = useRef(null);   // coordinate reverse geocode
-  const pincodeCacheRef      = useRef(new Map());
+  const fieldGeocodeAbortRef = useRef(null);   // locality/city/state → pin
   const pinPlacedByUserRef   = useRef(false);  // true after manual map click or GPS
-  const manualPincodeEditRef = useRef(false);  // skip autofill when returning with saved data
   const manualCoordinateEditRef = useRef(false); // don't reverse-geocode API hydration
   const skipCoordinateReverseRef = useRef(false);
+  const skipNextFieldGeocodeRef = useRef(false);
+  const stateDropdownRef = useRef(null);
+  const cityDropdownRef = useRef(null);
+  const localityDropdownRef = useRef(null);
 
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
+
+  // Close searchable dropdowns on outside click
+  useEffect(() => {
+    if (!stateOpen && !cityOpen && !localityOpen) return;
+    const onDown = (event) => {
+      if (
+        stateOpen &&
+        stateDropdownRef.current &&
+        !stateDropdownRef.current.contains(event.target)
+      ) {
+        setStateOpen(false);
+      }
+      if (
+        cityOpen &&
+        cityDropdownRef.current &&
+        !cityDropdownRef.current.contains(event.target)
+      ) {
+        setCityOpen(false);
+      }
+      if (
+        localityOpen &&
+        localityDropdownRef.current &&
+        !localityDropdownRef.current.contains(event.target)
+      ) {
+        setLocalityOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [stateOpen, cityOpen, localityOpen]);
+
+  useEffect(() => {
+    if (!stateOpen) {
+      setStateSuggestions([]);
+      return;
+    }
+    const tid = setTimeout(() => {
+      setStateLoading(true);
+      setStateSuggestions(getStateSuggestions(stateSearch));
+      setStateLoading(false);
+    }, 250);
+    return () => clearTimeout(tid);
+  }, [stateOpen, stateSearch]);
+
+  useEffect(() => {
+    if (!cityOpen) {
+      setCitySuggestions([]);
+      return;
+    }
+    const query = citySearch.trim();
+    if (!form.state || (query.length > 0 && query.length < 2)) {
+      setCitySuggestions([]);
+      return;
+    }
+    const tid = setTimeout(() => {
+      setCityLoading(true);
+      setCitySuggestions(getCitySuggestions(form.state, query || undefined));
+      setCityLoading(false);
+    }, 250);
+    return () => clearTimeout(tid);
+  }, [cityOpen, citySearch, form.state]);
+
+  useEffect(() => {
+    if (!localityOpen) {
+      setLocalitySuggestions([]);
+      return;
+    }
+    const trimmed = localitySearch.trim();
+    if (!form.city || trimmed.length < 2) {
+      setLocalitySuggestions([]);
+      return;
+    }
+    const ctrl = new AbortController();
+    const tid = setTimeout(async () => {
+      setLocalityLoading(true);
+      const results = await searchLocalitiesWithPhoton(
+        trimmed,
+        ctrl.signal,
+        form.state || undefined,
+        form.city || undefined,
+        trimmed,
+      );
+      setLocalitySuggestions(results);
+      setLocalityLoading(false);
+    }, 400);
+    return () => {
+      ctrl.abort();
+      clearTimeout(tid);
+      setLocalityLoading(false);
+    };
+  }, [localityOpen, localitySearch, form.city, form.state]);
 
   const setValue = useCallback((key, value) => {
     dispatch(actions[category].updateField({ key, value }));
     if (errors[key]) setErrors((prev) => { const u = { ...prev }; delete u[key]; return u; });
   }, [dispatch, category, errors]);
 
-  // Called by MapplsPinMap on every click → receives { coordinates, pincode?, locality?, city?, state? }
-  const handlePinChange = useCallback(({ coordinates, pincode, locality, city, state }) => {
+  // When locality/city/state change (not from map/pin select), move map pin via Photon
+  useEffect(() => {
+    if (skipNextFieldGeocodeRef.current) {
+      skipNextFieldGeocodeRef.current = false;
+      return;
+    }
+    if (!form.locality) return;
+
+    fieldGeocodeAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    fieldGeocodeAbortRef.current = ctrl;
+
+    const run = async () => {
+      const candidates = [
+        [form.locality, form.city, form.state].filter(Boolean).join(", "),
+        [form.locality, form.state].filter(Boolean).join(", "),
+        [form.city, form.state].filter(Boolean).join(", "),
+        String(form.locality),
+      ].filter(Boolean);
+
+      for (const query of candidates) {
+        const coordinates = await geocodeLocationWithPhoton(query, ctrl.signal);
+        if (!coordinates) continue;
+        skipCoordinateReverseRef.current = true;
+        pinPlacedByUserRef.current = false;
+        setValue("location", { type: "Point", coordinates });
+        setMarkerPlaced(true);
+        return;
+      }
+    };
+    run();
+    return () => ctrl.abort();
+  }, [form.locality, form.city, form.state, setValue]);
+
+  // Map click / GPS → show State, City, Locality from map point.
+  // PIN Code stays manual (user types 6 digits) — never set from map/PIN lookup.
+  const handlePinChange = useCallback(({ coordinates, locality, city, state }) => {
     pinPlacedByUserRef.current  = true;
-    manualPincodeEditRef.current = false;
     skipCoordinateReverseRef.current = true;
+    skipNextFieldGeocodeRef.current = true;
     setMarkerPlaced(true);
 
     setValue("location", { type: "Point", coordinates });
     setErrors((prev) => { const u = { ...prev }; delete u.location; return u; });
 
-    // Text fields only updated when Nominatim returns data (second callback)
-    if (pincode)  setValue("pincode",  pincode);
     if (locality) setValue("locality", locality);
     if (city)     setValue("city",     city);
     if (state)    setValue("state",    state);
   }, [setValue]);
+
+  const applyStateSelection = useCallback(
+    (suggestion) => {
+      skipNextFieldGeocodeRef.current = true;
+      setValue("state", suggestion.label);
+      const cities = getCitySuggestions(suggestion.label);
+      if (
+        form.city &&
+        !cities.some(
+          (c) =>
+            normalizeComparisonValue(c.label) ===
+            normalizeComparisonValue(form.city),
+        )
+      ) {
+        setValue("city", "");
+        setValue("locality", "");
+      }
+      setStateSearch("");
+      setStateOpen(false);
+    },
+    [form.city, setValue],
+  );
+
+  const applyCitySelection = useCallback(
+    (suggestion) => {
+      skipNextFieldGeocodeRef.current = true;
+      setValue("city", suggestion.label);
+      if (suggestion.state) setValue("state", suggestion.state);
+      setCitySearch("");
+      setCityOpen(false);
+    },
+    [setValue],
+  );
+
+  const applyLocalitySelection = useCallback(
+    (suggestion) => {
+      skipNextFieldGeocodeRef.current = true;
+      skipCoordinateReverseRef.current = true;
+      pinPlacedByUserRef.current = false;
+      setValue("locality", suggestion.label);
+      if (suggestion.city) setValue("city", suggestion.city);
+      if (suggestion.state) setValue("state", suggestion.state);
+      if (
+        Array.isArray(suggestion.coordinates) &&
+        suggestion.coordinates.length === 2
+      ) {
+        setValue("location", {
+          type: "Point",
+          coordinates: suggestion.coordinates,
+        });
+        setMarkerPlaced(true);
+      }
+      setLocalitySearch("");
+      setLocalityOpen(false);
+      setLocalitySuggestions([]);
+    },
+    [setValue],
+  );
 
   // GPS button
   const handleUseMyLocation = useCallback(() => {
@@ -1002,8 +1374,8 @@ export default function Step2LocationDetails({ next, back, category }) {
     reverseGeocode(lat, lng, ctrl.signal)
       .then((geo) => {
         manualCoordinateEditRef.current = false;
-        manualPincodeEditRef.current = false;
-        if (geo.pincode) setValue("pincode", geo.pincode);
+        skipNextFieldGeocodeRef.current = true;
+        // PIN stays manual — only State / City / Locality from map point
         if (geo.locality) setValue("locality", geo.locality);
         if (geo.city) setValue("city", geo.city);
         if (geo.state) setValue("state", geo.state);
@@ -1015,60 +1387,14 @@ export default function Step2LocationDetails({ next, back, category }) {
       });
 
     return () => ctrl.abort();
-  }, [form.location?.coordinates]);
-
-  // ── Pincode auto-fill via Nominatim ───────────────────────────────────────
-  // Fires when user types a complete 6-digit pincode.
-  // → fills locality / city / state AND places map marker (if not pinned yet).
-  useEffect(() => {
-    // Existing property data can hydrate field-by-field. Never let the saved
-    // pincode overwrite its saved locality/city/state during that initial load.
-    // Autofill is intentionally enabled only by a real PIN input edit.
-    if (!manualPincodeEditRef.current) return;
-
-    const pin = (form.pincode || "").replace(/\D/g, "");
-    if (pin.length !== 6) return;
-
-    pincodeAbortRef.current?.abort();
-    const ctrl = new AbortController();
-    pincodeAbortRef.current = ctrl;
-
-    const tid = setTimeout(async () => {
-      try {
-        const cachedGeo = pincodeCacheRef.current.get(pin);
-        const geo = cachedGeo || await geocodePincode(pin, ctrl.signal);
-        if (!geo) return;
-        if (!cachedGeo) pincodeCacheRef.current.set(pin, geo);
-
-        const { lat, lng, locality, city, state } = geo;
-
-        // Always update address text fields
-        if (locality) setValue("locality", locality);
-        if (city)     setValue("city",     city);
-        if (state)    setValue("state",    state);
-
-        // A typed pincode is the latest location choice, so always move the
-        // marker even when the user previously clicked the map or used GPS.
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          pinPlacedByUserRef.current = false;
-          skipCoordinateReverseRef.current = true;
-          setValue("location", { type: "Point", coordinates: [lng, lat] });
-          setMarkerPlaced(true);
-        }
-      } catch (e) {
-        if (e?.name !== "AbortError") console.error("Pincode geocode error:", e);
-      }
-    }, 300);
-
-    return () => { ctrl.abort(); clearTimeout(tid); };
-  }, [form.pincode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [form.location?.coordinates, setValue]);
 
   // Cleanup
   useEffect(() => {
     return () => {
       gpsAbortRef.current?.abort();
-      pincodeAbortRef.current?.abort();
       coordinatesAbortRef.current?.abort();
+      fieldGeocodeAbortRef.current?.abort();
     };
   }, []);
 
@@ -1157,8 +1483,8 @@ export default function Step2LocationDetails({ next, back, category }) {
         </button>
       </div>
 
-      {/* Address card */}
-      <CardWrapper>
+      {/* Address card — elevate so State/City/Locality dropdowns overlay map */}
+      <CardWrapper elevate>
         <SectionLabel>Address Information</SectionLabel>
         <div className="space-y-4">
           <FieldWrapper label="Address Line" error={errors.address}>
@@ -1204,19 +1530,15 @@ export default function Step2LocationDetails({ next, back, category }) {
               <input
                 value={form.pincode || ""}
                 onChange={(e) => {
-                  const nextPincode = e.target.value
-                    .replace(/\D/g, "")
-                    .slice(0, 6);
-
-                  // Stop an older coordinate lookup from overwriting fields
-                  // while the user is choosing a new pincode.
-                  coordinatesAbortRef.current?.abort();
-                  pinPlacedByUserRef.current = false;
-                  manualPincodeEditRef.current = true;
-                  setValue("pincode", nextPincode);
+                  // Manual 6-digit only — does not fill State / City / Locality
+                  setValue(
+                    "pincode",
+                    e.target.value.replace(/\D/g, "").slice(0, 6),
+                  );
                 }}
                 placeholder="6-digit pincode"
                 maxLength={6}
+                inputMode="numeric"
                 className={inputCls}
               />
             </FieldWrapper>
@@ -1270,36 +1592,120 @@ export default function Step2LocationDetails({ next, back, category }) {
           </div>
 
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
-            Use the correct spelling, or enter a pincode to auto-fill Locality,
-            City, and State.
+            PIN Code is manual (6 digits only). Select State → City → Locality
+            from the dropdowns, or click the map to fill State, City, and Locality
+            from the pin.
           </p>
 
-          {/* Auto-filled from pincode/map, with manual editing allowed. */}
+          {/* Searchable State / City / Locality — same flow as propenu.com */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <FieldWrapper label="Locality" error={errors.locality}>
-              <input
-                value={form.locality || ""}
-                onChange={(e) => setValue("locality", e.target.value)}
-                placeholder="Enter locality"
-                className={inputCls}
-              />
-            </FieldWrapper>
-            <FieldWrapper label="City" error={errors.city}>
-              <input
-                value={form.city || ""}
-                onChange={(e) => setValue("city", e.target.value)}
-                placeholder="Enter city"
-                className={inputCls}
-              />
-            </FieldWrapper>
-            <FieldWrapper label="State" error={errors.state}>
-              <input
-                value={form.state || ""}
-                onChange={(e) => setValue("state", e.target.value)}
-                placeholder="Enter state"
-                className={inputCls}
-              />
-            </FieldWrapper>
+            <SearchableSelect
+              label="State"
+              value={form.state || ""}
+              placeholder="Select state"
+              error={errors.state}
+              open={stateOpen}
+              onToggle={() => {
+                setStateOpen((o) => !o);
+                setCityOpen(false);
+                setLocalityOpen(false);
+                if (!stateOpen) setStateSearch("");
+              }}
+              searchValue={stateSearch}
+              onSearchChange={setStateSearch}
+              searchPlaceholder="Search state..."
+              loading={stateLoading}
+              options={stateSuggestions}
+              onSelect={applyStateSelection}
+              emptyHint={
+                stateSearch.trim().length >= 2
+                  ? "No state found"
+                  : "Type to search Indian states"
+              }
+              dropdownRef={stateDropdownRef}
+              optionKey={(opt) => opt.isoCode || opt.label}
+            />
+
+            <SearchableSelect
+              label="City"
+              value={form.city || ""}
+              placeholder={form.state ? "Select city" : "Select state first"}
+              error={errors.city}
+              disabled={!form.state}
+              open={cityOpen}
+              onToggle={() => {
+                if (!form.state) return;
+                setCityOpen((o) => !o);
+                setStateOpen(false);
+                setLocalityOpen(false);
+                if (!cityOpen) setCitySearch("");
+              }}
+              searchValue={citySearch}
+              onSearchChange={setCitySearch}
+              searchPlaceholder="Search city…"
+              loading={cityLoading}
+              options={citySuggestions}
+              onSelect={applyCitySelection}
+              emptyHint={
+                citySearch.trim().length >= 2
+                  ? "No city found"
+                  : form.state
+                    ? "Suggested cities for selected state"
+                    : "Select state first"
+              }
+              dropdownRef={cityDropdownRef}
+              optionKey={(opt, idx) => `${opt.label}-${opt.stateCode || idx}`}
+            />
+
+            <SearchableSelect
+              label="Locality"
+              value={form.locality || ""}
+              placeholder={
+                form.city ? "Search locality..." : "Select city first"
+              }
+              error={errors.locality}
+              disabled={!form.city}
+              open={localityOpen}
+              onToggle={() => {
+                if (!form.city) return;
+                setLocalityOpen((o) => !o);
+                setStateOpen(false);
+                setCityOpen(false);
+                if (!localityOpen) {
+                  setLocalitySearch("");
+                  setLocalitySuggestions([]);
+                }
+              }}
+              searchValue={localitySearch}
+              onSearchChange={setLocalitySearch}
+              searchPlaceholder="Type 2+ letters to search..."
+              loading={localityLoading}
+              options={localitySuggestions}
+              onSelect={applyLocalitySelection}
+              emptyHint={
+                localitySearch.trim().length >= 2
+                  ? "No results found"
+                  : form.city
+                    ? "Type at least 2 letters to search localities in this city"
+                    : "Select city first"
+              }
+              dropdownRef={localityDropdownRef}
+              optionKey={(opt, idx) =>
+                `${opt.label}-${opt.city || ""}-${opt.state || ""}-${idx}`
+              }
+              renderOption={(opt) => (
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-gray-900">
+                    {opt.label}
+                  </span>
+                  {(opt.city || opt.state) && (
+                    <span className="block truncate text-xs text-gray-500">
+                      {[opt.city, opt.state].filter(Boolean).join(", ")}
+                    </span>
+                  )}
+                </span>
+              )}
+            />
           </div>
         </div>
       </CardWrapper>
@@ -1314,8 +1720,7 @@ export default function Step2LocationDetails({ next, back, category }) {
             <div>
               <SectionLabel>Pin Property Location</SectionLabel>
               <p className="text-[10px] text-[#9ca3af] -mt-2">
-                Click the map → pincode + locality + city + state auto-filled
-                via OpenStreetMap
+                Click the map → State, City, and Locality fill from the pin
               </p>
             </div>
           </div>
@@ -1335,8 +1740,8 @@ export default function Step2LocationDetails({ next, back, category }) {
         </div>
 
         <div
-          className="relative z-10  rounded-xl overflow-hidden border border-[#e6f4ec] shadow-inner"
-          style={{ height: 320,  }}
+          className="relative z-0 rounded-xl overflow-hidden border border-[#e6f4ec] shadow-inner"
+          style={{ height: 320 }}
         >
           <MapplsPinMap
             coordinates={form.location?.coordinates}
