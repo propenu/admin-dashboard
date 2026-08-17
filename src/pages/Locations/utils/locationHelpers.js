@@ -19,34 +19,31 @@ export const buildPayload = (form, type = "LOCALITY") => {
     return {
       state: form.state.trim(),
       city: form.city.trim(),
-
-      // IMPORTANT
       category: form.category || "city",
       isHome: form.isHome === true,
     };
   }
 
-  /* =========================================
-     LOCALITY
-  ========================================= */
-  return {
+  const localityName = String(form.localityName || "").trim();
+  const base = {
     state: form.state.trim(),
     city: form.city.trim(),
-
-    // IMPORTANT
     category: form.category || "city",
     isHome: form.isHome === true,
+  };
 
+  // Edit city/Home only — no locality block if name empty
+  if (form._editWithoutLocality || !localityName) {
+    return base;
+  }
+
+  return {
+    ...base,
     locality: {
-      name: form.localityName.trim(),
-
+      name: localityName,
       location: {
         type: "Point",
-
-        coordinates: [
-          Number(form.lng) || 0,
-          Number(form.lat) || 0,
-        ],
+        coordinates: [Number(form.lng) || 0, Number(form.lat) || 0],
       },
     },
   };

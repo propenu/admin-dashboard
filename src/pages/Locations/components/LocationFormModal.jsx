@@ -86,10 +86,10 @@ export default function LocationFormModal({
     if (packageMatch) {
       // India list city
       citySelect = packageMatch;
+      customCity = "";
     } else if (savedCity) {
-      // Out-of-list city: keep selectable in dropdown (injected) — Option A
-      // User can also switch to Other — Option B
-      citySelect = savedCity;
+      // Best edit UX: open as Other so name is manually editable immediately
+      citySelect = CITY_OTHER;
       customCity = savedCity;
     }
 
@@ -137,21 +137,30 @@ export default function LocationFormModal({
       custom: false,
     }));
 
-    const saved = String(form.citySelect || "").trim();
-    const isOther = saved === CITY_OTHER;
-    const inPackage = findPackageCityName(packageCities, saved);
+    // Keep last known custom name injectable if user switches away from Other briefly
+    const customName = String(form.customCity || "").trim();
+    const selectVal = String(form.citySelect || "").trim();
+    const injectName =
+      selectVal &&
+      selectVal !== CITY_OTHER &&
+      !findPackageCityName(packageCities, selectVal)
+        ? selectVal
+        : customName &&
+            form.citySelect === CITY_OTHER &&
+            !findPackageCityName(packageCities, customName)
+          ? "" // Other mode — name lives in text field
+          : "";
 
-    // Inject out-of-list city so Edit can show/select it
-    if (saved && !isOther && !inPackage) {
+    if (injectName) {
       options.unshift({
-        name: saved,
-        label: `${saved} (custom)`,
+        name: injectName,
+        label: `${injectName} (custom)`,
         custom: true,
       });
     }
 
     return options;
-  }, [packageCities, form.citySelect]);
+  }, [packageCities, form.citySelect, form.customCity]);
 
   const stateOptions = useMemo(() => {
     const list = Array.isArray(states) ? [...states] : [];
@@ -173,12 +182,28 @@ export default function LocationFormModal({
   }, [states, form.state]);
 
   const isOtherCity = form.citySelect === CITY_OTHER;
+  const isCustomSelected =
+    Boolean(form.citySelect) &&
+    form.citySelect !== CITY_OTHER &&
+    !findPackageCityName(packageCities, form.citySelect);
+
+  // Show manual city input for Other OR selected custom (out-of-list) city
+  const showManualCityField = isOtherCity || isCustomSelected;
+
   const effectiveCity = isOtherCity
     ? String(form.customCity || "").trim()
-    : String(form.citySelect || "").trim();
+    : isCustomSelected
+      ? String(form.customCity || form.citySelect || "").trim()
+      : String(form.citySelect || "").trim();
 
+  const isEditLocation = title === "Edit Location";
+  const isAddLocalityMode = title === "Add Locality to City";
+  // Edit city/home/category can save without locality; add flows still need locality
+  const localityRequired = !isEditLocation;
   const isFormInvalid =
-    !form.state || !effectiveCity || !String(form.localityName || "").trim();
+    !form.state ||
+    !effectiveCity ||
+    (localityRequired && !String(form.localityName || "").trim());
 
   const toTitleCase = (v) =>
     String(v)
@@ -192,6 +217,8 @@ export default function LocationFormModal({
       city: effectiveCity,
       state: String(form.state || "").trim(),
       localityName: String(form.localityName || "").trim(),
+      // help buildPayload know edit can omit empty locality
+      _editWithoutLocality: isEditLocation && !String(form.localityName || "").trim(),
     });
   };
 
@@ -285,54 +312,91 @@ export default function LocationFormModal({
               value={form.citySelect}
               onChange={(e) => {
                 const next = e.target.value;
+                if (next === CITY_OTHER) {
+                  setForm({
+                    ...form,
+                    citySelect: CITY_OTHER,
+                    customCity: form.customCity || "",
+                  });
+                  return;
+                }
+                const pkg = findPackageCityName(packageCities, next);
+                if (pkg) {
+                  setForm({
+                    ...form,
+                    citySelect: pkg,
+                    customCity: "",
+                  });
+                  return;
+                }
+                // Custom option from list
                 setForm({
                   ...form,
-                  citySelect: next,
-                  customCity:
-                    next === CITY_OTHER
-                      ? form.customCity || ""
-                      : next && !findPackageCityName(packageCities, next)
-                        ? next
-                        : "",
+                  citySelect: CITY_OTHER,
+                  customCity: next,
                 });
               }}
               className="w-full p-3 border border-[#27AE60] rounded-xl outline-none disabled:opacity-50"
             >
               <option value="">Select City</option>
               {cityOptions.map((c) => (
-                <option key={`${c.custom ? "custom" : "pkg"}-${c.name}`} value={c.name}>
+                <option
+                  key={`${c.custom ? "custom" : "pkg"}-${c.name}`}
+                  value={c.name}
+                >
                   {c.label}
                 </option>
               ))}
               <option value={CITY_OTHER}>Other (custom city)</option>
             </select>
 
-            {isOtherCity && (
-              <input
-                placeholder="Enter custom city name"
-                value={form.customCity}
-                onChange={(e) =>
-                  setForm({ ...form, customCity: toTitleCase(e.target.value) })
-                }
-                className="w-full p-3 border border-[#27AE60] rounded-xl outline-none"
-              />
+            {showManualCityField && (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">
+                  Custom city name (editable)
+                </label>
+                <input
+                  placeholder="Type or edit city / mandal name"
+                  value={form.customCity}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      citySelect: CITY_OTHER,
+                      customCity: toTitleCase(e.target.value),
+                    })
+                  }
+                  className="w-full p-3 border border-[#27AE60] rounded-xl outline-none"
+                />
+              </div>
             )}
 
             <p className="text-[11px] text-gray-500">
-              India list cities + custom: out-of-list cities stay editable; use{" "}
-              <span className="font-semibold">Other</span> to type a new city
-              name.
+              Pick an India list city, or use{" "}
+              <span className="font-semibold">Other</span> / custom to type any
+              name. Out-of-list cities open with an editable name field.
             </p>
           </div>
 
-          <input
-            placeholder="Locality Name"
-            value={form.localityName}
-            onChange={(e) =>
-              setForm({ ...form, localityName: toTitleCase(e.target.value) })
-            }
-            className="w-full p-3 border border-[#27AE60] rounded-xl outline-none"
-          />
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-slate-600">
+              Locality name
+              {isEditLocation ? " (optional on edit)" : ""}
+            </label>
+            <input
+              placeholder={
+                isAddLocalityMode
+                  ? "New locality name"
+                  : isEditLocation
+                    ? "Locality (optional — leave blank to only update city/Home)"
+                    : "Locality Name"
+              }
+              value={form.localityName}
+              onChange={(e) =>
+                setForm({ ...form, localityName: toTitleCase(e.target.value) })
+              }
+              className="w-full p-3 border border-[#27AE60] rounded-xl outline-none"
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <input
