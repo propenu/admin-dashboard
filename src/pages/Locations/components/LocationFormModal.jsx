@@ -1,12 +1,15 @@
 // frontend/admin-dashboard/src/pages/Locations/components/LocationFormModal.jsx
 import { motion } from "framer-motion";
 import { X, AlertCircle, ShieldAlert } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
+
+const CITY_OTHER = "__other__";
 
 const EMPTY_FORM = {
   state: "",
-  city: "",
+  citySelect: "",
+  customCity: "",
   category: "city",
   isHome: false,
   localityName: "",
@@ -16,7 +19,9 @@ const EMPTY_FORM = {
 
 function formatPermissionError(error) {
   if (!error) return null;
-  if (typeof error === "string") return { message: error, allowedRoles: [], howToGetAccess: "" };
+  if (typeof error === "string") {
+    return { message: error, allowedRoles: [], howToGetAccess: "" };
+  }
 
   return {
     message: error.message || error.error || "Operation failed",
@@ -25,6 +30,17 @@ function formatPermissionError(error) {
     requiredPermission: error.requiredPermission || "",
     yourRoleLabel: error.yourRoleLabel || error.yourRole || "",
   };
+}
+
+function normalizeName(value = "") {
+  return String(value).trim().toLowerCase();
+}
+
+function findPackageCityName(packageCities, cityName) {
+  const key = normalizeName(cityName);
+  if (!key) return "";
+  const match = packageCities.find((c) => normalizeName(c.name) === key);
+  return match?.name || "";
 }
 
 export default function LocationFormModal({
@@ -51,42 +67,54 @@ export default function LocationFormModal({
   }, [show]);
 
   useEffect(() => {
-    if (show) {
-      if (initialData) {
-        const isAddLocalityMode = title === "Add Locality to City";
+    if (!show) return;
 
-        setForm({
-          state: initialData.state || "",
-          city: initialData.city || "",
-          category: initialData.category || "city",
-          isHome: initialData.isHome === true,
-
-          // Empty when adding new locality
-          localityName: isAddLocalityMode
-            ? ""
-            : initialData.localities?.[0]?.name || "",
-
-          lat: isAddLocalityMode
-            ? ""
-            : initialData.localities?.[0]?.location?.coordinates?.[1] || "",
-
-          lng: isAddLocalityMode
-            ? ""
-            : initialData.localities?.[0]?.location?.coordinates?.[0] || "",
-        });
-      } else {
-        setForm(EMPTY_FORM);
-      }
+    if (!initialData) {
+      setForm(EMPTY_FORM);
+      return;
     }
-  }, [initialData, show, title]);
 
-  // SUCCESS HANDLER WITH DEBUGGING
+    const isAddLocalityMode = title === "Add Locality to City";
+    const stateName = initialData.state || "";
+    const savedCity = String(initialData.city || "").trim();
+    const packageCities = typeof getCities === "function" ? getCities(stateName) : [];
+    const packageMatch = findPackageCityName(packageCities, savedCity);
+
+    let citySelect = "";
+    let customCity = "";
+
+    if (packageMatch) {
+      // India list city
+      citySelect = packageMatch;
+    } else if (savedCity) {
+      // Out-of-list city: keep selectable in dropdown (injected) — Option A
+      // User can also switch to Other — Option B
+      citySelect = savedCity;
+      customCity = savedCity;
+    }
+
+    setForm({
+      state: stateName,
+      citySelect,
+      customCity,
+      category: initialData.category || "city",
+      isHome: initialData.isHome === true,
+      localityName: isAddLocalityMode
+        ? ""
+        : initialData.localities?.[0]?.name || "",
+      lat: isAddLocalityMode
+        ? ""
+        : initialData.localities?.[0]?.location?.coordinates?.[1] || "",
+      lng: isAddLocalityMode
+        ? ""
+        : initialData.localities?.[0]?.location?.coordinates?.[0] || "",
+    });
+  }, [initialData, show, title, getCities]);
+
   useEffect(() => {
     if (success && show && !toastProcessedRef.current) {
-      toastProcessedRef.current = true; // Lock immediately
-
+      toastProcessedRef.current = true;
       toast.success(success, { id: "unique-location-toast" });
-
       onClose();
       clearSuccess?.();
     }
@@ -97,9 +125,75 @@ export default function LocationFormModal({
     onClose();
   };
 
-  const isFormInvalid = !form.state || !form.city || !form.localityName;
+  const packageCities = useMemo(() => {
+    if (!form.state || typeof getCities !== "function") return [];
+    return getCities(form.state) || [];
+  }, [form.state, getCities]);
+
+  const cityOptions = useMemo(() => {
+    const options = packageCities.map((c) => ({
+      name: c.name,
+      label: c.name,
+      custom: false,
+    }));
+
+    const saved = String(form.citySelect || "").trim();
+    const isOther = saved === CITY_OTHER;
+    const inPackage = findPackageCityName(packageCities, saved);
+
+    // Inject out-of-list city so Edit can show/select it
+    if (saved && !isOther && !inPackage) {
+      options.unshift({
+        name: saved,
+        label: `${saved} (custom)`,
+        custom: true,
+      });
+    }
+
+    return options;
+  }, [packageCities, form.citySelect]);
+
+  const stateOptions = useMemo(() => {
+    const list = Array.isArray(states) ? [...states] : [];
+    const savedState = String(form.state || "").trim();
+    if (
+      savedState &&
+      !list.some(
+        (s) =>
+          normalizeName(s.name) === normalizeName(savedState) ||
+          normalizeName(s.isoCode) === normalizeName(savedState),
+      )
+    ) {
+      list.unshift({
+        isoCode: `custom-${savedState}`,
+        name: savedState,
+      });
+    }
+    return list;
+  }, [states, form.state]);
+
+  const isOtherCity = form.citySelect === CITY_OTHER;
+  const effectiveCity = isOtherCity
+    ? String(form.customCity || "").trim()
+    : String(form.citySelect || "").trim();
+
+  const isFormInvalid =
+    !form.state || !effectiveCity || !String(form.localityName || "").trim();
+
   const toTitleCase = (v) =>
-    v.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    String(v)
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const handleSubmit = () => {
+    if (isFormInvalid || loading) return;
+    onSubmit({
+      ...form,
+      city: effectiveCity,
+      state: String(form.state || "").trim(),
+      localityName: String(form.localityName || "").trim(),
+    });
+  };
 
   if (!show) return null;
 
@@ -108,11 +202,11 @@ export default function LocationFormModal({
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-3xl w-full max-w-lg overflow-hidden"
+        className="bg-white rounded-3xl w-full max-w-lg overflow-hidden max-h-[92vh] overflow-y-auto"
       >
-        <div className="flex justify-between items-center p-4 border-b">
+        <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white z-10">
           <h2 className="font-bold text-[#27AE60]">{title}</h2>
-          <button onClick={handleClose}>
+          <button type="button" onClick={handleClose}>
             <X className="text-[#27AE60]" />
           </button>
         </div>
@@ -165,31 +259,71 @@ export default function LocationFormModal({
           <select
             value={form.state}
             onChange={(e) =>
-              setForm({ ...form, state: e.target.value, city: "" })
+              setForm({
+                ...form,
+                state: e.target.value,
+                citySelect: "",
+                customCity: "",
+              })
             }
             className="w-full p-3 border border-[#27AE60] rounded-xl outline-none"
           >
             <option value="">Select State</option>
-            {states.map((s) => (
-              <option key={s.isoCode} value={s.name}>
+            {stateOptions.map((s) => (
+              <option key={s.isoCode || s.name} value={s.name}>
                 {s.name}
+                {String(s.isoCode || "").startsWith("custom-")
+                  ? " (custom)"
+                  : ""}
               </option>
             ))}
           </select>
 
-          <select
-            disabled={!form.state}
-            value={form.city}
-            onChange={(e) => setForm({ ...form, city: e.target.value })}
-            className="w-full p-3 border border-[#27AE60] rounded-xl outline-none disabled:opacity-50"
-          >
-            <option value="">Select City</option>
-            {getCities(form.state).map((c) => (
-              <option key={c.name} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-2">
+            <select
+              disabled={!form.state}
+              value={form.citySelect}
+              onChange={(e) => {
+                const next = e.target.value;
+                setForm({
+                  ...form,
+                  citySelect: next,
+                  customCity:
+                    next === CITY_OTHER
+                      ? form.customCity || ""
+                      : next && !findPackageCityName(packageCities, next)
+                        ? next
+                        : "",
+                });
+              }}
+              className="w-full p-3 border border-[#27AE60] rounded-xl outline-none disabled:opacity-50"
+            >
+              <option value="">Select City</option>
+              {cityOptions.map((c) => (
+                <option key={`${c.custom ? "custom" : "pkg"}-${c.name}`} value={c.name}>
+                  {c.label}
+                </option>
+              ))}
+              <option value={CITY_OTHER}>Other (custom city)</option>
+            </select>
+
+            {isOtherCity && (
+              <input
+                placeholder="Enter custom city name"
+                value={form.customCity}
+                onChange={(e) =>
+                  setForm({ ...form, customCity: toTitleCase(e.target.value) })
+                }
+                className="w-full p-3 border border-[#27AE60] rounded-xl outline-none"
+              />
+            )}
+
+            <p className="text-[11px] text-gray-500">
+              India list cities + custom: out-of-list cities stay editable; use{" "}
+              <span className="font-semibold">Other</span> to type a new city
+              name.
+            </p>
+          </div>
 
           <input
             placeholder="Locality Name"
@@ -256,16 +390,18 @@ export default function LocationFormModal({
           </p>
         </div>
 
-        <div className="p-4 border-t flex gap-3">
+        <div className="p-4 border-t flex gap-3 sticky bottom-0 bg-white">
           <button
+            type="button"
             onClick={handleClose}
             className="flex-1 py-3 border rounded-xl"
           >
             Cancel
           </button>
           <button
+            type="button"
             disabled={loading || isFormInvalid}
-            onClick={() => onSubmit(form)}
+            onClick={handleSubmit}
             className="flex-1 bg-[#27AE60] text-white rounded-xl disabled:opacity-60 font-bold"
           >
             {loading ? "Saving..." : "Save Location"}
