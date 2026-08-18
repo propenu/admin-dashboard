@@ -77,19 +77,93 @@ export const emptyListingCounts = () => ({
 });
 
 export const getListingCounts = (maps, ...parts) => {
+  if (!maps) return emptyListingCounts();
+
   const key = listingCountKey(...parts);
-  if (!key || !maps) return emptyListingCounts();
-  const bucket =
-    (parts.length === 1 && maps.byState?.[key]) ||
-    (parts.length === 2 && maps.byCity?.[key]) ||
-    (parts.length >= 3 && maps.byLocality?.[key]) ||
-    null;
+  if (!key) return emptyListingCounts();
+
+  let bucket = null;
+  if (parts.length === 1) {
+    bucket = maps.byState?.[key];
+  } else if (parts.length === 2) {
+    bucket = maps.byCity?.[key] || maps.byCity?.[listingCountKey(parts[1])];
+  } else {
+    bucket =
+      maps.byLocality?.[key] ||
+      maps.byLocality?.[listingCountKey(parts[2])] ||
+      maps.byLocality?.[listingCountKey(parts[1], parts[2])];
+  }
+
   if (!bucket) return emptyListingCounts();
   return {
     projects: Number(bucket.projects) || 0,
     properties: Number(bucket.properties) || 0,
-    total: Number(bucket.total) || 0,
+    total:
+      Number(bucket.total) ||
+      (Number(bucket.projects) || 0) + (Number(bucket.properties) || 0),
   };
+};
+
+/**
+ * Build the same maps from existing /analytics/project + /analytics/properties
+ * (stateWise / cityWise / localityWise) — used when dedicated endpoint is empty/unavailable.
+ */
+export const mergeAnalyticsIntoListingCounts = (
+  projectAnalytics,
+  propertyAnalytics,
+) => {
+  const byState = {};
+  const byCity = {};
+  const byLocality = {};
+
+  const applyRows = (rows, kind, target, mode) => {
+    for (const row of rows || []) {
+      const total = Number(row?.total) || 0;
+      if (!total) continue;
+      const rawId = row?._id;
+      let key = "";
+      if (mode === "state") {
+        key = listingCountKey(rawId);
+      } else if (mode === "city") {
+        if (rawId && typeof rawId === "object") {
+          key = listingCountKey(rawId.state, rawId.city) || listingCountKey(rawId.city);
+        } else {
+          key = listingCountKey(rawId);
+        }
+      } else {
+        if (rawId && typeof rawId === "object") {
+          key =
+            listingCountKey(rawId.state, rawId.city, rawId.locality) ||
+            listingCountKey(rawId.locality);
+        } else {
+          key = listingCountKey(rawId);
+        }
+      }
+      if (!key) continue;
+      const bucket = target[key] || emptyListingCounts();
+      bucket[kind] += total;
+      bucket.total = bucket.projects + bucket.properties;
+      target[key] = bucket;
+    }
+  };
+
+  applyRows(projectAnalytics?.stateWise, "projects", byState, "state");
+  applyRows(propertyAnalytics?.stateWise, "properties", byState, "state");
+  applyRows(projectAnalytics?.cityWise, "projects", byCity, "city");
+  applyRows(propertyAnalytics?.cityWise, "properties", byCity, "city");
+  applyRows(projectAnalytics?.localityWise, "projects", byLocality, "locality");
+  applyRows(propertyAnalytics?.localityWise, "properties", byLocality, "locality");
+
+  return { byState, byCity, byLocality };
+};
+
+export const listingCountsHaveData = (maps) => {
+  if (!maps) return false;
+  return (
+    Object.keys(maps.byState || {}).length > 0 ||
+    Object.keys(maps.byCity || {}).length > 0 ||
+    Object.keys(maps.byLocality || {}).length > 0
+  );
 };
 /* =========================================
    GET POPULAR CITIES

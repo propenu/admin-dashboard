@@ -1,5 +1,5 @@
 // pages/locations/LocationsPage.jsx
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { INDIAN_STATES, getCitiesByState } from "../../utils/countryStateCity";
 
@@ -8,6 +8,8 @@ import {
   buildPayload,
   groupByState,
   getPopularCities,
+  mergeAnalyticsIntoListingCounts,
+  listingCountsHaveData,
 } from "./utils/locationHelpers";
 
 import LocationHeader from "./components/LocationHeader";
@@ -16,7 +18,11 @@ import LocationAccordion from "./components/LocationAccordion";
 import LocationFormModal from "./components/LocationFormModal";
 import DeleteConfirmModal from "./components/DeleteConfirmModal";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
-import { getLocationListingCounts } from "../../features/property/propertyService";
+import {
+  getLocationListingCounts,
+  getAllProjectsAnalytics,
+  getAllPropertiesAnalytics,
+} from "../../features/property/propertyService";
 
 export default function LocationsPage() {
   const {
@@ -31,14 +37,47 @@ export default function LocationsPage() {
     deleteLocality,
   } = useLocations();
 
-  const { data: listingCounts } = useQuery({
+  const dedicatedCountsQuery = useQuery({
     queryKey: ["location-listing-counts"],
     queryFn: async () => {
       const res = await getLocationListingCounts();
-      return res?.data?.data || res?.data || null;
+      return res?.data?.data || null;
+    },
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const projectAnalyticsQuery = useQuery({
+    queryKey: ["location-page-project-analytics"],
+    queryFn: async () => {
+      const res = await getAllProjectsAnalytics({});
+      return res?.data?.data || res?.data || {};
     },
     staleTime: 60_000,
   });
+
+  const propertyAnalyticsQuery = useQuery({
+    queryKey: ["location-page-property-analytics"],
+    queryFn: async () => {
+      const res = await getAllPropertiesAnalytics({});
+      return res?.data?.data || res?.data || {};
+    },
+    staleTime: 60_000,
+  });
+
+  const listingCounts = useMemo(() => {
+    const dedicated = dedicatedCountsQuery.data;
+    if (listingCountsHaveData(dedicated)) return dedicated;
+
+    return mergeAnalyticsIntoListingCounts(
+      projectAnalyticsQuery.data,
+      propertyAnalyticsQuery.data,
+    );
+  }, [
+    dedicatedCountsQuery.data,
+    projectAnalyticsQuery.data,
+    propertyAnalyticsQuery.data,
+  ]);
 
   const [openState, setOpenState] = useState(null);
   const [openCityId, setOpenCityId] = useState(null);
