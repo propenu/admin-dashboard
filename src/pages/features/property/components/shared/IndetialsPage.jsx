@@ -1666,10 +1666,13 @@ export default function FeaturedPropertyDetails() {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800 leading-tight">
                 {property.title || "Untitled Project"}
               </h1>
-              <div className="flex items-start gap-1.5 text-sm text-slate-500 mt-2">
-                <MapPin className="w-4 h-4 text-[#27AE60] flex-shrink-0 mt-0.5" />
-                <span>{[property.address].filter(Boolean).join(", ")}</span>
-              </div>
+              <LocationAddressBlock
+                address={property.address}
+                locality={property.locality}
+                city={property.city}
+                state={property.state}
+                pincode={property.pincode}
+              />
             </div>
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4 border border-green-100">
               <p className="text-[11px] font-bold text-[#27AE60] uppercase tracking-widest">
