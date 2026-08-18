@@ -4,12 +4,19 @@ import {
   useImperativeHandle,
   useRef,
   useState,
-  useCallback,
   useEffect,
+  useMemo,
 } from "react";
 
-//import { State, City } from "country-state-city";
-import { INDIAN_STATES, getCitiesByState } from "../../../../utils/countryStateCity";
+import {
+  INDIAN_STATES,
+  getCitiesByState,
+  CITY_OTHER,
+  findPackageCityName,
+  buildStateOptions,
+  buildCityOptions,
+  toTitleCase,
+} from "../../../../utils/countryStateCity";
 
 /* ─── data ──────────────────────────────────────────────────────── */
 
@@ -324,24 +331,44 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
   const [ptVisible, setPtVisible] = useState(!!payload?.categoryType);
 
   const [pincodeStatus, setPincodeStatus] = useState(null);
+  /** User chose "Other (custom city)" even before typing a name */
+  const [preferOtherCity, setPreferOtherCity] = useState(false);
 
   const pincodeAbortRef = useRef(null);
 
-  /* INDIA STATES */
+  const states = useMemo(
+    () => buildStateOptions(INDIAN_STATES, payload?.state),
+    [payload?.state],
+  );
 
-  //const states = State.getStatesOfCountry("IN");
-  const states = INDIAN_STATES;
+  const packageCities = useMemo(
+    () => getCitiesByState(payload?.state),
+    [payload?.state],
+  );
 
-  /* INDIA CITIES */
+  const packageCityMatch = findPackageCityName(packageCities, payload?.city);
 
-  // const selectedState = states.find((s) => s.name === payload?.state);
+  const citySelectValue = preferOtherCity
+    ? CITY_OTHER
+    : packageCityMatch
+      ? packageCityMatch
+      : String(payload?.city || "").trim()
+        ? CITY_OTHER
+        : "";
 
-  // const cities = selectedState
-  //   ? City.getCitiesOfState("IN", selectedState.isoCode)
-  //   : [];
+  const cityOptions = useMemo(
+    () => buildCityOptions(packageCities, payload?.city, citySelectValue),
+    [packageCities, payload?.city, citySelectValue],
+  );
 
+  const showManualCityField = citySelectValue === CITY_OTHER;
 
-  const cities = getCitiesByState(payload?.state);
+  // Pincode / loaded custom city → open Other mode (do not force-off when package matches)
+  useEffect(() => {
+    if (!packageCityMatch && String(payload?.city || "").trim()) {
+      setPreferOtherCity(true);
+    }
+  }, [packageCityMatch, payload?.city]);
 
   /* ─── PINCODE AUTOFILL ───── */
 
@@ -373,6 +400,7 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
           city: geo.city,
           state: geo.state,
         });
+        setPreferOtherCity(false);
 
         setPincodeStatus("success");
       } catch (err) {
@@ -611,92 +639,81 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
             });
           }}
         />
-        {/* STATE */}
-        {/* <FloatingSelect
-          required
-          label="State"
-          value={payload?.stateCode || ""}
-          onChange={(e) => {
-            const selectedState = states.find(
-              (s) => s.isoCode === e.target.value,
-            );
-            update({
-              state: selectedState?.name || "",
-              stateCode: selectedState?.isoCode || "",
-              city: "",
-            });
-          }}
-          options={states.map((state) => ({
-            label: state.name,
-            value: state.isoCode,
-          }))}
-        /> */}
+        {/* STATE — India list; out-of-list values injected as (custom) */}
         <FloatingSelect
           required
           warning
           label="State"
           error={errors.state}
           value={payload?.state || ""}
-          onChange={(e) =>
+          onChange={(e) => {
+            setPreferOtherCity(false);
             update({
               state: e.target.value,
-            })
-          }
+              city: "",
+            });
+            clr("state");
+            clr("city");
+          }}
           options={states.map((state) => ({
-            label: state.name,
+            label: String(state.isoCode || "").startsWith("custom-")
+              ? `${state.name} (custom)`
+              : state.name,
             value: state.name,
           }))}
         />
 
-        {/* CITY */}
-        {/* <FloatingSelect
-          required
-          label="City"
-          value={payload?.city || ""}
-          onChange={(e) =>
-            update({
-              city: e.target.value,
-            })
-          }
-          options={cities.map((city) => ({
-            label: city.name,
-            value: city.name,
-          }))}
-        /> */}
-        {/* CITY */}
-        <FloatingSelect
-          required
-          warning
-          label="City"
-          error={errors.city}
-          value={payload?.city || ""}
-          onChange={(e) =>
-            update({
-              city: e.target.value,
-            })
-          }
-          options={cities.map((city) => ({
-            label: city.name,
-            value: city.name,
-          }))}
-        />
-        {/* <FloatingInput
-          required
-          label="Locality"
-          placeholder="e.g. Gachibowli"
-          icon="📌"
-          value={payload?.locality}
-          error={errors.locality}
-          inputRef={localityRef}
-          onChange={(e) => {
-            update({
-              locality: capitalizeFirst(e.target.value),
-            });
+        {/* CITY — India list + Other (custom) editable field */}
+        <div className="space-y-3">
+          <FloatingSelect
+            required
+            warning
+            label="City"
+            error={errors.city && !showManualCityField}
+            value={citySelectValue}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (next === CITY_OTHER) {
+                setPreferOtherCity(true);
+                clr("city");
+                return;
+              }
+              const pkg = findPackageCityName(packageCities, next);
+              setPreferOtherCity(false);
+              update({ city: pkg || next });
+              clr("city");
+            }}
+            options={[
+              ...cityOptions.map((city) => ({
+                label: city.label,
+                value: city.name,
+              })),
+              { label: "Other (custom city)", value: CITY_OTHER },
+            ]}
+          />
 
-            clr("locality");
-          }}
-        /> */}
-        {/* CITY */}
+          {showManualCityField && (
+            <FloatingInput
+              required
+              label="Custom city"
+              warning
+              placeholder="Type or edit city / mandal name"
+              icon="🏙"
+              value={payload?.city || ""}
+              error={errors.city}
+              onChange={(e) => {
+                setPreferOtherCity(true);
+                update({ city: e.target.value });
+                clr("city");
+              }}
+              onBlur={(e) => {
+                update({ city: toTitleCase(e.target.value) });
+              }}
+            />
+          )}
+        </div>
+
+        {/* LOCALITY — free text (unchanged) */}
         <FloatingInput
           required
           label="Locality"

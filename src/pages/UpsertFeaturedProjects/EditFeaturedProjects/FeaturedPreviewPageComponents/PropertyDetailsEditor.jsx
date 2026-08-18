@@ -1,9 +1,18 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/PropertyDetailsEditor.jsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { compressPdfAdvanced } from "../../CreateFeaturedProjects/utils/compressPdfAdvanced";
 import { compressImage } from "./imageCompressor";
 import { toast } from "sonner";
+import {
+  INDIAN_STATES,
+  getCitiesByState,
+  CITY_OTHER,
+  findPackageCityName,
+  buildStateOptions,
+  buildCityOptions,
+  toTitleCase,
+} from "../../../../utils/countryStateCity";
 
 /* ─── PINCODE AUTOFILL ───── */
 
@@ -38,6 +47,7 @@ export default function PropertyDetailsEditor({
   const [newBank, setNewBank] = useState("");
   const [newVideo, setNewVideo] = useState({ title: "", url: "", order: "" });
   const [brochureFile, setBrochureFile] = useState(null);
+  const [preferOtherCity, setPreferOtherCity] = useState(false);
 
   useEffect(() => {
     setLocal({
@@ -67,6 +77,39 @@ export default function PropertyDetailsEditor({
       brochureUrl: formData?.brochure?.url ?? "",
     });
   }, [formData]);
+
+  const states = useMemo(
+    () => buildStateOptions(INDIAN_STATES, local.state),
+    [local.state],
+  );
+
+  const packageCities = useMemo(
+    () => getCitiesByState(local.state),
+    [local.state],
+  );
+
+  const packageCityMatch = findPackageCityName(packageCities, local.city);
+
+  const citySelectValue = preferOtherCity
+    ? CITY_OTHER
+    : packageCityMatch
+      ? packageCityMatch
+      : String(local.city || "").trim()
+        ? CITY_OTHER
+        : "";
+
+  const cityOptions = useMemo(
+    () => buildCityOptions(packageCities, local.city, citySelectValue),
+    [packageCities, local.city, citySelectValue],
+  );
+
+  const showManualCityField = citySelectValue === CITY_OTHER;
+
+  useEffect(() => {
+    if (!packageCityMatch && String(local.city || "").trim()) {
+      setPreferOtherCity(true);
+    }
+  }, [packageCityMatch, local.city]);
 
   if (!formData) return null;
 
@@ -366,22 +409,68 @@ export default function PropertyDetailsEditor({
             </FieldGroup>
 
             <FieldGroup label="State" warning>
-              <input
+              <select
                 className={inputCls}
                 value={local.state ?? ""}
-                onChange={(e) => change("state", e.target.value)}
-                placeholder="Telangana"
-              />
+                onChange={(e) => {
+                  setPreferOtherCity(false);
+                  sync({ state: e.target.value, city: "" });
+                }}
+              >
+                <option value="">Select State</option>
+                {states.map((state) => (
+                  <option key={state.isoCode || state.name} value={state.name}>
+                    {String(state.isoCode || "").startsWith("custom-")
+                      ? `${state.name} (custom)`
+                      : state.name}
+                  </option>
+                ))}
+              </select>
             </FieldGroup>
 
             <FieldGroup label="City" warning>
-              <input
+              <select
                 className={inputCls}
-                value={local.city ?? ""}
-                onChange={(e) => change("city", e.target.value)}
-                placeholder="Hyderabad"
-              />
+                value={citySelectValue}
+                disabled={!local.state}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  if (next === CITY_OTHER) {
+                    setPreferOtherCity(true);
+                    return;
+                  }
+                  const pkg = findPackageCityName(packageCities, next);
+                  setPreferOtherCity(false);
+                  change("city", pkg || next);
+                }}
+              >
+                <option value="">Select City</option>
+                {cityOptions.map((city) => (
+                  <option
+                    key={`${city.custom ? "custom" : "pkg"}-${city.name}`}
+                    value={city.name}
+                  >
+                    {city.label}
+                  </option>
+                ))}
+                <option value={CITY_OTHER}>Other (custom city)</option>
+              </select>
             </FieldGroup>
+
+            {showManualCityField && (
+              <FieldGroup label="Custom city" warning>
+                <input
+                  className={inputCls}
+                  value={local.city ?? ""}
+                  onChange={(e) => {
+                    setPreferOtherCity(true);
+                    change("city", e.target.value);
+                  }}
+                  onBlur={(e) => change("city", toTitleCase(e.target.value))}
+                  placeholder="Type or edit city / mandal name"
+                />
+              </FieldGroup>
+            )}
 
             <FieldGroup label="Locality" warning>
               <input
