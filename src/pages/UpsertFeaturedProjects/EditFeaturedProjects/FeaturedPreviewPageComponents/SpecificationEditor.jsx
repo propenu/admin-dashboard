@@ -2,6 +2,32 @@
 import React from "react";
 import { toast } from "react-hot-toast";
 
+/** Paste clipboard as exact plain text (keeps newlines / spacing from external copy). */
+function pasteExactPlainText(e, currentValue, setValue) {
+  e.preventDefault();
+  const pasted = e.clipboardData?.getData("text/plain") ?? "";
+  const el = e.target;
+  const start =
+    typeof el.selectionStart === "number"
+      ? el.selectionStart
+      : String(currentValue || "").length;
+  const end =
+    typeof el.selectionEnd === "number"
+      ? el.selectionEnd
+      : String(currentValue || "").length;
+  const next = `${String(currentValue || "").slice(0, start)}${pasted}${String(currentValue || "").slice(end)}`;
+  setValue(next);
+  requestAnimationFrame(() => {
+    try {
+      const pos = start + pasted.length;
+      el.selectionStart = pos;
+      el.selectionEnd = pos;
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 export default function SpecificationEditor({
   formData,
   setFormData,
@@ -15,12 +41,6 @@ export default function SpecificationEditor({
     const next = { ...formData, specifications: updated };
     setFormData(next);
     setLivePreviewData(next);
-  }
-
-  function updateCategory(index, value) {
-    const updated = [...specs];
-    updated[index] = { ...updated[index], category: value };
-    sync(updated);
   }
 
   function updateItem(gIndex, iIndex, field, value) {
@@ -41,7 +61,7 @@ export default function SpecificationEditor({
     sync([
       ...specs,
       {
-        category: "New Category",
+        category: "",
         order: specs.length,
         items: [{ title: "", description: "" }],
       },
@@ -86,7 +106,6 @@ export default function SpecificationEditor({
       className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col"
       style={{ maxHeight: "82vh" }}
     >
-      {/* ── Header ── */}
       <div className="bg-gradient-to-r from-[#27AE60]/8 to-transparent px-5 py-4 border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -110,7 +129,8 @@ export default function SpecificationEditor({
                 Specifications Editor
               </h3>
               <p className="text-[10px] text-gray-400">
-                {specs.length} {specs.length === 1 ? "category" : "categories"} · Live preview synced
+                {specs.length} {specs.length === 1 ? "group" : "groups"} ·
+                description only
               </p>
             </div>
           </div>
@@ -125,10 +145,7 @@ export default function SpecificationEditor({
         </div>
       </div>
 
-      {/* ── Scrollable body ── */}
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4 min-h-0">
-
-        {/* Empty state */}
         {specs.length === 0 && (
           <div className="rounded-xl border-2 border-dashed border-gray-100 py-12 text-center">
             <div className="w-12 h-12 bg-[#27AE60]/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -146,20 +163,18 @@ export default function SpecificationEditor({
                 />
               </svg>
             </div>
-            <p className="text-sm text-gray-400 font-semibold">No categories yet</p>
+            <p className="text-sm text-gray-400 font-semibold">No groups yet</p>
             <p className="text-xs text-gray-300 mt-1">
-              Click "+ Add Category" to get started
+              Click "+ Add Group" — paste descriptions exactly from outside
             </p>
           </div>
         )}
 
-        {/* ── Category groups ── */}
         {specs.map((group, gIndex) => (
           <div
             key={gIndex}
             className="rounded-xl border border-gray-100 overflow-hidden"
           >
-            {/* Category header row */}
             <div className="flex items-center gap-2 bg-gradient-to-r from-[#27AE60]/5 to-transparent px-4 py-3 border-b border-gray-100">
               <div
                 className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-black flex-shrink-0"
@@ -167,19 +182,17 @@ export default function SpecificationEditor({
               >
                 {gIndex + 1}
               </div>
-              <input
-                className="flex-1 bg-transparent text-sm font-bold text-gray-800 outline-none placeholder-gray-300 focus:text-[#27AE60] transition-colors"
-                value={group.category}
-                onChange={(e) => updateCategory(gIndex, e.target.value)}
-                placeholder="Category Name"
-              />
+              <p className="flex-1 text-sm font-bold text-gray-800">
+                Spec group {gIndex + 1}
+              </p>
               <span className="text-[10px] text-gray-300 font-semibold flex-shrink-0 mr-1">
                 {group.items?.length || 0} items
               </span>
               <button
+                type="button"
                 onClick={() => removeCategory(gIndex)}
                 className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all flex-shrink-0"
-                title="Remove category"
+                title="Remove group"
               >
                 <svg
                   className="w-3.5 h-3.5"
@@ -197,15 +210,14 @@ export default function SpecificationEditor({
               </button>
             </div>
 
-            {/* Items list */}
             <div className="p-3 space-y-2 bg-gray-50/40">
               {group.items.map((item, iIndex) => (
                 <div
                   key={iIndex}
                   className="group relative bg-white rounded-xl border border-gray-100 p-3 hover:border-[#27AE60]/30 hover:shadow-sm transition-all"
                 >
-                  {/* Remove item button */}
                   <button
+                    type="button"
                     onClick={() => removeItem(gIndex, iIndex)}
                     className="absolute top-2.5 right-2.5 w-5 h-5 rounded-md flex items-center justify-center text-gray-200 hover:text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
                     title="Remove item"
@@ -225,34 +237,29 @@ export default function SpecificationEditor({
                     </svg>
                   </button>
 
-                  {/* Title input */}
-                  <input
-                    className="w-full pr-6 text-xs font-bold text-gray-700 outline-none placeholder-gray-300 mb-1.5 bg-transparent focus:text-[#27AE60] transition-colors"
-                    placeholder="Spec title (e.g. Flooring)"
-                    value={item.title}
-                    onChange={(e) =>
-                      updateItem(gIndex, iIndex, "title", e.target.value)
-                    }
-                  />
-
-                  {/* Divider */}
-                  <div className="w-full h-px bg-gray-100 mb-1.5" />
-
-                  {/* Description textarea */}
+                  <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-[#27AE60]">
+                    Description
+                  </p>
                   <textarea
-                    className="w-full text-xs text-gray-500 outline-none placeholder-gray-300 resize-none bg-transparent leading-relaxed focus:text-gray-700 transition-colors"
-                    placeholder="Value or description (e.g. Vitrified Tiles)"
+                    className="w-full pr-6 text-xs text-gray-700 outline-none placeholder-gray-300 resize-y bg-transparent leading-relaxed focus:text-gray-900 transition-colors whitespace-pre-wrap"
+                    placeholder="Paste or type specification text exactly…"
                     value={item.description}
-                    rows={2}
+                    rows={4}
+                    spellCheck={false}
                     onChange={(e) =>
                       updateItem(gIndex, iIndex, "description", e.target.value)
+                    }
+                    onPaste={(e) =>
+                      pasteExactPlainText(e, item.description, (v) =>
+                        updateItem(gIndex, iIndex, "description", v),
+                      )
                     }
                   />
                 </div>
               ))}
 
-              {/* Add item button */}
               <button
+                type="button"
                 onClick={() => addItem(gIndex)}
                 className="w-full py-2.5 rounded-xl border-2 border-dashed border-[#27AE60]/20 text-[#27AE60] text-xs font-bold hover:border-[#27AE60] hover:bg-[#27AE60]/5 transition-all"
               >
@@ -262,8 +269,8 @@ export default function SpecificationEditor({
           </div>
         ))}
 
-        {/* ── Add category button ── */}
         <button
+          type="button"
           onClick={addCategory}
           className="w-full py-3 border-2 border-dashed border-[#27AE60]/30 text-[#27AE60] rounded-xl text-sm font-bold hover:border-[#27AE60] hover:bg-[#27AE60]/5 transition-all flex items-center justify-center gap-2"
         >
@@ -280,58 +287,18 @@ export default function SpecificationEditor({
               d="M12 4v16m8-8H4"
             />
           </svg>
-          Add Category
+          Add Group
         </button>
       </div>
 
-      {/* ── Save button (pinned footer) ── */}
       <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex-shrink-0">
         <button
+          type="button"
           onClick={saveSpecifications}
           disabled={saving}
           className="w-full py-3 bg-[#27AE60] hover:bg-[#219150] text-white text-sm font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 shadow-md shadow-[#27AE60]/20 flex items-center justify-center gap-2"
         >
-          {saving ? (
-            <>
-              <svg
-                className="w-4 h-4 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v8z"
-                />
-              </svg>
-              Saving…
-            </>
-          ) : (
-            <>
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2.5"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              Save Specifications
-            </>
-          )}
+          {saving ? "Saving…" : "Save Specifications"}
         </button>
       </div>
     </div>

@@ -1,8 +1,6 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/PropertyDetailsEditor.jsx
 
 import React, { useState, useEffect, useMemo } from "react";
-import { compressPdfAdvanced } from "../../CreateFeaturedProjects/utils/compressPdfAdvanced";
-import { compressImage } from "./imageCompressor";
 import { toast } from "sonner";
 import {
   INDIAN_STATES,
@@ -13,6 +11,8 @@ import {
   buildCityOptions,
   toTitleCase,
 } from "../../../../utils/countryStateCity";
+
+const MAX_BROCHURE_BYTES = 20 * 1024 * 1024; // 20 MB — no compression
 
 /* ─── PINCODE AUTOFILL ───── */
 
@@ -212,68 +212,46 @@ export default function PropertyDetailsEditor({
   // }
 
   async function handleBrochure(e) {
-    let file = e.target.files?.[0];
-
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
 
-    console.log(
-      "📦 ORIGINAL FILE:",
-      file.name,
-      (file.size / 1024 / 1024).toFixed(2),
-      "MB",
-    );
-
-    try {
-      // ✅ PDF Compression
-      if (file.type === "application/pdf") {
-        toast.loading("Compressing PDF... ⏳");
-
-        file = await compressPdfAdvanced(file);
-
-        toast.dismiss();
-
-        console.log(
-          "✅ COMPRESSED PDF:",
-          (file.size / 1024 / 1024).toFixed(2),
-          "MB",
-        );
-      }
-
-      // ✅ Image Compression
-      else if (file.type.startsWith("image/")) {
-        file = await compressImage(file, "gallery", "Brochure Image");
-
-        console.log(
-          "✅ COMPRESSED IMAGE:",
-          (file.size / 1024 / 1024).toFixed(2),
-          "MB",
-        );
-      }
-
-      setBrochureFile(file);
-
-      setFormData((prev) => ({
-        ...prev,
-        brochure: {
-          file,
-          filename: file.name,
-        },
-      }));
-
-      setLivePreviewData((prev) => ({
-        ...prev,
-        brochureUrl: URL.createObjectURL(file),
-        brochure: {
-          filename: file.name,
-        },
-      }));
-
-      toast.success("Brochure optimized successfully ✅");
-    } catch (err) {
-      console.error("❌ Brochure compression failed:", err);
-
-      toast.error("Compression failed ❌");
+    const isPdf = file.type === "application/pdf";
+    const isImage = file.type.startsWith("image/");
+    if (!isPdf && !isImage) {
+      toast.error("Only PDF or image files are allowed");
+      input.value = "";
+      return;
     }
+
+    const sizeMb = file.size / 1024 / 1024;
+    if (file.size > MAX_BROCHURE_BYTES) {
+      toast.error(
+        `Brochure must be 20 MB or less. Your file is ${sizeMb.toFixed(2)} MB.`,
+      );
+      input.value = "";
+      return;
+    }
+
+    setBrochureFile(file);
+
+    setFormData((prev) => ({
+      ...prev,
+      brochure: {
+        file,
+        filename: file.name,
+      },
+    }));
+
+    setLivePreviewData((prev) => ({
+      ...prev,
+      brochureUrl: URL.createObjectURL(file),
+      brochure: {
+        filename: file.name,
+      },
+    }));
+
+    toast.success(`Brochure ready (${sizeMb.toFixed(2)} MB)`);
   }
 
   
@@ -682,7 +660,7 @@ export default function PropertyDetailsEditor({
                         {isLand ? "Upload Layout Brochure" : "Upload Brochure"}
                       </span>
                       <span className="text-[9px] text-gray-300">
-                        PDF, PNG, JPG
+                        PDF, PNG, JPG · max 20 MB (no compression)
                       </span>
                     </div>
                   )}

@@ -4,8 +4,9 @@ import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "re
 import { Building2, FileText, BadgeCheck, Globe, Map, Tag, UserCheck } from "lucide-react";
 import { getUserSearch } from "../../../../features/user/userService";
 import { saveImage, deleteImage } from "../utils/indexedDB";
-import { compressPdfAdvanced } from "../utils/compressPdfAdvanced";
 import { toast } from "sonner";
+
+const MAX_BROCHURE_BYTES = 20 * 1024 * 1024; // 20 MB — no compression
 
  
 
@@ -737,7 +738,12 @@ const shouldHideTowerFields =
         <div className="space-y-5">
           {/* Brochure */}
           <div>
-            <label className={LABEL}>Brochure (PDF) *</label>
+            <label className={LABEL}>
+              Brochure (PDF) *{" "}
+              <span className="font-semibold normal-case tracking-normal text-gray-400">
+                · max 20 MB, no compression
+              </span>
+            </label>
             <label
               className={`flex items-center gap-4 px-5 py-4 rounded-2xl border-2 border-dashed
                 cursor-pointer transition-all group
@@ -781,65 +787,39 @@ const shouldHideTowerFields =
                 accept="application/pdf"
                 className="hidden"
                 onChange={async (e) => {
-                  let file = e.target.files[0];
+                  const input = e.target;
+                  let file = input.files?.[0];
                   if (!file) return;
 
                   if (file.type !== "application/pdf") {
-                    toast.error("Only PDF allowed ❌");
+                    toast.error("Only PDF allowed");
+                    input.value = "";
                     return;
                   }
 
-                  // 🔥 compress if >1MB
-                  const MAX_SIZE = 3 * 1024 * 1024;
-                  if (file.size > MAX_SIZE) {
-                    toast.loading("Compressing PDF... ⏳");
-
-                    const compressed = await compressPdfAdvanced(file);
-
-                    
-
-                    toast.dismiss();
-
-                    const sizeMB = (compressed.size / 1024 / 1024).toFixed(2);
-
-
-
-                    if (compressed.size > MAX_SIZE) {
-                      toast.error(
-                        `Still ${sizeMB}MB. Please upload smaller PDF ❌`,
-                      );
-                      return;
-                    }
-
-                    const originalMB = (file.size / 1024 / 1024).toFixed(2);
-                    const compressedMB = (
-                      compressed.size /
-                      1024 /
-                      1024
-                    ).toFixed(2);
-
-                    const savedMB = (
-                      (file.size - compressed.size) /
-                      1024 /
-                      1024
-                    ).toFixed(2);
-
-                    toast.success(
-                      `PDF compressed successfully! ${originalMB} MB → ${compressedMB} MB (Saved ${savedMB} MB) ✅`,
+                  const sizeMb = file.size / 1024 / 1024;
+                  if (file.size > MAX_BROCHURE_BYTES) {
+                    toast.error(
+                      `Brochure must be 20 MB or less. Your file is ${sizeMb.toFixed(2)} MB.`,
                     );
-
-                    //toast.success(`Compressed ✅`);
-
-                    file = compressed;
+                    input.value = "";
+                    return;
                   }
 
-                  const key = await saveImage(file, "other", "brochure");
-
-                  update({
-                    brochure: { key, file },
-                  });
-
-                  clr("brochure");
+                  try {
+                    const key = await saveImage(file, "other", "brochure");
+                    update({
+                      brochure: { key, file },
+                    });
+                    clr("brochure");
+                    toast.success(
+                      `Brochure uploaded (${sizeMb.toFixed(2)} MB)`,
+                    );
+                  } catch (err) {
+                    console.error(err);
+                    toast.error("Failed to save brochure");
+                    input.value = "";
+                  }
                 }}
               />
               {(payload.brochure &&  payload.brochure.file) && (

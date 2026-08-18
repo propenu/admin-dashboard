@@ -8,6 +8,26 @@ const inp = (err) => `w-full px-3 py-2.5 bg-white border-2 rounded-xl text-gray-
 
 const LABEL = "block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5";
 
+/** Paste clipboard as exact plain text (keeps newlines / spacing from external copy). */
+function pasteExactPlainText(e, currentValue, setValue) {
+  e.preventDefault();
+  const pasted = e.clipboardData?.getData("text/plain") ?? "";
+  const el = e.target;
+  const start = typeof el.selectionStart === "number" ? el.selectionStart : currentValue.length;
+  const end = typeof el.selectionEnd === "number" ? el.selectionEnd : currentValue.length;
+  const next = `${String(currentValue || "").slice(0, start)}${pasted}${String(currentValue || "").slice(end)}`;
+  setValue(next);
+  requestAnimationFrame(() => {
+    try {
+      const pos = start + pasted.length;
+      el.selectionStart = pos;
+      el.selectionEnd = pos;
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
   const specs = payload.specifications || [];
   const [errors, setErrors] = useState({});
@@ -16,34 +36,59 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
-      // if (!specs.length) e.specifications = "At least one specification is required";
       specs.forEach((cat, i) => {
-        // if (!cat.category) e[`spec-${i}-category`] = "Category required";
         cat.items.forEach((item, j) => {
-          // if (!item.title)       e[`spec-${i}-item-${j}-title`] = "Required";
-          // if (!item.description) e[`spec-${i}-item-${j}-desc`]  = "Required";
+          if (!String(item.description || "").trim()) {
+            e[`spec-${i}-item-${j}-desc`] = "Required";
+          }
         });
       });
       setErrors(e);
       if (Object.keys(e).length) {
-        specRef.current?.scrollIntoView({ behavior:"smooth", block:"center" });
+        specRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
         return false;
       }
       return true;
     },
   }));
 
-  const clr = (key) => setErrors((p) => { const c={...p}; delete c[key]; return c; });
+  const clr = (key) =>
+    setErrors((p) => {
+      const c = { ...p };
+      delete c[key];
+      return c;
+    });
 
-  const addCategory = () => update({
-    specifications: [...specs, { category:"", order:specs.length, items:[{ title:"", description:"" }] }],
-  });
+  const addCategory = () =>
+    update({
+      specifications: [
+        ...specs,
+        {
+          category: "",
+          order: specs.length,
+          items: [{ title: "", description: "" }],
+        },
+      ],
+    });
 
-  const updCat = (i, v) => { const n=[...specs]; n[i].category=v; update({specifications:n}); clr(`spec-${i}-category`); };
-  const remCat = (i) => update({ specifications: specs.filter((_,idx) => idx!==i) });
-  const addItem = (i) => { const n=[...specs]; n[i].items.push({title:"",description:""}); update({specifications:n}); };
-  const updItem = (i,j,k,v) => { const n=[...specs]; n[i].items[j][k]=v; update({specifications:n}); clr(`spec-${i}-item-${j}-${k==="description"?"desc":k}`); };
-  const remItem = (i,j) => { const n=[...specs]; n[i].items=n[i].items.filter((_,idx)=>idx!==j); update({specifications:n}); };
+  const remCat = (i) =>
+    update({ specifications: specs.filter((_, idx) => idx !== i) });
+  const addItem = (i) => {
+    const n = [...specs];
+    n[i].items.push({ title: "", description: "" });
+    update({ specifications: n });
+  };
+  const updItem = (i, j, k, v) => {
+    const n = [...specs];
+    n[i].items[j][k] = v;
+    update({ specifications: n });
+    clr(`spec-${i}-item-${j}-${k === "description" ? "desc" : k}`);
+  };
+  const remItem = (i, j) => {
+    const n = [...specs];
+    n[i].items = n[i].items.filter((_, idx) => idx !== j);
+    update({ specifications: n });
+  };
 
   return (
     <div className="space-y-5" ref={specRef}>
@@ -68,11 +113,12 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
           </div>
         </div>
         <button
+          type="button"
           onClick={addCategory}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-black hover:opacity-90 transition-all shadow-md"
           style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
         >
-          <Plus size={14} strokeWidth={3} /> Add Category
+          <Plus size={14} strokeWidth={3} /> Add Group
         </button>
       </div>
 
@@ -87,7 +133,7 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
           <ListChecks size={36} className="mb-3 opacity-30" />
           <p className="font-bold text-sm">No specifications yet</p>
           <p className="text-xs mt-1">
-            Add categories like Flooring, Walls, Kitchen etc.
+            Add description items (paste from Excel / docs supported)
           </p>
         </div>
       )}
@@ -97,28 +143,18 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
           key={i}
           className="border-2 border-gray-200 rounded-2xl overflow-hidden shadow-sm bg-white"
         >
-          {/* Category header */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50">
+          <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50">
             <div
               className="w-7 h-7 rounded-lg text-white flex items-center justify-center text-xs font-black"
               style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
             >
               {i + 1}
             </div>
-            <div className="flex-1">
-              <input
-                className={inp(errors[`spec-${i}-category`])}
-                placeholder="Category (e.g. Flooring, Walls...)"
-                value={cat.category}
-                onChange={(e) => updCat(i, e.target.value)}
-              />
-              {errors[`spec-${i}-category`] && (
-                <p className="text-xs text-red-500 mt-1 font-semibold">
-                  ⚠ Required
-                </p>
-              )}
-            </div>
+            <p className="flex-1 text-sm font-bold text-gray-700">
+              Spec group {i + 1}
+            </p>
             <button
+              type="button"
               onClick={() => remCat(i)}
               className="p-2 text-red-500 hover:bg-red-50 border-2 border-red-100 rounded-xl transition-all"
             >
@@ -126,7 +162,6 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
             </button>
           </div>
 
-          {/* Items */}
           <div className="p-5 space-y-3">
             {cat.items.map((item, j) => (
               <div
@@ -139,6 +174,7 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
                   </span>
                   {cat.items.length > 1 && (
                     <button
+                      type="button"
                       onClick={() => remItem(i, j)}
                       className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors"
                     >
@@ -147,29 +183,21 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
                   )}
                 </div>
                 <div>
-                  <label className={LABEL}>Title *</label>
-                  <input
-                    className={inp(errors[`spec-${i}-item-${j}-title`])}
-                    placeholder="e.g. Living Room"
-                    value={item.title}
-                    onChange={(e) => updItem(i, j, "title", e.target.value)}
-                  />
-                  {errors[`spec-${i}-item-${j}-title`] && (
-                    <p className="text-xs text-red-500 mt-1 font-semibold">
-                      ⚠ Required
-                    </p>
-                  )}
-                </div>
-                <div>
                   <label className={LABEL}>Description *</label>
                   <textarea
-                    rows={2}
-                    className={`${inp(errors[`spec-${i}-item-${j}-desc`])} resize-none`}
-                    placeholder="e.g. Vitrified tiles, 600x600mm"
+                    rows={4}
+                    className={`${inp(errors[`spec-${i}-item-${j}-desc`])} resize-y whitespace-pre-wrap`}
+                    placeholder="Paste or type specification text exactly…"
                     value={item.description}
                     onChange={(e) =>
                       updItem(i, j, "description", e.target.value)
                     }
+                    onPaste={(e) =>
+                      pasteExactPlainText(e, item.description, (v) =>
+                        updItem(i, j, "description", v),
+                      )
+                    }
+                    spellCheck={false}
                   />
                   {errors[`spec-${i}-item-${j}-desc`] && (
                     <p className="text-xs text-red-500 mt-1 font-semibold">
@@ -180,21 +208,23 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
               </div>
             ))}
             <div className="flex items-center justify-between gap-3">
-            <button
-              onClick={() => addItem(i)}
-              className="flex items-center gap-2 text-sm font-black transition-colors"
-              style={{ color: "#27AE60" }}
-            >
-              <Plus size={14} strokeWidth={3} /> Add Item
-            </button>
+              <button
+                type="button"
+                onClick={() => addItem(i)}
+                className="flex items-center gap-2 text-sm font-black transition-colors"
+                style={{ color: "#27AE60" }}
+              >
+                <Plus size={14} strokeWidth={3} /> Add Item
+              </button>
 
-            <button
-              onClick={addCategory}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-black hover:opacity-90 transition-all shadow-md"
-              style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
-            >
-              <Plus size={14} strokeWidth={3} /> Add Category
-            </button>
+              <button
+                type="button"
+                onClick={addCategory}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-black hover:opacity-90 transition-all shadow-md"
+                style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
+              >
+                <Plus size={14} strokeWidth={3} /> Add Group
+              </button>
             </div>
           </div>
         </div>

@@ -63,6 +63,7 @@ import { propertiesAnalytics } from "../../../../features/property/propertyServi
 import { getPropertyById } from "../../../../features/property/propertyService";
 import LoadingSpinner from "../../../../components/common/LoadingSpinner";
 import Fallback from "../../../../assets/fallback.svg";
+import LocationAddressBlock from "../../../features/property/components/shared/LocationAddressBlock";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { toast } from "sonner";
@@ -2210,26 +2211,13 @@ export default function IndetailsProperty({
                 </div>
               )}
 
-              <div className="flex items-start gap-1.5 text-sm text-slate-500 mt-2">
-                <MapPin className="w-4 h-4 text-[#27AE60] flex-shrink-0 mt-0.5" />
-                <span>
-                  {[
-                    property.address,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                  {/* {property.pincode && ` - ${property.pincode}`} */}
-                </span>
-                {/* <span>
-                  {[
-                    property.locality,
-                    property.city,
-                    property.state,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </span> */}
-              </div>
+              <LocationAddressBlock
+                address={property.address}
+                locality={property.locality}
+                city={property.city}
+                state={property.state}
+                pincode={property.pincode}
+              />
             </div>
 
             {/* Price */}

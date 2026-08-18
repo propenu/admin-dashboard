@@ -34,6 +34,7 @@ import { projectAnalytics } from "../../features/property/propertyService";
 import { fetchFeaturedProperties } from "../../services/PropertyService";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import Fallback from "../../assets/fallback.svg";
+import LocationAddressBlock from "../features/property/components/shared/LocationAddressBlock";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 export const formatPrice = (price) =>
@@ -384,19 +385,13 @@ export default function FeaturedPropertyDetails() {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800 leading-tight">
                 {property.title || "Untitled Project"}
               </h1>
-              <div className="flex items-start gap-1.5 text-sm text-slate-500 mt-2">
-                <MapPin className="w-4 h-4 text-[#27AE60] flex-shrink-0 mt-0.5" />
-                <span>
-                  {[
-                    property.address,
-                    property.locality,
-                    property.city,
-                    property.state,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </span>
-              </div>
+              <LocationAddressBlock
+                address={property.address}
+                locality={property.locality}
+                city={property.city}
+                state={property.state}
+                pincode={property.pincode}
+              />
             </div>
 
             {/* Price banner */}

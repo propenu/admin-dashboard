@@ -66,6 +66,7 @@ import {
   titlePromotionType,
 } from "./promotionTracking";
 import BuilderAttachPanel from "./BuilderAttachPanel";
+import LocationAddressBlock from "./LocationAddressBlock";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // export const formatPrice = (price) =>
