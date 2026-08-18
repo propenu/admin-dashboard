@@ -1,7 +1,9 @@
 // src/pages/features/property/components/shared/ProjectsDashboardPage.jsx
 import {
   useState, useEffect, useRef, useMemo, useCallback, useReducer,
+  useLayoutEffect,
 } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -60,6 +62,27 @@ const CATEGORY_TYPES = [
   { value: "all",         label: "All"           },
   { value: "residential", label: "Residential"   },
   { value: "land",        label: "Land"          },
+];
+
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "rank", label: "Display rank" },
+  { isGroup: true, label: "Low Budget" },
+  { value: "0-1L", label: "₹0 - ₹1L" },
+  { value: "1L-5L", label: "₹1L - ₹5L" },
+  { value: "5L-10L", label: "₹5L - ₹10L" },
+  { isGroup: true, label: "Mid Budget" },
+  { value: "10L-25L", label: "₹10L - ₹25L" },
+  { value: "25L-50L", label: "₹25L - ₹50L" },
+  { value: "50L-1Cr", label: "₹50L - ₹1Cr" },
+  { isGroup: true, label: "Premium" },
+  { value: "1Cr-2Cr", label: "₹1Cr - ₹2Cr" },
+  { value: "2Cr-5Cr", label: "₹2Cr - ₹5Cr" },
+  { value: "5Cr+", label: "₹5Cr+" },
+  { isGroup: true, label: "Sort" },
+  { value: "lowToHigh", label: "Price: Low → High" },
+  { value: "highToLow", label: "Price: High → Low" },
 ];
 
 const PROPERTY_TYPES = {
@@ -141,6 +164,37 @@ const TRACKING_FILTERS = [
   { value: "expired", label: "Expired" },
   { value: "scheduled", label: "Scheduled" },
 ];
+
+/** Urgent expiring window used by red badge + Expiring Soon filter (aligned). */
+const EXPIRING_SOON_DAYS = 3;
+
+const isPromotionExpiringSoon = (tracking) => {
+  if (!tracking || tracking.currentType === "normal") return false;
+  if (
+    tracking.lifecycle === "expired" ||
+    tracking.lifecycle === "scheduled"
+  ) {
+    return false;
+  }
+  const days = tracking.daysLeft;
+  return (
+    typeof days === "number" && days >= 0 && days <= EXPIRING_SOON_DAYS
+  );
+};
+
+const getTrackingBucket = (project) => {
+  const tracking = getPromotionTracking(project);
+  if (tracking.hasHistory && tracking.currentType === "normal") {
+    // history only — still countable under promoted
+  }
+  if (isPromotionExpiringSoon(tracking)) return "expiringSoon";
+  const life = tracking.lifecycle;
+  if (life === "critical") return "expiringSoon";
+  if (life === "active" || life === "expiringSoon") return "active";
+  if (life === "expired") return "expired";
+  if (life === "scheduled") return "scheduled";
+  return "normal";
+};
 
 const TYPE_COLORS = [
   "bg-emerald-600","bg-emerald-500","bg-emerald-400","bg-emerald-300",
@@ -293,49 +347,176 @@ function PromoBadge({ label, value }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SELECT DROPDOWN
+// FILTER MENU — same style as Promotion Tracking (portal, no native <select>)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SelectDropdown({ label, value, options, onChange, placeholder = "Select…" }) {
+function FilterMenu({
+  label,
+  value,
+  options = [],
+  onChange,
+  className = "",
+  triggerClassName = "",
+  placeholder = "Select…",
+  menuMaxHeight = 240,
+  minMenuWidth = 160,
+  /** Show emerald emphasis when a non-default value is selected */
+  activeWhenNot = "all",
+}) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+  const [menuStyle, setMenuStyle] = useState(null);
+
+  const selected = options.find((o) => o.value === value && !o.isGroup);
+  const isActive =
+    activeWhenNot != null && value != null && value !== activeWhenNot;
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuStyle(null);
+      return;
+    }
+    const place = () => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const width = Math.max(r.width, minMenuWidth);
+      const spaceBelow = window.innerHeight - r.bottom;
+      const openUp = spaceBelow < 220 && r.top > spaceBelow;
+      setMenuStyle({
+        position: "fixed",
+        left: Math.min(Math.max(8, r.left), window.innerWidth - width - 8),
+        width,
+        zIndex: 9999,
+        maxHeight: Math.min(
+          menuMaxHeight,
+          openUp ? r.top - 12 : spaceBelow - 12,
+        ),
+        ...(openUp
+          ? { bottom: window.innerHeight - r.top + 4 }
+          : { top: r.bottom + 4 }),
+      });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, options.length, menuMaxHeight, minMenuWidth]);
 
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const selected = options.find((o) => o.value === value);
+    if (!open) return;
+    const onDown = (e) => {
+      if (menuRef.current?.contains(e.target)) return;
+      if (triggerRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
 
   return (
-    <div ref={ref} className="relative">
-      {label && <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">{label}</p>}
+    <div className={`relative ${className}`}>
+      {label ? (
+        <p className="mb-1 text-[11px] font-bold text-slate-600">{label}</p>
+      ) : null}
       <button
-        onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition
-          ${value ? "bg-[#27AE60]/10 border-[#27AE60]/40 text-[#27AE60]" : "bg-slate-50 border-slate-200 text-slate-600 hover:border-[#27AE60]/50"}`}
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex h-9 w-full items-center justify-between gap-1 rounded-lg border bg-white px-2 text-left text-xs font-semibold outline-none transition focus:border-emerald-500 ${
+          isActive
+            ? "border-emerald-300 text-emerald-800 ring-1 ring-emerald-100"
+            : "border-slate-200 text-slate-700"
+        } ${triggerClassName}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
       >
-        <span className="truncate">{selected ? selected.label : placeholder}</span>
-        <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        <span className="min-w-0 flex-1 truncate">
+          {selected?.label || placeholder}
+        </span>
+        <ChevronDown
+          size={14}
+          className={`shrink-0 text-slate-400 transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        />
       </button>
-      {open && (
-        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
-          <div className="max-h-48 overflow-y-auto">
-            {options.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => { onChange(opt.value); setOpen(false); }}
-                className={`w-full text-left px-3 py-2 text-xs hover:bg-green-50 transition
-                  ${opt.value === value ? "bg-[#27AE60]/10 text-[#27AE60] font-semibold" : "text-slate-700"}`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+
+      {open && menuStyle
+        ? createPortal(
+            <div
+              ref={menuRef}
+              style={menuStyle}
+              className="overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-2xl"
+              role="listbox"
+            >
+              {options.map((opt, idx) => {
+                if (opt.isGroup) {
+                  return (
+                    <p
+                      key={`g-${opt.label}-${idx}`}
+                      className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-wide text-slate-400"
+                    >
+                      {opt.label}
+                    </p>
+                  );
+                }
+                const selectedOpt = value === opt.value;
+                const count = opt.count;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedOpt}
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
+                      selectedOpt
+                        ? "bg-emerald-600 text-white"
+                        : "text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                    {typeof count === "number" && count > 0 ? (
+                      <span
+                        className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                          selectedOpt
+                            ? "bg-white/25 text-white"
+                            : "bg-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
+  );
+}
+
+/** @deprecated Prefer FilterMenu — kept for analytics location UI */
+function SelectDropdown({ label, value, options, onChange, placeholder = "Select…" }) {
+  return (
+    <FilterMenu
+      label={label}
+      value={value}
+      options={options}
+      onChange={onChange}
+      placeholder={placeholder}
+      activeWhenNot={null}
+    />
   );
 }
 
@@ -1292,7 +1473,8 @@ export default function ProjectsDashboardPage() {
     search: debouncedProjectSearch,
     from: urlCreatedFrom,
     to: urlCreatedTo,
-    status: serverListStatus,
+    // Never send status=all — that used to trigger full multi-page prefetch
+    status: serverListStatus === "all" ? "" : serverListStatus,
   };
   const primeHook     = useFeaturedProjects("prime", projectQueryOptions);
   const featuredHook  = useFeaturedProjects("featured", projectQueryOptions);
@@ -1303,7 +1485,7 @@ export default function ProjectsDashboardPage() {
     search: debouncedProjectSearch,
     from: urlCreatedFrom,
     to: urlCreatedTo,
-    status: serverListStatus,
+    status: serverListStatus === "all" ? "" : serverListStatus,
     enabled: !!serverPromotionStatus,
   });
 
@@ -1335,20 +1517,6 @@ export default function ProjectsDashboardPage() {
     refetchPendingProjects,
     serverPromotionStatus,
     sponsoredHook,
-  ]);
-
-  useEffect(() => {
-    console.log({
-      prime: primeHook.totalCount,
-      featured: featuredHook.totalCount,
-      sponsored: sponsoredHook.totalCount,
-      normal: normalHook.totalCount,
-    });
-  }, [
-    primeHook.totalCount,
-    featuredHook.totalCount,
-    sponsoredHook.totalCount,
-    normalHook.totalCount,
   ]);
 
   const allProperties = useMemo(() => {
@@ -1455,13 +1623,6 @@ export default function ProjectsDashboardPage() {
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => String(a.name).localeCompare(String(b.name)));
   }, [allBuildersSearch, allProperties]);
-
-  console.log("Prime:", primeHook.properties.length);
-  console.log("Featured:", featuredHook.properties.length);
-  console.log("Sponsored:", sponsoredHook.properties.length);
-  console.log("Normal:", normalHook.properties.length);
-  console.log("All Properties:", allProperties.length);
-  
 
   const isLoading = serverPromotionStatus
     ? lifecycleHook.isLoading
@@ -1633,12 +1794,6 @@ export default function ProjectsDashboardPage() {
 
  const analytics = analyticsData?.data?.data || analyticsData?.data || null;
 
- useEffect(() => {
-   console.log("selectedLocation", selectedLocation);
-   console.log("analytics", analytics);
- }, [selectedLocation, analytics]);
-
-
   const isPendingApprovalsView =
     canViewPendingProjects &&
     (statusFilter === "pending" || promotionFilter === "pending");
@@ -1660,20 +1815,23 @@ export default function ProjectsDashboardPage() {
     if (trackingFilter !== "all" && !serverPromotionStatus) {
       list = list.filter((p) => {
         const tracking = getPromotionTracking(p);
+        if (trackingFilter === "promoted") return tracking.hasHistory;
+        if (trackingFilter === "expiringSoon") {
+          return isPromotionExpiringSoon(tracking);
+        }
+        if (trackingFilter === "active") {
+          return getTrackingBucket(p) === "active";
+        }
         const lifecycle =
           tracking.lifecycle === "critical" ? "expiringSoon" : tracking.lifecycle;
-        if (trackingFilter === "promoted") return tracking.hasHistory;
         return lifecycle === trackingFilter;
       });
-      console.log("After tracking", list.length);
     }
-    if (categoryFilter !== "all"){
+    if (categoryFilter !== "all") {
       list = list.filter((p) => p.categoryType === categoryFilter);
-      console.log("After category", list.length);
     }
-    if (propertyTypeFilter !== "all"){
+    if (propertyTypeFilter !== "all") {
       list = list.filter((p) => p.propertyType === propertyTypeFilter);
-      console.log("After propertyType", list.length);
     }
     if (creatorBuilderFilter !== "all") {
       list = list.filter((p) => getProjectCreatorId(p) === creatorBuilderFilter);
@@ -1692,12 +1850,8 @@ export default function ProjectsDashboardPage() {
       });
     }
 
-    console.log("Before price filters", list.length);
-
     // Location filter — same as analytics scope
     if (selectedLocation) {
-      const { type, value } = selectedLocation;
-
       if (selectedLocation?.value?.state) {
         list = list.filter(
           (p) => p.state?.trim() === selectedLocation.value.state,
@@ -1726,11 +1880,6 @@ export default function ProjectsDashboardPage() {
       );
     }
 
-    
-
-    // return [...list].sort(
-    //   (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity),
-    // );
     let filteredList = [...list];
 
     switch (sortBy) {
@@ -1847,11 +1996,6 @@ export default function ProjectsDashboardPage() {
         ?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }, [promotionFilter, statusFilter]);
-
-  console.log(normalHook.properties.length);
-  console.log(visibleProperties.length);
-
-  console.log("visibleProperties", visibleProperties);
 
   const paginationStart = (currentPage - 1) * PROJECTS_PER_PAGE;
   const paginatedProperties = visibleProperties.slice(
@@ -1974,37 +2118,45 @@ export default function ProjectsDashboardPage() {
 
   const statusFilterOptions = useMemo(() => {
     const ov = analytics?.overview || {};
-    const withCount = (label, count) =>
-      Number.isFinite(Number(count)) ? `${label} (${Number(count)})` : label;
+    const countFor = (value) => {
+      if (value === "all") return Number(ov.totalProjects);
+      if (value === "draft") return Number(ov.inactiveProjects);
+      if (value === "pending") return Number(ov.pendingProjects);
+      if (value === "approved") return Number(ov.activeProjects);
+      return NaN;
+    };
 
     return STATUS_FILTERS.map((item) => {
-      if (item.value === "all") {
-        return {
-          ...item,
-          label: withCount(item.label, ov.totalProjects),
-        };
-      }
-      if (item.value === "draft") {
-        return {
-          ...item,
-          label: withCount(item.label, ov.inactiveProjects),
-        };
-      }
-      if (item.value === "pending") {
-        return {
-          ...item,
-          label: withCount(item.label, ov.pendingProjects),
-        };
-      }
-      if (item.value === "approved") {
-        return {
-          ...item,
-          label: withCount(item.label, ov.activeProjects),
-        };
-      }
-      return item;
+      const count = countFor(item.value);
+      return {
+        ...item,
+        ...(Number.isFinite(count) ? { count } : {}),
+      };
     });
   }, [analytics]);
+
+  const builderFilterOptions = useMemo(() => {
+    const query = builderSearch.trim().toLowerCase();
+    const builders = creatorBuilderOptions.filter((builder) => {
+      if (
+        creatorBuilderFilter !== "all" &&
+        builder.id === creatorBuilderFilter
+      ) {
+        return true;
+      }
+      if (!query) return true;
+      return String(builder.name || "")
+        .toLowerCase()
+        .includes(query);
+    });
+    return [
+      { value: "all", label: "All builders" },
+      ...builders.map((builder) => ({
+        value: builder.id,
+        label: builder.name,
+      })),
+    ];
+  }, [builderSearch, creatorBuilderFilter, creatorBuilderOptions]);
 
   const getHook = useCallback((id) => {
     const type = allProperties.find((p) => p._id === id)?.promotion?.type || "normal";
@@ -2056,21 +2208,89 @@ export default function ProjectsDashboardPage() {
     [allProperties, promoteTarget],
   );
 
-  /** Promotions expiring within 3 days (includes today) — for red badge on Tracking dropdown */
-  const expiringSoon3DayCount = useMemo(() => {
-    return allProperties.filter((project) => {
+  /** Dynamic promotion-tracking counts (from loaded list — scalable as pages load) */
+  const trackingCounts = useMemo(() => {
+    const counts = {
+      all: allProperties.length,
+      promoted: 0,
+      active: 0,
+      expiringSoon: 0,
+      expired: 0,
+      scheduled: 0,
+    };
+    for (const project of allProperties) {
       const tracking = getPromotionTracking(project);
-      if (!tracking || tracking.currentType === "normal") return false;
-      if (
-        tracking.lifecycle === "expired" ||
-        tracking.lifecycle === "scheduled"
-      ) {
-        return false;
-      }
-      const days = tracking.daysLeft;
-      return typeof days === "number" && days >= 0 && days <= 3;
-    }).length;
+      if (tracking.hasHistory) counts.promoted += 1;
+      const bucket = getTrackingBucket(project);
+      if (bucket === "expiringSoon") counts.expiringSoon += 1;
+      else if (bucket === "active") counts.active += 1;
+      else if (bucket === "expired") counts.expired += 1;
+      else if (bucket === "scheduled") counts.scheduled += 1;
+    }
+    return counts;
   }, [allProperties]);
+
+  const expiringSoon3DayCount = trackingCounts.expiringSoon;
+
+  const [trackingMenuOpen, setTrackingMenuOpen] = useState(false);
+  const trackingMenuRef = useRef(null);
+  const trackingTriggerRef = useRef(null);
+  const [trackingMenuStyle, setTrackingMenuStyle] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!trackingMenuOpen) {
+      setTrackingMenuStyle(null);
+      return;
+    }
+    const place = () => {
+      const el = trackingTriggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const width = Math.max(r.width, 200);
+      const spaceBelow = window.innerHeight - r.bottom;
+      const openUp = spaceBelow < 220 && r.top > spaceBelow;
+      setTrackingMenuStyle({
+        position: "fixed",
+        left: Math.min(r.left, window.innerWidth - width - 8),
+        width,
+        zIndex: 9999,
+        ...(openUp
+          ? { bottom: window.innerHeight - r.top + 4 }
+          : { top: r.bottom + 4 }),
+      });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [trackingMenuOpen]);
+
+  useEffect(() => {
+    if (!trackingMenuOpen) return;
+    const onDown = (e) => {
+      if (trackingMenuRef.current?.contains(e.target)) return;
+      if (trackingTriggerRef.current?.contains(e.target)) return;
+      setTrackingMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [trackingMenuOpen]);
+
+  const trackingFilterLabel = useMemo(() => {
+    const item = TRACKING_FILTERS.find((f) => f.value === trackingFilter);
+    if (!item) return "All Tracking";
+    if (item.value === "expiringSoon" && expiringSoon3DayCount > 0) {
+      return `${item.label} (${expiringSoon3DayCount})`;
+    }
+    const n = trackingCounts[item.value];
+    if (item.value !== "all" && typeof n === "number" && n > 0) {
+      return `${item.label} (${n})`;
+    }
+    return item.label;
+  }, [trackingFilter, expiringSoon3DayCount, trackingCounts]);
 
   // ── Active filter count + clear ───────────────────────────────────────────
   const activeFiltersCount = useMemo(() => [
@@ -2448,50 +2668,35 @@ export default function ProjectsDashboardPage() {
         </div>
         {/* Compact filter row — fixed narrow widths for Category / Status / Tracking */}
         <div className="flex flex-wrap items-end gap-2.5">
-          <div className="w-[7.5rem] shrink-0">
-            <p className="mb-1 text-[11px] font-bold text-slate-600">Category</p>
-            <select
-              value={categoryFilter}
-              onChange={(event) => {
-                setCategoryFilter(event.target.value);
-                setPropertyTypeFilter("all");
-                setCurrentPage(1);
-              }}
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500"
-            >
-              {CATEGORY_TYPES.map((cat) => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FilterMenu
+            className="w-[7.5rem] shrink-0"
+            label="Category"
+            value={categoryFilter}
+            options={CATEGORY_TYPES}
+            onChange={(next) => {
+              setCategoryFilter(next);
+              setPropertyTypeFilter("all");
+              setCurrentPage(1);
+            }}
+          />
 
-          <div className="w-[10rem] shrink-0">
-            <p className="mb-1 text-[11px] font-bold text-slate-600">Status</p>
-            <select
-              value={statusFilter}
-              onChange={(event) => {
-                const next = event.target.value;
-                setStatusFilter(next);
-                setCurrentPage(1);
-                if (next !== "pending") {
-                  setPromotionFilter((prev) =>
-                    prev === "pending" ? "all" : prev,
-                  );
-                }
-              }}
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500"
-            >
-              {statusFilterOptions.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <FilterMenu
+            className="w-[10rem] shrink-0"
+            label="Status"
+            value={statusFilter}
+            options={statusFilterOptions}
+            onChange={(next) => {
+              setStatusFilter(next);
+              setCurrentPage(1);
+              if (next !== "pending") {
+                setPromotionFilter((prev) =>
+                  prev === "pending" ? "all" : prev,
+                );
+              }
+            }}
+          />
 
-          <div className="relative w-[11.5rem] shrink-0">
+          <div className="relative w-[12.5rem] shrink-0">
             <div className="mb-1 flex items-center gap-1.5">
               <p className="text-[11px] font-bold text-slate-600">
                 Promotion Tracking
@@ -2499,59 +2704,129 @@ export default function ProjectsDashboardPage() {
               {expiringSoon3DayCount > 0 ? (
                 <span
                   className="relative inline-flex"
-                  title={`${expiringSoon3DayCount} promotion(s) expire within 3 days`}
+                  title={`${expiringSoon3DayCount} promotion(s) expire within ${EXPIRING_SOON_DAYS} days`}
                 >
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-60" />
-                  <span className="relative inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-600 px-1 py-0.5 text-[9px] font-black leading-none text-white shadow-sm animate-pulse">
+                  <span className="relative inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-600 px-1 py-0.5 text-[9px] font-black leading-none text-white shadow-sm">
                     {expiringSoon3DayCount}
                   </span>
                 </span>
               ) : null}
             </div>
-            <div className="relative">
-              <select
-                value={trackingFilter}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  setTrackingFilter(next);
-                  setCurrentPage(1);
-                  if (next === "expired" || next === "scheduled") {
-                    setPromotionFilter("all");
-                    setStatusFilter("all");
-                  }
-                }}
-                className={`h-9 w-full rounded-lg border bg-white px-2 pr-7 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 ${
+
+            <div className="relative" ref={trackingTriggerRef}>
+              <button
+                type="button"
+                onClick={() => setTrackingMenuOpen((o) => !o)}
+                className={`flex h-9 w-full items-center justify-between gap-1 rounded-lg border bg-white px-2 text-left text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 ${
                   expiringSoon3DayCount > 0
                     ? "border-red-300 ring-1 ring-red-100"
                     : "border-slate-200"
                 }`}
+                aria-haspopup="listbox"
+                aria-expanded={trackingMenuOpen}
               >
-                {TRACKING_FILTERS.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.value === "expiringSoon" && expiringSoon3DayCount > 0
-                      ? `${item.label} (${expiringSoon3DayCount})`
-                      : item.label}
-                  </option>
-                ))}
-              </select>
+                <span className="min-w-0 flex-1 truncate">
+                  {trackingFilterLabel}
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`shrink-0 text-slate-400 transition-transform ${
+                    trackingMenuOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {/* Corner badge — always visible (custom menu, not native select) */}
               {expiringSoon3DayCount > 0 ? (
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setTrackingFilter("expiringSoon");
                     setCurrentPage(1);
+                    setTrackingMenuOpen(false);
                   }}
-                  className="absolute -right-1.5 -top-1.5 z-10 inline-flex"
+                  className="absolute -right-1.5 -top-1.5 z-20 inline-flex"
                   title="Show expiring within 3 days"
                   aria-label={`${expiringSoon3DayCount} expiring soon`}
                 >
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-70" />
-                  <span className="relative inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white shadow-md animate-pulse">
+                  <span className="relative inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black text-white shadow-md">
                     {expiringSoon3DayCount}
                   </span>
                 </button>
               ) : null}
             </div>
+
+            {trackingMenuOpen && trackingMenuStyle
+              ? createPortal(
+                  <div
+                    ref={trackingMenuRef}
+                    style={trackingMenuStyle}
+                    className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-2xl"
+                    role="listbox"
+                  >
+                    {TRACKING_FILTERS.map((item) => {
+                      const count =
+                        item.value === "all"
+                          ? trackingCounts.all
+                          : trackingCounts[item.value];
+                      const showCount =
+                        item.value === "expiringSoon"
+                          ? expiringSoon3DayCount > 0
+                          : item.value !== "all" && count > 0;
+                      const selected = trackingFilter === item.value;
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onClick={() => {
+                            setTrackingFilter(item.value);
+                            setCurrentPage(1);
+                            if (
+                              item.value === "expired" ||
+                              item.value === "scheduled"
+                            ) {
+                              setPromotionFilter("all");
+                              setStatusFilter("all");
+                            }
+                            setTrackingMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
+                            selected
+                              ? "bg-emerald-600 text-white"
+                              : item.value === "expiringSoon" &&
+                                  expiringSoon3DayCount > 0
+                                ? "bg-red-50 text-red-700 hover:bg-red-100"
+                                : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="truncate">{item.label}</span>
+                          {showCount ? (
+                            <span
+                              className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                                selected
+                                  ? "bg-white/25 text-white"
+                                  : item.value === "expiringSoon"
+                                    ? "bg-red-600 text-white"
+                                    : "bg-slate-200 text-slate-700"
+                              }`}
+                            >
+                              {item.value === "expiringSoon"
+                                ? expiringSoon3DayCount
+                                : count}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>,
+                  document.body,
+                )
+              : null}
           </div>
 
           <div className="min-w-0 w-full max-w-xs shrink-0 sm:w-auto sm:flex-1 sm:max-w-sm">
@@ -2582,36 +2857,18 @@ export default function ProjectsDashboardPage() {
                   </button>
                 ) : null}
               </div>
-              <select
+              <FilterMenu
+                className="w-[8.5rem] shrink-0"
                 value={creatorBuilderFilter}
-                onChange={(event) => {
-                  setCreatorBuilderFilter(event.target.value);
+                options={builderFilterOptions}
+                placeholder="All builders"
+                menuMaxHeight={280}
+                minMenuWidth={180}
+                onChange={(next) => {
+                  setCreatorBuilderFilter(next);
                   setCurrentPage(1);
                 }}
-                title={`${creatorBuilderOptions.length} builders`}
-                className="h-9 w-[7rem] shrink-0 rounded-lg border border-slate-200 bg-white px-1.5 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
-              >
-                <option value="all">All builders</option>
-                {creatorBuilderOptions
-                  .filter((builder) => {
-                    if (
-                      creatorBuilderFilter !== "all" &&
-                      builder.id === creatorBuilderFilter
-                    ) {
-                      return true;
-                    }
-                    const query = builderSearch.trim().toLowerCase();
-                    if (!query) return true;
-                    return String(builder.name || "")
-                      .toLowerCase()
-                      .includes(query);
-                  })
-                  .map((builder) => (
-                    <option key={builder.id} value={builder.id}>
-                      {builder.name}
-                    </option>
-                  ))}
-              </select>
+              />
             </div>
           </div>
 
@@ -2811,35 +3068,17 @@ export default function ProjectsDashboardPage() {
           </h2>
 
           <div className="flex w-full items-center gap-2 sm:w-auto">
-            <ArrowUpDown className="h-4 w-4 text-slate-500" />
-            <select
+            <ArrowUpDown className="h-4 w-4 shrink-0 text-slate-500" />
+            <FilterMenu
+              className="min-w-0 flex-1 sm:min-w-[200px] sm:flex-none"
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 sm:min-w-[200px] sm:flex-none"
-            >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="rank">Display rank</option>
-              <optgroup label="Low Budget">
-                <option value="0-1L">₹0 - ₹1L</option>
-                <option value="1L-5L">₹1L - ₹5L</option>
-                <option value="5L-10L">₹5L - ₹10L</option>
-              </optgroup>
-              <optgroup label="Mid Budget">
-                <option value="10L-25L">₹10L - ₹25L</option>
-                <option value="25L-50L">₹25L - ₹50L</option>
-                <option value="50L-1Cr">₹50L - ₹1Cr</option>
-              </optgroup>
-              <optgroup label="Premium">
-                <option value="1Cr-2Cr">₹1Cr - ₹2Cr</option>
-                <option value="2Cr-5Cr">₹2Cr - ₹5Cr</option>
-                <option value="5Cr+">₹5Cr+</option>
-              </optgroup>
-              <optgroup label="Sort">
-                <option value="lowToHigh">Price: Low → High</option>
-                <option value="highToLow">Price: High → Low</option>
-              </optgroup>
-            </select>
+              options={SORT_OPTIONS}
+              activeWhenNot="newest"
+              menuMaxHeight={320}
+              minMenuWidth={200}
+              triggerClassName="h-10 rounded-xl px-3 text-sm"
+              onChange={setSortBy}
+            />
           </div>
         </div>
 

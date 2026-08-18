@@ -50,20 +50,28 @@ const {
   staleTime: hasDateRange ? 0 : 30_000,
 
   queryFn: async ({ pageParam }) => {
-    console.log("REQUEST PAGE:", pageParam);
-
-    const limit = search || hasDateRange || status ? 100 : 20;
+    // Default list: paginate (20). Search / draft|pending|etc.: larger pages + optional prefetch.
+    const needsDeepFetch =
+      Boolean(search) ||
+      Boolean(hasDateRange) ||
+      (Boolean(status) && status !== "active" && status !== "all");
+    const limit = needsDeepFetch ? 100 : 20;
     const res = await getFeaturedProjectsByType(type, pageParam, limit, {
       promotionStatus: hasDateRange ? promotionStatus || "all" : promotionStatus,
       search,
       from: from || undefined,
       to: to || undefined,
-      status: status || (hasDateRange ? "all" : undefined),
+      status:
+        status && status !== "all"
+          ? status
+          : hasDateRange
+            ? "all"
+            : undefined,
     });
 
-    // The deployed API may ignore `search`. Merge every server page while
-    // searching so a match can never be hidden outside the first page.
-    if ((search || (status && status !== "active")) && pageParam === 1) {
+    // Only when searching (or specific status boards) merge remaining pages so
+    // matches aren't stuck past page 1. Never do this for status=all default load.
+    if (needsDeepFetch && search && pageParam === 1) {
       const pages = res?.data?.meta?.pages ?? 1;
       if (pages > 1) {
         const remainingPages = await Promise.all(
@@ -75,7 +83,12 @@ const {
               search,
               from: from || undefined,
               to: to || undefined,
-              status: status || (hasDateRange ? "all" : undefined),
+              status:
+                status && status !== "all"
+                  ? status
+                  : hasDateRange
+                    ? "all"
+                    : undefined,
             }),
           ),
         );
@@ -104,34 +117,20 @@ const {
       }
     }
 
-    console.log("RESPONSE PAGE:", res?.data?.meta?.page);
-    console.log("TOTAL PAGES:", res?.data?.meta?.pages);
-
     return res;
   },
 
   getNextPageParam: (lastPage) => {
     const page = lastPage?.data?.meta?.page ?? 1;
     const pages = lastPage?.data?.meta?.pages ?? 1;
-
-
-    console.log("PAGE:", page);
-    console.log("PAGES:", pages);
-
     return page < pages ? page + 1 : undefined;
   },
 });
-
-console.log("DATA:", data);
 
 const properties =
   data?.pages?.flatMap((page) => {
     return page?.data?.items || [];
   }) || [];
-
-  console.log("PROPERTIES:", properties);
-
-  
 
 const invalidate = () =>
   Promise.all([

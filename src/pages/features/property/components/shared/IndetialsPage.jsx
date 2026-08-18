@@ -887,10 +887,18 @@ function RecordMeta({ property }) {
       <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 col-span-2 sm:col-span-1">
           <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-400 mb-1">
-            Property ID
+            Project ID
           </p>
           <p className="font-mono text-[11px] text-slate-500 break-all">
             {property._id}
+          </p>
+        </div>
+        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-400 mb-1">
+            Project Code
+          </p>
+          <p className="font-mono text-[11px] font-semibold text-emerald-700 break-all">
+            {property.propertyCode || "—"}
           </p>
         </div>
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
@@ -1702,6 +1710,12 @@ export default function FeaturedPropertyDetails() {
               />
             </div>
             <div className="flex flex-wrap gap-2 items-center">
+              {property.propertyCode && (
+                <div className="flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-3 py-1.5 rounded-full font-semibold">
+                  <Hash className="w-3 h-3" />
+                  Project Code: {property.propertyCode}
+                </div>
+              )}
               {property.reraNumber && (
                 <div className="flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-full font-semibold">
                   <ShieldCheck className="w-3.5 h-3.5" />

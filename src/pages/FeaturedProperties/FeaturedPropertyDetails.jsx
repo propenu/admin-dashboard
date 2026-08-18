@@ -1161,13 +1161,21 @@ export default function FeaturedPropertyDetails() {
       {/* ── RECORD META ─────────────────────────────────────────────────── */}
       <SectionCard>
         <SectionHeader icon={Clock} title="Record Info" />
-        <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-5 grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div>
             <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-              Property ID
+              Project ID
             </p>
             <p className="font-mono text-xs text-slate-500 mt-1 break-all">
               {property._id}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+              Project Code
+            </p>
+            <p className="font-mono text-xs font-semibold text-emerald-700 mt-1 break-all">
+              {property.propertyCode || "—"}
             </p>
           </div>
           <div>

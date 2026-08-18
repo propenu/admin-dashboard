@@ -553,6 +553,16 @@ function PropertyCard({
           </span>
           <span className="truncate font-mono text-[9.5px] text-slate-400 sm:col-span-2">
             ID: {property?._id || "Unavailable"}
+            {property?.propertyCode ? (
+              <span className="ml-2 inline-flex items-center gap-1 border-l border-slate-200 pl-2 text-slate-500">
+                <span className="font-sans text-[9px] font-semibold text-slate-400">
+                  Property Code
+                </span>
+                <span className="font-semibold text-emerald-700">
+                  {property.propertyCode}
+                </span>
+              </span>
+            ) : null}
           </span>
           {status === "pending" && (
             <span className="flex min-w-0 items-center gap-1.5 truncate text-[10px] font-medium text-amber-700 sm:col-span-2">
@@ -587,20 +597,32 @@ function PropertyCard({
             View <ChevronRight className="h-3 w-3" />
           </button>
           {canReview ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onReview();
-              }}
-              className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-medium text-white transition hover:bg-emerald-700 sm:py-1"
-            >
-              {Number(property?.completion?.percent) === 70 ||
-              isAgentCreatedProperty(property)
-                ? "Approve"
-                : "Review"}{" "}
-              <ChevronRight className="h-3 w-3" />
-            </button>
+            <span className="relative inline-flex min-w-0">
+              {/* Soft ping + glow so pending Approve/Review stands out */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 rounded-lg bg-emerald-400/70 animate-ping"
+              />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -inset-0.5 rounded-lg bg-emerald-500/25 animate-pulse"
+              />
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onReview();
+                }}
+                title="Action needed — approve or review this listing"
+                className="relative z-10 inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-semibold text-white shadow-md shadow-emerald-600/40 ring-2 ring-emerald-300/80 transition hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/50 sm:py-1"
+              >
+                {Number(property?.completion?.percent) === 70 ||
+                isAgentCreatedProperty(property)
+                  ? "Approve"
+                  : "Review"}{" "}
+                <ChevronRight className="h-3 w-3 shrink-0" />
+              </button>
+            </span>
           ) : (
             <button
               type="button"

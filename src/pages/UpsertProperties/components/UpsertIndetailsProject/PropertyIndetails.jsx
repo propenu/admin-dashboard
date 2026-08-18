@@ -491,6 +491,14 @@ function RecordMeta({ property }) {
         </div>
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
           <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-400 mb-1">
+            Property Code
+          </p>
+          <p className="font-mono text-[11px] font-semibold text-emerald-700 break-all">
+            {property.propertyCode || "—"}
+          </p>
+        </div>
+        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+          <p className="text-[9px] font-semibold uppercase tracking-widest text-slate-400 mb-1">
             Slug
           </p>
           <p className="text-[11px] font-semibold text-slate-600 break-all">
