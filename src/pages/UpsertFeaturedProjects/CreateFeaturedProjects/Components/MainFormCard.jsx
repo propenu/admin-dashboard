@@ -17,7 +17,7 @@ export const MainFormCard = ({
 
   
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="overflow-visible rounded-2xl border border-gray-200 bg-white shadow-sm">
       {/* Green accent line */}
       <div
         className="h-1"

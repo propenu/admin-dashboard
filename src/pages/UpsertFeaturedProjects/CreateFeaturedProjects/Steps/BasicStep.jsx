@@ -5,18 +5,16 @@ import {
   useRef,
   useState,
   useEffect,
-  useMemo,
 } from "react";
 
+import SearchableSelect from "../../../../components/common/location/SearchableSelect";
 import {
-  INDIAN_STATES,
-  getCitiesByState,
   CITY_OTHER,
-  findPackageCityName,
-  buildStateOptions,
-  buildCityOptions,
-  toTitleCase,
-} from "../../../../utils/countryStateCity";
+  titleCase,
+  getStateSuggestions,
+  getCitySuggestions,
+  searchLocalitiesWithPhoton,
+} from "../../../../components/common/location/searchableLocationUtils";
 
 /* ─── data ──────────────────────────────────────────────────────── */
 
@@ -324,51 +322,131 @@ async function geocodePincode(pincode, signal) {
 const BasicStep = forwardRef(({ payload, update }, ref) => {
   const titleRef = useRef(null);
   const addressRef = useRef(null);
-  const localityRef = useRef(null);
   const currencyRef = useRef(null);
 
   const [errors, setErrors] = useState({});
   const [ptVisible, setPtVisible] = useState(!!payload?.categoryType);
-
   const [pincodeStatus, setPincodeStatus] = useState(null);
-  /** User chose "Other (custom city)" even before typing a name */
   const [preferOtherCity, setPreferOtherCity] = useState(false);
+  const [cityInPackageList, setCityInPackageList] = useState(true);
 
   const pincodeAbortRef = useRef(null);
 
-  const states = useMemo(
-    () => buildStateOptions(INDIAN_STATES, payload?.state),
-    [payload?.state],
-  );
+  // Searchable State / City / Locality (same as Post Property)
+  const [stateOpen, setStateOpen] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
+  const [localityOpen, setLocalityOpen] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
+  const [citySearch, setCitySearch] = useState("");
+  const [localitySearch, setLocalitySearch] = useState("");
+  const [stateSuggestions, setStateSuggestions] = useState([]);
+  const [citySuggestions, setCitySuggestions] = useState([]);
+  const [localitySuggestions, setLocalitySuggestions] = useState([]);
+  const [stateLoading, setStateLoading] = useState(false);
+  const [cityLoading, setCityLoading] = useState(false);
+  const [localityLoading, setLocalityLoading] = useState(false);
 
-  const packageCities = useMemo(
-    () => getCitiesByState(payload?.state),
-    [payload?.state],
-  );
+  const stateDropdownRef = useRef(null);
+  const cityDropdownRef = useRef(null);
+  const localityDropdownRef = useRef(null);
 
-  const packageCityMatch = findPackageCityName(packageCities, payload?.city);
+  const showManualCityField = preferOtherCity || !cityInPackageList;
 
-  const citySelectValue = preferOtherCity
-    ? CITY_OTHER
-    : packageCityMatch
-      ? packageCityMatch
-      : String(payload?.city || "").trim()
-        ? CITY_OTHER
-        : "";
-
-  const cityOptions = useMemo(
-    () => buildCityOptions(packageCities, payload?.city, citySelectValue),
-    [packageCities, payload?.city, citySelectValue],
-  );
-
-  const showManualCityField = citySelectValue === CITY_OTHER;
-
-  // Pincode / loaded custom city → open Other mode (do not force-off when package matches)
   useEffect(() => {
-    if (!packageCityMatch && String(payload?.city || "").trim()) {
-      setPreferOtherCity(true);
+    const city = String(payload?.city || "").trim();
+    const state = String(payload?.state || "").trim();
+    if (!city || !state) {
+      setCityInPackageList(true);
+      return;
     }
-  }, [packageCityMatch, payload?.city]);
+    const inList = getCitySuggestions(state, "", { includeOther: false }).some(
+      (c) => c.label.toLowerCase() === city.toLowerCase(),
+    );
+    setCityInPackageList(inList);
+    if (!inList) setPreferOtherCity(true);
+  }, [payload?.city, payload?.state]);
+
+  useEffect(() => {
+    if (!stateOpen) {
+      setStateSuggestions([]);
+      return;
+    }
+    const tid = setTimeout(() => {
+      setStateLoading(true);
+      setStateSuggestions(getStateSuggestions(stateSearch));
+      setStateLoading(false);
+    }, 250);
+    return () => clearTimeout(tid);
+  }, [stateOpen, stateSearch]);
+
+  useEffect(() => {
+    if (!cityOpen) {
+      setCitySuggestions([]);
+      return;
+    }
+    const query = citySearch.trim();
+    if (!payload?.state || (query.length > 0 && query.length < 2)) {
+      setCitySuggestions(
+        payload?.state
+          ? getCitySuggestions(payload.state, undefined, { includeOther: true })
+          : [],
+      );
+      return;
+    }
+    const tid = setTimeout(() => {
+      setCityLoading(true);
+      setCitySuggestions(
+        getCitySuggestions(payload.state, query || undefined, {
+          includeOther: true,
+        }),
+      );
+      setCityLoading(false);
+    }, 250);
+    return () => clearTimeout(tid);
+  }, [cityOpen, citySearch, payload?.state]);
+
+  useEffect(() => {
+    if (!localityOpen) {
+      setLocalitySuggestions([]);
+      return;
+    }
+    const trimmed = localitySearch.trim();
+    if (!payload?.city || trimmed.length < 2) {
+      setLocalitySuggestions([]);
+      return;
+    }
+    const ctrl = new AbortController();
+    const tid = setTimeout(async () => {
+      setLocalityLoading(true);
+      const results = await searchLocalitiesWithPhoton(
+        trimmed,
+        ctrl.signal,
+        payload?.state || undefined,
+        payload?.city || undefined,
+        trimmed,
+      );
+      const withCustom = [...results];
+      if (
+        trimmed.length >= 2 &&
+        !results.some(
+          (r) => r.label.toLowerCase() === trimmed.toLowerCase(),
+        )
+      ) {
+        withCustom.push({
+          label: titleCase(trimmed),
+          isCustom: true,
+          city: payload?.city,
+          state: payload?.state,
+        });
+      }
+      setLocalitySuggestions(withCustom);
+      setLocalityLoading(false);
+    }, 400);
+    return () => {
+      ctrl.abort();
+      clearTimeout(tid);
+    };
+  }, [localityOpen, localitySearch, payload?.city, payload?.state]);
 
   /* ─── PINCODE AUTOFILL ───── */
 
@@ -639,57 +717,100 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
             });
           }}
         />
-        {/* STATE — India list; out-of-list values injected as (custom) */}
-        <FloatingSelect
+        {/* STATE / CITY / LOCALITY — searchable (same as Post Property) */}
+        <SearchableSelect
           required
           warning
           label="State"
-          error={errors.state}
           value={payload?.state || ""}
-          onChange={(e) => {
+          placeholder="Select state"
+          error={errors.state}
+          open={stateOpen}
+          onToggle={() => {
+            setStateOpen((o) => !o);
+            setCityOpen(false);
+            setLocalityOpen(false);
+            if (!stateOpen) setStateSearch("");
+          }}
+          onClose={() => setStateOpen(false)}
+          searchValue={stateSearch}
+          onSearchChange={setStateSearch}
+          searchPlaceholder="Search state..."
+          loading={stateLoading}
+          options={stateSuggestions}
+          onSelect={(opt) => {
             setPreferOtherCity(false);
             update({
-              state: e.target.value,
+              state: opt.label,
               city: "",
+              locality: "",
             });
+            setStateOpen(false);
             clr("state");
             clr("city");
+            clr("locality");
           }}
-          options={states.map((state) => ({
-            label: String(state.isoCode || "").startsWith("custom-")
-              ? `${state.name} (custom)`
-              : state.name,
-            value: state.name,
-          }))}
+          emptyHint={
+            stateSearch.trim().length >= 2
+              ? "No state found"
+              : "Type to search Indian states"
+          }
+          dropdownRef={stateDropdownRef}
+          optionKey={(opt) => opt.isoCode || opt.label}
         />
 
-        {/* CITY — India list + Other (custom) editable field */}
         <div className="space-y-3">
-          <FloatingSelect
+          <SearchableSelect
             required
             warning
             label="City"
+            value={
+              preferOtherCity && !payload?.city
+                ? "Other (custom city)"
+                : payload?.city || ""
+            }
+            placeholder={
+              payload?.state ? "Select city" : "Select state first"
+            }
             error={errors.city && !showManualCityField}
-            value={citySelectValue}
-            onChange={(e) => {
-              const next = e.target.value;
-              if (next === CITY_OTHER) {
-                setPreferOtherCity(true);
-                clr("city");
-                return;
-              }
-              const pkg = findPackageCityName(packageCities, next);
-              setPreferOtherCity(false);
-              update({ city: pkg || next });
-              clr("city");
+            disabled={!payload?.state}
+            open={cityOpen}
+            onToggle={() => {
+              if (!payload?.state) return;
+              setCityOpen((o) => !o);
+              setStateOpen(false);
+              setLocalityOpen(false);
+              if (!cityOpen) setCitySearch("");
             }}
-            options={[
-              ...cityOptions.map((city) => ({
-                label: city.label,
-                value: city.name,
-              })),
-              { label: "Other (custom city)", value: CITY_OTHER },
-            ]}
+            onClose={() => setCityOpen(false)}
+            searchValue={citySearch}
+            onSearchChange={setCitySearch}
+            searchPlaceholder="Search city…"
+            loading={cityLoading}
+            options={citySuggestions}
+            onSelect={(opt) => {
+              if (opt.isOther || opt.value === CITY_OTHER) {
+                setPreferOtherCity(true);
+                update({ city: "", locality: "" });
+              } else {
+                setPreferOtherCity(false);
+                update({ city: opt.label, locality: "" });
+              }
+              setCityOpen(false);
+              clr("city");
+              clr("locality");
+            }}
+            emptyHint={
+              citySearch.trim().length >= 2
+                ? "No city found"
+                : payload?.state
+                  ? "Suggested cities for selected state"
+                  : "Select state first"
+            }
+            dropdownRef={cityDropdownRef}
+            optionKey={(opt, idx) =>
+              `${opt.value || opt.label}-${opt.stateCode || idx}`
+            }
           />
 
           {showManualCityField && (
@@ -707,29 +828,68 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
                 clr("city");
               }}
               onBlur={(e) => {
-                update({ city: toTitleCase(e.target.value) });
+                update({ city: titleCase(e.target.value) });
               }}
             />
           )}
         </div>
 
-        {/* LOCALITY — free text (unchanged) */}
-        <FloatingInput
+        <SearchableSelect
           required
-          label="Locality"
-          error={errors.locality}
           warning
-          placeholder="e.g. Gachibowli"
-          icon="📌"
-          value={payload?.locality}
-          inputRef={localityRef}
-          onChange={(e) => {
-            update({ locality: e.target.value });
+          label="Locality"
+          value={payload?.locality || ""}
+          placeholder={
+            payload?.city ? "Search locality..." : "Select city first"
+          }
+          error={errors.locality}
+          disabled={!payload?.city}
+          open={localityOpen}
+          onToggle={() => {
+            if (!payload?.city) return;
+            setLocalityOpen((o) => !o);
+            setStateOpen(false);
+            setCityOpen(false);
+            if (!localityOpen) {
+              setLocalitySearch("");
+              setLocalitySuggestions([]);
+            }
+          }}
+          onClose={() => setLocalityOpen(false)}
+          searchValue={localitySearch}
+          onSearchChange={setLocalitySearch}
+          searchPlaceholder="Type 2+ letters to search..."
+          loading={localityLoading}
+          options={localitySuggestions}
+          onSelect={(opt) => {
+            update({ locality: opt.label });
+            setLocalityOpen(false);
             clr("locality");
           }}
-          onBlur={(e) => {
-            update({ locality: capitalizeFirst(e.target.value) });
-          }}
+          emptyHint={
+            localitySearch.trim().length >= 2
+              ? "No results found"
+              : payload?.city
+                ? "Type at least 2 letters to search localities in this city"
+                : "Select city first"
+          }
+          dropdownRef={localityDropdownRef}
+          optionKey={(opt, idx) =>
+            `${opt.label}-${opt.city || ""}-${opt.state || ""}-${idx}`
+          }
+          renderOption={(opt) => (
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium text-gray-900">
+                {opt.label}
+                {opt.isCustom ? " (use typed)" : ""}
+              </span>
+              {(opt.city || opt.state) && !opt.isCustom ? (
+                <span className="block truncate text-xs text-gray-500">
+                  {[opt.city, opt.state].filter(Boolean).join(", ")}
+                </span>
+              ) : null}
+            </span>
+          )}
         />
 
         <FloatingSelect
