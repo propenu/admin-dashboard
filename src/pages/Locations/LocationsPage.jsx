@@ -1,15 +1,17 @@
 // pages/locations/LocationsPage.jsx
-import { useState } from "react";
-//import { State, City } from "country-state-city";
+import { useState, useRef } from "react";
 import { INDIAN_STATES, getCitiesByState } from "../../utils/countryStateCity";
 
 import useLocations from "./hooks/useLocations";
-import { buildPayload, groupByState, getPopularCities } from "./utils/locationHelpers";
+import {
+  buildPayload,
+  groupByState,
+  getPopularCities,
+} from "./utils/locationHelpers";
 
 import LocationHeader from "./components/LocationHeader";
 import LocationStats from "./components/LocationStats";
 import LocationAccordion from "./components/LocationAccordion";
-import LocationDetailCard from "./components/LocationDetailCard";
 import LocationFormModal from "./components/LocationFormModal";
 import DeleteConfirmModal from "./components/DeleteConfirmModal";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
@@ -27,30 +29,40 @@ export default function LocationsPage() {
     deleteLocality,
   } = useLocations();
 
-  const [selectedLoc, setSelectedLoc] = useState(null);
   const [openState, setOpenState] = useState(null);
+  const [openCityId, setOpenCityId] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null); // { type: 'CITY' | 'LOCALITY', city, locality? }
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const listRef = useRef(null);
 
   if (!data) return <LoadingSpinner />;
 
   const locations = data.locations || [];
   const groupedData = groupByState(locations);
   const popularCities = getPopularCities(locations);
-  //const indianStates = State.getStatesOfCountry("IN");
   const indianStates = INDIAN_STATES;
+  const getCities = getCitiesByState;
 
-  // const getCities = (stateName) => {
-  //   const st = indianStates.find((s) => s.name === stateName);
-  //   return st ? City.getCitiesOfState("IN", st.isoCode) : [];
-  // };
+  const stateCount = Object.keys(groupedData).length;
+  const cityCount = locations.length;
+  const localityCount = locations.reduce(
+    (sum, loc) => sum + (loc.localities?.length || 0),
+    0,
+  );
 
-  const getCities = getCitiesByState; 
+  const focusCity = (city) => {
+    if (!city) return;
+    setOpenState(city.state);
+    setOpenCityId(city._id);
+    // Scroll list into view after expand (mobile-friendly)
+    requestAnimationFrame(() => {
+      listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
-  // ADD HANDLERS
   const handleAddNew = () => {
     setSuccessMsg("");
     setErrorMsg("");
@@ -65,7 +77,6 @@ export default function LocationsPage() {
     setShowAdd(true);
   };
 
-  // EDIT HANDLERS
   const handleEditCity = (city) => {
     setSuccessMsg("");
     setErrorMsg("");
@@ -80,7 +91,6 @@ export default function LocationsPage() {
     setShowEdit(true);
   };
 
-  // DELETE HANDLERS
   const handleDeleteCity = (city) => {
     setSuccessMsg("");
     setDeleteTarget({ type: "CITY", city });
@@ -98,14 +108,13 @@ export default function LocationsPage() {
 
     if (deleteTarget.type === "CITY") {
       deleteLocation(deleteTarget.city._id);
+      if (openCityId === deleteTarget.city._id) setOpenCityId(null);
     } else if (deleteTarget.type === "LOCALITY") {
       deleteLocality({
         locationId: deleteTarget.city._id,
         localityName: deleteTarget.locality.name,
       });
     }
-
-    setSelectedLoc(null);
   };
 
   const getDeleteTitle = () => {
@@ -117,67 +126,46 @@ export default function LocationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50/30 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* HEADER */}
-        <LocationHeader onAdd={handleAddNew} />
+    <div className="space-y-3">
+      <LocationHeader onAdd={handleAddNew} />
 
-        {/* STATS */}
-        {/* <LocationStats total={locations.length} popularCities={popularCities} /> */}
-        <LocationStats
-          total={locations.length}
-          popularCities={popularCities}
-          onSelectPopularCity={(city) => {
-            const fullCity = locations.find(
-              (l) => l.city === city.city && l.state === city.state,
-            );
+      <LocationStats
+        stateCount={stateCount}
+        cityCount={cityCount}
+        localityCount={localityCount}
+        popularCities={popularCities}
+        onSelectPopularCity={(city) => {
+          const fullCity = locations.find(
+            (l) => l.city === city.city && l.state === city.state,
+          );
+          if (fullCity) focusCity(fullCity);
+        }}
+        onEditPopularCity={(city) => {
+          const fullCity = locations.find(
+            (l) => l.city === city.city && l.state === city.state,
+          );
+          if (fullCity) handleEditCity(fullCity);
+        }}
+      />
 
-            if (fullCity) {
-              setSelectedLoc(fullCity);
-            }
-          }}
-          onEditPopularCity={(city) => {
-            const fullCity = locations.find(
-              (l) => l.city === city.city && l.state === city.state,
-            );
-
-            if (fullCity) {
-              handleEditCity(fullCity);
-            }
-          }}
-        />
-
-        {/* SELECTED DETAILS */}
-        {selectedLoc && (
-          <LocationDetailCard
-            data={selectedLoc}
-            onClose={() => setSelectedLoc(null)}
-            onEditCity={handleEditCity}
-            onEditLocality={(locality) =>
-              handleEditLocality(selectedLoc, locality)
-            }
-            onDeleteCity={() => handleDeleteCity(selectedLoc)}
-            onDeleteLocality={(locality) =>
-              handleDeleteLocality(selectedLoc, locality)
-            }
-          />
-        )}
-
-        {/* ACCORDION */}
+      <div ref={listRef}>
         <LocationAccordion
           data={groupedData}
           openState={openState}
-          setOpenState={setOpenState}
-          selectedLoc={selectedLoc}
-          onSelectCity={setSelectedLoc}
+          setOpenState={(next) => {
+            setOpenState(next);
+            if (next !== openState) setOpenCityId(null);
+          }}
+          openCityId={openCityId}
+          setOpenCityId={setOpenCityId}
           onEditCity={handleEditCity}
           onDeleteCity={handleDeleteCity}
           onAddLocality={handleAddLocalityToCity}
           onEditLocality={handleEditLocality}
           onDeleteLocality={handleDeleteLocality}
         />
+      </div>
 
-        {/* ADD MODAL */}
         {showAdd && (
           <LocationFormModal
             show={showAdd}
@@ -206,7 +194,6 @@ export default function LocationsPage() {
           />
         )}
 
-        {/* EDIT MODAL */}
         {showEdit && (
           <LocationFormModal
             show={showEdit}
@@ -234,7 +221,6 @@ export default function LocationsPage() {
           />
         )}
 
-        {/* DELETE MODAL */}
         {showDelete && (
           <DeleteConfirmModal
             show={showDelete}
@@ -253,7 +239,6 @@ export default function LocationsPage() {
             clearSuccess={() => setSuccessMsg("")}
           />
         )}
-      </div>
     </div>
   );
 }

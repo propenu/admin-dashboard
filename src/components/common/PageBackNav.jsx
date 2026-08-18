@@ -57,7 +57,7 @@ export default function PageBackNav() {
   };
 
   return (
-    <div className="mb-3">
+    <div className="mb-2">
       <button
         type="button"
         onClick={handleBack}

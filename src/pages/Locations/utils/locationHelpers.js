@@ -25,6 +25,7 @@ export const buildPayload = (form, type = "LOCALITY") => {
   }
 
   const localityName = String(form.localityName || "").trim();
+  const originalLocalityName = String(form.originalLocalityName || "").trim();
   const base = {
     state: form.state.trim(),
     city: form.city.trim(),
@@ -39,6 +40,9 @@ export const buildPayload = (form, type = "LOCALITY") => {
 
   return {
     ...base,
+    ...(originalLocalityName
+      ? { originalLocalityName }
+      : {}),
     locality: {
       name: localityName,
       location: {

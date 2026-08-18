@@ -13,6 +13,7 @@ const EMPTY_FORM = {
   category: "city",
   isHome: false,
   localityName: "",
+  originalLocalityName: "",
   lat: "",
   lng: "",
 };
@@ -84,14 +85,17 @@ export default function LocationFormModal({
     let customCity = "";
 
     if (packageMatch) {
-      // India list city
       citySelect = packageMatch;
       customCity = "";
     } else if (savedCity) {
-      // Best edit UX: open as Other so name is manually editable immediately
       citySelect = CITY_OTHER;
       customCity = savedCity;
     }
+
+    const firstLocality = initialData.localities?.[0];
+    const localityName = isAddLocalityMode
+      ? ""
+      : firstLocality?.name || "";
 
     setForm({
       state: stateName,
@@ -99,15 +103,15 @@ export default function LocationFormModal({
       customCity,
       category: initialData.category || "city",
       isHome: initialData.isHome === true,
-      localityName: isAddLocalityMode
-        ? ""
-        : initialData.localities?.[0]?.name || "",
+      localityName,
+      // Track original so rename/update works on save
+      originalLocalityName: isAddLocalityMode ? "" : localityName,
       lat: isAddLocalityMode
         ? ""
-        : initialData.localities?.[0]?.location?.coordinates?.[1] || "",
+        : firstLocality?.location?.coordinates?.[1] ?? "",
       lng: isAddLocalityMode
         ? ""
-        : initialData.localities?.[0]?.location?.coordinates?.[0] || "",
+        : firstLocality?.location?.coordinates?.[0] ?? "",
     });
   }, [initialData, show, title, getCities]);
 
@@ -198,7 +202,10 @@ export default function LocationFormModal({
 
   const isEditLocation = title === "Edit Location";
   const isAddLocalityMode = title === "Add Locality to City";
-  // Edit city/home/category can save without locality; add flows still need locality
+  const editLocalities = Array.isArray(initialData?.localities)
+    ? initialData.localities
+    : [];
+  // Edit city/home can save without locality; add flows still need locality
   const localityRequired = !isEditLocation;
   const isFormInvalid =
     !form.state ||
@@ -210,6 +217,29 @@ export default function LocationFormModal({
       .toLowerCase()
       .replace(/\b\w/g, (c) => c.toUpperCase());
 
+  const selectLocalityForEdit = (name) => {
+    const loc = editLocalities.find(
+      (l) => normalizeName(l.name) === normalizeName(name),
+    );
+    if (!loc) {
+      setForm((prev) => ({
+        ...prev,
+        originalLocalityName: "",
+        localityName: "",
+        lat: "",
+        lng: "",
+      }));
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      originalLocalityName: loc.name || "",
+      localityName: loc.name || "",
+      lat: loc.location?.coordinates?.[1] ?? "",
+      lng: loc.location?.coordinates?.[0] ?? "",
+    }));
+  };
+
   const handleSubmit = () => {
     if (isFormInvalid || loading) return;
     onSubmit({
@@ -217,8 +247,9 @@ export default function LocationFormModal({
       city: effectiveCity,
       state: String(form.state || "").trim(),
       localityName: String(form.localityName || "").trim(),
-      // help buildPayload know edit can omit empty locality
-      _editWithoutLocality: isEditLocation && !String(form.localityName || "").trim(),
+      originalLocalityName: String(form.originalLocalityName || "").trim(),
+      _editWithoutLocality:
+        isEditLocation && !String(form.localityName || "").trim(),
     });
   };
 
@@ -377,25 +408,59 @@ export default function LocationFormModal({
             </p>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-600">
-              Locality name
-              {isEditLocation ? " (optional on edit)" : ""}
-            </label>
-            <input
-              placeholder={
-                isAddLocalityMode
+          <div className="space-y-2">
+            {isEditLocation && editLocalities.length > 1 ? (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">
+                  Select locality to edit
+                </label>
+                <select
+                  value={form.originalLocalityName || ""}
+                  onChange={(e) => selectLocalityForEdit(e.target.value)}
+                  className="w-full p-3 border border-[#27AE60] rounded-xl outline-none"
+                >
+                  <option value="">— Choose locality —</option>
+                  {editLocalities.map((loc, idx) => (
+                    <option key={`${loc.name}-${idx}`} value={loc.name}>
+                      {loc.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-600">
+                {isAddLocalityMode
                   ? "New locality name"
                   : isEditLocation
-                    ? "Locality (optional — leave blank to only update city/Home)"
-                    : "Locality Name"
-              }
-              value={form.localityName}
-              onChange={(e) =>
-                setForm({ ...form, localityName: toTitleCase(e.target.value) })
-              }
-              className="w-full p-3 border border-[#27AE60] rounded-xl outline-none"
-            />
+                    ? "Locality name (editable)"
+                    : "Locality name"}
+              </label>
+              <input
+                placeholder={
+                  isAddLocalityMode
+                    ? "New locality name"
+                    : isEditLocation
+                      ? "Edit locality name, or leave blank to only update city/Home"
+                      : "Locality Name"
+                }
+                value={form.localityName}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    localityName: toTitleCase(e.target.value),
+                  })
+                }
+                className="w-full p-3 border border-[#27AE60] rounded-xl outline-none"
+              />
+              {isEditLocation ? (
+                <p className="text-[11px] text-gray-500">
+                  Change the name or lat/lng, then Save — locality will update.
+                  Clear the name to update only city / Home / category.
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

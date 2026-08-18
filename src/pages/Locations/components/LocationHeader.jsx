@@ -1,23 +1,29 @@
 // locations/components/LocationHeader.jsx
 import { Plus } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function LocationHeader({ onAdd }) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-      <div>
-        <h1 className="text-2xl font-bold text-[#27AE60]">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <div className="min-w-0">
+        <h1 className="text-lg font-bold leading-tight text-[#27AE60] sm:text-xl">
           Location Management
         </h1>
-        <p className="text-[#000000]">Manage states, cities & localities</p>
+        <p className="mt-0.5 text-xs text-gray-500">
+          Manage states, cities & localities
+        </p>
       </div>
 
-      <button
+      <motion.button
+        type="button"
         onClick={onAdd}
-        className="flex items-center gap-2 px-6 py-3 bg-[#27AE60] text-white rounded-xl font-bold  shadow"
+        whileTap={{ scale: 0.97 }}
+        whileHover={{ scale: 1.02 }}
+        className="inline-flex h-9 w-full shrink-0 items-center justify-center gap-1.5 self-start rounded-lg bg-[#27AE60] px-3.5 text-sm font-bold text-white shadow-sm active:bg-green-700 sm:w-auto sm:self-center"
       >
-        <Plus className="w-5 h-5" />
+        <Plus className="h-4 w-4" />
         Add New Location
-      </button>
+      </motion.button>
     </div>
   );
 }
