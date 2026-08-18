@@ -76,22 +76,27 @@ export const emptyListingCounts = () => ({
   total: 0,
 });
 
+/**
+ * Exact unique lookup only — never aliases, fuzzy names, or cross-place mixing.
+ * - 1 part  → state
+ * - 2 parts → state|city
+ * - 3 parts → state|city|locality
+ */
 export const getListingCounts = (maps, ...parts) => {
   if (!maps) return emptyListingCounts();
 
-  const key = listingCountKey(...parts);
-  if (!key) return emptyListingCounts();
-
+  let key = "";
   let bucket = null;
+
   if (parts.length === 1) {
-    bucket = maps.byState?.[key];
+    key = listingCountKey(parts[0]);
+    bucket = maps.byState?.[key] || null;
   } else if (parts.length === 2) {
-    bucket = maps.byCity?.[key] || maps.byCity?.[listingCountKey(parts[1])];
-  } else {
-    bucket =
-      maps.byLocality?.[key] ||
-      maps.byLocality?.[listingCountKey(parts[2])] ||
-      maps.byLocality?.[listingCountKey(parts[1], parts[2])];
+    key = listingCountKey(parts[0], parts[1]);
+    bucket = maps.byCity?.[key] || null;
+  } else if (parts.length >= 3) {
+    key = listingCountKey(parts[0], parts[1], parts[2]);
+    bucket = maps.byLocality?.[key] || null;
   }
 
   if (!bucket) return emptyListingCounts();
@@ -102,59 +107,6 @@ export const getListingCounts = (maps, ...parts) => {
       Number(bucket.total) ||
       (Number(bucket.projects) || 0) + (Number(bucket.properties) || 0),
   };
-};
-
-/**
- * Build the same maps from existing /analytics/project + /analytics/properties
- * (stateWise / cityWise / localityWise) — used when dedicated endpoint is empty/unavailable.
- */
-export const mergeAnalyticsIntoListingCounts = (
-  projectAnalytics,
-  propertyAnalytics,
-) => {
-  const byState = {};
-  const byCity = {};
-  const byLocality = {};
-
-  const applyRows = (rows, kind, target, mode) => {
-    for (const row of rows || []) {
-      const total = Number(row?.total) || 0;
-      if (!total) continue;
-      const rawId = row?._id;
-      let key = "";
-      if (mode === "state") {
-        key = listingCountKey(rawId);
-      } else if (mode === "city") {
-        if (rawId && typeof rawId === "object") {
-          key = listingCountKey(rawId.state, rawId.city) || listingCountKey(rawId.city);
-        } else {
-          key = listingCountKey(rawId);
-        }
-      } else {
-        if (rawId && typeof rawId === "object") {
-          key =
-            listingCountKey(rawId.state, rawId.city, rawId.locality) ||
-            listingCountKey(rawId.locality);
-        } else {
-          key = listingCountKey(rawId);
-        }
-      }
-      if (!key) continue;
-      const bucket = target[key] || emptyListingCounts();
-      bucket[kind] += total;
-      bucket.total = bucket.projects + bucket.properties;
-      target[key] = bucket;
-    }
-  };
-
-  applyRows(projectAnalytics?.stateWise, "projects", byState, "state");
-  applyRows(propertyAnalytics?.stateWise, "properties", byState, "state");
-  applyRows(projectAnalytics?.cityWise, "projects", byCity, "city");
-  applyRows(propertyAnalytics?.cityWise, "properties", byCity, "city");
-  applyRows(projectAnalytics?.localityWise, "projects", byLocality, "locality");
-  applyRows(propertyAnalytics?.localityWise, "properties", byLocality, "locality");
-
-  return { byState, byCity, byLocality };
 };
 
 export const listingCountsHaveData = (maps) => {

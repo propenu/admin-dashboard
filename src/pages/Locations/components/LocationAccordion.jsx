@@ -97,13 +97,9 @@ function CityLocalitiesPanel({
   }, [localities, query]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22 }}
-      className="border-t border-dashed border-green-100 bg-[radial-gradient(ellipse_at_top,_#ecfdf5_0%,_#ffffff_55%)] px-2.5 pb-2.5 pt-2"
-    >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
+    <div className="flex flex-col border-t border-dashed border-green-100 bg-[radial-gradient(ellipse_at_top,_#ecfdf5_0%,_#ffffff_55%)]">
+      {/* Sticky toolbar — stays outside the scroll region so cards aren't clipped under it */}
+      <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-2 border-b border-green-50/80 bg-white/95 px-2.5 py-2 backdrop-blur-sm">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
           {filtered.length === localities.length
             ? `${localities.length} localities`
@@ -118,14 +114,10 @@ function CityLocalitiesPanel({
       </div>
 
       {localities.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white/80 py-4 text-center">
-          <motion.div
-            animate={{ y: [0, -4, 0] }}
-            transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
-            className="mx-auto mb-1 inline-flex"
-          >
+        <div className="mx-2.5 my-2 rounded-lg border border-dashed border-gray-200 bg-white/80 py-4 text-center">
+          <div className="mx-auto mb-1 inline-flex">
             <MapPin size={20} className="text-gray-300" />
-          </motion.div>
+          </div>
           <p className="text-[11px] text-gray-400">No localities yet</p>
           <button
             type="button"
@@ -137,47 +129,35 @@ function CityLocalitiesPanel({
           </button>
         </div>
       ) : filtered.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-gray-200 py-3 text-center text-[11px] text-gray-400">
+        <p className="mx-2.5 my-2 rounded-lg border border-dashed border-gray-200 py-3 text-center text-[11px] text-gray-400">
           No match for “{query}”
         </p>
       ) : (
         <div
-          className="max-h-[168px] overflow-y-auto overscroll-contain rounded-lg border border-gray-100/80 bg-white/90 p-1.5 sm:max-h-[200px] [-webkit-overflow-scrolling:touch]"
+          className="min-h-0 max-h-[min(48vh,360px)] overflow-y-auto overscroll-contain px-2.5 py-2 [-webkit-overflow-scrolling:touch]"
           style={{
             scrollbarWidth: "thin",
             scrollbarColor: "#86efac transparent",
           }}
         >
-          <motion.div
-            layout
-            className="grid grid-cols-1 gap-1 sm:grid-cols-2"
-          >
-            <AnimatePresence mode="popLayout">
-              {filtered.map((loc, idx) => {
-                const locCounts = getListingCounts(
-                  listingCounts,
-                  city.state,
-                  city.city,
-                  loc.name,
-                );
-                return (
-                <motion.div
+          {/* No Framer layout/popLayout here — those clip cards while scrolling */}
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            {filtered.map((loc, idx) => {
+              const locCounts = getListingCounts(
+                listingCounts,
+                city.state,
+                city.city,
+                loc.name,
+              );
+              return (
+                <div
                   key={`${loc.name}-${idx}`}
-                  layout
-                  initial={{ opacity: 0, scale: 0.92, x: -8 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, x: 8 }}
-                  transition={{ ...springSoft, delay: Math.min(idx * 0.03, 0.24) }}
-                  className="group flex items-center justify-between gap-1.5 rounded-lg border border-gray-100 bg-gray-50/70 px-2 py-1.5 hover:border-green-200 hover:bg-green-50/60"
+                  className="group flex min-h-[44px] items-center justify-between gap-1.5 rounded-lg border border-gray-100 bg-white px-2 py-1.5 shadow-sm hover:border-green-200 hover:bg-green-50/60"
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                    <motion.span
-                      className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-green-100 text-green-700"
-                      whileHover={{ scale: 1.15, rotate: -8 }}
-                      transition={springPin}
-                    >
+                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-green-100 text-green-700">
                       <MapPin size={11} />
-                    </motion.span>
+                    </span>
                     <div className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-medium text-gray-800">
                         {loc.name}
@@ -185,7 +165,7 @@ function CityLocalitiesPanel({
                       <ListingCountLine counts={locCounts} />
                     </div>
                   </div>
-                  <div className="flex flex-shrink-0 gap-0.5 opacity-80 group-hover:opacity-100">
+                  <div className="flex flex-shrink-0 gap-0.5">
                     <button
                       type="button"
                       onClick={() => onEditLocality(city, loc)}
@@ -203,14 +183,13 @@ function CityLocalitiesPanel({
                       <Trash2 size={12} />
                     </button>
                   </div>
-                </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </motion.div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -545,7 +524,7 @@ function StateBlock({
               </div>
 
               <div
-                className="max-h-[min(52vh,420px)] space-y-1.5 overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]"
+                className="max-h-[min(62vh,560px)] space-y-1.5 overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]"
                 style={{
                   scrollbarWidth: "thin",
                   scrollbarColor: "#86efac transparent",
