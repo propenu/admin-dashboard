@@ -272,6 +272,11 @@ export const getAllPropertiesAnalytics = (params = {}) => {
   );
 };
 
+/** State / city / locality project + property counts for Locations admin. */
+export const getLocationListingCounts = () =>
+  apiClient.get(`${SERVICES.PROPERTY}/analytics/location-counts`);
+
+
 /** CCE / Team Lead: update listing/project follow-up process. */
 export const updateListingFollowUpWorkStatus = (entity, id, followUpWorkStatus) => {
   return apiClient.patch(

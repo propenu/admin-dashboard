@@ -1,5 +1,6 @@
 // pages/locations/LocationsPage.jsx
 import { useState, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { INDIAN_STATES, getCitiesByState } from "../../utils/countryStateCity";
 
 import useLocations from "./hooks/useLocations";
@@ -15,6 +16,7 @@ import LocationAccordion from "./components/LocationAccordion";
 import LocationFormModal from "./components/LocationFormModal";
 import DeleteConfirmModal from "./components/DeleteConfirmModal";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { getLocationListingCounts } from "../../features/property/propertyService";
 
 export default function LocationsPage() {
   const {
@@ -28,6 +30,15 @@ export default function LocationsPage() {
     deleteLocation,
     deleteLocality,
   } = useLocations();
+
+  const { data: listingCounts } = useQuery({
+    queryKey: ["location-listing-counts"],
+    queryFn: async () => {
+      const res = await getLocationListingCounts();
+      return res?.data?.data || res?.data || null;
+    },
+    staleTime: 60_000,
+  });
 
   const [openState, setOpenState] = useState(null);
   const [openCityId, setOpenCityId] = useState(null);
@@ -151,6 +162,7 @@ export default function LocationsPage() {
       <div ref={listRef}>
         <LocationAccordion
           data={groupedData}
+          listingCounts={listingCounts}
           openState={openState}
           setOpenState={(next) => {
             setOpenState(next);

@@ -63,6 +63,34 @@ export const groupByState = (locations = []) =>
     return acc;
   }, {});
 
+/** Normalized hierarchy key for listing-count maps (matches backend). */
+export const listingCountKey = (...parts) =>
+  parts
+    .map((part) => String(part || "").trim().toLowerCase())
+    .filter(Boolean)
+    .join("|");
+
+export const emptyListingCounts = () => ({
+  projects: 0,
+  properties: 0,
+  total: 0,
+});
+
+export const getListingCounts = (maps, ...parts) => {
+  const key = listingCountKey(...parts);
+  if (!key || !maps) return emptyListingCounts();
+  const bucket =
+    (parts.length === 1 && maps.byState?.[key]) ||
+    (parts.length === 2 && maps.byCity?.[key]) ||
+    (parts.length >= 3 && maps.byLocality?.[key]) ||
+    null;
+  if (!bucket) return emptyListingCounts();
+  return {
+    projects: Number(bucket.projects) || 0,
+    properties: Number(bucket.properties) || 0,
+    total: Number(bucket.total) || 0,
+  };
+};
 /* =========================================
    GET POPULAR CITIES
 ========================================= */

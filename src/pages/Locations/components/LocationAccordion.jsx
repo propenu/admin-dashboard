@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getListingCounts } from "../utils/locationHelpers";
 
 function normalize(value = "") {
   return String(value).trim().toLowerCase();
@@ -18,6 +19,29 @@ function normalize(value = "") {
 
 const springSoft = { type: "spring", stiffness: 380, damping: 28 };
 const springPin = { type: "spring", stiffness: 520, damping: 18 };
+
+/** Separate project / property / combined chips */
+function ListingCountLine({ counts, className = "" }) {
+  const projects = Number(counts?.projects) || 0;
+  const properties = Number(counts?.properties) || 0;
+  const total = Number(counts?.total) || projects + properties;
+  if (!projects && !properties) {
+    return (
+      <span className={`text-[10px] font-medium text-gray-400 ${className}`}>
+        0 proj · 0 prop
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] font-semibold ${className}`}>
+      <span className="text-sky-700">{projects} proj</span>
+      <span className="text-gray-300">·</span>
+      <span className="text-violet-700">{properties} prop</span>
+      <span className="text-gray-300">·</span>
+      <span className="text-emerald-700">{total} all</span>
+    </span>
+  );
+}
 
 function CompactSearch({
   value,
@@ -54,6 +78,7 @@ function CompactSearch({
 
 function CityLocalitiesPanel({
   city,
+  listingCounts,
   onEditLocality,
   onDeleteLocality,
   onAddLocality,
@@ -128,7 +153,14 @@ function CityLocalitiesPanel({
             className="grid grid-cols-1 gap-1 sm:grid-cols-2"
           >
             <AnimatePresence mode="popLayout">
-              {filtered.map((loc, idx) => (
+              {filtered.map((loc, idx) => {
+                const locCounts = getListingCounts(
+                  listingCounts,
+                  city.state,
+                  city.city,
+                  loc.name,
+                );
+                return (
                 <motion.div
                   key={`${loc.name}-${idx}`}
                   layout
@@ -138,7 +170,7 @@ function CityLocalitiesPanel({
                   transition={{ ...springSoft, delay: Math.min(idx * 0.03, 0.24) }}
                   className="group flex items-center justify-between gap-1.5 rounded-lg border border-gray-100 bg-gray-50/70 px-2 py-1.5 hover:border-green-200 hover:bg-green-50/60"
                 >
-                  <div className="flex min-w-0 items-center gap-1.5">
+                  <div className="flex min-w-0 flex-1 items-center gap-1.5">
                     <motion.span
                       className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-green-100 text-green-700"
                       whileHover={{ scale: 1.15, rotate: -8 }}
@@ -146,9 +178,12 @@ function CityLocalitiesPanel({
                     >
                       <MapPin size={11} />
                     </motion.span>
-                    <span className="truncate text-xs font-medium text-gray-800">
-                      {loc.name}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-medium text-gray-800">
+                        {loc.name}
+                      </span>
+                      <ListingCountLine counts={locCounts} />
+                    </div>
                   </div>
                   <div className="flex flex-shrink-0 gap-0.5 opacity-80 group-hover:opacity-100">
                     <button
@@ -169,7 +204,8 @@ function CityLocalitiesPanel({
                     </button>
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
             </AnimatePresence>
           </motion.div>
         </div>
@@ -182,6 +218,7 @@ function CityRow({
   city,
   isOpen,
   index,
+  listingCounts,
   onToggle,
   onEditCity,
   onDeleteCity,
@@ -190,6 +227,7 @@ function CityRow({
   onDeleteLocality,
 }) {
   const localityCount = city.localities?.length || 0;
+  const cityCounts = getListingCounts(listingCounts, city.state, city.city);
 
   return (
     <motion.div
@@ -260,6 +298,7 @@ function CityRow({
               {localityCount} {localityCount === 1 ? "locality" : "localities"}
               {city.category ? ` · ${city.category}` : ""}
             </p>
+            <ListingCountLine counts={cityCounts} className="mt-0.5" />
           </div>
 
           <motion.span
@@ -315,6 +354,7 @@ function CityRow({
           >
             <CityLocalitiesPanel
               city={city}
+              listingCounts={listingCounts}
               onEditLocality={onEditLocality}
               onDeleteLocality={onDeleteLocality}
               onAddLocality={onAddLocality}
@@ -372,6 +412,7 @@ function StateBlock({
   openCityId,
   setOpenState,
   setOpenCityId,
+  listingCounts,
   onEditCity,
   onDeleteCity,
   onAddLocality,
@@ -381,6 +422,7 @@ function StateBlock({
   globalQuery,
 }) {
   const [cityQuery, setCityQuery] = useState("");
+  const stateCounts = getListingCounts(listingCounts, state);
 
   useEffect(() => {
     if (!isOpen) setCityQuery("");
@@ -460,6 +502,9 @@ function StateBlock({
             {" · "}
             {localityTotal} loc
           </span>
+          <div className="mt-0.5">
+            <ListingCountLine counts={stateCounts} />
+          </div>
           {globalQuery ? (
             <span className="ml-1 text-[10px] font-medium text-amber-600">
               · match
@@ -521,6 +566,7 @@ function StateBlock({
                         key={city._id}
                         city={city}
                         index={i}
+                        listingCounts={listingCounts}
                         isOpen={openCityId === city._id}
                         onToggle={() =>
                           setOpenCityId(
@@ -547,6 +593,7 @@ function StateBlock({
 
 export default function LocationAccordion({
   data,
+  listingCounts,
   openState,
   setOpenState,
   openCityId,
@@ -634,6 +681,7 @@ export default function LocationAccordion({
                 state={state}
                 cities={cities}
                 index={index}
+                listingCounts={listingCounts}
                 isOpen={openState === state}
                 openCityId={openCityId}
                 setOpenState={setOpenState}
