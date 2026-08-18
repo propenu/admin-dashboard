@@ -7,9 +7,15 @@ import TiptapEditor from "../../CreateFeaturedProjects/Components/TiptapEditor";
 export default function AboutUsEditor({ formData, setFormData, setLivePreviewData, saving, onSave }) {
   if (!formData) return null;
 
-  const about = formData.aboutSummary?.[0] || { aboutDescription: "", rightContent: "", url: "" };
+  const about = formData.aboutSummary?.[0] || {
+    builderName: "",
+    aboutDescription: "",
+    rightContent: "",
+    url: "",
+  };
 
   const [localState, setLocalState] = useState({
+    builderName: about.builderName || "",
     aboutDescription: about.aboutDescription || "",
     rightContent:     about.rightContent     || "",
     imageFile:        null,
@@ -22,21 +28,42 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
     }
   }, [about.url]);
 
-  const handleDescriptionChange = (e) => {
-    const value = e.target.value;
-    setLocalState((p) => ({ ...p, aboutDescription: value }));
+  useEffect(() => {
+    setLocalState((p) => ({
+      ...p,
+      builderName: about.builderName || "",
+      aboutDescription: about.aboutDescription || "",
+      rightContent: about.rightContent || "",
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [about.builderName, about.aboutDescription, about.rightContent]);
+
+  const syncAbout = (patch) => {
+    const next = { ...localState, ...patch };
+    setLocalState((p) => ({ ...p, ...patch }));
     setLivePreviewData({
       ...formData,
-      aboutSummary: [{ aboutDescription: value, rightContent: localState.rightContent, url: localState.imagePreview }],
+      aboutSummary: [
+        {
+          builderName: next.builderName,
+          aboutDescription: next.aboutDescription,
+          rightContent: next.rightContent,
+          url: next.imagePreview,
+        },
+      ],
     });
   };
 
+  const handleBuilderNameChange = (e) => {
+    syncAbout({ builderName: e.target.value });
+  };
+
+  const handleDescriptionChange = (e) => {
+    syncAbout({ aboutDescription: e.target.value });
+  };
+
   const handleRichTextChange = (html) => {
-    setLocalState((p) => ({ ...p, rightContent: html }));
-    setLivePreviewData({
-      ...formData,
-      aboutSummary: [{ aboutDescription: localState.aboutDescription, rightContent: html, url: localState.imagePreview }],
-    });
+    syncAbout({ rightContent: html });
   };
 
   // function handleImageChange(e) {
@@ -72,31 +99,29 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
 
     const previewUrl = URL.createObjectURL(compressed);
 
-    setLocalState((p) => ({
-      ...p,
-      imageFile: compressed,
-      imagePreview: previewUrl,
-    }));
-
-    setLivePreviewData({
-      ...formData,
-      aboutSummary: [
-        {
-          aboutDescription: localState.aboutDescription,
-          rightContent: localState.rightContent,
-          url: previewUrl,
-        },
-      ],
-    });
+    syncAbout({ imageFile: compressed, imagePreview: previewUrl });
   }
 
   function saveAbout() {
     onSave({
       ...formData,
-      aboutSummary: [{ aboutDescription: localState.aboutDescription, rightContent: localState.rightContent }],
+      aboutSummary: [
+        {
+          builderName: localState.builderName,
+          aboutDescription: localState.aboutDescription,
+          rightContent: localState.rightContent,
+        },
+      ],
       aboutImage: localState.imageFile || undefined,
     });
   }
+
+  const titleText = String(formData?.title || "").trim();
+  const builderNameText = String(localState.builderName || "").trim();
+  const sameAsPropertyTitle =
+    titleText &&
+    builderNameText &&
+    titleText.toLowerCase() === builderNameText.toLowerCase();
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -116,6 +141,35 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
       </div>
 
       <div className="p-5 space-y-5 max-h-[85vh] overflow-y-auto">
+
+        {/* Builder Name */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+            Builder Name
+          </label>
+          <input
+            type="text"
+            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30 focus:border-[#27AE60] transition bg-gray-50/50"
+            placeholder="e.g. company / builder display name"
+            value={localState.builderName}
+            onChange={handleBuilderNameChange}
+          />
+          {builderNameText ? (
+            <p className="text-xs font-semibold text-slate-600">
+              Showing as:{" "}
+              <span className="text-[#27AE60]">{builderNameText}</span>
+              {sameAsPropertyTitle ? (
+                <span className="ml-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                  Same as Property Title
+                </span>
+              ) : null}
+            </p>
+          ) : (
+            <p className="text-[11px] text-gray-400">
+              Optional. Saved separately from Property Title.
+            </p>
+          )}
+        </div>
 
         {/* Main description */}
         <div className="space-y-1.5">

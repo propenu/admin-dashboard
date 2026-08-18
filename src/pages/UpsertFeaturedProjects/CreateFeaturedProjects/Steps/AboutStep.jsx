@@ -72,12 +72,20 @@ const isEditorEmpty = (html) => {
 
 const AboutStep = forwardRef(({ payload, update }, ref) => {
   const summary = payload.aboutSummary?.[0] || {
+    builderName: "",
     aboutDescription: "",
     rightContent: "",
   }; 
   const [errors, setErrors] = useState({});
   const [preview, setPreview] = useState(null);
   const aboutRef = useRef(null);
+
+  const titleText = String(payload?.title || "").trim();
+  const builderNameText = String(summary.builderName || "").trim();
+  const sameAsPropertyTitle =
+    titleText &&
+    builderNameText &&
+    titleText.toLowerCase() === builderNameText.toLowerCase();
 
   // useImperativeHandle(ref, () => ({
   //   validate() {
@@ -327,6 +335,33 @@ const handleImage = async (e) => {
 
   return (
     <div className="space-y-6" ref={aboutRef}>
+      {/* Builder Name — maps to aboutSummary.builderName */}
+      <div>
+        <label className={LABEL}>Builder Name</label>
+        <input
+          type="text"
+          className={inp(false)}
+          value={summary.builderName || ""}
+          placeholder="e.g. company / builder display name"
+          onChange={(e) => handleChange("builderName", e.target.value)}
+        />
+        {builderNameText ? (
+          <p className="mt-1.5 text-xs font-semibold text-slate-600">
+            Showing as:{" "}
+            <span className="text-[#27AE60]">{builderNameText}</span>
+            {sameAsPropertyTitle ? (
+              <span className="ml-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                Same as Property Title
+              </span>
+            ) : null}
+          </p>
+        ) : (
+          <p className="mt-1.5 text-[11px] text-gray-400">
+            Optional. Saved separately from Property Title.
+          </p>
+        )}
+      </div>
+
       {/* About Description */}
       <div>
         <label className={LABEL}>About Description *</label>

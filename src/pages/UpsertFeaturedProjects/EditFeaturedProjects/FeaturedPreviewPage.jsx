@@ -556,6 +556,7 @@ export default function FeaturedPreviewPage() {
           rightProps={{
             aboutSummary: livePreviewData.aboutSummary,
             primaryColor: livePreviewData.color,
+            title: livePreviewData.title || formData?.title,
           }}
           registerSectionRef={(el) => (sectionRefs.current["about"] = el)}
         />

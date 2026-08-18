@@ -11,11 +11,35 @@ export default function AboutUS(props) {
   }, [raw]);
 
   const imageUrl = data?.url || data?.imagePreview;
+  const builderName = String(data?.builderName || "").trim();
+  const propertyTitle = String(props?.title || "").trim();
+  const sameAsPropertyTitle =
+    builderName &&
+    propertyTitle &&
+    builderName.toLowerCase() === propertyTitle.toLowerCase();
 
   return (
     <section className="p-6 lg:p-8">
       {/* Main description */}
       <div className="mb-8">
+        {builderName ? (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+              Builder
+            </span>
+            <span
+              className="rounded-lg px-2.5 py-1 text-sm font-bold"
+              style={{ backgroundColor: `${color}18`, color }}
+            >
+              {builderName}
+            </span>
+            {sameAsPropertyTitle ? (
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                Same as Property Title
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="text-gray-600 text-sm leading-7 space-y-3">
           {data?.aboutDescription ? (
