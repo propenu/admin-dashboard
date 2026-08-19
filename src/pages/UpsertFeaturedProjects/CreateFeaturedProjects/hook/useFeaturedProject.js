@@ -53,9 +53,9 @@ export const useFeaturedProject = (projectType) => {
       console.log("🧹 Clearing draft...");
 
       // ✅ Clear localStorage
-      //localStorage.removeItem("featuredPayload");
-     // localStorage.removeItem("featured_step");
-     // localStorage.removeItem("featured_max_completed");
+      localStorage.removeItem("featuredPayload");
+      localStorage.removeItem("featured_step");
+      localStorage.removeItem("featured_max_completed");
 
       // ✅ Clear IndexedDB
       await clearAllImages();

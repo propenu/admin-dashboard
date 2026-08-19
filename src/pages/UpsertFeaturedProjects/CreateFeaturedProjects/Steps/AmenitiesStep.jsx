@@ -334,8 +334,8 @@ const AmenitiesStep = forwardRef(({ payload, update }, ref) => {
 
   return (
     <div className="space-y-6" ref={amenitiesRef}>
-      {/* Sticky search + selected */}
-      <div className="sticky top-0 z-20 bg-white pb-4 space-y-4 border-b border-gray-100">
+      {/* Search + selected */}
+      <div className="bg-white pb-4 space-y-4 border-b border-gray-100">
         {/* Search */}
         <div className="flex gap-3">
           <div className="relative flex-1">

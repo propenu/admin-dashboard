@@ -37,11 +37,10 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
     validate() {
       const e = {};
       specs.forEach((cat, i) => {
-        cat.items.forEach((item, j) => {
-          if (!String(item.description || "").trim()) {
-            e[`spec-${i}-item-${j}-desc`] = "Required";
-          }
-        });
+        const desc = String(cat.items?.[0]?.description || "").trim();
+        if (!desc) {
+          e[`spec-${i}-item-0-desc`] = "Required";
+        }
       });
       setErrors(e);
       if (Object.keys(e).length) {
@@ -73,21 +72,15 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
 
   const remCat = (i) =>
     update({ specifications: specs.filter((_, idx) => idx !== i) });
-  const addItem = (i) => {
-    const n = [...specs];
-    n[i].items.push({ title: "", description: "" });
-    update({ specifications: n });
-  };
   const updItem = (i, j, k, v) => {
     const n = [...specs];
-    n[i].items[j][k] = v;
+    const current = n[i].items?.[j] || { title: "", description: "" };
+    n[i] = {
+      ...n[i],
+      items: [{ ...current, [k]: v }],
+    };
     update({ specifications: n });
     clr(`spec-${i}-item-${j}-${k === "description" ? "desc" : k}`);
-  };
-  const remItem = (i, j) => {
-    const n = [...specs];
-    n[i].items = n[i].items.filter((_, idx) => idx !== j);
-    update({ specifications: n });
   };
 
   return (
@@ -163,30 +156,17 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
           </div>
 
           <div className="p-5 space-y-3">
-            {cat.items.map((item, j) => (
+            {(cat.items?.length ? cat.items.slice(0, 1) : [{ title: "", description: "" }]).map(
+              (item, j) => (
               <div
                 key={j}
                 className="bg-gray-50 border-2 border-gray-100 rounded-xl p-4 space-y-3"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#27AE60]">
-                    Item {j + 1}
-                  </span>
-                  {cat.items.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => remItem(i, j)}
-                      className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
                 <div>
                   <label className={LABEL}>Description *</label>
                   <textarea
-                    rows={4}
-                    className={`${inp(errors[`spec-${i}-item-${j}-desc`])} resize-y whitespace-pre-wrap`}
+                    rows={18}
+                    className={`${inp(errors[`spec-${i}-item-${j}-desc`])} min-h-[280px] resize-y whitespace-pre-wrap`}
                     placeholder="Paste or type specification text exactly…"
                     value={item.description}
                     onChange={(e) =>
@@ -207,25 +187,6 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
                 </div>
               </div>
             ))}
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => addItem(i)}
-                className="flex items-center gap-2 text-sm font-black transition-colors"
-                style={{ color: "#27AE60" }}
-              >
-                <Plus size={14} strokeWidth={3} /> Add Item
-              </button>
-
-              <button
-                type="button"
-                onClick={addCategory}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-black hover:opacity-90 transition-all shadow-md"
-                style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
-              >
-                <Plus size={14} strokeWidth={3} /> Add Group
-              </button>
-            </div>
           </div>
         </div>
       ))}

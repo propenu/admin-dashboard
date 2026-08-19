@@ -449,8 +449,8 @@ function toggleAmenity(item) {
         </div>
       </div>
 
-      {/* ── Sticky search bar + chips ── */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-5 pt-3 pb-3 flex-shrink-0 space-y-3">
+      {/* Search bar + chips */}
+      <div className="bg-white border-b border-gray-100 px-5 pt-3 pb-3 flex-shrink-0 space-y-3">
         {/* Search + Add row */}
         <div className="flex gap-2">
           <div className="relative flex-1">

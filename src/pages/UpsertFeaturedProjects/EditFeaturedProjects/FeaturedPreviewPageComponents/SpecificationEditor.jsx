@@ -44,16 +44,14 @@ export default function SpecificationEditor({
   }
 
   function updateItem(gIndex, iIndex, field, value) {
-    const updated = specs.map((g, gi) =>
-      gi !== gIndex
-        ? g
-        : {
-            ...g,
-            items: g.items.map((item, ii) =>
-              ii !== iIndex ? item : { ...item, [field]: value },
-            ),
-          },
-    );
+    const updated = specs.map((g, gi) => {
+      if (gi !== gIndex) return g;
+      const current = g.items?.[iIndex] || { title: "", description: "" };
+      return {
+        ...g,
+        items: [{ ...current, [field]: value }],
+      };
+    });
     sync(updated);
   }
 
@@ -72,24 +70,6 @@ export default function SpecificationEditor({
     sync(
       specs.filter((_, i) => i !== gIndex).map((g, i) => ({ ...g, order: i })),
     );
-  }
-
-  function addItem(gIndex) {
-    const updated = specs.map((g, gi) =>
-      gi !== gIndex
-        ? g
-        : { ...g, items: [...g.items, { title: "", description: "" }] },
-    );
-    sync(updated);
-  }
-
-  function removeItem(gIndex, iIndex) {
-    const updated = specs.map((g, gi) =>
-      gi !== gIndex
-        ? g
-        : { ...g, items: g.items.filter((_, ii) => ii !== iIndex) },
-    );
-    sync(updated);
   }
 
   async function saveSpecifications() {
@@ -134,14 +114,6 @@ export default function SpecificationEditor({
               </p>
             </div>
           </div>
-          {specs.length > 0 && (
-            <span
-              className="text-xs font-black px-2.5 py-1 rounded-full flex-shrink-0"
-              style={{ backgroundColor: "#27AE6018", color: "#27AE60" }}
-            >
-              {specs.reduce((acc, g) => acc + (g.items?.length || 0), 0)} specs
-            </span>
-          )}
         </div>
       </div>
 
@@ -185,9 +157,6 @@ export default function SpecificationEditor({
               <p className="flex-1 text-sm font-bold text-gray-800">
                 Spec group {gIndex + 1}
               </p>
-              <span className="text-[10px] text-gray-300 font-semibold flex-shrink-0 mr-1">
-                {group.items?.length || 0} items
-              </span>
               <button
                 type="button"
                 onClick={() => removeCategory(gIndex)}
@@ -211,40 +180,22 @@ export default function SpecificationEditor({
             </div>
 
             <div className="p-3 space-y-2 bg-gray-50/40">
-              {group.items.map((item, iIndex) => (
+              {(group.items?.length
+                ? group.items.slice(0, 1)
+                : [{ title: "", description: "" }]
+              ).map((item, iIndex) => (
                 <div
                   key={iIndex}
-                  className="group relative bg-white rounded-xl border border-gray-100 p-3 hover:border-[#27AE60]/30 hover:shadow-sm transition-all"
+                  className="bg-white rounded-xl border border-gray-100 p-3 hover:border-[#27AE60]/30 hover:shadow-sm transition-all"
                 >
-                  <button
-                    type="button"
-                    onClick={() => removeItem(gIndex, iIndex)}
-                    className="absolute top-2.5 right-2.5 w-5 h-5 rounded-md flex items-center justify-center text-gray-200 hover:text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                    title="Remove item"
-                  >
-                    <svg
-                      className="w-3 h-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2.5"
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-
                   <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-[#27AE60]">
                     Description
                   </p>
                   <textarea
-                    className="w-full pr-6 text-xs text-gray-700 outline-none placeholder-gray-300 resize-y bg-transparent leading-relaxed focus:text-gray-900 transition-colors whitespace-pre-wrap"
+                    className="w-full min-h-[280px] text-sm text-gray-700 outline-none placeholder-gray-300 resize-y bg-transparent leading-relaxed focus:text-gray-900 transition-colors whitespace-pre-wrap"
                     placeholder="Paste or type specification text exactly…"
                     value={item.description}
-                    rows={4}
+                    rows={18}
                     spellCheck={false}
                     onChange={(e) =>
                       updateItem(gIndex, iIndex, "description", e.target.value)
@@ -257,14 +208,6 @@ export default function SpecificationEditor({
                   />
                 </div>
               ))}
-
-              <button
-                type="button"
-                onClick={() => addItem(gIndex)}
-                className="w-full py-2.5 rounded-xl border-2 border-dashed border-[#27AE60]/20 text-[#27AE60] text-xs font-bold hover:border-[#27AE60] hover:bg-[#27AE60]/5 transition-all"
-              >
-                + Add Item
-              </button>
             </div>
           </div>
         ))}

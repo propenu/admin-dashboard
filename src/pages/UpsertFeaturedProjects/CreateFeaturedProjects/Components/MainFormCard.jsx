@@ -105,19 +105,17 @@ export const MainFormCard = ({
             </button>
           ) : (
             <div className="flex items-center gap-2 sm:gap-3">
-              {window.location.hostname === "localhost" && (
-                <button
-                  type="button"
-                  onClick={handleClearDraft}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl
+              <button
+                type="button"
+                onClick={handleClearDraft}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl
                border-2 border-red-200 bg-red-50 text-red-600
                text-xs sm:text-sm font-black hover:bg-red-100
                transition-all shrink-0"
-                >
-                  <Trash2 size={14} />
-                  <span className=" xs:inline">Clear Draft</span>
-                </button>
-              )}
+              >
+                <Trash2 size={14} />
+                <span className=" xs:inline">Clear Draft</span>
+              </button>
               <button
                 type="button"
                 onClick={handleNext}
