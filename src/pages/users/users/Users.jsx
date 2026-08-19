@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Header } from "./components/Header";
 import { StatCards } from "./components/StatCards";
 import { UserFilters } from "./components/UserFilters";
+import { MobileRoleTabs } from "./components/MobileRoleTabs";
 import { useUsers } from "./hook/useUserData";
 import { MobileCardView } from "./components/MobileCardView";
 import { DesktopTable } from "./components/DesktopTable";
@@ -109,7 +110,6 @@ export default function Users() {
   const [pageSize, setPageSize] = useState(() =>
     parsePositiveInt(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE),
   );
-  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 300);
@@ -504,6 +504,46 @@ export default function Users() {
     [allUsers, filterRole],
   );
 
+  const roleTabCounts = useMemo(() => {
+    const countFor = (wanted) =>
+      allUsers.filter((u) => {
+        const roleKey = String(u.roleName || u.role || u.roleId?.name || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_");
+        const platformRoles = new Set([
+          "user",
+          "users",
+          "owner",
+          "owners",
+          "builder",
+          "builders",
+          "builder_staff",
+          "builderstaff",
+          "agent",
+          "agents",
+        ]);
+        if (wanted === "all") return platformRoles.has(roleKey);
+        if (wanted === "user") {
+          return ["user", "users", "owner", "owners"].includes(roleKey);
+        }
+        if (wanted === "agent") return roleKey === "agent" || roleKey === "agents";
+        if (wanted === "builder") return roleKey === "builder" || roleKey === "builders";
+        if (wanted === "builder_staff") {
+          return roleKey === "builder_staff" || roleKey === "builderstaff";
+        }
+        return roleKey === wanted;
+      }).length;
+
+    return {
+      all: countFor("all"),
+      user: countFor("user"),
+      builder: countFor("builder"),
+      builder_staff: countFor("builder_staff"),
+      agent: countFor("agent"),
+    };
+  }, [allUsers]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
 
@@ -627,7 +667,6 @@ export default function Users() {
     setCustomFrom(todayIstIso());
     setCustomTo(todayIstIso());
     setCustomError("");
-    setMoreOpen(false);
     setPage(1);
     setPageSize(DEFAULT_PAGE_SIZE);
     setSearchParams({}, { replace: true });
@@ -813,7 +852,7 @@ export default function Users() {
       : "");
 
   return (
-    <div className="w-full max-w-full pb-16">
+    <div className="w-full max-w-full pb-28 md:pb-16">
       <Header
         isLoading={isLoading}
         isRefreshing={isRefreshing || isFetching}
@@ -871,10 +910,6 @@ export default function Users() {
         setFilterPhoneVerified={(value) => patchFilters({ phone: value })}
         filterRole={filterRole}
         setFilterRole={(value) => patchFilters({ role: value || "all" })}
-        filterIsActive={filterIsActive}
-        setFilterIsActive={(value) => patchFilters({ active: value })}
-        moreOpen={moreOpen}
-        setMoreOpen={setMoreOpen}
         hasFilters={hasFilters}
         clearAll={clearAll}
         filteredCount={filtered.length}
@@ -915,6 +950,12 @@ export default function Users() {
           onNext={() => goToPage(Math.min(totalPages, safePage + 1))}
         />
       </div>
+
+      <MobileRoleTabs
+        value={filterRole || "all"}
+        onChange={(role) => patchFilters({ role: role || "all" })}
+        counts={roleTabCounts}
+      />
     </div>
   );
 }

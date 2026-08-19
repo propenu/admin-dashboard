@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import {
   AccountBadge,
-  Avatar,
   KycBadge,
   PhoneBadge,
   RoleBadge,
@@ -161,25 +160,19 @@ export const DesktopTable = ({
                   </td>
 
                   <td className="px-3 py-3 align-middle">
-                    <div className="flex min-w-[190px] items-center gap-2.5">
-                      <Avatar
-                        name={u.name}
-                        imageUrl={u.avatar || u.profileImage || u.photo}
-                      />
-                      <div className="min-w-0">
-                        <p
-                          title={formatName(u.name)}
-                          className="truncate text-sm font-semibold text-[#102033]"
-                        >
-                          {formatName(u.name) || "—"}
-                        </p>
-                        <p
-                          title={u.email || ""}
-                          className="mt-0.5 truncate text-xs text-slate-400"
-                        >
-                          {u.email || u.userCode || u._id || "—"}
-                        </p>
-                      </div>
+                    <div className="min-w-[190px]">
+                      <p
+                        title={formatName(u.name)}
+                        className="truncate text-sm font-semibold text-[#102033]"
+                      >
+                        {formatName(u.name) || "—"}
+                      </p>
+                      <p
+                        title={u.email || ""}
+                        className="mt-0.5 truncate text-xs text-slate-400"
+                      >
+                        {u.email || u.userCode || u._id || "—"}
+                      </p>
                     </div>
                   </td>
 

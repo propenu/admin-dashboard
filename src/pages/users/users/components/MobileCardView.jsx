@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, MapPin, Phone, Users as UsersIcon } from "lucide-react";
 import {
   AccountBadge,
-  Avatar,
   KycBadge,
   PhoneBadge,
   RoleBadge,
@@ -69,19 +68,13 @@ export const MobileCardView = ({
               tabIndex={0}
             >
               <div className="mb-3 flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Avatar
-                    name={u.name}
-                    imageUrl={u.avatar || u.profileImage || u.photo}
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-[#17212B]">
-                      {u.name}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-slate-400">
-                      {u.email || u._id}
-                    </p>
-                  </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-[#17212B]">
+                    {u.name}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-slate-400">
+                    {u.email || u._id}
+                  </p>
                 </div>
                 <div onClick={(e) => e.stopPropagation()}>
                   <RowActionsMenu user={u} onOpenUser={onOpenUser} />
