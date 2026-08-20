@@ -11,6 +11,7 @@ import { useUsers } from "./hook/useUserData";
 import { MobileCardView } from "./components/MobileCardView";
 import { DesktopTable } from "./components/DesktopTable";
 import { Pagination } from "./components/Pagination";
+import SafeUserDeleteModal from "./components/SafeUserDeleteModal";
 import { roleLabel } from "./constants/roleLabels";
 import { todayIstIso, toIstIso } from "./utils/dateTime";
 import {
@@ -22,6 +23,11 @@ import {
   urlHasUsersFilters,
   writeUsersFilterStorage,
 } from "./utils/usersFilterStorage";
+import { fetchLoggedInUser } from "../../../services/UserServices/userServices";
+import {
+  deleteAccessUser,
+  updateAccessUserStatus,
+} from "../../../features/accessControl/accessControlService";
 
 const ONBOARDING_STATUSES = [
   "location_pending",
@@ -110,6 +116,63 @@ export default function Users() {
   const [pageSize, setPageSize] = useState(() =>
     parsePositiveInt(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE),
   );
+
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [statusBusyId, setStatusBusyId] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  useEffect(() => {
+    fetchLoggedInUser()
+      .then((user) => {
+        setIsSuperAdmin(user?.roleName === "super_admin");
+        setCurrentUserId(String(user?._id || user?.id || ""));
+      })
+      .catch(() => {
+        setIsSuperAdmin(false);
+        setCurrentUserId("");
+      });
+  }, []);
+
+  const changeUserActive = useCallback(
+    async (user, isActive) => {
+      if (!isSuperAdmin || !user?._id) return;
+      setStatusBusyId(String(user._id));
+      try {
+        const result = await updateAccessUserStatus(user._id, isActive);
+        toast.success(
+          result?.message || (isActive ? "User activated" : "User deactivated"),
+        );
+        await refetch();
+      } catch (err) {
+        toast.error(
+          err?.response?.data?.message || "Unable to update user status",
+        );
+      } finally {
+        setStatusBusyId("");
+      }
+    },
+    [isSuperAdmin, refetch],
+  );
+
+  const confirmDeleteUser = useCallback(async () => {
+    if (!isSuperAdmin || !deleteTarget?._id) return;
+    setDeleteLoading(true);
+    try {
+      const result = await deleteAccessUser(
+        deleteTarget._id,
+        "Deleted by Super Admin from Users page",
+      );
+      toast.success(result?.message || "User permanently deleted");
+      setDeleteTarget(null);
+      await refetch();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "User deletion failed");
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [deleteTarget, isSuperAdmin, refetch]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 300);
@@ -930,6 +993,12 @@ export default function Users() {
           onRetry={handleRefresh}
           onClearFilters={clearAll}
           onOpenUser={openUserDetail}
+          isSuperAdmin={isSuperAdmin}
+          currentUserId={currentUserId}
+          statusBusy={Boolean(statusBusyId)}
+          onActivate={(user) => changeUserActive(user, true)}
+          onDeactivate={(user) => changeUserActive(user, false)}
+          onRequestDelete={setDeleteTarget}
         />
         <MobileCardView
           filtered={pagedUsers}
@@ -937,6 +1006,12 @@ export default function Users() {
           hasFilters={hasFilters}
           onClearFilters={clearAll}
           onOpenUser={openUserDetail}
+          isSuperAdmin={isSuperAdmin}
+          currentUserId={currentUserId}
+          statusBusy={Boolean(statusBusyId)}
+          onActivate={(user) => changeUserActive(user, true)}
+          onDeactivate={(user) => changeUserActive(user, false)}
+          onRequestDelete={setDeleteTarget}
         />
         <Pagination
           rangeStart={rangeStart}
@@ -950,6 +1025,16 @@ export default function Users() {
           onNext={() => goToPage(Math.min(totalPages, safePage + 1))}
         />
       </div>
+
+      <SafeUserDeleteModal
+        open={Boolean(deleteTarget)}
+        user={deleteTarget}
+        loading={deleteLoading}
+        onClose={() => {
+          if (!deleteLoading) setDeleteTarget(null);
+        }}
+        onConfirm={confirmDeleteUser}
+      />
 
       <MobileRoleTabs
         value={filterRole || "all"}

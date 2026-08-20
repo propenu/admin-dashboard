@@ -15,9 +15,18 @@ import {
   FileText, Globe, Image, LinkIcon, BadgeCheck,
   AlertTriangle,
   LucideCalendarDays,
+  Power,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { todayIstIso, toIstIso } from "../users/utils/dateTime";
+import { fetchLoggedInUser } from "../../../services/UserServices/userServices";
+import {
+  deleteAccessUser,
+  updateAccessUserStatus,
+} from "../../../features/accessControl/accessControlService";
+import SafeUserDeleteModal from "../users/components/SafeUserDeleteModal";
 
 /** Calendar-day gap in IST (0 = today, 1 = yesterday, …). */
 const istCalendarDiffDays = (createdAt) => {
@@ -1137,13 +1146,28 @@ const getMemberBadge = (createdAt) => {
 };
 
 // ─── Agent Card ────────────────────────────────────────────────────────────
-const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
+const AgentCard = ({
+  agent,
+  index,
+  onEditStatus,
+  onViewDetail,
+  isSuperAdmin = false,
+  currentUserId = "",
+  statusBusy = false,
+  onActivate,
+  onDeactivate,
+  onRequestDelete,
+}) => {
   const d = agent.agentDetails || {};
   const palette = avatarShades[index % avatarShades.length];
   const statusCfg = getStatusConfig(agent.verificationStatus);
   const StatusIcon = statusCfg.icon;
   const profileCompleted = isProfileCompleted(agent);
-
+  const agentId = String(agent._id || agent.agentId || "");
+  const isSelf = currentUserId && agentId === String(currentUserId);
+  const canManage =
+    isSuperAdmin && !isSelf && typeof onActivate === "function";
+  const isInactive = agent?.isActive === false;
 
   const badge = getMemberBadge(agent.createdAt);
 
@@ -1453,6 +1477,38 @@ const AgentCard = ({ agent, index, onEditStatus, onViewDetail }) => {
             <Shield size={13} />
           </button>
         </div>
+
+        {canManage ? (
+          <div className="flex items-center gap-2 border-t border-gray-100 pt-2">
+            {isInactive ? (
+              <button
+                type="button"
+                disabled={statusBusy}
+                onClick={() => onActivate?.(agent)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-[11px] font-black text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+              >
+                <RotateCcw size={12} /> Activate
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={statusBusy}
+                onClick={() => onDeactivate?.(agent)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 py-2 text-[11px] font-black text-amber-700 transition hover:bg-amber-100 disabled:opacity-50"
+              >
+                <Power size={12} /> Deactivate
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={statusBusy}
+              onClick={() => onRequestDelete?.(agent)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 py-2 text-[11px] font-black text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+            >
+              <Trash2 size={12} /> Delete
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -1638,6 +1694,11 @@ const AllAgents = () => {
   const [editingAgent, setEditingAgent] = useState(null);
   const [viewingAgent, setViewingAgent] = useState(null);
   const [editingProfileAgent, setEditingProfileAgent] = useState(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [statusBusyId, setStatusBusyId] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [filters, setFilters] = useState({
     search: "",
     state: "",
@@ -1647,6 +1708,18 @@ const AllAgents = () => {
     status: "",
     joinedDate: "",
   });
+
+  useEffect(() => {
+    fetchLoggedInUser()
+      .then((me) => {
+        setIsSuperAdmin(me?.roleName === "super_admin");
+        setCurrentUserId(String(me?._id || me?.id || ""));
+      })
+      .catch(() => {
+        setIsSuperAdmin(false);
+        setCurrentUserId("");
+      });
+  }, []);
 
   useEffect(() => {
     setFilters((current) => ({
@@ -1659,6 +1732,52 @@ const AllAgents = () => {
     fetchAgents();
   }, [urlDay, createdFrom, createdTo]);
 
+  const changeAgentActive = async (agent, isActive) => {
+    const id = agent?._id || agent?.agentId;
+    if (!isSuperAdmin || !id) return;
+    setStatusBusyId(String(id));
+    try {
+      const result = await updateAccessUserStatus(id, isActive);
+      const nextActive = result?.user?.isActive ?? isActive;
+      setAgents((current) =>
+        current.map((item) =>
+          String(item._id || item.agentId) === String(id)
+            ? { ...item, isActive: nextActive }
+            : item,
+        ),
+      );
+      toast.success(
+        result?.message || (isActive ? "Agent activated" : "Agent deactivated"),
+      );
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message || "Unable to update agent status",
+      );
+    } finally {
+      setStatusBusyId("");
+    }
+  };
+
+  const confirmDeleteAgent = async () => {
+    const id = deleteTarget?._id || deleteTarget?.agentId;
+    if (!isSuperAdmin || !id) return;
+    setDeleteLoading(true);
+    try {
+      const result = await deleteAccessUser(
+        id,
+        "Deleted by Super Admin from Agents directory",
+      );
+      setAgents((current) =>
+        current.filter((item) => String(item._id || item.agentId) !== String(id)),
+      );
+      setDeleteTarget(null);
+      toast.success(result?.message || "Agent permanently deleted");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Agent deletion failed");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
   const fetchAgents = async () => {
     try {
       setLoading(true);
@@ -1884,12 +2003,30 @@ const AllAgents = () => {
                   index={idx}
                   onEditStatus={setEditingAgent}
                   onViewDetail={setViewingAgent}
+                  isSuperAdmin={isSuperAdmin}
+                  currentUserId={currentUserId}
+                  statusBusy={
+                    statusBusyId === String(agent._id || agent.agentId || "")
+                  }
+                  onActivate={(a) => changeAgentActive(a, true)}
+                  onDeactivate={(a) => changeAgentActive(a, false)}
+                  onRequestDelete={setDeleteTarget}
                 />
               ))}
             </div>
           </>
         )}
       </div>
+
+      <SafeUserDeleteModal
+        open={Boolean(deleteTarget)}
+        user={deleteTarget}
+        loading={deleteLoading}
+        onClose={() => {
+          if (!deleteLoading) setDeleteTarget(null);
+        }}
+        onConfirm={confirmDeleteAgent}
+      />
     </>
   );
 };

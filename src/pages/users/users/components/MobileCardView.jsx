@@ -18,6 +18,12 @@ export const MobileCardView = ({
   hasFilters,
   onClearFilters,
   onOpenUser,
+  isSuperAdmin = false,
+  currentUserId = "",
+  statusBusy = false,
+  onActivate,
+  onDeactivate,
+  onRequestDelete,
 }) => {
   const navigate = useNavigate();
   const openUser = (id) => {
@@ -77,13 +83,24 @@ export const MobileCardView = ({
                   </p>
                 </div>
                 <div onClick={(e) => e.stopPropagation()}>
-                  <RowActionsMenu user={u} onOpenUser={onOpenUser} />
+                  <RowActionsMenu
+                    user={u}
+                    onOpenUser={onOpenUser}
+                    isSuperAdmin={isSuperAdmin}
+                    currentUserId={currentUserId}
+                    statusBusy={statusBusy}
+                    onActivate={onActivate}
+                    onDeactivate={onDeactivate}
+                    onRequestDelete={onRequestDelete}
+                  />
                 </div>
               </div>
 
               <div className="mb-3 flex flex-wrap gap-2">
                 <RoleBadge role={u.roleName || u.role || u.roleId?.name} />
-                <AccountBadge status={u.accountStatus} />
+                <AccountBadge
+                  status={u.isActive === false ? "inactive" : u.accountStatus}
+                />
                 <KycBadge kyc={u.kyc} />
                 <PhoneBadge verified={u.phoneVerified} />
               </div>

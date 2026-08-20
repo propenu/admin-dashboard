@@ -35,7 +35,16 @@ import {
   Pencil,
   Loader2,
   Save,
+  Power,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
+import {
+  deleteAccessUser,
+  updateAccessUserStatus,
+} from "../../../../features/accessControl/accessControlService";
+import SafeUserDeleteModal from "../../users/components/SafeUserDeleteModal";
+import BuilderProfileEditModal from "./BuilderProfileEditModal";
 
 // ─── Role Config ──────────────────────────────────────────────────────────────
 //  Each role gets its own: label, icon, accent colour, avatar palette, badge text
@@ -645,6 +654,11 @@ const UserDetailModal = ({ user, role, onClose, onWorkInProgress }) => {
                         label: "Company Name",
                         value: getCompanyName(user),
                       },
+                      {
+                        icon: <MapPin size={13} />,
+                        label: "Address",
+                        value: user.address,
+                      },
                     ]
                   : []),
               ]
@@ -723,7 +737,7 @@ const UserDetailModal = ({ user, role, onClose, onWorkInProgress }) => {
 };
 
 // ─── User Card ────────────────────────────────────────────────────────────────
-const PROFILE_EDIT_FIELDS = [
+const BASE_PROFILE_EDIT_FIELDS = [
   { name: "name", label: "Name", icon: UserCheck, span: false },
   { name: "email", label: "Email", icon: Mail, type: "email", span: false },
   { name: "phone", label: "Phone", icon: Phone, span: true },
@@ -733,12 +747,31 @@ const PROFILE_EDIT_FIELDS = [
   { name: "pincode", label: "Pincode", icon: Hash, span: false },
 ];
 
-const getProfileEditPayload = (user = {}) =>
-  PROFILE_EDIT_FIELDS.reduce((payload, field) => {
+const BUILDER_PROFILE_EDIT_FIELDS = [
+  { name: "companyName", label: "Company Name", icon: Building2, span: true },
+  { name: "name", label: "Contact Name", icon: UserCheck, span: false },
+  { name: "email", label: "Email", icon: Mail, type: "email", span: false },
+  { name: "phone", label: "Phone", icon: Phone, span: true },
+  { name: "address", label: "Address", icon: MapPin, span: true },
+  { name: "locality", label: "Locality", icon: MapPin, span: false },
+  { name: "city", label: "City", icon: Building2, span: false },
+  { name: "state", label: "State", icon: MapPin, span: false },
+  { name: "pincode", label: "Pincode", icon: Hash, span: false },
+];
+
+const getProfileEditFields = (role) =>
+  role === "builder" ? BUILDER_PROFILE_EDIT_FIELDS : BASE_PROFILE_EDIT_FIELDS;
+
+const getProfileEditPayload = (user = {}, role = "") =>
+  getProfileEditFields(role).reduce((payload, field) => {
+    const raw =
+      field.name === "companyName"
+        ? user?.companyName
+        : field.name === "address"
+          ? user?.address
+          : user?.[field.name];
     payload[field.name] =
-      user?.[field.name] === undefined || user?.[field.name] === null
-        ? ""
-        : String(user[field.name]);
+      raw === undefined || raw === null ? "" : String(raw);
     return payload;
   }, {});
 
@@ -762,8 +795,11 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
       : "Owner";
   // Builder org profile APIs for builders; staff use standard user profile APIs
   const useBuilderApis = isBuilder;
+  const editFields = getProfileEditFields(role);
   const userId = user.userId || user._id;
-  const [formData, setFormData] = useState(() => getProfileEditPayload(user));
+  const [formData, setFormData] = useState(() =>
+    getProfileEditPayload(user, role),
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [otp, setOtp] = useState("");
@@ -901,6 +937,11 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
       return;
     }
 
+    if (isBuilder && !payload.companyName) {
+      setError("Company name is required for builders.");
+      return;
+    }
+
     payload.phone = normalizeProfilePhone(payload.phone);
 
     if (!/^\+\d{10,15}$/.test(payload.phone)) {
@@ -917,8 +958,14 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
     setError("");
 
     try {
-      const editProfile = useBuilderApis ? editBuilderProfile : editUserProfile;
-      await editProfile(userId, payload);
+      if (useBuilderApis) {
+        // Builder-by-id API updates org profile fields (not phone).
+        // Phone changes are already persisted by the OTP verify step.
+        const { phone: _phone, ...builderPayload } = payload;
+        await editBuilderProfile(userId, builderPayload);
+      } else {
+        await editUserProfile(userId, payload);
+      }
       onSave(userId, payload);
       toast.success(`${profileLabel} profile updated`);
       onClose();
@@ -966,7 +1013,9 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
               {capitalize(user.name || profileLabel)}
             </h2>
             <p className="mt-1 text-xs font-medium text-gray-400">
-              Update name, email, locality, city, state, pincode, or phone.
+              {isBuilder
+                ? "Update company, contact, address, location, and phone."
+                : "Update name, email, locality, city, state, pincode, or phone."}
             </p>
           </div>
           <button
@@ -981,9 +1030,10 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
 
         <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {PROFILE_EDIT_FIELDS.map((field) => {
+            {editFields.map((field) => {
               const Icon = field.icon;
               const isPhone = field.name === "phone";
+              const isAddress = field.name === "address";
               return (
                 <label
                   key={field.name}
@@ -992,7 +1042,21 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
                   <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">
                     <Icon size={12} style={{ color: cfg.accent }} />
                     {field.label}
+                    {isBuilder && field.name === "companyName" ? (
+                      <span className="text-red-500">*</span>
+                    ) : null}
                   </span>
+                  {isAddress ? (
+                    <textarea
+                      rows={3}
+                      value={formData[field.name]}
+                      onChange={(event) =>
+                        handleChange(field.name, event.target.value)
+                      }
+                      className={`w-full resize-y rounded-xl border-2 border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-700 outline-none transition-all placeholder:text-gray-300 ${cfg.inputFocus} focus:ring-2 focus:ring-[#27AE60]/10`}
+                      placeholder="Enter full address"
+                    />
+                  ) : (
                   <input
                     type={field.type || "text"}
                     value={formData[field.name]}
@@ -1010,6 +1074,7 @@ const ProfileEditModal = ({ user, role, cfg, onClose, onSave }) => {
                     className={`w-full rounded-xl border-2 border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-700 outline-none transition-all placeholder:text-gray-300 ${cfg.inputFocus} focus:ring-2 focus:ring-[#27AE60]/10`}
                     placeholder={isPhone ? "+919876543224" : `Enter ${field.label.toLowerCase()}`}
                   />
+                  )}
                   {isPhone && (
                     <div
                       className="mt-3 rounded-2xl border p-4"
@@ -1148,9 +1213,28 @@ const UserCard = ({
   onViewDetail,
   onWorkInProgress,
   onEditProfile,
+  isSuperAdmin = false,
+  currentUserId = "",
+  statusBusy = false,
+  onActivate,
+  onDeactivate,
+  onRequestDelete,
 }) => {
   const cfg = getRoleCfg(role);
   const RoleIcon = cfg.icon;
+  const userId = String(user.userId || user._id || "");
+  const targetRole = String(user?.roleName || user?.role || role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
+  const isSelf = currentUserId && userId === String(currentUserId);
+  const isTargetSuperAdmin = targetRole === "super_admin";
+  const canManage =
+    isSuperAdmin &&
+    !isSelf &&
+    !isTargetSuperAdmin &&
+    typeof onActivate === "function";
+  const isInactive = user?.isActive === false;
 
   // Cycle avatar shades slightly per index
   const shadeOffset = index % 3;
@@ -1163,7 +1247,9 @@ const UserCard = ({
 
   return (
     <div
-      className={`bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.05)] ${cfg.cardHover} hover:-translate-y-1.5 transition-all duration-300 ease-out group flex flex-col`}
+      className={`bg-white rounded-2xl border overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.05)] ${cfg.cardHover} hover:-translate-y-1.5 transition-all duration-300 ease-out group flex flex-col ${
+        isInactive ? "border-slate-200 opacity-90" : "border-gray-100"
+      }`}
       style={{
         animation: "cardIn 0.45s ease both",
         animationDelay: `${index * 80}ms`,
@@ -1173,7 +1259,9 @@ const UserCard = ({
       <div
         className="h-1.5 w-full shrink-0"
         style={{
-          background: `linear-gradient(to right, ${cfg.gradientFrom}, ${cfg.gradientTo}, ${cfg.gradientFrom}66)`,
+          background: isInactive
+            ? "linear-gradient(to right, #94a3b8, #cbd5e1)"
+            : `linear-gradient(to right, ${cfg.gradientFrom}, ${cfg.gradientTo}, ${cfg.gradientFrom}66)`,
         }}
       />
 
@@ -1192,13 +1280,15 @@ const UserCard = ({
             <div className="flex items-center gap-1 mt-1">
               <span
                 className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0"
-                style={{ backgroundColor: cfg.accent }}
+                style={{
+                  backgroundColor: isInactive ? "#94a3b8" : cfg.accent,
+                }}
               />
               <span
                 className="text-[10px] font-bold truncate uppercase tracking-wider"
-                style={{ color: cfg.accent }}
+                style={{ color: isInactive ? "#64748b" : cfg.accent }}
               >
-                {cfg.label}
+                {isInactive ? "Inactive" : cfg.label}
               </span>
             </div>
           </div>
@@ -1254,6 +1344,29 @@ const UserCard = ({
             />
           </div>
         )}
+
+        {role === "builder" &&
+        (user.builderProfile?.rera?.reraId ||
+          user.builderProfile?.gstin ||
+          user.builderProfile?.website) ? (
+          <div className="flex flex-wrap gap-1.5">
+            {user.builderProfile?.rera?.reraId ? (
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
+                RERA {user.builderProfile.rera.isVerified ? "✓" : ""}
+              </span>
+            ) : null}
+            {user.builderProfile?.gstin ? (
+              <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-700">
+                GST
+              </span>
+            ) : null}
+            {user.builderProfile?.website ? (
+              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-violet-700">
+                Web
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Contact info */}
         <div className="space-y-1.5">
@@ -1417,6 +1530,38 @@ const UserCard = ({
             <ExternalLink size={13} />
           </button>
         </div>
+
+        {canManage ? (
+          <div className="flex items-center gap-2 border-t border-gray-100 pt-2">
+            {isInactive ? (
+              <button
+                type="button"
+                disabled={statusBusy}
+                onClick={() => onActivate?.(user)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-[11px] font-black text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+              >
+                <RotateCcw size={12} /> Activate
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={statusBusy}
+                onClick={() => onDeactivate?.(user)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 py-2 text-[11px] font-black text-amber-700 transition hover:bg-amber-100 disabled:opacity-50"
+              >
+                <Power size={12} /> Deactivate
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={statusBusy}
+              onClick={() => onRequestDelete?.(user)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 py-2 text-[11px] font-black text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+            >
+              <Trash2 size={12} /> Delete
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -1652,6 +1797,11 @@ const RoleUsers = ({ role = "sales_manager" }) => {
   const [viewingUser, setViewingUser] = useState(null);
   const [editingProfile, setEditingProfile] = useState(null);
   const [lockedState, setLockedState] = useState("");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [statusBusyId, setStatusBusyId] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [filters, setFilters] = useState({
     search: "",
     state: "",
@@ -1667,6 +1817,8 @@ const RoleUsers = ({ role = "sales_manager" }) => {
     fetchLoggedInUser()
       .then((me) => {
         if (!mounted) return;
+        setIsSuperAdmin(me?.roleName === "super_admin");
+        setCurrentUserId(String(me?._id || me?.id || ""));
         const stateScope =
           me?.roleName === "regional_manager" ? me?.state || "" : "";
         setLockedState(stateScope);
@@ -1679,13 +1831,63 @@ const RoleUsers = ({ role = "sales_manager" }) => {
           }));
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!mounted) return;
+        setIsSuperAdmin(false);
+        setCurrentUserId("");
+      });
 
     return () => {
       mounted = false;
     };
   }, []);
 
+  const changeUserActive = async (user, isActive) => {
+    const id = user?.userId || user?._id;
+    if (!isSuperAdmin || !id) return;
+    setStatusBusyId(String(id));
+    try {
+      const result = await updateAccessUserStatus(id, isActive);
+      const nextActive = result?.user?.isActive ?? isActive;
+      setUsers((current) =>
+        current.map((item) =>
+          String(item.userId || item._id) === String(id)
+            ? { ...item, isActive: nextActive }
+            : item,
+        ),
+      );
+      toast.success(
+        result?.message || (isActive ? "User activated" : "User deactivated"),
+      );
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message || "Unable to update user status",
+      );
+    } finally {
+      setStatusBusyId("");
+    }
+  };
+
+  const confirmDeleteUser = async () => {
+    const id = deleteTarget?.userId || deleteTarget?._id;
+    if (!isSuperAdmin || !id) return;
+    setDeleteLoading(true);
+    try {
+      const result = await deleteAccessUser(
+        id,
+        `Deleted by Super Admin from ${cfg.label} directory`,
+      );
+      setUsers((current) =>
+        current.filter((item) => String(item.userId || item._id) !== String(id)),
+      );
+      setDeleteTarget(null);
+      toast.success(result?.message || "User permanently deleted");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "User deletion failed");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
   useEffect(() => {
     const day = urlDay || "";
     setFilters((current) => ({
@@ -1776,8 +1978,16 @@ const RoleUsers = ({ role = "sales_manager" }) => {
         />
       )}
 
-      {(role === "builder" || role === "builder_staff" || role === "user") &&
-        editingProfile && (
+      {role === "builder" && editingProfile ? (
+        <BuilderProfileEditModal
+          user={editingProfile}
+          cfg={cfg}
+          onClose={() => setEditingProfile(null)}
+          onSave={handleProfileUpdated}
+        />
+      ) : null}
+
+      {(role === "builder_staff" || role === "user") && editingProfile ? (
         <ProfileEditModal
           user={editingProfile}
           role={role}
@@ -1785,7 +1995,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
           onClose={() => setEditingProfile(null)}
           onSave={handleProfileUpdated}
         />
-      )}
+      ) : null}
 
       <div className={`min-h-screen ${pageBg} px-4 sm:px-8 py-6`}>
         {/* ── Header ── */}
@@ -1923,12 +2133,30 @@ const RoleUsers = ({ role = "sales_manager" }) => {
                   onViewDetail={setViewingUser}
                   onWorkInProgress={handleWorkInProgress}
                   onEditProfile={setEditingProfile}
+                  isSuperAdmin={isSuperAdmin}
+                  currentUserId={currentUserId}
+                  statusBusy={
+                    statusBusyId === String(user.userId || user._id || "")
+                  }
+                  onActivate={(u) => changeUserActive(u, true)}
+                  onDeactivate={(u) => changeUserActive(u, false)}
+                  onRequestDelete={setDeleteTarget}
                 />
               ))}
             </div>
           </>
         )}
       </div>
+
+      <SafeUserDeleteModal
+        open={Boolean(deleteTarget)}
+        user={deleteTarget}
+        loading={deleteLoading}
+        onClose={() => {
+          if (!deleteLoading) setDeleteTarget(null);
+        }}
+        onConfirm={confirmDeleteUser}
+      />
     </>
   );
 };

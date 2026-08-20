@@ -337,6 +337,10 @@ export const editBuilderProfile = (id, formData) => {
   return apiClient.patch(`${SERVICES.USER}/builder/profile/${id}`, formData);
 };
 
+export const getBuilderProfileById = (id) => {
+  return apiClient.get(`${SERVICES.USER}/builder/profile/${id}`);
+};
+
 export const editUserProfile = (id, formData) => {
   return apiClient.patch(`${SERVICES.USER}/auth/${id}/profile`, formData);
 };

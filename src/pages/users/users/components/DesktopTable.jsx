@@ -98,6 +98,12 @@ export const DesktopTable = ({
   onRetry,
   onClearFilters,
   onOpenUser,
+  isSuperAdmin = false,
+  currentUserId = "",
+  statusBusy = false,
+  onActivate,
+  onDeactivate,
+  onRequestDelete,
 }) => {
   const navigate = useNavigate();
   const openUser = (id) => {
@@ -192,7 +198,11 @@ export const DesktopTable = ({
                   </td>
 
                   <td className="px-3 py-3 align-middle">
-                    <AccountBadge status={u.accountStatus} />
+                    <AccountBadge
+                      status={
+                        u.isActive === false ? "inactive" : u.accountStatus
+                      }
+                    />
                   </td>
 
                   <td className="px-3 py-3 align-middle">
@@ -261,7 +271,16 @@ export const DesktopTable = ({
                     className="px-3 py-3 pr-4 align-middle"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <RowActionsMenu user={u} onOpenUser={onOpenUser} />
+                    <RowActionsMenu
+                      user={u}
+                      onOpenUser={onOpenUser}
+                      isSuperAdmin={isSuperAdmin}
+                      currentUserId={currentUserId}
+                      statusBusy={statusBusy}
+                      onActivate={onActivate}
+                      onDeactivate={onDeactivate}
+                      onRequestDelete={onRequestDelete}
+                    />
                   </td>
                 </tr>
               );
