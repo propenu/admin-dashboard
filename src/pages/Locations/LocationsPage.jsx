@@ -29,7 +29,10 @@ export default function LocationsPage() {
     saveLocation,
     deleteLocation,
     deleteLocality,
+    toggleLocalityHome,
   } = useLocations();
+
+  const [togglingLocalityKey, setTogglingLocalityKey] = useState("");
 
   /** Exact unique counts only (state | state+city | state+city+locality) — no name mixing */
   const { data: listingCounts } = useQuery({
@@ -116,6 +119,18 @@ export default function LocationsPage() {
     setShowDelete(true);
   };
 
+  const handleToggleLocalityHome = async (city, locality) => {
+    setSuccessMsg("");
+    setErrorMsg("");
+    const key = `${city._id}:${locality.name}`;
+    setTogglingLocalityKey(key);
+    try {
+      await toggleLocalityHome({ city, locality });
+    } finally {
+      setTogglingLocalityKey("");
+    }
+  };
+
   const confirmDelete = () => {
     if (!deleteTarget) return;
 
@@ -177,6 +192,8 @@ export default function LocationsPage() {
           onAddLocality={handleAddLocalityToCity}
           onEditLocality={handleEditLocality}
           onDeleteLocality={handleDeleteLocality}
+          onToggleLocalityHome={handleToggleLocalityHome}
+          togglingLocalityKey={togglingLocalityKey}
         />
       </div>
 

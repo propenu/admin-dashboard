@@ -45,6 +45,7 @@ export const buildPayload = (form, type = "LOCALITY") => {
       : {}),
     locality: {
       name: localityName,
+      isHome: form.localityIsHome === true,
       location: {
         type: "Point",
         coordinates: [Number(form.lng) || 0, Number(form.lat) || 0],

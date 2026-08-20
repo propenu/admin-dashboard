@@ -1,5 +1,6 @@
 // frontend/admin-dashboard/src/pages/Locations/hooks/useLocations.jsx
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   fetchLocationsService,
   createLocationService,
@@ -106,6 +107,43 @@ export default function useLocations() {
     }
   };
 
+  /** Toggle only locality Home — does not change city isHome */
+  const toggleLocalityHome = async ({ city, locality }) => {
+    if (!city?._id || !locality?.name) return false;
+    setErrorMsg("");
+    const nextHome = locality.isHome !== true;
+    const successText = nextHome
+      ? `Locality “${locality.name}” → Home Active`
+      : `Locality “${locality.name}” → Home Hidden`;
+    try {
+      await editLocationService(city._id, {
+        originalLocalityName: locality.name,
+        locality: {
+          name: locality.name,
+          isHome: nextHome,
+          ...(Array.isArray(locality.location?.coordinates)
+            ? {
+                location: {
+                  coordinates: locality.location.coordinates,
+                },
+              }
+            : {}),
+        },
+      });
+      setSuccessMsg(successText);
+      toast.success(successText);
+      // Refresh without flipping global `loading` (keeps list interactive)
+      const res = await fetchLocationsService();
+      setData(res);
+      return true;
+    } catch (err) {
+      const msg = extractApiError(err, "Failed to update locality Home");
+      setErrorMsg(msg);
+      toast.error(typeof msg === "string" ? msg : msg?.message || "Failed to update locality Home");
+      return false;
+    }
+  };
+
   return {
     data,
     loading,
@@ -116,5 +154,6 @@ export default function useLocations() {
     saveLocation,
     deleteLocation,
     deleteLocality,
+    toggleLocalityHome,
   };
 }

@@ -12,6 +12,7 @@ const EMPTY_FORM = {
   customCity: "",
   category: "city",
   isHome: false,
+  localityIsHome: false,
   localityName: "",
   originalLocalityName: "",
   lat: "",
@@ -103,6 +104,9 @@ export default function LocationFormModal({
       customCity,
       category: initialData.category || "city",
       isHome: initialData.isHome === true,
+      localityIsHome: isAddLocalityMode
+        ? false
+        : firstLocality?.isHome === true,
       localityName,
       // Track original so rename/update works on save
       originalLocalityName: isAddLocalityMode ? "" : localityName,
@@ -226,6 +230,7 @@ export default function LocationFormModal({
         ...prev,
         originalLocalityName: "",
         localityName: "",
+        localityIsHome: false,
         lat: "",
         lng: "",
       }));
@@ -235,6 +240,7 @@ export default function LocationFormModal({
       ...prev,
       originalLocalityName: loc.name || "",
       localityName: loc.name || "",
+      localityIsHome: loc.isHome === true,
       lat: loc.location?.coordinates?.[1] ?? "",
       lng: loc.location?.coordinates?.[0] ?? "",
     }));
@@ -463,6 +469,56 @@ export default function LocationFormModal({
             </div>
           </div>
 
+          {/* City Home + Locality Home — one row */}
+          <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                title={
+                  form.isHome
+                    ? "City Home Active — click to hide city"
+                    : "City Home Hidden — click to activate city"
+                }
+                onClick={() => setForm({ ...form, isHome: !form.isHome })}
+                className={`py-2.5 rounded-xl border text-sm font-semibold ${
+                  form.isHome
+                    ? "bg-[#27AE60] text-white border-[#27AE60]"
+                    : "bg-red-500 text-white border-red-500"
+                }`}
+              >
+                City Home {form.isHome ? "· Active" : "· Hidden"}
+              </button>
+              <button
+                type="button"
+                title={
+                  form.localityIsHome
+                    ? "Locality Home Active — click to hide locality"
+                    : "Locality Home Hidden — click to activate locality"
+                }
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    localityIsHome: !form.localityIsHome,
+                  })
+                }
+                className={`py-2.5 rounded-xl border text-sm font-semibold ${
+                  form.localityIsHome
+                    ? "bg-[#27AE60] text-white border-[#27AE60]"
+                    : "bg-red-500 text-white border-red-500"
+                }`}
+              >
+                Locality Home {form.localityIsHome ? "· Active" : "· Hidden"}
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              One row · separate controls.{" "}
+              <span className="font-semibold text-[#27AE60]">Green = Active</span>
+              {" · "}
+              <span className="font-semibold text-red-500">Red = Hidden</span>
+              . City and locality Home do not overwrite each other.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <input
               placeholder="Latitude"
@@ -493,29 +549,10 @@ export default function LocationFormModal({
                 {cat.charAt(0).toUpperCase() + cat.slice(1)}
               </button>
             ))}
-            <button
-              type="button"
-              title={
-                form.isHome
-                  ? "Home ON — shows on propenu.com. Click to hide."
-                  : "Home OFF — hidden on propenu.com. Click to show."
-              }
-              onClick={() => setForm({ ...form, isHome: !form.isHome })}
-              className={`flex-1 py-2 rounded-xl border font-medium ${
-                form.isHome
-                  ? "bg-[#27AE60] text-white border-[#27AE60]"
-                  : "bg-red-500 text-white border-red-500"
-              }`}
-            >
-              Home
-            </button>
           </div>
           <p className="text-xs text-gray-500 -mt-2">
-            City / Popular = list section.{" "}
-            <span className="font-semibold text-[#27AE60]">Home green</span> =
-            active on website;{" "}
-            <span className="font-semibold text-red-500">Home red</span> =
-            hidden.
+            City / Popular = list section only. Home Active / Hidden is set above
+            next to City and Locality.
           </p>
         </div>
 

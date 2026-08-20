@@ -203,7 +203,7 @@ export const updateFeaturedProperty = async (id, payload) => {
     "aboutSummary",
     "categoryType",
     "propertyType",
-    "adreess",
+    "address",
     "state",
     "city",
     "locality",

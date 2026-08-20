@@ -82,6 +82,8 @@ function CityLocalitiesPanel({
   onEditLocality,
   onDeleteLocality,
   onAddLocality,
+  onToggleLocalityHome,
+  togglingLocalityKey,
 }) {
   const [query, setQuery] = useState("");
   const localities = Array.isArray(city.localities) ? city.localities : [];
@@ -96,21 +98,36 @@ function CityLocalitiesPanel({
     return localities.filter((loc) => normalize(loc.name).includes(q));
   }, [localities, query]);
 
+  const homeActiveCount = localities.filter((loc) => loc.isHome === true).length;
+
   return (
     <div className="flex flex-col border-t border-dashed border-green-100 bg-[radial-gradient(ellipse_at_top,_#ecfdf5_0%,_#ffffff_55%)]">
       {/* Sticky toolbar — stays outside the scroll region so cards aren't clipped under it */}
-      <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-2 border-b border-green-50/80 bg-white/95 px-2.5 py-2 backdrop-blur-sm">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-          {filtered.length === localities.length
-            ? `${localities.length} localities`
-            : `${filtered.length}/${localities.length}`}
+      <div className="sticky top-0 z-10 flex shrink-0 flex-col gap-1.5 border-b border-green-50/80 bg-white/95 px-2.5 py-2 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            {filtered.length === localities.length
+              ? `${localities.length} localities`
+              : `${filtered.length}/${localities.length}`}
+          </p>
+          <CompactSearch
+            value={query}
+            onChange={setQuery}
+            placeholder="Search locality…"
+            className="max-w-[160px] flex-1 sm:max-w-[180px]"
+          />
+        </div>
+        <p className="text-[10px] text-slate-500">
+          Locality Home is separate from city.{" "}
+          <span className="font-semibold text-emerald-700">
+            {homeActiveCount} Home Active
+          </span>
+          {" · "}
+          <span className="font-semibold text-red-500">
+            {localities.length - homeActiveCount} Hidden
+          </span>
+          . Green = show · Red = hide.
         </p>
-        <CompactSearch
-          value={query}
-          onChange={setQuery}
-          placeholder="Search locality…"
-          className="max-w-[160px] flex-1 sm:max-w-[180px]"
-        />
       </div>
 
       {localities.length === 0 ? (
@@ -140,7 +157,6 @@ function CityLocalitiesPanel({
             scrollbarColor: "#86efac transparent",
           }}
         >
-          {/* No Framer layout/popLayout here — those clip cards while scrolling */}
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {filtered.map((loc, idx) => {
               const locCounts = getListingCounts(
@@ -149,23 +165,68 @@ function CityLocalitiesPanel({
                 city.city,
                 loc.name,
               );
+              const homeOn = loc.isHome === true;
+              const toggleKey = `${city._id}:${loc.name}`;
+              const busy = togglingLocalityKey === toggleKey;
               return (
                 <div
                   key={`${loc.name}-${idx}`}
-                  className="group flex min-h-[44px] items-center justify-between gap-1.5 rounded-lg border border-gray-100 bg-white px-2 py-1.5 shadow-sm hover:border-green-200 hover:bg-green-50/60"
+                  className={`group flex min-h-[52px] items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 shadow-sm ${
+                    homeOn
+                      ? "border-emerald-200 bg-emerald-50/40 hover:border-emerald-300"
+                      : "border-gray-100 bg-white hover:border-red-100 hover:bg-red-50/30"
+                  }`}
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                    <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md bg-green-100 text-green-700">
+                    <span
+                      className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md ${
+                        homeOn
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-red-50 text-red-500"
+                      }`}
+                    >
                       <MapPin size={11} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-medium text-gray-800">
-                        {loc.name}
-                      </span>
+                      <div className="flex min-w-0 flex-wrap items-center gap-1">
+                        <span className="truncate text-xs font-medium text-gray-800">
+                          {loc.name}
+                        </span>
+                        <span
+                          className={`rounded-full px-1.5 py-px text-[9px] font-bold uppercase ${
+                            homeOn
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-red-50 text-red-500"
+                          }`}
+                        >
+                          {homeOn ? "Home" : "Hidden"}
+                        </span>
+                      </div>
                       <ListingCountLine counts={locCounts} />
                     </div>
                   </div>
-                  <div className="flex flex-shrink-0 gap-0.5">
+                  <div className="flex flex-shrink-0 items-center gap-0.5">
+                    <button
+                      type="button"
+                      disabled={busy || !onToggleLocalityHome}
+                      title={
+                        homeOn
+                          ? "Home Active — click to hide this locality"
+                          : "Home Hidden — click to make this locality Home Active"
+                      }
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onToggleLocalityHome?.(city, loc);
+                      }}
+                      className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition disabled:opacity-50 ${
+                        homeOn
+                          ? "bg-[#27AE60] text-white"
+                          : "bg-red-500 text-white"
+                      }`}
+                    >
+                      {busy ? "…" : "Home"}
+                    </button>
                     <button
                       type="button"
                       onClick={() => onEditLocality(city, loc)}
@@ -204,6 +265,8 @@ function CityRow({
   onAddLocality,
   onEditLocality,
   onDeleteLocality,
+  onToggleLocalityHome,
+  togglingLocalityKey,
 }) {
   const localityCount = city.localities?.length || 0;
   const cityCounts = getListingCounts(listingCounts, city.state, city.city);
@@ -337,6 +400,8 @@ function CityRow({
               onEditLocality={onEditLocality}
               onDeleteLocality={onDeleteLocality}
               onAddLocality={onAddLocality}
+              onToggleLocalityHome={onToggleLocalityHome}
+              togglingLocalityKey={togglingLocalityKey}
             />
           </motion.div>
         )}
@@ -397,6 +462,8 @@ function StateBlock({
   onAddLocality,
   onEditLocality,
   onDeleteLocality,
+  onToggleLocalityHome,
+  togglingLocalityKey,
   index,
   globalQuery,
 }) {
@@ -557,6 +624,8 @@ function StateBlock({
                         onAddLocality={onAddLocality}
                         onEditLocality={onEditLocality}
                         onDeleteLocality={onDeleteLocality}
+                        onToggleLocalityHome={onToggleLocalityHome}
+                        togglingLocalityKey={togglingLocalityKey}
                       />
                     ))}
                   </AnimatePresence>
@@ -582,6 +651,8 @@ export default function LocationAccordion({
   onAddLocality,
   onEditLocality,
   onDeleteLocality,
+  onToggleLocalityHome,
+  togglingLocalityKey,
 }) {
   const [globalQuery, setGlobalQuery] = useState("");
 
@@ -670,6 +741,8 @@ export default function LocationAccordion({
                 onAddLocality={onAddLocality}
                 onEditLocality={onEditLocality}
                 onDeleteLocality={onDeleteLocality}
+                onToggleLocalityHome={onToggleLocalityHome}
+                togglingLocalityKey={togglingLocalityKey}
                 globalQuery={globalQuery}
               />
             ))}
