@@ -1,51 +1,13 @@
 // src/pages/post-property/featured-create/steps/GalleryStep.jsx
 import { forwardRef, useImperativeHandle, useRef, useState ,useEffect} from "react";
 import { Upload, X, Images } from "lucide-react";
-import imageCompression from "browser-image-compression";
 import { getDB, deleteImage, saveImage } from "../utils/indexedDB";
 import { toast } from "sonner";
-
-
-const compressImage = async (file) => {
-  const options = {
-    maxSizeMB: 1,
-    maxWidthOrHeight: 1920,
-    useWebWorker: true,
-  };
-
-  try {
-    const compressedFile = await imageCompression(file, options);
-
-    const originalMB = (file.size / (1024 * 1024)).toFixed(2);
-
-    const compressedMB = (compressedFile.size / (1024 * 1024)).toFixed(2);
-
-    const savedMB = ((file.size - compressedFile.size) / (1024 * 1024)).toFixed(
-      2,
-    );
-
-    toast.success(
-      `${file.name}
-${originalMB} MB → ${compressedMB} MB
-Saved ${savedMB} MB`,
-    );
-
-    return compressedFile;
-  } catch {
-    toast.error("Image compression failed");
-
-    return file;
-  }
-};
-
-const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-  });
-};
+import {
+  compressProjectImage,
+  getImageRejectError,
+  ONE_MB,
+} from "../../../../utils/compressProjectImage";
 
 const GalleryStep = forwardRef(({ payload, update }, ref) => {
   const galleryFiles   = payload.galleryFiles   || [];
@@ -124,11 +86,24 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
   }, []);
 
  const handleUpload = async (e) => {
-   const files = Array.from(e.target.files);
+   const files = Array.from(e.target.files || []);
 
    if (!files.length) return;
 
-   console.log("galleryFiles", galleryFiles);
+   const imageFiles = [];
+   files.forEach((file) => {
+     const reject = getImageRejectError(file, file.name);
+     if (reject) {
+       toast.error(reject);
+     } else {
+       imageFiles.push(file);
+     }
+   });
+
+   if (!imageFiles.length) {
+     e.target.value = "";
+     return;
+   }
 
    const existingImages = galleryFiles
      .filter((item) => item?.file?.name)
@@ -138,7 +113,7 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
 
    const uniqueFiles = [];
 
-   files.forEach((file) => {
+   imageFiles.forEach((file) => {
      const key = file.name.toLowerCase();
 
      if (seen.has(key)) {
@@ -148,41 +123,37 @@ const GalleryStep = forwardRef(({ payload, update }, ref) => {
        uniqueFiles.push(file);
      }
    });
-   
 
-   // Maximum 50 images
-   if (galleryFiles.length + files.length > 50) {
+   if (galleryFiles.length + uniqueFiles.length > 50) {
      toast.error(
        `Maximum 50 images are allowed. You already have ${galleryFiles.length} images.`,
      );
-
      e.target.value = "";
-
      return;
    }
 
-   // Stop if all selected images are duplicates
    if (uniqueFiles.length === 0) {
      e.target.value = "";
      return;
    }
 
-   const toastId = toast.loading("Compressing & uploading images...⏳");
+   const toastId = toast.loading("Preparing images...⏳");
 
    try {
      const compressedFiles = await Promise.all(
-       uniqueFiles.map((f) => compressImage(f)),
+       uniqueFiles.map((f) =>
+         compressProjectImage(f, { silent: true, label: f.name }),
+       ),
      );
-     // check every image
+
      for (const file of compressedFiles) {
-       const compressedMB = (file.size / (1024 * 1024)).toFixed(2);
-
-       if (file.size > 1024 * 1024) {
+       if (file.size > ONE_MB) {
          toast.error(
-           `${file.name} is ${compressedMB} MB.
+           `${file.name} is ${(file.size / ONE_MB).toFixed(2)} MB.
 Maximum allowed size is 1 MB.`,
+           { id: toastId },
          );
-
+         e.target.value = "";
          return;
        }
      }
@@ -214,33 +185,24 @@ Maximum allowed size is 1 MB.`,
      e.target.value = "";
 
      const originalSize = uniqueFiles.reduce((sum, file) => sum + file.size, 0);
-
-    const compressedSize = compressedFiles.reduce(
-      (sum, file) => sum + file.size,
-      0,
-    );
-     const originalMB = (originalSize / (1024 * 1024)).toFixed(2);
-
-     const compressedMB = (compressedSize / (1024 * 1024)).toFixed(2);
-
-     const savedMB = ((originalSize - compressedSize) / (1024 * 1024)).toFixed(
-       2,
+     const compressedSize = compressedFiles.reduce(
+       (sum, file) => sum + file.size,
+       0,
      );
 
      toast.success(
-       `${files.length} images compressed successfully!
-${originalMB} MB → ${compressedMB} MB
-Saved ${savedMB} MB`,
-       {
-         id: toastId,
-       },
+       `${uniqueFiles.length} image(s) ready
+${(originalSize / ONE_MB).toFixed(2)} MB → ${(compressedSize / ONE_MB).toFixed(2)} MB
+(under 1 MB kept original; over 1 MB → ~0.9 MB)`,
+       { id: toastId },
      );
-   } catch (e) {
-     toast.error("Something went wrong!", {
+   } catch (err) {
+     toast.error(err?.message || "Something went wrong!", {
        id: toastId,
      });
+     e.target.value = "";
    }
- };;;
+ };
 
   const removeImage = async (index) => {
   const item = galleryFiles[index];
@@ -290,7 +252,7 @@ Saved ${savedMB} MB`,
           Click to upload or drag & drop
         </p>
         <p className="text-xs text-gray-400 mt-1">
-          PNG, JPG, WEBP — multiple files supported
+          Images only — under 1 MB kept original; over 1 MB → ~0.9 MB
         </p>
         <input
           type="file"

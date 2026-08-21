@@ -59,7 +59,7 @@ const PREFERRED_ROLE_NAME = {
  *     ├── Accounts · Legal · HR
  *     └── Tech Support Head → Tech Support Team
  */
-const TEAM_CANONICAL_PARENT = {
+export const TEAM_CANONICAL_PARENT = {
   ceo: "super_admin",
   founder: "super_admin",
   admin: "super_admin",
@@ -86,6 +86,18 @@ const TEAM_CANONICAL_PARENT = {
   hr_administration: "operations_head",
   technical_support_head: "operations_head",
   technical_support_team: "technical_support_head",
+};
+
+/** Direct child roles that report under this role in the org chart. */
+export const getReportingChildRoles = (roleName = "") => {
+  const parent = canonicalTeamRole(roleName);
+  return [
+    ...new Set(
+      Object.entries(TEAM_CANONICAL_PARENT)
+        .filter(([, p]) => p === parent)
+        .map(([child]) => (child === "sales_agent" ? "sales_executive" : child)),
+    ),
+  ];
 };
 
 const TEAM_ROLE_HIERARCHY = [

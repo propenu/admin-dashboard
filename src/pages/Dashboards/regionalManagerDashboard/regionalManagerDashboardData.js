@@ -44,6 +44,9 @@ export const normalizeRmRole = (value = "") =>
 
 export const roleGroupKey = (roleName = "") => {
   const role = normalizeRmRole(roleName);
+  if (role === "regional_manager" || role === "regional_managers") {
+    return "regional_manager";
+  }
   if (role === "business_development_manager" || role === "business_development_executive") {
     return "bdm";
   }
@@ -60,11 +63,32 @@ export const roleGroupKey = (roleName = "") => {
 
 export const ROLE_GROUP_META = {
   all: { label: "All team", accent: "emerald" },
+  regional_manager: { label: "Regional Managers", accent: "indigo" },
   sales_executive: { label: "Sales Executives", accent: "teal" },
   bdm: { label: "BDMs", accent: "blue" },
   sales_manager: { label: "Sales Managers", accent: "amber" },
   other: { label: "Other roles", accent: "violet" },
 };
+
+/** Roles BDH oversees on Team Floor (RMs + their sales pod). */
+export const BDH_TEAM_ROLES = new Set([
+  "regional_manager",
+  "regional_managers",
+  "sales_manager",
+  "sales_agent",
+  "sales_executive",
+  "sales_executives",
+  "business_development_manager",
+  "business_development_executive",
+]);
+
+export const BDH_GROUP_TABS = [
+  { key: "all", label: "All" },
+  { key: "regional_manager", label: "Regional Managers" },
+  { key: "bdm", label: "BDMs" },
+  { key: "sales_manager", label: "Sales Managers" },
+  { key: "sales_executive", label: "Sales Executives" },
+];
 
 const safeDate = (value) => {
   if (!value) return null;

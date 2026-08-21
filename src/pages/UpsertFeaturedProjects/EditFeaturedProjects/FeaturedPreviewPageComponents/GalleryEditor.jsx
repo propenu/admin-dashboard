@@ -117,17 +117,16 @@ export default function GalleryEditor({
 
     let finalFile = file;
 
-    // ✅ Compress only images
     if (file.type.startsWith("image/")) {
-      console.log("📸 ORIGINAL:", (file.size / 1024 / 1024).toFixed(2), "MB");
-
-      finalFile = await compressImage(file, "gallery", "Gallery Image");
-
-      console.log(
-        "✅ COMPRESSED:",
-        (finalFile.size / 1024 / 1024).toFixed(2),
-        "MB",
-      );
+      try {
+        finalFile = await compressImage(file, "gallery", "Gallery Image");
+      } catch (err) {
+        toast.error(err?.message || "Invalid image");
+        return;
+      }
+    } else if (!file.type.startsWith("video/")) {
+      toast.error("Only images or videos are allowed in gallery.");
+      return;
     }
 
     const blobUrl = URL.createObjectURL(finalFile);
@@ -235,21 +234,16 @@ export default function GalleryEditor({
       files.map(async (file) => {
         let finalFile = file;
 
-        // ✅ Compress only images
         if (file.type.startsWith("image/")) {
-          console.log(
-            "📸 ORIGINAL:",
-            (file.size / 1024 / 1024).toFixed(2),
-            "MB",
-          );
-
-          finalFile = await compressImage(file, "gallery", "Gallery Image");
-
-          console.log(
-            "✅ COMPRESSED:",
-            (finalFile.size / 1024 / 1024).toFixed(2),
-            "MB",
-          );
+          try {
+            finalFile = await compressImage(file, "gallery", "Gallery Image");
+          } catch (err) {
+            toast.error(err?.message || `${file.name} rejected`);
+            return null;
+          }
+        } else if (!file.type.startsWith("video/")) {
+          toast.error(`${file.name}: only images or videos allowed`);
+          return null;
         }
 
         const newId = crypto.randomUUID();
@@ -268,12 +262,14 @@ export default function GalleryEditor({
       }),
     );
 
+    const preparedValid = prepared.filter(Boolean);
+
     setFormData((prev) => {
       const existingGallery = prev.gallerySummary || [];
 
       const existingIds = new Set(existingGallery.map(uid));
 
-      const newOnes = prepared.filter((e) => !existingIds.has(e.id));
+      const newOnes = preparedValid.filter((e) => !existingIds.has(e.id));
 
       if (!newOnes.length) {
         addingRef.current = false;

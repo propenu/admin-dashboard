@@ -45,11 +45,15 @@ const WORK = {
     steps: [
       "Review Regional Managers by state/city",
       "Check posting & onboarding load under RMs",
+      "Review field meetings across regions",
       "Push weak regions or rebalance people",
     ],
     modules: [
+      { label: "Staff", path: "/propenu-team-members", hint: "RMs and their teams" },
+      { label: "Meetings", path: "/field-meetings", hint: "Regional field meetings" },
       { label: "Projects", path: "/projects", hint: "Projects posted in regions" },
       { label: "Properties", path: "/properties", hint: "Listings / onboarding" },
+      { label: "Tickets", path: "/tickets", hint: "Support / blocker tickets" },
       { label: "Leads", path: "/leads", hint: "Conversion pipeline" },
       { label: "Team Directory", path: "/propenu-team-members", hint: "BD people" },
     ],
@@ -61,13 +65,15 @@ const WORK = {
     steps: [
       "Filter by your state/city",
       "See executives under this region",
-      "Chase incomplete onboarding and open tickets in the region",
+      "Review field meetings and open support tickets",
+      "Chase incomplete onboarding in the region",
     ],
     modules: [
+      { label: "Staff", path: "/propenu-team-members", hint: "Sales Executives & team under this RM" },
+      { label: "Meetings", path: "/field-meetings", hint: "Field meetings owned by this RM" },
       { label: "Projects", path: "/projects", hint: "Regional projects" },
       { label: "Properties", path: "/properties", hint: "Regional listings & onboard" },
-      { label: "Tickets", path: "/tickets", hint: "Regional issues" },
-      { label: "Sales Executives", path: "/sales-agents", hint: "Executives list (if available)" },
+      { label: "Tickets", path: "/tickets", hint: "Regional support issues" },
       { label: "Team Directory", path: "/propenu-team-members", hint: "People in region roles" },
     ],
   },
@@ -111,10 +117,12 @@ const WORK = {
     steps: [
       "Post project / property for their location",
       "Complete onboarding (photos, docs, details)",
+      "Run field meetings with clients / builders",
       "Track Property Progress until live",
       "Raise or close tickets when something blocks go-live",
     ],
     modules: [
+      { label: "Meetings", path: "/field-meetings", hint: "Field meetings owned by this executive" },
       { label: "Projects", path: "/projects", hint: "Post / manage projects" },
       { label: "Properties", path: "/properties", hint: "Post / manage listings" },
       { label: "Property Progress", path: "/property-progress", hint: "Onboarding to live" },
@@ -128,9 +136,11 @@ const WORK = {
     steps: [
       "Review Team Leads by location",
       "Watch open vs resolved tickets",
+      "Check support staff load under each lead",
       "Escalate to Operations Head when needed",
     ],
     modules: [
+      { label: "Staff", path: "/propenu-team-members", hint: "Team Leads & support people" },
       { label: "Tickets", path: "/tickets", hint: "Support queue" },
       { label: "Team Directory", path: "/propenu-team-members", hint: "Support people" },
       { label: "Properties", path: "/properties", hint: "Listing-linked issues" },
@@ -146,6 +156,7 @@ const WORK = {
       "Check overdue / active cases by location",
     ],
     modules: [
+      { label: "Staff", path: "/propenu-team-members", hint: "Care Executives & RMs" },
       { label: "Tickets", path: "/tickets", hint: "Assign & monitor" },
       { label: "Team Directory", path: "/propenu-team-members", hint: "Your support team" },
       { label: "Property Progress", path: "/property-progress", hint: "User listing issues" },
@@ -162,6 +173,7 @@ const WORK = {
     ],
     modules: [
       { label: "Tickets", path: "/tickets", hint: "Active support work" },
+      { label: "Meetings", path: "/field-meetings", hint: "Support follow-up meetings if any" },
       { label: "Projects", path: "/projects", hint: "Context on inventory" },
       { label: "Properties", path: "/properties", hint: "Context on listings" },
       { label: "Property Progress", path: "/property-progress", hint: "Onboarding help" },
@@ -178,6 +190,7 @@ const WORK = {
     ],
     modules: [
       { label: "Tickets", path: "/tickets", hint: "Escalation cases" },
+      { label: "Meetings", path: "/field-meetings", hint: "Account meetings" },
       { label: "Projects", path: "/projects", hint: "Key inventory" },
       { label: "Properties", path: "/properties", hint: "Key listings" },
     ],
@@ -357,51 +370,73 @@ const FALLBACK = {
 
 /** Which data panels + quick actions each role gets on the member work page. */
 const ROLE_PANELS = {
-  ceo: ["overview", "tickets", "projects", "properties"],
-  operations_head: ["overview", "tickets", "projects", "properties"],
-  business_development_head: ["overview", "projects", "properties", "tickets"],
-  regional_manager: ["overview", "projects", "properties", "tickets"],
-  business_development_manager: ["overview", "projects", "properties", "tickets"],
-  sales_manager: ["overview", "projects", "properties", "tickets"],
-  sales_executive: ["overview", "projects", "properties", "tickets"],
-  customer_support_head: ["overview", "tickets", "properties"],
-  customer_support_team_lead: ["overview", "tickets", "properties"],
-  customer_care_executive: ["overview", "tickets", "properties", "projects"],
-  relationship_manager: ["overview", "tickets", "properties", "projects"],
-  marketing_head: ["overview", "tickets"],
-  digital_marketing: ["overview", "tickets"],
+  ceo: ["overview", "staff", "tickets", "projects", "properties"],
+  operations_head: ["overview", "staff", "tickets", "projects", "properties", "meetings"],
+  business_development_head: ["overview", "staff", "meetings", "projects", "properties", "tickets"],
+  regional_manager: ["overview", "staff", "meetings", "projects", "properties", "tickets"],
+  business_development_manager: ["overview", "staff", "meetings", "projects", "properties", "tickets"],
+  sales_manager: ["overview", "staff", "meetings", "projects", "properties", "tickets"],
+  sales_executive: ["overview", "meetings", "projects", "properties", "tickets"],
+  customer_support_head: ["overview", "staff", "tickets", "properties", "meetings"],
+  customer_support_team_lead: ["overview", "staff", "tickets", "properties", "meetings"],
+  customer_care_executive: ["overview", "tickets", "meetings", "properties", "projects"],
+  relationship_manager: ["overview", "tickets", "meetings", "properties", "projects"],
+  marketing_head: ["overview", "staff", "tickets"],
+  digital_marketing: ["overview", "staff", "tickets"],
   social_media: ["overview", "tickets"],
   content_team: ["overview", "tickets"],
   creative_team: ["overview", "projects", "tickets"],
   performance_marketing: ["overview", "tickets"],
   accounts: ["overview", "payments", "tickets"],
   legal_compliance: ["overview", "tickets", "projects"],
-  hr_administration: ["overview"],
-  technical_support_head: ["overview", "tickets"],
+  hr_administration: ["overview", "staff"],
+  technical_support_head: ["overview", "staff", "tickets"],
   technical_support_team: ["overview", "tickets"],
 };
 
 const ROLE_ACTIONS = {
+  regional_manager: [
+    { key: "staff", label: "Sales Executives & team", tab: "staff" },
+    { key: "meetings", label: "Field meetings", tab: "meetings" },
+    { key: "tickets", label: "Review tickets", tab: "tickets" },
+    { key: "projects", label: "Review projects", tab: "projects" },
+    { key: "properties", label: "Review properties", tab: "properties" },
+  ],
+  business_development_head: [
+    { key: "staff", label: "Regional Managers & staff", tab: "staff" },
+    { key: "meetings", label: "Field meetings", tab: "meetings" },
+    { key: "tickets", label: "Review tickets", tab: "tickets" },
+  ],
   sales_executive: [
     { key: "post_project", label: "Projects they posted", tab: "projects" },
     { key: "post_property", label: "Properties / onboarding", tab: "properties" },
+    { key: "meetings", label: "Field meetings", tab: "meetings" },
     { key: "tickets", label: "Blocker tickets", tab: "tickets" },
   ],
   sales_manager: [
+    { key: "staff", label: "Executives under them", tab: "staff" },
     { key: "projects", label: "Team projects", tab: "projects" },
     { key: "properties", label: "Onboarding backlog", tab: "properties" },
+    { key: "meetings", label: "Field meetings", tab: "meetings" },
     { key: "tickets", label: "Open tickets", tab: "tickets" },
   ],
   customer_care_executive: [
     { key: "tickets_open", label: "Resolve tickets", tab: "tickets" },
+    { key: "meetings", label: "Meetings", tab: "meetings" },
     { key: "properties", label: "Listing context", tab: "properties" },
     { key: "projects", label: "Project context", tab: "projects" },
   ],
   customer_support_team_lead: [
+    { key: "staff", label: "Care & Relationship staff", tab: "staff" },
     { key: "tickets", label: "Assign / clear tickets", tab: "tickets" },
+  ],
+  customer_support_head: [
+    { key: "staff", label: "Support team", tab: "staff" },
+    { key: "tickets", label: "Support queue", tab: "tickets" },
   ],
   relationship_manager: [
     { key: "tickets", label: "Escalation cases", tab: "tickets" },
+    { key: "meetings", label: "Account meetings", tab: "meetings" },
   ],
   accounts: [
     { key: "payments", label: "Payments handled", tab: "payments" },
@@ -411,6 +446,7 @@ const ROLE_ACTIONS = {
     { key: "tickets", label: "Tech tickets to resolve", tab: "tickets" },
   ],
   technical_support_head: [
+    { key: "staff", label: "Tech team", tab: "staff" },
     { key: "tickets", label: "Tech queue", tab: "tickets" },
   ],
 };

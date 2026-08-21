@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Briefcase,
   Building2,
+  CalendarDays,
   CheckCircle2,
   CreditCard,
   ExternalLink,
@@ -20,9 +21,11 @@ import {
   Search,
   Ticket,
   UserRound,
+  Users,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { listFieldMeetings } from "../../features/fieldMeetings/fieldMeetingService";
 import { getTickets } from "../../features/ticket/ticket_system";
 import {
   getUserById,
@@ -30,7 +33,9 @@ import {
   getUserPayments,
   getUserProperties,
 } from "../../features/user/userDetailService";
-import { canonicalTeamRole } from "../../utils/roleHierarchy";
+import { getAllUsers } from "../../features/user/userService";
+import { canonicalTeamRole, getReportingChildRoles } from "../../utils/roleHierarchy";
+import { filterUsersInReportingTree } from "../../utils/reportingTree";
 import { getRoleWorkProfile } from "../../utils/roleWorkProfiles";
 
 const PROPERTY_CATEGORIES = ["residential", "commercial", "land", "agricultural"];
@@ -38,6 +43,8 @@ const PROJECT_TYPES = ["", "featured", "prime", "normal", "sponsored"];
 
 const TAB_META = {
   overview: { label: "Role job", icon: Briefcase },
+  staff: { label: "Staff", icon: Users },
+  meetings: { label: "Meetings", icon: CalendarDays },
   tickets: { label: "Tickets", icon: Ticket },
   projects: { label: "Projects", icon: Building2 },
   properties: { label: "Properties", icon: Home },
@@ -143,6 +150,9 @@ const itemDate = (item) => {
     item?.postedAt ||
     item?.paymentDate ||
     item?.paidAt ||
+    item?.scheduledAt ||
+    item?.meetingAt ||
+    item?.startAt ||
     item?.date ||
     item?.created_at ||
     null;
@@ -196,19 +206,35 @@ const titleOf = (item) =>
   item?.name ||
   item?.propertyTitle ||
   item?.ticketNumber ||
+  item?.contactName ||
+  item?.clientName ||
   item?.code ||
   item?.planName ||
   "Untitled";
+
+const roleLabelOf = (roleName = "") =>
+  String(roleName || "Role")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+const unpackUsers = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.users)) return payload.users;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
 
 const applyListFilters = (items, { range, activeOnly, status, search }) => {
   const q = search.trim().toLowerCase();
   const filtered = items.filter((item) => {
     if (!inDateRange(item, range)) return false;
-    if (activeOnly && !isActiveItem(item)) return false;
-    if (status === "active" && !isActiveItem(item)) return false;
-    if (status === "closed" && isActiveItem(item)) return false;
+    if (activeOnly && !isActiveItem(item) && item?.isActive === false) return false;
+    if (activeOnly && item?.isActive === false) return false;
+    if (status === "active" && !isActiveItem(item) && item?.isActive !== true) return false;
+    if (status === "closed" && isActiveItem(item) && item?.isActive !== false) return false;
     if (q) {
-      const hay = `${titleOf(item)} ${itemStatus(item)} ${item?.city || ""} ${item?.locality || ""} ${item?.ticketNumber || ""} ${item?._category || ""} ${item?._projectType || ""}`.toLowerCase();
+      const hay = `${titleOf(item)} ${itemStatus(item)} ${item?.city || ""} ${item?.locality || ""} ${item?.ticketNumber || ""} ${item?._category || ""} ${item?._projectType || ""} ${item?.roleName || ""} ${item?.email || ""}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -221,6 +247,14 @@ const moduleToTab = (module) => {
   const path = String(module?.path || "").toLowerCase();
   const label = String(module?.label || "").toLowerCase();
   if (path.includes("ticket") || label.includes("ticket")) return "tickets";
+  if (path.includes("meeting") || label.includes("meeting")) return "meetings";
+  if (
+    label.includes("staff") ||
+    label.includes("executive") ||
+    label.includes("team directory") ||
+    (path.includes("propenu-team") && label.includes("team"))
+  )
+    return "staff";
   if (path.includes("payment") || path.includes("subscription") || path.includes("account") || label.includes("payment"))
     return "payments";
   if (path.includes("project") || label.includes("project")) return "projects";
@@ -239,6 +273,8 @@ export default function TeamMemberWorkPage() {
   const [projects, setProjects] = useState([]);
   const [properties, setProperties] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [meetings, setMeetings] = useState([]);
+  const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingWork, setLoadingWork] = useState(false);
   const [viewAll, setViewAll] = useState(false);
@@ -252,18 +288,18 @@ export default function TeamMemberWorkPage() {
 
   const roleFromQuery = searchParams.get("role") || "";
   const roleLabelFromQuery = searchParams.get("roleLabel") || "";
-  const roleName = roleFromQuery || user?.roleName || user?.role?.name || "";
-  const profile = getRoleWorkProfile(roleName || user?.roleName);
-  const roleKey = canonicalTeamRole(roleName || user?.roleName);
+  const roleName = user?.roleName || user?.role?.name || roleFromQuery || "";
+  const profile = getRoleWorkProfile(roleName);
+  const roleKey = canonicalTeamRole(roleName);
   const displayRoleTitle =
-    roleLabelFromQuery ||
+    (roleLabelFromQuery && roleLabelFromQuery.toLowerCase() !== "role"
+      ? roleLabelFromQuery
+      : null) ||
     profile.title ||
-    String(roleName || user?.roleName || "Role")
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    roleLabelOf(roleName);
   const panels = profile.panels || ["overview", "tickets"];
   const tab = panels.includes(searchParams.get("tab")) ? searchParams.get("tab") : "overview";
-
+  const expectedChildRoles = useMemo(() => getReportingChildRoles(roleKey), [roleKey]);
   const dateRange = useMemo(
     () => resolveDateRange(datePreset, fromDate, toDate),
     [datePreset, fromDate, toDate],
@@ -397,6 +433,37 @@ export default function TeamMemberWorkPage() {
         );
       } else setPayments([]);
 
+      if (need.has("meetings") || need.has("overview")) {
+        tasks.push(
+          listFieldMeetings({ ownerUserId: userId, limit: 200 })
+            .then((res) => {
+              const list = Array.isArray(res) ? res : pickItems(res);
+              setMeetings(list);
+            })
+            .catch(() => setMeetings([])),
+        );
+      } else setMeetings([]);
+
+      if (need.has("staff") || need.has("overview")) {
+        tasks.push(
+          getAllUsers({ scope: "team_directory" })
+            .then((res) => {
+              const all = unpackUsers(res?.data || res);
+              const reports = filterUsersInReportingTree(all, userId);
+              setStaff(
+                reports.map((person) => ({
+                  ...person,
+                  _id: person._id || person.id,
+                  roleName: person.roleName || person.role?.name || "",
+                  status: person.isActive === false ? "inactive" : person.accountStatus || "active",
+                  updatedAt: person.updatedAt || person.lastSeenAt || person.lastLoginAt,
+                })),
+              );
+            })
+            .catch(() => setStaff([])),
+        );
+      } else setStaff([]);
+
       await Promise.all(tasks);
     } catch (error) {
       toast.error(error?.message || "Unable to load work data");
@@ -439,7 +506,45 @@ export default function TeamMemberWorkPage() {
   const filteredProjects = useMemo(() => applyListFilters(projects, filterOpts), [projects, filterOpts]);
   const filteredProperties = useMemo(() => applyListFilters(properties, filterOpts), [properties, filterOpts]);
   const filteredPayments = useMemo(() => applyListFilters(payments, filterOpts), [payments, filterOpts]);
+  const filteredMeetings = useMemo(() => applyListFilters(meetings, filterOpts), [meetings, filterOpts]);
+  const filteredStaff = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return staff.filter((person) => {
+      if (activeOnly && person.isActive === false) return false;
+      if (statusFilter === "active" && person.isActive === false) return false;
+      if (statusFilter === "closed" && person.isActive !== false) return false;
+      if (!q) return true;
+      const hay = `${person.name || ""} ${person.email || ""} ${person.roleName || ""} ${person.city || ""} ${person.state || ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [staff, search, activeOnly, statusFilter]);
+
+  const staffByRole = useMemo(() => {
+    const groups = new Map();
+    const ensure = (key, label) => {
+      if (!groups.has(key)) groups.set(key, { key, label, people: [] });
+      return groups.get(key);
+    };
+    expectedChildRoles.forEach((key) => {
+      ensure(key, getRoleWorkProfile(key).title || roleLabelOf(key));
+    });
+    filteredStaff.forEach((person) => {
+      const key = canonicalTeamRole(person.roleName);
+      const group = ensure(key, getRoleWorkProfile(key).title || roleLabelOf(person.roleName));
+      group.people.push(person);
+    });
+    return [...groups.values()].sort((a, b) => {
+      if (b.people.length !== a.people.length) return b.people.length - a.people.length;
+      return a.label.localeCompare(b.label);
+    });
+  }, [filteredStaff, expectedChildRoles]);
+
   const openTickets = filteredTickets.filter(isActiveItem);
+  const openMeetings = filteredMeetings.filter((m) =>
+    ["planned", "prep_pending", "confirmed", "draft", "in_progress", "open"].includes(
+      String(m.status || "").toLowerCase(),
+    ),
+  );
 
   const location = [user?.locality, user?.city, user?.state, user?.pincode].filter(Boolean).join(", ");
   const accountActive = user?.accountStatus === "active" && user?.isActive !== false;
@@ -449,6 +554,15 @@ export default function TeamMemberWorkPage() {
   const openProperty = (property) => navigate(`/edit-property/${property._id}`);
   const openTicket = (ticket) =>
     navigate("/tickets", { state: { focusTicketId: ticket._id, ticketNumber: ticket.ticketNumber } });
+  const openMeeting = (meeting) =>
+    navigate("/field-meetings", { state: { focusMeetingId: meeting._id || meeting.id } });
+  const openStaffMember = (person) => {
+    const id = person._id || person.id;
+    if (!id) return;
+    navigate(
+      `/dashboard/team-management/member/${id}?role=${encodeURIComponent(person.roleName || "")}&roleLabel=${encodeURIComponent(roleLabelOf(person.roleName))}`,
+    );
+  };
 
   if (loading && !user) {
     return <div className="grid min-h-[40vh] place-items-center text-xs font-semibold text-slate-500">Loading…</div>;
@@ -473,7 +587,11 @@ export default function TeamMemberWorkPage() {
           ? filteredProperties
           : tab === "payments"
             ? filteredPayments
-            : [];
+            : tab === "meetings"
+              ? filteredMeetings
+              : tab === "staff"
+                ? filteredStaff
+                : [];
 
   return (
     <div className="min-h-screen bg-slate-50 px-3 py-3 sm:px-4">
@@ -533,6 +651,12 @@ export default function TeamMemberWorkPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-1.5">
+              {panels.includes("staff") && (
+                <MiniStat label="Staff" value={filteredStaff.length} sub={`of ${staff.length}`} />
+              )}
+              {panels.includes("meetings") && (
+                <MiniStat label="Meetings" value={openMeetings.length} sub={`${filteredMeetings.length}/${meetings.length}`} />
+              )}
               {(panels.includes("tickets") || panels.includes("overview")) && (
                 <MiniStat label="Active tickets" value={openTickets.length} sub={`${filteredTickets.length}/${tickets.length}`} />
               )}
@@ -607,6 +731,10 @@ export default function TeamMemberWorkPage() {
                   : DATE_PRESETS.find((p) => p.key === datePreset)?.label}
             </span>
             {" · "}
+            Staff {filteredStaff.length}/{staff.length}
+            {" · "}
+            Meetings {filteredMeetings.length}/{meetings.length}
+            {" · "}
             Projects {filteredProjects.length}/{projects.length}
             {" · "}
             Properties {filteredProperties.length}/{properties.length}
@@ -677,20 +805,79 @@ export default function TeamMemberWorkPage() {
               <p className="py-8 text-center text-xs text-slate-400">Loading work…</p>
             ) : tab === "overview" ? (
               <div className="grid gap-2 lg:grid-cols-2">
-                <div className="rounded-lg border border-slate-100 bg-slate-50/80 p-2">
-                  <p className="mb-1.5 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                    <CheckCircle2 size={11} className="text-emerald-600" /> Job steps
-                  </p>
-                  <ol className="space-y-1">
-                    {(profile.steps || []).map((step, index) => (
-                      <li key={step} className="flex gap-2 rounded-md bg-white px-2 py-1.5 text-[11px] text-slate-700">
-                        <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-600 text-[9px] font-black text-white">{index + 1}</span>
-                        {step}
-                      </li>
-                    ))}
-                  </ol>
+                <div className="space-y-2">
+                  <div className="rounded-lg border border-slate-100 bg-slate-50/80 p-2">
+                    <p className="mb-1.5 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                      <CheckCircle2 size={11} className="text-emerald-600" /> Job steps
+                    </p>
+                    <ol className="space-y-1">
+                      {(profile.steps || []).map((step, index) => (
+                        <li key={step} className="flex gap-2 rounded-md bg-white px-2 py-1.5 text-[11px] text-slate-700">
+                          <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-emerald-600 text-[9px] font-black text-white">{index + 1}</span>
+                          {step}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                  {panels.includes("staff") && (
+                    <div className="rounded-lg border border-slate-100 p-2">
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                          Staff by role ({filteredStaff.length})
+                        </p>
+                        <button type="button" onClick={() => setTab("staff")} className="text-[9px] font-bold text-emerald-700 hover:underline">
+                          View all
+                        </button>
+                      </div>
+                      {staffByRole.some((g) => g.people.length) ? (
+                        <div className="space-y-2">
+                          {staffByRole
+                            .filter((g) => g.people.length)
+                            .slice(0, viewAll ? 12 : 4)
+                            .map((group) => (
+                              <div key={group.key}>
+                                <p className="mb-1 text-[10px] font-black text-emerald-800">
+                                  {group.label} · {group.people.length}
+                                </p>
+                                <div className="space-y-1">
+                                  {group.people.slice(0, viewAll ? 20 : 3).map((person) => (
+                                    <WorkRow
+                                      key={person._id || person.id}
+                                      title={person.name || "Unnamed"}
+                                      meta={`${roleLabelOf(person.roleName)} · ${[person.city, person.state].filter(Boolean).join(", ") || "No location"}`}
+                                      badge={person.isActive === false ? "inactive" : person.accountStatus || "active"}
+                                      onOpen={() => openStaffMember(person)}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      ) : (
+                        <p className="py-3 text-center text-[10px] text-slate-400">
+                          No reporting staff under this role yet
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
+                  {panels.includes("meetings") && (
+                    <InlineList
+                      title={`Meetings (${openMeetings.length} open)`}
+                      empty="No field meetings"
+                      onViewAll={() => setTab("meetings")}
+                      items={openMeetings.slice(0, viewAll ? 50 : 6)}
+                      render={(m) => (
+                        <WorkRow
+                          title={titleOf(m)}
+                          meta={`${m.status || "—"} · ${fmtDate(m.scheduledAt || m.meetingAt || m.createdAt)}`}
+                          badge={m.status}
+                          onOpen={() => openMeeting(m)}
+                        />
+                      )}
+                    />
+                  )}
                   {panels.includes("tickets") && (
                     <InlineList
                       title={`Tickets (${openTickets.length} active)`}
@@ -756,6 +943,40 @@ export default function TeamMemberWorkPage() {
                   )}
                 </div>
               </div>
+            ) : tab === "staff" ? (
+              staffByRole.some((g) => g.people.length) || expectedChildRoles.length ? (
+                <div className="space-y-3">
+                  {staffByRole.map((group) => (
+                    <div key={group.key} className="rounded-lg border border-slate-100 p-2">
+                      <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-emerald-800">
+                        {group.label} · {group.people.length}
+                      </p>
+                      {group.people.length ? (
+                        <div className="space-y-1">
+                          {group.people.map((person) => (
+                            <WorkRow
+                              key={person._id || person.id}
+                              title={person.name || "Unnamed"}
+                              meta={`${person.email || "—"} · ${[person.city, person.state].filter(Boolean).join(", ") || "No location"}`}
+                              badge={person.isActive === false ? "inactive" : person.accountStatus || "active"}
+                              onOpen={() => openStaffMember(person)}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="py-2 text-center text-[10px] text-slate-400">
+                          No {group.label.toLowerCase()} reporting yet
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-10 text-center text-xs text-slate-400">
+                  <Users className="mx-auto mb-1 text-slate-300" size={28} />
+                  No reporting staff under this member
+                </div>
+              )
             ) : listForTab.length === 0 ? (
               <div className="py-10 text-center text-xs text-slate-400">
                 <UserRound className="mx-auto mb-1 text-slate-300" size={28} />
@@ -772,6 +993,17 @@ export default function TeamMemberWorkPage() {
                         meta={`${item.ticketNumber || item._id} · ${fmtDate(item.updatedAt || item.createdAt)}`}
                         badge={item.status}
                         onOpen={() => openTicket(item)}
+                      />
+                    );
+                  }
+                  if (tab === "meetings") {
+                    return (
+                      <WorkRow
+                        key={item._id || item.id}
+                        title={titleOf(item)}
+                        meta={`${item.status || "—"} · ${[item.city, item.locality].filter(Boolean).join(", ") || "—"} · ${fmtDate(item.scheduledAt || item.meetingAt || item.createdAt)}`}
+                        badge={item.status}
+                        onOpen={() => openMeeting(item)}
                       />
                     );
                   }
@@ -813,8 +1045,10 @@ export default function TeamMemberWorkPage() {
           <div className="flex items-center justify-between border-t border-slate-100 px-2.5 py-1.5">
             <p className="text-[10px] text-slate-400">
               {tab === "overview"
-                ? "Preview on this page"
-                : `${listForTab.length} item(s) · scroll inside box`}
+                ? "Role workflow · staff · meetings · support work on this page"
+                : tab === "staff"
+                  ? `${filteredStaff.length} staff · grouped by role`
+                  : `${listForTab.length} item(s) · scroll inside box`}
             </p>
             <button
               type="button"
@@ -875,7 +1109,13 @@ function InlineList({ title, empty, items, render, onViewAll }) {
           View all
         </button>
       </div>
-      {items.length ? <div className="space-y-1">{items.map((item) => <div key={item._id}>{render(item)}</div>)}</div> : (
+      {items.length ? (
+        <div className="space-y-1">
+          {items.map((item, index) => (
+            <div key={item._id || item.id || `${title}-${index}`}>{render(item)}</div>
+          ))}
+        </div>
+      ) : (
         <p className="py-3 text-center text-[10px] text-slate-400">{empty}</p>
       )}
     </div>

@@ -7,6 +7,7 @@ import AccountsDashboard from "./AccountsDashboard";
 import DigitalMarket from "./DigitalMarket";
 import OperationsDashboard from "./OperationsDashboard";
 import RegionalManagerDashboard from "./RegionalManagerDashboard";
+import BusinessDevelopmentHeadDashboard from "./BusinessDevelopmentHeadDashboard";
 import CustomerCareDashboard from "./CustomerCareDashboard";
 import CustomerSupportHeadDashboard from "./CustomerSupportHeadDashboard";
 import CustomerSupportTeamLeadDashboard from "./CustomerSupportTeamLeadDashboard";
@@ -56,7 +57,7 @@ const DashboardRouter = ({ role, permissions = [] }) => {
       return <OperationsDashboard />;
 
     case "business_development_head":
-      return <OperationsDashboard businessDevelopmentMode />;
+      return <BusinessDevelopmentHeadDashboard />;
 
     case "regional_manager":
       return <RegionalManagerDashboard />;

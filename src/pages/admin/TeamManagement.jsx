@@ -27,6 +27,10 @@ import {
   userMatchesExactRole,
 } from "../../utils/roleHierarchy";
 import { getRoleWorkProfile, ROLE_WORK_BRANCH } from "../../utils/roleWorkProfiles";
+import {
+  filterUsersInReportingTree,
+  shouldScopeTeamToReports,
+} from "../../utils/reportingTree";
 
 const ROLE_LABELS = {
   ceo: "CEO",
@@ -67,7 +71,7 @@ const EMPTY_LOC = { state: "", city: "", locality: "", pincode: "" };
 export default function TeamManagement() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: users = [], isLoading, refetch, isFetching } = useUsers({ scope: "team_directory" });
+  const { data: rawUsers = [], isLoading, refetch, isFetching } = useUsers({ scope: "team_directory" });
 
   const [roles, setRoles] = useState([]);
   const [me, setMe] = useState(null);
@@ -77,6 +81,14 @@ export default function TeamManagement() {
 
   const [workPanel, setWorkPanel] = useState("day"); // day | people | tickets | projects | properties
   const [viewAllPeople, setViewAllPeople] = useState(false);
+
+  const users = useMemo(() => {
+    const list = Array.isArray(rawUsers) ? rawUsers : [];
+    if (!me) return [];
+    const actorId = String(me?._id || me?.id || "");
+    if (!shouldScopeTeamToReports(me?.roleName) || !actorId) return list;
+    return filterUsersInReportingTree(list, actorId);
+  }, [me, rawUsers]);
 
   useEffect(() => {
     fetchLoggedInUser()

@@ -7,39 +7,13 @@ import {
   useEffect,
 } from "react";
 import { Plus, Trash2, Upload, LayoutGrid } from "lucide-react";
-import imageCompression from "browser-image-compression";
 import { saveImage, getFileFromKey } from "../utils/indexedDB";
 import { toast } from "sonner";
-
-const compressImage = async (file) => {
-  const options = {
-    maxSizeMB: 1,
-    maxWidthOrHeight: 1920,
-    useWebWorker: true,
-  };
-  try {
-
-    //return await imageCompression(file, options);
-    const compressedFile = await imageCompression(file, options);
-    const originalMB = (file.size / (1024 * 1024)).toFixed(2);
-    const compressedMB = (compressedFile.size / (1024 * 1024)).toFixed(2);
-    const savedMB = ((file.size - compressedFile.size) / (1024 * 1024)).toFixed(
-      2,
-    );
-
-    toast.success(
-      `File compressed successfully! ${originalMB} MB → ${compressedMB} MB (Saved ${savedMB} MB)`,
-    );
-
-    return compressedFile;
-
-
-  } catch (error) {
-    console.error("Compression error:", error);
-     toast.error("Image compression failed");
-    return file;
-  }
-};
+import {
+  compressProjectImage,
+  getImageRejectError,
+  ONE_MB,
+} from "../../../../utils/compressProjectImage";
 
 const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
@@ -914,10 +888,15 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                       // }}
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
-
                         if (!file) return;
 
-                        // Maximum 50 floor plans
+                        const reject = getImageRejectError(file, "Floor plan");
+                        if (reject) {
+                          toast.error(reject);
+                          e.target.value = "";
+                          return;
+                        }
+
                         const totalPlans = projectSummary.reduce(
                           (count, item) => count + (item.units?.length || 0),
                           0,
@@ -927,77 +906,59 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                           toast.error(
                             "Maximum 50 floor plan images are allowed.",
                           );
-
                           e.target.value = "";
                           return;
                         }
 
                         const loadingToast = toast.loading(
-                          "Compressing image... ⏳",
+                          "Preparing floor plan... ⏳",
                         );
 
-                        // Compress image
-                        const compressed = await compressImage(file);
-
-                        toast.dismiss(loadingToast);
-
-                        // // Check compressed size
-                        // if (compressed.size > 1024 * 1024) {
-                        //   toast.error(
-                        //     "Compressed image is still larger than 1 MB. Please upload a smaller image.",
-                        //   );
-
-                        //   e.target.value = "";
-
-                        //   return;
-                        // }
-
-                        const compressedMB = (
-                          compressed.size /
-                          (1024 * 1024)
-                        ).toFixed(2);
-
-                        if (compressed.size > 1024 * 1024) {
-                          updUnit(bi, ui, {
-                            planPreview: "",
-                            planFile: null,
-                            planFileName: "",
-                            // planError: `Image size is ${compressedMB} MB. Please upload an image below 1 MB.`,
-                            planError: `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
+                        try {
+                          const compressed = await compressProjectImage(file, {
+                            silent: true,
+                            label: "Floor plan",
                           });
 
+                          toast.dismiss(loadingToast);
+
+                          if (compressed.size > ONE_MB) {
+                            const compressedMB = (
+                              compressed.size / ONE_MB
+                            ).toFixed(2);
+                            updUnit(bi, ui, {
+                              planPreview: "",
+                              planFile: null,
+                              planFileName: "",
+                              planError: `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
+                            });
+                            e.target.value = "";
+                            return;
+                          }
+
+                          const base64 = await fileToBase64(compressed);
+                          const key = await saveImage(
+                            compressed,
+                            "other",
+                            `bhk_${bi}_${ui}`,
+                          );
+
+                          updUnit(bi, ui, {
+                            planFile: {
+                              file: compressed,
+                              key,
+                            },
+                            planFileName: file.name,
+                            planPreview: base64,
+                            planError: "",
+                          });
+
+                          clearError(`bhk-${bi}-unit-${ui}-plan`);
+                        } catch (err) {
+                          toast.dismiss(loadingToast);
+                          toast.error(err?.message || "Floor plan upload failed");
                           e.target.value = "";
-
-                          return;
                         }
-
-                        const base64 = await fileToBase64(compressed);
-
-                        const key = await saveImage(
-                          compressed,
-                          "other",
-                          `bhk_${bi}_${ui}`,
-                        );
-
-                        // updUnit(bi, ui, {
-                        //   planFile: {
-                        //     file: compressed,
-                        //     key,
-                        //   },
-                        //   planFileName: file.name,
-                        //   planPreview: base64,
-                        // });
-                        updUnit(bi, ui, {
-                          planFile: {
-                            file: compressed,
-                            key,
-                          },
-                          planFileName: file.name,
-                          planPreview: base64,
-                          planError: "",
-                        });
-
-                        clearError(`bhk-${bi}-unit-${ui}-plan`);
                       }}
                     />
                   </label>

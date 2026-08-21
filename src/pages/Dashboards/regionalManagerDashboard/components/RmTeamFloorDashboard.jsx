@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRightLeft,
@@ -25,6 +25,7 @@ import {
   pickNextWorkingAssignee,
   titleCase,
 } from "../regionalManagerDashboardData";
+import { buildRegionalManagerPods } from "../../../../utils/reportingTree";
 
 /** Recompute presence from lastLoginAt every 20s so Online/Offline cards stay live. */
 function usePresenceClock(ms = 20_000) {
@@ -41,7 +42,6 @@ const GROUP_TABS = [
   { key: "sales_executive", label: "Sales Executives" },
   { key: "bdm", label: "BDMs" },
   { key: "sales_manager", label: "Sales Managers" },
-  { key: "other", label: "Other" },
 ];
 
 const presenceTone = {
@@ -51,6 +51,7 @@ const presenceTone = {
 };
 
 const cardAccent = {
+  regional_manager: "from-indigo-500 to-blue-600",
   sales_executive: "from-teal-500 to-emerald-500",
   bdm: "from-sky-500 to-blue-600",
   sales_manager: "from-amber-400 to-orange-500",
@@ -178,10 +179,49 @@ function MemberCard({ member, selected, onClick }) {
   );
 }
 
-function MemberTable({ members, selectedId, onSelect }) {
+function MemberTable({ members, selectedId, onSelect, pods = null }) {
+  const renderRow = (member, { indent = false } = {}) => {
+    if (!member || member.id === "__unassigned__") return null;
+    const selected = selectedId === member.id;
+    return (
+      <tr
+        key={member.id}
+        onClick={() => onSelect(member)}
+        className={`cursor-pointer border-t border-slate-100 transition ${
+          selected ? "bg-emerald-50" : "hover:bg-slate-50"
+        }`}
+      >
+        <td className={`px-2.5 py-1.5 ${indent ? "pl-7" : ""}`}>
+          <span className="inline-flex items-center gap-1.5 font-semibold text-slate-900">
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                presenceTone[member.presence]
+              }`}
+            />
+            {indent ? (
+              <span className="text-[9px] font-medium text-slate-400">↳</span>
+            ) : null}
+            {member.name || "—"}
+          </span>
+        </td>
+        <td className="px-2.5 py-1.5 text-slate-600">
+          {titleCase(member.roleName)}
+        </td>
+        <td className="px-2.5 py-1.5 text-slate-600">{member.city || "—"}</td>
+        <td className="px-2.5 py-1.5">
+          <PresenceBadge member={member} />
+        </td>
+        <td className="px-2.5 py-1.5 text-slate-500">
+          {formatSeen(member.lastSeenAt || member.lastLoginAt)}
+        </td>
+        <td className="px-2.5 py-1.5 text-slate-500">{member.state || "—"}</td>
+      </tr>
+    );
+  };
+
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <div className="max-h-[420px] overflow-auto">
+      <div className="max-h-[520px] overflow-auto">
         <table className="w-full min-w-[560px] border-collapse text-left text-[11px]">
           <thead className="sticky top-0 z-10 bg-slate-50 text-[9px] font-bold uppercase tracking-wide text-slate-500">
             <tr>
@@ -194,40 +234,30 @@ function MemberTable({ members, selectedId, onSelect }) {
             </tr>
           </thead>
           <tbody>
-            {members.map((member) => {
-              const selected = selectedId === member.id;
-              return (
-                <tr
-                  key={member.id}
-                  onClick={() => onSelect(member)}
-                  className={`cursor-pointer border-t border-slate-100 transition ${
-                    selected ? "bg-emerald-50" : "hover:bg-slate-50"
-                  }`}
-                >
-                  <td className="px-2.5 py-1.5">
-                    <span className="inline-flex items-center gap-1.5 font-semibold text-slate-900">
-                      <span
-                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                          presenceTone[member.presence]
-                        }`}
-                      />
-                      {member.name || "—"}
-                    </span>
-                  </td>
-                  <td className="px-2.5 py-1.5 text-slate-600">
-                    {titleCase(member.roleName)}
-                  </td>
-                  <td className="px-2.5 py-1.5 text-slate-600">{member.city || "—"}</td>
-                  <td className="px-2.5 py-1.5">
-                    <PresenceBadge member={member} />
-                  </td>
-                  <td className="px-2.5 py-1.5 text-slate-500">
-                    {formatSeen(member.lastSeenAt || member.lastLoginAt)}
-                  </td>
-                  <td className="px-2.5 py-1.5 text-slate-500">{member.state || "—"}</td>
-                </tr>
-              );
-            })}
+            {pods
+              ? pods.map((pod) => (
+                  <Fragment key={pod.manager.id}>
+                    <tr className="border-t border-indigo-100 bg-indigo-50/60">
+                      <td
+                        colSpan={6}
+                        className="px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wide text-indigo-700"
+                      >
+                        {pod.manager.name || "Regional Manager"} · {pod.staff.length}{" "}
+                        staff
+                      </td>
+                    </tr>
+                    {!pod.hideManagerRow ? renderRow(pod.manager) : null}
+                    {pod.staff.map((m) => renderRow(m, { indent: true }))}
+                    {!pod.staff.length && !pod.hideManagerRow ? (
+                      <tr>
+                        <td colSpan={6} className="px-7 py-2 text-[10px] text-slate-400">
+                          No Sales Executives / team assigned under this RM yet
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                ))
+              : members.map((member) => renderRow(member))}
           </tbody>
         </table>
       </div>
@@ -530,11 +560,13 @@ function MemberDrawer({
 export default function RmTeamFloorDashboard({
   teamFloor = [],
   onOpenMemberWork,
+  groupTabs = GROUP_TABS,
+  nestUnderRegionalManagers = false,
 }) {
   const [group, setGroup] = useState("all");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
-  const [viewFormat, setViewFormat] = useState("cards");
+  const [viewFormat, setViewFormat] = useState("table");
   const now = usePresenceClock(20_000);
 
   /** Live presence from lastLoginAt — cards + badges update without full page reload */
@@ -556,13 +588,77 @@ export default function RmTeamFloorDashboard({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return liveTeam.filter((m) => {
-      if (group !== "all" && m.group !== group) return false;
+      if (!nestUnderRegionalManagers && group !== "all" && m.group !== group) {
+        return false;
+      }
+      // Flat role filters still apply when not nesting, or when picking BDM/SE/SM alone
+      if (
+        nestUnderRegionalManagers &&
+        group !== "all" &&
+        group !== "regional_manager" &&
+        m.group !== group
+      ) {
+        return false;
+      }
       if (!q) return true;
       return [m.name, m.email, m.phone, m.roleName, m.city, m.state]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [liveTeam, group, query]);
+  }, [liveTeam, group, query, nestUnderRegionalManagers]);
+
+  const hierarchyPods = useMemo(() => {
+    if (!nestUnderRegionalManagers) return null;
+    if (group !== "all" && group !== "regional_manager") return null;
+
+    const { pods, unassigned } = buildRegionalManagerPods(liveTeam);
+    const q = query.trim().toLowerCase();
+    const matchQ = (m) => {
+      if (!q) return true;
+      return [m.name, m.email, m.phone, m.roleName, m.city, m.state]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+    };
+
+    const visible = pods
+      .map((pod) => {
+        const staff = pod.staff.filter(matchQ);
+        const managerVisible = matchQ(pod.manager) || staff.length > 0;
+        if (!managerVisible) return null;
+        // When searching, keep RM if any staff matches
+        return {
+          manager: pod.manager,
+          staff,
+        };
+      })
+      .filter(Boolean);
+
+    // Unassigned non-RM people only on "All"
+    if (group === "all") {
+      const extras = unassigned.filter(
+        (m) => m.group !== "regional_manager" && matchQ(m),
+      );
+      if (extras.length) {
+        return [
+          ...visible,
+          {
+            manager: {
+              id: "__unassigned__",
+              name: "Other / unassigned",
+              roleName: "—",
+              presence: "offline",
+              isOnline: false,
+              isAccountActive: true,
+              group: "other",
+            },
+            staff: extras,
+            hideManagerRow: true,
+          },
+        ];
+      }
+    }
+    return visible;
+  }, [liveTeam, nestUnderRegionalManagers, group, query]);
 
   const selected = liveTeam.find((m) => m.id === selectedId) || null;
 
@@ -573,6 +669,11 @@ export default function RmTeamFloorDashboard({
     });
     return map;
   }, [liveTeam]);
+
+  const tablePods = useMemo(() => {
+    if (!hierarchyPods) return null;
+    return hierarchyPods;
+  }, [hierarchyPods]);
 
   return (
     <section className="overflow-hidden rounded-[18px] border border-emerald-100 bg-gradient-to-br from-[#f1faf5] via-white to-sky-50 shadow-sm">
@@ -594,7 +695,7 @@ export default function RmTeamFloorDashboard({
         <div className={`${selected ? "lg:col-span-7" : "lg:col-span-12"} space-y-3`}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-1.5">
-              {GROUP_TABS.map((tab) => {
+              {groupTabs.map((tab) => {
                 const active = group === tab.key;
                 const count = groupCounts[tab.key] || 0;
                 return (
@@ -656,9 +757,10 @@ export default function RmTeamFloorDashboard({
           </div>
 
           {viewFormat === "table" ? (
-            filtered.length ? (
+            tablePods?.length || (!tablePods && filtered.length) ? (
               <MemberTable
                 members={filtered}
+                pods={tablePods}
                 selectedId={selectedId}
                 onSelect={(m) =>
                   setSelectedId((cur) => (cur === m.id ? "" : m.id))
@@ -669,6 +771,37 @@ export default function RmTeamFloorDashboard({
                 No team members in this filter
               </div>
             )
+          ) : hierarchyPods?.length ? (
+            <div className="space-y-3">
+              {hierarchyPods.map((pod) => (
+                <div key={pod.manager.id} className="space-y-1.5">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-indigo-700">
+                    {pod.manager.name || "Regional Manager"} · {pod.staff.length} staff
+                  </p>
+                  <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+                    {!pod.hideManagerRow ? (
+                      <MemberCard
+                        member={pod.manager}
+                        selected={selectedId === pod.manager.id}
+                        onClick={(m) =>
+                          setSelectedId((cur) => (cur === m.id ? "" : m.id))
+                        }
+                      />
+                    ) : null}
+                    {pod.staff.map((member) => (
+                      <MemberCard
+                        key={member.id}
+                        member={member}
+                        selected={selectedId === member.id}
+                        onClick={(m) =>
+                          setSelectedId((cur) => (cur === m.id ? "" : m.id))
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {filtered.map((member) => (

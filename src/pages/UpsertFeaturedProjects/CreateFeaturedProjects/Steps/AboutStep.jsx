@@ -1,4 +1,3 @@
-
 import {
   forwardRef,
   useImperativeHandle,
@@ -10,54 +9,21 @@ import TiptapEditor from "../Components/TiptapEditor";
 import { X, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import imageCompression from "browser-image-compression";
-import { saveImage, getFileFromKey } from "../utils/indexedDB";
-import { deleteImage } from "../utils/indexedDB";
+import { saveImage, getFileFromKey, deleteImage } from "../utils/indexedDB";
+import {
+  compressProjectImage,
+  getImageRejectError,
+  ONE_MB,
+} from "../../../../utils/compressProjectImage";
 
-const compressImage = async (file) => {
-  const options = {
-    maxSizeMB: 1, // 🔥 below 1MB
-    maxWidthOrHeight: 1920,
-    useWebWorker: true,
-  };
-
-  try {
-    // return await imageCompression(file, options);
-    const compressedFile = await imageCompression(file, options);
-    const originalMB = (file.size / (1024 * 1024)).toFixed(2);
-    const compressedMB = (compressedFile.size / (1024 * 1024)).toFixed(2);
-    const savedMB = ((file.size - compressedFile.size) / (1024 * 1024)).toFixed(
-      2,
-    )
-    toast.success(
-      `File compressed successfully! ${originalMB} MB → ${compressedMB} MB (Saved ${savedMB} MB)`
-    );
-    return compressedFile;
-  } catch {
-    toast.error("Image compression failed");
-    return file;
-  }
-};
-
-const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-  });
-};
-
-const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+const LABEL =
+  "block text-xs font-black uppercase tracking-widest text-gray-500 mb-2";
 
 const inp = (
   err,
 ) => `w-full px-4 py-3 bg-white border-2 rounded-xl text-gray-900 text-sm font-semibold
   outline-none placeholder:text-gray-400 transition-all duration-200 resize-none
   ${err ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10"}`;
-
-const LABEL =
-  "block text-xs font-black uppercase tracking-widest text-gray-500 mb-2";
 
 const isEditorEmpty = (html) => {
   if (!html) return true;
@@ -87,26 +53,6 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
     builderNameText &&
     titleText.toLowerCase() === builderNameText.toLowerCase();
 
-  // useImperativeHandle(ref, () => ({
-  //   validate() {
-  //     const e = {};
-  //     if (!summary.aboutDescription.trim())
-  //       e.aboutDescription = "About description is required";
-  //     if (isEditorEmpty(summary.rightContent))
-  //       e.rightContent = "Right side content is required";
-  //     if (!payload.aboutImage) e.aboutImage = "About image is required";
-  //     setErrors(e);
-  //     if (Object.keys(e).length) {
-  //       aboutRef.current?.scrollIntoView({
-  //         behavior: "smooth",
-  //         block: "center",
-  //       });
-  //       return false;
-  //     }
-  //     return true;
-  //   },
-  // }));
- 
   useImperativeHandle(ref, () => ({
     validate() {
       const e = {};
@@ -132,7 +78,6 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
       return true;
     },
 
-    // ✅ ADD THIS (IMPORTANT)
     isValid() {
       return (
         summary.aboutDescription?.trim() &&
@@ -155,141 +100,55 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
     clr(field);
   };
 
-  
-  // const handleImage = async (e) => {
-  //   const file = e.target.files[0];
-  //   if (!file) return;
+  const handleImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  //   const toastId = toast.loading("Compressing image... ⏳");
-
-
-  //   // ✅ compress
-  //   const compressed = await compressImage(file);
-
-  //   // ✅ convert to base64 (for localStorage)
-  //   const base64 = await fileToBase64(compressed);
-
-  //   //const key = await saveImage(compressed, "other");
-  //   const key = await saveImage(compressed, "other", "about");
-
-  //   // ✅ save
-  //   update({
-  //     aboutImage: {
-  //       file: compressed,
-  //       key: key,
-  //     },
-  //   });
-
-  //   // ✅ UI preview
-  //   setPreview(base64);
-
-  //   clr("aboutImage");
-  // };
-
-
-// const handleImage = async (e) => {
-//   const file = e.target.files[0];
-//   if (!file) return;
-
-//   const toastId = toast.loading("Compressing image... ⏳");
-
-//   try {
-//     const compressedBlob = await compressImage(file);
-
-//     const compressed = new File([compressedBlob], file.name, {
-//       type: compressedBlob.type,
-//     });
-
-//     const compressedMB = (compressed.size / (1024 * 1024)).toFixed(2);
-
-//     if (compressed.size > 1024 * 1024) {
-//       toast.error(
-//         `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
-//       );
-
-//       e.target.value = "";
-
-//       return;
-//     }
-
-//     const key = await saveImage(compressed, "other", "about");
-
-//     update({
-//       aboutImage: {
-//         file: compressed,
-//         key: key,
-//       },
-//     });
-
-//     // ✅ BEST PREVIEW METHOD
-//     const previewUrl = URL.createObjectURL(compressed);
-//     setPreview(previewUrl);
-
-//     clr("aboutImage");
-
-//     toast.success("Image uploaded successfully", { id: toastId });
-//   } catch (err) {
-//     console.error(err);
-//     toast.error("Upload failed", { id: toastId });
-//   }
-// };
-
-const handleImage = async (e) => {
-  const file = e.target.files[0];
-
-  if (!file) return;
-
-  const toastId = toast.loading("Compressing image... ⏳");
-
-  try {
-    const compressedBlob = await compressImage(file);
-
-    const compressed = new File([compressedBlob], file.name, {
-      type: compressedBlob.type,
-    });
-
-    // CHECK AFTER COMPRESSION
-    const compressedMB = (compressed.size / (1024 * 1024)).toFixed(2);
-
-    if (compressed.size > 1024 * 1024) {
-      toast.error(
-        `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
-        {
-          id: toastId,
-        },
-      );
-
+    const reject = getImageRejectError(file, "About image");
+    if (reject) {
+      toast.error(reject);
       e.target.value = "";
-
       return;
     }
 
-    const key = await saveImage(compressed, "other", "about");
+    const toastId = toast.loading("Preparing about image... ⏳");
 
-    update({
-      aboutImage: {
-        file: compressed,
-        key,
-      },
-    });
+    try {
+      const compressed = await compressProjectImage(file, {
+        silent: true,
+        label: "About image",
+      });
 
-    const previewUrl = URL.createObjectURL(compressed);
+      if (compressed.size > ONE_MB) {
+        toast.error(
+          `Image size is ${(compressed.size / ONE_MB).toFixed(2)} MB. Maximum allowed size is 1 MB.`,
+          { id: toastId },
+        );
+        e.target.value = "";
+        return;
+      }
 
-    setPreview(previewUrl);
+      const key = await saveImage(compressed, "other", "about");
 
-    clr("aboutImage");
+      update({
+        aboutImage: {
+          file: compressed,
+          key,
+        },
+      });
 
-    toast.success(`Image uploaded successfully (${compressedMB} MB)`, {
-      id: toastId,
-    });
-  } catch (err) {
-    console.error(err);
+      setPreview(URL.createObjectURL(compressed));
+      clr("aboutImage");
 
-    toast.error("Upload failed", {
-      id: toastId,
-    });
-  }
-};
+      toast.success(
+        `About image ready (${(compressed.size / ONE_MB).toFixed(2)} MB)`,
+        { id: toastId },
+      );
+    } catch (err) {
+      toast.error(err?.message || "Upload failed", { id: toastId });
+      e.target.value = "";
+    }
+  };
 
   const removeImage = async () => {
     const key =
@@ -435,9 +294,8 @@ const handleImage = async (e) => {
             >
               Upload About Image
             </p>
-            {/* updated helper text */}
             <p className="text-xs text-gray-400 mt-1">
-              Any image type — Max 2MB
+              Images only — under 1 MB kept original; over 1 MB → ~0.9 MB
             </p>
             <input
               id="aboutImageInput"

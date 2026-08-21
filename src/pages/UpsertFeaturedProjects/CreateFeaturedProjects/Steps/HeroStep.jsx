@@ -1,42 +1,18 @@
 // src/pages/post-property/featured-create/steps/HeroStep.jsx
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import { Upload, ImageIcon } from "lucide-react";
-import imageCompression from "browser-image-compression";
 import { saveImage, getFileFromKey } from "../utils/indexedDB";
 import { toast } from "sonner";
-
-const compressImage = async (file) => {
-  const options = {
-    maxSizeMB: 1, // 🔥 below 1MB
-    maxWidthOrHeight: 1920, // optional resize
-    useWebWorker: true,
-  };
-
-  try {
-    const compressedFile = await imageCompression(file, options);
-    console.log("Compressed file size Hero Files:", compressedFile.size);
-
-    const originalMB = (file.size / (1024 * 1024)).toFixed(2);
-    const compressedMB = (compressedFile.size / (1024 * 1024)).toFixed(2);
-
-const savedMB = ((file.size - compressedFile.size) / (1024 * 1024)).toFixed(2);
-    toast.success(
-      `Compressed successfully! ${originalMB} MB → ${compressedMB} MB`,
-    );
-    return compressedFile;
-  } catch (error) {
-    console.error("Compression error:", error);
-    return file; // fallback
-  }
-};
+import {
+  compressProjectImage,
+  getImageRejectError,
+  ONE_MB,
+} from "../../../../utils/compressProjectImage";
 
 const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
-
-
-
     reader.onload = () => resolve(reader.result);
     reader.onerror = (error) => reject(error);
   });
@@ -186,38 +162,39 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const compressed = await compressImage(file);
-
-
-
-    console.log("compressed hero =>", compressed);
-    const base64 = await fileToBase64(compressed);
-    console.log(base64);
-
-    const compressedMB = (compressed.size / (1024 * 1024)).toFixed(2);
-
-    if (compressed.size > 1024 * 1024) {
-      toast.error(
-        `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
-      );
-
+    const reject = getImageRejectError(file, "Hero image");
+    if (reject) {
+      toast.error(reject);
       e.target.value = "";
-
       return;
     }
 
-    //const key = await saveImage(compressed, "other");
-    const key = await saveImage(compressed, "other", "logo");
+    try {
+      const compressed = await compressProjectImage(file, { label: "Hero image" });
+      const base64 = await fileToBase64(compressed);
 
-    update({
-      heroImage: {
-        file: compressed,
-        key: key,
-      },
-      heroImagePreview: base64,
-    });
+      if (compressed.size > ONE_MB) {
+        toast.error(
+          `Image size is ${(compressed.size / ONE_MB).toFixed(2)} MB. Maximum allowed size is 1 MB.`,
+        );
+        e.target.value = "";
+        return;
+      }
 
-    setHeroPreview(base64);
+      const key = await saveImage(compressed, "other", "logo");
+
+      update({
+        heroImage: {
+          file: compressed,
+          key: key,
+        },
+        heroImagePreview: base64,
+      });
+
+      setHeroPreview(base64);
+    } catch {
+      e.target.value = "";
+    }
   };
 
  useEffect(() => {
@@ -254,39 +231,44 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
    const file = e.target.files[0];
    if (!file) return;
 
-   const compressed = await compressImage(file);
-   console.log("compressed logo =>", compressed);
-   const base64 = await fileToBase64(compressed);
-
-   const compressedMB = (compressed.size / (1024 * 1024)).toFixed(2);
-
-   if (compressed.size > 1024 * 1024) {
-     toast.error(
-       `Image size is ${compressedMB} MB. Maximum allowed size is 1 MB.`,
-     );
-
+   const reject = getImageRejectError(file, "Logo");
+   if (reject) {
+     toast.error(reject);
      e.target.value = "";
-
      return;
    }
 
-   //const key = await saveImage(compressed, "other");
-   const key = await saveImage(compressed, "other", "hero");
+   try {
+     const compressed = await compressProjectImage(file, { label: "Logo" });
+     const base64 = await fileToBase64(compressed);
 
-   update({
-     logo: {
-       file: compressed,
-       key: key,
-     },
-     logoPreview: base64,
-   });
-
-   setLogoPreview((prev) => {
-     if (prev && prev.startsWith("blob:")) {
-       URL.revokeObjectURL(prev);
+     if (compressed.size > ONE_MB) {
+       toast.error(
+         `Image size is ${(compressed.size / ONE_MB).toFixed(2)} MB. Maximum allowed size is 1 MB.`,
+       );
+       e.target.value = "";
+       return;
      }
-     return base64;
-   });
+
+     const key = await saveImage(compressed, "other", "hero");
+
+     update({
+       logo: {
+         file: compressed,
+         key: key,
+       },
+       logoPreview: base64,
+     });
+
+     setLogoPreview((prev) => {
+       if (prev && prev.startsWith("blob:")) {
+         URL.revokeObjectURL(prev);
+       }
+       return base64;
+     });
+   } catch {
+     e.target.value = "";
+   }
  };
 
   return (
