@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   compressProjectImage,
   getImageRejectError,
+  formatBytesMb,
   ONE_MB,
 } from "../../../../utils/compressProjectImage";
 
@@ -26,7 +27,7 @@ const inp = (err) => `w-full px-4 py-3 bg-white border-2 rounded-xl text-gray-90
 const LABEL = "block text-xs font-black uppercase tracking-widest text-gray-500 mb-2";
 const ERR   = "text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1";
 
-function UploadBox({ label, id, preview, onFile, error, contain }) {
+function UploadBox({ label, id, preview, onFile, error, contain, sizeBytes }) {
   return (
     <div>
       <label className={LABEL}>{label}</label>
@@ -39,6 +40,11 @@ function UploadBox({ label, id, preview, onFile, error, contain }) {
           <>
             <img src={preview} alt="preview"
               className={`absolute inset-0 w-full h-full ${contain ? "object-contain p-3" : "object-cover"}`} />
+            {sizeBytes ? (
+              <span className="absolute bottom-2 left-2 z-10 rounded-md bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white shadow">
+                {formatBytesMb(sizeBytes)}
+              </span>
+            ) : null}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all
               flex flex-col items-center justify-center">
               <Upload size={22} className="text-white mb-1" />
@@ -53,7 +59,7 @@ function UploadBox({ label, id, preview, onFile, error, contain }) {
             </div>
             <div>
               <p className="text-sm font-bold">Click to upload</p>
-              <p className="text-xs text-gray-400 mt-0.5">PNG, JPG, WEBP</p>
+              <p className="text-xs text-gray-400 mt-0.5">PNG, JPG, WEBP · under 1MB kept · over → ~0.9MB</p>
             </div>
           </div>
         )}
@@ -376,6 +382,7 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
             preview={heroPreview}
             onFile={onHeroFile}
             error={errors.heroImage}
+            sizeBytes={payload.heroImage?.file?.size}
           />
         </div>
         <div ref={logoRef}>
@@ -386,6 +393,7 @@ const HeroStep = forwardRef(({ payload, update, replace }, ref) => {
             onFile={onLogoFile}
             error={errors.logo}
             contain
+            sizeBytes={payload.logo?.file?.size}
           />
         </div>
       </div>

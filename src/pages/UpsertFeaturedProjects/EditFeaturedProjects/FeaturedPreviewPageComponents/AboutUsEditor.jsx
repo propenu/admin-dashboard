@@ -79,27 +79,23 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
 
   async function handleImageChange(e) {
     const file = e.target.files[0];
-
     if (!file) return;
 
-    console.log("📸 ORIGINAL:", (file.size / 1024 / 1024).toFixed(2), "MB");
-
-    // ✅ Compress About Section Image
-    const compressed = await compressImage(
-      file,
-      "gallery",
-      "About Section Image",
-    );
-
-    console.log(
-      "✅ COMPRESSED:",
-      (compressed.size / 1024 / 1024).toFixed(2),
-      "MB",
-    );
-
-    const previewUrl = URL.createObjectURL(compressed);
-
-    syncAbout({ imageFile: compressed, imagePreview: previewUrl });
+    try {
+      const compressed = await compressImage(
+        file,
+        "gallery",
+        "About Section Image",
+      );
+      const previewUrl = URL.createObjectURL(compressed);
+      syncAbout({
+        imageFile: compressed,
+        imagePreview: previewUrl,
+        imageSize: compressed.size,
+      });
+    } catch {
+      e.target.value = "";
+    }
   }
 
   function saveAbout() {
@@ -210,6 +206,11 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
                     alt="Preview"
                     className="w-full h-40 object-cover"
                   />
+                  {(localState.imageSize || localState.imageFile?.size) ? (
+                    <span className="absolute bottom-2 left-2 z-10 rounded-md bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white">
+                      {((localState.imageSize || localState.imageFile?.size) / (1024 * 1024)).toFixed(2)} MB
+                    </span>
+                  ) : null}
                   <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex items-center justify-center">
                     <span className="text-white text-xs font-bold bg-black/50 px-3 py-1.5 rounded-lg">Click to Replace</span>
                   </div>

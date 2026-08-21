@@ -4,15 +4,18 @@ import { forwardRef, useEffect, useRef, useState } from "react";
 import { useActivePropertySlice } from "../../../PostResidentailProperty/TypeSpecificFields/UsePropertySlice/useActivePropertySlice";
 import { deletePropertyGalleryImagesIndex } from "../../../../../features/property/propertyService";
 import { toast } from "sonner";
+import {
+  compressProjectImage,
+  formatFileSizeMb,
+  getImageRejectError,
+  ONE_MB,
+} from "../../../../../utils/compressProjectImage";
 
 /* ══════════════════════════════════════════════════════════
    CONSTANTS
 ══════════════════════════════════════════════════════════ */
-const MAX_FILE_SIZE = 1024 * 1024; // 1MB
 const MAX_FILES = 12;
 const MIN_REQUIRED = 5;
-const TARGET_KB = 200;
-const TARGET_BYTES = TARGET_KB * 1024;
 
 const normalizeServerImage = (image) => ({
   ...image,
@@ -22,94 +25,8 @@ const normalizeServerImage = (image) => ({
   size: image?.size || image?.fileSize || image?.bytes || image?.contentLength,
 });
 
-const formatFileSizeMb = (item) => {
-  const bytes = item?.originalSize || item?.file?.size || item?.size;
-  if (!bytes) return "";
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-};
-
 const getKnownFileSize = (item) =>
-  item?.originalSize || item?.file?.size || item?.size;
-
-// Persistent WeakMap cache for blob preview URLs
-//const previewCache = new WeakMap();
-
-/* ══════════════════════════════════════════════════════════
-   IMAGE COMPRESSION UTILITY
-══════════════════════════════════════════════════════════ */
-const compressImageToTarget = (file) => {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error(`Failed to load: ${file.name}`));
-    };
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-
-      const compress = (maxDimension, quality) => {
-        return new Promise((res) => {
-          const canvas = document.createElement("canvas");
-          let w = img.naturalWidth;
-          let h = img.naturalHeight;
-
-          if (w > maxDimension || h > maxDimension) {
-            const ratio = Math.min(maxDimension / w, maxDimension / h);
-            w = Math.floor(w * ratio);
-            h = Math.floor(h * ratio);
-          }
-
-          canvas.width = w;
-          canvas.height = h;
-
-          const ctx = canvas.getContext("2d");
-          ctx.fillStyle = "#FFFFFF";
-          ctx.fillRect(0, 0, w, h);
-          ctx.drawImage(img, 0, 0, w, h);
-
-          canvas.toBlob((blob) => res(blob), "image/jpeg", quality);
-        });
-      };
-
-      const dimensionSteps = [1920, 1280, 960, 640, 480];
-      const qualitySteps = [0.8, 0.65, 0.5, 0.35, 0.2];
-
-      const tryNext = async (dIdx, qIdx) => {
-        if (dIdx >= dimensionSteps.length) {
-          const blob = await compress(480, 0.1);
-          return blob;
-        }
-
-        const blob = await compress(dimensionSteps[dIdx], qualitySteps[qIdx]);
-
-        if (blob.size <= TARGET_BYTES) return blob;
-
-        if (qIdx + 1 < qualitySteps.length) return tryNext(dIdx, qIdx + 1);
-
-        return tryNext(dIdx + 1, 0);
-      };
-
-      tryNext(0, 0)
-        .then((finalBlob) => {
-          const outputName = file.name.replace(/\.[^.]+$/, ".jpg");
-          const finalFile = new File([finalBlob], outputName, {
-            type: "image/jpeg",
-            lastModified: Date.now(),
-          });
-
-          
-
-          resolve(finalFile);
-        })
-        .catch(reject);
-    };
-
-    img.src = objectUrl;
-  });
-};
+  item?.file?.size || item?.size || item?.originalSize;
 
 /* ══════════════════════════════════════════════════════════
    COMPONENT
@@ -212,8 +129,9 @@ const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
     const compressedFiles = [];
 
     for (const file of filesToProcess) {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} is above 1 MB. Please upload an image under 1 MB.`);
+      const reject = getImageRejectError(file, file.name);
+      if (reject) {
+        toast.error(reject);
         setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
         continue;
       }
@@ -221,20 +139,36 @@ const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
       setCurrentFileName(file.name);
 
       try {
-        const compressed = await compressImageToTarget(file);
+        const compressed = await compressProjectImage(file, {
+          silent: true,
+          label: file.name,
+        });
+
+        if (compressed.size > ONE_MB) {
+          toast.error(
+            `${file.name} could not be compressed below 1MB. Please choose another image.`,
+          );
+          setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
+          continue;
+        }
+
+        toast.success(
+          `${file.name}: ${(file.size / ONE_MB).toFixed(2)} MB → ${(compressed.size / ONE_MB).toFixed(2)} MB`,
+        );
 
         const preview = URL.createObjectURL(compressed);
-        //previewCache.set(compressed, preview);
 
         compressedFiles.push({
           file: compressed,
           source: "local",
           name: compressed.name,
+          size: compressed.size,
           originalSize: file.size,
           preview,
         });
       } catch (err) {
         console.error(`❌ Failed: ${file.name}`, err);
+        toast.error(err?.message || `Failed to process ${file.name}`);
       }
 
       setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
@@ -413,7 +347,7 @@ const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
               Drop property photos here
               <br />
               <span className="text-gray-400 font-normal">
-                Minimum {MIN_REQUIRED} and maximum {MAX_FILES} photos · 1 MB max · JPG PNG WEBP
+                Min {MIN_REQUIRED} · max {MAX_FILES} · under 1MB kept · over → ~0.9MB
               </span>
             </p>
             <span className="mt-0.5 rounded-md bg-[#27AE60] px-3 py-1 text-[10px] font-bold text-white">

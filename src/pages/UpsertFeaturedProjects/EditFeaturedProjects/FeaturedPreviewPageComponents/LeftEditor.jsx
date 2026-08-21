@@ -168,38 +168,46 @@ export default function LeftEditor({ formData, setFormData, setLivePreviewData, 
             preview={
               typeof local.heroImage === "string"
                 ? local.heroImage
-                : local.heroImage?.url
+                : local.heroImage instanceof File
+                  ? local.heroImage
+                  : local.heroImage?.url
+            }
+            sizeBytes={
+              local.heroImage instanceof File ? local.heroImage.size : undefined
             }
             onChange={async (file) => {
               if (!file) return;
-
-              // ✅ Compress Hero Image
-              const compressedHero = await compressImage(
-                file,
-                "hero",
-                "Hero Image",
-              );
-
-              console.log("✅ COMPRESSED HERO:", compressedHero);
-              console.log("✅ IS FILE:", compressedHero instanceof File);
-              console.log("✅ HERO SIZE:", compressedHero.size);
-
-              changeLocal("heroImage", compressedHero);
+              try {
+                const compressedHero = await compressImage(
+                  file,
+                  "hero",
+                  "Hero Image",
+                );
+                changeLocal("heroImage", compressedHero);
+              } catch {
+                /* toast already shown */
+              }
             }}
           />
 
           <FileUploadBox
             label="Logo"
             preview={
-              typeof local.logo === "string" ? local.logo : local.logo?.url
+              typeof local.logo === "string"
+                ? local.logo
+                : local.logo instanceof File
+                  ? local.logo
+                  : local.logo?.url
             }
+            sizeBytes={local.logo instanceof File ? local.logo.size : undefined}
             onChange={async (file) => {
               if (!file) return;
-
-              // ✅ Compress Logo
-              const compressedLogo = await compressImage(file, "logo", "Logo");
-
-              changeLocal("logo", compressedLogo);
+              try {
+                const compressedLogo = await compressImage(file, "logo", "Logo");
+                changeLocal("logo", compressedLogo);
+              } catch {
+                /* toast already shown */
+              }
             }}
           />
         </div>
@@ -356,7 +364,13 @@ function FieldGroup({ label, hint, children }) {
   );
 }
 
-function FileUploadBox({ label, preview, onChange }) {
+function FileUploadBox({ label, preview, onChange, sizeBytes }) {
+  const previewUrl =
+    preview instanceof File ? URL.createObjectURL(preview) : preview;
+  const bytes =
+    sizeBytes ||
+    (preview instanceof File ? preview.size : null);
+
   return (
     <div className="space-y-1.5">
       <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -364,18 +378,18 @@ function FileUploadBox({ label, preview, onChange }) {
       </label>
       <label className="block cursor-pointer">
         <div className="relative h-20 rounded-xl border-2 border-dashed border-gray-200 hover:border-[#27AE60] overflow-hidden transition group bg-gray-50/50">
-          {preview ? (
+          {previewUrl ? (
             <>
-              {/* <img src={preview} alt={label} className="w-full h-full object-cover" /> */}
               <img
-                src={
-                  preview instanceof File
-                    ? URL.createObjectURL(preview)
-                    : preview
-                }
+                src={previewUrl}
                 alt={label}
                 className="w-full h-full object-cover"
               />
+              {bytes ? (
+                <span className="absolute bottom-1 left-1 z-10 rounded bg-black/75 px-1.5 py-0.5 text-[8px] font-black text-white">
+                  {(bytes / (1024 * 1024)).toFixed(2)} MB
+                </span>
+              ) : null}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                 <span className="text-white text-[10px] font-bold">
                   Replace

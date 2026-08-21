@@ -858,6 +858,11 @@ export default function BHKEditor({
                         className="w-full h-full object-cover"
                         alt="Plan"
                       />
+                      {(u.planFile?.size || u.planSize) ? (
+                        <span className="absolute bottom-2 left-2 z-10 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white">
+                          {((u.planFile?.size || u.planSize) / (1024 * 1024)).toFixed(2)} MB
+                        </span>
+                      ) : null}
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                         <button
                           onClick={() =>
@@ -866,6 +871,7 @@ export default function BHKEditor({
                               planPreview: "",
                               plan: undefined,
                               planFileName: "",
+                              planSize: undefined,
                             })
                           }
                           className="bg-red-500 text-white text-xs px-4 py-2 rounded-lg font-bold"
@@ -925,32 +931,24 @@ export default function BHKEditor({
 
                           if (!file) return;
 
-                          console.log(
-                            "📸 ORIGINAL:",
-                            (file.size / 1024 / 1024).toFixed(2),
-                            "MB",
-                          );
+                          try {
+                            const compressed = await compressImage(
+                              file,
+                              "gallery",
+                              formData?.categoryType === "land"
+                                ? "Plot Image"
+                                : "Floor Plan",
+                            );
 
-                          // ✅ Compress Image
-                          const compressed = await compressImage(
-                            file,
-                            "gallery",
-                            formData?.categoryType === "land"
-                              ? "Plot Image"
-                              : "Floor Plan",
-                          );
-
-                          console.log(
-                            "✅ COMPRESSED:",
-                            (compressed.size / 1024 / 1024).toFixed(2),
-                            "MB",
-                          );
-
-                          updateUnit(ui, {
-                            planFile: compressed,
-                            planFileName: compressed.name,
-                            planPreview: URL.createObjectURL(compressed),
-                          });
+                            updateUnit(ui, {
+                              planFile: compressed,
+                              planFileName: compressed.name,
+                              planPreview: URL.createObjectURL(compressed),
+                              planSize: compressed.size,
+                            });
+                          } catch {
+                            e.target.value = "";
+                          }
                         }}
                       />
                     </label>

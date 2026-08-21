@@ -145,6 +145,7 @@ export default function GalleryEditor({
           ...item,
           url: blobUrl,
           isVideo: finalFile.type.startsWith("video/"),
+          size: finalFile.size,
           isDirty: true,
         };
       });
@@ -257,6 +258,7 @@ export default function GalleryEditor({
           url: URL.createObjectURL(finalFile),
           thumbUrl: "",
           isVideo: finalFile.type.startsWith("video/"),
+          size: finalFile.size,
           isDirty: true,
         };
       }),
@@ -407,6 +409,11 @@ export default function GalleryEditor({
                         VIDEO
                       </span>
                     )}
+                    {(item.size || fileMapRef.current[itemId]?.size) ? (
+                      <span className="absolute bottom-1.5 left-1.5 z-10 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white">
+                        {((item.size || fileMapRef.current[itemId]?.size) / (1024 * 1024)).toFixed(2)} MB
+                      </span>
+                    ) : null}
                     {isDirty && (
                       <span className="absolute top-1.5 left-1.5 bg-amber-500 text-white text-[9px] px-1.5 py-0.5 rounded-md font-bold">
                         UNSAVED

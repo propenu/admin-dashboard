@@ -13,6 +13,7 @@ import { saveImage, getFileFromKey, deleteImage } from "../utils/indexedDB";
 import {
   compressProjectImage,
   getImageRejectError,
+  formatBytesMb,
   ONE_MB,
 } from "../../../../utils/compressProjectImage";
 
@@ -312,6 +313,11 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
               alt="Preview"
               className="h-52 rounded-2xl border-2 border-gray-200 object-cover shadow-sm"
             />
+            {payload.aboutImage?.file?.size ? (
+              <span className="absolute bottom-3 left-3 z-10 rounded-md bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white shadow">
+                {formatBytesMb(payload.aboutImage.file.size)}
+              </span>
+            ) : null}
             <button
               type="button"
               onClick={removeImage}

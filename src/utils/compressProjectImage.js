@@ -13,6 +13,22 @@ export const MAX_ORIGINAL_MB = 15;
 export const isImageFile = (file) =>
   Boolean(file?.type?.startsWith("image/"));
 
+/** Format bytes as "0.85 MB" for overlays. */
+export const formatBytesMb = (bytes) => {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return `${(n / ONE_MB).toFixed(2)} MB`;
+};
+
+/** Prefer compressed file size, then stored size fields. */
+export const formatFileSizeMb = (item) => {
+  if (!item) return "";
+  if (typeof item === "number") return formatBytesMb(item);
+  return formatBytesMb(
+    item?.file?.size || item?.size || item?.compressedSize || item?.originalSize,
+  );
+};
+
 /**
  * Reject non-images. Returns an error message or null.
  */
@@ -28,7 +44,7 @@ export const getImageRejectError = (file, label = "File") => {
 };
 
 /**
- * Admin post-project image rule:
+ * Admin image rule (project + property):
  * - not an image → reject
  * - ≤ 1 MB → no compress (keep original)
  * - > 1 MB → compress to ~0.9 MB (initialQuality 0.8)

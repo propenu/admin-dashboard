@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import {
   compressProjectImage,
   getImageRejectError,
+  formatBytesMb,
   ONE_MB,
 } from "../../../../utils/compressProjectImage";
 
@@ -963,11 +964,18 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                     />
                   </label>
                   {u.planPreview && !u.planError && (
-                    <img
-                      src={u.planPreview}
-                      className="mt-2 h-32 object-contain rounded-xl border-2 border-gray-200"
-                      alt="Plan"
-                    />
+                    <div className="relative mt-2 inline-block">
+                      <img
+                        src={u.planPreview}
+                        className="h-32 object-contain rounded-xl border-2 border-gray-200"
+                        alt="Plan"
+                      />
+                      {u.planFile?.file?.size ? (
+                        <span className="absolute bottom-1 left-1 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white">
+                          {formatBytesMb(u.planFile.file.size)}
+                        </span>
+                      ) : null}
+                    </div>
                   )}
                   {u.planError && (
                     <p className="mt-2 text-sm font-semibold text-red-500">

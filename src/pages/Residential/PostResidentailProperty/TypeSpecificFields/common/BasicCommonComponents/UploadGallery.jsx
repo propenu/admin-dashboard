@@ -5,104 +5,15 @@ import { forwardRef, useEffect, useState } from "react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 import { deletePropertyGalleryImagesIndex } from "../../../../../../features/property/propertyService";
 import { toast } from "sonner";
+import {
+  compressProjectImage,
+  formatFileSizeMb,
+  getImageRejectError,
+  ONE_MB,
+} from "../../../../../../utils/compressProjectImage";
 
-const MAX_FILE_SIZE = 1024 * 1024; // 1MB
 const MIN_FILES = 5;
 const MAX_FILES = 12;
-const TARGET_KB = 200; // Each image will be compressed to ~200KB max
-const TARGET_BYTES = TARGET_KB * 1024;
-
-const formatFileSizeMb = (item) => {
-  const bytes = item?.file?.size || item?.size || item?.originalSize;
-  if (!bytes) return "";
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-};
-
-const compressImageToTarget = (file) => {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error(`Failed to load: ${file.name}`));
-    };
-
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-
-      const compress = (maxDimension, quality) => {
-        return new Promise((res) => {
-          const canvas = document.createElement("canvas");
-          let w = img.naturalWidth;
-          let h = img.naturalHeight;
-
-          // Scale down if bigger than maxDimension
-          if (w > maxDimension || h > maxDimension) {
-            const ratio = Math.min(maxDimension / w, maxDimension / h);
-            w = Math.floor(w * ratio);
-            h = Math.floor(h * ratio);
-          }
-
-          canvas.width = w;
-          canvas.height = h;
-
-          const ctx = canvas.getContext("2d");
-          // White background (for transparent PNGs)
-          ctx.fillStyle = "#FFFFFF";
-          ctx.fillRect(0, 0, w, h);
-          ctx.drawImage(img, 0, 0, w, h);
-
-          canvas.toBlob(
-            (blob) => res(blob),
-            "image/jpeg",
-            quality
-          );
-        });
-      };
-
-      // Strategy: try dimension steps × quality steps until under target
-      const dimensionSteps = [1920, 1280, 960, 640, 480];
-      const qualitySteps = [0.8, 0.65, 0.5, 0.35, 0.2];
-
-      const tryNext = async (dIdx, qIdx) => {
-        if (dIdx >= dimensionSteps.length) {
-          // Exhausted all options — return smallest possible
-          const blob = await compress(480, 0.1);
-          return blob;
-        }
-
-        const blob = await compress(dimensionSteps[dIdx], qualitySteps[qIdx]);
-
-        if (blob.size <= TARGET_BYTES) {
-          return blob;
-        }
-
-        // Move to next quality at same dimension
-        if (qIdx + 1 < qualitySteps.length) {
-          return tryNext(dIdx, qIdx + 1);
-        }
-
-        // Move to next smaller dimension, reset quality
-        return tryNext(dIdx + 1, 0);
-      };
-
-      tryNext(0, 0).then((finalBlob) => {
-        const outputName = file.name.replace(/\.[^.]+$/, ".jpg");
-        const finalFile = new File([finalBlob], outputName, {
-          type: "image/jpeg",
-          lastModified: Date.now(),
-        });
-
-        
-
-        resolve(finalFile);
-      }).catch(reject);
-    };
-
-    img.src = objectUrl;
-  });
-};
 
 /* ══════════════════════════════════════════════════════════
    COMPONENT
@@ -203,34 +114,33 @@ if (duplicate) {
       setCurrentFileName(file.name);
 
       try {
+        const reject = getImageRejectError(file, file.name);
+        if (reject) {
+          toast.error(reject);
+          continue;
+        }
 
+        const compressed = await compressProjectImage(file, {
+          silent: true,
+          label: file.name,
+        });
 
-        //const compressed = await compressImageToTarget(file);
-        const compressed = await compressImageToTarget(file);
-        // toast.success(
-        //   `${file.name}
-        //   ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`,
-        // );
-
-        // final size check
-        if (compressed.size > MAX_FILE_SIZE) {
-
+        if (compressed.size > ONE_MB) {
           toast.error(
-            `${file.name} could not be compressed below 1MB. Please choose another image.`
+            `${file.name} could not be compressed below 1MB. Please choose another image.`,
           );
-
           continue;
         }
 
         toast.success(
-          `${file.name}
-${(file.size / 1024).toFixed(0)} KB → ${(compressed.size / 1024).toFixed(0)} KB`,
+          `${file.name}: ${(file.size / ONE_MB).toFixed(2)} MB → ${(compressed.size / ONE_MB).toFixed(2)} MB`,
         );
 
         newItems.push({
           file: compressed,
           source: "local",
           name: compressed.name,
+          size: compressed.size,
           originalName: file.name,
           originalSize: file.size,
           originalLastModified: file.lastModified,
@@ -238,7 +148,7 @@ ${(file.size / 1024).toFixed(0)} KB → ${(compressed.size / 1024).toFixed(0)} K
         });
       } catch (err) {
         console.error(err);
-        toast.error(`Failed to compress ${file.name}`);
+        toast.error(err?.message || `Failed to process ${file.name}`);
       }
 
       setProgress((prev) => ({
@@ -499,7 +409,7 @@ const handleRemovePhoto = async (index) => {
               Drag and drop your photos here
               <br />
               <span className="text-gray-400">
-                Minimum {MIN_FILES} and maximum {MAX_FILES} photos · Auto-compressed · JPG PNG WEBP
+                Min {MIN_FILES} · max {MAX_FILES} · under 1MB kept · over → ~0.9MB
               </span>
             </p>
             <span className="mt-3 bg-[#27AE60] px-4 py-2 text-white rounded-lg text-sm font-medium">

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   compressProjectImage,
   getImageRejectError,
+  formatBytesMb,
   ONE_MB,
 } from "../../../../utils/compressProjectImage";
 
@@ -313,6 +314,11 @@ ${(originalSize / ONE_MB).toFixed(2)} MB → ${(compressedSize / ONE_MB).toFixed
                 alt="preview"
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
+              {file?.file?.size ? (
+                <span className="absolute bottom-1 left-1 z-10 rounded bg-black/75 px-1 py-0.5 text-[8px] font-black text-white">
+                  {formatBytesMb(file.file.size)}
+                </span>
+              ) : null}
               {/* Overlay */}
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex flex-col justify-between p-3">
                 <button
