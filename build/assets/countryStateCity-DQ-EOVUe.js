@@ -1,1 +1,0 @@
-import{C as s,S as i}from"./city-C3vFgEqo.js";const a=i.getStatesOfCountry("IN"),C=t=>{const e=a.find(o=>o.name===t||o.isoCode===t);return e?s.getCitiesOfState("IN",e.isoCode):[]};export{a as I,C as g};

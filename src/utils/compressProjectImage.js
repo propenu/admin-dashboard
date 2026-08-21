@@ -4,8 +4,12 @@ import { toast } from "sonner";
 /** Skip compression at or under this size. */
 export const ONE_MB = 1024 * 1024;
 
-/** When over 1 MB, aim for ~0.9 MB (quality 0.8). */
-export const TARGET_MB = 0.9;
+/** Aim for ~0.8–0.9 MB when original is over 1 MB. */
+export const TARGET_MAX_MB = 0.9;
+export const TARGET_MIN_MB = 0.8;
+export const TARGET_MB = TARGET_MAX_MB;
+
+const TARGET_MAX_BYTES = TARGET_MAX_MB * ONE_MB;
 
 /** Hard ceiling for original image picks. */
 export const MAX_ORIGINAL_MB = 15;
@@ -43,11 +47,66 @@ export const getImageRejectError = (file, label = "File") => {
   return null;
 };
 
+const toOutputFile = (blobOrFile, originalName, typeHint) =>
+  new File([blobOrFile], originalName || "image.jpg", {
+    type: blobOrFile.type || typeHint || "image/jpeg",
+    lastModified: Date.now(),
+  });
+
+/**
+ * Compress toward ~0.8–0.9 MB without over-crushing.
+ *
+ * Important: do NOT set maxSizeMB to 0.9 — browser-image-compression keeps
+ * reducing until under that cap and often lands near ~0.4 MB.
+ * Instead we set a high soft ceiling and only lower quality/size until
+ * the first result ≤ 0.9 MB (highest quality wins).
+ */
+async function compressTowardPointNine(file) {
+  const softCeilingMb = 12;
+  // Larger side first, then quality high → low. First hit under 0.9 MB is best.
+  const dimensions = [2560, 2200, 1920, 1600];
+  const qualities = [0.92, 0.9, 0.88, 0.85, 0.82, 0.8];
+
+  let smallestOver = null;
+
+  for (const maxWidthOrHeight of dimensions) {
+    for (const initialQuality of qualities) {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: softCeilingMb,
+        maxWidthOrHeight,
+        useWebWorker: true,
+        initialQuality,
+      });
+
+      const out = toOutputFile(compressed, file.name, file.type);
+
+      if (out.size <= TARGET_MAX_BYTES) {
+        // First under-cap at this (dim, quality) order = closest to 0.8–0.9.
+        return out;
+      }
+
+      if (!smallestOver || out.size < smallestOver.size) {
+        smallestOver = out;
+      }
+    }
+  }
+
+  // Still above 0.9 MB — one controlled pass to get under 1 MB (cap only).
+  const lastPass = await imageCompression(file, {
+    maxSizeMB: TARGET_MAX_MB,
+    maxWidthOrHeight: 1600,
+    useWebWorker: true,
+    initialQuality: 0.8,
+  });
+  const finalTry = toOutputFile(lastPass, file.name, file.type);
+  return finalTry.size <= (smallestOver?.size || Infinity) ? finalTry : smallestOver;
+}
+
 /**
  * Admin image rule (project + property):
  * - not an image → reject
  * - ≤ 1 MB → no compress (keep original)
- * - > 1 MB → compress to ~0.9 MB (initialQuality 0.8)
+ * - > 1 MB → compress to about 0.8–0.9 MB (do not crush far below)
  */
 export async function compressProjectImage(
   file,
@@ -67,24 +126,11 @@ export async function compressProjectImage(
     }
     return file instanceof File
       ? file
-      : new File([file], file.name || "image.jpg", {
-          type: file.type,
-          lastModified: Date.now(),
-        });
+      : toOutputFile(file, file.name || "image.jpg", file.type);
   }
 
   try {
-    const compressed = await imageCompression(file, {
-      maxSizeMB: TARGET_MB,
-      maxWidthOrHeight: 1920,
-      useWebWorker: true,
-      initialQuality: 0.8,
-    });
-
-    const finalFile = new File([compressed], file.name, {
-      type: compressed.type || file.type,
-      lastModified: Date.now(),
-    });
+    const finalFile = await compressTowardPointNine(file);
 
     if (finalFile.size > ONE_MB) {
       const msg = `${label}: still over 1 MB after compression (${(finalFile.size / ONE_MB).toFixed(2)} MB). Try a smaller image.`;
