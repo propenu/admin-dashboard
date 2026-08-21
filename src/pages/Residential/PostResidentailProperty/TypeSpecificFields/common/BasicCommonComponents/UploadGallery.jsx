@@ -6,7 +6,7 @@ import { useActivePropertySlice } from "../../UsePropertySlice/useActiveProperty
 import { deletePropertyGalleryImagesIndex } from "../../../../../../features/property/propertyService";
 import { toast } from "sonner";
 import {
-  compressProjectImage,
+  compressProjectImages,
   formatFileSizeMb,
   getImageRejectError,
   ONE_MB,
@@ -18,14 +18,16 @@ const MAX_FILES = 12;
 /* ══════════════════════════════════════════════════════════
    COMPONENT
 ══════════════════════════════════════════════════════════ */
-const UploadGallery = forwardRef(({ error }, ref) => {
+const UploadGallery = forwardRef(({ error, onCompressingChange }, ref) => {
   const { form, updateFieldValue } = useActivePropertySlice();
   const [previewUrls, setPreviewUrls] = useState([]);
   const [compressing, setCompressing] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [currentFileName, setCurrentFileName] = useState("");
 
-  
+  useEffect(() => {
+    onCompressingChange?.(compressing);
+  }, [compressing, onCompressingChange]);
 
 
 
@@ -75,99 +77,82 @@ useEffect(() => {
       return;
     }
 
-    const filesToProcess = files.slice(0, slotsLeft);
+    const filesToProcess = files.slice(0, slotsLeft).filter((file) => {
+      const duplicate = existing.some((item) => {
+        if (item.source === "server") return item.name === file.name;
+        if (item.source === "local") {
+          return (
+            item.originalName === file.name &&
+            item.originalSize === file.size &&
+            item.originalLastModified === file.lastModified
+          );
+        }
+        return false;
+      });
+      if (duplicate) {
+        toast.error(`${file.name} has already been uploaded.`);
+        return false;
+      }
+      const reject = getImageRejectError(file, file.name);
+      if (reject) {
+        toast.error(reject);
+        return false;
+      }
+      return true;
+    });
+
+    if (!filesToProcess.length) {
+      e.target.value = "";
+      return;
+    }
 
     setCompressing(true);
     setProgress({ done: 0, total: filesToProcess.length });
+    setCurrentFileName(filesToProcess[0]?.name || "");
+
+    const results = await compressProjectImages(filesToProcess, {
+      silent: true,
+      onProgress: ({ done, total, currentName }) => {
+        setProgress({ done, total });
+        if (currentName) setCurrentFileName(currentName);
+      },
+    });
 
     const newItems = [];
-
-    for (const file of filesToProcess) {
-
-      // =========================
-      // DUPLICATE CHECK
-      // =========================
-      const duplicate = existing.some((item) => {
-
-  if (item.source === "server") {
-    return item.name === file.name;
-  }
-
-  if (item.source === "local") {
-    return (
-      item.originalName === file.name &&
-      item.originalSize === file.size &&
-      item.originalLastModified === file.lastModified
-    );
-  }
-
-  return false;
-});
-
-if (duplicate) {
-  toast.error(
-    `${file.name} has already been uploaded.`
-  );
-  continue;
-}
-
-      setCurrentFileName(file.name);
-
-      try {
-        const reject = getImageRejectError(file, file.name);
-        if (reject) {
-          toast.error(reject);
-          continue;
-        }
-
-        const compressed = await compressProjectImage(file, {
-          silent: true,
-          label: file.name,
-        });
-
-        if (compressed.size > ONE_MB) {
-          toast.error(
-            `${file.name} could not be compressed below 1MB. Please choose another image.`,
-          );
-          continue;
-        }
-
-        toast.success(
-          `${file.name}: ${(file.size / ONE_MB).toFixed(2)} MB → ${(compressed.size / ONE_MB).toFixed(2)} MB`,
-        );
-
-        newItems.push({
-          file: compressed,
-          source: "local",
-          name: compressed.name,
-          size: compressed.size,
-          originalName: file.name,
-          originalSize: file.size,
-          originalLastModified: file.lastModified,
-          preview: URL.createObjectURL(compressed),
-        });
-      } catch (err) {
-        console.error(err);
-        toast.error(err?.message || `Failed to process ${file.name}`);
+    for (const result of results) {
+      const original = result.original;
+      if (!result.ok) {
+        toast.error(result.error?.message || `Failed to process ${original.name}`);
+        continue;
       }
-
-      setProgress((prev) => ({
-        ...prev,
-        done: prev.done + 1,
-      }));
+      const compressed = result.file;
+      if (compressed.size > ONE_MB) {
+        toast.error(
+          `${original.name} could not be compressed below 1MB. Please choose another image.`,
+        );
+        continue;
+      }
+      toast.success(
+        `${original.name}: ${(original.size / ONE_MB).toFixed(2)} MB → ${(compressed.size / ONE_MB).toFixed(2)} MB`,
+      );
+      newItems.push({
+        file: compressed,
+        source: "local",
+        name: compressed.name,
+        size: compressed.size,
+        originalName: original.name,
+        originalSize: original.size,
+        originalLastModified: original.lastModified,
+        preview: URL.createObjectURL(compressed),
+      });
     }
-    
-    
+
     const updated = [...existing, ...newItems].slice(0, MAX_FILES);
-
-    console.log("🔥 UPDATED galleryFiles:", updated);
-
     updateFieldValue("galleryFiles", updated);
 
     setCompressing(false);
     setCurrentFileName("");
     setProgress({ done: 0, total: 0 });
-
     e.target.value = "";
   };
 
@@ -326,9 +311,17 @@ const handleRemovePhoto = async (index) => {
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-medium text-gray-700">
-          Add photos of your property
+          Add photos of your property{" "}
+          <span className="text-red-500">*</span>
+          <span className="ml-1 text-xs font-normal text-gray-400">
+            (min {MIN_FILES} required)
+          </span>
         </p>
-        <span className="text-xs text-gray-400">
+        <span
+          className={`text-xs ${
+            error || photoCount < MIN_FILES ? "text-red-500 font-semibold" : "text-gray-400"
+          }`}
+        >
           {photoCount}/{MAX_FILES} photos
         </span>
       </div>
@@ -340,6 +333,8 @@ const handleRemovePhoto = async (index) => {
             ? "border-gray-300 bg-gray-50 cursor-not-allowed pointer-events-none"
             : photoCount >= MAX_FILES
             ? "border-gray-200 bg-gray-50 cursor-not-allowed pointer-events-none opacity-50"
+            : error
+            ? "border-red-400 bg-red-50 cursor-pointer hover:bg-red-50/80"
             : "border-[#27AE60] bg-[#F1FCF5] cursor-pointer hover:bg-[#e8f9ee]"
         }`}
       >
@@ -384,7 +379,7 @@ const handleRemovePhoto = async (index) => {
             </div>
 
             <p className="text-xs text-gray-500 font-medium text-center">
-              Compressing {progress.done + 1}/{progress.total}
+              Compressing {progress.done}/{progress.total} done
             </p>
             {currentFileName && (
               <p className="text-[10px] text-gray-400 truncate max-w-[180px] text-center">
@@ -473,7 +468,13 @@ const handleRemovePhoto = async (index) => {
 
       {/* Error */}
       {error && (
-        <p className="text-sm text-red-500 mt-2">{error}</p>
+        <p className="text-sm text-red-500 mt-2 font-medium">{error}</p>
+      )}
+      {!error && photoCount > 0 && photoCount < MIN_FILES && (
+        <p className="text-sm text-amber-600 mt-2">
+          Upload at least {MIN_FILES - photoCount} more photo
+          {MIN_FILES - photoCount === 1 ? "" : "s"} to continue.
+        </p>
       )}
     </div>
   );

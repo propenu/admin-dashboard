@@ -108,6 +108,8 @@ export default function AgriculturalFields({ back, next }) {
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      const firstMsg = Object.values(validationErrors)[0];
+      if (firstMsg) toast.error(firstMsg);
       if (validationErrors.galleryFiles) galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       else setTimeout(scrollToTop, 50);
       return;

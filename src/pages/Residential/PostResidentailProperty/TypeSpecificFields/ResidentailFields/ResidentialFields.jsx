@@ -40,6 +40,8 @@ export default function ResidentialFields({ back, next }) {
   const parkingTypeRef = useRef(null);
   const totalFloorsRef = useRef(null);
   const descriptionRef = useRef(null);
+  const galleryRef = useRef(null);
+  const [galleryCompressing, setGalleryCompressing] = useState(false);
 
 
   const category = useSelector((state) => state.ui.activeCategory);
@@ -106,10 +108,18 @@ export default function ResidentialFields({ back, next }) {
   }, [form]);
 
   const handleSubmit = async () => {
+    if (galleryCompressing) {
+      toast.error("Please wait — photos are still compressing.");
+      galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
 
     const validationErrors = validateAll();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      const firstMsg = Object.values(validationErrors)[0];
+      if (firstMsg) toast.error(firstMsg);
+
       if (validationErrors.amenities)
         amenitiesRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -127,6 +137,11 @@ export default function ResidentialFields({ back, next }) {
         });
       else if (validationErrors.description)
         descriptionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      else if (validationErrors.galleryFiles)
+        galleryRef.current?.scrollIntoView({
           behavior: "smooth",
           block: "center",
         });
@@ -233,8 +248,13 @@ export default function ResidentialFields({ back, next }) {
 
       {/* Gallery */}
       <CardWrapper>
-        <SectionLabel>Property Photos</SectionLabel>
-        <UploadGallery error={errors.galleryFiles} />
+        <SectionLabel>Property Photos (required · min 5)</SectionLabel>
+        <div ref={galleryRef}>
+          <UploadGallery
+            error={errors.galleryFiles}
+            onCompressingChange={setGalleryCompressing}
+          />
+        </div>
       </CardWrapper>
 
       {/* Navigation */}
@@ -248,29 +268,21 @@ export default function ResidentialFields({ back, next }) {
         </button>
         <button
           type="button"
-          disabled={isSubmitting}
+          disabled={isSubmitting || galleryCompressing}
           onClick={handleSubmit}
           className={`flex-1 py-4 font-bold rounded-2xl text-sm transition-all duration-200 ${
-            isSubmitting
+            isSubmitting || galleryCompressing
               ? "bg-[#9ca3af] text-white cursor-not-allowed"
               : "bg-gradient-to-r from-[#27AE60] to-[#52D689] text-white hover:from-[#219150] hover:to-[#27AE60] shadow-lg shadow-green-200/60"
           }`}
         >
-          {/* {isSubmitting ? "Saving..." : "Save & Continue →"} */}
-          {/* <button>
-            {isSubmitting
-              ? "Saving..."
-              : userRole === true
-                ? "Submit Property →"
-                : "Save & Continue →"}
-          </button> */}
-          <button>
-            {isSubmitting
-              ? "Saving..."
+          {isSubmitting
+            ? "Saving..."
+            : galleryCompressing
+              ? "Compressing photos..."
               : userRole === "agent"
                 ? "Submit Property →"
                 : "Save & Continue →"}
-          </button>
         </button>
       </div>
     </div>

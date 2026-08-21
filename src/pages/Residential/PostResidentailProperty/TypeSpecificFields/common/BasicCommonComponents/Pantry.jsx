@@ -46,7 +46,9 @@ const Pantry = ({ error }) => {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">Pantry</p>
+      <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">
+        Pantry type <span className="text-red-500">*</span>
+      </p>
 
       <div className="flex  items-center gap-3   max-sm:flex-wrap">
         {/* Dropdown */}
@@ -54,8 +56,12 @@ const Pantry = ({ error }) => {
           <div
             onClick={() => setOpen(!open)}
             className={`relative cursor-pointer rounded-xl border-2 bg-white px-4 py-3 text-sm font-semibold min-w-[160px] transition-all duration-150 ${
-              error ? "border-red-300" : open ? "border-[#27AE60] ring-2 ring-[#27AE60]/10" : "border-[#e5e7eb] hover:border-[#bbf7d0]"
-            } text-[#111827]`}
+              error
+                ? "border-red-400 bg-red-50"
+                : open
+                  ? "border-[#27AE60] ring-2 ring-[#27AE60]/10"
+                  : "border-[#e5e7eb] hover:border-[#bbf7d0]"
+            } ${!pantry.type ? "text-[#9ca3af]" : "text-[#111827]"}`}
           >
             {selectedLabel}
             <ChevronDown size={15} className={`absolute right-4 top-1/2 -translate-y-1/2 text-[#9ca3af] transition-transform ${open ? "rotate-180" : ""}`} />

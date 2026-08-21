@@ -53,6 +53,7 @@ export default function CommercialFields({ back, next }) {
   const availabilityRef = useRef(null);
   const priceRef = useRef(null);
   const galleryRef = useRef(null);
+  const pantryRef = useRef(null);
 
   const category = useSelector((state) => state.ui.activeCategory);
 
@@ -62,8 +63,9 @@ export default function CommercialFields({ back, next }) {
     const e = {};
     if (!form.amenities?.length) e.amenities = "Select at least one amenity";
    // if (!form.specifications?.length) e.specifications = "Enter at least one specification";
-    
-    if (!form.pantry) e.pantry = "Select pantry type";
+
+    const pantryType = String(form.pantry?.type || "").trim();
+    if (!pantryType) e.pantry = "Select pantry type";
     return e;
   };
 
@@ -94,6 +96,7 @@ export default function CommercialFields({ back, next }) {
       const updated = { ...prev };
       if (form.amenities?.length > 0) delete updated.amenities;
       if (form.parkingType) delete updated.parkingType;
+      if (String(form.pantry?.type || "").trim()) delete updated.pantry;
       if (form.constructionStatus) delete updated.constructionStatus;
       if (form.price > 0) delete updated.price;
       if (form.galleryFiles?.length >= 5 && form.galleryFiles.length <= 12)
@@ -110,7 +113,10 @@ export default function CommercialFields({ back, next }) {
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      const firstMsg = Object.values(validationErrors)[0];
+      if (firstMsg) toast.error(firstMsg);
       if (validationErrors.amenities) amenitiesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      else if (validationErrors.pantry) pantryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       else if (validationErrors.constructionStatus) availabilityRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       else if (validationErrors.price) priceRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       else if (validationErrors.galleryFiles) galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -199,7 +205,9 @@ export default function CommercialFields({ back, next }) {
             <FloorDetails errors={errors} />
             <FlooringType error={errors.flooringType} />
             <Facing error={errors.facing} />
-            <Pantry error={errors.pantry} />
+            <div ref={pantryRef}>
+              <Pantry error={errors.pantry} />
+            </div>
           </SectionCard>
         </div>
       )}

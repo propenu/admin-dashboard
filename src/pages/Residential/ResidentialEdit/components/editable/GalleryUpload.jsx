@@ -5,7 +5,7 @@ import { useActivePropertySlice } from "../../../PostResidentailProperty/TypeSpe
 import { deletePropertyGalleryImagesIndex } from "../../../../../features/property/propertyService";
 import { toast } from "sonner";
 import {
-  compressProjectImage,
+  compressProjectImages,
   formatFileSizeMb,
   getImageRejectError,
   ONE_MB,
@@ -121,65 +121,57 @@ const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
       return;
     }
 
-    const filesToProcess = files.slice(0, slotsLeft);
-
-    setCompressing(true);
-    setProgress({ done: 0, total: filesToProcess.length });
-
-    const compressedFiles = [];
-
-    for (const file of filesToProcess) {
+    const filesToProcess = files.slice(0, slotsLeft).filter((file) => {
       const reject = getImageRejectError(file, file.name);
       if (reject) {
         toast.error(reject);
-        setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
+        return false;
+      }
+      return true;
+    });
+
+    if (!filesToProcess.length) return;
+
+    setCompressing(true);
+    setProgress({ done: 0, total: filesToProcess.length });
+    setCurrentFileName(filesToProcess[0]?.name || "");
+
+    const results = await compressProjectImages(filesToProcess, {
+      silent: true,
+      onProgress: ({ done, total, currentName }) => {
+        setProgress({ done, total });
+        if (currentName) setCurrentFileName(currentName);
+      },
+    });
+
+    const compressedFiles = [];
+    for (const result of results) {
+      const original = result.original;
+      if (!result.ok) {
+        toast.error(result.error?.message || `Failed to process ${original.name}`);
         continue;
       }
-
-      setCurrentFileName(file.name);
-
-      try {
-        const compressed = await compressProjectImage(file, {
-          silent: true,
-          label: file.name,
-        });
-
-        if (compressed.size > ONE_MB) {
-          toast.error(
-            `${file.name} could not be compressed below 1MB. Please choose another image.`,
-          );
-          setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
-          continue;
-        }
-
-        toast.success(
-          `${file.name}: ${(file.size / ONE_MB).toFixed(2)} MB → ${(compressed.size / ONE_MB).toFixed(2)} MB`,
+      const compressed = result.file;
+      if (compressed.size > ONE_MB) {
+        toast.error(
+          `${original.name} could not be compressed below 1MB. Please choose another image.`,
         );
-
-        const preview = URL.createObjectURL(compressed);
-
-        compressedFiles.push({
-          file: compressed,
-          source: "local",
-          name: compressed.name,
-          size: compressed.size,
-          originalSize: file.size,
-          preview,
-        });
-      } catch (err) {
-        console.error(`❌ Failed: ${file.name}`, err);
-        toast.error(err?.message || `Failed to process ${file.name}`);
+        continue;
       }
-
-      setProgress((prev) => ({ ...prev, done: prev.done + 1 }));
+      toast.success(
+        `${original.name}: ${(original.size / ONE_MB).toFixed(2)} MB → ${(compressed.size / ONE_MB).toFixed(2)} MB`,
+      );
+      compressedFiles.push({
+        file: compressed,
+        source: "local",
+        name: compressed.name,
+        size: compressed.size,
+        originalSize: original.size,
+        preview: URL.createObjectURL(compressed),
+      });
     }
 
-    
-
     const updated = [...allFiles, ...compressedFiles].slice(0, MAX_FILES);
-
-    
-
     updateFieldValue("galleryFiles", updated);
     setCompressing(false);
     setCurrentFileName("");
@@ -329,7 +321,7 @@ const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
             </div>
 
             <p className="text-xs text-gray-500 font-medium text-center">
-              Compressing {progress.done + 1}/{progress.total}
+              Compressing {progress.done}/{progress.total} done
             </p>
             {currentFileName && (
               <p className="text-[10px] text-gray-400 truncate max-w-[180px] text-center">

@@ -14,6 +14,9 @@ const TARGET_MAX_BYTES = TARGET_MAX_MB * ONE_MB;
 /** Hard ceiling for original image picks. */
 export const MAX_ORIGINAL_MB = 15;
 
+/** How many images to compress at once (keeps UI responsive). */
+export const COMPRESS_CONCURRENCY = 3;
+
 export const isImageFile = (file) =>
   Boolean(file?.type?.startsWith("image/"));
 
@@ -53,53 +56,46 @@ const toOutputFile = (blobOrFile, originalName, typeHint) =>
     lastModified: Date.now(),
   });
 
+const runPass = (file, { maxWidthOrHeight, initialQuality, maxSizeMB }) =>
+  imageCompression(file, {
+    maxSizeMB,
+    maxWidthOrHeight,
+    useWebWorker: true,
+    initialQuality,
+  }).then((blob) => toOutputFile(blob, file.name, file.type));
+
 /**
- * Compress toward ~0.8–0.9 MB without over-crushing.
- *
- * Important: do NOT set maxSizeMB to 0.9 — browser-image-compression keeps
- * reducing until under that cap and often lands near ~0.4 MB.
- * Instead we set a high soft ceiling and only lower quality/size until
- * the first result ≤ 0.9 MB (highest quality wins).
+ * Fast path to ~0.8–0.9 MB: usually 1 pass, at most 3.
+ * Avoids the old 24-pass grid that made multi-upload feel stuck.
  */
 async function compressTowardPointNine(file) {
-  const softCeilingMb = 12;
-  // Larger side first, then quality high → low. First hit under 0.9 MB is best.
-  const dimensions = [2560, 2200, 1920, 1600];
-  const qualities = [0.92, 0.9, 0.88, 0.85, 0.82, 0.8];
+  const mb = file.size / ONE_MB;
+  // Heavier originals start slightly more aggressive so pass 1 lands under 0.9.
+  const firstQuality = mb > 6 ? 0.84 : mb > 3 ? 0.88 : 0.9;
+  const firstDim = mb > 8 ? 1920 : 2200;
 
-  let smallestOver = null;
-
-  for (const maxWidthOrHeight of dimensions) {
-    for (const initialQuality of qualities) {
-      const compressed = await imageCompression(file, {
-        maxSizeMB: softCeilingMb,
-        maxWidthOrHeight,
-        useWebWorker: true,
-        initialQuality,
-      });
-
-      const out = toOutputFile(compressed, file.name, file.type);
-
-      if (out.size <= TARGET_MAX_BYTES) {
-        // First under-cap at this (dim, quality) order = closest to 0.8–0.9.
-        return out;
-      }
-
-      if (!smallestOver || out.size < smallestOver.size) {
-        smallestOver = out;
-      }
-    }
-  }
-
-  // Still above 0.9 MB — one controlled pass to get under 1 MB (cap only).
-  const lastPass = await imageCompression(file, {
-    maxSizeMB: TARGET_MAX_MB,
-    maxWidthOrHeight: 1600,
-    useWebWorker: true,
-    initialQuality: 0.8,
+  const first = await runPass(file, {
+    maxWidthOrHeight: firstDim,
+    initialQuality: firstQuality,
+    maxSizeMB: 12,
   });
-  const finalTry = toOutputFile(lastPass, file.name, file.type);
-  return finalTry.size <= (smallestOver?.size || Infinity) ? finalTry : smallestOver;
+
+  if (first.size <= TARGET_MAX_BYTES) return first;
+
+  const second = await runPass(file, {
+    maxWidthOrHeight: 1600,
+    initialQuality: 0.82,
+    maxSizeMB: 12,
+  });
+
+  if (second.size <= TARGET_MAX_BYTES) return second;
+
+  // Last resort: hard ceiling under 0.9 MB.
+  return runPass(file, {
+    maxWidthOrHeight: 1440,
+    initialQuality: 0.8,
+    maxSizeMB: TARGET_MAX_MB,
+  });
 }
 
 /**
@@ -151,4 +147,49 @@ export async function compressProjectImage(
     if (!silent) toast.error(msg);
     throw new Error(msg);
   }
+}
+
+/**
+ * Compress many files with limited concurrency (default 3).
+ * Calls onProgress({ done, total, currentName }) as each file finishes.
+ */
+export async function compressProjectImages(
+  files,
+  {
+    concurrency = COMPRESS_CONCURRENCY,
+    silent = true,
+    onProgress,
+  } = {},
+) {
+  const list = Array.from(files || []);
+  const total = list.length;
+  const results = new Array(total);
+  let nextIndex = 0;
+  let done = 0;
+
+  const worker = async () => {
+    while (nextIndex < total) {
+      const index = nextIndex++;
+      const file = list[index];
+      onProgress?.({ done, total, currentName: file?.name || "" });
+      try {
+        results[index] = {
+          ok: true,
+          file: await compressProjectImage(file, {
+            silent,
+            label: file.name,
+          }),
+          original: file,
+        };
+      } catch (error) {
+        results[index] = { ok: false, error, original: file };
+      }
+      done += 1;
+      onProgress?.({ done, total, currentName: file?.name || "" });
+    }
+  };
+
+  const pool = Math.min(Math.max(1, concurrency), total || 1);
+  await Promise.all(Array.from({ length: pool }, () => worker()));
+  return results;
 }
