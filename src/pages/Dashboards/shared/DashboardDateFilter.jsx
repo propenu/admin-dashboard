@@ -75,7 +75,11 @@ export default function DashboardDateFilter({
         </div>
       )}
 
-      {trailing ? <span className="ml-auto hidden text-[10px] text-slate-400 lg:inline">{trailing}</span> : null}
+      {trailing ? (
+        <span className="ml-auto inline-flex items-center text-[10px] text-slate-400">
+          {trailing}
+        </span>
+      ) : null}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import Navbar from "../common/Navbar";
 import Sidebar from "../common/Siderbar";
 import PageBackNav from "../common/PageBackNav";
 import { useSidebarActivityBadges } from "../../hooks/useSidebarActivityBadges";
+import { usePresenceHeartbeat } from "../../hooks/usePresenceHeartbeat";
 
 const SIDEBAR_EXPANDED = 256;
 const SIDEBAR_COLLAPSED = 68;
@@ -34,6 +35,7 @@ export default function MainLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   useSidebarActivityBadges();
+  usePresenceHeartbeat();
 
   // ✅ detect tablet/mobile
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);

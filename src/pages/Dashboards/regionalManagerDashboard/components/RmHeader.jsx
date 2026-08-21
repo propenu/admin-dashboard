@@ -1,12 +1,9 @@
-import { Download, MapPin, RefreshCw, ShieldCheck } from "lucide-react";
+import { Download, LayoutDashboard, RefreshCw, ShieldCheck, Users } from "lucide-react";
 import DashboardDateFilter from "../../shared/DashboardDateFilter";
-import { formatRelativeClock, RM_DATE_PRESETS } from "../regionalManagerDashboardData";
+import { RM_DATE_PRESETS } from "../regionalManagerDashboardData";
 
 export default function RmHeader({
-  userName,
   regionLabel,
-  rangeLabel,
-  refreshedAt,
   preset,
   onPresetChange,
   customFrom,
@@ -18,42 +15,17 @@ export default function RmHeader({
   isFetching,
   onExport,
   summary,
-  selectedCity,
-  onCityChange,
-  selectedStatus,
-  onStatusChange,
-  allCities = [],
-  onClearFilters,
   onOpenApprovals,
+  viewMode = "team",
+  onViewModeChange,
 }) {
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-600">
-            Regional Manager
-          </p>
-          <h1 className="mt-0.5 text-lg font-black leading-tight text-slate-950 sm:text-xl">
-            Regional Command Center · {userName}
+          <h1 className="text-lg font-black leading-tight text-slate-950 sm:text-xl">
+            Dashboard
           </h1>
-          <p className="mt-1 max-w-3xl text-xs text-slate-500">
-            Inventory health, pending approvals, engagement, and sales team pulse for your region.
-          </p>
-          <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-slate-400">
-            <span className="inline-flex items-center gap-1 font-semibold text-slate-600">
-              <MapPin className="h-3 w-3 text-emerald-600" />
-              {regionLabel}
-            </span>
-            <span className="text-slate-300">·</span>
-            Period <strong className="font-semibold text-slate-600">{rangeLabel}</strong>
-            <span className="text-slate-300">·</span>
-            Updated {formatRelativeClock(refreshedAt)}
-            <span className="text-slate-300">·</span>
-            Live rate{" "}
-            <strong className="text-slate-700">
-              {summary?.liveRate == null ? "N/A" : `${summary.liveRate}%`}
-            </strong>
-          </p>
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -100,57 +72,39 @@ export default function RmHeader({
         onApplyCustom={onApplyCustom}
         presets={RM_DATE_PRESETS}
         trailing={
-          <>
-            Showing <strong className="text-slate-700">{regionLabel}</strong>
-            {selectedCity !== "All Cities" ? (
-              <>
-                {" "}
-                · <strong className="text-slate-700">{selectedCity}</strong>
-              </>
+          <span className="inline-flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onViewModeChange?.("team")}
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold transition ${
+                viewMode === "team"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <Users className="h-3 w-3" />
+              Team Floor
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewModeChange?.("command")}
+              className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold transition ${
+                viewMode === "command"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              <LayoutDashboard className="h-3 w-3" />
+              Command
+            </button>
+            {regionLabel ? (
+              <span className="ml-0.5 hidden text-[10px] font-medium text-slate-400 xl:inline">
+                {regionLabel}
+              </span>
             ) : null}
-          </>
+          </span>
         }
       />
-
-      <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-slate-200 bg-white p-2 shadow-sm">
-        <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-          City
-          <select
-            value={selectedCity}
-            onChange={(e) => onCityChange?.(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-semibold normal-case tracking-normal text-slate-700 outline-none focus:border-emerald-400"
-          >
-            <option>All Cities</option>
-            {allCities.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-          Status
-          <select
-            value={selectedStatus}
-            onChange={(e) => onStatusChange?.(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-semibold normal-case tracking-normal text-slate-700 outline-none focus:border-emerald-400"
-          >
-            <option>All Statuses</option>
-            <option value="active">Active</option>
-            <option value="pending">Pending</option>
-            <option value="draft">Draft</option>
-          </select>
-        </label>
-        {(selectedCity !== "All Cities" || selectedStatus !== "All Statuses") && (
-          <button
-            type="button"
-            onClick={onClearFilters}
-            className="ml-auto rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
     </section>
   );
 }

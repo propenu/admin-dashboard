@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { MoreVertical, Power, RotateCcw, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { canManageUserLifecycle } from "../../../../utils/userLifecycleAccess";
 
 export const RowActionsMenu = ({
   user,
   onOpenUser,
+  actorRoleName = "",
+  /** @deprecated use actorRoleName — kept for older call sites */
   isSuperAdmin = false,
   currentUserId = "",
   statusBusy = false,
@@ -39,10 +42,15 @@ export const RowActionsMenu = ({
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_");
-  const isSelf = currentUserId && String(userId) === String(currentUserId);
-  const isTargetSuperAdmin = targetRole === "super_admin";
+  const isSelf = Boolean(currentUserId && String(userId) === String(currentUserId));
+  const actorRole =
+    actorRoleName || (isSuperAdmin ? "super_admin" : "");
   const canManage =
-    isSuperAdmin && !isSelf && !isTargetSuperAdmin && typeof onActivate === "function";
+    canManageUserLifecycle({
+      actorRole,
+      targetRole,
+      isSelf,
+    }) && typeof onActivate === "function";
   const isInactive = user?.isActive === false;
 
   return (

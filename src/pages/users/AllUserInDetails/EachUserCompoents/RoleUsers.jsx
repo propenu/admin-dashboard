@@ -43,6 +43,10 @@ import {
   deleteAccessUser,
   updateAccessUserStatus,
 } from "../../../../features/accessControl/accessControlService";
+import {
+  canManageUserLifecycle,
+  canUseLifecycleActions,
+} from "../../../../utils/userLifecycleAccess";
 import SafeUserDeleteModal from "../../users/components/SafeUserDeleteModal";
 import BuilderProfileEditModal from "./BuilderProfileEditModal";
 
@@ -1214,6 +1218,7 @@ const UserCard = ({
   onWorkInProgress,
   onEditProfile,
   isSuperAdmin = false,
+  actorRoleName = "",
   currentUserId = "",
   statusBusy = false,
   onActivate,
@@ -1227,13 +1232,14 @@ const UserCard = ({
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_");
-  const isSelf = currentUserId && userId === String(currentUserId);
-  const isTargetSuperAdmin = targetRole === "super_admin";
+  const isSelf = Boolean(currentUserId && userId === String(currentUserId));
+  const actorRole = actorRoleName || (isSuperAdmin ? "super_admin" : "");
   const canManage =
-    isSuperAdmin &&
-    !isSelf &&
-    !isTargetSuperAdmin &&
-    typeof onActivate === "function";
+    canManageUserLifecycle({
+      actorRole,
+      targetRole,
+      isSelf,
+    }) && typeof onActivate === "function";
   const isInactive = user?.isActive === false;
 
   // Cycle avatar shades slightly per index
@@ -1797,7 +1803,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
   const [viewingUser, setViewingUser] = useState(null);
   const [editingProfile, setEditingProfile] = useState(null);
   const [lockedState, setLockedState] = useState("");
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [actorRoleName, setActorRoleName] = useState("");
   const [currentUserId, setCurrentUserId] = useState("");
   const [statusBusyId, setStatusBusyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -1817,7 +1823,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
     fetchLoggedInUser()
       .then((me) => {
         if (!mounted) return;
-        setIsSuperAdmin(me?.roleName === "super_admin");
+        setActorRoleName(String(me?.roleName || ""));
         setCurrentUserId(String(me?._id || me?.id || ""));
         const stateScope =
           me?.roleName === "regional_manager" ? me?.state || "" : "";
@@ -1833,7 +1839,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
       })
       .catch(() => {
         if (!mounted) return;
-        setIsSuperAdmin(false);
+        setActorRoleName("");
         setCurrentUserId("");
       });
 
@@ -1844,7 +1850,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
 
   const changeUserActive = async (user, isActive) => {
     const id = user?.userId || user?._id;
-    if (!isSuperAdmin || !id) return;
+    if (!canUseLifecycleActions(actorRoleName) || !id) return;
     setStatusBusyId(String(id));
     try {
       const result = await updateAccessUserStatus(id, isActive);
@@ -1870,12 +1876,14 @@ const RoleUsers = ({ role = "sales_manager" }) => {
 
   const confirmDeleteUser = async () => {
     const id = deleteTarget?.userId || deleteTarget?._id;
-    if (!isSuperAdmin || !id) return;
+    if (!canUseLifecycleActions(actorRoleName) || !id) return;
     setDeleteLoading(true);
     try {
       const result = await deleteAccessUser(
         id,
-        `Deleted by Super Admin from ${cfg.label} directory`,
+        actorRoleName === "business_development_head"
+          ? `Deleted by Business Development Head from ${cfg.label} directory`
+          : `Deleted by Super Admin from ${cfg.label} directory`,
       );
       setUsers((current) =>
         current.filter((item) => String(item.userId || item._id) !== String(id)),
@@ -2133,7 +2141,8 @@ const RoleUsers = ({ role = "sales_manager" }) => {
                   onViewDetail={setViewingUser}
                   onWorkInProgress={handleWorkInProgress}
                   onEditProfile={setEditingProfile}
-                  isSuperAdmin={isSuperAdmin}
+                  isSuperAdmin={actorRoleName === "super_admin"}
+                  actorRoleName={actorRoleName}
                   currentUserId={currentUserId}
                   statusBusy={
                     statusBusyId === String(user.userId || user._id || "")

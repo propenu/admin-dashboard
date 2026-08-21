@@ -28,6 +28,7 @@ import {
   deleteAccessUser,
   updateAccessUserStatus,
 } from "../../../features/accessControl/accessControlService";
+import { canUseLifecycleActions } from "../../../utils/userLifecycleAccess";
 
 const ONBOARDING_STATUSES = [
   "location_pending",
@@ -117,7 +118,7 @@ export default function Users() {
     parsePositiveInt(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE),
   );
 
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [actorRoleName, setActorRoleName] = useState("");
   const [currentUserId, setCurrentUserId] = useState("");
   const [statusBusyId, setStatusBusyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -126,18 +127,18 @@ export default function Users() {
   useEffect(() => {
     fetchLoggedInUser()
       .then((user) => {
-        setIsSuperAdmin(user?.roleName === "super_admin");
+        setActorRoleName(String(user?.roleName || ""));
         setCurrentUserId(String(user?._id || user?.id || ""));
       })
       .catch(() => {
-        setIsSuperAdmin(false);
+        setActorRoleName("");
         setCurrentUserId("");
       });
   }, []);
 
   const changeUserActive = useCallback(
     async (user, isActive) => {
-      if (!isSuperAdmin || !user?._id) return;
+      if (!canUseLifecycleActions(actorRoleName) || !user?._id) return;
       setStatusBusyId(String(user._id));
       try {
         const result = await updateAccessUserStatus(user._id, isActive);
@@ -153,16 +154,18 @@ export default function Users() {
         setStatusBusyId("");
       }
     },
-    [isSuperAdmin, refetch],
+    [actorRoleName, refetch],
   );
 
   const confirmDeleteUser = useCallback(async () => {
-    if (!isSuperAdmin || !deleteTarget?._id) return;
+    if (!canUseLifecycleActions(actorRoleName) || !deleteTarget?._id) return;
     setDeleteLoading(true);
     try {
       const result = await deleteAccessUser(
         deleteTarget._id,
-        "Deleted by Super Admin from Users page",
+        actorRoleName === "business_development_head"
+          ? "Deleted by Business Development Head from Users page"
+          : "Deleted by Super Admin from Users page",
       );
       toast.success(result?.message || "User permanently deleted");
       setDeleteTarget(null);
@@ -172,7 +175,7 @@ export default function Users() {
     } finally {
       setDeleteLoading(false);
     }
-  }, [deleteTarget, isSuperAdmin, refetch]);
+  }, [actorRoleName, deleteTarget, refetch]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 300);
@@ -993,7 +996,8 @@ export default function Users() {
           onRetry={handleRefresh}
           onClearFilters={clearAll}
           onOpenUser={openUserDetail}
-          isSuperAdmin={isSuperAdmin}
+          actorRoleName={actorRoleName}
+          isSuperAdmin={actorRoleName === "super_admin"}
           currentUserId={currentUserId}
           statusBusy={Boolean(statusBusyId)}
           onActivate={(user) => changeUserActive(user, true)}
@@ -1006,7 +1010,8 @@ export default function Users() {
           hasFilters={hasFilters}
           onClearFilters={clearAll}
           onOpenUser={openUserDetail}
-          isSuperAdmin={isSuperAdmin}
+          actorRoleName={actorRoleName}
+          isSuperAdmin={actorRoleName === "super_admin"}
           currentUserId={currentUserId}
           statusBusy={Boolean(statusBusyId)}
           onActivate={(user) => changeUserActive(user, true)}

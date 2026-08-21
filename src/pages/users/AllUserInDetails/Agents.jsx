@@ -26,6 +26,10 @@ import {
   deleteAccessUser,
   updateAccessUserStatus,
 } from "../../../features/accessControl/accessControlService";
+import {
+  canManageUserLifecycle,
+  canUseLifecycleActions,
+} from "../../../utils/userLifecycleAccess";
 import SafeUserDeleteModal from "../users/components/SafeUserDeleteModal";
 
 /** Calendar-day gap in IST (0 = today, 1 = yesterday, …). */
@@ -1152,6 +1156,7 @@ const AgentCard = ({
   onEditStatus,
   onViewDetail,
   isSuperAdmin = false,
+  actorRoleName = "",
   currentUserId = "",
   statusBusy = false,
   onActivate,
@@ -1164,9 +1169,14 @@ const AgentCard = ({
   const StatusIcon = statusCfg.icon;
   const profileCompleted = isProfileCompleted(agent);
   const agentId = String(agent._id || agent.agentId || "");
-  const isSelf = currentUserId && agentId === String(currentUserId);
+  const isSelf = Boolean(currentUserId && agentId === String(currentUserId));
+  const actorRole = actorRoleName || (isSuperAdmin ? "super_admin" : "");
   const canManage =
-    isSuperAdmin && !isSelf && typeof onActivate === "function";
+    canManageUserLifecycle({
+      actorRole,
+      targetRole: "agent",
+      isSelf,
+    }) && typeof onActivate === "function";
   const isInactive = agent?.isActive === false;
 
   const badge = getMemberBadge(agent.createdAt);
@@ -1694,7 +1704,7 @@ const AllAgents = () => {
   const [editingAgent, setEditingAgent] = useState(null);
   const [viewingAgent, setViewingAgent] = useState(null);
   const [editingProfileAgent, setEditingProfileAgent] = useState(null);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [actorRoleName, setActorRoleName] = useState("");
   const [currentUserId, setCurrentUserId] = useState("");
   const [statusBusyId, setStatusBusyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -1712,11 +1722,11 @@ const AllAgents = () => {
   useEffect(() => {
     fetchLoggedInUser()
       .then((me) => {
-        setIsSuperAdmin(me?.roleName === "super_admin");
+        setActorRoleName(String(me?.roleName || ""));
         setCurrentUserId(String(me?._id || me?.id || ""));
       })
       .catch(() => {
-        setIsSuperAdmin(false);
+        setActorRoleName("");
         setCurrentUserId("");
       });
   }, []);
@@ -1734,7 +1744,7 @@ const AllAgents = () => {
 
   const changeAgentActive = async (agent, isActive) => {
     const id = agent?._id || agent?.agentId;
-    if (!isSuperAdmin || !id) return;
+    if (!canUseLifecycleActions(actorRoleName) || !id) return;
     setStatusBusyId(String(id));
     try {
       const result = await updateAccessUserStatus(id, isActive);
@@ -1760,12 +1770,14 @@ const AllAgents = () => {
 
   const confirmDeleteAgent = async () => {
     const id = deleteTarget?._id || deleteTarget?.agentId;
-    if (!isSuperAdmin || !id) return;
+    if (!canUseLifecycleActions(actorRoleName) || !id) return;
     setDeleteLoading(true);
     try {
       const result = await deleteAccessUser(
         id,
-        "Deleted by Super Admin from Agents directory",
+        actorRoleName === "business_development_head"
+          ? "Deleted by Business Development Head from Agents directory"
+          : "Deleted by Super Admin from Agents directory",
       );
       setAgents((current) =>
         current.filter((item) => String(item._id || item.agentId) !== String(id)),
@@ -2003,7 +2015,8 @@ const AllAgents = () => {
                   index={idx}
                   onEditStatus={setEditingAgent}
                   onViewDetail={setViewingAgent}
-                  isSuperAdmin={isSuperAdmin}
+                  isSuperAdmin={actorRoleName === "super_admin"}
+                  actorRoleName={actorRoleName}
                   currentUserId={currentUserId}
                   statusBusy={
                     statusBusyId === String(agent._id || agent.agentId || "")

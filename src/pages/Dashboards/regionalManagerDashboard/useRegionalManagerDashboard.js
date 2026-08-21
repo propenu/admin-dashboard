@@ -72,7 +72,9 @@ export function useRegionalManagerDashboard() {
         const response = await getAllUsers({ scope: "team_directory" });
         return unpackList(response?.data || response);
       }, []),
-    staleTime: 120_000,
+    staleTime: 15_000,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
   });
 
   const mapped = useMemo(

@@ -30,6 +30,97 @@ export const RM_TEAM_ROLES = new Set([
   "relationship_manager",
 ]);
 
+/**
+ * Online = we heard from them recently (lastSeenAt / heartbeat).
+ * Heartbeat ~45s; allow ~3 minutes of silence before Offline (no logout required).
+ */
+export const ONLINE_WINDOW_MS = 3 * 60 * 1000;
+
+export const normalizeRmRole = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
+
+export const roleGroupKey = (roleName = "") => {
+  const role = normalizeRmRole(roleName);
+  if (role === "business_development_manager" || role === "business_development_executive") {
+    return "bdm";
+  }
+  if (role === "sales_manager") return "sales_manager";
+  if (
+    role === "sales_executive" ||
+    role === "sales_executives" ||
+    role === "sales_agent"
+  ) {
+    return "sales_executive";
+  }
+  return "other";
+};
+
+export const ROLE_GROUP_META = {
+  all: { label: "All team", accent: "emerald" },
+  sales_executive: { label: "Sales Executives", accent: "teal" },
+  bdm: { label: "BDMs", accent: "blue" },
+  sales_manager: { label: "Sales Managers", accent: "amber" },
+  other: { label: "Other roles", accent: "violet" },
+};
+
+const safeDate = (value) => {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+/** True if lastSeenAt is within ONLINE_WINDOW_MS ("we heard from them recently"). */
+export const isRecentlyHeard = (lastSeenAt, nowMs = Date.now()) => {
+  const seen = safeDate(lastSeenAt);
+  if (!seen) return false;
+  return nowMs - seen.getTime() < ONLINE_WINDOW_MS;
+};
+
+export const enrichTeamMember = (user = {}, now = Date.now()) => {
+  // Prefer lastSeenAt (heartbeat / API activity). Fallback: lastLoginAt only.
+  // Never use updatedAt — profile edits must not look like presence.
+  const lastSeenAt = safeDate(
+    user.lastSeenAt || user.last_seen_at || user.lastLoginAt || user.last_login_at,
+  );
+  const isAccountActive = user.isActive !== false;
+  const isOnline = Boolean(isAccountActive && isRecentlyHeard(lastSeenAt, now));
+  const role = normalizeRmRole(user.roleName);
+  const group = roleGroupKey(role);
+  return {
+    ...user,
+    id: String(user._id || user.id || ""),
+    role,
+    group,
+    groupLabel: ROLE_GROUP_META[group]?.label || "Other",
+    lastLoginAt: safeDate(user.lastLoginAt || user.last_login_at),
+    lastSeenAt,
+    isAccountActive,
+    isOnline,
+    presence: !isAccountActive ? "inactive" : isOnline ? "online" : "offline",
+    city: user.city || "",
+    state: user.state || "",
+  };
+};
+/** Next working assignee: prefer online same-group, else any online, else first active. */
+export const pickNextWorkingAssignee = (members = [], excludeId = "") => {
+  const pool = members.filter(
+    (m) => m.id && m.id !== String(excludeId) && m.isAccountActive !== false,
+  );
+  const online = pool.filter((m) => m.isOnline);
+  if (online.length) return online[0];
+  const hour = new Date().getHours();
+  const isMidnightWindow = hour >= 22 || hour < 7;
+  if (isMidnightWindow) {
+    // Night / midnight: prefer sales executives for next morning handoff
+    const se = pool.find((m) => m.group === "sales_executive") || pool[0];
+    return se || null;
+  }
+  return pool[0] || null;
+};
+
 export const RM_DATE_PRESETS = [
   { key: "all", label: "All time" },
   { key: "today", label: "Today" },
@@ -126,10 +217,16 @@ export function mapRegionalManagerData({
   const inquiries = totalInquiries || newLeads;
 
   const users = unpackList(usersPayload);
-  const teamMembers = users.filter((u) =>
-    RM_TEAM_ROLES.has(String(u.roleName || "").toLowerCase()),
-  );
-  const activeTeam = teamMembers.filter((u) => u.isActive !== false).length;
+  const now = Date.now();
+  const teamMembersRaw = users
+    .filter((u) => RM_TEAM_ROLES.has(String(u.roleName || "").toLowerCase()))
+    .map((u) => enrichTeamMember(u, now));
+  const teamMembers = teamMembersRaw;
+  const activeTeam = teamMembers.filter((u) => u.isAccountActive).length;
+  const teamOnline = teamMembers.filter((u) => u.isOnline).length;
+  const teamOffline = teamMembers.filter(
+    (u) => u.isAccountActive && !u.isOnline,
+  ).length;
 
   const cityRows = mergeGeoRows(
     projectsAnalytics?.cityWise,
@@ -259,6 +356,8 @@ export function mapRegionalManagerData({
     liveRate,
     teamCount: teamMembers.length,
     activeTeam,
+    teamOnline,
+    teamOffline,
     regionLabel,
     periodLabel,
   };
@@ -281,6 +380,7 @@ export function mapRegionalManagerData({
     statusRows,
     inventoryRows,
     teamMembers: teamMembers.slice(0, 12),
+    teamFloor: teamMembers,
     roleBreakdown,
     allCities,
   };

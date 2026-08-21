@@ -18,6 +18,7 @@ export const MobileCardView = ({
   hasFilters,
   onClearFilters,
   onOpenUser,
+  actorRoleName = "",
   isSuperAdmin = false,
   currentUserId = "",
   statusBusy = false,
@@ -86,6 +87,7 @@ export const MobileCardView = ({
                   <RowActionsMenu
                     user={u}
                     onOpenUser={onOpenUser}
+                    actorRoleName={actorRoleName}
                     isSuperAdmin={isSuperAdmin}
                     currentUserId={currentUserId}
                     statusBusy={statusBusy}

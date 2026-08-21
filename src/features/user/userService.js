@@ -146,6 +146,11 @@ export const getUserDetails = () => {
   return apiClient.get(`${SERVICES.USER}/auth/me`);
 };
 
+/** Heartbeat: "we heard from them" while admin tab is open. */
+export const pingPresence = () => {
+  return apiClient.post(`${SERVICES.USER}/auth/presence/ping`);
+};
+
 //////////////////////////////////////////////////////////////////////////////////////
 
 //TransferCredentials

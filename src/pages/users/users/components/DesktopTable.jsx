@@ -98,6 +98,7 @@ export const DesktopTable = ({
   onRetry,
   onClearFilters,
   onOpenUser,
+  actorRoleName = "",
   isSuperAdmin = false,
   currentUserId = "",
   statusBusy = false,
@@ -274,6 +275,7 @@ export const DesktopTable = ({
                     <RowActionsMenu
                       user={u}
                       onOpenUser={onOpenUser}
+                      actorRoleName={actorRoleName}
                       isSuperAdmin={isSuperAdmin}
                       currentUserId={currentUserId}
                       statusBusy={statusBusy}

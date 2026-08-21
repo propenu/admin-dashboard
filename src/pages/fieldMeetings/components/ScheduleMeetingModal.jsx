@@ -24,6 +24,7 @@ import {
 } from "../../../features/fieldMeetings/fieldMeetingService";
 import { getFeaturedProjectsByType } from "../../../features/property/propertyService";
 import { INDIAN_STATES, getCitiesByState } from "../../../utils/countryStateCity";
+import PersonTitleSelect from "./PersonTitleSelect";
 import {
   defaultMeetingPlace,
   defaultWizardState,
@@ -33,7 +34,6 @@ import {
   meetingPlaceLabel,
   meetingTypeLabel,
   initials,
-  PERSON_TITLES,
   toIsoDateInput,
   VISIT_LOGGING_MODES,
 } from "../fieldMeetingUtils";
@@ -793,19 +793,12 @@ export default function ScheduleMeetingModal({
                           setCreateForm((f) => ({ ...f, name: e.target.value }))
                         }
                       />
-                      <select
-                        className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"
+                      <PersonTitleSelect
                         value={createForm.title}
-                        onChange={(e) =>
-                          setCreateForm((f) => ({ ...f, title: e.target.value }))
+                        onChange={(title) =>
+                          setCreateForm((f) => ({ ...f, title }))
                         }
-                      >
-                        {PERSON_TITLES.map((t) => (
-                          <option key={t.value} value={t.value}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       <input
                         className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"
                         placeholder="Phone (optional)"

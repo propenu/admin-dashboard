@@ -7,11 +7,13 @@ import RmKpiStrip from "./regionalManagerDashboard/components/RmKpiStrip";
 import RmInventoryPanel from "./regionalManagerDashboard/components/RmInventoryPanel";
 import RmCityPanel from "./regionalManagerDashboard/components/RmCityPanel";
 import RmTeamPanel from "./regionalManagerDashboard/components/RmTeamPanel";
+import RmTeamFloorDashboard from "./regionalManagerDashboard/components/RmTeamFloorDashboard";
 
 export default function RegionalManagerDashboard() {
   const navigate = useNavigate();
   const dashboard = useRegionalManagerDashboard();
   const [activeKpi, setActiveKpi] = useState(null);
+  const [viewMode, setViewMode] = useState("team");
 
   const go = (href) => {
     if (href) navigate(href);
@@ -31,7 +33,7 @@ export default function RegionalManagerDashboard() {
       `Inventory: ${s.totalListings} (${s.activeListings} active, ${s.pendingCount} pending, ${s.draftCount} draft)`,
       `Engagement: ${s.inquiries} inquiries · ${s.totalViews} views · ${s.conversions} conversions`,
       `Live rate: ${s.liveRate == null ? "N/A" : `${s.liveRate}%`}`,
-      `Team: ${s.teamCount} members (${s.activeTeam} active)`,
+      `Team: ${s.teamCount} members (${s.activeTeam} active · ${s.teamOnline || 0} online · ${s.teamOffline || 0} offline)`,
       "",
       "Top cities:",
       ...dashboard.cityRows
@@ -68,10 +70,7 @@ export default function RegionalManagerDashboard() {
   return (
     <div className="mx-auto max-w-[1680px] space-y-3 pb-6 text-slate-900">
       <RmHeader
-        userName={dashboard.currentUserName}
         regionLabel={dashboard.regionLabel}
-        rangeLabel={dashboard.rangeLabel}
-        refreshedAt={dashboard.refreshedAt}
         preset={dashboard.preset}
         onPresetChange={dashboard.setPreset}
         customFrom={dashboard.customFrom}
@@ -83,46 +82,58 @@ export default function RegionalManagerDashboard() {
         isFetching={dashboard.isFetching}
         onExport={handleExport}
         summary={dashboard.summary}
-        selectedCity={dashboard.selectedCity}
-        onCityChange={dashboard.setSelectedCity}
-        selectedStatus={dashboard.selectedStatus}
-        onStatusChange={dashboard.setSelectedStatus}
-        allCities={dashboard.allCities}
-        onClearFilters={dashboard.clearFilters}
         onOpenApprovals={() => go("/properties?status=pending")}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
-      <RmKpiStrip
-        kpis={dashboard.kpis}
-        activeKey={activeKpi}
-        onMetricClick={(kpi) => {
-          setActiveKpi((current) => (current === kpi.key ? null : kpi.key));
-          go(kpi.href);
-        }}
-      />
+      {viewMode === "team" ? (
+        <RmTeamFloorDashboard
+          teamFloor={dashboard.teamFloor || dashboard.teamMembers || []}
+          summary={dashboard.summary}
+          regionLabel={dashboard.regionLabel}
+          onOpenMemberWork={(member) =>
+            go(`/dashboard/team-management/member/${member.id}`)
+          }
+        />
+      ) : (
+        <>
+          <RmKpiStrip
+            kpis={dashboard.kpis}
+            activeKey={activeKpi}
+            onMetricClick={(kpi) => {
+              setActiveKpi((current) => (current === kpi.key ? null : kpi.key));
+              go(kpi.href);
+            }}
+          />
 
-      <div className="grid gap-3 lg:grid-cols-12 lg:items-stretch">
-        <div className="min-h-[340px] lg:col-span-5">
-          <RmInventoryPanel
-            summary={dashboard.summary}
-            statusRows={dashboard.statusRows}
-            inventoryRows={dashboard.inventoryRows}
-            onOpenProperties={() => go("/properties")}
-            onOpenProjects={() => go("/projects")}
-          />
-        </div>
-        <div className="min-h-[340px] lg:col-span-4">
-          <RmCityPanel cityRows={dashboard.cityRows} regionLabel={dashboard.regionLabel} />
-        </div>
-        <div className="min-h-[340px] lg:col-span-3">
-          <RmTeamPanel
-            teamMembers={dashboard.teamMembers}
-            roleBreakdown={dashboard.roleBreakdown}
-            summary={dashboard.summary}
-            onOpenTeam={() => go("/sales-managers")}
-          />
-        </div>
-      </div>
+          <div className="grid gap-3 lg:grid-cols-12 lg:items-stretch">
+            <div className="min-h-[340px] lg:col-span-5">
+              <RmInventoryPanel
+                summary={dashboard.summary}
+                statusRows={dashboard.statusRows}
+                inventoryRows={dashboard.inventoryRows}
+                onOpenProperties={() => go("/properties")}
+                onOpenProjects={() => go("/projects")}
+              />
+            </div>
+            <div className="min-h-[340px] lg:col-span-4">
+              <RmCityPanel
+                cityRows={dashboard.cityRows}
+                regionLabel={dashboard.regionLabel}
+              />
+            </div>
+            <div className="min-h-[340px] lg:col-span-3">
+              <RmTeamPanel
+                teamMembers={dashboard.teamMembers}
+                roleBreakdown={dashboard.roleBreakdown}
+                summary={dashboard.summary}
+                onOpenTeam={() => setViewMode("team")}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

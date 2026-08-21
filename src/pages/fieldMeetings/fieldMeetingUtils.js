@@ -281,16 +281,87 @@ export const toIsoDateInput = (d = new Date()) => {
 };
 
 export const PERSON_TITLES = [
-  { value: "CEO", label: "CEO" },
-  { value: "Director", label: "Director" },
-  { value: "Head", label: "Head" },
-  { value: "Manager", label: "Manager" },
-  { value: "Owner", label: "Owner" },
-  { value: "Partner", label: "Partner" },
-  { value: "Agent", label: "Agent" },
-  { value: "Builder", label: "Builder" },
-  { value: "Other", label: "Other" },
+  {
+    value: "CEO",
+    label: "CEO",
+    tone: "bg-violet-100 text-violet-800 border-violet-200",
+    active: "bg-violet-600 text-white border-violet-600",
+    dot: "bg-violet-500",
+  },
+  {
+    value: "Director",
+    label: "Director",
+    tone: "bg-indigo-100 text-indigo-800 border-indigo-200",
+    active: "bg-indigo-600 text-white border-indigo-600",
+    dot: "bg-indigo-500",
+  },
+  {
+    value: "Head",
+    label: "Head",
+    tone: "bg-sky-100 text-sky-800 border-sky-200",
+    active: "bg-sky-600 text-white border-sky-600",
+    dot: "bg-sky-500",
+  },
+  {
+    value: "Manager",
+    label: "Manager",
+    tone: "bg-blue-100 text-blue-800 border-blue-200",
+    active: "bg-blue-600 text-white border-blue-600",
+    dot: "bg-blue-500",
+  },
+  {
+    value: "Sales Manager",
+    label: "Sales Manager",
+    tone: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    active: "bg-emerald-600 text-white border-emerald-600",
+    dot: "bg-emerald-500",
+  },
+  {
+    value: "Sales",
+    label: "Sales",
+    tone: "bg-teal-100 text-teal-800 border-teal-200",
+    active: "bg-teal-600 text-white border-teal-600",
+    dot: "bg-teal-500",
+  },
+  {
+    value: "Owner",
+    label: "Owner",
+    tone: "bg-amber-100 text-amber-900 border-amber-200",
+    active: "bg-amber-500 text-white border-amber-500",
+    dot: "bg-amber-500",
+  },
+  {
+    value: "Partner",
+    label: "Partner",
+    tone: "bg-orange-100 text-orange-800 border-orange-200",
+    active: "bg-orange-500 text-white border-orange-500",
+    dot: "bg-orange-500",
+  },
+  {
+    value: "Agent",
+    label: "Agent",
+    tone: "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200",
+    active: "bg-fuchsia-600 text-white border-fuchsia-600",
+    dot: "bg-fuchsia-500",
+  },
+  {
+    value: "Builder",
+    label: "Builder",
+    tone: "bg-lime-100 text-lime-800 border-lime-200",
+    active: "bg-lime-600 text-white border-lime-600",
+    dot: "bg-lime-500",
+  },
+  {
+    value: "Other",
+    label: "Other",
+    tone: "bg-slate-100 text-slate-700 border-slate-200",
+    active: "bg-slate-600 text-white border-slate-600",
+    dot: "bg-slate-500",
+  },
 ];
+
+export const getPersonTitleMeta = (value) =>
+  PERSON_TITLES.find((t) => t.value === value) || PERSON_TITLES[PERSON_TITLES.length - 1];
 
 export const defaultWizardState = () => ({
   step: 1,
