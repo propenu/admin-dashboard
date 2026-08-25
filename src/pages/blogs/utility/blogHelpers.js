@@ -94,8 +94,10 @@ export const resolveBlogImage = (image) => {
 };
 
 export const truncateText = (text, maxLength = 120) => {
-  if (!text || text.length <= maxLength) return text;
-  return text.slice(0, maxLength).trim() + "…";
+  if (text == null) return "";
+  const str = typeof text === "string" ? text : String(text);
+  if (str.length <= maxLength) return str;
+  return str.slice(0, maxLength).trim() + "…";
 };
 
 export const getBlogStatusConfig = (published) => {

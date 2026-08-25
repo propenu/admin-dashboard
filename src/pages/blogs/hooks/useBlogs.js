@@ -34,8 +34,8 @@ const getBlogErrorMessage = (err, fallback) => {
 export const useGetBlogs = (filters = {}) => {
   return useQuery({
     queryKey: blogKeys.list(filters),
-    queryFn: () => getBlogs(filters),
-    select: (res) => res?.data,
+    queryFn: () => getBlogs({ limit: 100, ...filters }),
+    select: (res) => res?.data ?? res,
     staleTime: 1000 * 60 * 5, // 5 min
   });
 };

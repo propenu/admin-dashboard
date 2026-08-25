@@ -42,17 +42,36 @@ const Blogs = () => {
 
   // ─── Queries & Mutations ────────────────────────────────────────────────────
   const { data: blogsData, isLoading, isError, refetch, isFetching } = useGetBlogs();
-  //const blogs = blogsData?.blogs || blogsData?.data || blogsData || [];
 
-  const blogs = Array.isArray(blogsData?.items)
-    ? blogsData.items
-    : Array.isArray(blogsData?.blogs)
-      ? blogsData.blogs
-      : Array.isArray(blogsData?.data)
-        ? blogsData.data
-        : Array.isArray(blogsData?.data?.blogs)
-          ? blogsData.data.blogs
-          : [];
+  const blogs = useMemo(() => {
+    const fromItems = Array.isArray(blogsData?.items)
+      ? blogsData.items
+      : Array.isArray(blogsData?.blogs)
+        ? blogsData.blogs
+        : Array.isArray(blogsData?.data)
+          ? blogsData.data
+          : Array.isArray(blogsData)
+            ? blogsData
+            : [];
+
+    // Safety: if main page was truncated, sidebar previews may still hold the rest
+    const extras = [
+      ...(Array.isArray(blogsData?.recentArticles) ? blogsData.recentArticles : []),
+      ...(Array.isArray(blogsData?.popularArticles) ? blogsData.popularArticles : []),
+    ];
+
+    const byId = new Map();
+    for (const blog of [...fromItems, ...extras]) {
+      if (!blog || typeof blog !== "object") continue;
+      const id = String(blog._id || blog.id || blog.slug || "");
+      if (!id) continue;
+      const prev = byId.get(id);
+      if (!prev || Object.keys(blog).length >= Object.keys(prev).length) {
+        byId.set(id, blog);
+      }
+    }
+    return byId.size ? Array.from(byId.values()) : fromItems.filter(Boolean);
+  }, [blogsData]);
 
   const createMutation = useCreateBlog();
   const updateMutation = useUpdateBlog();
@@ -143,7 +162,7 @@ const handleLike = (id) => {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats — always derived from the same list rendered below */}
       <BlogStatsBar blogs={blogs} />
 
       {/* Filters Row */}
@@ -226,16 +245,16 @@ const handleLike = (id) => {
               : "flex flex-col gap-3"
           }
         >
-          {filtered.map((blog) => (
+          {filtered.map((blog, index) => (
             <BlogCard
-              key={blog?._id || blog?.id}
+              key={String(blog?._id || blog?.id || blog?.slug || `blog-${index}`)}
               blog={blog}
               onView={setViewBlog}
               onEdit={setEditData}
               onDelete={setDeleteBlog}
               onLike={handleLike}
               onShare={setShareBlogData}
-              likeLoading={likingId === blog._id}
+              likeLoading={likingId === (blog?._id || blog?.id)}
             />
           ))}
         </div>

@@ -287,8 +287,98 @@ export const updateListingFollowUpWorkStatus = (entity, id, followUpWorkStatus) 
 
 //src/features/property/propertyService.js
 {/* Blogs */ }
-export const getBlogs = () => {
-  return apiClient.get(`${SERVICES.PROPERTY}/blogs`);
+
+const buildBlogQuery = (filters = {}) => {
+  const query = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    query.set(key, String(value));
+  });
+  return query.toString();
+};
+
+const unwrapBlogListPayload = (payload) => {
+  if (!payload || typeof payload !== "object") {
+    return { items: [], total: 0, page: 1, limit: 100, totalPages: 1 };
+  }
+  // Support both `{ items, total }` and `{ data: { items, total } }`
+  const body =
+    payload.items || payload.blogs || Array.isArray(payload.data)
+      ? payload
+      : payload.data && typeof payload.data === "object"
+        ? payload.data
+        : payload;
+
+  const items = Array.isArray(body.items)
+    ? body.items
+    : Array.isArray(body.blogs)
+      ? body.blogs
+      : Array.isArray(body.data)
+        ? body.data
+        : [];
+
+  return {
+    ...body,
+    items,
+    total: Number(body.total) || items.length,
+    page: Number(body.page) || 1,
+    limit: Number(body.limit) || items.length || 100,
+    totalPages: Number(body.totalPages) || 1,
+  };
+};
+
+/** Admin list: load every blog (paginate until complete). */
+export const getBlogs = async (filters = {}) => {
+  const pageSize = Math.min(Math.max(Number(filters.limit) || 100, 1), 100);
+  let page = 1;
+  let allItems = [];
+  let last = null;
+
+  while (page <= 50) {
+    const qs = buildBlogQuery({
+      ...filters,
+      page,
+      limit: pageSize,
+    });
+    const res = await apiClient.get(
+      `${SERVICES.PROPERTY}/blogs${qs ? `?${qs}` : ""}`,
+    );
+    const parsed = unwrapBlogListPayload(res?.data);
+    last = parsed;
+    allItems = allItems.concat(parsed.items || []);
+
+    const total = parsed.total || allItems.length;
+    const totalPages = Math.max(
+      1,
+      parsed.totalPages || Math.ceil(total / pageSize),
+    );
+
+    if (allItems.length >= total || page >= totalPages || !parsed.items?.length) {
+      break;
+    }
+    page += 1;
+  }
+
+  // Dedupe by id (in case pages overlap)
+  const byId = new Map();
+  for (const blog of allItems) {
+    if (!blog || typeof blog !== "object") continue;
+    const id = String(blog._id || blog.id || blog.slug || "");
+    if (!id) continue;
+    if (!byId.has(id)) byId.set(id, blog);
+  }
+  const items = byId.size ? Array.from(byId.values()) : allItems;
+
+  return {
+    data: {
+      ...(last || {}),
+      items,
+      total: last?.total ?? items.length,
+      page: 1,
+      limit: items.length,
+      totalPages: 1,
+    },
+  };
 };
 
 export const getBlogById = (id) => {
