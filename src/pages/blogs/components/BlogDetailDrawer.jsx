@@ -257,6 +257,11 @@ const BlogDetailDrawer = ({ blog, isOpen, onClose, onShare }) => {
         .blog-rich-text h3 { font-size: 1rem; }
         .blog-rich-text a { color: #059669; text-decoration: underline; }
         .blog-rich-text img { max-width: 100%; border-radius: 0.75rem; margin-top: 0.75rem; }
+        .blog-rich-text table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+        .blog-rich-text th, .blog-rich-text td { border: 1px solid #d1d5db; padding: 0.4rem 0.55rem; vertical-align: top; }
+        .blog-rich-text th { background: #e5e7eb; font-weight: 700; text-align: center; color: #111827; }
+        .blog-rich-text td { background: #f9fafb; }
+        .blog-rich-text strong { font-weight: 700; color: #111827; }
       `}</style>
     </div>
   );
@@ -335,7 +340,7 @@ const ContentPanel = ({ title, icon, children }) => (
 
 const RichTextBlock = ({ value, compact = false }) => {
   if (!value) return null;
-  const className = `blog-rich-text text-sm text-gray-600 leading-7 break-words ${compact ? "mt-2" : "rounded-xl border border-gray-100 bg-white p-4"}`;
+  const className = `blog-rich-text text-sm text-gray-600 leading-7 break-words [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-gray-300 [&_td]:bg-gray-50 [&_td]:px-2 [&_td]:py-1.5 [&_th]:border [&_th]:border-gray-400 [&_th]:bg-gray-200 [&_th]:px-2 [&_th]:py-1.5 [&_th]:font-bold [&_th]:text-center [&_strong]:font-bold [&_strong]:text-gray-900 ${compact ? "mt-2" : "rounded-xl border border-gray-100 bg-white p-4"}`;
 
   if (isHtml(value)) {
     return <div className={className} dangerouslySetInnerHTML={{ __html: value }} />;

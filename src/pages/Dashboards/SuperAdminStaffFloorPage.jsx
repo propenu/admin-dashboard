@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, RefreshCw, Wifi } from "lucide-react";
+import { RefreshCw, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import RmTeamFloorDashboard from "./regionalManagerDashboard/components/RmTeamFloorDashboard";
 import { SA_GROUP_TABS } from "./regionalManagerDashboard/regionalManagerDashboardData";
@@ -32,21 +32,10 @@ export default function SuperAdminStaffFloorPage() {
     <div className="mx-auto max-w-[1680px] space-y-3 pb-6 text-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="mb-1 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-emerald-700"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to dashboard
-          </button>
           <h1 className="flex items-center gap-2 text-lg font-black text-slate-950 sm:text-xl">
             <Wifi className="h-5 w-5 text-emerald-600" />
             Staff Floor
           </h1>
-          <p className="mt-0.5 text-[11px] text-slate-500">
-            All roles · who works under who · online / offline like BDH Team Floor
-          </p>
         </div>
         <button
           type="button"
