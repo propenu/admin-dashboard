@@ -44,6 +44,17 @@ export const normalizeRmRole = (value = "") =>
 
 export const roleGroupKey = (roleName = "") => {
   const role = normalizeRmRole(roleName);
+  if (
+    role === "super_admin" ||
+    role === "ceo" ||
+    role === "founder" ||
+    role === "admin" ||
+    role === "operations_head" ||
+    role === "operation_head" ||
+    role === "business_development_head"
+  ) {
+    return "leadership";
+  }
   if (role === "regional_manager" || role === "regional_managers") {
     return "regional_manager";
   }
@@ -58,17 +69,124 @@ export const roleGroupKey = (roleName = "") => {
   ) {
     return "sales_executive";
   }
+  if (
+    role === "customer_support_head" ||
+    role === "customer_support_team_lead" ||
+    role === "customer_support_team_leads" ||
+    role === "team_lead" ||
+    role === "team_leads"
+  ) {
+    return "support_lead";
+  }
+  if (
+    role === "customer_care" ||
+    role === "customer_care_executive" ||
+    role === "customer_care_executives"
+  ) {
+    return "cce";
+  }
+  if (role === "relationship_manager" || role === "relationship_managers") {
+    return "relationship_manager";
+  }
+  if (
+    role === "marketing_head" ||
+    role === "digital_marketing" ||
+    role === "social_media" ||
+    role === "content_team" ||
+    role === "creative_team" ||
+    role === "performance_marketing"
+  ) {
+    return "marketing";
+  }
+  if (
+    role === "accounts" ||
+    role === "accounts_finance" ||
+    role === "legal_compliance" ||
+    role === "hr_administration" ||
+    role === "hr" ||
+    role === "legal"
+  ) {
+    return "ops_functions";
+  }
+  if (role === "technical_support_head" || role === "technical_support_team") {
+    return "tech";
+  }
   return "other";
 };
 
 export const ROLE_GROUP_META = {
   all: { label: "All team", accent: "emerald" },
+  leadership: { label: "Leadership", accent: "slate" },
   regional_manager: { label: "Regional Managers", accent: "indigo" },
   sales_executive: { label: "Sales Executives", accent: "teal" },
   bdm: { label: "BDMs", accent: "blue" },
   sales_manager: { label: "Sales Managers", accent: "amber" },
+  support_lead: { label: "Support Leads", accent: "cyan" },
+  cce: { label: "Care Executives", accent: "sky" },
+  relationship_manager: { label: "Rel. Managers", accent: "violet" },
+  marketing: { label: "Marketing", accent: "pink" },
+  ops_functions: { label: "Accounts / HR / Legal", accent: "orange" },
+  tech: { label: "Tech Support", accent: "zinc" },
   other: { label: "Other roles", accent: "violet" },
 };
+
+/** Super Admin Staff Floor — every Propenu staff role (not marketplace end users). */
+export const SA_STAFF_ROLES = new Set([
+  "super_admin",
+  "ceo",
+  "founder",
+  "admin",
+  "operations_head",
+  "operation_head",
+  "business_development_head",
+  "regional_manager",
+  "regional_managers",
+  "business_development_manager",
+  "business_development_executive",
+  "sales_manager",
+  "sales_agent",
+  "sales_executive",
+  "sales_executives",
+  "customer_support_head",
+  "customer_support_team_lead",
+  "customer_support_team_leads",
+  "team_lead",
+  "team_leads",
+  "customer_care",
+  "customer_care_executive",
+  "customer_care_executives",
+  "relationship_manager",
+  "relationship_managers",
+  "marketing_head",
+  "digital_marketing",
+  "social_media",
+  "content_team",
+  "creative_team",
+  "performance_marketing",
+  "accounts",
+  "accounts_finance",
+  "legal_compliance",
+  "hr_administration",
+  "hr",
+  "legal",
+  "technical_support_head",
+  "technical_support_team",
+]);
+
+export const SA_GROUP_TABS = [
+  { key: "all", label: "All" },
+  { key: "leadership", label: "Leadership" },
+  { key: "regional_manager", label: "Regional Managers" },
+  { key: "bdm", label: "BDMs" },
+  { key: "sales_manager", label: "Sales Managers" },
+  { key: "sales_executive", label: "Sales Executives" },
+  { key: "support_lead", label: "Support Leads" },
+  { key: "cce", label: "Care Executives" },
+  { key: "relationship_manager", label: "Rel. Managers" },
+  { key: "marketing", label: "Marketing" },
+  { key: "ops_functions", label: "Accounts / HR / Legal" },
+  { key: "tech", label: "Tech Support" },
+];
 
 /** Roles BDH oversees on Team Floor (RMs + their sales pod). */
 export const BDH_TEAM_ROLES = new Set([

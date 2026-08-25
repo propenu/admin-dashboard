@@ -149,3 +149,76 @@ export function buildRegionalManagerPods(members = []) {
 
   return { pods, unassigned };
 }
+
+/**
+ * Nest staff under their direct manager (reportsTo / managerId).
+ * Used by Super Admin Staff Floor — who works under who across all roles.
+ * Returns [{ manager, staff }] plus unassigned (no manager link in this list).
+ */
+export function buildManagerReportingPods(members = []) {
+  const list = Array.isArray(members) ? members : [];
+  const byId = new Map();
+  list.forEach((m) => {
+    const id = idOf(m?.id || m?._id);
+    if (id) byId.set(id, m);
+  });
+
+  const directReports = new Map();
+  list.forEach((m) => {
+    const id = idOf(m?.id || m?._id);
+    const mid = managerIdOf(m);
+    if (!id || !mid || mid === id || !byId.has(mid)) return;
+    const arr = directReports.get(mid) || [];
+    arr.push(m);
+    directReports.set(mid, arr);
+  });
+
+  const groupOrder = [
+    "leadership",
+    "regional_manager",
+    "support_lead",
+    "marketing",
+    "bdm",
+    "sales_manager",
+    "cce",
+    "relationship_manager",
+    "ops_functions",
+    "tech",
+    "sales_executive",
+    "other",
+  ];
+
+  const pods = [...directReports.keys()]
+    .map((mid) => ({
+      manager: byId.get(mid),
+      staff: [...(directReports.get(mid) || [])].sort((a, b) =>
+        String(a?.name || "").localeCompare(String(b?.name || "")),
+      ),
+    }))
+    .filter((pod) => pod.manager)
+    .sort((a, b) => {
+      const ia = groupOrder.indexOf(String(a.manager.group || "other"));
+      const ib = groupOrder.indexOf(String(b.manager.group || "other"));
+      const ra = ia === -1 ? 99 : ia;
+      const rb = ib === -1 ? 99 : ib;
+      if (ra !== rb) return ra - rb;
+      return String(a.manager.name || "").localeCompare(String(b.manager.name || ""));
+    });
+
+  const claimedAsStaff = new Set();
+  const managerIds = new Set(pods.map((p) => idOf(p.manager.id || p.manager._id)));
+  pods.forEach((pod) => {
+    pod.staff.forEach((s) => claimedAsStaff.add(idOf(s.id || s._id)));
+  });
+
+  const unassigned = list.filter((m) => {
+    const id = idOf(m?.id || m?._id);
+    if (!id) return false;
+    if (managerIds.has(id)) return false;
+    if (claimedAsStaff.has(id)) return false;
+    return true;
+  });
+
+  return { pods, unassigned };
+}
+

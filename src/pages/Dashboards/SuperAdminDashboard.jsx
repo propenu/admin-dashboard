@@ -182,6 +182,7 @@ export default function SuperAdminDashboard() {
         isFetching={dashboard.isFetching}
         onExport={handleExport}
         summary={dashboard.summary}
+        onOpenStaffFloor={() => go("/dashboard/staff-floor")}
         onOpenClientProgress={() => {
           const href =
             dashboard.followUpTracks?.[0]?.items?.find(

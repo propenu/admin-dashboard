@@ -24,6 +24,10 @@ const AccountsDashboardPage = lazy(() =>
 const SuperAdminDashboardPage = lazy(() =>
   import("./pages/Dashboards/SuperAdminDashboard.jsx"),
 );
+
+const SuperAdminStaffFloorPage = lazy(() =>
+  import("./pages/Dashboards/SuperAdminStaffFloorPage.jsx"),
+);
 const CeoDashboardPage = lazy(() =>
   import("./pages/Dashboards/CeoDashboard.jsx"),
 );
@@ -315,6 +319,16 @@ function App() {
                   element={
                     <PermissionRoute permission="dashboard:view">
                       <SuperAdminDashboardPage />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/staff-floor"
+                  element={
+                    <PermissionRoute
+                      anyPermissions={["dashboard:view", "team:view", "user:view"]}
+                    >
+                      <SuperAdminStaffFloorPage />
                     </PermissionRoute>
                   }
                 />

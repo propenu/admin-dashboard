@@ -6,7 +6,6 @@ import {
   List,
   Loader2,
   Radio,
-  RefreshCw,
   Search,
   Users,
   Wifi,
@@ -25,7 +24,7 @@ import {
   pickNextWorkingAssignee,
   titleCase,
 } from "../regionalManagerDashboardData";
-import { buildRegionalManagerPods } from "../../../../utils/reportingTree";
+import { buildRegionalManagerPods, buildManagerReportingPods } from "../../../../utils/reportingTree";
 
 /** Recompute presence from lastLoginAt every 20s so Online/Offline cards stay live. */
 function usePresenceClock(ms = 20_000) {
@@ -51,10 +50,17 @@ const presenceTone = {
 };
 
 const cardAccent = {
+  leadership: "from-slate-600 to-slate-800",
   regional_manager: "from-indigo-500 to-blue-600",
   sales_executive: "from-teal-500 to-emerald-500",
   bdm: "from-sky-500 to-blue-600",
   sales_manager: "from-amber-400 to-orange-500",
+  support_lead: "from-cyan-500 to-teal-600",
+  cce: "from-sky-400 to-blue-500",
+  relationship_manager: "from-violet-500 to-purple-600",
+  marketing: "from-pink-500 to-rose-500",
+  ops_functions: "from-orange-400 to-amber-500",
+  tech: "from-zinc-500 to-neutral-700",
   other: "from-violet-500 to-fuchsia-500",
 };
 
@@ -251,7 +257,7 @@ function MemberTable({ members, selectedId, onSelect, pods = null }) {
                     {!pod.staff.length && !pod.hideManagerRow ? (
                       <tr>
                         <td colSpan={6} className="px-7 py-2 text-[10px] text-slate-400">
-                          No Sales Executives / team assigned under this RM yet
+                          No staff reporting under this person yet
                         </td>
                       </tr>
                     ) : null}
@@ -562,12 +568,16 @@ export default function RmTeamFloorDashboard({
   onOpenMemberWork,
   groupTabs = GROUP_TABS,
   nestUnderRegionalManagers = false,
+  /** Super Admin: nest everyone by reportsTo / managerId (who works under who). */
+  nestByReportsTo = false,
 }) {
   const [group, setGroup] = useState("all");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [viewFormat, setViewFormat] = useState("table");
   const now = usePresenceClock(20_000);
+
+  const nestHierarchy = nestUnderRegionalManagers || nestByReportsTo;
 
   /** Live presence from lastLoginAt — cards + badges update without full page reload */
   const liveTeam = useMemo(
@@ -580,7 +590,6 @@ export default function RmTeamFloorDashboard({
       total: liveTeam.length,
       online: liveTeam.filter((m) => m.isOnline).length,
       offline: liveTeam.filter((m) => m.isAccountActive && !m.isOnline).length,
-      active: liveTeam.filter((m) => m.isAccountActive).length,
     }),
     [liveTeam],
   );
@@ -588,14 +597,14 @@ export default function RmTeamFloorDashboard({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return liveTeam.filter((m) => {
-      if (!nestUnderRegionalManagers && group !== "all" && m.group !== group) {
+      if (!nestHierarchy && group !== "all" && m.group !== group) {
         return false;
       }
-      // Flat role filters still apply when not nesting, or when picking BDM/SE/SM alone
+      // Flat role filters still apply when not nesting, or when picking a single role band
       if (
-        nestUnderRegionalManagers &&
+        nestHierarchy &&
         group !== "all" &&
-        group !== "regional_manager" &&
+        !(nestUnderRegionalManagers && group === "regional_manager") &&
         m.group !== group
       ) {
         return false;
@@ -605,13 +614,11 @@ export default function RmTeamFloorDashboard({
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [liveTeam, group, query, nestUnderRegionalManagers]);
+  }, [liveTeam, group, query, nestHierarchy, nestUnderRegionalManagers]);
 
   const hierarchyPods = useMemo(() => {
-    if (!nestUnderRegionalManagers) return null;
-    if (group !== "all" && group !== "regional_manager") return null;
+    if (!nestHierarchy) return null;
 
-    const { pods, unassigned } = buildRegionalManagerPods(liveTeam);
     const q = query.trim().toLowerCase();
     const matchQ = (m) => {
       if (!q) return true;
@@ -620,12 +627,35 @@ export default function RmTeamFloorDashboard({
         .some((v) => String(v).toLowerCase().includes(q));
     };
 
+    // Role-specific tabs → flat list (no pods)
+    if (group !== "all") {
+      if (nestUnderRegionalManagers && group === "regional_manager") {
+        // keep RM nesting below
+      } else {
+        return null;
+      }
+    }
+
+    const built = nestByReportsTo
+      ? buildManagerReportingPods(liveTeam)
+      : buildRegionalManagerPods(liveTeam);
+
+    if (
+      nestUnderRegionalManagers &&
+      !nestByReportsTo &&
+      group !== "all" &&
+      group !== "regional_manager"
+    ) {
+      return null;
+    }
+
+    const { pods, unassigned } = built;
+
     const visible = pods
       .map((pod) => {
         const staff = pod.staff.filter(matchQ);
         const managerVisible = matchQ(pod.manager) || staff.length > 0;
         if (!managerVisible) return null;
-        // When searching, keep RM if any staff matches
         return {
           manager: pod.manager,
           staff,
@@ -633,32 +663,40 @@ export default function RmTeamFloorDashboard({
       })
       .filter(Boolean);
 
-    // Unassigned non-RM people only on "All"
-    if (group === "all") {
-      const extras = unassigned.filter(
-        (m) => m.group !== "regional_manager" && matchQ(m),
-      );
-      if (extras.length) {
+    if (group === "all" || (nestByReportsTo && group === "all")) {
+      const extras = unassigned.filter((m) => matchQ(m));
+      // For RM-only mode, skip RMs in unassigned extras (existing behavior)
+      const extrasFiltered = nestByReportsTo
+        ? extras
+        : extras.filter((m) => m.group !== "regional_manager");
+      if (extrasFiltered.length) {
         return [
           ...visible,
           {
             manager: {
               id: "__unassigned__",
-              name: "Other / unassigned",
+              name: nestByReportsTo ? "No manager linked" : "Other / unassigned",
               roleName: "—",
               presence: "offline",
               isOnline: false,
               isAccountActive: true,
               group: "other",
             },
-            staff: extras,
+            staff: extrasFiltered,
             hideManagerRow: true,
           },
         ];
       }
     }
     return visible;
-  }, [liveTeam, nestUnderRegionalManagers, group, query]);
+  }, [
+    liveTeam,
+    nestHierarchy,
+    nestUnderRegionalManagers,
+    nestByReportsTo,
+    group,
+    query,
+  ]);
 
   const selected = liveTeam.find((m) => m.id === selectedId) || null;
 
@@ -678,16 +716,10 @@ export default function RmTeamFloorDashboard({
   return (
     <section className="overflow-hidden rounded-[18px] border border-emerald-100 bg-gradient-to-br from-[#f1faf5] via-white to-sky-50 shadow-sm">
       <div className="border-b border-emerald-100/80 bg-white/70 px-4 py-3 backdrop-blur sm:px-5">
-        <div className="grid max-w-3xl grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid max-w-3xl grid-cols-2 gap-2 sm:grid-cols-3">
           <StatPill label="Total team" value={liveStats.total} tone="emerald" icon={Users} />
           <StatPill label="Online now" value={liveStats.online} tone="sky" icon={Wifi} />
           <StatPill label="Offline" value={liveStats.offline} tone="slate" icon={WifiOff} />
-          <StatPill
-            label="Account active"
-            value={liveStats.active}
-            tone="amber"
-            icon={RefreshCw}
-          />
         </div>
       </div>
 
