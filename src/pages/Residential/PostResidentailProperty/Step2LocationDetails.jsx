@@ -9,6 +9,21 @@ import { City, State } from "country-state-city";
 import { savePropertyData } from "../../../store/common/propertyThunks";
 import { useEffect, useState, useRef, useCallback, useId, useMemo } from "react";
 import { toast } from "sonner";
+import {
+  getCitySuggestions as getSharedCitySuggestions,
+  getSavedCityNamesForState,
+  getSavedLocalitySuggestions,
+  isKnownCityName,
+  unwrapLocationList,
+  mergeSavedLocationSources,
+  locationsFromFeaturedOptions,
+  titleCase as sharedTitleCase,
+  normalizeComparisonValue as sharedNormalize,
+  canAddCustomLocation,
+} from "../../../components/common/location/searchableLocationUtils";
+import { fetchSearchableLocationsService } from "../../../services/LocationsServices/LocationServices";
+import { fetchListingLocationOptions } from "../../../services/PostAPropertyService";
+import { fetchLoggedInUser } from "../../../services/UserServices/userServices";
 
 // ─────────────────────────────────────────────
 // Constants
@@ -146,23 +161,16 @@ function getStateSuggestions(query) {
     );
 }
 
-function getCitySuggestions(stateName, query) {
-  if (!stateName) return [];
-  const selectedState = State.getStatesOfCountry("IN").find(
-    (state) =>
-      normalizeComparisonValue(state.name) ===
-      normalizeComparisonValue(stateName),
-  );
-  if (!selectedState) return [];
-  return City.getCitiesOfState("IN", selectedState.isoCode)
-    .map((city) => ({
-      label: city.name,
-      state: selectedState.name,
-      stateCode: selectedState.isoCode,
-    }))
-    .filter((city) =>
-      query?.trim() ? matchesSearchPrefix(city.label, query) : true,
-    );
+function getCitySuggestions(stateName, query, savedCities = []) {
+  return getSharedCitySuggestions(stateName, query, {
+    includeOther: false,
+    savedCities,
+  }).map((city) => ({
+    label: city.label,
+    state: city.state || stateName,
+    stateCode: city.stateCode,
+    isSaved: Boolean(city.isSaved),
+  }));
 }
 
 async function geocodeLocationWithPhoton(query, signal) {
@@ -1095,6 +1103,8 @@ export default function Step2LocationDetails({ next, back, category }) {
   const [stateLoading, setStateLoading] = useState(false);
   const [cityLoading, setCityLoading] = useState(false);
   const [localityLoading, setLocalityLoading] = useState(false);
+  const [savedLocations, setSavedLocations] = useState([]);
+  const [canAddCustomCity, setCanAddCustomCity] = useState(false);
 
   const topRef               = useRef(null);
   const gpsAbortRef          = useRef(null);   // GPS reverse geocode
@@ -1107,6 +1117,56 @@ export default function Step2LocationDetails({ next, back, category }) {
   const stateDropdownRef = useRef(null);
   const cityDropdownRef = useRef(null);
   const localityDropdownRef = useRef(null);
+
+  const savedCitiesForState = useMemo(
+    () => getSavedCityNamesForState(savedLocations, form.state),
+    [savedLocations, form.state],
+  );
+
+  const citySuggestionExtras = useMemo(() => {
+    const current = sharedTitleCase(String(form.city || "").trim());
+    if (!current || !form.state) return savedCitiesForState;
+    if (isKnownCityName(form.state, current, savedCitiesForState)) {
+      return savedCitiesForState;
+    }
+    return [...savedCitiesForState, current];
+  }, [savedCitiesForState, form.city, form.state]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchLoggedInUser()
+      .then((user) => {
+        if (cancelled) return;
+        setCanAddCustomCity(
+          canAddCustomLocation(user?.roleName || user?.role?.name),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setCanAddCustomCity(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetchSearchableLocationsService().catch(() => null),
+      fetchListingLocationOptions().catch(() => null),
+    ]).then(([locRes, listingRes]) => {
+      if (cancelled) return;
+      setSavedLocations(
+        mergeSavedLocationSources(
+          unwrapLocationList(locRes),
+          locationsFromFeaturedOptions(listingRes),
+        ),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1161,17 +1221,19 @@ export default function Step2LocationDetails({ next, back, category }) {
       return;
     }
     const query = citySearch.trim();
-    if (!form.state || (query.length > 0 && query.length < 2)) {
-      setCitySuggestions([]);
-      return;
-    }
     const tid = setTimeout(() => {
+      if (!form.state) {
+        setCitySuggestions([]);
+        return;
+      }
       setCityLoading(true);
-      setCitySuggestions(getCitySuggestions(form.state, query || undefined));
+      setCitySuggestions(
+        getCitySuggestions(form.state, query || undefined, citySuggestionExtras),
+      );
       setCityLoading(false);
-    }, 250);
+    }, 200);
     return () => clearTimeout(tid);
-  }, [cityOpen, citySearch, form.state]);
+  }, [cityOpen, citySearch, form.state, citySuggestionExtras]);
 
   useEffect(() => {
     if (!localityOpen) {
@@ -1179,10 +1241,39 @@ export default function Step2LocationDetails({ next, back, category }) {
       return;
     }
     const trimmed = localitySearch.trim();
-    if (!form.city || trimmed.length < 2) {
+    if (!form.city) {
       setLocalitySuggestions([]);
       return;
     }
+
+    const saved = getSavedLocalitySuggestions(
+      savedLocations,
+      form.state,
+      form.city,
+      trimmed,
+    );
+
+    if (trimmed.length < 2) {
+      const current = sharedTitleCase(String(form.locality || "").trim());
+      const list = [...saved];
+      if (
+        current &&
+        !list.some(
+          (r) =>
+            sharedNormalize(r.label) === sharedNormalize(current),
+        )
+      ) {
+        list.unshift({
+          label: current,
+          city: form.city,
+          state: form.state,
+          isSaved: true,
+        });
+      }
+      setLocalitySuggestions(list);
+      return;
+    }
+
     const ctrl = new AbortController();
     const tid = setTimeout(async () => {
       setLocalityLoading(true);
@@ -1193,15 +1284,44 @@ export default function Step2LocationDetails({ next, back, category }) {
         form.city || undefined,
         trimmed,
       );
-      setLocalitySuggestions(results);
+      const seen = new Set(saved.map((s) => sharedNormalize(s.label)));
+      const merged = [...saved];
+      for (const r of results) {
+        const key = sharedNormalize(r.label);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        merged.push(r);
+      }
+      if (
+        canAddCustomCity &&
+        !merged.some(
+          (r) => sharedNormalize(r.label) === sharedNormalize(trimmed),
+        )
+      ) {
+        merged.push({
+          label: sharedTitleCase(trimmed),
+          isCustom: true,
+          city: form.city,
+          state: form.state,
+        });
+      }
+      setLocalitySuggestions(merged);
       setLocalityLoading(false);
-    }, 400);
+    }, 350);
     return () => {
       ctrl.abort();
       clearTimeout(tid);
       setLocalityLoading(false);
     };
-  }, [localityOpen, localitySearch, form.city, form.state]);
+  }, [
+    localityOpen,
+    localitySearch,
+    form.city,
+    form.state,
+    form.locality,
+    savedLocations,
+    canAddCustomCity,
+  ]);
 
   const setValue = useCallback((key, value) => {
     dispatch(actions[category].updateField({ key, value }));
@@ -1262,7 +1382,11 @@ export default function Step2LocationDetails({ next, back, category }) {
     (suggestion) => {
       skipNextFieldGeocodeRef.current = true;
       setValue("state", suggestion.label);
-      const cities = getCitySuggestions(suggestion.label);
+      const cities = getCitySuggestions(
+        suggestion.label,
+        undefined,
+        getSavedCityNamesForState(savedLocations, suggestion.label),
+      );
       if (
         form.city &&
         !cities.some(
@@ -1277,7 +1401,7 @@ export default function Step2LocationDetails({ next, back, category }) {
       setStateSearch("");
       setStateOpen(false);
     },
-    [form.city, setValue],
+    [form.city, setValue, savedLocations],
   );
 
   const applyCitySelection = useCallback(
@@ -1647,14 +1771,26 @@ export default function Step2LocationDetails({ next, back, category }) {
               options={citySuggestions}
               onSelect={applyCitySelection}
               emptyHint={
-                citySearch.trim().length >= 2
-                  ? "No city found"
+                citySearch.trim().length >= 1
+                  ? "No city found — check spelling or pick another state"
                   : form.state
-                    ? "Suggested cities for selected state"
+                    ? "Package + saved cities for this state"
                     : "Select state first"
               }
               dropdownRef={cityDropdownRef}
-              optionKey={(opt, idx) => `${opt.label}-${opt.stateCode || idx}`}
+              optionKey={(opt, idx) =>
+                `${opt.label}-${opt.isSaved ? "s" : "p"}-${opt.stateCode || idx}`
+              }
+              renderOption={(opt) => (
+                <span className="min-w-0 flex-1 truncate">
+                  {opt.label}
+                  {opt.isSaved ? (
+                    <span className="ml-1 text-[10px] font-semibold text-[#27AE60]">
+                      (saved)
+                    </span>
+                  ) : null}
+                </span>
+              )}
             />
 
             <SearchableSelect
@@ -1678,31 +1814,36 @@ export default function Step2LocationDetails({ next, back, category }) {
               }}
               searchValue={localitySearch}
               onSearchChange={setLocalitySearch}
-              searchPlaceholder="Type 2+ letters to search..."
+              searchPlaceholder="Search locality..."
               loading={localityLoading}
               options={localitySuggestions}
               onSelect={applyLocalitySelection}
               emptyHint={
-                localitySearch.trim().length >= 2
-                  ? "No results found"
-                  : form.city
-                    ? "Type at least 2 letters to search localities in this city"
-                    : "Select city first"
+                !form.city
+                  ? "Select city first"
+                  : localitySearch.trim().length >= 2
+                    ? canAddCustomCity
+                      ? "No locality found — keep typing to use a custom name"
+                      : "No locality found — pick a saved or suggested locality"
+                    : "Saved localities for this city, or type to search"
               }
               dropdownRef={localityDropdownRef}
               optionKey={(opt, idx) =>
-                `${opt.label}-${opt.city || ""}-${opt.state || ""}-${idx}`
+                `${opt.label}-${opt.isSaved ? "s" : "p"}-${idx}`
               }
               renderOption={(opt) => (
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium text-gray-900">
-                    {opt.label}
-                  </span>
-                  {(opt.city || opt.state) && (
-                    <span className="block truncate text-xs text-gray-500">
-                      {[opt.city, opt.state].filter(Boolean).join(", ")}
+                <span className="min-w-0 flex-1 truncate">
+                  {opt.label}
+                  {opt.isSaved ? (
+                    <span className="ml-1 text-[10px] font-semibold text-[#27AE60]">
+                      (saved)
                     </span>
-                  )}
+                  ) : null}
+                  {opt.isCustom ? (
+                    <span className="ml-1 text-[10px] text-gray-400">
+                      (use typed)
+                    </span>
+                  ) : null}
                 </span>
               )}
             />

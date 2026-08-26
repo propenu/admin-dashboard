@@ -1,6 +1,6 @@
 // Property edit Location — same save rules as Post Property Step 2:
 // PIN = manual 6 digits only | State/City/Locality = dropdown or map pin
-import { useEffect, useState, useCallback, useRef, memo } from "react";
+import { useEffect, useState, useCallback, useRef, memo, useMemo } from "react";
 import {
   MapPin,
   Building2,
@@ -16,6 +16,21 @@ import {
 import { City, State } from "country-state-city";
 import MapplsPinMap from "../components/location/MapplsPinMap";
 import NearbyPlacesInput from "../components/location/NearbyPlacesInput";
+import {
+  getCitySuggestions as getSharedCitySuggestions,
+  getSavedCityNamesForState,
+  getSavedLocalitySuggestions,
+  isKnownCityName,
+  unwrapLocationList,
+  mergeSavedLocationSources,
+  locationsFromFeaturedOptions,
+  titleCase as sharedTitleCase,
+  normalizeComparisonValue as sharedNormalize,
+  canAddCustomLocation,
+} from "../../../../components/common/location/searchableLocationUtils";
+import { fetchSearchableLocationsService } from "../../../../services/LocationsServices/LocationServices";
+import { fetchListingLocationOptions } from "../../../../services/PostAPropertyService";
+import { fetchLoggedInUser } from "../../../../services/UserServices/userServices";
 
 const titleCase = (str) => {
   if (!str) return "";
@@ -55,23 +70,16 @@ function getStateSuggestions(query) {
     );
 }
 
-function getCitySuggestions(stateName, query) {
-  if (!stateName) return [];
-  const selectedState = State.getStatesOfCountry("IN").find(
-    (state) =>
-      normalizeComparisonValue(state.name) ===
-      normalizeComparisonValue(stateName),
-  );
-  if (!selectedState) return [];
-  return City.getCitiesOfState("IN", selectedState.isoCode)
-    .map((city) => ({
-      label: city.name,
-      state: selectedState.name,
-      stateCode: selectedState.isoCode,
-    }))
-    .filter((city) =>
-      query?.trim() ? matchesSearchPrefix(city.label, query) : true,
-    );
+function getCitySuggestions(stateName, query, savedCities = []) {
+  return getSharedCitySuggestions(stateName, query, {
+    includeOther: false,
+    savedCities,
+  }).map((city) => ({
+    label: city.label,
+    state: city.state || stateName,
+    stateCode: city.stateCode,
+    isSaved: Boolean(city.isSaved),
+  }));
 }
 
 async function searchLocalitiesWithPhoton(
@@ -308,10 +316,62 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
   const [stateLoading, setStateLoading] = useState(false);
   const [cityLoading, setCityLoading] = useState(false);
   const [localityLoading, setLocalityLoading] = useState(false);
+  const [savedLocations, setSavedLocations] = useState([]);
+  const [canAddCustomCity, setCanAddCustomCity] = useState(false);
 
   const stateDropdownRef = useRef(null);
   const cityDropdownRef = useRef(null);
   const localityDropdownRef = useRef(null);
+
+  const savedCitiesForState = useMemo(
+    () => getSavedCityNamesForState(savedLocations, data.state),
+    [savedLocations, data.state],
+  );
+
+  const citySuggestionExtras = useMemo(() => {
+    const current = sharedTitleCase(String(data.city || "").trim());
+    if (!current || !data.state) return savedCitiesForState;
+    if (isKnownCityName(data.state, current, savedCitiesForState)) {
+      return savedCitiesForState;
+    }
+    return [...savedCitiesForState, current];
+  }, [savedCitiesForState, data.city, data.state]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchLoggedInUser()
+      .then((user) => {
+        if (cancelled) return;
+        setCanAddCustomCity(
+          canAddCustomLocation(user?.roleName || user?.role?.name),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setCanAddCustomCity(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetchSearchableLocationsService().catch(() => null),
+      fetchListingLocationOptions().catch(() => null),
+    ]).then(([locRes, listingRes]) => {
+      if (cancelled) return;
+      setSavedLocations(
+        mergeSavedLocationSources(
+          unwrapLocationList(locRes),
+          locationsFromFeaturedOptions(listingRes),
+        ),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handlePinChange = useCallback(
     ({ coordinates, locality, city, state }) => {
@@ -372,17 +432,19 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
       return;
     }
     const query = citySearch.trim();
-    if (!data.state || (query.length > 0 && query.length < 2)) {
-      setCitySuggestions([]);
-      return;
-    }
     const tid = setTimeout(() => {
+      if (!data.state) {
+        setCitySuggestions([]);
+        return;
+      }
       setCityLoading(true);
-      setCitySuggestions(getCitySuggestions(data.state, query || undefined));
+      setCitySuggestions(
+        getCitySuggestions(data.state, query || undefined, citySuggestionExtras),
+      );
       setCityLoading(false);
-    }, 250);
+    }, 200);
     return () => clearTimeout(tid);
-  }, [cityOpen, citySearch, data.state]);
+  }, [cityOpen, citySearch, data.state, citySuggestionExtras]);
 
   useEffect(() => {
     if (!localityOpen) {
@@ -390,10 +452,38 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
       return;
     }
     const trimmed = localitySearch.trim();
-    if (!data.city || trimmed.length < 2) {
+    if (!data.city) {
       setLocalitySuggestions([]);
       return;
     }
+
+    const saved = getSavedLocalitySuggestions(
+      savedLocations,
+      data.state,
+      data.city,
+      trimmed,
+    );
+
+    if (trimmed.length < 2) {
+      const current = sharedTitleCase(String(data.locality || "").trim());
+      const list = [...saved];
+      if (
+        current &&
+        !list.some(
+          (r) => sharedNormalize(r.label) === sharedNormalize(current),
+        )
+      ) {
+        list.unshift({
+          label: current,
+          city: data.city,
+          state: data.state,
+          isSaved: true,
+        });
+      }
+      setLocalitySuggestions(list);
+      return;
+    }
+
     const ctrl = new AbortController();
     const tid = setTimeout(async () => {
       setLocalityLoading(true);
@@ -404,15 +494,44 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
         data.city || undefined,
         trimmed,
       );
-      setLocalitySuggestions(results);
+      const seen = new Set(saved.map((s) => sharedNormalize(s.label)));
+      const merged = [...saved];
+      for (const r of results) {
+        const key = sharedNormalize(r.label);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        merged.push(r);
+      }
+      if (
+        canAddCustomCity &&
+        !merged.some(
+          (r) => sharedNormalize(r.label) === sharedNormalize(trimmed),
+        )
+      ) {
+        merged.push({
+          label: sharedTitleCase(trimmed),
+          isCustom: true,
+          city: data.city,
+          state: data.state,
+        });
+      }
+      setLocalitySuggestions(merged);
       setLocalityLoading(false);
-    }, 400);
+    }, 350);
     return () => {
       ctrl.abort();
       clearTimeout(tid);
       setLocalityLoading(false);
     };
-  }, [localityOpen, localitySearch, data.city, data.state]);
+  }, [
+    localityOpen,
+    localitySearch,
+    data.city,
+    data.state,
+    data.locality,
+    savedLocations,
+    canAddCustomCity,
+  ]);
 
   useEffect(() => {
     if (skipNextFieldGeocodeRef.current) {
@@ -448,7 +567,11 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
     (suggestion) => {
       skipNextFieldGeocodeRef.current = true;
       upd("state", suggestion.label);
-      const cities = getCitySuggestions(suggestion.label);
+      const cities = getCitySuggestions(
+        suggestion.label,
+        undefined,
+        getSavedCityNamesForState(savedLocations, suggestion.label),
+      );
       if (
         data.city &&
         !cities.some(
@@ -463,7 +586,7 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
       setStateSearch("");
       setStateOpen(false);
     },
-    [data.city, upd],
+    [data.city, upd, savedLocations],
   );
 
   const applyCitySelection = useCallback(
@@ -641,12 +764,26 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
               options={citySuggestions}
               onSelect={applyCitySelection}
               emptyHint={
-                data.state
-                  ? "Suggested cities for selected state"
-                  : "Select state first"
+                citySearch.trim().length >= 1
+                  ? "No city found — check spelling or pick another state"
+                  : data.state
+                    ? "Package + saved cities for this state"
+                    : "Select state first"
               }
               dropdownRef={cityDropdownRef}
-              optionKey={(opt, idx) => `${opt.label}-${opt.stateCode || idx}`}
+              optionKey={(opt, idx) =>
+                `${opt.label}-${opt.isSaved ? "s" : "p"}-${opt.stateCode || idx}`
+              }
+              renderOption={(opt) => (
+                <span className="min-w-0 flex-1 truncate">
+                  {opt.label}
+                  {opt.isSaved ? (
+                    <span className="ml-1 text-[10px] font-semibold text-[#27AE60]">
+                      (saved)
+                    </span>
+                  ) : null}
+                </span>
+              )}
             />
 
             <div className="sm:col-span-2">
@@ -670,29 +807,36 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
                 }}
                 searchValue={localitySearch}
                 onSearchChange={setLocalitySearch}
-                searchPlaceholder="Type 2+ letters to search..."
+                searchPlaceholder="Search locality..."
                 loading={localityLoading}
                 options={localitySuggestions}
                 onSelect={applyLocalitySelection}
                 emptyHint={
-                  data.city
-                    ? "Type at least 2 letters to search localities"
-                    : "Select city first"
+                  !data.city
+                    ? "Select city first"
+                    : localitySearch.trim().length >= 2
+                      ? canAddCustomCity
+                        ? "No locality found — keep typing to use a custom name"
+                        : "No locality found — pick a saved or suggested locality"
+                      : "Saved localities for this city, or type to search"
                 }
                 dropdownRef={localityDropdownRef}
                 optionKey={(opt, idx) =>
-                  `${opt.label}-${opt.city || ""}-${opt.state || ""}-${idx}`
+                  `${opt.label}-${opt.isSaved ? "s" : "p"}-${idx}`
                 }
                 renderOption={(opt) => (
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">
-                      {opt.label}
-                    </span>
-                    {(opt.city || opt.state) && (
-                      <span className="block truncate text-[10px] text-slate-400">
-                        {[opt.city, opt.state].filter(Boolean).join(", ")}
+                  <span className="min-w-0 flex-1 truncate">
+                    {opt.label}
+                    {opt.isSaved ? (
+                      <span className="ml-1 text-[10px] font-semibold text-[#27AE60]">
+                        (saved)
                       </span>
-                    )}
+                    ) : null}
+                    {opt.isCustom ? (
+                      <span className="ml-1 text-[10px] text-slate-400">
+                        (use typed)
+                      </span>
+                    ) : null}
                   </span>
                 )}
               />

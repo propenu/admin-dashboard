@@ -32,6 +32,24 @@ export const fetchPostFeaturedPropertyById = async (id) => {
   });
 };
 
+/** Distinct cities/localities from featured projects (custom reuse in post/edit) */
+export const fetchFeaturedLocationOptions = async (state) => {
+  const qs = state ? `?state=${encodeURIComponent(state)}` : "";
+  return apiPostPropertyRequest(
+    `${API_ENDPOINTS.FEATURED_LOCATION_OPTIONS}${qs}`,
+    { method: "GET" },
+  );
+};
+
+/** Distinct cities/localities from all listing types + projects */
+export const fetchListingLocationOptions = async (state) => {
+  const qs = state ? `?state=${encodeURIComponent(state)}` : "";
+  return apiPostPropertyRequest(
+    `${API_ENDPOINTS.LISTING_LOCATION_OPTIONS}${qs}`,
+    { method: "GET" },
+  );
+};
+
 
 
 /* ======= FULLY UPDATED updateFeaturedProperty ======= */

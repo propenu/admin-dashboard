@@ -4,6 +4,7 @@ export const AUTH_API_BASE_URL = import.meta.env.VITE_API_BASE_URL_TWO;
 export const LOCATION_API_ENDPOINTS = {
   //Locations
   ALL_LOCATIONS: `${AUTH_API_BASE_URL}/location`, //Locations
+  SEARCHABLE_LOCATIONS: `${AUTH_API_BASE_URL}/location/searchable`,
   EDITLOCATION_BY_ID: (id) => `${AUTH_API_BASE_URL}/location/${id}`,
   //Delete cities
   DELETELOCATION_BY_ID: (id) => `${AUTH_API_BASE_URL}/location/${id}`,

@@ -21,6 +21,24 @@ const EMPTY_FORM = {
 
 function formatPermissionError(error) {
   if (!error) return null;
+
+  // Raw Axios error
+  if (error?.isAxiosError || error?.response) {
+    const data = error.response?.data;
+    if (data && typeof data === "object") {
+      return {
+        message:
+          data.message ||
+          data.error ||
+          `Access denied (${error.response?.status || 403})`,
+        allowedRoles: Array.isArray(data.allowedRoles) ? data.allowedRoles : [],
+        howToGetAccess: data.howToGetAccess || "",
+        requiredPermission: data.requiredPermission || "",
+        yourRoleLabel: data.yourRoleLabel || data.yourRole || "",
+      };
+    }
+  }
+
   if (typeof error === "string") {
     return { message: error, allowedRoles: [], howToGetAccess: "" };
   }

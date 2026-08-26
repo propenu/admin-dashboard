@@ -418,7 +418,7 @@ function App() {
                 <Route path="/users" element={<Partners />} />
                 <Route path="/propenu-team-members" element={<PermissionRoute anyPermissions={["team:view", "user:view"]}><PropenuTeamMembers /></PermissionRoute>} />
 
-                <Route path="/locations" element={<PermissionRoute permission="location:view"><Locations /></PermissionRoute>} />
+                <Route path="/locations" element={<PermissionRoute permission="location:view" anyPermissions={["location:create", "location:update", "location:delete"]} legacyRoles={["super_admin", "admin", "business_development_head", "operations_head", "ceo", "regional_manager", "sales_manager", "founder"]}><Locations /></PermissionRoute>} />
 
                 <Route path="accounts" element={<PermissionRoute permission="user:view"><Accounts /></PermissionRoute>} />
                 <Route path="customercare" element={<PermissionRoute permission="user:view"><CustomerCare /></PermissionRoute>} />

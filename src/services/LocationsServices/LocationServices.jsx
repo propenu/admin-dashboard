@@ -18,6 +18,15 @@ export const fetchLocationsService = async () => {
   return response.data;
 };
 
+/** All Location cities (not home-only) — for project city reuse dropdowns */
+export const fetchSearchableLocationsService = async () => {
+  const response = await authAxios.get(
+    LOCATION_API_ENDPOINTS.SEARCHABLE_LOCATIONS,
+    LOCATION_API_CONFIG,
+  );
+  return response.data;
+};
+
 /* ---------------------------------------
    CREATE LOCATION
 ---------------------------------------- */
@@ -34,10 +43,15 @@ export const createLocationService = async (data) => {
    EDIT LOCATION BY ID
 ---------------------------------------- */
 export const editLocationService = async (id, data) => {
+  if (!id) {
+    const err = new Error("Missing location id");
+    err.response = { status: 400, data: { message: "Missing location id" } };
+    throw err;
+  }
   const response = await authAxios.patch(
     LOCATION_API_ENDPOINTS.EDITLOCATION_BY_ID(id),
     data,
-    LOCATION_API_CONFIG,
+    { timeout: LOCATION_API_CONFIG.TIMEOUT || 30000 },
   );
   return response.data;
 };

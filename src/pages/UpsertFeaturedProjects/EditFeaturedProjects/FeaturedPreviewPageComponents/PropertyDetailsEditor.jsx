@@ -1,17 +1,27 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/PropertyDetailsEditor.jsx
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import {
-  INDIAN_STATES,
-  getCitiesByState,
-  CITY_OTHER,
-  findPackageCityName,
-  buildStateOptions,
-  buildCityOptions,
-  toTitleCase,
-} from "../../../../utils/countryStateCity";
+import { toTitleCase } from "../../../../utils/countryStateCity";
 import { fetchLoggedInUser } from "../../../../services/UserServices/userServices";
+import { fetchSearchableLocationsService } from "../../../../services/LocationsServices/LocationServices";
+import { fetchListingLocationOptions } from "../../../../services/PostAPropertyService";
+import SearchableSelect from "../../../../components/common/location/SearchableSelect";
+import {
+  CITY_OTHER,
+  titleCase,
+  getStateSuggestions,
+  getCitySuggestions,
+  getSavedCityNamesForState,
+  getSavedLocalitySuggestions,
+  isKnownCityName,
+  unwrapLocationList,
+  mergeSavedLocationSources,
+  locationsFromFeaturedOptions,
+  searchLocalitiesWithPhoton,
+  normalizeComparisonValue,
+  canAddCustomLocation,
+} from "../../../../components/common/location/searchableLocationUtils";
 
 const MAX_BROCHURE_BYTES = 20 * 1024 * 1024; // 20 MB — no compression
 
@@ -51,19 +61,7 @@ const CATEGORY_TYPES = [
   },
 ];
 
-/** Category / type editor — Super Admin & BDH only */
-const CATEGORY_EDIT_ROLES = new Set([
-  "super_admin",
-  "business_development_head",
-]);
-
-function normalizeRoleName(role) {
-  return String(role || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
+/** Category / type editor + custom city/locality — Super Admin & BDH only */
 
 /** Same as create PropertyProfilesStep — hide towers for these */
 const HIDE_TOWER_TYPES = ["villa", "duplex", "triplex", "farmhouse"];
@@ -110,18 +108,54 @@ export default function PropertyDetailsEditor({
   const [brochureFile, setBrochureFile] = useState(null);
   const [preferOtherCity, setPreferOtherCity] = useState(false);
   const [canEditCategory, setCanEditCategory] = useState(false);
+  const [savedLocations, setSavedLocations] = useState([]);
+
+  const [stateOpen, setStateOpen] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
+  const [localityOpen, setLocalityOpen] = useState(false);
+  const [stateSearch, setStateSearch] = useState("");
+  const [citySearch, setCitySearch] = useState("");
+  const [localitySearch, setLocalitySearch] = useState("");
+  const [stateSuggestions, setStateSuggestions] = useState([]);
+  const [citySuggestions, setCitySuggestions] = useState([]);
+  const [localitySuggestions, setLocalitySuggestions] = useState([]);
+  const [stateLoading, setStateLoading] = useState(false);
+  const [cityLoading, setCityLoading] = useState(false);
+  const [localityLoading, setLocalityLoading] = useState(false);
+  const stateDropdownRef = useRef(null);
+  const cityDropdownRef = useRef(null);
+  const localityDropdownRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
     fetchLoggedInUser()
       .then((user) => {
         if (cancelled) return;
-        const role = normalizeRoleName(user?.roleName || user?.role?.name);
-        setCanEditCategory(CATEGORY_EDIT_ROLES.has(role));
+        const role = user?.roleName || user?.role?.name;
+        setCanEditCategory(canAddCustomLocation(role));
       })
       .catch(() => {
         if (!cancelled) setCanEditCategory(false);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetchSearchableLocationsService().catch(() => null),
+      fetchListingLocationOptions().catch(() => null),
+    ]).then(([locRes, featuredRes]) => {
+      if (cancelled) return;
+      setSavedLocations(
+        mergeSavedLocationSources(
+          unwrapLocationList(locRes),
+          locationsFromFeaturedOptions(featuredRes),
+        ),
+      );
+    });
     return () => {
       cancelled = true;
     };
@@ -156,38 +190,161 @@ export default function PropertyDetailsEditor({
     });
   }, [formData]);
 
-  const states = useMemo(
-    () => buildStateOptions(INDIAN_STATES, local.state),
-    [local.state],
+  const savedCitiesForState = useMemo(
+    () => getSavedCityNamesForState(savedLocations, local.state),
+    [savedLocations, local.state],
   );
 
-  const packageCities = useMemo(
-    () => getCitiesByState(local.state),
-    [local.state],
-  );
+  const citySuggestionExtras = useMemo(() => {
+    const current = titleCase(String(local.city || "").trim());
+    if (!current || !local.state) return savedCitiesForState;
+    if (isKnownCityName(local.state, current, savedCitiesForState)) {
+      return savedCitiesForState;
+    }
+    return [...savedCitiesForState, current];
+  }, [savedCitiesForState, local.city, local.state]);
 
-  const packageCityMatch = findPackageCityName(packageCities, local.city);
+  const cityInKnownList = useMemo(() => {
+    const city = String(local.city || "").trim();
+    const state = String(local.state || "").trim();
+    if (!city || !state) return true;
+    return isKnownCityName(state, city, savedCitiesForState);
+  }, [local.city, local.state, savedCitiesForState]);
 
-  const citySelectValue = preferOtherCity
-    ? CITY_OTHER
-    : packageCityMatch
-      ? packageCityMatch
-      : String(local.city || "").trim()
-        ? CITY_OTHER
-        : "";
-
-  const cityOptions = useMemo(
-    () => buildCityOptions(packageCities, local.city, citySelectValue),
-    [packageCities, local.city, citySelectValue],
-  );
-
-  const showManualCityField = citySelectValue === CITY_OTHER;
+  const showManualCityField =
+    canEditCategory && (preferOtherCity || !cityInKnownList);
 
   useEffect(() => {
-    if (!packageCityMatch && String(local.city || "").trim()) {
+    if (canEditCategory && !cityInKnownList && String(local.city || "").trim()) {
       setPreferOtherCity(true);
     }
-  }, [packageCityMatch, local.city]);
+  }, [cityInKnownList, local.city, canEditCategory]);
+
+  useEffect(() => {
+    if (!stateOpen) {
+      setStateSuggestions([]);
+      return;
+    }
+    const tid = setTimeout(() => {
+      setStateLoading(true);
+      setStateSuggestions(getStateSuggestions(stateSearch));
+      setStateLoading(false);
+    }, 250);
+    return () => clearTimeout(tid);
+  }, [stateOpen, stateSearch]);
+
+  useEffect(() => {
+    if (!cityOpen) {
+      setCitySuggestions([]);
+      return;
+    }
+    const query = citySearch.trim();
+    const tid = setTimeout(() => {
+      if (!local.state) {
+        setCitySuggestions([]);
+        return;
+      }
+      setCityLoading(true);
+      setCitySuggestions(
+        getCitySuggestions(local.state, query || undefined, {
+          includeOther: canEditCategory,
+          savedCities: citySuggestionExtras,
+        }),
+      );
+      setCityLoading(false);
+    }, 200);
+    return () => clearTimeout(tid);
+  }, [cityOpen, citySearch, local.state, citySuggestionExtras, canEditCategory]);
+
+  useEffect(() => {
+    if (!localityOpen) {
+      setLocalitySuggestions([]);
+      return;
+    }
+    const trimmed = localitySearch.trim();
+    if (!local.city) {
+      setLocalitySuggestions([]);
+      return;
+    }
+
+    const saved = getSavedLocalitySuggestions(
+      savedLocations,
+      local.state,
+      local.city,
+      trimmed,
+    );
+
+    if (trimmed.length < 2) {
+      const current = titleCase(String(local.locality || "").trim());
+      const list = [...saved];
+      if (
+        current &&
+        !list.some(
+          (r) =>
+            normalizeComparisonValue(r.label) ===
+            normalizeComparisonValue(current),
+        )
+      ) {
+        list.unshift({
+          label: current,
+          city: local.city,
+          state: local.state,
+          isSaved: true,
+        });
+      }
+      setLocalitySuggestions(list);
+      return;
+    }
+
+    const ctrl = new AbortController();
+    const tid = setTimeout(async () => {
+      setLocalityLoading(true);
+      const results = await searchLocalitiesWithPhoton(
+        trimmed,
+        ctrl.signal,
+        local.state || undefined,
+        local.city || undefined,
+        trimmed,
+      );
+      const seen = new Set(saved.map((s) => normalizeComparisonValue(s.label)));
+      const merged = [...saved];
+      for (const r of results) {
+        const key = normalizeComparisonValue(r.label);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        merged.push(r);
+      }
+      if (
+        canEditCategory &&
+        !merged.some(
+          (r) =>
+            normalizeComparisonValue(r.label) ===
+            normalizeComparisonValue(trimmed),
+        )
+      ) {
+        merged.push({
+          label: titleCase(trimmed),
+          isCustom: true,
+          city: local.city,
+          state: local.state,
+        });
+      }
+      setLocalitySuggestions(merged);
+      setLocalityLoading(false);
+    }, 350);
+    return () => {
+      ctrl.abort();
+      clearTimeout(tid);
+    };
+  }, [
+    localityOpen,
+    localitySearch,
+    local.city,
+    local.state,
+    local.locality,
+    savedLocations,
+    canEditCategory,
+  ]);
 
   if (!formData) return null;
 
@@ -550,79 +707,175 @@ export default function PropertyDetailsEditor({
             </FieldGroup>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mt-3">
-            <FieldGroup label="State" warning>
-              <select
-                className={inputCls}
-                value={local.state ?? ""}
-                onChange={(e) => {
-                  setPreferOtherCity(false);
-                  sync({ state: e.target.value, city: "" });
-                }}
-              >
-                <option value="">Select State</option>
-                {states.map((state) => (
-                  <option key={state.isoCode || state.name} value={state.name}>
-                    {String(state.isoCode || "").startsWith("custom-")
-                      ? `${state.name} (custom)`
-                      : state.name}
-                  </option>
-                ))}
-              </select>
-            </FieldGroup>
+          <div className="grid grid-cols-1 gap-3 mt-3">
+            <SearchableSelect
+              warning
+              label="State"
+              value={local.state || ""}
+              placeholder="Select state"
+              open={stateOpen}
+              onToggle={() => {
+                setStateOpen((o) => !o);
+                setCityOpen(false);
+                setLocalityOpen(false);
+                if (!stateOpen) setStateSearch("");
+              }}
+              onClose={() => setStateOpen(false)}
+              searchValue={stateSearch}
+              onSearchChange={setStateSearch}
+              searchPlaceholder="Search state..."
+              loading={stateLoading}
+              options={stateSuggestions}
+              onSelect={(opt) => {
+                setPreferOtherCity(false);
+                sync({ state: opt.label, city: "", locality: "" });
+                setStateOpen(false);
+              }}
+              emptyHint={
+                stateSearch.trim().length >= 2
+                  ? "No state found"
+                  : "Type to search Indian states"
+              }
+              dropdownRef={stateDropdownRef}
+              optionKey={(opt) => opt.isoCode || opt.label}
+            />
 
-            <FieldGroup label="City" warning>
-              <select
-                className={inputCls}
-                value={citySelectValue}
+            <div className="space-y-3">
+              <SearchableSelect
+                warning
+                label="City"
+                value={
+                  canEditCategory && preferOtherCity && !local.city
+                    ? "Other (custom city)"
+                    : local.city || ""
+                }
+                placeholder={
+                  local.state ? "Select city" : "Select state first"
+                }
                 disabled={!local.state}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  if (next === CITY_OTHER) {
-                    setPreferOtherCity(true);
-                    return;
-                  }
-                  const pkg = findPackageCityName(packageCities, next);
-                  setPreferOtherCity(false);
-                  change("city", pkg || next);
+                open={cityOpen}
+                onToggle={() => {
+                  if (!local.state) return;
+                  setCityOpen((o) => !o);
+                  setStateOpen(false);
+                  setLocalityOpen(false);
+                  if (!cityOpen) setCitySearch("");
                 }}
-              >
-                <option value="">Select City</option>
-                {cityOptions.map((city) => (
-                  <option
-                    key={`${city.custom ? "custom" : "pkg"}-${city.name}`}
-                    value={city.name}
-                  >
-                    {city.label}
-                  </option>
-                ))}
-                <option value={CITY_OTHER}>Other (custom city)</option>
-              </select>
-            </FieldGroup>
-
-            {showManualCityField && (
-              <FieldGroup label="Custom city" warning>
-                <input
-                  className={inputCls}
-                  value={local.city ?? ""}
-                  onChange={(e) => {
+                onClose={() => setCityOpen(false)}
+                searchValue={citySearch}
+                onSearchChange={setCitySearch}
+                searchPlaceholder="Search city…"
+                loading={cityLoading}
+                options={citySuggestions}
+                onSelect={(opt) => {
+                  if (opt.isOther || opt.value === CITY_OTHER) {
                     setPreferOtherCity(true);
-                    change("city", e.target.value);
-                  }}
-                  onBlur={(e) => change("city", toTitleCase(e.target.value))}
-                  placeholder="Type or edit city / mandal name"
-                />
-              </FieldGroup>
-            )}
-
-            <FieldGroup label="Locality" warning>
-              <input
-                className={inputCls}
-                value={local.locality ?? ""}
-                onChange={(e) => change("locality", e.target.value)}
-                placeholder="Kondapur"
+                    sync({ city: "", locality: "" });
+                  } else {
+                    setPreferOtherCity(false);
+                    sync({ city: opt.label, locality: "" });
+                  }
+                  setCityOpen(false);
+                }}
+                emptyHint={
+                  citySearch.trim().length >= 2
+                    ? "No city found"
+                    : local.state
+                      ? "Suggested cities for selected state"
+                      : "Select state first"
+                }
+                dropdownRef={cityDropdownRef}
+                optionKey={(opt, idx) =>
+                  `${opt.value || opt.label}-${opt.isSaved ? "saved" : "pkg"}-${opt.stateCode || idx}`
+                }
+                renderOption={(opt) => (
+                  <span className="min-w-0 flex-1 truncate">
+                    {opt.label}
+                    {opt.isSaved ? (
+                      <span className="ml-1 text-[10px] font-semibold text-[#27AE60]">
+                        (saved)
+                      </span>
+                    ) : null}
+                  </span>
+                )}
               />
-            </FieldGroup>
+
+              {showManualCityField && (
+                <FieldGroup label="Custom city" warning>
+                  <input
+                    className={inputCls}
+                    value={local.city ?? ""}
+                    onChange={(e) => {
+                      setPreferOtherCity(true);
+                      change("city", e.target.value);
+                    }}
+                    onBlur={(e) =>
+                      change("city", toTitleCase(e.target.value))
+                    }
+                    placeholder="Type or edit city / mandal name"
+                  />
+                </FieldGroup>
+              )}
+            </div>
+
+            <SearchableSelect
+              warning
+              label="Locality"
+              value={local.locality || ""}
+              placeholder={
+                local.city ? "Search locality..." : "Select city first"
+              }
+              disabled={!local.city}
+              open={localityOpen}
+              onToggle={() => {
+                if (!local.city) return;
+                setLocalityOpen((o) => !o);
+                setStateOpen(false);
+                setCityOpen(false);
+                if (!localityOpen) {
+                  setLocalitySearch("");
+                  setLocalitySuggestions([]);
+                }
+              }}
+              onClose={() => setLocalityOpen(false)}
+              searchValue={localitySearch}
+              onSearchChange={setLocalitySearch}
+              searchPlaceholder="Search locality..."
+              loading={localityLoading}
+              options={localitySuggestions}
+              onSelect={(opt) => {
+                sync({ locality: opt.label });
+                setLocalityOpen(false);
+              }}
+              emptyHint={
+                !local.city
+                  ? "Select city first"
+                  : localitySearch.trim().length >= 2
+                    ? canEditCategory
+                      ? "No locality found — keep typing to use a custom name"
+                      : "No locality found — pick a saved or suggested locality"
+                    : "Saved localities for this city, or type to search"
+              }
+              dropdownRef={localityDropdownRef}
+              optionKey={(opt, idx) =>
+                `${opt.label}-${opt.isSaved ? "s" : "p"}-${idx}`
+              }
+              renderOption={(opt) => (
+                <span className="min-w-0 flex-1 truncate">
+                  {opt.label}
+                  {opt.isSaved ? (
+                    <span className="ml-1 text-[10px] font-semibold text-[#27AE60]">
+                      (saved)
+                    </span>
+                  ) : null}
+                  {opt.isCustom ? (
+                    <span className="ml-1 text-[10px] text-gray-400">
+                      (use typed)
+                    </span>
+                  ) : null}
+                </span>
+              )}
+            />
           </div>
         </div>
         {/* ── Project Stats ── */}

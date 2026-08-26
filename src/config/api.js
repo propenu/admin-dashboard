@@ -5,6 +5,8 @@ export const API_ENDPOINTS = {
   FEATURED_PROPERTIES: `${API_BASE_URL}/featured-project`,
   ALL_PROPERTIES: `${API_BASE_URL}/featured-project`,
   PROPERTY_DETAILS: (id) => `${API_BASE_URL}/featured-project/${id}`,
+  FEATURED_LOCATION_OPTIONS: `${API_BASE_URL}/featured-project/location-options`,
+  LISTING_LOCATION_OPTIONS: `${API_BASE_URL}/search/location-options`,
 
   // Hightlighted Properties
   HIGHLIGHTED_PROPERTIES: `${API_BASE_URL}/highlight-projects`,

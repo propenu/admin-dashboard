@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   useEffect,
+  useMemo,
 } from "react";
 
 import SearchableSelect from "../../../../components/common/location/SearchableSelect";
@@ -13,8 +14,19 @@ import {
   titleCase,
   getStateSuggestions,
   getCitySuggestions,
+  getSavedCityNamesForState,
+  getSavedLocalitySuggestions,
+  isKnownCityName,
+  unwrapLocationList,
+  mergeSavedLocationSources,
+  locationsFromFeaturedOptions,
   searchLocalitiesWithPhoton,
+  normalizeComparisonValue,
+  canAddCustomLocation,
 } from "../../../../components/common/location/searchableLocationUtils";
+import { fetchSearchableLocationsService } from "../../../../services/LocationsServices/LocationServices";
+import { fetchListingLocationOptions } from "../../../../services/PostAPropertyService";
+import { fetchLoggedInUser } from "../../../../services/UserServices/userServices";
 
 /* ─── data ──────────────────────────────────────────────────────── */
 
@@ -329,6 +341,7 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
   const [pincodeStatus, setPincodeStatus] = useState(null);
   const [preferOtherCity, setPreferOtherCity] = useState(false);
   const [cityInPackageList, setCityInPackageList] = useState(true);
+  const [canAddCustomCity, setCanAddCustomCity] = useState(false);
 
   const pincodeAbortRef = useRef(null);
 
@@ -345,12 +358,63 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
   const [stateLoading, setStateLoading] = useState(false);
   const [cityLoading, setCityLoading] = useState(false);
   const [localityLoading, setLocalityLoading] = useState(false);
+  const [savedLocations, setSavedLocations] = useState([]);
 
   const stateDropdownRef = useRef(null);
   const cityDropdownRef = useRef(null);
   const localityDropdownRef = useRef(null);
 
-  const showManualCityField = preferOtherCity || !cityInPackageList;
+  const savedCitiesForState = useMemo(
+    () => getSavedCityNamesForState(savedLocations, payload?.state),
+    [savedLocations, payload?.state],
+  );
+
+  // Include current project city so search always finds it (even if not yet in Location DB)
+  const citySuggestionExtras = useMemo(() => {
+    const current = titleCase(String(payload?.city || "").trim());
+    if (!current || !payload?.state) return savedCitiesForState;
+    if (isKnownCityName(payload.state, current, savedCitiesForState)) {
+      return savedCitiesForState;
+    }
+    return [...savedCitiesForState, current];
+  }, [savedCitiesForState, payload?.city, payload?.state]);
+
+  // Custom city input / "Other" — Super Admin & BDH only; saved cities stay for all
+  const showManualCityField =
+    canAddCustomCity && (preferOtherCity || !cityInPackageList);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchLoggedInUser()
+      .then((user) => {
+        if (cancelled) return;
+        setCanAddCustomCity(
+          canAddCustomLocation(user?.roleName || user?.role?.name),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setCanAddCustomCity(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      fetchSearchableLocationsService().catch(() => null),
+      fetchListingLocationOptions().catch(() => null),
+    ]).then(([locRes, featuredRes]) => {
+      if (cancelled) return;
+      const fromLocations = unwrapLocationList(locRes);
+      const fromFeatured = locationsFromFeaturedOptions(featuredRes);
+      setSavedLocations(mergeSavedLocationSources(fromLocations, fromFeatured));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const city = String(payload?.city || "").trim();
@@ -359,12 +423,10 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
       setCityInPackageList(true);
       return;
     }
-    const inList = getCitySuggestions(state, "", { includeOther: false }).some(
-      (c) => c.label.toLowerCase() === city.toLowerCase(),
-    );
+    const inList = isKnownCityName(state, city, savedCitiesForState);
     setCityInPackageList(inList);
-    if (!inList) setPreferOtherCity(true);
-  }, [payload?.city, payload?.state]);
+    if (!inList && canAddCustomCity) setPreferOtherCity(true);
+  }, [payload?.city, payload?.state, savedCitiesForState, canAddCustomCity]);
 
   useEffect(() => {
     if (!stateOpen) {
@@ -385,25 +447,29 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
       return;
     }
     const query = citySearch.trim();
-    if (!payload?.state || (query.length > 0 && query.length < 2)) {
-      setCitySuggestions(
-        payload?.state
-          ? getCitySuggestions(payload.state, undefined, { includeOther: true })
-          : [],
-      );
-      return;
-    }
+    // Require 2+ letters only for filtering package list noise; still search saved with 1+
     const tid = setTimeout(() => {
+      if (!payload?.state) {
+        setCitySuggestions([]);
+        return;
+      }
       setCityLoading(true);
       setCitySuggestions(
         getCitySuggestions(payload.state, query || undefined, {
-          includeOther: true,
+          includeOther: canAddCustomCity,
+          savedCities: citySuggestionExtras,
         }),
       );
       setCityLoading(false);
-    }, 250);
+    }, 200);
     return () => clearTimeout(tid);
-  }, [cityOpen, citySearch, payload?.state]);
+  }, [
+    cityOpen,
+    citySearch,
+    payload?.state,
+    citySuggestionExtras,
+    canAddCustomCity,
+  ]);
 
   useEffect(() => {
     if (!localityOpen) {
@@ -411,10 +477,41 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
       return;
     }
     const trimmed = localitySearch.trim();
-    if (!payload?.city || trimmed.length < 2) {
+    if (!payload?.city) {
       setLocalitySuggestions([]);
       return;
     }
+
+    const saved = getSavedLocalitySuggestions(
+      savedLocations,
+      payload?.state,
+      payload?.city,
+      trimmed,
+    );
+
+    // Show saved localities immediately (even with empty search)
+    if (trimmed.length < 2) {
+      const current = titleCase(String(payload?.locality || "").trim());
+      const list = [...saved];
+      if (
+        current &&
+        !list.some(
+          (r) =>
+            normalizeComparisonValue(r.label) ===
+            normalizeComparisonValue(current),
+        )
+      ) {
+        list.unshift({
+          label: current,
+          city: payload.city,
+          state: payload.state,
+          isSaved: true,
+        });
+      }
+      setLocalitySuggestions(list);
+      return;
+    }
+
     const ctrl = new AbortController();
     const tid = setTimeout(async () => {
       setLocalityLoading(true);
@@ -425,28 +522,50 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
         payload?.city || undefined,
         trimmed,
       );
-      const withCustom = [...results];
+
+      const seen = new Set(
+        saved.map((s) => normalizeComparisonValue(s.label)),
+      );
+      const merged = [...saved];
+      for (const r of results) {
+        const key = normalizeComparisonValue(r.label);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        merged.push(r);
+      }
+
       if (
-        trimmed.length >= 2 &&
-        !results.some(
-          (r) => r.label.toLowerCase() === trimmed.toLowerCase(),
+        canAddCustomCity &&
+        !merged.some(
+          (r) =>
+            normalizeComparisonValue(r.label) ===
+            normalizeComparisonValue(trimmed),
         )
       ) {
-        withCustom.push({
+        merged.push({
           label: titleCase(trimmed),
           isCustom: true,
           city: payload?.city,
           state: payload?.state,
         });
       }
-      setLocalitySuggestions(withCustom);
+
+      setLocalitySuggestions(merged);
       setLocalityLoading(false);
-    }, 400);
+    }, 350);
     return () => {
       ctrl.abort();
       clearTimeout(tid);
     };
-  }, [localityOpen, localitySearch, payload?.city, payload?.state]);
+  }, [
+    localityOpen,
+    localitySearch,
+    payload?.city,
+    payload?.state,
+    payload?.locality,
+    savedLocations,
+    canAddCustomCity,
+  ]);
 
   /* ─── PINCODE AUTOFILL ───── */
 
@@ -765,7 +884,7 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
             warning
             label="City"
             value={
-              preferOtherCity && !payload?.city
+              canAddCustomCity && preferOtherCity && !payload?.city
                 ? "Other (custom city)"
                 : payload?.city || ""
             }
@@ -809,8 +928,18 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
             }
             dropdownRef={cityDropdownRef}
             optionKey={(opt, idx) =>
-              `${opt.value || opt.label}-${opt.stateCode || idx}`
+              `${opt.value || opt.label}-${opt.isSaved ? "saved" : "pkg"}-${opt.stateCode || idx}`
             }
+            renderOption={(opt) => (
+              <span className="min-w-0 flex-1 truncate">
+                {opt.label}
+                {opt.isSaved ? (
+                  <span className="ml-1 text-[10px] font-semibold text-[#27AE60]">
+                    (saved)
+                  </span>
+                ) : null}
+              </span>
+            )}
           />
 
           {showManualCityField && (
@@ -858,7 +987,7 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
           onClose={() => setLocalityOpen(false)}
           searchValue={localitySearch}
           onSearchChange={setLocalitySearch}
-          searchPlaceholder="Type 2+ letters to search..."
+          searchPlaceholder="Search locality..."
           loading={localityLoading}
           options={localitySuggestions}
           onSelect={(opt) => {
@@ -867,23 +996,34 @@ const BasicStep = forwardRef(({ payload, update }, ref) => {
             clr("locality");
           }}
           emptyHint={
-            localitySearch.trim().length >= 2
-              ? "No results found"
-              : payload?.city
-                ? "Type at least 2 letters to search localities in this city"
-                : "Select city first"
+            !payload?.city
+              ? "Select city first"
+              : localitySearch.trim().length >= 2
+                ? canAddCustomCity
+                  ? "No locality found — keep typing to use a custom name"
+                  : "No locality found — pick a saved or suggested locality"
+                : "Saved localities for this city, or type to search"
           }
           dropdownRef={localityDropdownRef}
           optionKey={(opt, idx) =>
-            `${opt.label}-${opt.city || ""}-${opt.state || ""}-${idx}`
+            `${opt.label}-${opt.city || ""}-${opt.state || ""}-${opt.isSaved ? "s" : "p"}-${idx}`
           }
           renderOption={(opt) => (
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium text-gray-900">
                 {opt.label}
-                {opt.isCustom ? " (use typed)" : ""}
+                {opt.isSaved ? (
+                  <span className="ml-1 text-[10px] font-semibold text-[#27AE60]">
+                    (saved)
+                  </span>
+                ) : null}
+                {opt.isCustom ? (
+                  <span className="ml-1 text-[10px] text-gray-400">
+                    (use typed)
+                  </span>
+                ) : null}
               </span>
-              {(opt.city || opt.state) && !opt.isCustom ? (
+              {(opt.city || opt.state) && !opt.isCustom && !opt.isSaved ? (
                 <span className="block truncate text-xs text-gray-500">
                   {[opt.city, opt.state].filter(Boolean).join(", ")}
                 </span>

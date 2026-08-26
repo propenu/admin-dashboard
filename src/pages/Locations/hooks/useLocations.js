@@ -11,22 +11,59 @@ import {
 
 function extractApiError(err, fallback = "Operation failed") {
   const data = err?.response?.data;
-  if (!data) return fallback;
 
-  if (data.code === "PERMISSION_REQUIRED" || data.requiredPermission) {
+  if (data && typeof data === "object") {
+    if (data.code === "PERMISSION_REQUIRED" || data.requiredPermission) {
+      return {
+        message: data.message || data.error || fallback,
+        error: data.error || data.message || fallback,
+        code: data.code || "PERMISSION_REQUIRED",
+        requiredPermission: data.requiredPermission,
+        yourRole: data.yourRole,
+        yourRoleLabel: data.yourRoleLabel,
+        allowedRoles: data.allowedRoles || [],
+        howToGetAccess: data.howToGetAccess || "",
+      };
+    }
+
+    const msg = data.error || data.message;
+    if (msg) {
+      return {
+        message: msg,
+        error: msg,
+        code: data.code || "",
+        requiredPermission: data.requiredPermission || "",
+        yourRole: data.yourRole || "",
+        yourRoleLabel: data.yourRoleLabel || "",
+        allowedRoles: data.allowedRoles || [],
+        howToGetAccess: data.howToGetAccess || "",
+      };
+    }
+  }
+
+  if (typeof data === "string" && data.trim()) {
+    return { message: data, allowedRoles: [], howToGetAccess: "" };
+  }
+
+  // Avoid raw axios "Request failed with status code 403" when body is empty
+  const status = err?.response?.status;
+  if (status === 403) {
     return {
-      message: data.message || data.error || fallback,
-      error: data.error || data.message || fallback,
-      code: data.code || "PERMISSION_REQUIRED",
-      requiredPermission: data.requiredPermission,
-      yourRole: data.yourRole,
-      yourRoleLabel: data.yourRoleLabel,
-      allowedRoles: data.allowedRoles || [],
-      howToGetAccess: data.howToGetAccess || "",
+      message:
+        "Access denied (403). Restart user-service, then log out and log in again. If it continues, ask Super Admin to confirm your role has location:view.",
+      code: "PERMISSION_REQUIRED",
+      requiredPermission: "location:view | location:update",
+      allowedRoles: [],
+      howToGetAccess:
+        "Super Admin / Admin are always allowed after user-service restart. Other staff need location:view on their role (sidebar Locations).",
     };
   }
 
-  return data.error || data.message || fallback;
+  return {
+    message: fallback,
+    allowedRoles: [],
+    howToGetAccess: "",
+  };
 }
 
 export default function useLocations() {
@@ -63,12 +100,21 @@ export default function useLocations() {
         await createLocationService(payload);
         setSuccessMsg("Location added successfully");
       } else {
+        if (!id) {
+          setErrorMsg({
+            message: "Missing location id — close and open Edit again.",
+            allowedRoles: [],
+            howToGetAccess: "",
+          });
+          return;
+        }
         await editLocationService(id, payload);
         setSuccessMsg("Location updated successfully");
       }
 
       fetchLocations();
     } catch (err) {
+      console.error("saveLocation failed:", err?.response?.status, err?.response?.data || err);
       setErrorMsg(extractApiError(err, "Operation failed"));
     } finally {
       setLoading(false);
