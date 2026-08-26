@@ -7,6 +7,52 @@ import RmTeamFloorDashboard from "./regionalManagerDashboard/components/RmTeamFl
 import { BDH_GROUP_TABS } from "./regionalManagerDashboard/regionalManagerDashboardData";
 import { useBdhDashboard } from "./businessDevelopmentHeadDashboard/useBdhDashboard";
 
+function DashboardModeBar({ viewMode, setViewMode, onRefresh, refreshing }) {
+  return (
+    <div className="flex shrink-0 items-center gap-1.5">
+      <div className="inline-flex h-9 items-stretch rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setViewMode("team")}
+          className={`inline-flex h-full items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-[10px] font-bold ${
+            viewMode === "team"
+              ? "bg-emerald-600 text-white"
+              : "text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          <Users className="h-3.5 w-3.5 shrink-0" />
+          Team Floor
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode("command")}
+          className={`inline-flex h-full items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-[10px] font-bold ${
+            viewMode === "command"
+              ? "bg-emerald-600 text-white"
+              : "text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
+          Command
+        </button>
+      </div>
+      {onRefresh ? (
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+        >
+          <RefreshCw
+            className={`h-3.5 w-3.5 shrink-0 ${refreshing ? "animate-spin" : ""}`}
+          />
+          Refresh
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * BD Head home: same working-team experience as Regional Manager —
  * Regional Managers + their staff, live online/offline, reassign.
@@ -27,23 +73,7 @@ export default function BusinessDevelopmentHeadDashboard() {
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-lg font-black text-slate-950 sm:text-xl">Dashboard</h1>
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setViewMode("team")}
-              className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
-            >
-              <Users className="h-3.5 w-3.5" />
-              Team Floor
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[10px] font-bold text-white"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              Command
-            </button>
-          </div>
+          <DashboardModeBar viewMode={viewMode} setViewMode={setViewMode} />
         </div>
         <OperationsDashboard businessDevelopmentMode />
       </div>
@@ -61,40 +91,15 @@ export default function BusinessDevelopmentHeadDashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-[1680px] space-y-3 pb-6 text-slate-900">
+    <div className="mx-auto min-w-0 max-w-[1680px] space-y-3 pb-6 text-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-lg font-black text-slate-950 sm:text-xl">Dashboard</h1>
-        <div className="flex items-center gap-1.5">
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setViewMode("team")}
-              className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1.5 text-[10px] font-bold text-white"
-            >
-              <Users className="h-3.5 w-3.5" />
-              Team Floor
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("command")}
-              className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              Command
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={refreshAll}
-            disabled={dashboard.isFetching}
-            className="inline-flex items-center gap-1 rounded-[10px] border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
-          >
-            <RefreshCw
-              className={`h-3.5 w-3.5 ${dashboard.isFetching ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </button>
-        </div>
+        <DashboardModeBar
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          onRefresh={refreshAll}
+          refreshing={dashboard.isFetching}
+        />
       </div>
 
       <RmTeamFloorDashboard

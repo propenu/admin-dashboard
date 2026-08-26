@@ -253,6 +253,7 @@ export default function FeaturedPreviewPage() {
   /* IntersectionObserver for active section */
   useEffect(() => {
     if (!formData) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -260,11 +261,21 @@ export default function FeaturedPreviewPage() {
           if (entry.isIntersecting) setActiveSection(sid);
         });
       },
-      { root: null, threshold: 0.25 }
+      { root: null, threshold: 0.25 },
     );
-    Object.values(sectionRefs.current).forEach((node) => observer.observe(node));
+
+    // Ref callbacks set null on unmount (e.g. specifications hidden for land).
+    // Only observe real DOM elements.
+    Object.entries(sectionRefs.current).forEach(([key, node]) => {
+      if (node instanceof Element) {
+        observer.observe(node);
+      } else {
+        delete sectionRefs.current[key];
+      }
+    });
+
     return () => observer.disconnect();
-  }, [formData]);
+  }, [formData, isLandProject, SECTIONS.length]);
 
   useEffect(() => {
     if (isLandProject && activeSection === "specifications") {

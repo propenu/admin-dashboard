@@ -11,6 +11,7 @@ import {
   buildCityOptions,
   toTitleCase,
 } from "../../../../utils/countryStateCity";
+import { fetchLoggedInUser } from "../../../../services/UserServices/userServices";
 
 const MAX_BROCHURE_BYTES = 20 * 1024 * 1024; // 20 MB — no compression
 
@@ -18,21 +19,81 @@ const MAX_BROCHURE_BYTES = 20 * 1024 * 1024; // 20 MB — no compression
 
 const PROPERTY_TYPES = {
   residential: [
-    { label: "Flat / Apartment", value: "apartment" },
-    { label: "Villa", value: "villa" },
-    { label: "Duplex", value: "duplex" },
-    { label: "Triplex", value: "triplex" },
-    { label: "Farmhouse", value: "farmhouse" },
+    { label: "Flat / Apartment", value: "apartment", icon: "🏗" },
+    { label: "Villa", value: "villa", icon: "🏰" },
+    { label: "Duplex", value: "duplex", icon: "🏘" },
+    { label: "Triplex", value: "triplex", icon: "🏚" },
+    { label: "Farmhouse", value: "farmhouse", icon: "🌿" },
   ],
 
   land: [
-    { label: "Plot", value: "plot" },
-    { label: "Residential Plot", value: "residential-plot" },
-    { label: "Industrial Plot", value: "industrial-plot" },
-    { label: "Agricultural Plot", value: "agricultural-plot" },
-    { label: "Commercial Plot", value: "commercial-plot" },
+    { label: "Plot", value: "plot", icon: "📌" },
+    { label: "Residential Plot", value: "residential-plot", icon: "🏠" },
+    { label: "Industrial Plot", value: "industrial-plot", icon: "🏭" },
+    { label: "Agricultural Plot", value: "agricultural-plot", icon: "🌾" },
+    { label: "Commercial Plot", value: "commercial-plot", icon: "🏢" },
   ],
 };
+
+/** Edit: only Residential + Land (Commercial / Agricultural stay hidden) */
+const CATEGORY_TYPES = [
+  {
+    value: "residential",
+    label: "Residential",
+    icon: "🏠",
+    desc: "Apartments, villas & homes",
+  },
+  {
+    value: "land",
+    label: "Land",
+    icon: "🌍",
+    desc: "Plots & open land",
+  },
+];
+
+/** Category / type editor — Super Admin & BDH only */
+const CATEGORY_EDIT_ROLES = new Set([
+  "super_admin",
+  "business_development_head",
+]);
+
+function normalizeRoleName(role) {
+  return String(role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+/** Same as create PropertyProfilesStep — hide towers for these */
+const HIDE_TOWER_TYPES = ["villa", "duplex", "triplex", "farmhouse"];
+
+/** Fields that no longer apply when category/type changes (same idea as post flow) */
+function categoryChangePatch(nextCategory, prevLocal = {}) {
+  const patch = {
+    categoryType: nextCategory,
+    propertyType: "",
+  };
+  if (nextCategory === "land") {
+    patch.totalTowers = "";
+    patch.totalFloors = "";
+  }
+  // Keep existing values for shared fields (title, location, rera, etc.)
+  return { ...prevLocal, ...patch };
+}
+
+function propertyTypeChangePatch(nextType, prevLocal = {}) {
+  const patch = { propertyType: nextType };
+  const lower = String(nextType || "").toLowerCase();
+  if (
+    prevLocal.categoryType === "land" ||
+    HIDE_TOWER_TYPES.includes(lower)
+  ) {
+    patch.totalTowers = "";
+    patch.totalFloors = "";
+  }
+  return { ...prevLocal, ...patch };
+}
 
 export default function PropertyDetailsEditor({
   formData,
@@ -48,6 +109,23 @@ export default function PropertyDetailsEditor({
   const [newVideo, setNewVideo] = useState({ title: "", url: "", order: "" });
   const [brochureFile, setBrochureFile] = useState(null);
   const [preferOtherCity, setPreferOtherCity] = useState(false);
+  const [canEditCategory, setCanEditCategory] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchLoggedInUser()
+      .then((user) => {
+        if (cancelled) return;
+        const role = normalizeRoleName(user?.roleName || user?.role?.name);
+        setCanEditCategory(CATEGORY_EDIT_ROLES.has(role));
+      })
+      .catch(() => {
+        if (!cancelled) setCanEditCategory(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setLocal({
@@ -61,6 +139,7 @@ export default function PropertyDetailsEditor({
       redirectUrl: formData.redirectUrl ?? "",
       propertyType: formData.propertyType ?? "",
       categoryType: formData.categoryType ?? "",
+      currency: formData.currency ?? "INR",
       title: formData.title ?? "",
       address: formData.address ?? "",
       pincode: formData.pincode ?? "",
@@ -73,7 +152,6 @@ export default function PropertyDetailsEditor({
       youtubeVideos: Array.isArray(formData.youtubeVideos)
         ? formData.youtubeVideos
         : [],
-      //brochureUrl: formData.brochureUrl ?? "",
       brochureUrl: formData?.brochure?.url ?? "",
     });
   }, [formData]);
@@ -113,15 +191,15 @@ export default function PropertyDetailsEditor({
 
   if (!formData) return null;
 
-  const isLand = formData?.categoryType === "land";
-
-  const propertyType = formData?.propertyType?.toLowerCase?.() || "";
-
+  // Use local so category/type edits update the editor UI immediately (same as post)
+  const isLand = local?.categoryType === "land";
+  const propertyType = String(local?.propertyType || "").toLowerCase();
   const showTowerFields =
     !isLand &&
-    ["villa", "duplex", "triplex", "farmhouse"].includes(propertyType);
+    Boolean(propertyType) &&
+    !HIDE_TOWER_TYPES.includes(propertyType);
 
-    const propertyOptions = PROPERTY_TYPES[local.categoryType] || [];
+  const propertyOptions = PROPERTY_TYPES[local.categoryType] || [];
 
   function sync(patch) {
     const updated = { ...local, ...patch };
@@ -132,6 +210,33 @@ export default function PropertyDetailsEditor({
 
   function change(field, value) {
     sync({ [field]: value });
+  }
+
+  function handleCategoryChange(val) {
+    const lower = String(val || "").toLowerCase();
+    if (!lower) return;
+    const next = categoryChangePatch(lower, local);
+    const patch = {
+      categoryType: next.categoryType,
+      propertyType: next.propertyType,
+      totalTowers: next.totalTowers,
+      totalFloors: next.totalFloors,
+    };
+    setLocal(next);
+    setFormData((prev) => ({ ...prev, ...patch }));
+    setLivePreviewData((prev) => ({ ...prev, ...patch }));
+  }
+
+  function handlePropertyTypeChange(val) {
+    const next = propertyTypeChangePatch(val, local);
+    const patch = {
+      propertyType: next.propertyType,
+      totalTowers: next.totalTowers,
+      totalFloors: next.totalFloors,
+    };
+    setLocal(next);
+    setFormData((prev) => ({ ...prev, ...patch }));
+    setLivePreviewData((prev) => ({ ...prev, ...patch }));
   }
 
   /* ── Banks ── */
@@ -257,6 +362,17 @@ export default function PropertyDetailsEditor({
   
 
   function handleSave() {
+    if (canEditCategory) {
+      if (!String(local.categoryType || "").trim()) {
+        toast.error("Please select a project category");
+        return;
+      }
+      if (!String(local.propertyType || "").trim()) {
+        toast.error("Please select a property type");
+        return;
+      }
+    }
+
     const payload = {
       ...local,
       ...(formData.brochure && { brochure: formData.brochure }),
@@ -307,47 +423,77 @@ export default function PropertyDetailsEditor({
 
       {/* ── Scrollable body ── */}
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6 min-h-0">
+        {canEditCategory && (
+          <div>
+            <SectionLabel icon="🏷" label="Project Category & Property Type" />
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {CATEGORY_TYPES.map((cat) => {
+                const active = local.categoryType === cat.value;
+                return (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    onClick={() => handleCategoryChange(cat.value)}
+                    className={[
+                      "relative flex flex-col items-start gap-1 p-3 rounded-xl border-2 text-left transition select-none",
+                      active
+                        ? "border-[#27AE60] bg-[#f0fdf6] shadow-sm"
+                        : "border-gray-100 bg-white hover:border-[#27AE60]/40",
+                    ].join(" ")}
+                  >
+                    <span className="text-lg leading-none">{cat.icon}</span>
+                    <span
+                      className={[
+                        "text-xs font-black",
+                        active ? "text-[#1a7a42]" : "text-gray-700",
+                      ].join(" ")}
+                    >
+                      {cat.label}
+                    </span>
+                    <span className="text-[9px] font-medium text-gray-400 leading-snug">
+                      {cat.desc}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {local.categoryType && propertyOptions.length > 0 && (
+              <div className="mt-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
+                  Property Type
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {propertyOptions.map((opt) => {
+                    const selected = local.propertyType === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => handlePropertyTypeChange(opt.value)}
+                        className={[
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 text-[11px] font-bold transition select-none",
+                          selected
+                            ? "border-[#27AE60] bg-[#27AE60] text-white shadow-sm"
+                            : "border-gray-200 bg-white text-gray-600 hover:border-[#27AE60]/50",
+                        ].join(" ")}
+                      >
+                        <span>{opt.icon}</span>
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Location Details ── */}
 
         <div>
           <SectionLabel icon="📍" label="Location Details" />
-
-          {/* <div className="grid grid-cols-2 gap-3 mb-2">
-            <FieldGroup label="Category Type">
-              <select
-                className={inputCls}
-                value={local.categoryType ?? ""}
-                onChange={(e) => {
-                  sync({
-                    categoryType: e.target.value,
-                    propertyType: "",
-                  });
-                }}
-              >
-                <option value="">Select Category</option>
-
-                <option value="residential">Residential</option>
-
-                <option value="land">Land</option>
-              </select>
-            </FieldGroup>
-            <FieldGroup label="Project Type">
-              <select
-                className={inputCls}
-                value={local.propertyType ?? ""}
-                onChange={(e) => change("propertyType", e.target.value)}
-                disabled={!local.categoryType}
-              >
-                <option value="">Select Project Type</option>
-
-                {propertyOptions.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </FieldGroup>
-          </div> */}
 
           <div className="grid grid-cols-2 gap-3">
             <FieldGroup label="Project Name">
@@ -362,7 +508,6 @@ export default function PropertyDetailsEditor({
               <input
                 className={`${inputCls} capitalize`}
                 value={local.address ?? ""}
-
                 onChange={(e) => change("address", e.target.value)}
                 placeholder="Address"
               />
@@ -370,6 +515,24 @@ export default function PropertyDetailsEditor({
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-3">
+            <FieldGroup label="Currency">
+              <select
+                className={inputCls}
+                value={local.currency || "INR"}
+                onChange={(e) => change("currency", e.target.value)}
+              >
+                <option value="INR">INR - Indian Rupee</option>
+                <option value="USD">USD - US Dollar</option>
+                <option value="EUR">EUR - Euro</option>
+                <option value="AED">AED - UAE Dirham</option>
+                <option value="GBP">GBP - British Pound</option>
+                <option value="CAD">CAD - Canadian Dollar</option>
+                <option value="AUD">AUD - Australian Dollar</option>
+                <option value="SGD">SGD - Singapore Dollar</option>
+                <option value="JPY">JPY - Japanese Yen</option>
+                <option value="CNY">CNY - Chinese Yuan</option>
+              </select>
+            </FieldGroup>
             <FieldGroup label="Pincode">
               <input
                 className={inputCls}
@@ -385,7 +548,9 @@ export default function PropertyDetailsEditor({
                 inputMode="numeric"
               />
             </FieldGroup>
+          </div>
 
+          <div className="grid grid-cols-2 gap-3 mt-3">
             <FieldGroup label="State" warning>
               <select
                 className={inputCls}
@@ -531,7 +696,7 @@ export default function PropertyDetailsEditor({
 
         {/* ── Legal & Compliance ── */}
         <div>
-          <SectionLabel icon="📋" label="Legal &amp; Compliance" />
+          <SectionLabel icon="📋" label="Legal & Compliance" />
           <div className="mt-3 space-y-3">
             <FieldGroup label="RERA Number" hint="Leave blank to hide badge">
               <input
@@ -593,7 +758,7 @@ export default function PropertyDetailsEditor({
 
         {/* ── Documents & Links ── */}
         <div>
-          <SectionLabel icon="🔗" label="Documents &amp; Links" />
+          <SectionLabel icon="🔗" label="Documents & Links" />
           <div className="mt-3 space-y-3">
             <FieldGroup
               label={isLand ? "Layout Website URL" : "Project Website URL"}

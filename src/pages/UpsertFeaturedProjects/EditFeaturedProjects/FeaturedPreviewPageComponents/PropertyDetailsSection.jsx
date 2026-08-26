@@ -29,8 +29,12 @@ export default function PropertyDetailsSection({ data }) {
 
   const propertyType = data?.propertyType?.toLowerCase?.() || "";
 
+  // Same as create PropertyProfilesStep — hide towers for land + villa/duplex/triplex/farmhouse
+  const HIDE_TOWER_TYPES = ["villa", "duplex", "triplex", "farmhouse"];
   const showTowerFields =
-    !isLand && ["villa", "duplex", "triplex", "farmhouse"].includes(propertyType);
+    !isLand &&
+    Boolean(propertyType) &&
+    !HIDE_TOWER_TYPES.includes(propertyType);
 
   const videos = Array.isArray(data.youtubeVideos) ? data.youtubeVideos : [];
   const banks = Array.isArray(data.banksApproved) ? data.banksApproved : [];

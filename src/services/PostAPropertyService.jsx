@@ -219,6 +219,7 @@ export const updateFeaturedProperty = async (id, payload) => {
     "reraNumber",
     "redirectUrl",
     "banksApproved",
+    "currency",
     
   ];
 

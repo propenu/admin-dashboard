@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, Fragment } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRightLeft,
+  ChevronDown,
   LayoutGrid,
   List,
   Loader2,
@@ -106,26 +107,193 @@ function StatPill({ label, value, tone, icon: Icon }) {
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative mx-auto w-full max-w-[200px] overflow-hidden rounded-xl bg-gradient-to-br ${tones[tone]} px-3 py-2.5 text-white shadow-md`}
+      className={`relative min-w-0 w-full overflow-hidden rounded-xl bg-gradient-to-br ${tones[tone]} px-2.5 py-2 text-white shadow-md max-lg:flex-1 sm:px-3 sm:py-2.5 lg:max-w-none`}
     >
       <div className="absolute -right-2 -top-2 h-10 w-10 rounded-full bg-white/15" />
-      <div className="relative flex items-center justify-between gap-2">
+      <div className="relative flex items-center justify-between gap-1.5">
         <div className="min-w-0">
-          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/80">
+          <p className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-white/80 sm:text-[9px]">
             {label}
           </p>
           <motion.p
             key={String(value)}
             initial={{ scale: 0.85, opacity: 0.5 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="mt-0.5 text-xl font-black tabular-nums leading-none"
+            className="mt-0.5 text-lg font-black tabular-nums leading-none sm:text-xl"
           >
             {value}
           </motion.p>
         </div>
-        <Icon className="h-4.5 w-4.5 h-[18px] w-[18px] shrink-0 text-white/85" />
+        <Icon className="h-4 w-4 shrink-0 text-white/85" />
       </div>
     </motion.div>
+  );
+}
+
+/** Mobile: colorful animated dropdown. Large+: same green pill tabs */
+function AnimatedGroupTabs({ tabs, activeKey, counts, onChange }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const activeTab = tabs.find((t) => t.key === activeKey) || tabs[0];
+  const activeCount = groupCountsSafe(counts, activeKey);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("touchstart", onDoc);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("touchstart", onDoc);
+    };
+  }, [open]);
+
+  return (
+    <>
+      {/* Mobile colorful animated dropdown */}
+      <div ref={rootRef} className="relative w-full min-w-0 lg:hidden">
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          className="flex h-12 w-full items-center justify-between gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 px-4 text-left text-white shadow-md shadow-emerald-600/25"
+        >
+          <span className="min-w-0">
+            <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-white/75">
+              Team filter
+            </span>
+            <span className="block truncate text-[15px] font-black leading-tight">
+              {activeTab?.label || "All"}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
+            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-black tabular-nums backdrop-blur-sm">
+              {activeCount}
+            </span>
+            <motion.span
+              animate={{ rotate: open ? 180 : 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="grid h-8 w-8 place-items-center rounded-full bg-white/15"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </motion.span>
+          </span>
+        </motion.button>
+
+        <AnimatePresence>
+          {open ? (
+            <motion.ul
+              role="listbox"
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 420, damping: 30 }}
+              className="absolute left-0 right-0 z-30 mt-2 max-h-64 overflow-auto rounded-2xl border border-emerald-100 bg-white p-1.5 shadow-xl shadow-emerald-900/10"
+            >
+              {tabs.map((tab, index) => {
+                const active = activeKey === tab.key;
+                const count = groupCountsSafe(counts, tab.key);
+                return (
+                  <motion.li
+                    key={tab.key}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                  >
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={active}
+                      onClick={() => {
+                        onChange(tab.key);
+                        setOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-3 text-left text-sm font-bold transition ${
+                        active
+                          ? "bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-sm"
+                          : "text-slate-700 hover:bg-emerald-50"
+                      }`}
+                    >
+                      <span className="truncate">{tab.label}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-black tabular-nums ${
+                          active
+                            ? "bg-white/20 text-white"
+                            : "bg-emerald-50 text-emerald-700"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  </motion.li>
+                );
+              })}
+            </motion.ul>
+          ) : null}
+        </AnimatePresence>
+      </div>
+
+      {/* Desktop / large tabs — unchanged */}
+      <div className="hidden min-w-0 flex-wrap gap-1.5 lg:flex">
+        {tabs.map((tab) => {
+          const active = activeKey === tab.key;
+          const count = groupCountsSafe(counts, tab.key);
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => onChange(tab.key)}
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold transition ${
+                active
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-emerald-50"
+              }`}
+            >
+              {tab.label}
+              <span className="ml-1 opacity-80">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function groupCountsSafe(counts, key) {
+  return counts?.[key] || 0;
+}
+
+/** Desktop only — mobile always uses cards (no Table) */
+function AnimatedViewToggle({ value, onChange }) {
+  return (
+    <div className="hidden rounded-lg border border-slate-200 bg-white p-0.5 lg:inline-flex">
+      {[
+        { key: "cards", label: "Cards", icon: LayoutGrid },
+        { key: "table", label: "Table", icon: List },
+      ].map(({ key, label, icon: Icon }) => {
+        const active = value === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            title={label}
+            onClick={() => onChange(key)}
+            className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[10px] font-bold ${
+              active
+                ? "bg-emerald-600 text-white"
+                : "text-slate-500 hover:bg-slate-50"
+            }`}
+          >
+            <Icon className="h-3 w-3" />
+            {label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -150,15 +318,15 @@ function MemberCard({ member, selected, onClick }) {
     <button
       type="button"
       onClick={() => onClick(member)}
-      className={`w-full overflow-hidden rounded-lg border text-left transition ${
+      className={`w-full min-w-0 overflow-hidden rounded-lg border text-left transition touch-manipulation ${
         selected
           ? "border-emerald-400 bg-emerald-50/40 ring-1 ring-emerald-200"
           : "border-slate-200 bg-white hover:border-emerald-300"
       }`}
     >
       <div className={`h-0.5 bg-gradient-to-r ${cardAccent[member.group] || cardAccent.other}`} />
-      <div className="flex items-center gap-2 px-2 py-1.5">
-        <span className="relative grid h-7 w-7 shrink-0 place-items-center rounded-md bg-emerald-50 text-[10px] font-black text-emerald-700">
+      <div className="flex items-center gap-2 px-2.5 py-2 max-lg:gap-3 max-lg:px-3 max-lg:py-2.5">
+        <span className="relative grid h-7 w-7 shrink-0 place-items-center rounded-md bg-emerald-50 text-[10px] font-black text-emerald-700 max-lg:h-9 max-lg:w-9 max-lg:rounded-lg max-lg:text-xs">
           {initials(member.name)}
           <span
             className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-white ${
@@ -168,12 +336,12 @@ function MemberCard({ member, selected, onClick }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-1">
-            <p className="truncate text-[11px] font-bold text-slate-900">
+            <p className="truncate text-[11px] font-bold text-slate-900 max-lg:text-sm">
               {member.name || "Team member"}
             </p>
             <PresenceBadge member={member} />
           </div>
-          <p className="truncate text-[9px] text-slate-500">
+          <p className="truncate text-[9px] text-slate-500 max-lg:text-[11px]">
             {titleCase(member.roleName)}
             {member.city ? ` · ${member.city}` : ""}
             {" · "}
@@ -213,30 +381,34 @@ function MemberTable({ members, selectedId, onSelect, pods = null }) {
         <td className="px-2.5 py-1.5 text-slate-600">
           {titleCase(member.roleName)}
         </td>
-        <td className="px-2.5 py-1.5 text-slate-600">{member.city || "—"}</td>
+        <td className="hidden px-2.5 py-1.5 text-slate-600 md:table-cell">
+          {member.city || "—"}
+        </td>
         <td className="px-2.5 py-1.5">
           <PresenceBadge member={member} />
         </td>
-        <td className="px-2.5 py-1.5 text-slate-500">
+        <td className="hidden px-2.5 py-1.5 text-slate-500 lg:table-cell">
           {formatSeen(member.lastSeenAt || member.lastLoginAt)}
         </td>
-        <td className="px-2.5 py-1.5 text-slate-500">{member.state || "—"}</td>
+        <td className="hidden px-2.5 py-1.5 text-slate-500 sm:table-cell">
+          {member.state || "—"}
+        </td>
       </tr>
     );
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <div className="max-h-[520px] overflow-auto">
-        <table className="w-full min-w-[560px] border-collapse text-left text-[11px]">
-          <thead className="sticky top-0 z-10 bg-slate-50 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="max-h-[min(70vh,560px)] overflow-auto overscroll-contain">
+        <table className="w-full min-w-[420px] border-collapse text-left text-[11px] sm:min-w-[560px]">
+          <thead className="sticky top-0 z-10 bg-slate-50/95 text-[9px] font-bold uppercase tracking-wide text-slate-500 backdrop-blur">
             <tr>
-              <th className="px-2.5 py-2">Name</th>
-              <th className="px-2.5 py-2">Role</th>
-              <th className="px-2.5 py-2">City</th>
-              <th className="px-2.5 py-2">Status</th>
-              <th className="px-2.5 py-2">Last heard</th>
-              <th className="px-2.5 py-2">State</th>
+              <th className="px-2.5 py-2.5">Name</th>
+              <th className="px-2.5 py-2.5">Role</th>
+              <th className="hidden px-2.5 py-2.5 md:table-cell">City</th>
+              <th className="px-2.5 py-2.5">Status</th>
+              <th className="hidden px-2.5 py-2.5 lg:table-cell">Last heard</th>
+              <th className="hidden px-2.5 py-2.5 sm:table-cell">State</th>
             </tr>
           </thead>
           <tbody>
@@ -431,10 +603,11 @@ function MemberDrawer({
 
   return (
     <motion.aside
-      initial={{ x: 40, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 40, opacity: 0 }}
-      className="flex h-full flex-col overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-xl"
+      initial={{ y: 24, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 24, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 320, damping: 28 }}
+      className="flex h-full max-h-[min(85vh,720px)] flex-col overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-xl lg:max-h-none"
     >
       <div className={`bg-gradient-to-r ${cardAccent[member.group] || cardAccent.other} p-4 text-white`}>
         <div className="flex items-start justify-between gap-2">
@@ -714,145 +887,162 @@ export default function RmTeamFloorDashboard({
   }, [hierarchyPods]);
 
   return (
-    <section className="overflow-hidden rounded-[18px] border border-emerald-100 bg-gradient-to-br from-[#f1faf5] via-white to-sky-50 shadow-sm">
-      <div className="border-b border-emerald-100/80 bg-white/70 px-4 py-3 backdrop-blur sm:px-5">
-        <div className="grid max-w-3xl grid-cols-2 gap-2 sm:grid-cols-3">
+    <section className="min-w-0 overflow-hidden rounded-[18px] border border-emerald-100 bg-gradient-to-br from-[#f1faf5] via-white to-sky-50 shadow-sm">
+      <div className="border-b border-emerald-100/80 bg-white/70 px-3 py-3 backdrop-blur sm:px-5">
+        {/* Mobile: 3 equal columns that fit. Desktop: same old row */}
+        <div className="flex min-w-0 gap-2 max-lg:w-full lg:grid lg:max-w-3xl lg:grid-cols-3">
           <StatPill label="Total team" value={liveStats.total} tone="emerald" icon={Users} />
           <StatPill label="Online now" value={liveStats.online} tone="sky" icon={Wifi} />
           <StatPill label="Offline" value={liveStats.offline} tone="slate" icon={WifiOff} />
         </div>
       </div>
 
-      <div className="grid gap-4 p-4 lg:grid-cols-12 lg:p-5">
-        <div className={`${selected ? "lg:col-span-7" : "lg:col-span-12"} space-y-3`}>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-1.5">
-              {groupTabs.map((tab) => {
-                const active = group === tab.key;
-                const count = groupCounts[tab.key] || 0;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setGroup(tab.key)}
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition ${
-                      active
-                        ? "bg-emerald-600 text-white shadow-sm"
-                        : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-emerald-50"
-                    }`}
-                  >
-                    {tab.label}
-                    <span className="ml-1 opacity-80">{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
-                <button
-                  type="button"
-                  title="Cards"
-                  onClick={() => setViewFormat("cards")}
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold ${
-                    viewFormat === "cards"
-                      ? "bg-emerald-600 text-white"
-                      : "text-slate-500 hover:bg-slate-50"
-                  }`}
-                >
-                  <LayoutGrid className="h-3 w-3" />
-                  Cards
-                </button>
-                <button
-                  type="button"
-                  title="Table"
-                  onClick={() => setViewFormat("table")}
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-bold ${
-                    viewFormat === "table"
-                      ? "bg-emerald-600 text-white"
-                      : "text-slate-500 hover:bg-slate-50"
-                  }`}
-                >
-                  <List className="h-3 w-3" />
-                  Table
-                </button>
-              </div>
-              <div className="relative w-full sm:w-52">
+      <div className="grid min-w-0 gap-4 p-3 sm:p-4 lg:grid-cols-12 lg:p-5">
+        <div className={`${selected ? "lg:col-span-7" : "lg:col-span-12"} min-w-0 space-y-3`}>
+          <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <AnimatedGroupTabs
+              tabs={groupTabs}
+              activeKey={group}
+              counts={groupCounts}
+              onChange={setGroup}
+            />
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:shrink-0">
+              {/* Cards / Table only on large screens; mobile = cards only */}
+              <AnimatedViewToggle value={viewFormat} onChange={setViewFormat} />
+              <div className="relative w-full sm:w-52 lg:w-52">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search…"
-                  className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-emerald-400"
+                  className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-emerald-400 max-lg:py-2.5 max-lg:pl-8 max-lg:text-sm"
                 />
               </div>
             </div>
           </div>
 
-          {viewFormat === "table" ? (
-            tablePods?.length || (!tablePods && filtered.length) ? (
-              <MemberTable
-                members={filtered}
-                pods={tablePods}
-                selectedId={selectedId}
-                onSelect={(m) =>
-                  setSelectedId((cur) => (cur === m.id ? "" : m.id))
-                }
-              />
-            ) : (
-              <div className="rounded-lg border border-dashed border-slate-200 bg-white py-10 text-center text-xs text-slate-400">
-                No team members in this filter
-              </div>
-            )
-          ) : hierarchyPods?.length ? (
-            <div className="space-y-3">
-              {hierarchyPods.map((pod) => (
-                <div key={pod.manager.id} className="space-y-1.5">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-indigo-700">
-                    {pod.manager.name || "Regional Manager"} · {pod.staff.length} staff
-                  </p>
-                  <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
-                    {!pod.hideManagerRow ? (
-                      <MemberCard
-                        member={pod.manager}
-                        selected={selectedId === pod.manager.id}
-                        onClick={(m) =>
-                          setSelectedId((cur) => (cur === m.id ? "" : m.id))
-                        }
-                      />
-                    ) : null}
-                    {pod.staff.map((member) => (
-                      <MemberCard
-                        key={member.id}
-                        member={member}
-                        selected={selectedId === member.id}
-                        onClick={(m) =>
-                          setSelectedId((cur) => (cur === m.id ? "" : m.id))
-                        }
-                      />
-                    ))}
+          {/* Mobile: always cards */}
+          <div className="lg:hidden">
+            {hierarchyPods?.length ? (
+              <div className="space-y-3">
+                {hierarchyPods.map((pod) => (
+                  <div key={pod.manager.id} className="space-y-1.5">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-indigo-700">
+                      {pod.manager.name || "Regional Manager"} · {pod.staff.length} staff
+                    </p>
+                    <div className="grid gap-1.5">
+                      {!pod.hideManagerRow ? (
+                        <MemberCard
+                          member={pod.manager}
+                          selected={selectedId === pod.manager.id}
+                          onClick={(m) =>
+                            setSelectedId((cur) => (cur === m.id ? "" : m.id))
+                          }
+                        />
+                      ) : null}
+                      {pod.staff.map((member) => (
+                        <MemberCard
+                          key={member.id}
+                          member={member}
+                          selected={selectedId === member.id}
+                          onClick={(m) =>
+                            setSelectedId((cur) => (cur === m.id ? "" : m.id))
+                          }
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {filtered.map((member) => (
-                <MemberCard
-                  key={member.id}
-                  member={member}
-                  selected={selectedId === member.id}
-                  onClick={(m) =>
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-1.5">
+                {filtered.map((member) => (
+                  <MemberCard
+                    key={member.id}
+                    member={member}
+                    selected={selectedId === member.id}
+                    onClick={(m) =>
+                      setSelectedId((cur) => (cur === m.id ? "" : m.id))
+                    }
+                  />
+                ))}
+                {!filtered.length ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-white py-10 text-center text-xs text-slate-400">
+                    No team members in this filter
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          {/* Large+: cards or table (old behavior) */}
+          <div className="hidden lg:block">
+            {viewFormat === "table" ? (
+              tablePods?.length || (!tablePods && filtered.length) ? (
+                <MemberTable
+                  members={filtered}
+                  pods={tablePods}
+                  selectedId={selectedId}
+                  onSelect={(m) =>
                     setSelectedId((cur) => (cur === m.id ? "" : m.id))
                   }
                 />
-              ))}
-              {!filtered.length ? (
-                <div className="col-span-full rounded-lg border border-dashed border-slate-200 bg-white py-10 text-center text-xs text-slate-400">
+              ) : (
+                <div className="rounded-lg border border-dashed border-slate-200 bg-white py-10 text-center text-xs text-slate-400">
                   No team members in this filter
                 </div>
-              ) : null}
-            </div>
-          )}
+              )
+            ) : hierarchyPods?.length ? (
+              <div className="space-y-3">
+                {hierarchyPods.map((pod) => (
+                  <div key={pod.manager.id} className="space-y-1.5">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-indigo-700">
+                      {pod.manager.name || "Regional Manager"} · {pod.staff.length} staff
+                    </p>
+                    <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+                      {!pod.hideManagerRow ? (
+                        <MemberCard
+                          member={pod.manager}
+                          selected={selectedId === pod.manager.id}
+                          onClick={(m) =>
+                            setSelectedId((cur) => (cur === m.id ? "" : m.id))
+                          }
+                        />
+                      ) : null}
+                      {pod.staff.map((member) => (
+                        <MemberCard
+                          key={member.id}
+                          member={member}
+                          selected={selectedId === member.id}
+                          onClick={(m) =>
+                            setSelectedId((cur) => (cur === m.id ? "" : m.id))
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                {filtered.map((member) => (
+                  <MemberCard
+                    key={member.id}
+                    member={member}
+                    selected={selectedId === member.id}
+                    onClick={(m) =>
+                      setSelectedId((cur) => (cur === m.id ? "" : m.id))
+                    }
+                  />
+                ))}
+                {!filtered.length ? (
+                  <div className="col-span-full rounded-lg border border-dashed border-slate-200 bg-white py-10 text-center text-xs text-slate-400">
+                    No team members in this filter
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
 
         <AnimatePresence>
@@ -862,7 +1052,7 @@ export default function RmTeamFloorDashboard({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="min-h-[420px] lg:col-span-5"
+              className="min-h-[320px] min-w-0 lg:col-span-5 lg:min-h-[420px]"
             >
               <MemberDrawer
                 member={selected}
