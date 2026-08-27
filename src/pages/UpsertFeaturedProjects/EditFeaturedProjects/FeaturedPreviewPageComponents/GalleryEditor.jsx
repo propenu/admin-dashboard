@@ -120,8 +120,7 @@ export default function GalleryEditor({
     if (file.type.startsWith("image/")) {
       try {
         finalFile = await compressImage(file, "gallery", "Gallery Image");
-      } catch (err) {
-        toast.error(err?.message || "Invalid image");
+      } catch {
         return;
       }
     } else if (!file.type.startsWith("video/")) {
@@ -238,8 +237,7 @@ export default function GalleryEditor({
         if (file.type.startsWith("image/")) {
           try {
             finalFile = await compressImage(file, "gallery", "Gallery Image");
-          } catch (err) {
-            toast.error(err?.message || `${file.name} rejected`);
+          } catch {
             return null;
           }
         } else if (!file.type.startsWith("video/")) {

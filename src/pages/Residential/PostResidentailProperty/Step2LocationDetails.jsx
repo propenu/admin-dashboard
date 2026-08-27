@@ -1004,24 +1004,8 @@ function MapplsPinMap({ coordinates, onPinChange }) {
             markerRef.current = new sdk.Marker({ map: mapRef.current, position: { lat, lng }, fitbounds: false });
             recenterMap(mapRef.current, lat, lng, MAP_CLICK_ZOOM);
 
-            // Notify parent instantly (coordinates only)
+            // Notify parent with coordinates only — do not overwrite State/City/Locality
             onPinChangeRef.current?.({ coordinates: [lng, lat] });
-
-            // Reverse geocode → State / City / Locality (PIN stays manual)
-            geocodeAbortRef.current?.abort();
-            const ctrl = new AbortController();
-            geocodeAbortRef.current = ctrl;
-
-            reverseGeocode(lat, lng, ctrl.signal)
-              .then((geo) => {
-                onPinChangeRef.current?.({ coordinates: [lng, lat], ...geo });
-              })
-              .catch((err) => {
-                if (err?.name === "AbortError") return;
-                console.error("Reverse geocode error:", err);
-                // coordinates still saved even without address
-                onPinChangeRef.current?.({ coordinates: [lng, lat] });
-              });
           };
 
           mapRef.current.on?.("click", handleClick);
@@ -1284,14 +1268,28 @@ export default function Step2LocationDetails({ next, back, category }) {
         form.city || undefined,
         trimmed,
       );
-      const seen = new Set(saved.map((s) => sharedNormalize(s.label)));
-      const merged = [...saved];
+      // Prefer Photon coords when the same name exists in saved list
+      const byKey = new Map();
+      for (const s of saved) {
+        const key = sharedNormalize(s.label);
+        if (key) byKey.set(key, { ...s });
+      }
       for (const r of results) {
         const key = sharedNormalize(r.label);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        merged.push(r);
+        if (!key) continue;
+        const existing = byKey.get(key);
+        if (existing) {
+          byKey.set(key, {
+            ...existing,
+            coordinates: r.coordinates || existing.coordinates,
+            city: r.city || existing.city,
+            state: r.state || existing.state,
+          });
+        } else {
+          byKey.set(key, r);
+        }
       }
+      const merged = Array.from(byKey.values());
       if (
         canAddCustomCity &&
         !merged.some(
@@ -1362,9 +1360,9 @@ export default function Step2LocationDetails({ next, back, category }) {
     return () => ctrl.abort();
   }, [form.locality, form.city, form.state, setValue]);
 
-  // Map click / GPS → show State, City, Locality from map point.
-  // PIN Code stays manual (user types 6 digits) — never set from map/PIN lookup.
-  const handlePinChange = useCallback(({ coordinates, locality, city, state }) => {
+  // Manual map pin / GPS → update coordinates only.
+  // State / City / Locality stay as selected in the dropdowns (not overwritten by pin).
+  const handlePinChange = useCallback(({ coordinates }) => {
     pinPlacedByUserRef.current  = true;
     skipCoordinateReverseRef.current = true;
     skipNextFieldGeocodeRef.current = true;
@@ -1372,10 +1370,6 @@ export default function Step2LocationDetails({ next, back, category }) {
 
     setValue("location", { type: "Point", coordinates });
     setErrors((prev) => { const u = { ...prev }; delete u.location; return u; });
-
-    if (locality) setValue("locality", locality);
-    if (city)     setValue("city",     city);
-    if (state)    setValue("state",    state);
   }, [setValue]);
 
   const applyStateSelection = useCallback(
@@ -1417,22 +1411,36 @@ export default function Step2LocationDetails({ next, back, category }) {
 
   const applyLocalitySelection = useCallback(
     (suggestion) => {
-      skipNextFieldGeocodeRef.current = true;
-      skipCoordinateReverseRef.current = true;
-      pinPlacedByUserRef.current = false;
+      const hasCoords =
+        Array.isArray(suggestion.coordinates) &&
+        suggestion.coordinates.length === 2 &&
+        suggestion.coordinates.every(Number.isFinite);
+
       setValue("locality", suggestion.label);
       if (suggestion.city) setValue("city", suggestion.city);
       if (suggestion.state) setValue("state", suggestion.state);
-      if (
-        Array.isArray(suggestion.coordinates) &&
-        suggestion.coordinates.length === 2
-      ) {
+
+      if (hasCoords) {
+        // Outside API / Photon (or enriched saved) → pin map on that locality
+        skipNextFieldGeocodeRef.current = true;
+        skipCoordinateReverseRef.current = true;
+        pinPlacedByUserRef.current = false;
         setValue("location", {
           type: "Point",
           coordinates: suggestion.coordinates,
         });
         setMarkerPlaced(true);
+      } else if (suggestion.isCustom) {
+        // Typed custom locality — keep / place pin manually on the map
+        skipNextFieldGeocodeRef.current = true;
+        toast.message("Custom locality — click the map to place the pin", {
+          duration: 3500,
+        });
+      } else {
+        // Saved name without coords — geocode via Photon effect → move pin
+        skipNextFieldGeocodeRef.current = false;
       }
+
       setLocalitySearch("");
       setLocalityOpen(false);
       setLocalitySuggestions([]);
@@ -1440,7 +1448,7 @@ export default function Step2LocationDetails({ next, back, category }) {
     [setValue],
   );
 
-  // GPS button
+  // GPS button — pin only; do not overwrite State / City / Locality dropdowns
   const handleUseMyLocation = useCallback(() => {
     if (!navigator.geolocation) { toast.error("Geolocation not supported."); return; }
     setLocatingUser(true);
@@ -1449,17 +1457,7 @@ export default function Step2LocationDetails({ next, back, category }) {
         setLocatingUser(false);
         const lat = coords.latitude;
         const lng = coords.longitude;
-
-        // Instant coordinates update
         handlePinChange({ coordinates: [lng, lat] });
-
-        // Reverse geocode → pincode + address
-        gpsAbortRef.current?.abort();
-        const ctrl = new AbortController();
-        gpsAbortRef.current = ctrl;
-        reverseGeocode(lat, lng, ctrl.signal)
-          .then((geo) => handlePinChange({ coordinates: [lng, lat], ...geo }))
-          .catch((e)  => { if (e?.name !== "AbortError") console.error(e); });
       },
       (err) => {
         setLocatingUser(false);
@@ -1487,31 +1485,11 @@ export default function Step2LocationDetails({ next, back, category }) {
       return;
     }
 
-    if (!manualCoordinateEditRef.current) return;
-
-    const [lng, lat] = coords;
-
-    coordinatesAbortRef.current?.abort();
-    const ctrl = new AbortController();
-    coordinatesAbortRef.current = ctrl;
-
-    reverseGeocode(lat, lng, ctrl.signal)
-      .then((geo) => {
-        manualCoordinateEditRef.current = false;
-        skipNextFieldGeocodeRef.current = true;
-        // PIN stays manual — only State / City / Locality from map point
-        if (geo.locality) setValue("locality", geo.locality);
-        if (geo.city) setValue("city", geo.city);
-        if (geo.state) setValue("state", geo.state);
-      })
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          console.error(err);
-        }
-      });
-
-    return () => ctrl.abort();
-  }, [form.location?.coordinates, setValue]);
+    // Manual lat/lng edits must not overwrite State / City / Locality
+    if (manualCoordinateEditRef.current) {
+      manualCoordinateEditRef.current = false;
+    }
+  }, [form.location?.coordinates]);
 
   // Cleanup
   useEffect(() => {
@@ -1717,8 +1695,8 @@ export default function Step2LocationDetails({ next, back, category }) {
 
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
             PIN Code is manual (6 digits only). Select State → City → Locality
-            from the dropdowns, or click the map to fill State, City, and Locality
-            from the pin.
+            from the dropdowns (map pin follows locality). Moving the pin manually
+            does not change State, City, or Locality.
           </p>
 
           {/* Searchable State / City / Locality — same flow as propenu.com */}
@@ -1861,7 +1839,7 @@ export default function Step2LocationDetails({ next, back, category }) {
             <div>
               <SectionLabel>Pin Property Location</SectionLabel>
               <p className="text-[10px] text-[#9ca3af] -mt-2">
-                Click the map → State, City, and Locality fill from the pin
+                Click the map to place or move the pin — State, City & Locality stay as selected above
               </p>
             </div>
           </div>
@@ -1894,7 +1872,7 @@ export default function Step2LocationDetails({ next, back, category }) {
           <div className="mt-2 flex items-center gap-1.5 text-[#f59e0b]">
             <Navigation size={12} />
             <p className="text-xs font-medium">
-              Click the map or use "Use My Location" to pin your property
+              Click the map or use "Use My Location" to pin (won't change State/City/Locality)
             </p>
           </div>
         )}

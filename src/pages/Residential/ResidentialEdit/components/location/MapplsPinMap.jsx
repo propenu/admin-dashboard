@@ -599,22 +599,8 @@ const MapplsPinMap = memo(function MapplsPinMap({ coordinates, onPinChange }) {
             recenterMap(mapRef.current, lat, lng, MAP_CLICK_ZOOM);
             setMarkerPlaced(true);
 
-            // Notify parent immediately with coordinates
+            // Notify parent with coordinates only — keep State / City / Locality as selected
             onPinChangeRef.current?.({ coordinates: [lng, lat] });
-
-            // Then reverse geocode and send enriched result
-            geocodeAbortRef.current?.abort();
-            const ctrl = new AbortController();
-            geocodeAbortRef.current = ctrl;
-
-            reverseGeocode(lat, lng, ctrl.signal)
-              .then((geo) => onPinChangeRef.current?.({ coordinates: [lng, lat], ...geo }))
-              .catch((err) => {
-                if (err?.name === "AbortError") return;
-                console.error("Reverse geocode error:", err);
-                // Still call with just coordinates so parent isn't left hanging
-                onPinChangeRef.current?.({ coordinates: [lng, lat] });
-              });
           };
 
           mapRef.current.on?.("click", handleClick);
@@ -671,13 +657,7 @@ const MapplsPinMap = memo(function MapplsPinMap({ coordinates, onPinChange }) {
         }
 
         onPinChangeRef.current?.({ coordinates: [lng, lat] });
-
-        gpsAbortRef.current?.abort();
-        const ctrl = new AbortController();
-        gpsAbortRef.current = ctrl;
-        reverseGeocode(lat, lng, ctrl.signal)
-          .then((geo) => onPinChangeRef.current?.({ coordinates: [lng, lat], ...geo }))
-          .catch((e) => { if (e?.name !== "AbortError") console.error(e); });
+        // GPS pin only — do not overwrite State / City / Locality
       },
       (err) => {
         setLocating(false);

@@ -43,6 +43,20 @@ export default function SpecificationEditor({
     setLivePreviewData(next);
   }
 
+  // Keep a single editable group — no "+ Add Group" button
+  React.useEffect(() => {
+    if ((formData.specifications || []).length === 0) {
+      sync([
+        {
+          category: "",
+          order: 0,
+          items: [{ title: "", description: "" }],
+        },
+      ]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.specifications?.length]);
+
   function updateItem(gIndex, iIndex, field, value) {
     const updated = specs.map((g, gi) => {
       if (gi !== gIndex) return g;
@@ -55,20 +69,20 @@ export default function SpecificationEditor({
     sync(updated);
   }
 
-  function addCategory() {
-    sync([
-      ...specs,
-      {
-        category: "",
-        order: specs.length,
-        items: [{ title: "", description: "" }],
-      },
-    ]);
-  }
-
   function removeCategory(gIndex) {
+    const next = specs
+      .filter((_, i) => i !== gIndex)
+      .map((g, i) => ({ ...g, order: i }));
     sync(
-      specs.filter((_, i) => i !== gIndex).map((g, i) => ({ ...g, order: i })),
+      next.length
+        ? next
+        : [
+            {
+              category: "",
+              order: 0,
+              items: [{ title: "", description: "" }],
+            },
+          ],
     );
   }
 
@@ -118,30 +132,6 @@ export default function SpecificationEditor({
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4 min-h-0">
-        {specs.length === 0 && (
-          <div className="rounded-xl border-2 border-dashed border-gray-100 py-12 text-center">
-            <div className="w-12 h-12 bg-[#27AE60]/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <svg
-                className="w-6 h-6 text-[#27AE60]"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1.5"
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-            </div>
-            <p className="text-sm text-gray-400 font-semibold">No groups yet</p>
-            <p className="text-xs text-gray-300 mt-1">
-              Click "+ Add Group" — paste descriptions exactly from outside
-            </p>
-          </div>
-        )}
-
         {specs.map((group, gIndex) => (
           <div
             key={gIndex}
@@ -157,26 +147,28 @@ export default function SpecificationEditor({
               <p className="flex-1 text-sm font-bold text-gray-800">
                 Spec group {gIndex + 1}
               </p>
-              <button
-                type="button"
-                onClick={() => removeCategory(gIndex)}
-                className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all flex-shrink-0"
-                title="Remove group"
-              >
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              {specs.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => removeCategory(gIndex)}
+                  className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-all flex-shrink-0"
+                  title="Remove group"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2.5"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.5"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              ) : null}
             </div>
 
             <div className="p-3 space-y-2 bg-gray-50/40">
@@ -211,27 +203,6 @@ export default function SpecificationEditor({
             </div>
           </div>
         ))}
-
-        <button
-          type="button"
-          onClick={addCategory}
-          className="w-full py-3 border-2 border-dashed border-[#27AE60]/30 text-[#27AE60] rounded-xl text-sm font-bold hover:border-[#27AE60] hover:bg-[#27AE60]/5 transition-all flex items-center justify-center gap-2"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2.5"
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Add Group
-        </button>
       </div>
 
       <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex-shrink-0">

@@ -374,13 +374,10 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
   }, []);
 
   const handlePinChange = useCallback(
-    ({ coordinates, locality, city, state }) => {
+    ({ coordinates }) => {
+      // Pin only — do not overwrite State / City / Locality from dropdowns
       skipNextFieldGeocodeRef.current = true;
       upd("location", { type: "Point", coordinates });
-      // PIN stays manual — only State / City / Locality from map
-      if (locality) upd("locality", locality);
-      if (city) upd("city", city);
-      if (state) upd("state", state);
     },
     [upd],
   );
@@ -494,14 +491,27 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
         data.city || undefined,
         trimmed,
       );
-      const seen = new Set(saved.map((s) => sharedNormalize(s.label)));
-      const merged = [...saved];
+      const byKey = new Map();
+      for (const s of saved) {
+        const key = sharedNormalize(s.label);
+        if (key) byKey.set(key, { ...s });
+      }
       for (const r of results) {
         const key = sharedNormalize(r.label);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        merged.push(r);
+        if (!key) continue;
+        const existing = byKey.get(key);
+        if (existing) {
+          byKey.set(key, {
+            ...existing,
+            coordinates: r.coordinates || existing.coordinates,
+            city: r.city || existing.city,
+            state: r.state || existing.state,
+          });
+        } else {
+          byKey.set(key, r);
+        }
       }
+      const merged = Array.from(byKey.values());
       if (
         canAddCustomCity &&
         !merged.some(
@@ -602,16 +612,24 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
 
   const applyLocalitySelection = useCallback(
     (suggestion) => {
-      skipNextFieldGeocodeRef.current = true;
+      const hasCoords =
+        Array.isArray(suggestion.coordinates) &&
+        suggestion.coordinates.length === 2 &&
+        suggestion.coordinates.every(Number.isFinite);
+
       upd("locality", suggestion.label);
       if (suggestion.city) upd("city", suggestion.city);
       if (suggestion.state) upd("state", suggestion.state);
-      if (
-        Array.isArray(suggestion.coordinates) &&
-        suggestion.coordinates.length === 2
-      ) {
+
+      if (hasCoords) {
+        skipNextFieldGeocodeRef.current = true;
         upd("location", { type: "Point", coordinates: suggestion.coordinates });
+      } else if (suggestion.isCustom) {
+        skipNextFieldGeocodeRef.current = true;
+      } else {
+        skipNextFieldGeocodeRef.current = false;
       }
+
       setLocalitySearch("");
       setLocalityOpen(false);
       setLocalitySuggestions([]);
@@ -718,7 +736,8 @@ export default function StepLocationDetails({ data, onChange, onSave }) {
             <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
               <p className="text-[9px] font-semibold leading-4 text-amber-700">
                 PIN Code is manual (6 digits only). Select State → City → Locality
-                from dropdowns, or click the map to fill them from the pin.
+                from dropdowns (map follows locality). Moving the pin manually does
+                not change State, City, or Locality.
               </p>
             </div>
 

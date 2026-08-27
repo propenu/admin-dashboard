@@ -1,4 +1,6 @@
 import imageCompression from "browser-image-compression";
+import { createElement } from "react";
+import { Minimize2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 /** Skip compression at or under this size. */
@@ -39,7 +41,7 @@ export const formatFileSizeMb = (item) => {
 /**
  * Reject non-images. Returns an error message or null.
  */
-export const getImageRejectError = (file, label = "File") => {
+export const getImageRejectError = (file, label = "Image") => {
   if (!file) return `${label}: nothing selected.`;
   if (!isImageFile(file)) {
     return `${label}: only images are allowed (PNG, JPG, WEBP).`;
@@ -49,6 +51,18 @@ export const getImageRejectError = (file, label = "File") => {
   }
   return null;
 };
+
+const compressIcon = (className = "h-4 w-4 text-emerald-600") =>
+  createElement(Minimize2, {
+    className: `${className} animate-pulse`,
+    "aria-hidden": true,
+  });
+
+const compressDoneIcon = () =>
+  createElement(CheckCircle2, {
+    className: "h-4 w-4 text-emerald-600",
+    "aria-hidden": true,
+  });
 
 const toOutputFile = (blobOrFile, originalName, typeHint) =>
   new File([blobOrFile], originalName || "image.jpg", {
@@ -103,6 +117,8 @@ async function compressTowardPointNine(file) {
  * - not an image → reject
  * - ≤ 1 MB → no compress (keep original)
  * - > 1 MB → compress to about 0.8–0.9 MB (do not crush far below)
+ *
+ * Shows a compressing toast with compress icon while work runs (edit + create).
  */
 export async function compressProjectImage(
   file,
@@ -118,6 +134,7 @@ export async function compressProjectImage(
     if (!silent) {
       toast.success(
         `${label}: ${(file.size / ONE_MB).toFixed(2)} MB — under 1 MB, no compress`,
+        { icon: compressDoneIcon(), duration: 3200 },
       );
     }
     return file instanceof File
@@ -125,26 +142,44 @@ export async function compressProjectImage(
       : toOutputFile(file, file.name || "image.jpg", file.type);
   }
 
+  const fromMb = (file.size / ONE_MB).toFixed(2);
+  const toastId = silent
+    ? null
+    : toast.loading(`${label}: Compressing ${fromMb} MB…`, {
+        icon: compressIcon(),
+      });
+
   try {
     const finalFile = await compressTowardPointNine(file);
 
     if (finalFile.size > ONE_MB) {
       const msg = `${label}: still over 1 MB after compression (${(finalFile.size / ONE_MB).toFixed(2)} MB). Try a smaller image.`;
-      if (!silent) toast.error(msg);
+      if (!silent) {
+        if (toastId != null) toast.dismiss(toastId);
+        toast.error(msg, { duration: 4500 });
+      }
       throw new Error(msg);
     }
 
     if (!silent) {
+      // Replace loading toast — explicit duration so it auto-closes (industry default ~3s)
+      if (toastId != null) toast.dismiss(toastId);
       toast.success(
-        `${label}: ${(file.size / ONE_MB).toFixed(2)} MB → ${(finalFile.size / ONE_MB).toFixed(2)} MB`,
+        `${label}: compressed ${fromMb} MB → ${(finalFile.size / ONE_MB).toFixed(2)} MB`,
+        { icon: compressDoneIcon(), duration: 3500 },
       );
     }
 
     return finalFile;
   } catch (error) {
-    if (error?.message && String(error.message).includes(label)) throw error;
+    if (error?.message && String(error.message).includes(label)) {
+      throw error;
+    }
     const msg = `${label}: compression failed`;
-    if (!silent) toast.error(msg);
+    if (!silent) {
+      if (toastId != null) toast.dismiss(toastId);
+      toast.error(msg, { duration: 4500 });
+    }
     throw new Error(msg);
   }
 }

@@ -1,9 +1,7 @@
 // src/pages/features/property/components/shared/ProjectsDashboardPage.jsx
 import {
   useState, useEffect, useRef, useMemo, useCallback, useReducer,
-  useLayoutEffect,
 } from "react";
-import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -324,6 +322,20 @@ const resolveLocationRows = (analytics, locationType) => {
   };
 };
 
+/** Display names like "madu" → "Madu", "muzeef shaik" → "Muzeef Shaik" */
+function titleCaseWords(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => {
+      if (!word) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PRIMITIVE COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -359,75 +371,48 @@ function FilterMenu({
   triggerClassName = "",
   placeholder = "Select…",
   menuMaxHeight = 240,
-  minMenuWidth = 160,
   /** Show emerald emphasis when a non-default value is selected */
   activeWhenNot = "all",
 }) {
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef(null);
+  const rootRef = useRef(null);
   const menuRef = useRef(null);
-  const [menuStyle, setMenuStyle] = useState(null);
 
   const selected = options.find((o) => o.value === value && !o.isGroup);
   const isActive =
     activeWhenNot != null && value != null && value !== activeWhenNot;
 
-  useLayoutEffect(() => {
-    if (!open) {
-      setMenuStyle(null);
-      return;
-    }
-    const place = () => {
-      const el = triggerRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const width = Math.max(r.width, minMenuWidth);
-      const spaceBelow = window.innerHeight - r.bottom;
-      const openUp = spaceBelow < 220 && r.top > spaceBelow;
-      setMenuStyle({
-        position: "fixed",
-        left: Math.min(Math.max(8, r.left), window.innerWidth - width - 8),
-        width,
-        zIndex: 9999,
-        maxHeight: Math.min(
-          menuMaxHeight,
-          openUp ? r.top - 12 : spaceBelow - 12,
-        ),
-        ...(openUp
-          ? { bottom: window.innerHeight - r.top + 4 }
-          : { top: r.bottom + 4 }),
-      });
-    };
-    place();
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-    return () => {
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
-    };
-  }, [open, options.length, menuMaxHeight, minMenuWidth]);
-
   useEffect(() => {
     if (!open) return;
     const onDown = (e) => {
       if (menuRef.current?.contains(e.target)) return;
-      if (triggerRef.current?.contains(e.target)) return;
+      if (rootRef.current?.contains(e.target)) return;
       setOpen(false);
     };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative z-20 ${className}`} ref={rootRef}>
       {label ? (
         <p className="mb-1 text-[11px] font-bold text-slate-600">{label}</p>
       ) : null}
       <button
-        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex h-9 w-full items-center justify-between gap-1 rounded-lg border bg-white px-2 text-left text-xs font-semibold outline-none transition focus:border-emerald-500 ${
+        className={`flex h-9 w-full items-center justify-between gap-1 border bg-white px-2 text-left text-xs font-semibold outline-none transition focus:border-emerald-500 ${
+          open
+            ? "rounded-t-lg rounded-b-none border-slate-200 border-b-transparent"
+            : "rounded-lg"
+        } ${
           isActive
             ? "border-emerald-300 text-emerald-800 ring-1 ring-emerald-100"
             : "border-slate-200 text-slate-700"
@@ -446,62 +431,59 @@ function FilterMenu({
         />
       </button>
 
-      {open && menuStyle
-        ? createPortal(
-            <div
-              ref={menuRef}
-              style={menuStyle}
-              className="overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-2xl"
-              role="listbox"
-            >
-              {options.map((opt, idx) => {
-                if (opt.isGroup) {
-                  return (
-                    <p
-                      key={`g-${opt.label}-${idx}`}
-                      className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-wide text-slate-400"
-                    >
-                      {opt.label}
-                    </p>
-                  );
-                }
-                const selectedOpt = value === opt.value;
-                const count = opt.count;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    role="option"
-                    aria-selected={selectedOpt}
-                    onClick={() => {
-                      onChange(opt.value);
-                      setOpen(false);
-                    }}
-                    className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
+      {open ? (
+        <div
+          ref={menuRef}
+          className="absolute left-0 right-0 top-full z-50 w-full overflow-y-auto rounded-b-lg border border-t-0 border-slate-200 bg-white shadow-2xl"
+          style={{ maxHeight: menuMaxHeight }}
+          role="listbox"
+        >
+          {options.map((opt, idx) => {
+            if (opt.isGroup) {
+              return (
+                <p
+                  key={`g-${opt.label}-${idx}`}
+                  className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-wide text-slate-400"
+                >
+                  {opt.label}
+                </p>
+              );
+            }
+            const selectedOpt = value === opt.value;
+            const count = opt.count;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={selectedOpt}
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
+                  selectedOpt
+                    ? "bg-emerald-600 text-white"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                {typeof count === "number" && count > 0 ? (
+                  <span
+                    className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
                       selectedOpt
-                        ? "bg-emerald-600 text-white"
-                        : "text-slate-700 hover:bg-slate-50"
+                        ? "bg-white/25 text-white"
+                        : "bg-slate-200 text-slate-700"
                     }`}
                   >
-                    <span className="min-w-0 flex-1 truncate">{opt.label}</span>
-                    {typeof count === "number" && count > 0 ? (
-                      <span
-                        className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
-                          selectedOpt
-                            ? "bg-white/25 text-white"
-                            : "bg-slate-200 text-slate-700"
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>,
-            document.body,
-          )
-        : null}
+                    {count}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -517,6 +499,173 @@ function SelectDropdown({ label, value, options, onChange, placeholder = "Select
       placeholder={placeholder}
       activeWhenNot={null}
     />
+  );
+}
+
+/**
+ * Builder filter: type to search → dropdown opens and shows matches (case-insensitive).
+ * Menu is position:absolute under the field so it stays aligned when the sidebar opens/closes.
+ */
+function BuilderSearchFilter({
+  label = "Created by (builder)",
+  value,
+  options = [],
+  search,
+  onSearchChange,
+  onChange,
+  className = "",
+  menuMaxHeight = 280,
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const menuRef = useRef(null);
+
+  const selected = options.find((o) => o.value === value && !o.isGroup);
+  const isActive = value != null && value !== "all";
+  const query = String(search || "").trim();
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (menuRef.current?.contains(e.target)) return;
+      if (rootRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const pick = (next) => {
+    onChange?.(next);
+    if (next === "all") {
+      onSearchChange?.("");
+    } else {
+      const opt = options.find((o) => o.value === next);
+      onSearchChange?.(opt?.label || "");
+    }
+    setOpen(false);
+  };
+
+  return (
+    <div className={`relative z-20 ${className}`} ref={rootRef}>
+      {label ? (
+        <p className="mb-1 text-[11px] font-bold text-slate-600">{label}</p>
+      ) : null}
+      <div
+        className={`flex h-9 w-full items-stretch overflow-hidden border bg-white transition ${
+          open
+            ? "rounded-t-lg rounded-b-none border-slate-200 border-b-transparent"
+            : "rounded-lg border-slate-200"
+        } ${
+          isActive ? "ring-1 ring-emerald-100 border-emerald-300" : ""
+        }`}
+      >
+        <div className="relative min-w-0 flex-1">
+          <Search
+            size={13}
+            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <input
+            type="text"
+            value={search}
+            onFocus={() => setOpen(true)}
+            onClick={() => setOpen(true)}
+            onChange={(e) => {
+              onSearchChange?.(e.target.value);
+              setOpen(true);
+            }}
+            placeholder={selected?.label || "Search builders…"}
+            className="h-full w-full bg-transparent py-0 pl-7 pr-6 text-xs font-semibold text-slate-700 outline-none placeholder:text-slate-400"
+            aria-autocomplete="list"
+            aria-expanded={open}
+            aria-haspopup="listbox"
+          />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => {
+                onSearchChange?.("");
+                setOpen(true);
+              }}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              aria-label="Clear builder search"
+            >
+              <X size={11} />
+            </button>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex w-9 shrink-0 items-center justify-center border-l border-slate-200 text-slate-400 hover:bg-slate-50"
+          aria-label="Toggle builder list"
+        >
+          <ChevronDown
+            size={14}
+            className={`transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      </div>
+
+      {open ? (
+        <div
+          ref={menuRef}
+          className="absolute left-0 right-0 top-full z-50 overflow-y-auto rounded-b-lg border border-t-0 border-slate-200 bg-white shadow-2xl"
+          style={{ maxHeight: menuMaxHeight }}
+          role="listbox"
+        >
+          {(() => {
+            const matches = options.filter(
+              (o) => o.value !== "all" && !o.isGroup,
+            );
+            if (query && matches.length === 0) {
+              return (
+                <p className="px-3 py-3 text-xs font-medium text-slate-400">
+                  No builders match “{query}”
+                </p>
+              );
+            }
+            return options.map((opt, idx) => {
+              if (opt.isGroup) {
+                return (
+                  <p
+                    key={`g-${opt.label}-${idx}`}
+                    className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-wide text-slate-400"
+                  >
+                    {opt.label}
+                  </p>
+                );
+              }
+              if (query && opt.value === "all") return null;
+              const selectedOpt = value === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="option"
+                  aria-selected={selectedOpt}
+                  onClick={() => pick(opt.value)}
+                  className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
+                    selectedOpt
+                      ? "bg-emerald-600 text-white"
+                      : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                </button>
+              );
+            });
+          })()}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1591,11 +1740,12 @@ export default function ProjectsDashboardPage() {
 
       const id = String(builder?._id || builder?.userId || "").trim();
       if (!id) continue;
-      const name =
+      const name = titleCaseWords(
         builder?.name ||
-        builder?.companyName ||
-        builder?.email ||
-        "Builder";
+          builder?.companyName ||
+          builder?.email ||
+          "Builder",
+      );
       map.set(id, name);
     }
 
@@ -1613,15 +1763,19 @@ export default function ProjectsDashboardPage() {
       const knownBuilder = map.has(id);
       if (!knownBuilder && !isBuilderRole(createdByRole)) continue;
 
-      const name = getProjectCreatorName(property);
-      if (!knownBuilder || map.get(id) === "Unknown builder") {
+      const name = titleCaseWords(getProjectCreatorName(property));
+      if (!knownBuilder || map.get(id) === "Unknown Builder") {
         map.set(id, name);
       }
     }
 
     return [...map.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      .map(([id, name]) => ({ id, name: titleCaseWords(name) }))
+      .sort((a, b) =>
+        String(a.name).localeCompare(String(b.name), undefined, {
+          sensitivity: "base",
+        }),
+      );
   }, [allBuildersSearch, allProperties]);
 
   const isLoading = serverPromotionStatus
@@ -2145,15 +2299,16 @@ export default function ProjectsDashboardPage() {
         return true;
       }
       if (!query) return true;
+      // Case-insensitive: "madu", "MADU", "Madu" all match
       return String(builder.name || "")
         .toLowerCase()
         .includes(query);
     });
     return [
-      { value: "all", label: "All builders" },
+      { value: "all", label: "All Builders" },
       ...builders.map((builder) => ({
         value: builder.id,
-        label: builder.name,
+        label: titleCaseWords(builder.name),
       })),
     ];
   }, [builderSearch, creatorBuilderFilter, creatorBuilderOptions]);
@@ -2235,38 +2390,6 @@ export default function ProjectsDashboardPage() {
   const [trackingMenuOpen, setTrackingMenuOpen] = useState(false);
   const trackingMenuRef = useRef(null);
   const trackingTriggerRef = useRef(null);
-  const [trackingMenuStyle, setTrackingMenuStyle] = useState(null);
-
-  useLayoutEffect(() => {
-    if (!trackingMenuOpen) {
-      setTrackingMenuStyle(null);
-      return;
-    }
-    const place = () => {
-      const el = trackingTriggerRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const width = Math.max(r.width, 200);
-      const spaceBelow = window.innerHeight - r.bottom;
-      const openUp = spaceBelow < 220 && r.top > spaceBelow;
-      setTrackingMenuStyle({
-        position: "fixed",
-        left: Math.min(r.left, window.innerWidth - width - 8),
-        width,
-        zIndex: 9999,
-        ...(openUp
-          ? { bottom: window.innerHeight - r.top + 4 }
-          : { top: r.bottom + 4 }),
-      });
-    };
-    place();
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-    return () => {
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
-    };
-  }, [trackingMenuOpen]);
 
   useEffect(() => {
     if (!trackingMenuOpen) return;
@@ -2644,7 +2767,7 @@ export default function ProjectsDashboardPage() {
       )}
 
       {/* ── PROJECT LIST FILTERS ─────────────────────────────────────────── */}
-      <div className="space-y-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_6px_20px_rgba(22,163,74,0.12)] sm:p-5">
+      <div className="relative z-10 space-y-4 overflow-visible rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_6px_20px_rgba(22,163,74,0.12)] sm:p-5">
         {/* Search bar (right, fills remaining space) */}
         <div className="flex-1  flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 min-w-0 focus-within:border-[#27AE60]/50 focus-within:bg-white transition">
           <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
@@ -2667,7 +2790,7 @@ export default function ProjectsDashboardPage() {
           )}
         </div>
         {/* Compact filter row — fixed narrow widths for Category / Status / Tracking */}
-        <div className="flex flex-wrap items-end gap-2.5">
+        <div className="relative z-20 flex flex-wrap items-end gap-2.5 overflow-visible">
           <FilterMenu
             className="w-[7.5rem] shrink-0"
             label="Category"
@@ -2696,7 +2819,7 @@ export default function ProjectsDashboardPage() {
             }}
           />
 
-          <div className="relative w-[12.5rem] shrink-0">
+          <div className="relative z-20 w-[12.5rem] shrink-0">
             <div className="mb-1 flex items-center gap-1.5">
               <p className="text-[11px] font-bold text-slate-600">
                 Promotion Tracking
@@ -2718,7 +2841,11 @@ export default function ProjectsDashboardPage() {
               <button
                 type="button"
                 onClick={() => setTrackingMenuOpen((o) => !o)}
-                className={`flex h-9 w-full items-center justify-between gap-1 rounded-lg border bg-white px-2 text-left text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 ${
+                className={`flex h-9 w-full items-center justify-between gap-1 border bg-white px-2 text-left text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 ${
+                  trackingMenuOpen
+                    ? "rounded-t-lg rounded-b-none border-b-transparent"
+                    : "rounded-lg"
+                } ${
                   expiringSoon3DayCount > 0
                     ? "border-red-300 ring-1 ring-red-100"
                     : "border-slate-200"
@@ -2737,7 +2864,6 @@ export default function ProjectsDashboardPage() {
                 />
               </button>
 
-              {/* Corner badge — always visible (custom menu, not native select) */}
               {expiringSoon3DayCount > 0 ? (
                 <button
                   type="button"
@@ -2757,120 +2883,85 @@ export default function ProjectsDashboardPage() {
                   </span>
                 </button>
               ) : null}
-            </div>
 
-            {trackingMenuOpen && trackingMenuStyle
-              ? createPortal(
-                  <div
-                    ref={trackingMenuRef}
-                    style={trackingMenuStyle}
-                    className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-2xl"
-                    role="listbox"
-                  >
-                    {TRACKING_FILTERS.map((item) => {
-                      const count =
-                        item.value === "all"
-                          ? trackingCounts.all
-                          : trackingCounts[item.value];
-                      const showCount =
-                        item.value === "expiringSoon"
-                          ? expiringSoon3DayCount > 0
-                          : item.value !== "all" && count > 0;
-                      const selected = trackingFilter === item.value;
-                      return (
-                        <button
-                          key={item.value}
-                          type="button"
-                          role="option"
-                          aria-selected={selected}
-                          onClick={() => {
-                            setTrackingFilter(item.value);
-                            setCurrentPage(1);
-                            if (
-                              item.value === "expired" ||
-                              item.value === "scheduled"
-                            ) {
-                              setPromotionFilter("all");
-                              setStatusFilter("all");
-                            }
-                            setTrackingMenuOpen(false);
-                          }}
-                          className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
-                            selected
-                              ? "bg-emerald-600 text-white"
-                              : item.value === "expiringSoon" &&
-                                  expiringSoon3DayCount > 0
-                                ? "bg-red-50 text-red-700 hover:bg-red-100"
-                                : "text-slate-700 hover:bg-slate-50"
-                          }`}
-                        >
-                          <span className="truncate">{item.label}</span>
-                          {showCount ? (
-                            <span
-                              className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
-                                selected
-                                  ? "bg-white/25 text-white"
-                                  : item.value === "expiringSoon"
-                                    ? "bg-red-600 text-white"
-                                    : "bg-slate-200 text-slate-700"
-                              }`}
-                            >
-                              {item.value === "expiringSoon"
-                                ? expiringSoon3DayCount
-                                : count}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>,
-                  document.body,
-                )
-              : null}
-          </div>
-
-          <div className="min-w-0 w-full max-w-xs shrink-0 sm:w-auto sm:flex-1 sm:max-w-sm">
-            <p className="mb-1 text-[11px] font-bold text-slate-600">
-              Created by (builder)
-            </p>
-            <div className="flex h-9 items-stretch gap-1.5">
-              <div className="relative min-w-0 flex-1">
-                <Search
-                  size={13}
-                  className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  type="text"
-                  value={builderSearch}
-                  onChange={(event) => setBuilderSearch(event.target.value)}
-                  placeholder="Search…"
-                  className="h-9 w-full rounded-lg border border-slate-200 bg-white py-0 pl-7 pr-6 text-xs font-semibold text-slate-600 outline-none focus:border-emerald-500"
-                />
-                {builderSearch ? (
-                  <button
-                    type="button"
-                    onClick={() => setBuilderSearch("")}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    aria-label="Clear builder search"
-                  >
-                    <X size={11} />
-                  </button>
-                ) : null}
-              </div>
-              <FilterMenu
-                className="w-[8.5rem] shrink-0"
-                value={creatorBuilderFilter}
-                options={builderFilterOptions}
-                placeholder="All builders"
-                menuMaxHeight={280}
-                minMenuWidth={180}
-                onChange={(next) => {
-                  setCreatorBuilderFilter(next);
-                  setCurrentPage(1);
-                }}
-              />
+              {trackingMenuOpen ? (
+                <div
+                  ref={trackingMenuRef}
+                  className="absolute left-0 right-0 top-full z-50 max-h-56 overflow-y-auto rounded-b-lg border border-t-0 border-slate-200 bg-white shadow-2xl"
+                  role="listbox"
+                >
+                  {TRACKING_FILTERS.map((item) => {
+                    const count =
+                      item.value === "all"
+                        ? trackingCounts.all
+                        : trackingCounts[item.value];
+                    const showCount =
+                      item.value === "expiringSoon"
+                        ? expiringSoon3DayCount > 0
+                        : item.value !== "all" && count > 0;
+                    const selected = trackingFilter === item.value;
+                    return (
+                      <button
+                        key={item.value}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        onClick={() => {
+                          setTrackingFilter(item.value);
+                          setCurrentPage(1);
+                          if (
+                            item.value === "expired" ||
+                            item.value === "scheduled"
+                          ) {
+                            setPromotionFilter("all");
+                            setStatusFilter("all");
+                          }
+                          setTrackingMenuOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
+                          selected
+                            ? "bg-emerald-600 text-white"
+                            : item.value === "expiringSoon" &&
+                                expiringSoon3DayCount > 0
+                              ? "bg-red-50 text-red-700 hover:bg-red-100"
+                              : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="truncate">{item.label}</span>
+                        {showCount ? (
+                          <span
+                            className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                              selected
+                                ? "bg-white/25 text-white"
+                                : item.value === "expiringSoon"
+                                  ? "bg-red-600 text-white"
+                                  : "bg-slate-200 text-slate-700"
+                            }`}
+                          >
+                            {item.value === "expiringSoon"
+                              ? expiringSoon3DayCount
+                              : count}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
           </div>
+
+          <BuilderSearchFilter
+            className="min-w-0 w-full max-w-xs shrink-0 sm:w-auto sm:flex-1 sm:max-w-sm"
+            value={creatorBuilderFilter}
+            options={builderFilterOptions}
+            search={builderSearch}
+            onSearchChange={setBuilderSearch}
+            onChange={(next) => {
+              setCreatorBuilderFilter(next);
+              setCurrentPage(1);
+            }}
+          />
 
           <button
             type="button"
@@ -3075,7 +3166,6 @@ export default function ProjectsDashboardPage() {
               options={SORT_OPTIONS}
               activeWhenNot="newest"
               menuMaxHeight={320}
-              minMenuWidth={200}
               triggerClassName="h-10 rounded-xl px-3 text-sm"
               onChange={setSortBy}
             />
