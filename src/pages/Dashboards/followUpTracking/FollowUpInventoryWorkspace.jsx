@@ -162,6 +162,34 @@ const listingOwnerIdOf = (row, creatorAssigneeById = null) => {
   return String(creatorAssigneeById[creatorId] || "").trim();
 };
 
+const listingAssigneeNameOf = (
+  row,
+  staffNameById = {},
+  creatorAssigneeById = null,
+) => {
+  const fromListing =
+    String(row?.followUpAssignee?.name || "").trim() ||
+    (row?.followUpAssignedTo &&
+    typeof row.followUpAssignedTo === "object" &&
+    row.followUpAssignedTo.name
+      ? String(row.followUpAssignedTo.name).trim()
+      : "");
+  if (fromListing) return fromListing;
+
+  const fromCreator =
+    String(row?.createdBy?.followUpAssignee?.name || "").trim() ||
+    (row?.createdBy?.followUpAssignedTo &&
+    typeof row.createdBy.followUpAssignedTo === "object" &&
+    row.createdBy.followUpAssignedTo.name
+      ? String(row.createdBy.followUpAssignedTo.name).trim()
+      : "");
+  if (fromCreator) return fromCreator;
+
+  const id = listingOwnerIdOf(row, creatorAssigneeById);
+  if (!id) return "";
+  return String(staffNameById[id] || "").trim();
+};
+
 const workStatusOfListing = (row, overrides = {}) => {
   const id = rowId(row);
   if (id && overrides[id]) return normalizeFollowUpWorkStatus(overrides[id]);
@@ -267,6 +295,8 @@ export default function FollowUpInventoryWorkspace({
   territoryFilter = null,
   exclusiveAssigneeId = null,
   creatorAssigneeById = null,
+  staffNameById = {},
+  showAssignee = false,
   onRefreshUsers,
 }) {
   const isProject = meta?.entity === "project" || meta?.path === "/projects";
@@ -556,6 +586,9 @@ export default function FollowUpInventoryWorkspace({
           FollowUpProcess: followUpWorkLabel(
             workStatusOfListing(row, workStatusOverrides),
           ),
+          AssignedCCE:
+            listingAssigneeNameOf(row, staffNameById, creatorAssigneeById) || "",
+          AssignedCCEId: listingOwnerIdOf(row, creatorAssigneeById) || "",
         };
       });
 
@@ -751,6 +784,11 @@ export default function FollowUpInventoryWorkspace({
                     <th className="whitespace-nowrap px-3 py-2.5 font-bold">Created by</th>
                     <th className="whitespace-nowrap px-3 py-2.5 font-bold">Created</th>
                     <th className="whitespace-nowrap px-3 py-2.5 font-bold">Price</th>
+                    {showAssignee ? (
+                      <th className="min-w-[120px] whitespace-nowrap px-3 py-2.5 font-bold">
+                        CCE
+                      </th>
+                    ) : null}
                     <th className="sticky right-0 z-10 w-[132px] min-w-[132px] whitespace-nowrap bg-slate-50 px-3 py-2.5 font-bold shadow-[-8px_0_10px_-8px_rgba(15,23,42,0.14)]">
                       Process
                     </th>
@@ -765,6 +803,11 @@ export default function FollowUpInventoryWorkspace({
                       : getPropertyStatus(row);
                     const creatorName = getCreatedByName(row);
                     const creatorRole = getCreatedByRoleTag(row);
+                    const cceName = listingAssigneeNameOf(
+                      row,
+                      staffNameById,
+                      creatorAssigneeById,
+                    );
                     return (
                       <tr
                         key={id || `${safePage}-${index}`}
@@ -829,6 +872,18 @@ export default function FollowUpInventoryWorkspace({
                                 : null,
                           )}
                         </td>
+                        {showAssignee ? (
+                          <td className="align-middle px-3 py-2.5 text-slate-700">
+                            <span
+                              className="line-clamp-1 font-semibold"
+                              title={cceName || "Unassigned"}
+                            >
+                              {cceName || (
+                                <span className="font-medium text-slate-400">Unassigned</span>
+                              )}
+                            </span>
+                          </td>
+                        ) : null}
                         <td
                           className={`sticky right-0 w-[132px] min-w-[132px] align-middle px-3 py-2.5 shadow-[-8px_0_10px_-8px_rgba(15,23,42,0.1)] ${
                             active ? "bg-emerald-50" : "bg-white"
@@ -943,6 +998,18 @@ export default function FollowUpInventoryWorkspace({
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
                 CCE process
               </p>
+              {showAssignee ? (
+                <p className="mb-2 text-xs font-semibold text-slate-800">
+                  Assigned to:{" "}
+                  <span className="text-emerald-700">
+                    {listingAssigneeNameOf(
+                      selected,
+                      staffNameById,
+                      creatorAssigneeById,
+                    ) || "Unassigned"}
+                  </span>
+                </p>
+              ) : null}
               {canEditListingProcess(selected) ? (
                 <ListingFollowUpWorkStatusSelect
                   row={selected}

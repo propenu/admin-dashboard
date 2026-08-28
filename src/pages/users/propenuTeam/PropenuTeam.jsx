@@ -1,8 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Check, ChevronDown, Hash, LayoutGrid, List, Mail, MapPin, Network, Phone, RefreshCw, Search, ShieldCheck, UsersRound, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Hash,
+  LayoutGrid,
+  List,
+  Mail,
+  MapPin,
+  Network,
+  Pencil,
+  Phone,
+  Power,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  Trash2,
+  UsersRound,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
 import { useUsers } from "./hook/useUserData";
-import { getTeamDirectoryRoles } from "../../../features/accessControl/accessControlService";
+import {
+  deleteAccessUser,
+  getTeamDirectoryRoles,
+  updateAccessUserStatus,
+} from "../../../features/accessControl/accessControlService";
 import { getUserDetails } from "../../../features/user/userService";
 import {
   orderRolesByHierarchy,
@@ -11,7 +35,14 @@ import {
   countUsersInExactRole,
   canonicalTeamRole,
 } from "../../../utils/roleHierarchy";
+import {
+  canManageUserLifecycle,
+  canUseLifecycleActions,
+  normalizeLifecycleRole,
+} from "../../../utils/userLifecycleAccess";
 import CceTerritoryManagerModal from "../../Dashboards/customerSupportTeamLeadDashboard/components/CceTerritoryManagerModal";
+import SafeUserDeleteModal from "../users/components/SafeUserDeleteModal";
+import StaffProfileEditModal from "./components/StaffProfileEditModal";
 import { isTerritoryRole } from "../../../utils/workingLocations";
 import {
   filterUsersInReportingTree,
@@ -150,6 +181,25 @@ export default function PropenuTeam() {
   const [viewerId, setViewerId] = useState("");
   const [viewerRole, setViewerRole] = useState("");
   const [viewerReady, setViewerReady] = useState(false);
+  const [statusBusyId, setStatusBusyId] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+
+  const canUseLifecycle = canUseLifecycleActions(viewerRole);
+  const canEditStaffProfiles =
+    normalizeLifecycleRole(viewerRole) === "super_admin" ||
+    normalizeLifecycleRole(viewerRole) === "admin";
+
+  const canManageMember = useCallback(
+    (user) =>
+      canManageUserLifecycle({
+        actorRole: viewerRole,
+        targetRole: user?.roleName || user?.role || "",
+        isSelf: Boolean(viewerId && String(user?._id || user?.id) === String(viewerId)),
+      }),
+    [viewerId, viewerRole],
+  );
 
   const users = useMemo(() => {
     const list = Array.isArray(rawUsers) ? rawUsers : [];
@@ -169,6 +219,49 @@ export default function PropenuTeam() {
       readOnly: Boolean(viewerId && id && viewerId === id),
     });
   };
+
+  const changeUserActive = useCallback(
+    async (user, isActive) => {
+      if (!canUseLifecycle || !user?._id || !canManageMember(user)) return;
+      setStatusBusyId(String(user._id));
+      try {
+        const result = await updateAccessUserStatus(user._id, isActive);
+        toast.success(
+          result?.message || (isActive ? "User activated" : "User deactivated"),
+        );
+        await refetch();
+      } catch (err) {
+        toast.error(
+          err?.response?.data?.message || "Unable to update user status",
+        );
+      } finally {
+        setStatusBusyId("");
+      }
+    },
+    [canManageMember, canUseLifecycle, refetch],
+  );
+
+  const confirmDeleteUser = useCallback(async () => {
+    if (!canUseLifecycle || !deleteTarget?._id || !canManageMember(deleteTarget)) {
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      const result = await deleteAccessUser(
+        deleteTarget._id,
+        normalizeLifecycleRole(viewerRole) === "business_development_head"
+          ? "Deleted by Business Development Head from Team directory"
+          : "Deleted by Super Admin from Team directory",
+      );
+      toast.success(result?.message || "User permanently deleted");
+      setDeleteTarget(null);
+      await refetch();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "User deletion failed");
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, [canManageMember, canUseLifecycle, deleteTarget, refetch, viewerRole]);
 
   useEffect(() => {
     getTeamDirectoryRoles()
@@ -237,7 +330,13 @@ export default function PropenuTeam() {
       if (filters.city && user.city !== filters.city) return false;
       if (filters.locality && user.locality !== filters.locality) return false;
       if (filters.pincode && String(user.pincode) !== filters.pincode) return false;
-      if (filters.status && user.accountStatus !== filters.status) return false;
+      if (filters.status === "deactivated") {
+        if (user.isActive !== false) return false;
+      } else if (filters.status === "active") {
+        if (user.accountStatus !== "active" || user.isActive === false) return false;
+      } else if (filters.status && user.accountStatus !== filters.status) {
+        return false;
+      }
       if (filters.fromDate || filters.toDate) {
         if (!user.createdAt) return false;
         const joinedAt = new Date(user.createdAt);
@@ -313,7 +412,7 @@ export default function PropenuTeam() {
         <Select label="City" value={filters.city} onChange={(value) => update("city", value)}><option value="">All cities</option>{options.cities.map((item) => <option key={item}>{item}</option>)}</Select>
         <Select label="Locality" value={filters.locality} onChange={(value) => update("locality", value)}><option value="">All localities</option>{options.localities.map((item) => <option key={item}>{item}</option>)}</Select>
         <Select label="Pincode" value={filters.pincode} onChange={(value) => update("pincode", value)}><option value="">All pincodes</option>{options.pincodes.map((item) => <option key={item}>{item}</option>)}</Select>
-        <Select label="Status" value={filters.status} onChange={(value) => update("status", value)}><option value="">All statuses</option><option value="active">Active</option><option value="location_pending">Location pending</option><option value="kyc_pending">KYC pending</option></Select>
+        <Select label="Status" value={filters.status} onChange={(value) => update("status", value)}><option value="">All statuses</option><option value="active">Active</option><option value="deactivated">Deactivated</option><option value="location_pending">Location pending</option><option value="kyc_pending">KYC pending</option></Select>
         <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Joined from</span><input type="date" value={filters.fromDate} max={filters.toDate || undefined} onChange={(event) => update("fromDate", event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" /></label>
         <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Joined to</span><input type="date" value={filters.toDate} min={filters.fromDate || undefined} onChange={(event) => update("toDate", event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" /></label>
         <button onClick={clear} className="mt-auto flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"><X size={14} /> Clear</button>
@@ -323,14 +422,14 @@ export default function PropenuTeam() {
 
     <section className="mt-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><UsersRound size={17} className="text-emerald-600" /><h2 className="text-sm font-bold capitalize">{filters.role ? teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role }) : "All team members"}</h2></div><div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">Showing {filtered.length} of {users.length}</span><div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "cards" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><LayoutGrid size={14} /> Cards</button><button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><List size={14} /> Table</button></div></div></div>
-      <p className="mb-3 text-xs text-slate-500">Role filter shows the org band. <span className="font-semibold text-slate-700">Reports to</span> shows the specific person they work under when assigned. For hierarchy field roles (CCE, Sales Executive, RM, BD Manager, …), use <span className="font-semibold text-slate-700">Align working locations</span> to set state / city / locality territories.</p>
+      <p className="mb-3 text-xs text-slate-500">Role filter shows the org band. <span className="font-semibold text-slate-700">Reports to</span> shows the specific person they work under when assigned. For hierarchy field roles (CCE, Customer Support Head, Sales Executive, RM, BD Manager, …), use <span className="font-semibold text-slate-700">Align working locations</span> to set state / city / locality territories. Super Admin can <span className="font-semibold text-slate-700">Edit profile</span>, <span className="font-semibold text-slate-700">Activate / Deactivate</span>, or <span className="font-semibold text-slate-700">Delete</span> each person from Cards or Table.</p>
       {isLoading || !viewerReady ? <div className="rounded-2xl border border-slate-200 bg-white p-14 text-center text-sm text-slate-500">Loading team members...</div> : filtered.length ? viewMode === "cards" ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filtered.map((user) => {
         const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
         const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
         const active = user.accountStatus === "active" && user.isActive !== false;
         return <article key={user._id} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 to-emerald-300" />
-          <div className="flex items-start gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700">{initials}</div><div className="min-w-0 flex-1"><h3 className="truncate text-base font-black text-slate-800">{displayPersonName(user.name) || "Unnamed user"}</h3><p className="mt-0.5 truncate text-[11px] font-bold tracking-wide text-emerald-600">{personRoleLabel(user.roleName, roleOptions)}</p></div><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} title={active ? "Active" : "Pending"} /></div>
+          <div className="flex items-start gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700">{initials}</div><div className="min-w-0 flex-1"><h3 className="truncate text-base font-black text-slate-800">{displayPersonName(user.name) || "Unnamed user"}</h3><p className="mt-0.5 truncate text-[11px] font-bold tracking-wide text-emerald-600">{personRoleLabel(user.roleName, roleOptions)}</p></div><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${user.isActive === false ? "bg-slate-400" : active ? "bg-emerald-500" : "bg-amber-400"}`} title={user.isActive === false ? "Deactivated" : active ? "Active" : "Pending"} /></div>
           <div className="mt-4 grid gap-2 border-t border-slate-100 pt-3 text-xs">
             <p className="flex items-center gap-2 text-slate-600"><Hash size={13} className="shrink-0 text-emerald-600" /><span className="font-mono font-bold">{user.userCode || String(user._id).slice(-10).toUpperCase()}</span></p>
             <p className="flex items-center gap-2 text-slate-600"><Mail size={13} className="shrink-0 text-emerald-600" /><span className="truncate">{user.email || "No email"}</span></p>
@@ -340,7 +439,7 @@ export default function PropenuTeam() {
           </div>
           <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between gap-2">
-              <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{String(user.accountStatus || "pending").replace(/_/g, " ")}</span>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold capitalize ${user.isActive === false ? "bg-slate-100 text-slate-600" : active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{user.isActive === false ? "Deactivated" : String(user.accountStatus || "pending").replace(/_/g, " ")}</span>
               <span className="text-[10px] text-slate-400">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</span>
             </div>
             {isTerritoryRole(user.roleName) ? (
@@ -353,6 +452,54 @@ export default function PropenuTeam() {
                 Align working locations
               </button>
             ) : null}
+            {(canEditStaffProfiles || canManageMember(user)) ? (
+              <div className="flex flex-wrap gap-2">
+                {canEditStaffProfiles && String(user._id) !== String(viewerId) ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditUser(user)}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Pencil size={12} />
+                    Edit profile
+                  </button>
+                ) : null}
+                {canManageMember(user) ? (
+                  <>
+                    {user.isActive === false ? (
+                      <button
+                        type="button"
+                        disabled={statusBusyId === String(user._id)}
+                        onClick={() => changeUserActive(user, true)}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                      >
+                        <RotateCcw size={12} />
+                        Activate
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={statusBusyId === String(user._id)}
+                        onClick={() => changeUserActive(user, false)}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-amber-600 disabled:opacity-50"
+                      >
+                        <Power size={12} />
+                        Deactivate
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={statusBusyId === String(user._id)}
+                      onClick={() => setDeleteTarget(user)}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      <Trash2 size={12} />
+                      Delete
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </article>;
       })}</div> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -363,10 +510,10 @@ export default function PropenuTeam() {
               <col className="w-[16%]" />
               <col className="w-[15%]" />
               <col className="w-[16%]" />
-              <col className="w-[14%]" />
-              <col className="w-[8%]" />
+              <col className="w-[15%]" />
               <col className="w-[7%]" />
-              <col className="w-[8%]" />
+              <col className="w-[6%]" />
+              <col className="w-[12%]" />
             </colgroup>
             <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               <tr>
@@ -434,28 +581,81 @@ export default function PropenuTeam() {
                       <span className="block truncate" title={location || undefined}>{location || "—"}</span>
                     </td>
                     <td className="px-3 py-3">
-                      <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold capitalize ${active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${active ? "bg-emerald-500" : "bg-amber-400"}`} />
-                        {String(user.accountStatus || "pending").replace(/_/g, " ")}
+                      <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold capitalize ${user.isActive === false ? "bg-slate-100 text-slate-600" : active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${user.isActive === false ? "bg-slate-400" : active ? "bg-emerald-500" : "bg-amber-400"}`} />
+                        {user.isActive === false ? "Deactivated" : String(user.accountStatus || "pending").replace(/_/g, " ")}
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-slate-500">
                       {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "—"}
                     </td>
                     <td className="px-3 py-3 text-right">
-                      {isTerritoryRole(user.roleName) ? (
-                        <button
-                          type="button"
-                          onClick={() => openTerritoryManager(user)}
-                          title="Align working locations"
-                          className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"
-                        >
-                          <MapPin size={12} />
-                          Align
-                        </button>
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
+                      <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                        {isTerritoryRole(user.roleName) ? (
+                          <button
+                            type="button"
+                            onClick={() => openTerritoryManager(user)}
+                            title="Align working locations"
+                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"
+                          >
+                            <MapPin size={12} />
+                            Align
+                          </button>
+                        ) : null}
+                        {canEditStaffProfiles && String(user._id) !== String(viewerId) ? (
+                          <button
+                            type="button"
+                            onClick={() => setEditUser(user)}
+                            title="Edit staff profile"
+                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50"
+                          >
+                            <Pencil size={12} />
+                            Edit
+                          </button>
+                        ) : null}
+                        {canManageMember(user) ? (
+                          <>
+                            {user.isActive === false ? (
+                              <button
+                                type="button"
+                                disabled={statusBusyId === String(user._id)}
+                                onClick={() => changeUserActive(user, true)}
+                                title="Activate user"
+                                className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                              >
+                                <RotateCcw size={12} />
+                                Activate
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={statusBusyId === String(user._id)}
+                                onClick={() => changeUserActive(user, false)}
+                                title="Deactivate user"
+                                className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg bg-amber-500 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-amber-600 disabled:opacity-50"
+                              >
+                                <Power size={12} />
+                                Deactivate
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              disabled={statusBusyId === String(user._id)}
+                              onClick={() => setDeleteTarget(user)}
+                              title="Delete permanently"
+                              className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[10px] font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
+                            >
+                              <Trash2 size={12} />
+                              Delete
+                            </button>
+                          </>
+                        ) : null}
+                        {!isTerritoryRole(user.roleName) &&
+                        !(canEditStaffProfiles && String(user._id) !== String(viewerId)) &&
+                        !canManageMember(user) ? (
+                          <span className="text-slate-300">—</span>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -473,6 +673,24 @@ export default function PropenuTeam() {
       onClose={() => setTerritoryMember(null)}
       onSaved={() => refetch()}
     />
+    <SafeUserDeleteModal
+      open={Boolean(deleteTarget)}
+      user={deleteTarget}
+      loading={deleteLoading}
+      onClose={() => !deleteLoading && setDeleteTarget(null)}
+      onConfirm={confirmDeleteUser}
+    />
+    {editUser ? (
+      <StaffProfileEditModal
+        user={editUser}
+        roleLabel={personRoleLabel(editUser.roleName, roleOptions)}
+        onClose={() => setEditUser(null)}
+        onSaved={() => {
+          setEditUser(null);
+          refetch();
+        }}
+      />
+    ) : null}
   </div>;
 }
 

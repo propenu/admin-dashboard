@@ -389,6 +389,19 @@ const assigneeIdOf = (user) => {
   return String(raw?._id || raw || "").trim();
 };
 
+/** Display name for exclusive CCE owner (populated API or staff id→name map). */
+const assigneeNameOf = (user, nameById = {}) => {
+  const fromPopulated = String(user?.followUpAssignee?.name || "").trim();
+  if (fromPopulated) return fromPopulated;
+  const raw = user?.followUpAssignedTo;
+  if (raw && typeof raw === "object" && raw.name) {
+    return String(raw.name).trim();
+  }
+  const id = assigneeIdOf(user);
+  if (!id) return "";
+  return String(nameById[id] || "").trim();
+};
+
 const workStatusOf = (user, overrides = {}) => {
   const id = String(user?._id || user?.id || "");
   if (id && overrides[id]) return normalizeFollowUpWorkStatus(overrides[id]);
@@ -747,9 +760,8 @@ export default function FollowUpTrackingPage() {
     staleTime: 60_000,
   });
 
-  /** Creator → exclusive CCE map (inventory must not share across same-territory CCEs). */
+  /** Creator → exclusive CCE map (inventory exclusivity + assignee name fallback). */
   const creatorAssigneeById = useMemo(() => {
-    if (!isCceViewer) return {};
     const map = {};
     (usersQuery.data || []).forEach((u) => {
       const id = userIdOf(u);
@@ -757,7 +769,17 @@ export default function FollowUpTrackingPage() {
       if (id && owner) map[id] = owner;
     });
     return map;
-  }, [isCceViewer, usersQuery.data]);
+  }, [usersQuery.data]);
+
+  /** Staff id → name for resolving CCE assignee labels (SA / CSH / TL). */
+  const staffNameById = useMemo(() => {
+    const map = {};
+    (usersQuery.data || []).forEach((u) => {
+      const id = userIdOf(u);
+      if (id && u?.name) map[id] = String(u.name).trim();
+    });
+    return map;
+  }, [usersQuery.data]);
 
   const canEditWorkStatus = (user) => {
     if (!user) return false;
@@ -996,6 +1018,8 @@ export default function FollowUpTrackingPage() {
           LastLogin: user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("en-IN") : "",
           UserId: userIdOf(user),
           FollowUpProcess: followUpWorkLabel(workStatusOf(user, workStatusOverrides)),
+          AssignedCCE: assigneeNameOf(user, staffNameById) || "",
+          AssignedCCEId: assigneeIdOf(user) || "",
         };
       });
       const ws = XLSX.utils.json_to_sheet(sheetRows);
@@ -1281,7 +1305,9 @@ export default function FollowUpTrackingPage() {
           range={range}
           territoryFilter={territoryScoped ? cceTerritories : null}
           exclusiveAssigneeId={cceExclusive ? meId : null}
-          creatorAssigneeById={cceExclusive ? creatorAssigneeById : null}
+          creatorAssigneeById={creatorAssigneeById}
+          staffNameById={staffNameById}
+          showAssignee={isOversightViewer}
           onRefreshUsers={() => {
             usersQuery.refetch();
           }}
@@ -1355,6 +1381,11 @@ export default function FollowUpTrackingPage() {
                         <th className="min-w-[140px] whitespace-nowrap px-3 py-2.5 text-left font-bold">
                           Contact
                         </th>
+                        {isOversightViewer ? (
+                          <th className="min-w-[120px] whitespace-nowrap px-3 py-2.5 text-left font-bold">
+                            CCE
+                          </th>
+                        ) : null}
                         <th className="sticky right-0 z-10 w-[132px] min-w-[132px] whitespace-nowrap bg-slate-50 px-3 py-2.5 text-left font-bold shadow-[-8px_0_10px_-8px_rgba(15,23,42,0.14)]">
                           Process
                         </th>
@@ -1368,6 +1399,7 @@ export default function FollowUpTrackingPage() {
                         const loc = [user.locality, user.city, user.state]
                           .filter(Boolean)
                           .join(", ");
+                        const cceName = assigneeNameOf(user, staffNameById);
                         return (
                           <tr
                             key={id}
@@ -1413,6 +1445,18 @@ export default function FollowUpTrackingPage() {
                                 </div>
                               </div>
                             </td>
+                            {isOversightViewer ? (
+                              <td className="align-middle px-3 py-2.5 text-slate-700">
+                                <span
+                                  className="line-clamp-1 font-semibold"
+                                  title={cceName || "Unassigned"}
+                                >
+                                  {cceName || (
+                                    <span className="font-medium text-slate-400">Unassigned</span>
+                                  )}
+                                </span>
+                              </td>
+                            ) : null}
                             <td
                               className={`sticky right-0 w-[132px] min-w-[132px] align-middle px-3 py-2.5 shadow-[-8px_0_10px_-8px_rgba(15,23,42,0.1)] ${
                                 active ? "bg-emerald-50" : "bg-white"
@@ -1516,6 +1560,14 @@ export default function FollowUpTrackingPage() {
                   <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
                     CCE process
                   </p>
+                  {isOversightViewer ? (
+                    <p className="mb-2 text-xs font-semibold text-slate-800">
+                      Assigned to:{" "}
+                      <span className="text-emerald-700">
+                        {assigneeNameOf(selectedUser, staffNameById) || "Unassigned"}
+                      </span>
+                    </p>
+                  ) : null}
                   {canEditWorkStatus(selectedUser) ? (
                     <FollowUpWorkStatusSelect
                       userId={userIdOf(selectedUser)}

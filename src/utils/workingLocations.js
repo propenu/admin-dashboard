@@ -73,7 +73,7 @@ export const isCustomerCareExecutiveRole = (roleName = "") => {
   );
 };
 
-/** Hierarchy field roles that use workingLocations territories (CCE + BD/Sales). */
+/** Hierarchy field roles that use workingLocations territories (CCE + CSH + BD/Sales). */
 export const isTerritoryRole = (roleName = "") => {
   const key = String(roleName)
     .trim()
@@ -84,6 +84,7 @@ export const isTerritoryRole = (roleName = "") => {
     isCustomerCareExecutiveRole(key) ||
     key === "relationship_manager" ||
     key === "relationship_managers" ||
+    key === "customer_support_head" ||
     key === "operations_head" ||
     key === "operation_head" ||
     key === "business_development_head" ||
