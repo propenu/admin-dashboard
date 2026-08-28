@@ -21,6 +21,7 @@ import {
   searchLocalitiesWithPhoton,
   normalizeComparisonValue,
   canAddCustomLocation,
+  canEditFeaturedCategory,
 } from "../../../../components/common/location/searchableLocationUtils";
 
 const MAX_BROCHURE_BYTES = 20 * 1024 * 1024; // 20 MB — no compression
@@ -108,6 +109,7 @@ export default function PropertyDetailsEditor({
   const [brochureFile, setBrochureFile] = useState(null);
   const [preferOtherCity, setPreferOtherCity] = useState(false);
   const [canEditCategory, setCanEditCategory] = useState(false);
+  const [canAddCustomCity, setCanAddCustomCity] = useState(false);
   const [savedLocations, setSavedLocations] = useState([]);
 
   const [stateOpen, setStateOpen] = useState(false);
@@ -132,10 +134,14 @@ export default function PropertyDetailsEditor({
       .then((user) => {
         if (cancelled) return;
         const role = user?.roleName || user?.role?.name;
-        setCanEditCategory(canAddCustomLocation(role));
+        setCanEditCategory(canEditFeaturedCategory(role));
+        setCanAddCustomCity(canAddCustomLocation(role));
       })
       .catch(() => {
-        if (!cancelled) setCanEditCategory(false);
+        if (!cancelled) {
+          setCanEditCategory(false);
+          setCanAddCustomCity(false);
+        }
       });
     return () => {
       cancelled = true;
@@ -212,13 +218,13 @@ export default function PropertyDetailsEditor({
   }, [local.city, local.state, savedCitiesForState]);
 
   const showManualCityField =
-    canEditCategory && (preferOtherCity || !cityInKnownList);
+    canAddCustomCity && (preferOtherCity || !cityInKnownList);
 
   useEffect(() => {
-    if (canEditCategory && !cityInKnownList && String(local.city || "").trim()) {
+    if (canAddCustomCity && !cityInKnownList && String(local.city || "").trim()) {
       setPreferOtherCity(true);
     }
-  }, [cityInKnownList, local.city, canEditCategory]);
+  }, [cityInKnownList, local.city, canAddCustomCity]);
 
   useEffect(() => {
     if (!stateOpen) {
@@ -247,14 +253,14 @@ export default function PropertyDetailsEditor({
       setCityLoading(true);
       setCitySuggestions(
         getCitySuggestions(local.state, query || undefined, {
-          includeOther: canEditCategory,
+          includeOther: canAddCustomCity,
           savedCities: citySuggestionExtras,
         }),
       );
       setCityLoading(false);
     }, 200);
     return () => clearTimeout(tid);
-  }, [cityOpen, citySearch, local.state, citySuggestionExtras, canEditCategory]);
+  }, [cityOpen, citySearch, local.state, citySuggestionExtras, canAddCustomCity]);
 
   useEffect(() => {
     if (!localityOpen) {
@@ -315,7 +321,7 @@ export default function PropertyDetailsEditor({
         merged.push(r);
       }
       if (
-        canEditCategory &&
+        canAddCustomCity &&
         !merged.some(
           (r) =>
             normalizeComparisonValue(r.label) ===
@@ -343,7 +349,7 @@ export default function PropertyDetailsEditor({
     local.state,
     local.locality,
     savedLocations,
-    canEditCategory,
+    canAddCustomCity,
   ]);
 
   if (!formData) return null;
@@ -745,7 +751,7 @@ export default function PropertyDetailsEditor({
                 warning
                 label="City"
                 value={
-                  canEditCategory && preferOtherCity && !local.city
+                  canAddCustomCity && preferOtherCity && !local.city
                     ? "Other (custom city)"
                     : local.city || ""
                 }
@@ -851,7 +857,7 @@ export default function PropertyDetailsEditor({
                 !local.city
                   ? "Select city first"
                   : localitySearch.trim().length >= 2
-                    ? canEditCategory
+                    ? canAddCustomCity
                       ? "No locality found — keep typing to use a custom name"
                       : "No locality found — pick a saved or suggested locality"
                     : "Saved localities for this city, or type to search"

@@ -4,8 +4,20 @@ import { City, State } from "country-state-city";
 export const CITY_OTHER = "__other__";
 export const INDIA_BBOX = "68.1766451354,7.96553477623,97.4025614766,35.4940095078";
 
-/** Only Super Admin & BDH may add a brand-new city / locality (typed "Other") */
+/** Who may add a brand-new city / locality (typed "Other" / custom). */
 export const CUSTOM_LOCATION_ROLES = new Set([
+  "super_admin",
+  "business_development_head",
+  "operations_head",
+  "operation_head",
+  "customer_support_head",
+  "sales_executive",
+  "sales_executives",
+  "sales_agent",
+]);
+
+/** Category / property-type edit on featured projects — keep Super Admin & BDH only. */
+export const CATEGORY_EDIT_ROLES = new Set([
   "super_admin",
   "business_development_head",
 ]);
@@ -20,6 +32,10 @@ export function normalizeRoleName(role) {
 
 export function canAddCustomLocation(role) {
   return CUSTOM_LOCATION_ROLES.has(normalizeRoleName(role));
+}
+
+export function canEditFeaturedCategory(role) {
+  return CATEGORY_EDIT_ROLES.has(normalizeRoleName(role));
 }
 
 export const titleCase = (str) => {
