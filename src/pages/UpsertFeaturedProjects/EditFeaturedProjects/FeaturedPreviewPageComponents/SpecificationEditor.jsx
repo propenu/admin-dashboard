@@ -1,32 +1,7 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/SpecificationEditor.jsx
 import React from "react";
 import { toast } from "react-hot-toast";
-
-/** Paste clipboard as exact plain text (keeps newlines / spacing from external copy). */
-function pasteExactPlainText(e, currentValue, setValue) {
-  e.preventDefault();
-  const pasted = e.clipboardData?.getData("text/plain") ?? "";
-  const el = e.target;
-  const start =
-    typeof el.selectionStart === "number"
-      ? el.selectionStart
-      : String(currentValue || "").length;
-  const end =
-    typeof el.selectionEnd === "number"
-      ? el.selectionEnd
-      : String(currentValue || "").length;
-  const next = `${String(currentValue || "").slice(0, start)}${pasted}${String(currentValue || "").slice(end)}`;
-  setValue(next);
-  requestAnimationFrame(() => {
-    try {
-      const pos = start + pasted.length;
-      el.selectionStart = pos;
-      el.selectionEnd = pos;
-    } catch {
-      /* ignore */
-    }
-  });
-}
+import { pasteRichAsPlainText } from "../../../../utils/pasteRichPlainText";
 
 export default function SpecificationEditor({
   formData,
@@ -193,7 +168,7 @@ export default function SpecificationEditor({
                       updateItem(gIndex, iIndex, "description", e.target.value)
                     }
                     onPaste={(e) =>
-                      pasteExactPlainText(e, item.description, (v) =>
+                      pasteRichAsPlainText(e, item.description, (v) =>
                         updateItem(gIndex, iIndex, "description", v),
                       )
                     }

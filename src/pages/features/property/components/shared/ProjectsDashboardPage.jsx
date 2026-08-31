@@ -21,7 +21,15 @@ import PromoteModal                from "../../../../features/property/component
 import ConfirmModal                from "../../../../features/property/components/shared/ConfirmModal";
 import LoadingSpinner              from "../../../../../components/common/LoadingSpinner";
 import {
+  canApproveProject,
+  canCreateProject,
+  canPermanentlyDeleteProject,
+  canViewPendingProjectApprovals,
+  normalizeProjectRole,
+} from "../../../../../utils/projectAccessControl";
+import {
   deleteFeaturedProject,
+  permanentlyDeleteFeaturedProject,
   getAllProjectsAnalytics,
 } from "../../../../../features/property/propertyService";
 import {
@@ -30,12 +38,6 @@ import {
   promotionLifecycleCopy,
 } from "./promotionTracking";
 import { todayIso } from "../../../../Dashboards/shared/dashboardDateRange";
-import {
-  canApproveProject,
-  canCreateProject,
-  canViewPendingProjectApprovals,
-  normalizeProjectRole,
-} from "../../../../../utils/projectAccessControl";
 import {
   salesmanagerApproveAProject,
   salesmanagerRejectAProject,
@@ -112,6 +114,7 @@ const STATUS_FILTERS = [
   { value: "draft", label: "Draft" },
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
+  { value: "deleted", label: "Deleted" },
 ];
 
 const normalizeProjectStatusParam = (value = "") => {
@@ -119,12 +122,17 @@ const normalizeProjectStatusParam = (value = "") => {
   if (key === "approved" || key === "live") return "approved";
   if (key === "active") return "approved";
   if (key === "onboarding" || key === "incomplete") return "draft";
-  if (key === "inactive") return "draft";
+  if (key === "inactive" || key === "deactivated" || key === "deleted") {
+    return "deleted";
+  }
   return key || "all";
 };
 
 const matchesProjectStatusFilter = (project, statusFilter) => {
-  if (!statusFilter || statusFilter === "all") return true;
+  if (!statusFilter || statusFilter === "all") {
+    const raw = String(project?.status || "").toLowerCase();
+    return raw !== "inactive" && !project?.deletedAt;
+  }
   const raw = String(project?.status || "").toLowerCase();
   const approval = String(project?.approvalStatus || "").toLowerCase();
 
@@ -132,8 +140,7 @@ const matchesProjectStatusFilter = (project, statusFilter) => {
     return (
       raw === "draft" ||
       raw === "onboarding" ||
-      raw === "incomplete" ||
-      raw === "inactive"
+      raw === "incomplete"
     );
   }
   if (statusFilter === "pending") {
@@ -141,6 +148,9 @@ const matchesProjectStatusFilter = (project, statusFilter) => {
   }
   if (statusFilter === "approved") {
     return raw === "active" || raw === "approved" || approval === "approved";
+  }
+  if (statusFilter === "deleted") {
+    return raw === "inactive" || raw === "deleted" || Boolean(project?.deletedAt);
   }
   return raw === statusFilter;
 };
@@ -151,6 +161,7 @@ const toServerProjectStatus = (statusFilter = "all") => {
   if (key === "draft") return "draft";
   if (key === "pending") return "pending";
   if (key === "approved") return "active";
+  if (key === "deleted") return "inactive";
   return "all";
 };
 
@@ -1590,6 +1601,7 @@ export default function ProjectsDashboardPage() {
     ["operations_head", "ceo", "business_development_head"].includes(roleName);
   const canCreate = canCreateProject(currentUser);
   const canViewPendingProjects = canViewPendingProjectApprovals(currentUser);
+  const canPermanentDelete = canPermanentlyDeleteProject(currentUser);
   const [trackingFilter, setTrackingFilter] = useState(
     () => searchParams.get("tracking") || "all",
   );
@@ -1896,6 +1908,8 @@ export default function ProjectsDashboardPage() {
   // ── Modal state ───────────────────────────────────────────────────────────
   const [deleteTarget,       setDeleteTarget]       = useState(null);
   const [deleteLoading,      setDeleteLoading]      = useState(false);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState(null);
+  const [permanentDeleteLoading, setPermanentDeleteLoading] = useState(false);
   const [promoteTarget,      setPromoteTarget]      = useState(null);
   const [expireTarget,       setExpireTarget]       = useState(null);
   const [resetTarget,        setResetTarget]        = useState(null);
@@ -2326,17 +2340,39 @@ export default function ProjectsDashboardPage() {
     try {
       setDeleteLoading(true);
       await deleteFeaturedProject(id);
-      toast.success("Project deleted successfully");
+      toast.success("Project deactivated successfully");
       setDeleteTarget(null);
       await refreshAllProjects();
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "Failed to delete project",
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          "Failed to deactivate project",
       );
     } finally {
       setDeleteLoading(false);
     }
   }, [deleteLoading, refreshAllProjects]);
+
+  const handlePermanentDelete = useCallback(async (id) => {
+    if (!id || permanentDeleteLoading || !canPermanentDelete) return;
+
+    try {
+      setPermanentDeleteLoading(true);
+      await permanentlyDeleteFeaturedProject(id);
+      toast.success("Project permanently deleted");
+      setPermanentDeleteTarget(null);
+      await refreshAllProjects();
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          "Failed to permanently delete project",
+      );
+    } finally {
+      setPermanentDeleteLoading(false);
+    }
+  }, [canPermanentDelete, permanentDeleteLoading, refreshAllProjects]);
   const handleExpire  = useCallback((id) => getHook(id).expireMutation.mutate(id,  { onSuccess: refreshAllProjects, onSettled: () => setExpireTarget(null)  }), [getHook, refreshAllProjects]);
   const handleReset   = useCallback((id) => getHook(id).resetMutation.mutate(id,   { onSuccess: refreshAllProjects, onSettled: () => setResetTarget(null)   }), [getHook, refreshAllProjects]);
   const handlePromote = useCallback((newType, options = {}) =>
@@ -2470,9 +2506,9 @@ export default function ProjectsDashboardPage() {
       {/* ── MODALS ──────────────────────────────────────────────────────── */}
       <ConfirmModal
         open={!!deleteTarget}
-        title="Delete Property"
-        message="Are you sure you want to delete this property? This action cannot be undone."
-        confirmLabel={deleteLoading ? "Deleting..." : "Delete"}
+        title="Deactivate Project"
+        message="This will deactivate the project (soft delete). You can find it under Status → Deleted, with who deactivated it and when."
+        confirmLabel={deleteLoading ? "Deactivating..." : "Deactivate"}
         confirmClass="bg-red-600 hover:bg-red-700 text-white"
         icon={<Trash2 className="w-5 h-5" />}
         iconClass="text-red-600"
@@ -2481,6 +2517,22 @@ export default function ProjectsDashboardPage() {
           if (!deleteLoading) setDeleteTarget(null);
         }}
         isLoading={deleteLoading}
+      />
+      <ConfirmModal
+        open={!!permanentDeleteTarget}
+        title="Permanently Delete Project"
+        message="This removes the project from the database forever (and related media). This cannot be undone. Only use after it is already in Deleted."
+        confirmLabel={
+          permanentDeleteLoading ? "Deleting forever..." : "Delete forever"
+        }
+        confirmClass="bg-rose-800 hover:bg-rose-900 text-white"
+        icon={<AlertTriangle className="w-5 h-5" />}
+        iconClass="text-rose-700"
+        onConfirm={() => handlePermanentDelete(permanentDeleteTarget)}
+        onCancel={() => {
+          if (!permanentDeleteLoading) setPermanentDeleteTarget(null);
+        }}
+        isLoading={permanentDeleteLoading}
       />
       <ConfirmModal
         open={!!expireTarget}
@@ -3207,6 +3259,12 @@ export default function ProjectsDashboardPage() {
                 property={p}
                 type={p.promotion?.type || "normal"}
                 onDelete={() => setDeleteTarget(p._id)}
+                onPermanentDelete={
+                  canPermanentDelete
+                    ? () => setPermanentDeleteTarget(p._id)
+                    : undefined
+                }
+                canPermanentDelete={canPermanentDelete}
                 onPromote={() => openPromoteModal(p._id)}
                 onExpire={() => setExpireTarget(p._id)}
                 onReset={() => setResetTarget(p._id)}

@@ -155,3 +155,9 @@ export const canApproveProject = (user, project) => {
 
   return APPROVER_ROLES.has(actorRole) || hasPerm(user?.permissions, "project:approve");
 };
+
+/** Permanent DB delete — Super Admin + Business Development Head only. */
+export const canPermanentlyDeleteProject = (user) => {
+  const role = normalizeProjectRole(user?.roleName || user?.role);
+  return role === "super_admin" || role === "business_development_head";
+};

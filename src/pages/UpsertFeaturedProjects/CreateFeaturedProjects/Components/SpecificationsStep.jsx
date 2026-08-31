@@ -1,6 +1,7 @@
 // src/pages/post-property/featured-create/steps/Components/SpecificationsStep.jsx
-import { forwardRef, useImperativeHandle, useState, useRef } from "react";
-import { X, Plus, ListChecks } from "lucide-react";
+import { forwardRef, useImperativeHandle, useState, useRef, useEffect } from "react";
+import { X, ListChecks } from "lucide-react";
+import { pasteRichAsPlainText } from "../../../../utils/pasteRichPlainText";
 
 const inp = (err) => `w-full px-3 py-2.5 bg-white border-2 rounded-xl text-gray-900 text-sm font-semibold
   outline-none placeholder:text-gray-400 transition-all duration-200
@@ -8,30 +9,24 @@ const inp = (err) => `w-full px-3 py-2.5 bg-white border-2 rounded-xl text-gray-
 
 const LABEL = "block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5";
 
-/** Paste clipboard as exact plain text (keeps newlines / spacing from external copy). */
-function pasteExactPlainText(e, currentValue, setValue) {
-  e.preventDefault();
-  const pasted = e.clipboardData?.getData("text/plain") ?? "";
-  const el = e.target;
-  const start = typeof el.selectionStart === "number" ? el.selectionStart : currentValue.length;
-  const end = typeof el.selectionEnd === "number" ? el.selectionEnd : currentValue.length;
-  const next = `${String(currentValue || "").slice(0, start)}${pasted}${String(currentValue || "").slice(end)}`;
-  setValue(next);
-  requestAnimationFrame(() => {
-    try {
-      const pos = start + pasted.length;
-      el.selectionStart = pos;
-      el.selectionEnd = pos;
-    } catch {
-      /* ignore */
-    }
-  });
-}
+const emptyGroup = (order = 0) => ({
+  category: "",
+  order,
+  items: [{ title: "", description: "" }],
+});
 
 const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
   const specs = payload.specifications || [];
   const [errors, setErrors] = useState({});
   const specRef = useRef(null);
+
+  // Single group only — no "+ Add Group" button
+  useEffect(() => {
+    if (!specs.length) {
+      update({ specifications: [emptyGroup(0)] });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [specs.length]);
 
   useImperativeHandle(ref, () => ({
     validate() {
@@ -58,20 +53,11 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
       return c;
     });
 
-  const addCategory = () =>
-    update({
-      specifications: [
-        ...specs,
-        {
-          category: "",
-          order: specs.length,
-          items: [{ title: "", description: "" }],
-        },
-      ],
-    });
+  const remCat = (i) => {
+    const next = specs.filter((_, idx) => idx !== i);
+    update({ specifications: next.length ? next : [emptyGroup(0)] });
+  };
 
-  const remCat = (i) =>
-    update({ specifications: specs.filter((_, idx) => idx !== i) });
   const updItem = (i, j, k, v) => {
     const n = [...specs];
     const current = n[i].items?.[j] || { title: "", description: "" };
@@ -85,49 +71,29 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
 
   return (
     <div className="space-y-5" ref={specRef}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg,#f0fdf6,#dcfce7)",
-              border: "2px solid #bbf7d0",
-            }}
-          >
-            <ListChecks size={17} style={{ color: "#27AE60" }} />
-          </div>
-          <div>
-            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
-              Interior & Materials
-            </p>
-            <h3 className="text-base font-black text-gray-900">
-              Specifications
-            </h3>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={addCategory}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-black hover:opacity-90 transition-all shadow-md"
-          style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
+      <div className="flex items-center gap-3">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{
+            background: "linear-gradient(135deg,#f0fdf6,#dcfce7)",
+            border: "2px solid #bbf7d0",
+          }}
         >
-          <Plus size={14} strokeWidth={3} /> Add Group
-        </button>
+          <ListChecks size={17} style={{ color: "#27AE60" }} />
+        </div>
+        <div>
+          <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">
+            Interior & Materials
+          </p>
+          <h3 className="text-base font-black text-gray-900">
+            Specifications
+          </h3>
+        </div>
       </div>
 
       {errors.specifications && (
         <div className="px-4 py-3 bg-red-50 border-2 border-red-200 rounded-xl text-red-600 text-sm font-semibold">
           ⚠ {errors.specifications}
-        </div>
-      )}
-
-      {specs.length === 0 && (
-        <div className="flex flex-col items-center py-12 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
-          <ListChecks size={36} className="mb-3 opacity-30" />
-          <p className="font-bold text-sm">No specifications yet</p>
-          <p className="text-xs mt-1">
-            Add description items (paste from Excel / docs supported)
-          </p>
         </div>
       )}
 
@@ -146,13 +112,15 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
             <p className="flex-1 text-sm font-bold text-gray-700">
               Spec group {i + 1}
             </p>
-            <button
-              type="button"
-              onClick={() => remCat(i)}
-              className="p-2 text-red-500 hover:bg-red-50 border-2 border-red-100 rounded-xl transition-all"
-            >
-              <X size={15} />
-            </button>
+            {specs.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => remCat(i)}
+                className="p-2 text-red-500 hover:bg-red-50 border-2 border-red-100 rounded-xl transition-all"
+              >
+                <X size={15} />
+              </button>
+            ) : null}
           </div>
 
           <div className="p-5 space-y-3">
@@ -173,7 +141,7 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
                       updItem(i, j, "description", e.target.value)
                     }
                     onPaste={(e) =>
-                      pasteExactPlainText(e, item.description, (v) =>
+                      pasteRichAsPlainText(e, item.description, (v) =>
                         updItem(i, j, "description", v),
                       )
                     }

@@ -104,7 +104,12 @@ export const updateProjectRank = (id, rank) =>
   apiClient.patch(`${BASE}/${id}`, { rank });
 
 // ── DELETE ───────────────────────────────────────────────────────────────────
+/** Soft-delete / deactivate (keeps row in DB). */
 export const deleteFeaturedProject = (id) => apiClient.delete(`${BASE}/${id}`);
+
+/** Hard delete — Super Admin / BDH only; project must already be deactivated. */
+export const permanentlyDeleteFeaturedProject = (id) =>
+  apiClient.delete(`${BASE}/${id}/permanent`);
 
 export const deleteFeaturedProjectGalleryImage = (id, index) =>
   apiClient.delete(`${BASE}/${id}/gallery/${index}`);

@@ -1110,7 +1110,7 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
   const handleAddNearbyPlace = useCallback(() => {
     const name = nearbyPlaceName.trim();
     const distanceText = nearbyDistanceText.trim();
-    if (!name || !distanceText) return;
+    if (!name) return;
 
     const alreadyAdded = places.some(
       (place) => place.name?.trim().toLowerCase() === name.toLowerCase(),
@@ -1454,7 +1454,7 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
             <div>
               <p className="text-xs font-black text-gray-700">Or add manually</p>
               <p className="text-[10px] text-gray-400">
-                Enter the place name and distance. Other values remain empty.
+                Enter the place name. Distance is optional.
               </p>
             </div>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2">
@@ -1487,7 +1487,7 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
                   handleAddNearbyPlace();
                 }
               }}
-              placeholder="Distance (e.g. 1.2 km)"
+              placeholder="Distance optional (e.g. 1.2 km)"
               className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold
                 text-gray-900 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10
                 outline-none transition-all placeholder:text-gray-400 bg-white"
@@ -1495,7 +1495,7 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
             <button
               type="button"
               onClick={handleAddNearbyPlace}
-              disabled={!nearbyPlaceName.trim() || !nearbyDistanceText.trim()}
+              disabled={!nearbyPlaceName.trim()}
               className="flex items-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-black
                 hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}

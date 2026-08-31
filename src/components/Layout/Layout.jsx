@@ -1,5 +1,4 @@
 
-
 // src/components/Layout/Layout.jsx
 import { useState, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
@@ -9,8 +8,8 @@ import PageBackNav from "../common/PageBackNav";
 import { useSidebarActivityBadges } from "../../hooks/useSidebarActivityBadges";
 import { usePresenceHeartbeat } from "../../hooks/usePresenceHeartbeat";
 
-const SIDEBAR_EXPANDED = 256;
-const SIDEBAR_COLLAPSED = 68;
+const SIDEBAR_EXPANDED = 240;
+const SIDEBAR_COLLAPSED = 56;
 
 /** Full-bleed flows (no sidebar) — email-style SE user onboarding, etc. */
 const HIDE_SIDEBAR_PREFIXES = ["/sales-executives/onboard-user"];
@@ -37,7 +36,6 @@ export default function MainLayout() {
   useSidebarActivityBadges();
   usePresenceHeartbeat();
 
-  // ✅ detect tablet/mobile
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
   useEffect(() => {
@@ -46,26 +44,24 @@ export default function MainLayout() {
     };
 
     window.addEventListener("resize", handleResize);
-
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
-    if (hideSidebar) setIsMobileOpen(false);
+    if (hideSidebar) {
+      setIsMobileOpen(false);
+      setIsHovered(false);
+    }
   }, [hideSidebar]);
 
   return (
     <div className="min-h-screen" style={hideSidebar ? { backgroundColor: "#eef1f4" } : APP_BACKGROUND}>
-      
-      {/* Navbar */}
       <Navbar
         toggleSidebar={() => setIsMobileOpen(true)}
         hideSidebarToggle={hideSidebar}
       />
 
-      {/* Body */}
       <div className="flex min-w-0 pt-16">
-
         {!hideSidebar ? (
           <Sidebar
             expanded={isHovered}
@@ -76,7 +72,6 @@ export default function MainLayout() {
           />
         ) : null}
 
-        {/* Main Content */}
         <main
           className="min-h-[calc(100vh-64px)] min-w-0 flex-1 transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
           style={{
@@ -101,7 +96,6 @@ export default function MainLayout() {
             <Outlet />
           </div>
         </main>
-
       </div>
     </div>
   );

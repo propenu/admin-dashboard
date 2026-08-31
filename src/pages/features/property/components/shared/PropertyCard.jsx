@@ -64,8 +64,10 @@ import {
 const STATUS_STYLES = {
   active:   "bg-green-100 text-green-700",
   inactive: "bg-slate-100 text-slate-600",
+  deleted:  "bg-rose-100 text-rose-700",
   expired:  "bg-red-100 text-red-600",
   pending:  "bg-yellow-100 text-yellow-700",
+  draft:    "bg-slate-100 text-slate-600",
 };
 
 const TYPE_STYLES = {
@@ -186,6 +188,8 @@ export default function PropertyCard({
   property: p,
   type,
   onDelete,
+  onPermanentDelete,
+  canPermanentDelete = false,
   onPromote,
   onExpire,
   onReset,
@@ -461,6 +465,13 @@ export default function PropertyCard({
         ? Mail
         : UserPlus;
 
+  const isDeletedProject =
+    String(p?.status || "").toLowerCase() === "inactive" || Boolean(p?.deletedAt);
+  const deletedRoleLabel = formatLeadText(
+    p?.deletedBy?.roleName || p?.deletedBy?.name || "",
+  );
+  const deletedAtLabel = formatLeadDateTime(p?.deletedAt);
+
   const createdAtLabel = (() => {
     const raw = p.createdAt || p.created_at || p.postedAt;
     if (!raw) return "";
@@ -662,13 +673,24 @@ export default function PropertyCard({
                   onClick={onReset}
                 /> */}
                 <div className="border-t border-slate-100" />
-                <MenuItem
-                  icon={Trash2}
-                  iconClass="text-red-500"
-                  label="Delete"
-                  labelClass="text-red-600 hover:bg-red-50"
-                  onClick={onDelete}
-                />
+                {!isDeletedProject ? (
+                  <MenuItem
+                    icon={Trash2}
+                    iconClass="text-red-500"
+                    label="Delete"
+                    labelClass="text-red-600 hover:bg-red-50"
+                    onClick={onDelete}
+                  />
+                ) : null}
+                {isDeletedProject && canPermanentDelete && onPermanentDelete ? (
+                  <MenuItem
+                    icon={Trash2}
+                    iconClass="text-rose-700"
+                    label="Delete forever"
+                    labelClass="text-rose-800 hover:bg-rose-50"
+                    onClick={onPermanentDelete}
+                  />
+                ) : null}
               </PortalMenu>
             </div>
           </div>
@@ -859,13 +881,24 @@ export default function PropertyCard({
             className="mt-auto flex min-h-[32px] flex-wrap items-center justify-between gap-2 pt-2"
             data-action
           >
-            <span
-              className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full capitalize ${
-                STATUS_STYLES[p.status] || STATUS_STYLES.inactive
-              }`}
-            >
-              {p.status || "unknown"}
-            </span>
+            <div className="min-w-0 flex flex-col gap-0.5">
+              <span
+                className={`w-fit text-[9px] font-medium px-1.5 py-0.5 rounded-full capitalize ${
+                  isDeletedProject
+                    ? STATUS_STYLES.deleted
+                    : STATUS_STYLES[p.status] || STATUS_STYLES.inactive
+                }`}
+              >
+                {isDeletedProject ? "Deleted" : p.status || "unknown"}
+              </span>
+              {isDeletedProject ? (
+                <span className="max-w-[160px] truncate text-[9px] leading-tight text-slate-500">
+                  {deletedRoleLabel !== "-" ? deletedRoleLabel : "Unknown role"}
+                  {" · "}
+                  {deletedAtLabel}
+                </span>
+              ) : null}
+            </div>
 
             {p.status === "pending" && canApprove && (
               <div className="flex gap-2">

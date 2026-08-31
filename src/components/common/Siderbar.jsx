@@ -1,5 +1,6 @@
 // src/components/common/Sidebar.jsx  (also works as Siderbar.jsx)  
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 
@@ -190,29 +191,57 @@ const CollapsePanel = ({ open, children }) => {
   );
 };
 
-/* ─── Floating tooltip (icon-only mode) ─────────────────────────────── */
-const FloatTooltip = ({ label, show }) => (
-  <div
-    className={`
-      pointer-events-none absolute left-[calc(100%+8px)] top-1/2 -translate-y-1/2
-      z-[9999] px-2 py-1 rounded-md text-[10.5px] font-semibold
-      whitespace-nowrap select-none bg-white
-      transition-all duration-150
-      ${show ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-1"}
-    `}
-    style={{
-      color: "#27AE60",
-      border: "1px solid #bbf7d0",
-      boxShadow: "0 3px 12px rgba(39,174,96,0.13), 0 1px 4px rgba(0,0,0,0.07)",
-    }}
-  >
-    {label}
-    <span
-      className="absolute right-full top-1/2 -translate-y-1/2 border-[3px] border-transparent"
-      style={{ borderRightColor: "white" }}
-    />
-  </div>
-);
+/* ─── Page name card (sidebar closed / icons-only only) ─────────────── */
+const COLLAPSED_RAIL_PX = 56;
+
+const SidebarLabelCard = ({ tip }) => {
+  if (!tip?.label || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      aria-hidden
+      className="pointer-events-none fixed z-[10050] select-none"
+      style={{
+        top: tip.top,
+        left: tip.left,
+        transform: "translateY(-50%)",
+      }}
+    >
+      <div className="relative whitespace-nowrap rounded-md border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-semibold leading-tight tracking-wide text-emerald-700 shadow-[0_1px_4px_rgba(39,174,96,0.12)]">
+        <span
+          aria-hidden
+          className="absolute top-1/2 -translate-y-1/2 border-[3px] border-transparent"
+          style={{
+            right: "100%",
+            borderRightColor: "#ffffff",
+            filter: "drop-shadow(-1px 0 0 #bbf7d0)",
+          }}
+        />
+        {tip.label}
+      </div>
+    </div>,
+    document.body,
+  );
+};
+
+/** Deepest matching menu label for the current route. */
+const findActiveMenuLabel = (items, isActiveRoute, hasActiveDescendant) => {
+  if (!Array.isArray(items)) return null;
+  for (const item of items) {
+    if (item?.children?.length) {
+      const nested = findActiveMenuLabel(
+        item.children,
+        isActiveRoute,
+        hasActiveDescendant,
+      );
+      if (nested) return nested;
+      if (hasActiveDescendant(item) && item.label) return item.label;
+      continue;
+    }
+    if (item?.path && isActiveRoute(item.path) && item.label) return item.label;
+  }
+  return null;
+};
 
 /* ─── Nav icon wrapper (SVG url string or Lucide/React component) ────── */
 const NavIcon = ({ src, active, isParent = false, size = "md" }) => {
@@ -290,7 +319,13 @@ const SubChildren = ({ items, navigate, isActiveRoute }) => (
 /* ══════════════════════════════════════════════════════════════════════
    MAIN SIDEBAR
 ══════════════════════════════════════════════════════════════════════ */
-export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverStart, onHoverEnd }) {
+export default function Sidebar({
+  expanded,
+  isMobileOpen,
+  closeMobile,
+  onHoverStart,
+  onHoverEnd,
+}) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -299,7 +334,9 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
   const [showTransferCredentials, setShowTransferCredentials] = useState(false);
   const [user,       setUser]       = useState(null);
   const [openMenus,  setOpenMenus]  = useState({});
-  const [hoveredKey, setHoveredKey] = useState(null);
+  const [labelCard, setLabelCard] = useState(null);
+  const asideRef = useRef(null);
+  const activeIconRef = useRef(null);
   const [liveCounts, setLiveCounts] = useState(() => {
     try {
       const stored = JSON.parse(window.localStorage.getItem("propenu:sidebar-counts") || "{}");
@@ -309,7 +346,13 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
     catch { return {}; }
   });
 
-  const isActiveRoute       = (path) => location.pathname === path;
+  const isActiveRoute = (path) => {
+    if (!path) return false;
+    if (location.pathname === path) return true;
+    // Nested screens under the same sidebar entry (e.g. /projects/...)
+    if (path !== "/" && location.pathname.startsWith(`${path}/`)) return true;
+    return false;
+  };
   const hasActiveDescendant = (item) => {
     if (!item?.children) return false;
     return item.children.some((c) => (c.path && isActiveRoute(c.path)) || hasActiveDescendant(c));
@@ -1053,6 +1096,84 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
       : getPermissionMenu(user.permissions || [])
     : [];
   const showText  = expanded || isMobileOpen;
+  const sidebarClosed = !showText;
+  const activePageLabel = findActiveMenuLabel(
+    menuItems,
+    isActiveRoute,
+    hasActiveDescendant,
+  );
+
+  const bindActiveIconRef = useCallback(
+    (isActive) => (node) => {
+      if (isActive && sidebarClosed) {
+        activeIconRef.current = node;
+      } else if (activeIconRef.current === node) {
+        activeIconRef.current = null;
+      }
+    },
+    [sidebarClosed],
+  );
+
+  // Sidebar CLOSED → show page-name card beside active icon.
+  // Sidebar OPEN → hide card.
+  useLayoutEffect(() => {
+    if (!sidebarClosed || !activePageLabel) {
+      setLabelCard(null);
+      return undefined;
+    }
+
+    const placeCard = () => {
+      if (!sidebarClosed) {
+        setLabelCard(null);
+        return;
+      }
+      const iconEl = activeIconRef.current;
+      const asideEl = asideRef.current;
+      if (!iconEl || !asideEl) {
+        setLabelCard(null);
+        return;
+      }
+      const iconRect = iconEl.getBoundingClientRect();
+      const asideRect = asideEl.getBoundingClientRect();
+      if (iconRect.bottom < asideRect.top || iconRect.top > asideRect.bottom) {
+        setLabelCard(null);
+        return;
+      }
+      // Always use collapsed rail width — mid-animation getBoundingClientRect
+      // can be wide and push the card far into the page.
+      const railRight = Math.round(asideRect.left + COLLAPSED_RAIL_PX);
+      setLabelCard({
+        label: activePageLabel,
+        top: iconRect.top + iconRect.height / 2,
+        // Caret (~3px) + 1px → tip touches the closed sidebar edge
+        left: railRight + 2,
+      });
+    };
+
+    placeCard();
+    const nav = asideRef.current?.querySelector("nav.sb-scroll") || null;
+    window.addEventListener("resize", placeCard);
+    window.addEventListener("scroll", placeCard, true);
+    nav?.addEventListener("scroll", placeCard, { passive: true });
+    const t1 = window.setTimeout(placeCard, 0);
+    const t2 = window.setTimeout(placeCard, 80);
+    const t3 = window.setTimeout(placeCard, 220);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+      window.removeEventListener("resize", placeCard);
+      window.removeEventListener("scroll", placeCard, true);
+      nav?.removeEventListener("scroll", placeCard);
+    };
+  }, [
+    sidebarClosed,
+    activePageLabel,
+    location.pathname,
+    menuItems.length,
+    expanded,
+    isMobileOpen,
+  ]);
 
   const pathBadge = (path) => {
     if (!path || !liveCounts?.ready) return null;
@@ -1275,6 +1396,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           expanded:  240px wide, icon + text
       ═══════════════════════════════════════ */}
       <aside
+        ref={asideRef}
         onMouseEnter={onHoverStart}
         onMouseLeave={onHoverEnd}
         className={`
@@ -1309,6 +1431,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                   {/* Parent toggle button */}
                   <div className="relative">
                     <button
+                      ref={bindActiveIconRef(parentActive)}
                       onClick={() => toggleMenu(item.key)}
                       className={`relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-colors duration-150`}
                       style={
@@ -1317,11 +1440,9 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                           : { color: "#64748b" }
                       }
                       onMouseEnter={(e) => {
-                        if (!showText) setHoveredKey(item.key);
                         if (!parentActive) e.currentTarget.style.background = "#f8fffe";
                       }}
                       onMouseLeave={(e) => {
-                        setHoveredKey(null);
                         if (!parentActive) e.currentTarget.style.background = "";
                       }}
                     >
@@ -1352,8 +1473,6 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                       )}
                       {!showText && <BadgePill badge={sidebarBadge(item)} compact />}
                     </button>
-
-                    {!showText && <FloatTooltip label={item.label} show={hoveredKey === item.key} />}
                   </div>
 
                   {/* Animated children list */}
@@ -1446,6 +1565,7 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
             return (
               <div key={item.path} className="relative">
                 <button
+                  ref={bindActiveIconRef(leafActive)}
                   onClick={() => navigateMenuPath(item.path)}
                   className={`relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-colors duration-150`}
                   style={
@@ -1458,14 +1578,12 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                       : { color: "#64748b" }
                   }
                   onMouseEnter={(e) => {
-                    if (!showText) setHoveredKey(item.path);
                     if (!leafActive) {
                       e.currentTarget.style.background = "#f0fdf4";
                       e.currentTarget.style.color = "#27AE60";
                     }
                   }}
                   onMouseLeave={(e) => {
-                    setHoveredKey(null);
                     if (!leafActive) {
                       e.currentTarget.style.background = "";
                       e.currentTarget.style.color = "#64748b";
@@ -1481,13 +1599,6 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
                   {showText && <BadgePill badge={badge} active={leafActive} />}
                   {!showText && <BadgePill badge={badge} compact />}
                 </button>
-
-                {!showText && (
-                  <FloatTooltip
-                    label={item.label}
-                    show={hoveredKey === item.path}
-                  />
-                )}
               </div>
             );
           })}
@@ -1530,6 +1641,9 @@ export default function Sidebar({ expanded, isMobileOpen, closeMobile, onHoverSt
           </div>
         )}
       </aside>
+
+      {/* Sidebar closed → show card. Sidebar open → hide. */}
+      {sidebarClosed && labelCard ? <SidebarLabelCard tip={labelCard} /> : null}
 
       {/* ── Modals ── */}
       {showCreateModal         && <CreateUserModal     onClose={() => setShowCreateModal(false)} currentUserRole={user?.roleName} currentUser={user}         />}

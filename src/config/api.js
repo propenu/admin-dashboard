@@ -1,5 +1,10 @@
 // src/config/api.js
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+const trimEnv = (value) => String(value || "").trim();
+
+export const API_BASE_URL =
+  trimEnv(import.meta.env.VITE_API_BASE_URL) ||
+  "http://localhost:4000/api/properties";
+
 export const API_ENDPOINTS = {
   // FEATURED PROPERTIES
   FEATURED_PROPERTIES: `${API_BASE_URL}/featured-project`,
@@ -43,7 +48,7 @@ export const API_ENDPOINTS = {
 export const API_CONFIG = {
   TIMEOUT: 30000,
   HEADERS: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    "Content-Type": "application/json",
+    Accept: "application/json",
   },
-}
+};
