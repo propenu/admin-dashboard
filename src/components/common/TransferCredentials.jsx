@@ -26,6 +26,7 @@ import {
   isRoleBelowActor,
 } from "../../utils/reportsToHierarchy";
 import LocationFilterBar, { applyLocationFilters } from "./LocationFilterBar";
+import HierarchyRoleFilterSelect from "./HierarchyRoleFilterSelect";
 
 const ROLES = [
   { label: "Super Admin", value: "super_admin", group: "Platform" },
@@ -60,6 +61,17 @@ const ROLES = [
 const RM_ROLES = ["sales_manager", "sales_agent", "relationship_manager"];
 
 const roleLabel = (value) => ROLES.find((role) => role.value === value)?.label || cleanRoleLabel(value);
+
+const GROUP_DEPTH = {
+  Platform: 0,
+  Leadership: 0,
+  Operations: 0,
+  "Sales & BD": 1,
+  "Customer Support": 1,
+  Marketing: 1,
+  "Back office": 2,
+  Technical: 2,
+};
 
 /** Only hierarchy children under the actor — never self / never above. */
 const filterRolesBelowActor = (roles, currentUserRole, assignableNames) => {
@@ -129,6 +141,17 @@ export default function TransferCredentials({ onClose, currentUserRole, currentU
     [currentUserRole, assignableNames],
   );
   const sourceRoles = allowedRoles;
+
+  const sourceRoleOptions = useMemo(
+    () =>
+      sourceRoles.map((role) => ({
+        name: role.value,
+        label: role.label,
+        group: role.group,
+        hierarchyDepth: GROUP_DEPTH[role.group] ?? 1,
+      })),
+    [sourceRoles],
+  );
 
   const [step, setStep] = useState(1);
   const [sourceRole, setSourceRole] = useState("");
@@ -397,29 +420,28 @@ export default function TransferCredentials({ onClose, currentUserRole, currentU
               {step === 1 && (
                 <div className="space-y-3.5">
                   <div>
-                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      Current role
-                    </label>
-                    <select
+                    <HierarchyRoleFilterSelect
+                      label="Current role"
                       value={sourceRole}
-                      onChange={(event) => {
-                        setSourceRole(event.target.value);
+                      onChange={(next) => {
+                        setSourceRole(next);
                         setSelectedUser(null);
                         setUserQuery("");
-                        setLocFilters({ state: regionalState || "", city: "", locality: "", pincode: "" });
+                        setLocFilters({
+                          state: regionalState || "",
+                          city: "",
+                          locality: "",
+                          pincode: "",
+                        });
                       }}
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-                    >
-                      <option value="">Select their current role…</option>
-                      {sourceRoles.map((role) => (
-                        <option key={role.value} value={role.value}>
-                          {role.group} · {role.label}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-[11px] text-slate-400">
-                      Only roles below you in the organisation hierarchy are listed.
-                    </p>
+                      roles={sourceRoleOptions}
+                      getLabel={(role) => role.label || roleLabel(role.name)}
+                      getMeta={(role) => role.group || ""}
+                      hideAllOption
+                      allLabel="Select their current role…"
+                      emptyHint="Roles below you"
+                      headerNote="Only roles below you in the organisation hierarchy are listed."
+                    />
                     {!sourceRoles.length && (
                       <p className="mt-1 text-xs text-amber-700">
                         No child roles under your account. You cannot transfer credentials for higher or peer roles.

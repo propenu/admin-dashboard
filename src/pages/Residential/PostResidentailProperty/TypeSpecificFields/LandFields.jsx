@@ -6,6 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useActivePropertySlice } from "./UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../store/common/propertyThunks";
+import { hasBlockedContentInDescription } from "../../../../utils/stripPhoneFromDescription";
 
 
 import TopHeader from "./common/BasicCommonComponents/TopHeader";
@@ -86,6 +87,10 @@ export default function LandFields({ back, next }) {
       e.price = "Price must be greater than 0";
     if (!form.description || form.description.trim().length < 20)
       e.description = "Description is too short";
+    else if (hasBlockedContentInDescription(form.description)) {
+      e.description =
+        "Phone numbers, emails, and house addresses are not allowed in the description";
+    }
     if (!form.galleryFiles || form.galleryFiles.length < 5)
       e.galleryFiles = "Please upload minimum 5 photos";
     else if (form.galleryFiles.length > 12)

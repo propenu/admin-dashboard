@@ -29,6 +29,7 @@ import {
   Plus,
   ChevronDown,
 } from "lucide-react";
+import { parseManualNearbyPlaceNames } from "../../../../utils/parseManualNearbyPlaces";
 
 const PRIMARY = "#27AE60";
 
@@ -532,46 +533,35 @@ function PlaceCard({ place, index, onUpdate, onRemove }) {
 
   if (isManualPlace) {
     return (
-      <div className="border-2 border-gray-200 rounded-2xl bg-white shadow-sm p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
-              Place Name
-            </label>
-            <input
-              className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl
-                focus:outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] bg-white transition font-semibold"
-              placeholder="Place name"
-              value={place.name || ""}
-              onChange={(event) =>
-                onUpdate(index, { ...place, name: event.target.value })
-              }
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
-              Distance
-            </label>
-            <input
-              className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl
-                focus:outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] bg-white transition font-semibold"
-              placeholder="e.g. 1.2 km"
-              value={place.distanceText || ""}
-              onChange={(event) =>
-                onUpdate(index, { ...place, distanceText: event.target.value })
-              }
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => onRemove(index)}
-            className="h-[46px] px-3 sm:col-span-2 flex items-center justify-center rounded-xl text-red-500
-              hover:text-red-600 hover:bg-red-50 transition border-2 border-red-100"
-            aria-label={`Remove ${place.name || "nearby place"}`}
-          >
-            <Trash2 size={15} />
-          </button>
-        </div>
+      <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2 py-1.5">
+        <span
+          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-bold rounded text-white shrink-0"
+          style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
+        >
+          <MapPin size={9} />
+          Place
+        </span>
+        <input
+          className="min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-[11px] font-semibold text-gray-800
+            outline-none focus:ring-0 placeholder:text-gray-400"
+          placeholder="Place name"
+          value={place.name || ""}
+          onChange={(event) =>
+            onUpdate(index, {
+              ...place,
+              name: event.target.value,
+              distanceText: "",
+            })
+          }
+        />
+        <button
+          type="button"
+          onClick={() => onRemove(index)}
+          className="shrink-0 rounded-md border border-red-100 p-1 text-red-500 hover:bg-red-50 transition-all"
+          aria-label={`Remove ${place.name || "nearby place"}`}
+        >
+          <Trash2 size={11} />
+        </button>
       </div>
     );
   }
@@ -594,9 +584,6 @@ function PlaceCard({ place, index, onUpdate, onRemove }) {
             <p className="text-sm font-bold text-gray-800 truncate">{place.name?.split(",")[0] || "Unnamed"}</p>
             <p className="text-[10px] text-gray-400 truncate capitalize">{place.type || "No type"}</p>
           </div>
-          {place.distanceText && (
-            <span className="text-xs text-[#27AE60] font-semibold shrink-0">· {place.distanceText}</span>
-          )}
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
@@ -621,8 +608,8 @@ function PlaceCard({ place, index, onUpdate, onRemove }) {
       {/* Expanded edit area */}
       {open && (
         <div className="border-t-2 border-gray-100 p-4 space-y-4 bg-gray-50/40">
-          {/* Name, distance & type fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Name & type fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
                 Place Name
@@ -632,19 +619,13 @@ function PlaceCard({ place, index, onUpdate, onRemove }) {
                   focus:outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] bg-white transition font-semibold"
                 placeholder="Place Name"
                 value={place.name}
-                onChange={(e) => onUpdate(index, { ...place, name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5">
-                Distance
-              </label>
-              <input
-                className="w-full px-3 py-2.5 text-sm border-2 border-gray-200 rounded-xl
-                  focus:outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] bg-white transition font-semibold"
-                placeholder="e.g. 1.2 km"
-                value={place.distanceText || ""}
-                onChange={(e) => onUpdate(index, { ...place, distanceText: e.target.value })}
+                onChange={(e) =>
+                  onUpdate(index, {
+                    ...place,
+                    name: e.target.value,
+                    distanceText: "",
+                  })
+                }
               />
             </div>
             <div>
@@ -753,7 +734,6 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
   const [searchQuery,  setSearchQuery]  = useState("");
   const [searching,    setSearching]    = useState(false);
   const [nearbyPlaceName, setNearbyPlaceName] = useState("");
-  const [nearbyDistanceText, setNearbyDistanceText] = useState("");
 
   const gpsAbortRef = useRef(null);
 
@@ -845,38 +825,45 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
     [setFormData]
   );
 
-  const handleAddManualPlace = useCallback(() => {
-    const name = nearbyPlaceName.trim();
-    const distanceText = nearbyDistanceText.trim();
-    if (!name) return;
+  const handleAddManualPlace = useCallback(
+    (rawText = nearbyPlaceName) => {
+      const names = parseManualNearbyPlaceNames(rawText);
+      if (!names.length) return;
 
-    const alreadyAdded = places.some(
-      (place) => place.name?.trim().toLowerCase() === name.toLowerCase(),
-    );
-    if (alreadyAdded) return;
+      const existing = new Set(
+        places
+          .map((place) => place.name?.trim().toLowerCase())
+          .filter(Boolean),
+      );
+      const toAdd = names.filter((name) => !existing.has(name.toLowerCase()));
+      if (!toAdd.length) {
+        setNearbyPlaceName("");
+        return;
+      }
 
-    setFormData((prev) => ({
-      ...prev,
-      nearbyPlaces: [
-        ...(prev.nearbyPlaces || []),
-        {
-          name,
-          fullAddress: "",
-          locality: "",
-          city: "",
-          latitude: "",
-          longitude: "",
-          type: "",
-          distanceText,
-          coordinates: [0, 0],
-          order: (prev.nearbyPlaces || []).length,
-        },
-      ],
-    }));
+      setFormData((prev) => ({
+        ...prev,
+        nearbyPlaces: [
+          ...(prev.nearbyPlaces || []),
+          ...toAdd.map((name, index) => ({
+            name,
+            fullAddress: "",
+            locality: "",
+            city: "",
+            latitude: "",
+            longitude: "",
+            type: "",
+            distanceText: "",
+            coordinates: [0, 0],
+            order: (prev.nearbyPlaces || []).length + index,
+          })),
+        ],
+      }));
 
-    setNearbyPlaceName("");
-    setNearbyDistanceText("");
-  }, [nearbyDistanceText, nearbyPlaceName, places, setFormData]);
+      setNearbyPlaceName("");
+    },
+    [nearbyPlaceName, places, setFormData],
+  );
 
   const handleUpdatePlace = useCallback(
     (index, updatedPlace) => {
@@ -1057,23 +1044,23 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
 
         {/* ══ SECTION 2: Added Nearby Places (each with mini-map) ══ */}
         {places.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <p className="text-[9px] font-black uppercase tracking-widest text-gray-500">
                 Added Nearby Places
               </p>
               <span
-                className="px-2 py-0.5 rounded-lg text-[10px] font-black text-white"
+                className="px-1.5 py-0.5 rounded-md text-[9px] font-black text-white"
                 style={{ background: "#27AE60" }}
               >
                 {places.length}
               </span>
             </div>
-            <p className="text-[10px] text-gray-400 font-medium">
-              Expand each place to edit name, type, and pin its exact location on its own map.
+            <p className="text-[9px] text-gray-400 font-medium">
+              Expand a searched place to edit details. Manual names stay compact.
             </p>
 
-            <div className="space-y-3">
+            <div className="max-h-64 overflow-y-auto space-y-1 pr-0.5">
               {places.map((place, index) => (
                 <PlaceCard
                   key={`place-${index}`}
@@ -1116,10 +1103,10 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
               <div>
                 <p className="text-xs font-black text-gray-700">Or add manually</p>
                 <p className="text-[10px] text-gray-400">
-                  Enter the place name. Distance is optional.
+                  Enter a place name, or paste multiple lines (one place per line).
                 </p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
                 <div className="relative">
                   <MapPin
                     size={15}
@@ -1128,37 +1115,29 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
                   <input
                     value={nearbyPlaceName}
                     onChange={(event) => setNearbyPlaceName(event.target.value)}
+                    onPaste={(event) => {
+                      const text = event.clipboardData?.getData("text") || "";
+                      if (!/\r?\n/.test(text)) return;
+                      event.preventDefault();
+                      handleAddManualPlace(text);
+                    }}
                     onKeyDown={(event) => {
                       if (event.key === "Enter") {
                         event.preventDefault();
                         handleAddManualPlace();
                       }
                     }}
-                    placeholder="Enter nearby place name"
+                    placeholder="e.g. Fortis Hospital — 6.8 km"
                     className="w-full border-2 border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold
                       text-gray-900 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10
                       outline-none transition-all placeholder:text-gray-400 bg-white"
                   />
                 </div>
-                <input
-                  value={nearbyDistanceText}
-                  onChange={(event) => setNearbyDistanceText(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handleAddManualPlace();
-                    }
-                  }}
-                  placeholder="Distance optional (e.g. 1.2 km)"
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold
-                    text-gray-900 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10
-                    outline-none transition-all placeholder:text-gray-400 bg-white"
-                />
                 <button
                   type="button"
-                  onClick={handleAddManualPlace}
+                  onClick={() => handleAddManualPlace()}
                   disabled={!nearbyPlaceName.trim()}
-                  className="sm:col-span-2 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-black
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-black
                     hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
                 >

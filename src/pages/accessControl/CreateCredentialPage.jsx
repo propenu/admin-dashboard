@@ -1,7 +1,9 @@
-import { createElement, useEffect, useState } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, BadgeCheck, Building2, Check, ChevronDown, KeyRound, Mail, MapPin, Network, ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, BadgeCheck, Building2, Check, KeyRound, Mail, MapPin, Network, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 import { toast } from "sonner";
+import HierarchyRoleFilterSelect from "../../components/common/HierarchyRoleFilterSelect";
+import ActivityFilterSelect from "../Activity/components/ActivityFilterSelect";
 import { completeCredentialLocation, getAccessUsers, getAssignableRoles, requestCredentialOtp, verifyCredentialOtp } from "../../features/accessControl/accessControlService";
 import { getEligibleReportsTo } from "../../features/user/userService";
 import { cleanRoleLabel, formatHierarchyHint } from "../../utils/reportsToHierarchy";
@@ -71,6 +73,23 @@ export default function CreateCredentialPage() {
   const preferredReportsLabel = hierarchyHint?.preferredReportsToRole
     ? cleanRoleLabel(hierarchyHint.preferredReportsToRole)
     : "parent role";
+
+  const reportsToFilterOptions = useMemo(
+    () => [
+      { value: "", label: "Select who this person works under (optional)" },
+      ...reportsToOptions.map((user) => ({
+        value: String(user._id),
+        label: [
+          user.name || "Unnamed",
+          cleanRoleLabel(user.roleName),
+          [user.city, user.state].filter(Boolean).join(", "),
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      })),
+    ],
+    [reportsToOptions],
+  );
 
   const sendOtp = async (event) => {
     event.preventDefault();
@@ -158,16 +177,17 @@ export default function CreateCredentialPage() {
             )}
             {form.role && (hierarchy?.reportsToRoles || []).length > 0 && (
               <div className="sm:col-span-2">
-                <Field label="Reports to (person)" icon={UsersRound}>
-                  <select value={form.reportsToUserId} onChange={update("reportsToUserId")} className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100">
-                    <option value="">Select who this person works under (optional)</option>
-                    {reportsToOptions.map((user) => (
-                      <option key={user._id} value={user._id}>
-                        {user.name} — {cleanRoleLabel(user.roleName)}{user.city ? ` · ${user.city}` : ""}{user.state ? `, ${user.state}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                <ActivityFilterSelect
+                  showLabel
+                  searchable
+                  label="Reports to (person)"
+                  value={form.reportsToUserId ? String(form.reportsToUserId) : ""}
+                  onChange={(next) =>
+                    setForm((current) => ({ ...current, reportsToUserId: next }))
+                  }
+                  options={reportsToFilterOptions}
+                  icon={UsersRound}
+                />
                 {!reportsToOptions.length && (
                   <p className="mt-2 text-xs text-amber-700">
                     No {preferredReportsLabel} account found yet. Create a {preferredReportsLabel} credential
@@ -194,7 +214,21 @@ export default function CreateCredentialPage() {
   );
 }
 
-function Field({ label, icon, children }) { return <label className="access-control-field block"><span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">{label}</span><span className="relative block">{createElement(icon, { className: "pointer-events-none absolute left-3.5 top-3.5 text-slate-400", size: 18 })}{children}</span></label>; }
+function Field({ label, icon, children }) {
+  return (
+    <label className="access-control-field block min-w-0">
+      <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        {label}
+      </span>
+      <span className="relative block">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 z-[1] grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg bg-[#EAF8F0] text-[#12A150]">
+          {createElement(icon, { size: 14, strokeWidth: 2.25 })}
+        </span>
+        {children}
+      </span>
+    </label>
+  );
+}
 
 const ROLE_DISPLAY_LABELS = {
   ceo: "CEO",
@@ -230,17 +264,6 @@ const ROLE_DISPLAY_LABELS = {
   customer_support_head: "Customer Support Head",
 };
 
-/** Branch title shown above each Operations Head direct child group. */
-const OPS_BRANCH_TITLE = {
-  business_development_head: "Business Development",
-  customer_support_head: "Customer Support",
-  marketing_head: "Marketing",
-  accounts: "Accounts · Legal · HR",
-  legal_compliance: "Accounts · Legal · HR",
-  hr_administration: "Accounts · Legal · HR",
-  technical_support_head: "Technical Support",
-};
-
 const roleDisplayLabel = (role) =>
   ROLE_DISPLAY_LABELS[canonicalTeamRole(role?.name)] ||
   ROLE_DISPLAY_LABELS[String(role?.name || "").toLowerCase()] ||
@@ -248,14 +271,20 @@ const roleDisplayLabel = (role) =>
   cleanRoleLabel(role?.name);
 
 function RoleSelect({ roles, users, value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const orderedRoles = orderRolesByHierarchy(roles);
+  const orderedRoles = useMemo(
+    () =>
+      orderRolesByHierarchy(roles).map((role) => ({
+        ...role,
+        userCount: countUsersInExactRole(users, role.name, roles),
+      })),
+    [roles, users],
+  );
+
   const selected =
     orderedRoles.find((role) => role.name === value) ||
     orderedRoles.find((role) => canonicalTeamRole(role.name) === canonicalTeamRole(value)) ||
     roles.find((role) => role.name === value);
-  const selectedMatch = value ? canonicalTeamRole(value) : "";
-  const membersFor = (role) => countUsersInExactRole(users, role.name, roles);
+
   const selectedMembers = selected
     ? users.filter(
         (user) =>
@@ -266,49 +295,57 @@ function RoleSelect({ roles, users, value, onChange }) {
       )
     : [];
 
-  const minDepth = orderedRoles.reduce(
-    (min, role) => Math.min(min, Number(role.hierarchyDepth) || 0),
-    Number.POSITIVE_INFINITY,
-  );
-  let lastBranchTitle = "";
-
-  return <div className="relative z-30">
-    <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">Dashboard role</span>
-    <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className={`flex w-full items-center gap-3 rounded-xl border bg-white px-4 py-3 text-left outline-none transition ${open ? "border-emerald-500 ring-4 ring-emerald-100" : "border-slate-200 hover:border-slate-300"}`}>
-      <ShieldCheck className="shrink-0 text-slate-400" size={18} />
-      <span className={`min-w-0 flex-1 truncate text-sm ${selected ? "font-semibold text-slate-900" : "text-slate-400"}`}>{roleDisplayLabel(selected) || "Select an existing active role"}</span>
-      <ChevronDown className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} size={18} />
-    </button>
-    {open && <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
-      <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Roles below you in the organisation</div>
-      <p className="px-3 pb-2 text-[11px] leading-4 text-slate-400">Only child roles under your position are listed (e.g. Legal, HR, Sales, Support).</p>
-      {orderedRoles.length ? orderedRoles.map((role) => {
-        const active = value === role.name || selectedMatch === canonicalTeamRole(role.name);
-        const canon = canonicalTeamRole(role.name);
-        const depth = Number(role.hierarchyDepth) || 0;
-        const branchTitle = depth <= (Number.isFinite(minDepth) ? minDepth : 0) ? OPS_BRANCH_TITLE[canon] : "";
-        const showBranch = branchTitle && branchTitle !== lastBranchTitle;
-        if (showBranch) lastBranchTitle = branchTitle;
-        const indent = Math.max(0, depth - (Number.isFinite(minDepth) ? minDepth : 0));
-        return (
-          <div key={role._id || role.name}>
-            {showBranch && (
-              <div className="sticky top-0 mt-1 bg-slate-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                {branchTitle}
-              </div>
-            )}
-            <button type="button" onClick={() => { onChange(role.name); setOpen(false); }} style={{ paddingLeft: `${12 + indent * 18}px` }} className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${active ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}>
-              <span className="w-3 shrink-0 text-slate-300">{indent ? "└" : ""}</span>
-              <span className="min-w-0 flex-1 truncate">{roleDisplayLabel(role)}</span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{membersFor(role)}</span>
-              {active && <Check className="shrink-0 text-emerald-600" size={16} />}
-            </button>
+  return (
+    <div className="relative z-30">
+      <HierarchyRoleFilterSelect
+        label="Dashboard role"
+        value={selected?.name || value || ""}
+        onChange={onChange}
+        roles={orderedRoles}
+        getLabel={roleDisplayLabel}
+        hideAllOption
+        allLabel="Select an existing active role"
+        emptyHint="Roles below you in the organisation"
+        headerNote="Only child roles under your position are listed (e.g. Legal, HR, Sales, Support)."
+        className={!orderedRoles.length ? "pointer-events-none opacity-70" : ""}
+      />
+      {!orderedRoles.length ? (
+        <p className="mt-2 text-center text-sm text-slate-500">
+          No child roles found under your hierarchy
+        </p>
+      ) : null}
+      {selected ? (
+        <div className="mt-3 rounded-xl border border-[#d9ebe0] bg-[#F6FBF8] p-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-xs font-bold text-slate-700">
+              <UsersRound size={15} className="text-[#12A150]" /> People assigned to{" "}
+              {roleDisplayLabel(selected)}
+            </span>
+            <span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-[#0B7A3A]">
+              {selectedMembers.length}
+            </span>
           </div>
-        );
-      }) : <div className="px-3 py-5 text-center text-sm text-slate-500">No child roles found under your hierarchy</div>}
-    </div>}
-    {selected && <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-xs font-bold text-slate-700"><UsersRound size={15} className="text-emerald-600" /> People assigned to {roleDisplayLabel(selected)}</span><span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-500">{selectedMembers.length}</span></div>{selectedMembers.length ? <div className="mt-2 flex max-h-24 flex-wrap gap-2 overflow-y-auto">{selectedMembers.map((user) => <span key={user._id} title={user.email || user.phone} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700">{user.name || user.email || "Unnamed user"}</span>)}</div> : <p className="mt-2 text-[11px] text-slate-400">No users are currently assigned to this role.</p>}</div>}
-  </div>;
+          {selectedMembers.length ? (
+            <div className="mt-2 flex max-h-24 flex-wrap gap-2 overflow-y-auto">
+              {selectedMembers.map((user) => (
+                <span
+                  key={user._id}
+                  title={user.email || user.phone}
+                  className="rounded-lg border border-[#d9ebe0] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700"
+                >
+                  {user.name || user.email || "Unnamed user"}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-[11px] text-slate-400">
+              No users are currently assigned to this role.
+            </p>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 function Primary({ busy, children }) { return <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:opacity-50">{busy ? "Please wait..." : children}</button>; }
 function Review({ label, value }) { return <div className="rounded-xl bg-white p-3"><div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</div><div className="mt-1 text-sm font-semibold text-slate-800">{value}</div></div>; }

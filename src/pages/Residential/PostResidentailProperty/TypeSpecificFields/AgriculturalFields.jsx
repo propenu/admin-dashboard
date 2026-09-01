@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useActivePropertySlice } from "./UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../store/common/propertyThunks";
+import { hasBlockedContentInDescription } from "../../../../utils/stripPhoneFromDescription";
 
 import TopHeader from "./common/BasicCommonComponents/TopHeader";
 import Amenities from "./common/BasicCommonComponents/Amenities";
@@ -70,12 +71,24 @@ export default function AgriculturalFields({ back, next }) {
     if (!form.waterSource) e.waterSource = "Water source is required";
     if (!form.amenities?.length) e.amenities = "Select at least one amenity";
     if (!form.accessRoadType) e.accessRoadType = "Access road type is required";
+    if (!form.statePurchaseRestrictions) {
+      e.statePurchaseRestrictions = "Select Applicable or Not Applicable";
+    } else if (
+      form.statePurchaseRestrictions !== "Applicable" &&
+      form.statePurchaseRestrictions !== "Not Applicable"
+    ) {
+      e.statePurchaseRestrictions = "Select Applicable or Not Applicable";
+    }
     return e;
   };
 
   const validateStep3 = () => {
     const e = {};
     //if (!form.currency) e.currency = "Currency is required";
+    if (hasBlockedContentInDescription(form.description || "")) {
+      e.description =
+        "Phone numbers, emails, and house addresses are not allowed in the description";
+    }
     if (!form.galleryFiles || form.galleryFiles.length < 5)
       e.galleryFiles = "Please upload minimum 5 photos";
     else if (form.galleryFiles.length > 12)

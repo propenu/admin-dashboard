@@ -1,0 +1,1 @@
+import{C as s,S as i}from"./country-state-city-C3vFgEqo.js";const a=i.getStatesOfCountry("IN"),r=e=>{const t=a.find(o=>o.name===e||o.isoCode===e);return t?s.getCitiesOfState("IN",t.isoCode):[]};function C(e=""){return String(e).toLowerCase().split(/\s+/).filter(Boolean).map(t=>t.charAt(0).toUpperCase()+t.slice(1)).join(" ")}export{a as I,r as g,C as t};

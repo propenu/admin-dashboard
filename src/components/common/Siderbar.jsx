@@ -1,5 +1,5 @@
 // src/components/common/Sidebar.jsx  (also works as Siderbar.jsx)  
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
@@ -53,9 +53,6 @@ import {
   UsersRound,
   Activity,
 } from "lucide-react";
-import CreateUserModal     from "./CreateUserModal";
-import AssignReportsTo     from "./AssignReportsTo";
-import TransferCredentials from "./TransferCredentials";
 import {
   accountTodayHref,
   followUpTodayHref,
@@ -65,6 +62,9 @@ import {
   SIDEBAR_ACCOUNT_PATHS,
 } from "../../utils/sidebarActivity";
 
+const CreateUserModal = lazy(() => import("./CreateUserModal"));
+const AssignReportsTo = lazy(() => import("./AssignReportsTo"));
+const TransferCredentials = lazy(() => import("./TransferCredentials"));
 /* ─────────────────────────────────────────────────────────────────────
    SIZE TOKENS  — change these one place to rescale entire sidebar
 ───────────────────────────────────────────────────────────────────── */
@@ -200,7 +200,7 @@ const SidebarLabelCard = ({ tip }) => {
   return createPortal(
     <div
       aria-hidden
-      className="pointer-events-none fixed z-[10050] select-none"
+      className="pointer-events-none fixed z-[10050] hidden select-none lg:block"
       style={{
         top: tip.top,
         left: tip.left,
@@ -1114,8 +1114,8 @@ export default function Sidebar({
     [sidebarClosed],
   );
 
-  // Sidebar CLOSED → show page-name card beside active icon.
-  // Sidebar OPEN → hide card.
+  // Sidebar CLOSED (desktop icons-only) → show page-name card beside active icon.
+  // Sidebar OPEN or mobile (< lg) → hide card (avoids floating "Dashboard" over content).
   useLayoutEffect(() => {
     if (!sidebarClosed || !activePageLabel) {
       setLabelCard(null);
@@ -1123,7 +1123,7 @@ export default function Sidebar({
     }
 
     const placeCard = () => {
-      if (!sidebarClosed) {
+      if (!sidebarClosed || window.matchMedia("(max-width: 1023px)").matches) {
         setLabelCard(null);
         return;
       }
@@ -1642,13 +1642,36 @@ export default function Sidebar({
         )}
       </aside>
 
-      {/* Sidebar closed → show card. Sidebar open → hide. */}
-      {sidebarClosed && labelCard ? <SidebarLabelCard tip={labelCard} /> : null}
+      {/* Sidebar closed page-name card disabled — overlaps table/content on Team Directory */}
+      {false && sidebarClosed && labelCard ? <SidebarLabelCard tip={labelCard} /> : null}
 
       {/* ── Modals ── */}
-      {showCreateModal         && <CreateUserModal     onClose={() => setShowCreateModal(false)} currentUserRole={user?.roleName} currentUser={user}         />}
-      {showAssignAgentModal    && <AssignReportsTo     onClose={() => setShowAssignAgentModal(false)} currentUserRole={user?.roleName} currentUser={user}    />}
-      {showTransferCredentials && <TransferCredentials onClose={() => setShowTransferCredentials(false)} currentUserRole={user?.roleName} currentUser={user} />}
-    </>
+      {showCreateModal ? (
+        <Suspense fallback={null}>
+          <CreateUserModal
+            onClose={() => setShowCreateModal(false)}
+            currentUserRole={user?.roleName}
+            currentUser={user}
+          />
+        </Suspense>
+      ) : null}
+      {showAssignAgentModal ? (
+        <Suspense fallback={null}>
+          <AssignReportsTo
+            onClose={() => setShowAssignAgentModal(false)}
+            currentUserRole={user?.roleName}
+            currentUser={user}
+          />
+        </Suspense>
+      ) : null}
+      {showTransferCredentials ? (
+        <Suspense fallback={null}>
+          <TransferCredentials
+            onClose={() => setShowTransferCredentials(false)}
+            currentUserRole={user?.roleName}
+            currentUser={user}
+          />
+        </Suspense>
+      ) : null}    </>
   );
 }

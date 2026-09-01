@@ -6,6 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useActivePropertySlice } from "../UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../../store/common/propertyThunks";
+import { hasBlockedContentInDescription } from "../../../../../utils/stripPhoneFromDescription";
 import { Phone } from "lucide-react";
 
 import Amenities from "../common/BasicCommonComponents/Amenities";
@@ -75,6 +76,10 @@ export default function ResidentialFields({ back, next }) {
     if (!form.flooringType) e.flooringType = "Select flooring type";
     if (!form.kitchenType) e.kitchenType = "Select kitchen type";
     if (!form.description) e.description = "Enter property description";
+    else if (hasBlockedContentInDescription(form.description)) {
+      e.description =
+        "Phone numbers, emails, and house addresses are not allowed in the description";
+    }
     if (!form.galleryFiles || form.galleryFiles.length < 5)
       e.galleryFiles = "Please upload minimum 5 photos";
     else if (form.galleryFiles.length > 12)

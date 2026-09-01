@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Filter, Loader2, MapPin, RotateCcw, Search, Users, X } from "lucide-react";
 import { apiClient } from "../../api/apiClient";
 import { rangeFromPreset, todayIso } from "../Dashboards/shared/dashboardDateRange";
+import AnimatedPills from "../../components/common/AnimatedPills";
 import LeadDetailDrawer from "./LeadDetailDrawer";
 
 const categories = ["all", "featured", "residential", "commercial", "land", "agricultural"];
@@ -15,11 +16,11 @@ const categoryLabels = {
   land: "Land property leads",
   agricultural: "Agricultural property leads",
 };
-const DATE_PRESETS = [
-  { key: "all", label: "All time" },
+const DATE_PRESETS_COMPACT = [
+  { key: "all", label: "All" },
   { key: "today", label: "Today" },
-  { key: "7d", label: "7 days" },
-  { key: "30d", label: "30 days" },
+  { key: "7d", label: "7D" },
+  { key: "30d", label: "30D" },
 ];
 const emptyData = {
   leads: [],
@@ -37,7 +38,7 @@ const tone = {
   agricultural: "bg-lime-50 text-lime-700 ring-1 ring-lime-100",
 };
 
-/** Project promotion badge — "featured" type displays as Top Selling (never "Featured"). */
+/** Project promotion badge â€” "featured" type displays as Top Selling (never "Featured"). */
 const promotionLabel = (type) => {
   const key = String(type || "normal")
     .trim()
@@ -78,7 +79,7 @@ const categoryDisplay = (project = {}) => {
     className: tone[project.category] || "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
   };
 };
-/** Each status has its own color — New Lead stands out. */
+/** Each status has its own color â€” New Lead stands out. */
 const statusTone = {
   new_lead: "bg-sky-500 text-white ring-1 ring-sky-400",
   interested: "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200",
@@ -374,21 +375,302 @@ export default function LeadManagement() {
   };
 
   const cards = [
-    ["total", "Total leads", hasLoaded ? data.summary.total : null, `${projectLeadCount} project · ${propertyLeadCount} property`, Users, "bg-emerald-500", filters.category === "all" && !filters.status],
-    ["featured", "Project leads", hasLoaded ? projectLeadCount : null, "Top Selling · Prime · Normal · Sponsored", MapPin, "bg-violet-500", filters.category === "featured"],
+    ["total", "Total leads", hasLoaded ? data.summary.total : null, `${projectLeadCount} project Â· ${propertyLeadCount} property`, Users, "bg-emerald-500", filters.category === "all" && !filters.status],
+    ["featured", "Project leads", hasLoaded ? projectLeadCount : null, "Top Selling Â· Prime Â· Normal Â· Sponsored", MapPin, "bg-violet-500", filters.category === "featured"],
     ["property", "Property leads", hasLoaded ? propertyLeadCount : null, "Residential, commercial, land & agricultural", Filter, "bg-blue-500", ["residential", "commercial", "land", "agricultural"].includes(filters.category)],
     ["new", "New leads", hasLoaded ? data.summary.byStatus.new_lead || 0 : null, `${data.summary.byStatus.sale || 0} converted to Sale`, Users, "bg-amber-500", filters.status === "new_lead"],
   ];
 
+  const renderLeadMobileCard = (lead) => {
+    const statusKey = String(lead.status || "new_lead");
+    const locationText =
+      [lead.project.locality, lead.project.city, lead.project.state].filter(Boolean).join(", ") || "â€”";
+    const display = categoryDisplay(lead.project);
+    return (
+      <button
+        key={lead._id}
+        type="button"
+        onClick={() => setSelectedLead(lead)}
+        className={`w-full rounded-2xl border border-slate-200/80 bg-white p-3.5 text-left shadow-sm transition active:scale-[0.985] ${rowTone[statusKey] || ""}`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <p className="truncate text-[15px] font-bold text-slate-900">{lead.name}</p>
+              {lead.duplicateCount > 0 ? (
+                <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
+                  +{lead.duplicateCount}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-1 text-[13px] font-medium text-slate-600">{lead.phone || "â€”"}</p>
+            {lead.email ? <p className="mt-0.5 truncate text-[11px] text-slate-400">{lead.email}</p> : null}
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${statusTone[statusKey] || "bg-slate-100 text-slate-600"}`}
+          >
+            {label(lead.status)}
+          </span>
+        </div>
+        <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2">
+          <p className="truncate text-[13px] font-semibold text-emerald-700">{lead.project.title}</p>
+          <p className="mt-0.5 truncate text-[11px] text-slate-500">
+            {lead.project.code || "No code"} Â· {locationText}
+          </p>
+        </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${display.className}`}>{display.text}</span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+            {lead.origin?.label || label(lead.source)}
+          </span>
+          <span className="ml-auto text-[11px] font-semibold text-slate-400">
+            {new Date(lead.lastTouchAt || lead.createdAt).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+            })}
+          </span>
+        </div>
+      </button>
+    );
+  };
+
   return (
-    <div className="min-h-full bg-slate-50/70">
-      <div className="mx-auto max-w-[1600px] space-y-5">
+    <div className="min-h-full bg-[#F8FAFC]">
+      {/* Mobile app layout (< lg) */}
+      <div className="mx-auto w-full max-w-lg space-y-4 px-3 pb-10 pt-2 sm:max-w-2xl lg:hidden">
+        <header>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-600">Sales intelligence</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Lead management</h1>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            Unique enquiries only Â· tap a card for details
+          </p>
+        </header>
+
+        <section className="grid grid-cols-2 gap-2.5">
+          {cards.map(([key, title, value, note, Icon, color, active]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => applyCardFilter(key)}
+              className={`rounded-2xl border bg-white p-3.5 text-left shadow-sm transition active:scale-[0.98] ${
+                active ? "border-emerald-400 ring-2 ring-emerald-100" : "border-slate-100"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{title}</p>
+                <span className={`shrink-0 rounded-xl p-2 text-white ${color}`}>
+                  <Icon className="h-4 w-4" />
+                </span>
+              </div>
+              {value === null ? (
+                <div className="mt-2 h-7 w-14 animate-pulse rounded bg-slate-100" />
+              ) : (
+                <p className="mt-2 text-[1.75rem] font-black leading-none tabular-nums text-slate-900">{value}</p>
+              )}
+              <p className="mt-2 line-clamp-2 text-[11px] leading-snug text-slate-400">{note}</p>
+            </button>
+          ))}
+        </section>
+
+        <section className="space-y-2.5">
+          <div className="flex items-center gap-2">
+            <AnimatedPills
+              items={DATE_PRESETS_COMPACT}
+              value={datePreset === "custom" ? "" : datePreset}
+              onChange={applyDatePreset}
+              ariaLabel="Date range"
+              size="sm"
+              fullWidth
+              className="min-w-0 flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((open) => !open)}
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700"
+            >
+              <Filter className="h-3.5 w-3.5" />
+              Filters
+              {activeCount > 0 ? (
+                <span className="grid h-4 min-w-4 place-items-center rounded-full bg-emerald-500 px-1 text-[9px] text-white">
+                  {activeCount}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              onClick={reset}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500"
+              title="Reset"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
+          </div>
+          {datePreset === "custom" ? (
+            <span className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-700">
+              Custom {filters.from || "â€¦"} â†’ {filters.to || "â€¦"}
+            </span>
+          ) : null}
+          {filtersOpen ? (
+            <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
+              <Field label="Lead type">
+                <Select value={filters.category} onChange={(v) => update("category", v)}>
+                  {categories.map((v) => (
+                    <option key={v} value={v}>
+                      {categoryLabels[v]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Status">
+                <Select value={filters.status} onChange={(v) => update("status", v)}>
+                  <option value="">All statuses</option>
+                  {statuses.filter(Boolean).map((v) => (
+                    <option key={v} value={v}>
+                      {label(v)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Lead category">
+                <Select value={filters.source} onChange={(v) => update("source", v)}>
+                  {["all", "site", "imported", "direct"].map((v) => (
+                    <option key={v} value={v}>
+                      {label(v)} leads
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="State">
+                  <Select value={filters.state} onChange={(v) => update("state", v)}>
+                    <option value="">All</option>
+                    {data.facets.states.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label="City">
+                  <Select value={filters.city} onChange={(v) => update("city", v)}>
+                    <option value="">All</option>
+                    {data.facets.cities.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+              {activeCount > 0 ? (
+                <button type="button" onClick={reset} className="w-full text-center text-[11px] font-bold text-rose-500">
+                  Clear all filters
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-end justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Lead directory</h2>
+              <p className="text-[11px] text-slate-400">
+                {data.pagination.total} unique
+                {data.summary.duplicatesHidden ? ` Â· ${data.summary.duplicatesHidden} hidden` : ""}
+              </p>
+            </div>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" /> : null}
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Search name, phone, emailâ€¦"
+              className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-9 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+            />
+            {searchInput ? (
+              <button type="button" onClick={() => setSearchInput("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={filters.limit}
+              onChange={(event) => update("limit", Number(event.target.value))}
+              className="h-10 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600"
+            >
+              {[25, 50, 75, 100].map((size) => (
+                <option key={size} value={size}>
+                  {size} / page
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={loading || exporting}
+              onClick={() => downloadLeads("csv")}
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 disabled:opacity-50"
+            >
+              {exporting === "csv" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              CSV
+            </button>
+            <button
+              type="button"
+              disabled={loading || exporting}
+              onClick={() => downloadLeads("xlsx")}
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-bold text-white disabled:opacity-50"
+            >
+              {exporting === "xlsx" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5" />}
+              Excel
+            </button>
+          </div>
+
+          {error ? (
+            <div className="rounded-2xl bg-rose-50 p-6 text-center text-sm text-rose-600">{error}</div>
+          ) : !loading && !data.leads.length ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+              <Users className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+              <p className="text-sm font-semibold text-slate-600">No leads found</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">{data.leads.map(renderLeadMobileCard)}</div>
+          )}
+
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <p className="text-[11px] font-medium text-slate-400">
+              Page {data.pagination.page} of {Math.max(1, data.pagination.pages)} Â· {data.pagination.total} leads
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={filters.page <= 1}
+                onClick={() => update("page", filters.page - 1)}
+                className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 disabled:opacity-30"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                disabled={filters.page >= data.pagination.pages}
+                onClick={() => update("page", filters.page + 1)}
+                className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 disabled:opacity-30"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* Desktop / large screens */}
+      <div className="mx-auto hidden max-w-[1600px] space-y-5 lg:block">
         <header>
           <div>
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[.22em] text-emerald-600">Sales intelligence</p>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Lead management</h1>
             <p className="mt-1 text-xs text-slate-500">
-              Unique enquiries only (duplicates collapsed) · click a row for project details and lead origin.
+              Unique enquiries only (duplicates collapsed) Â· click a row for project details and lead origin.
             </p>
           </div>
         </header>
@@ -423,23 +705,16 @@ export default function LeadManagement() {
 
         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
-            {DATE_PRESETS.map((preset) => (
-              <button
-                key={preset.key}
-                type="button"
-                onClick={() => applyDatePreset(preset.key)}
-                className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition ${
-                  datePreset === preset.key
-                    ? "bg-emerald-600 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
+            <AnimatedPills
+              items={DATE_PRESETS_COMPACT}
+              value={datePreset === "custom" ? "" : datePreset}
+              onChange={applyDatePreset}
+              ariaLabel="Date range"
+              size="sm"
+            />
             {datePreset === "custom" && (
               <span className="rounded-full bg-sky-50 px-3 py-1.5 text-[11px] font-bold text-sky-700">
-                Custom {filters.from || "…"} → {filters.to || "…"}
+                Custom {filters.from || "â€¦"} â†’ {filters.to || "â€¦"}
               </span>
             )}
             <div className="ml-auto flex items-center gap-2">
@@ -448,22 +723,13 @@ export default function LeadManagement() {
                   Clear all filters
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => setFiltersOpen((open) => !open)}
-                className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-xs font-semibold lg:hidden"
-              >
-                <Filter className="h-4 w-4" /> Filters
-                {activeCount > 0 && <span className="rounded-full bg-emerald-500 px-1.5 text-white">{activeCount}</span>}
-              </button>
               <button type="button" onClick={reset} className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200" title="Reset">
                 <RotateCcw className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          <div className={`${filtersOpen ? "grid" : "hidden"} mt-3 gap-3 lg:grid`}>
-            {/* Same 3-col + 6-col grid for every role (CCE / Super Admin / others). */}
+          <div className="mt-3 grid gap-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.15fr)_minmax(0,2fr)_minmax(0,1.15fr)]">
               <Field label="Lead type">
                 <Select value={filters.category} onChange={(v) => update("category", v)}>
@@ -524,7 +790,7 @@ export default function LeadManagement() {
                                 <span className="min-w-0">
                                   <span className="block truncate text-xs font-semibold text-slate-700">{project.title}</span>
                                   <span className="block truncate text-[9px] text-slate-400">
-                                    {label(project.category)} · {[project.locality, project.city].filter(Boolean).join(", ") || project.code || "Location unavailable"}
+                                    {label(project.category)} Â· {[project.locality, project.city].filter(Boolean).join(", ") || project.code || "Location unavailable"}
                                   </span>
                                 </span>
                               </button>
@@ -640,10 +906,10 @@ export default function LeadManagement() {
                 <p className="text-[10px] text-slate-400">
                   {data.pagination.total} unique leads
                   {data.summary.duplicatesHidden
-                    ? ` · ${data.summary.duplicatesHidden} duplicate submissions hidden`
+                    ? ` Â· ${data.summary.duplicatesHidden} duplicate submissions hidden`
                     : ""}
                   {selectedProjectIds.length > 0
-                    ? ` · from ${selectedProjectIds.length} selected items`
+                    ? ` Â· from ${selectedProjectIds.length} selected items`
                     : ""}
                 </p>
               </div>
@@ -656,7 +922,7 @@ export default function LeadManagement() {
                   className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-9 text-xs outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 />
                 {searchInput && (
-                  <button onClick={() => setSearchInput("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <button type="button" onClick={() => setSearchInput("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
@@ -674,10 +940,10 @@ export default function LeadManagement() {
                     </option>
                   ))}
                 </select>
-                <button disabled={loading || exporting} onClick={() => downloadLeads("csv")} className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[10px] font-bold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-50">
+                <button type="button" disabled={loading || exporting} onClick={() => downloadLeads("csv")} className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[10px] font-bold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-50">
                   {exporting === "csv" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} CSV
                 </button>
-                <button disabled={loading || exporting} onClick={() => downloadLeads("xlsx")} className="flex h-9 items-center gap-2 rounded-xl bg-emerald-500 px-3 text-[10px] font-bold text-white transition hover:bg-emerald-600 disabled:opacity-50">
+                <button type="button" disabled={loading || exporting} onClick={() => downloadLeads("xlsx")} className="flex h-9 items-center gap-2 rounded-xl bg-emerald-500 px-3 text-[10px] font-bold text-white transition hover:bg-emerald-600 disabled:opacity-50">
                   {exporting === "xlsx" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5" />} Excel
                 </button>
                 {loading && <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />}
@@ -721,7 +987,7 @@ export default function LeadManagement() {
                     const locationText =
                       [lead.project.locality, lead.project.city, lead.project.state]
                         .filter(Boolean)
-                        .join(", ") || "—";
+                        .join(", ") || "â€”";
                     return (
                       <tr
                         key={lead._id}
@@ -739,69 +1005,41 @@ export default function LeadManagement() {
                               </span>
                             ) : null}
                           </div>
-                          <p
-                            className="mt-0.5 truncate text-[10px] text-slate-400"
-                            title={lead.message || lead.purchaseTimeline || ""}
-                          >
+                          <p className="mt-0.5 truncate text-[10px] text-slate-400" title={lead.message || lead.purchaseTimeline || ""}>
                             {lead.message || lead.purchaseTimeline || "No note"}
                           </p>
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
-                          <p className="truncate text-xs text-slate-700" title={lead.phone}>
-                            {lead.phone}
-                          </p>
-                          <p className="truncate text-[10px] text-slate-400" title={lead.email || ""}>
-                            {lead.email || "—"}
-                          </p>
+                          <p className="truncate text-xs text-slate-700" title={lead.phone}>{lead.phone}</p>
+                          <p className="truncate text-[10px] text-slate-400" title={lead.email || ""}>{lead.email || "â€”"}</p>
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
-                          <p
-                            className="truncate text-xs font-semibold text-emerald-700"
-                            title={lead.project.title}
-                          >
-                            {lead.project.title}
-                          </p>
-                          <p className="truncate text-[10px] text-slate-400" title={lead.project.code || ""}>
-                            {lead.project.code || "No code"}
-                          </p>
+                          <p className="truncate text-xs font-semibold text-emerald-700" title={lead.project.title}>{lead.project.title}</p>
+                          <p className="truncate text-[10px] text-slate-400" title={lead.project.code || ""}>{lead.project.code || "No code"}</p>
                         </td>
                         <td className="px-2.5 py-2.5 text-[10px] text-slate-600 sm:px-3">
-                          <p className="truncate" title={locationText}>
-                            {locationText}
-                          </p>
+                          <p className="truncate" title={locationText}>{locationText}</p>
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
                           {(() => {
                             const display = categoryDisplay(lead.project);
                             return (
-                              <span
-                                className={`inline-block max-w-full truncate rounded-full px-2 py-1 text-[9px] font-bold ${display.className}`}
-                                title={display.text}
-                              >
+                              <span className={`inline-block max-w-full truncate rounded-full px-2 py-1 text-[9px] font-bold ${display.className}`} title={display.text}>
                                 {display.text}
                               </span>
                             );
                           })()}
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
-                          <p
-                            className="truncate text-[10px] font-semibold text-slate-700"
-                            title={lead.origin?.label || label(lead.source)}
-                          >
+                          <p className="truncate text-[10px] font-semibold text-slate-700" title={lead.origin?.label || label(lead.source)}>
                             {lead.origin?.label || label(lead.source)}
                           </p>
-                          <p
-                            className="mt-0.5 truncate text-[9px] text-slate-400"
-                            title={lead.origin?.entryPoint || label(lead.source)}
-                          >
+                          <p className="mt-0.5 truncate text-[9px] text-slate-400" title={lead.origin?.entryPoint || label(lead.source)}>
                             {lead.origin?.entryPoint || label(lead.source)}
                           </p>
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
-                          <span
-                            className={`inline-block max-w-full truncate rounded-full px-2 py-1 text-[9px] font-bold ${statusTone[statusKey] || "bg-slate-100 text-slate-600"}`}
-                            title={label(lead.status)}
-                          >
+                          <span className={`inline-block max-w-full truncate rounded-full px-2 py-1 text-[9px] font-bold ${statusTone[statusKey] || "bg-slate-100 text-slate-600"}`} title={label(lead.status)}>
                             {label(lead.status)}
                           </span>
                         </td>
@@ -823,13 +1061,13 @@ export default function LeadManagement() {
 
           <footer className="flex shrink-0 items-center justify-between border-t border-slate-100 px-4 py-3">
             <p className="text-[10px] text-slate-400">
-              Showing {data.pagination.total ? (data.pagination.page - 1) * filters.limit + 1 : 0}–{Math.min(data.pagination.page * filters.limit, data.pagination.total)} of {data.pagination.total} unique leads · Page {data.pagination.page} of {Math.max(1, data.pagination.pages)}
+              Showing {data.pagination.total ? (data.pagination.page - 1) * filters.limit + 1 : 0}â€“{Math.min(data.pagination.page * filters.limit, data.pagination.total)} of {data.pagination.total} unique leads Â· Page {data.pagination.page} of {Math.max(1, data.pagination.pages)}
             </p>
             <div className="flex gap-2">
-              <button disabled={filters.page <= 1} onClick={() => update("page", filters.page - 1)} className="rounded-lg border border-slate-200 p-2 text-slate-500 disabled:opacity-30">
+              <button type="button" disabled={filters.page <= 1} onClick={() => update("page", filters.page - 1)} className="rounded-lg border border-slate-200 p-2 text-slate-500 disabled:opacity-30">
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <button disabled={filters.page >= data.pagination.pages} onClick={() => update("page", filters.page + 1)} className="rounded-lg border border-slate-200 p-2 text-slate-500 disabled:opacity-30">
+              <button type="button" disabled={filters.page >= data.pagination.pages} onClick={() => update("page", filters.page + 1)} className="rounded-lg border border-slate-200 p-2 text-slate-500 disabled:opacity-30">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>

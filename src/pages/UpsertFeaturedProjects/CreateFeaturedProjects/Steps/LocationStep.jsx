@@ -23,6 +23,7 @@ import {
   LocateFixed,
   Plus,
 } from "lucide-react";
+import { parseManualNearbyPlaceNames } from "../../../../utils/parseManualNearbyPlaces";
 
 /* ── Design tokens ─────────────────────────────────────────── */
 const inp = (err) =>
@@ -811,11 +812,6 @@ function NearbyPlacesPanel({ pinnedCoords, selectedPlaces, onAdd, onRemove }) {
                 <span className="max-w-[140px] truncate">
                   {place.name.split(",")[0]}
                 </span>
-                {place.distanceText && (
-                  <span className="text-green-400 font-normal">
-                    · {place.distanceText}
-                  </span>
-                )}
                 <X
                   size={11}
                   className="cursor-pointer hover:text-red-500 transition-colors ml-0.5 shrink-0"
@@ -845,7 +841,6 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
   const [searchQuery,  setSearchQuery]  = useState("");
   const [searching,    setSearching]    = useState(false);
   const [nearbyPlaceName, setNearbyPlaceName] = useState("");
-  const [nearbyDistanceText, setNearbyDistanceText] = useState("");
   const [openMapIndex, setOpenMapIndex] = useState(null);
 
   // const [addrFields, setAddrFields] = useState({
@@ -1107,37 +1102,44 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
     [places, update]
   );
 
-  const handleAddNearbyPlace = useCallback(() => {
-    const name = nearbyPlaceName.trim();
-    const distanceText = nearbyDistanceText.trim();
-    if (!name) return;
+  const handleAddNearbyPlace = useCallback(
+    (rawText = nearbyPlaceName) => {
+      const names = parseManualNearbyPlaceNames(rawText);
+      if (!names.length) return;
 
-    const alreadyAdded = places.some(
-      (place) => place.name?.trim().toLowerCase() === name.toLowerCase(),
-    );
-    if (alreadyAdded) return;
+      const existing = new Set(
+        places
+          .map((place) => place.name?.trim().toLowerCase())
+          .filter(Boolean),
+      );
+      const toAdd = names.filter((name) => !existing.has(name.toLowerCase()));
+      if (!toAdd.length) {
+        setNearbyPlaceName("");
+        return;
+      }
 
-    update({
-      nearbyPlaces: [
-        ...places,
-        {
-          name,
-          fullAddress: "",
-          locality: "",
-          city: "",
-          latitude: "",
-          longitude: "",
-          type: "",
-          distanceText,
-          coordinates: [0, 0],
-          order: places.length,
-        },
-      ],
-    });
-    setNearbyPlaceName("");
-    setNearbyDistanceText("");
-    clr("nearbyPlaces");
-  }, [nearbyDistanceText, nearbyPlaceName, places, update]);
+      update({
+        nearbyPlaces: [
+          ...places,
+          ...toAdd.map((name, index) => ({
+            name,
+            fullAddress: "",
+            locality: "",
+            city: "",
+            latitude: "",
+            longitude: "",
+            type: "",
+            distanceText: "",
+            coordinates: [0, 0],
+            order: places.length + index,
+          })),
+        ],
+      });
+      setNearbyPlaceName("");
+      clr("nearbyPlaces");
+    },
+    [nearbyPlaceName, places, update],
+  );
 
   const mapCoords =
     location.coordinates[0] && location.coordinates[1]
@@ -1358,54 +1360,48 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
 
       {/* ── Section 2: Added Nearby Places list ────────────── */}
       {places.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-gray-500">
               Added Nearby Places
             </p>
             <span
-              className="px-2 py-0.5 rounded-lg text-[10px] font-black text-white"
+              className="px-1.5 py-0.5 rounded-md text-[9px] font-black text-white"
               style={{ background: "#27AE60" }}
             >
               {places.length}
             </span>
           </div>
 
-          {places.map((p, i) => (
-            <div
-              key={i}
-              className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden shadow-sm"
-            >
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span
-                    className="px-2.5 py-1 text-xs font-black rounded-lg text-white shrink-0 capitalize"
-                    style={{
-                      background: "linear-gradient(135deg,#27AE60,#1e8449)",
-                    }}
-                  >
-                    {p.type || "Place"}
-                  </span>
-                  <span className="text-sm font-bold text-gray-800 truncate">
-                    {p.name.split(",")[0] || "Unnamed"}
-                  </span>
-                  {p.distanceText && (
-                    <span className="text-xs text-[#27AE60] font-semibold shrink-0">
-                      · {p.distanceText}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleRemovePlace(p)}
-                  className="p-2 text-red-500 hover:bg-red-50 border-2 border-red-100 rounded-xl transition-all shrink-0 ml-2"
+          <div className="max-h-56 overflow-y-auto space-y-1 pr-0.5">
+            {places.map((p, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2 py-1.5"
+              >
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[9px] font-bold rounded text-white shrink-0 capitalize"
+                  style={{
+                    background: "linear-gradient(135deg,#27AE60,#1e8449)",
+                  }}
                 >
-                  <Trash2 size={14} />
+                  <MapPin size={9} />
+                  {p.type || "Place"}
+                </span>
+                <span className="min-w-0 flex-1 text-[11px] font-semibold leading-snug text-gray-800 truncate">
+                  {p.name.split(",")[0] || "Unnamed"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRemovePlace(p)}
+                  className="shrink-0 rounded-md border border-red-100 p-1 text-red-500 hover:bg-red-50 transition-all"
+                  aria-label={`Remove ${p.name || "place"}`}
+                >
+                  <Trash2 size={11} />
                 </button>
-                
               </div>
-              
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
@@ -1454,56 +1450,48 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
             <div>
               <p className="text-xs font-black text-gray-700">Or add manually</p>
               <p className="text-[10px] text-gray-400">
-                Enter the place name. Distance is optional.
+                Enter a place name, or paste multiple lines (one place per line).
               </p>
             </div>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2">
-            <div className="relative flex-1">
-              <MapPin
-                size={15}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                value={nearbyPlaceName}
-                onChange={(event) => setNearbyPlaceName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+              <div className="relative flex-1">
+                <MapPin
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  value={nearbyPlaceName}
+                  onChange={(event) => setNearbyPlaceName(event.target.value)}
+                  onPaste={(event) => {
+                    const text = event.clipboardData?.getData("text") || "";
+                    if (!/\r?\n/.test(text)) return;
                     event.preventDefault();
-                    handleAddNearbyPlace();
-                  }
-                }}
-                placeholder="Enter nearby place name"
-                className="w-full border-2 border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold
+                    handleAddNearbyPlace(text);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleAddNearbyPlace();
+                    }
+                  }}
+                  placeholder="e.g. Fortis Hospital — 6.8 km"
+                  className="w-full border-2 border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold
                   text-gray-900 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10
                   outline-none transition-all placeholder:text-gray-400 bg-white"
-              />
-            </div>
-            <input
-              value={nearbyDistanceText}
-              onChange={(event) => setNearbyDistanceText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  handleAddNearbyPlace();
-                }
-              }}
-              placeholder="Distance optional (e.g. 1.2 km)"
-              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold
-                text-gray-900 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10
-                outline-none transition-all placeholder:text-gray-400 bg-white"
-            />
-            <button
-              type="button"
-              onClick={handleAddNearbyPlace}
-              disabled={!nearbyPlaceName.trim()}
-              className="flex items-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-black
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleAddNearbyPlace()}
+                disabled={!nearbyPlaceName.trim()}
+                className="flex items-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-black
                 hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
-            >
-              <Plus size={15} />
-              Add
-            </button>
-          </div>
+                style={{ background: "linear-gradient(135deg,#27AE60,#1e8449)" }}
+              >
+                <Plus size={15} />
+                Add
+              </button>
+            </div>
           </div>
         </div>
       </div>

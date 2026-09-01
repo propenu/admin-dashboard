@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import HierarchyRoleFilterSelect from "../../components/common/HierarchyRoleFilterSelect";
 import {
   deleteAccessRole,
   deleteAccessUser,
@@ -394,27 +395,15 @@ export default function UserPermissionsPage() {
       <div className="grid min-h-[700px] overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.07)] lg:grid-cols-[380px_minmax(0,1fr)]">
         <aside className="border-b border-slate-200 bg-slate-50/70 p-5 lg:border-b-0 lg:border-r">
           <div className="space-y-3">
-            <label className="block">
-              <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Filter by role
-              </span>
-              <select
-                value={selectedRole}
-                onChange={(event) => selectRole(event.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
-              >
-                <option value="">All dashboard roles</option>
-                {roleOptions.map((item) => (
-                  <option key={item._id} value={item.name}>
-                    {"\u00A0".repeat(Math.max(0, item.hierarchyDepth) * 2)}
-                    {displayRoleLabel(item)} -{" "}
-                    {item.userCount
-                      ? `${item.userCount} ${item.userCount === 1 ? "user" : "users"}`
-                      : "No users"}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <HierarchyRoleFilterSelect
+              label="Filter by role"
+              value={selectedRole}
+              onChange={selectRole}
+              roles={roleOptions}
+              getLabel={displayRoleLabel}
+              allLabel="All dashboard roles"
+              emptyHint="Roles in hierarchy"
+            />
 
             {isSuperAdmin && selectedRole && selectedRoleRecord && canManageRoleLifecycle(selectedRoleRecord) && (
               <div
@@ -523,12 +512,24 @@ export default function UserPermissionsPage() {
             )}
 
             <div className="relative">
-              <Search className="absolute left-3 top-3 text-slate-400" size={17} />
+              <span
+                className={`absolute left-2.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg transition ${
+                  query
+                    ? "bg-[#12A150] text-white shadow-sm shadow-emerald-600/30"
+                    : "bg-[#EAF8F0] text-[#12A150]"
+                }`}
+              >
+                <Search size={14} strokeWidth={2.25} />
+              </span>
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search selected role users"
-                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+                className={`h-10 w-full rounded-xl border bg-white py-2 pl-12 pr-3 text-[13px] font-semibold text-[#101820] outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-[#12A150] focus:ring-4 focus:ring-[#12A150]/15 ${
+                  query
+                    ? "border-[#12A150] shadow-sm shadow-emerald-600/10"
+                    : "border-[#d9ebe0] hover:border-[#12A150]/50"
+                }`}
               />
             </div>
           </div>

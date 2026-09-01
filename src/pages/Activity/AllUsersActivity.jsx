@@ -5,7 +5,6 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
   Info,
   Loader2,
@@ -15,8 +14,11 @@ import {
   UserRoundPlus,
   Zap,
 } from "lucide-react";
+import AnimatedPills from "../../components/common/AnimatedPills";
 import { getAllUsersActivity } from "../../features/activity/allUsersActivityService";
 import ActivityDetailDrawer from "./components/ActivityDetailDrawer";
+import ActivityMobileBottomNav from "./components/ActivityMobileBottomNav";
+import ActivityFilterSelect from "./components/ActivityFilterSelect";
 import {
   ACTION_FILTERS,
   ROLE_FILTERS,
@@ -27,14 +29,19 @@ import {
   outcomeBadgeClass,
 } from "./utils/activityFormatters";
 
-const selectClass =
-  "h-10 w-full appearance-none rounded-xl border border-[#d9ebe0] bg-white py-2 pl-9 pr-8 text-[13px] font-semibold text-[#101820] focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10";
+const TIME_PILLS = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yday" },
+  { key: "7d", label: "7D" },
+  { key: "30d", label: "30D" },
+  { key: "custom", label: "Custom" },
+];
 
 const MetricSkeleton = () => (
-  <div className="flex h-[72px] animate-pulse flex-col items-center justify-center rounded-xl border border-[#e5eee8] bg-white px-2 py-2 shadow-sm">
-    <div className="mb-1 h-7 w-7 rounded-full bg-[#EAF8F0]" />
-    <div className="h-4 w-8 rounded bg-slate-100" />
-    <div className="mt-1 h-2 w-14 rounded bg-slate-100" />
+  <div className="flex min-h-[4.5rem] animate-pulse flex-col items-center justify-center rounded-xl border border-[#e5eee8] bg-white px-1.5 py-2 shadow-sm lg:h-[72px]">
+    <div className="mb-1 h-6 w-6 rounded-full bg-[#EAF8F0] lg:h-7 lg:w-7" />
+    <div className="h-3.5 w-6 rounded bg-slate-100 lg:h-4 lg:w-8" />
+    <div className="mt-1 h-2 w-10 rounded bg-slate-100 lg:w-14" />
   </div>
 );
 
@@ -55,6 +62,8 @@ export default function AllUsersActivity() {
   const [data, setData] = useState(null);
   const [selected, setSelected] = useState(null);
   const [newCount, setNewCount] = useState(0);
+  /** Mobile content tabs under KPIs: live | results | attention | top */
+  const [mobileSection, setMobileSection] = useState("live");
   const abortRef = useRef(null);
   const tableScrollRef = useRef(null);
   const firstIdRef = useRef("");
@@ -205,44 +214,119 @@ export default function AllUsersActivity() {
   };
 
   return (
-    <div className="w-full max-w-full pb-16 text-[#101820]">
-      <header className="mb-4">
-        <h1 className="text-[28px] font-bold leading-tight tracking-tight text-[#101820]">
+    <div className="w-full max-w-full pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] text-[#101820] lg:pb-8">
+      <header className="mb-3 px-0 sm:mb-4">
+        <h1 className="text-[24px] font-bold leading-tight tracking-tight text-[#101820] sm:text-[28px]">
           All Users Activity
         </h1>
-        <p className="mt-1.5 text-[14px] text-slate-500">
+        <p className="mt-1 text-[13px] text-slate-500 sm:mt-1.5 sm:text-[14px]">
           See what users do, when they do it, and what they get
         </p>
       </header>
 
-      {/* Filters + search — one horizontal row on desktop */}
-      <div className="mb-4 flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
-          <label className="relative w-full sm:w-[148px]">
-            <span className="sr-only">Role</span>
-            <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#12A150]" />
-            <select value={role} onChange={(e) => setRole(e.target.value)} className={selectClass}>
-              {ROLE_FILTERS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          </label>
+      {/* Mobile: animated time tabs + compact controls */}
+      <div className="mb-3 space-y-2.5 lg:hidden">
+        <div className="flex items-center gap-2">
+          <AnimatedPills
+            items={TIME_PILLS}
+            value={timeKey}
+            onChange={setTimeKey}
+            ariaLabel="Time range"
+            size="sm"
+            fullWidth
+            className="min-w-0 flex-1"
+          />
+          <span
+            className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-bold ${livePill}`}
+            aria-live="polite"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                liveState === "live"
+                  ? "animate-pulse bg-[#12A150]"
+                  : liveState === "reconnecting"
+                    ? "bg-amber-500"
+                    : "bg-slate-400"
+              }`}
+            />
+            {liveLabel}
+          </span>
+          <button
+            type="button"
+            onClick={() => load({ soft: true })}
+            aria-label="Refresh activity"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#d9ebe0] bg-white text-[#12A150]"
+          >
+            {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          </button>
+        </div>
 
-          <label className="relative w-full sm:w-[158px]">
-            <span className="sr-only">Time</span>
-            <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#12A150]" />
-            <select value={timeKey} onChange={(e) => setTimeKey(e.target.value)} className={selectClass}>
-              {TIME_FILTERS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          </label>
+        {timeKey === "custom" ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="h-10 min-w-0 flex-1 rounded-xl border border-[#d9ebe0] bg-white px-3 text-[13px] font-semibold"
+            />
+            <input
+              type="date"
+              value={customTo}
+              min={customFrom || undefined}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="h-10 min-w-0 flex-1 rounded-xl border border-[#d9ebe0] bg-white px-3 text-[13px] font-semibold"
+            />
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-2 gap-2">
+          <ActivityFilterSelect
+            label="Role"
+            value={role}
+            onChange={setRole}
+            options={ROLE_FILTERS}
+            icon={UserRound}
+          />
+          <ActivityFilterSelect
+            label="Action"
+            value={action}
+            onChange={setAction}
+            options={ACTION_FILTERS}
+            icon={Zap}
+          />
+        </div>
+
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search user or property"
+            aria-label="Search user or property"
+            className="h-11 w-full rounded-2xl border border-[#d9ebe0] bg-white pl-9 pr-3 text-[14px] text-[#101820] placeholder:text-slate-400 focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10"
+          />
+        </div>
+      </div>
+
+      {/* Desktop filters */}
+      <div className="mb-4 hidden w-full flex-col gap-3 lg:flex lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
+          <ActivityFilterSelect
+            label="Role"
+            value={role}
+            onChange={setRole}
+            options={ROLE_FILTERS}
+            icon={UserRound}
+            className="w-full sm:w-[168px]"
+          />
+          <ActivityFilterSelect
+            label="Time"
+            value={timeKey}
+            onChange={setTimeKey}
+            options={TIME_FILTERS}
+            icon={CalendarDays}
+            className="w-full sm:w-[178px]"
+          />
 
           {timeKey === "custom" ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -270,18 +354,14 @@ export default function AllUsersActivity() {
             </div>
           ) : null}
 
-          <label className="relative w-full sm:w-[168px]">
-            <span className="sr-only">Action</span>
-            <Zap className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#12A150]" />
-            <select value={action} onChange={(e) => setAction(e.target.value)} className={selectClass}>
-              {ACTION_FILTERS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-          </label>
+          <ActivityFilterSelect
+            label="Action"
+            value={action}
+            onChange={setAction}
+            options={ACTION_FILTERS}
+            icon={Zap}
+            className="w-full sm:w-[188px]"
+          />
 
           <span
             className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12px] font-bold ${livePill}`}
@@ -322,7 +402,8 @@ export default function AllUsersActivity() {
         </div>
       </div>
 
-      <div className="mb-4 grid w-full grid-cols-2 gap-2.5 lg:grid-cols-4">
+      {/* KPI cards — one row on mobile + desktop */}
+      <div className="mb-3 grid w-full grid-cols-4 gap-1.5 sm:gap-2 lg:mb-4 lg:gap-2.5">
         {loading && !data
           ? Array.from({ length: 4 }).map((_, i) => <MetricSkeleton key={i} />)
           : metrics.map((card) => (
@@ -330,15 +411,19 @@ export default function AllUsersActivity() {
                 key={card.key}
                 type="button"
                 onClick={() => setAction(card.filter)}
-                className="flex h-[72px] w-full flex-col items-center justify-center rounded-xl border border-[#e5eee8] bg-white px-2 py-2 text-center shadow-sm transition hover:border-[#12A150]/35 hover:shadow focus:outline-none focus:ring-2 focus:ring-[#12A150]/25"
+                className={`flex min-h-[4.5rem] w-full flex-col items-center justify-center rounded-xl border border-[#e5eee8] bg-white px-1 py-2 text-center shadow-sm transition hover:border-[#12A150]/35 hover:shadow focus:outline-none focus:ring-2 focus:ring-[#12A150]/25 active:scale-[0.98] sm:px-2 lg:h-[72px] lg:min-h-0 lg:px-2 ${
+                  action === card.filter && card.filter !== "all"
+                    ? "border-[#12A150] ring-2 ring-[#12A150]/15"
+                    : ""
+                }`}
               >
-                <span className="mb-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#EAF8F0] text-[#12A150]">
-                  <card.icon className="h-3.5 w-3.5" strokeWidth={2} />
+                <span className="mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#EAF8F0] text-[#12A150] sm:h-7 sm:w-7">
+                  <card.icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" strokeWidth={2} />
                 </span>
-                <span className="text-[18px] font-bold leading-none tabular-nums text-[#101820]">
+                <span className="text-[15px] font-black leading-none tabular-nums text-[#101820] sm:text-[18px]">
                   {card.value}
                 </span>
-                <span className="mt-0.5 text-[11px] font-medium leading-tight text-slate-500">
+                <span className="mt-0.5 line-clamp-2 px-0.5 text-[9px] font-semibold leading-tight text-slate-500 sm:text-[11px] sm:font-medium">
                   {card.label}
                 </span>
               </button>
@@ -347,8 +432,11 @@ export default function AllUsersActivity() {
 
       {/* Left: Live activity · Right: side panels — full width */}
       <div className="flex w-full flex-col items-stretch gap-4 lg:flex-row lg:items-start">
-        <section className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-[#e5eee8] bg-white shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-[#eef2f0] px-5 py-4">
+        <section
+          className={`min-w-0 flex-1 overflow-hidden rounded-2xl border border-[#e5eee8] bg-white shadow-sm motion-safe:animate-[tlFadeUp_280ms_ease-out] ${
+            mobileSection !== "live" ? "hidden lg:block" : ""
+          }`}
+        >          <div className="flex items-center justify-between gap-3 border-b border-[#eef2f0] px-5 py-4">
             <h2 className="text-[16px] font-bold text-[#101820]">Live activity</h2>
             {newCount > 0 ? (
               <button
@@ -541,36 +629,36 @@ export default function AllUsersActivity() {
                 </table>
               </div>
 
-              <div className="max-h-[min(58vh,560px)] space-y-2 overflow-auto p-3 md:hidden">
+              <div className="space-y-2.5 p-3 md:hidden">
                 {rows.map((row) => (
                   <button
                     key={row.id}
                     type="button"
                     onClick={() => setSelected(row)}
-                    className="w-full rounded-xl border border-[#e7f2eb] bg-white p-3 text-left focus:outline-none focus:ring-2 focus:ring-[#12A150]/25"
+                    className="w-full rounded-2xl border border-[#e7f2eb] bg-white p-3.5 text-left shadow-sm transition active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-[#12A150]/25"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EAF8F0] text-[11px] font-bold text-[#12A150]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EAF8F0] text-[12px] font-bold text-[#12A150]">
                           {initialsFromName(row.userName)}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">{row.userName}</p>
-                          <p className="text-[11px] text-slate-500">{row.role}</p>
+                          <p className="truncate text-[15px] font-bold text-[#101820]">{row.userName}</p>
+                          <p className="text-[12px] text-slate-500">{row.role}</p>
                         </div>
                       </div>
-                      <span className="shrink-0 text-[11px] text-slate-400">{row.whenLabel}</span>
+                      <span className="shrink-0 text-[11px] font-semibold text-slate-400">{row.whenLabel}</span>
                     </div>
-                    <p className="mt-2 truncate text-[13px] font-medium text-[#101820]" title={row.what}>
+                    <p className="mt-2.5 text-[13px] font-medium leading-snug text-[#101820]" title={row.what}>
                       {row.whatPreview || row.what}
                     </p>
                     {row.actionCount > 1 ? (
-                      <p className="mt-0.5 text-[11px] font-semibold text-[#12A150]">
+                      <p className="mt-1 text-[12px] font-bold text-[#12A150]">
                         +{row.actionCount - 1} more actions
                       </p>
                     ) : null}
                     <span
-                      className={`mt-2 inline-flex max-w-full truncate rounded-full border px-2.5 py-1 text-[11px] font-bold ${outcomeBadgeClass(row.gotType)}`}
+                      className={`mt-2.5 inline-flex max-w-full truncate rounded-full border px-2.5 py-1 text-[11px] font-bold ${outcomeBadgeClass(row.gotType)}`}
                     >
                       {row.gotLabel}
                     </span>
@@ -580,21 +668,20 @@ export default function AllUsersActivity() {
             </>
           )}
 
-          <div className="flex flex-col gap-3 border-t border-[#eef2f0] px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="inline-flex items-center gap-1.5 text-[12px] text-slate-500">
+          <div className="flex flex-col gap-3 border-t border-[#eef2f0] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <p className="hidden items-center gap-1.5 text-[12px] text-slate-500 sm:inline-flex">
               <Info className="h-3.5 w-3.5 text-[#12A150]" />
               Tip: click a user to see all actions with separate times
             </p>
 
             {pagination.total > 0 ? (
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
                 <span className="text-xs text-slate-500">
-                  Showing{" "}
                   <span className="font-semibold text-[#101820]">
                     {pagination.rangeStart}–{pagination.rangeEnd}
-                  </span>{" "}
-                  of <span className="font-semibold text-[#101820]">{pagination.total}</span>{" "}
-                  {pagination.mode === "events" ? "actions" : "users"}
+                  </span>
+                  {" / "}
+                  <span className="font-semibold text-[#101820]">{pagination.total}</span>
                 </span>
                 <select
                   value={pageSize}
@@ -614,7 +701,7 @@ export default function AllUsersActivity() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   className="rounded-xl border border-[#d9ebe0] px-3 py-1.5 text-xs font-semibold text-[#12A150] disabled:opacity-40"
                 >
-                  Previous
+                  Prev
                 </button>
                 <span className="min-w-[4.5rem] rounded-xl border border-[#d9ebe0] bg-[#F7FBF8] px-2.5 py-1.5 text-center text-xs font-bold tabular-nums">
                   {pagination.page}/{pagination.totalPages}
@@ -633,8 +720,16 @@ export default function AllUsersActivity() {
           </div>
         </section>
 
-        <aside className="w-full shrink-0 space-y-3 lg:w-[280px] lg:sticky lg:top-20">
-          <div className="rounded-xl border border-[#e5eee8] bg-white p-4 shadow-sm">
+        <aside
+          className={`w-full shrink-0 space-y-3 motion-safe:animate-[tlFadeUp_280ms_ease-out] lg:sticky lg:top-20 lg:block lg:w-[280px] ${
+            mobileSection === "live" ? "hidden lg:block" : ""
+          }`}
+        >
+          <div
+            className={`rounded-2xl border border-[#e5eee8] bg-white p-4 shadow-sm lg:rounded-xl ${
+              mobileSection !== "results" ? "hidden lg:block" : ""
+            }`}
+          >
             <div className="mb-3 flex items-center gap-2">
               <Activity className="h-4 w-4 text-[#12A150]" />
               <h3 className="text-[13px] font-bold text-[#101820]">Today’s results</h3>
@@ -649,23 +744,36 @@ export default function AllUsersActivity() {
                 ))}
               </div>
             ) : (
-              <div className="divide-y divide-[#eef2f0]">
+              <div className="grid grid-cols-2 gap-2 lg:block lg:divide-y lg:divide-[#eef2f0]">
                 {results.map((row) => (
                   <button
                     key={row.label}
                     type="button"
-                    onClick={() => setAction(row.filter)}
-                    className="flex w-full items-center justify-between py-2.5 text-left text-[13px] font-medium text-slate-600 hover:text-[#101820] focus:outline-none"
+                    onClick={() => {
+                      setAction(row.filter);
+                      setMobileSection("live");
+                    }}
+                    className={`rounded-xl border border-[#eef2f0] bg-[#F7FBF8] p-3 text-left transition active:scale-[0.98] focus:outline-none lg:flex lg:w-full lg:items-center lg:justify-between lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:py-2.5 ${
+                      action === row.filter ? "border-[#12A150] ring-2 ring-[#12A150]/15 lg:ring-0" : ""
+                    }`}
                   >
-                    <span>{row.label}</span>
-                    <span className="font-bold tabular-nums text-[#12A150]">{row.value}</span>
+                    <span className="block text-[12px] font-semibold text-slate-500 lg:text-[13px] lg:font-medium lg:text-slate-600">
+                      {row.label}
+                    </span>
+                    <span className="mt-1 block text-[22px] font-black tabular-nums text-[#12A150] lg:mt-0 lg:text-[13px] lg:font-bold">
+                      {row.value}
+                    </span>
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="rounded-xl border border-[#e5eee8] bg-white p-4 shadow-sm">
+          <div
+            className={`rounded-2xl border border-[#e5eee8] bg-white p-4 shadow-sm lg:rounded-xl ${
+              mobileSection !== "attention" ? "hidden lg:block" : ""
+            }`}
+          >
             <div className="mb-3 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-[#12A150]" />
               <h3 className="text-[13px] font-bold text-[#101820]">Needs attention</h3>
@@ -673,7 +781,7 @@ export default function AllUsersActivity() {
             {needsAttention.length ? (
               <ul className="space-y-2.5">
                 {needsAttention.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-[13px] text-slate-600">
+                  <li key={idx} className="flex items-start gap-2 rounded-xl bg-[#F7FBF8] p-3 text-[13px] text-slate-600 lg:bg-transparent lg:p-0">
                     <span
                       className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
                         item.tone === "amber" ? "bg-amber-500" : "bg-[#12A150]"
@@ -684,19 +792,23 @@ export default function AllUsersActivity() {
                 ))}
               </ul>
             ) : (
-              <p className="inline-flex items-center gap-2 text-[13px] text-slate-500">
+              <p className="inline-flex items-center gap-2 rounded-xl bg-[#F7FBF8] p-3 text-[13px] text-slate-500 lg:bg-transparent lg:p-0">
                 <CheckCircle2 className="h-4 w-4 text-[#12A150]" />
                 All clear for now
               </p>
             )}
           </div>
 
-          <div className="rounded-xl border border-[#e5eee8] bg-white p-4 shadow-sm">
+          <div
+            className={`rounded-2xl border border-[#e5eee8] bg-white p-4 shadow-sm lg:rounded-xl ${
+              mobileSection !== "top" ? "hidden lg:block" : ""
+            }`}
+          >
             <div className="mb-3 flex items-center gap-2">
               <UserRound className="h-4 w-4 text-[#12A150]" />
               <h3 className="text-[13px] font-bold text-[#101820]">Top active</h3>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5 lg:space-y-3">
               {topActive.length ? (
                 topActive.slice(0, 5).map((user) => (
                   <button
@@ -708,11 +820,12 @@ export default function AllUsersActivity() {
                         : user.name || user.userId || "";
                       setSearchInput(term);
                       setQuery(term);
+                      setMobileSection("live");
                     }}
-                    className="flex w-full items-center justify-between gap-2 text-left focus:outline-none focus:ring-2 focus:ring-[#12A150]/25 rounded-lg"
+                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-[#eef2f0] bg-[#F7FBF8] p-3 text-left focus:outline-none focus:ring-2 focus:ring-[#12A150]/25 lg:rounded-lg lg:border-0 lg:bg-transparent lg:p-0"
                   >
                     <span className="flex min-w-0 items-center gap-2.5">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EAF8F0] text-[10px] font-bold text-[#12A150]">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EAF8F0] text-[10px] font-bold text-[#12A150] lg:h-8 lg:w-8">
                         {initialsFromName(user.name)}
                       </span>
                       <span className="min-w-0">
@@ -722,7 +835,7 @@ export default function AllUsersActivity() {
                         <span className="text-[11px] text-slate-500">{user.role}</span>
                       </span>
                     </span>
-                    <span className="shrink-0 text-[13px] font-bold tabular-nums text-[#12A150]">
+                    <span className="shrink-0 text-[15px] font-black tabular-nums text-[#12A150] lg:text-[13px] lg:font-bold">
                       {user.count}
                     </span>
                   </button>
@@ -734,6 +847,15 @@ export default function AllUsersActivity() {
           </div>
         </aside>
       </div>
+
+      <ActivityMobileBottomNav
+        activeTab={mobileSection}
+        onTabChange={setMobileSection}
+        badges={{
+          live: newCount,
+          attention: needsAttention.length,
+        }}
+      />
 
       <ActivityDetailDrawer
         open={Boolean(selected)}

@@ -373,18 +373,25 @@ body{
 .access-control-field input,
 .access-control-field select {
   width: 100%;
-  border: 1px solid #e2e8f0;
+  height: 2.5rem;
+  border: 1px solid #d9ebe0;
   border-radius: 0.75rem;
   background: #fff;
-  padding: 0.75rem 1rem 0.75rem 2.75rem;
-  color: #0f172a;
+  padding: 0.5rem 0.75rem 0.5rem 2.85rem;
+  color: #101820;
+  font-size: 0.8125rem;
+  font-weight: 600;
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
+.access-control-field input:hover,
+.access-control-field select:hover {
+  border-color: rgba(18, 161, 80, 0.5);
+}
 .access-control-field input:focus,
 .access-control-field select:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+  border-color: #12a150;
+  box-shadow: 0 0 0 4px rgba(18, 161, 80, 0.15);
 }
 @media (min-width: 1024px) {
   .bd-overview > header {
@@ -1066,6 +1073,11 @@ body {
   img,
   svg {
     max-width: 100%;
+  }
+
+  /* CSH mobile shell — readable KPI tiles (not desktop-tiny) */
+  .csh-mobile-compact [aria-label="Department metrics"] > button {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 

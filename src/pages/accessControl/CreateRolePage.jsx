@@ -4,6 +4,8 @@ import { ArrowLeft, Check, ChevronDown, ChevronUp, LockKeyhole, Search, ShieldCh
 import { toast } from "sonner";
 import { createAccessRole, deleteAccessRole, getAccessRole, getAccessRoles, getPermissionCatalog, updateAccessRole, updateAccessRolePermissions, updateAccessRoleStatus } from "../../features/accessControl/accessControlService";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
+import HierarchyRoleFilterSelect from "../../components/common/HierarchyRoleFilterSelect";
+import { orderRolesByHierarchy } from "../../utils/roleHierarchy";
 
 /**
  * Absolute platform roles — never activate/deactivate/delete.
@@ -197,6 +199,11 @@ export default function CreateRolePage() {
     );
   }, [modules, query]);
 
+  const orderedParentRoles = useMemo(
+    () => orderRolesByHierarchy(parentRoles),
+    [parentRoles],
+  );
+
   const togglePermission = (key) => setSelected((current) => {
     const next = new Set(current);
     next.has(key) ? next.delete(key) : next.add(key);
@@ -296,12 +303,22 @@ export default function CreateRolePage() {
                 Auto-fills from display label as you type (e.g. Property Reviewer → property_reviewer). Edit role key manually only if you need a different key.
               </p>
             )}
-            <label className="mt-5 block text-xs font-bold uppercase tracking-wider text-slate-500">Parent role</label>
-            <select value={parentRoleId} onChange={(event) => setParentRoleId(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100">
-              <option value="">No parent / top-level role</option>
-              {parentRoles.map((role) => <option key={role._id} value={role._id}>{role.label} ({role.name})</option>)}
-            </select>
-            <p className="mt-2 text-[11px] leading-4 text-slate-500">Defines where this role sits in the organisation hierarchy. Example: Business Development Head → Operations Head.</p>
+            <div className="mt-5">
+              <HierarchyRoleFilterSelect
+                label="Parent role"
+                value={parentRoleId}
+                onChange={setParentRoleId}
+                roles={orderedParentRoles}
+                getValue={(role) => String(role._id)}
+                getLabel={(role) => role.label || String(role.name || "").replace(/_/g, " ")}
+                getMeta={(role) => role.name}
+                allLabel="No parent / top-level role"
+                emptyHint="Organisation hierarchy"
+              />
+              <p className="mt-2 text-[11px] leading-4 text-slate-500">
+                Defines where this role sits in the organisation hierarchy. Example: Business Development Head → Operations Head.
+              </p>
+            </div>
             <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
               <div className="mb-1 flex items-center gap-2 font-bold"><LockKeyhole size={15} /> Safe by design</div>
               {isEditing ? "Saving here updates this role. Every team member assigned to the same role receives the updated permissions." : "This creates a custom Admin Dashboard role. User, Builder, Agent and Builder Staff account workflows are not changed."}

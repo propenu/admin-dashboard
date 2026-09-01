@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
+  Building2,
   Check,
   ChevronDown,
   Hash,
@@ -8,19 +9,17 @@ import {
   List,
   Mail,
   MapPin,
+  MapPinned,
   Network,
-  Pencil,
   Phone,
-  Power,
   RefreshCw,
-  RotateCcw,
   Search,
   ShieldCheck,
-  Trash2,
   UsersRound,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import ActivityFilterSelect from "../../Activity/components/ActivityFilterSelect";
 import { useUsers } from "./hook/useUserData";
 import {
   deleteAccessUser,
@@ -43,6 +42,9 @@ import {
 import CceTerritoryManagerModal from "../../Dashboards/customerSupportTeamLeadDashboard/components/CceTerritoryManagerModal";
 import SafeUserDeleteModal from "../users/components/SafeUserDeleteModal";
 import StaffProfileEditModal from "./components/StaffProfileEditModal";
+import TeamMemberActionsMenu from "./components/TeamMemberActionsMenu";
+import TeamMemberDetailModal from "./components/TeamMemberDetailModal";
+import TeamDatePicker from "./components/TeamDatePicker";
 import { isTerritoryRole } from "../../../utils/workingLocations";
 import {
   filterUsersInReportingTree,
@@ -113,6 +115,14 @@ const teamRoleLabel = (role) =>
   cleanRole(role?.name);
 /** Always show the real role title on a person (never raw slug like "team lead"). */
 const personRoleLabel = (roleName, roleOptions = []) => {
+  if (
+    roleName == null ||
+    roleName === "" ||
+    String(roleName).toLowerCase() === "null" ||
+    String(roleName).toLowerCase() === "undefined"
+  ) {
+    return "";
+  }
   const key = canonicalTeamRole(roleName);
   const raw = String(roleName || "").toLowerCase();
   // Prefer canonical singular labels so table badges stay consistent
@@ -148,7 +158,28 @@ const displayPersonName = (value = "") => {
     )
     .join(" ");
 };
-const unique = (items) => [...new Set(items.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+const unique = (items) => {
+  const map = new Map();
+  items.forEach((item) => {
+    const raw = String(item || "").trim();
+    if (!raw) return;
+    const key = raw.toLowerCase();
+    if (map.has(key)) return;
+    const label = raw
+      .toLowerCase()
+      .replace(/\b\w/g, (ch) => ch.toUpperCase());
+    map.set(key, label);
+  });
+  return [...map.values()].sort((a, b) => String(a).localeCompare(String(b)));
+};
+
+const sameLoc = (a, b) =>
+  String(a || "")
+    .trim()
+    .toLowerCase() ===
+  String(b || "")
+    .trim()
+    .toLowerCase();
 
 export default function PropenuTeam() {
   const [searchParams] = useSearchParams();
@@ -185,6 +216,7 @@ export default function PropenuTeam() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editUser, setEditUser] = useState(null);
+  const [previewUser, setPreviewUser] = useState(null);
 
   const canUseLifecycle = canUseLifecycleActions(viewerRole);
   const canEditStaffProfiles =
@@ -311,9 +343,15 @@ export default function PropenuTeam() {
   );
 
   const options = useMemo(() => {
-    const byState = filters.state ? users.filter((user) => user.state === filters.state) : users;
-    const byCity = filters.city ? byState.filter((user) => user.city === filters.city) : byState;
-    const byLocality = filters.locality ? byCity.filter((user) => user.locality === filters.locality) : byCity;
+    const byState = filters.state
+      ? users.filter((user) => sameLoc(user.state, filters.state))
+      : users;
+    const byCity = filters.city
+      ? byState.filter((user) => sameLoc(user.city, filters.city))
+      : byState;
+    const byLocality = filters.locality
+      ? byCity.filter((user) => sameLoc(user.locality, filters.locality))
+      : byCity;
     return {
       states: unique(users.map((user) => user.state)),
       cities: unique(byState.map((user) => user.city)),
@@ -326,9 +364,9 @@ export default function PropenuTeam() {
     const query = filters.search.trim().toLowerCase();
     return users.filter((user) => {
       if (selectedRoleMatch && !userMatchesExactRole(user, selectedRoleMatch)) return false;
-      if (filters.state && user.state !== filters.state) return false;
-      if (filters.city && user.city !== filters.city) return false;
-      if (filters.locality && user.locality !== filters.locality) return false;
+      if (filters.state && !sameLoc(user.state, filters.state)) return false;
+      if (filters.city && !sameLoc(user.city, filters.city)) return false;
+      if (filters.locality && !sameLoc(user.locality, filters.locality)) return false;
       if (filters.pincode && String(user.pincode) !== filters.pincode) return false;
       if (filters.status === "deactivated") {
         if (user.isActive !== false) return false;
@@ -391,11 +429,48 @@ export default function PropenuTeam() {
     }
   };
 
-  const Select = ({ label, value, onChange, children }) => <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold capitalize outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">{children}</select></label>;
+  const stateOptions = useMemo(
+    () => [
+      { value: "", label: "All states" },
+      ...options.states.map((item) => ({ value: item, label: item })),
+    ],
+    [options.states],
+  );
+  const cityOptions = useMemo(
+    () => [
+      { value: "", label: "All cities" },
+      ...options.cities.map((item) => ({ value: item, label: item })),
+    ],
+    [options.cities],
+  );
+  const localityOptions = useMemo(
+    () => [
+      { value: "", label: "All localities" },
+      ...options.localities.map((item) => ({ value: item, label: item })),
+    ],
+    [options.localities],
+  );
+  const pincodeOptions = useMemo(
+    () => [
+      { value: "", label: "All pincodes" },
+      ...options.pincodes.map((item) => ({ value: item, label: item })),
+    ],
+    [options.pincodes],
+  );
+  const statusOptions = useMemo(
+    () => [
+      { value: "", label: "All statuses" },
+      { value: "active", label: "Active" },
+      { value: "deactivated", label: "Deactivated" },
+      { value: "location_pending", label: "Location pending" },
+      { value: "kyc_pending", label: "KYC pending" },
+    ],
+    [],
+  );
 
   return <div className="mx-auto max-w-[1500px] pb-10 text-slate-900">
     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">Operations</p><h1 className="mt-1 text-3xl font-black tracking-tight">Team directory</h1><p className="mt-1 text-sm text-slate-500">Only staff who report to you (directly or through your team).</p></div>
+      <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">Operations</p><h1 className="mt-1 text-3xl font-black tracking-tight">Team directory</h1></div>
       <div className="flex items-center gap-2">
         <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{roleOptions.length} roles</span>
         <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{users.length} members</span>
@@ -406,28 +481,90 @@ export default function PropenuTeam() {
     </div>
 
     <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
         <HierarchyRoleSelect roles={roleOptions} users={users} value={filters.role} onChange={(value) => update("role", value)} />
-        <Select label="State" value={filters.state} onChange={(value) => update("state", value)}><option value="">All states</option>{options.states.map((item) => <option key={item}>{item}</option>)}</Select>
-        <Select label="City" value={filters.city} onChange={(value) => update("city", value)}><option value="">All cities</option>{options.cities.map((item) => <option key={item}>{item}</option>)}</Select>
-        <Select label="Locality" value={filters.locality} onChange={(value) => update("locality", value)}><option value="">All localities</option>{options.localities.map((item) => <option key={item}>{item}</option>)}</Select>
-        <Select label="Pincode" value={filters.pincode} onChange={(value) => update("pincode", value)}><option value="">All pincodes</option>{options.pincodes.map((item) => <option key={item}>{item}</option>)}</Select>
-        <Select label="Status" value={filters.status} onChange={(value) => update("status", value)}><option value="">All statuses</option><option value="active">Active</option><option value="deactivated">Deactivated</option><option value="location_pending">Location pending</option><option value="kyc_pending">KYC pending</option></Select>
-        <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Joined from</span><input type="date" value={filters.fromDate} max={filters.toDate || undefined} onChange={(event) => update("fromDate", event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" /></label>
-        <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Joined to</span><input type="date" value={filters.toDate} min={filters.fromDate || undefined} onChange={(event) => update("toDate", event.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" /></label>
-        <button onClick={clear} className="mt-auto flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"><X size={14} /> Clear</button>
+        <ActivityFilterSelect
+          showLabel
+          searchable
+          label="State"
+          value={filters.state}
+          onChange={(value) => update("state", value)}
+          options={stateOptions}
+          icon={MapPin}
+        />
+        <ActivityFilterSelect
+          showLabel
+          searchable
+          label="City"
+          value={filters.city}
+          onChange={(value) => update("city", value)}
+          options={cityOptions}
+          icon={Building2}
+        />
+        <ActivityFilterSelect
+          showLabel
+          searchable
+          label="Locality"
+          value={filters.locality}
+          onChange={(value) => update("locality", value)}
+          options={localityOptions}
+          icon={MapPinned}
+        />
+        <ActivityFilterSelect
+          showLabel
+          searchable
+          label="Pincode"
+          value={filters.pincode}
+          onChange={(value) => update("pincode", value)}
+          options={pincodeOptions}
+          icon={Hash}
+        />
+        <ActivityFilterSelect
+          showLabel
+          searchable
+          label="Status"
+          value={filters.status}
+          onChange={(value) => update("status", value)}
+          options={statusOptions}
+          icon={ShieldCheck}
+        />
+        <TeamDatePicker
+          label="Joined from"
+          value={filters.fromDate}
+          max={filters.toDate || undefined}
+          onChange={(value) => update("fromDate", value)}
+        />
+        <TeamDatePicker
+          label="Joined to"
+          value={filters.toDate}
+          min={filters.fromDate || undefined}
+          onChange={(value) => update("toDate", value)}
+        />
+        <button
+          onClick={clear}
+          className="mt-auto flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#d9ebe0] bg-white px-3 text-xs font-bold text-slate-600 transition hover:border-[#12A150]/40 hover:bg-[#EAF8F0] hover:text-[#0B7A3A]"
+        >
+          <X size={14} /> Clear
+        </button>
       </div>
-      <div className="relative mt-3"><Search className="absolute left-3 top-2.5 text-slate-400" size={16} /><input value={filters.search} onChange={(event) => update("search", event.target.value)} placeholder="Search name, email, phone, role or location" className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" /></div>
+      <div className="relative mt-3">
+        <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+        <input
+          value={filters.search}
+          onChange={(event) => update("search", event.target.value)}
+          placeholder="Search name, email, phone, role or location"
+          className="h-11 w-full rounded-xl border border-[#d9ebe0] py-2 pl-9 pr-3 text-sm outline-none transition focus:border-[#12A150] focus:ring-4 focus:ring-[#12A150]/15"
+        />
+      </div>
     </section>
 
     <section className="mt-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><UsersRound size={17} className="text-emerald-600" /><h2 className="text-sm font-bold capitalize">{filters.role ? teamRoleLabel(roleOptions.find((role) => role.name === filters.role) || { name: filters.role }) : "All team members"}</h2></div><div className="flex items-center gap-2"><span className="text-xs font-semibold text-slate-500">Showing {filtered.length} of {users.length}</span><div className="flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm"><button type="button" aria-pressed={viewMode === "cards"} onClick={() => setViewMode("cards")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "cards" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><LayoutGrid size={14} /> Cards</button><button type="button" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold transition ${viewMode === "table" ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}><List size={14} /> Table</button></div></div></div>
-      <p className="mb-3 text-xs text-slate-500">Role filter shows the org band. <span className="font-semibold text-slate-700">Reports to</span> shows the specific person they work under when assigned. For hierarchy field roles (CCE, Customer Support Head, Sales Executive, RM, BD Manager, …), use <span className="font-semibold text-slate-700">Align working locations</span> to set state / city / locality territories. Super Admin can <span className="font-semibold text-slate-700">Edit profile</span>, <span className="font-semibold text-slate-700">Activate / Deactivate</span>, or <span className="font-semibold text-slate-700">Delete</span> each person from Cards or Table.</p>
       {isLoading || !viewerReady ? <div className="rounded-2xl border border-slate-200 bg-white p-14 text-center text-sm text-slate-500">Loading team members...</div> : filtered.length ? viewMode === "cards" ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filtered.map((user) => {
         const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
         const initials = String(user.name || "U").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
         const active = user.accountStatus === "active" && user.isActive !== false;
-        return <article key={user._id} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
+        return <article key={user._id} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md cursor-pointer" onClick={() => setPreviewUser(user)}>
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 to-emerald-300" />
           <div className="flex items-start gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700">{initials}</div><div className="min-w-0 flex-1"><h3 className="truncate text-base font-black text-slate-800">{displayPersonName(user.name) || "Unnamed user"}</h3><p className="mt-0.5 truncate text-[11px] font-bold tracking-wide text-emerald-600">{personRoleLabel(user.roleName, roleOptions)}</p></div><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${user.isActive === false ? "bg-slate-400" : active ? "bg-emerald-500" : "bg-amber-400"}`} title={user.isActive === false ? "Deactivated" : active ? "Active" : "Pending"} /></div>
           <div className="mt-4 grid gap-2 border-t border-slate-100 pt-3 text-xs">
@@ -437,102 +574,61 @@ export default function PropenuTeam() {
             <p className="flex items-start gap-2 text-slate-600"><Network size={13} className="mt-0.5 shrink-0 text-emerald-600" /><span className="min-w-0 truncate">{user.reportsTo?.name ? <>Reports to <span className="font-semibold text-slate-800">{displayPersonName(user.reportsTo.name)}</span>{(user.reportsTo.roleLabel || user.reportsTo.roleName) ? <span className="text-slate-500"> · {personRoleLabel(user.reportsTo.roleName, roleOptions) || user.reportsTo.roleLabel}</span> : null}</> : "No person reporting line"}</span></p>
             <p className="flex items-start gap-2 text-slate-600"><MapPin size={13} className="mt-0.5 shrink-0 text-emerald-600" /><span className="line-clamp-2">{location || "Work location not provided"}</span></p>
           </div>
-          <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
+          <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between gap-2">
               <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold capitalize ${user.isActive === false ? "bg-slate-100 text-slate-600" : active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{user.isActive === false ? "Deactivated" : String(user.accountStatus || "pending").replace(/_/g, " ")}</span>
               <span className="text-[10px] text-slate-400">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</span>
             </div>
-            {isTerritoryRole(user.roleName) ? (
-              <button
-                type="button"
-                onClick={() => openTerritoryManager(user)}
-                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800 hover:bg-emerald-100"
-              >
-                <MapPin size={13} />
-                Align working locations
-              </button>
-            ) : null}
-            {(canEditStaffProfiles || canManageMember(user)) ? (
-              <div className="flex flex-wrap gap-2">
-                {canEditStaffProfiles && String(user._id) !== String(viewerId) ? (
-                  <button
-                    type="button"
-                    onClick={() => setEditUser(user)}
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50"
-                  >
-                    <Pencil size={12} />
-                    Edit profile
-                  </button>
-                ) : null}
-                {canManageMember(user) ? (
-                  <>
-                    {user.isActive === false ? (
-                      <button
-                        type="button"
-                        disabled={statusBusyId === String(user._id)}
-                        onClick={() => changeUserActive(user, true)}
-                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
-                      >
-                        <RotateCcw size={12} />
-                        Activate
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={statusBusyId === String(user._id)}
-                        onClick={() => changeUserActive(user, false)}
-                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-3 py-2 text-[11px] font-bold text-white hover:bg-amber-600 disabled:opacity-50"
-                      >
-                        <Power size={12} />
-                        Deactivate
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      disabled={statusBusyId === String(user._id)}
-                      onClick={() => setDeleteTarget(user)}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
-                    >
-                      <Trash2 size={12} />
-                      Delete
-                    </button>
-                  </>
-                ) : null}
+            {isTerritoryRole(user.roleName) ||
+            canEditStaffProfiles ||
+            canManageMember(user) ? (
+              <div className="flex justify-end pt-0.5">
+                <TeamMemberActionsMenu
+                  busy={statusBusyId === String(user._id)}
+                  showAlign={isTerritoryRole(user.roleName)}
+                  showEdit={canEditStaffProfiles && String(user._id) !== String(viewerId)}
+                  showLifecycle={canManageMember(user)}
+                  isActive={user.isActive !== false}
+                  onAlign={() => openTerritoryManager(user)}
+                  onEdit={() => setEditUser(user)}
+                  onActivate={() => changeUserActive(user, true)}
+                  onDeactivate={() => changeUserActive(user, false)}
+                  onDelete={() => setDeleteTarget(user)}
+                />
               </div>
             ) : null}
           </div>
         </article>;
       })}</div> : <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed border-collapse text-left text-xs">
+        <div className="overflow-x-auto [scrollbar-width:thin]">
+          <table className="w-full min-w-[880px] table-fixed border-collapse text-left text-[12px]">
             <colgroup>
               <col className="w-[16%]" />
-              <col className="w-[16%]" />
               <col className="w-[15%]" />
-              <col className="w-[16%]" />
               <col className="w-[15%]" />
-              <col className="w-[7%]" />
-              <col className="w-[6%]" />
-              <col className="w-[12%]" />
+              <col className="w-[22%]" />
+              <col className="w-[20%]" />
+              <col className="w-[8%]" />
+              <col className="w-[56px]" />
             </colgroup>
-            <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            <thead className="sticky top-0 z-[1] bg-slate-50 text-[10px] font-bold uppercase tracking-wider text-slate-500 shadow-sm">
               <tr>
-                <th className="whitespace-nowrap px-3 py-3">Team member</th>
-                <th className="whitespace-nowrap px-3 py-3">Role</th>
-                <th className="whitespace-nowrap px-3 py-3">Reports to</th>
-                <th className="whitespace-nowrap px-3 py-3">Contact</th>
-                <th className="whitespace-nowrap px-3 py-3">Work location</th>
-                <th className="whitespace-nowrap px-3 py-3">Status</th>
-                <th className="whitespace-nowrap px-3 py-3">Joined</th>
-                <th className="whitespace-nowrap px-3 py-3 text-right">Actions</th>
+                <th className="px-3 py-3 text-left">Team member</th>
+                <th className="px-3 py-3 text-left">Role</th>
+                <th className="px-3 py-3 text-left">Reports to</th>
+                <th className="px-3 py-3 text-left">Contact</th>
+                <th className="px-3 py-3 text-left">Work location</th>
+                <th className="px-3 py-3 text-left">Joined</th>
+                <th className="sticky right-0 z-[2] bg-slate-50 px-2 py-3 text-center shadow-[-6px_0_8px_-6px_rgba(15,23,42,0.12)]">
+                  ···
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map((user) => {
                 const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
                 const memberName = displayPersonName(user.name) || "Unnamed user";
-                const active = user.accountStatus === "active" && user.isActive !== false;
-                const roleLabel = personRoleLabel(user.roleName, roleOptions);
+                const roleLabel = personRoleLabel(user.roleName, roleOptions) || "—";
                 const managerId = user.reportsTo?._id || user.managerId;
                 const managerFromList = managerId
                   ? users.find((item) => String(item._id) === String(managerId))
@@ -548,113 +644,78 @@ export default function PropenuTeam() {
                   user.reportsTo?.roleLabel ||
                   "";
                 const reportsToTitle = [reportsToName, reportsToRole].filter(Boolean).join(" · ");
+                const openPreview = () => setPreviewUser(user);
                 return (
-                  <tr key={user._id} className="align-middle transition hover:bg-emerald-50/40">
-                    <td className="min-w-0 px-3 py-3">
-                      <p className="truncate font-bold text-slate-800" title={memberName}>{memberName}</p>
+                  <tr
+                    key={user._id}
+                    className="group cursor-pointer align-middle transition hover:bg-emerald-50/50"
+                    onClick={openPreview}
+                  >
+                    <td className="px-3 py-2.5">
+                      <p className="truncate font-bold leading-5 text-slate-800" title={memberName}>
+                        {memberName}
+                      </p>
                     </td>
-                    <td className="min-w-0 px-3 py-3">
-                      <span
-                        title={roleLabel}
-                        className="inline-block max-w-full truncate rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold leading-4 text-emerald-800"
-                      >
-                        {roleLabel}
-                      </span>
+                    <td className="px-3 py-2.5">
+                      {roleLabel !== "—" ? (
+                        <span
+                          className="inline-block max-w-full truncate rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold leading-4 text-emerald-800"
+                          title={roleLabel}
+                        >
+                          {roleLabel}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
-                    <td className="min-w-0 px-3 py-3">
+                    <td className="px-3 py-2.5">
                       {reportsToName ? (
-                        <div className="min-w-0" title={reportsToTitle}>
-                          <p className="truncate font-semibold text-slate-800">{reportsToName}</p>
+                        <div title={reportsToTitle}>
+                          <p className="truncate font-semibold leading-5 text-slate-800">{reportsToName}</p>
                           {reportsToRole ? (
-                            <p className="mt-0.5 truncate text-[10px] font-medium text-emerald-700">{reportsToRole}</p>
+                            <p className="mt-0.5 truncate text-[10px] font-medium leading-4 text-emerald-700">{reportsToRole}</p>
                           ) : null}
                         </div>
                       ) : (
                         <span className="text-slate-400">—</span>
                       )}
                     </td>
-                    <td className="px-3 py-3 text-slate-600">
-                      <p className="truncate" title={user.email || undefined}>{user.email || "No email"}</p>
-                      <p className="mt-0.5 truncate text-slate-400">{user.phone || "No phone"}</p>
+                    <td className="px-3 py-2.5 text-slate-600">
+                      <p className="truncate leading-5" title={user.email || "No email"}>
+                        {user.email || "No email"}
+                      </p>
+                      <p className="mt-0.5 truncate text-[11px] leading-4 text-slate-400" title={user.phone || "No phone"}>
+                        {user.phone || "No phone"}
+                      </p>
                     </td>
-                    <td className="px-3 py-3 text-slate-600">
-                      <span className="block truncate" title={location || undefined}>{location || "—"}</span>
+                    <td className="px-3 py-2.5 text-slate-600">
+                      {location ? (
+                        <p className="truncate leading-5 text-slate-700" title={location}>{location}</p>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
-                    <td className="px-3 py-3">
-                      <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold capitalize ${user.isActive === false ? "bg-slate-100 text-slate-600" : active ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${user.isActive === false ? "bg-slate-400" : active ? "bg-emerald-500" : "bg-amber-400"}`} />
-                        {user.isActive === false ? "Deactivated" : String(user.accountStatus || "pending").replace(/_/g, " ")}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3 text-slate-500">
+                    <td className="whitespace-nowrap px-3 py-2.5 text-slate-500">
                       {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "—"}
                     </td>
-                    <td className="px-3 py-3 text-right">
-                      <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
-                        {isTerritoryRole(user.roleName) ? (
-                          <button
-                            type="button"
-                            onClick={() => openTerritoryManager(user)}
-                            title="Align working locations"
-                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"
-                          >
-                            <MapPin size={12} />
-                            Align
-                          </button>
-                        ) : null}
-                        {canEditStaffProfiles && String(user._id) !== String(viewerId) ? (
-                          <button
-                            type="button"
-                            onClick={() => setEditUser(user)}
-                            title="Edit staff profile"
-                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50"
-                          >
-                            <Pencil size={12} />
-                            Edit
-                          </button>
-                        ) : null}
-                        {canManageMember(user) ? (
-                          <>
-                            {user.isActive === false ? (
-                              <button
-                                type="button"
-                                disabled={statusBusyId === String(user._id)}
-                                onClick={() => changeUserActive(user, true)}
-                                title="Activate user"
-                                className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
-                              >
-                                <RotateCcw size={12} />
-                                Activate
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={statusBusyId === String(user._id)}
-                                onClick={() => changeUserActive(user, false)}
-                                title="Deactivate user"
-                                className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg bg-amber-500 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-amber-600 disabled:opacity-50"
-                              >
-                                <Power size={12} />
-                                Deactivate
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              disabled={statusBusyId === String(user._id)}
-                              onClick={() => setDeleteTarget(user)}
-                              title="Delete permanently"
-                              className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[10px] font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
-                            >
-                              <Trash2 size={12} />
-                              Delete
-                            </button>
-                          </>
-                        ) : null}
-                        {!isTerritoryRole(user.roleName) &&
-                        !(canEditStaffProfiles && String(user._id) !== String(viewerId)) &&
-                        !canManageMember(user) ? (
-                          <span className="text-slate-300">—</span>
-                        ) : null}
+                    <td
+                      className="sticky right-0 z-[1] bg-white px-2 py-2.5 text-center shadow-[-6px_0_8px_-6px_rgba(15,23,42,0.08)] group-hover:bg-emerald-50/80"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <div className="inline-flex justify-center">
+                        <TeamMemberActionsMenu
+                          compact
+                          busy={statusBusyId === String(user._id)}
+                          showAlign={isTerritoryRole(user.roleName)}
+                          showEdit={canEditStaffProfiles && String(user._id) !== String(viewerId)}
+                          showLifecycle={canManageMember(user)}
+                          isActive={user.isActive !== false}
+                          onAlign={() => openTerritoryManager(user)}
+                          onEdit={() => setEditUser(user)}
+                          onActivate={() => changeUserActive(user, true)}
+                          onDeactivate={() => changeUserActive(user, false)}
+                          onDelete={() => setDeleteTarget(user)}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -680,6 +741,31 @@ export default function PropenuTeam() {
       onClose={() => !deleteLoading && setDeleteTarget(null)}
       onConfirm={confirmDeleteUser}
     />
+    {previewUser ? (() => {
+      const managerId = previewUser.reportsTo?._id || previewUser.managerId;
+      const managerFromList = managerId
+        ? users.find((item) => String(item._id) === String(managerId))
+        : null;
+      const reportsToName = displayPersonName(
+        previewUser.reportsTo?.name || managerFromList?.name || "",
+      );
+      const reportsToRole =
+        personRoleLabel(
+          previewUser.reportsTo?.roleName || managerFromList?.roleName,
+          roleOptions,
+        ) ||
+        previewUser.reportsTo?.roleLabel ||
+        "";
+      return (
+        <TeamMemberDetailModal
+          user={previewUser}
+          roleLabel={personRoleLabel(previewUser.roleName, roleOptions)}
+          reportsToName={reportsToName}
+          reportsToRole={reportsToRole}
+          onClose={() => setPreviewUser(null)}
+        />
+      );
+    })() : null}
     {editUser ? (
       <StaffProfileEditModal
         user={editUser}
@@ -696,6 +782,9 @@ export default function PropenuTeam() {
 
 function HierarchyRoleSelect({ roles, users, value, onChange }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const rootRef = useRef(null);
+  const searchRef = useRef(null);
   const ordered = useMemo(() => orderRolesByHierarchy(roles), [roles]);
   const selected =
     ordered.find((role) => role.name === value) ||
@@ -709,36 +798,183 @@ function HierarchyRoleSelect({ roles, users, value, onChange }) {
   );
   const baseDepth = Number.isFinite(minDepth) ? minDepth : 0;
 
-  return <div className="relative z-30 min-w-0 xl:col-span-1">
-    <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Role</span>
-    <button type="button" onClick={() => setOpen((current) => !current)} className={`flex w-full items-center gap-2 rounded-lg border bg-white px-3 py-2 text-left text-xs font-semibold outline-none transition ${open ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200"}`}>
-      <ShieldCheck size={15} className="shrink-0 text-slate-400" />
-      <span className="min-w-0 flex-1 truncate">{selected ? teamRoleLabel(selected) : "All roles"}</span>
-      <ChevronDown size={15} className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
-    </button>
-    {open && <div className="absolute left-0 top-[calc(100%+6px)] z-50 max-h-80 min-w-[320px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
-      <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Roles under your hierarchy</div>
-      <button type="button" onClick={() => { onChange(""); setOpen(false); }} className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm ${!value ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}><span className="min-w-0 flex-1">All roles</span><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{users.length}</span>{!value && <Check size={15} className="text-emerald-600" />}</button>
-      {ordered.map((role) => {
-        const active = value === role.name || selectedMatch === canonicalTeamRole(role.name);
-        const canon = canonicalTeamRole(role.name);
-        const indent = Math.max(0, (Number(role.hierarchyDepth) || 0) - baseDepth);
-        const isBranchRoot = ["business_development_head", "customer_support_head", "marketing_head", "accounts", "legal_compliance", "hr_administration", "technical_support_head"].includes(canon);
-        return (
-          <button
-            key={role._id || role.name}
-            type="button"
-            onClick={() => { onChange(role.name); setOpen(false); }}
-            style={{ paddingLeft: `${12 + indent * 18}px` }}
-            className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm transition ${active ? "bg-emerald-50 font-bold text-emerald-800" : "text-slate-700 hover:bg-slate-50"}`}
-          >
-            <span className="w-3 shrink-0 text-slate-300">{indent ? "└" : ""}</span>
-            <span className={`min-w-0 flex-1 truncate ${isBranchRoot ? "font-semibold" : ""}`}>{teamRoleLabel(role)}{role.isCurrentRole ? " (You)" : ""}</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{memberCount(role)}</span>
-            {active && <Check size={15} className="shrink-0 text-emerald-600" />}
-          </button>
-        );
-      })}
-    </div>}
-  </div>;
+  const filteredRoles = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return ordered;
+    return ordered.filter((role) => {
+      const label = String(teamRoleLabel(role) || "").toLowerCase();
+      const name = String(role.name || "").toLowerCase();
+      return label.includes(q) || name.includes(q);
+    });
+  }, [ordered, query]);
+
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      return undefined;
+    }
+    const onDoc = (event) => {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    const t = window.setTimeout(() => searchRef.current?.focus(), 30);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+      window.clearTimeout(t);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative z-30 min-w-0 xl:col-span-1">
+      <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        Role
+      </span>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className={`flex h-10 w-full items-center gap-2 rounded-xl border bg-white py-2 pl-3 pr-2.5 text-left text-[13px] font-semibold text-[#101820] transition duration-200 outline-none focus:ring-4 focus:ring-[#12A150]/15 ${
+          open
+            ? "border-[#12A150] shadow-md shadow-emerald-600/15"
+            : "border-[#d9ebe0] hover:border-[#12A150]/50 hover:shadow-sm"
+        }`}
+      >
+        <span
+          className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition duration-200 ${
+            open || value
+              ? "bg-[#12A150] text-white shadow-sm shadow-emerald-600/30"
+              : "bg-[#EAF8F0] text-[#12A150]"
+          }`}
+        >
+          <ShieldCheck size={14} strokeWidth={2.25} />
+        </span>
+        <span className="min-w-0 flex-1 truncate">
+          {selected ? teamRoleLabel(selected) : "All roles"}
+        </span>
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-slate-400 transition-transform duration-300 ${
+            open ? "rotate-180 text-[#12A150]" : ""
+          }`}
+        />
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-[calc(100%+6px)] z-50 min-w-[320px] overflow-hidden rounded-xl border border-[#d9ebe0] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.14)] motion-safe:animate-[tlFadeUp_180ms_ease-out]">
+          <div className="border-b border-[#e8f2ec] bg-[#F6FBF8] p-2">
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#12A150]"
+                strokeWidth={2.25}
+                aria-hidden
+              />
+              <input
+                ref={searchRef}
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onClick={(event) => event.stopPropagation()}
+                placeholder="Search roles…"
+                className="h-9 w-full rounded-lg border border-[#d9ebe0] bg-white py-1.5 pl-8 pr-2.5 text-[12px] font-semibold text-[#101820] outline-none placeholder:text-slate-400 focus:border-[#12A150] focus:ring-2 focus:ring-[#12A150]/15"
+              />
+            </div>
+          </div>
+          <div className="max-h-72 overflow-y-auto p-1.5">
+            <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Roles under your hierarchy
+            </div>
+            {!query.trim() ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange("");
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition duration-150 ${
+                  !value
+                    ? "bg-[#12A150] text-white shadow-sm shadow-emerald-600/25"
+                    : "text-slate-700 hover:bg-[#EAF8F0] hover:text-[#0B7A3A]"
+                }`}
+              >
+                <span className="min-w-0 flex-1">All roles</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    !value ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {users.length}
+                </span>
+                {!value ? <Check size={15} className="text-white" /> : null}
+              </button>
+            ) : null}
+            {filteredRoles.length ? (
+              filteredRoles.map((role) => {
+                const active =
+                  value === role.name || selectedMatch === canonicalTeamRole(role.name);
+                const canon = canonicalTeamRole(role.name);
+                const indent = Math.max(
+                  0,
+                  (Number(role.hierarchyDepth) || 0) - baseDepth,
+                );
+                const isBranchRoot = [
+                  "business_development_head",
+                  "customer_support_head",
+                  "marketing_head",
+                  "accounts",
+                  "legal_compliance",
+                  "hr_administration",
+                  "technical_support_head",
+                ].includes(canon);
+                return (
+                  <button
+                    key={role._id || role.name}
+                    type="button"
+                    onClick={() => {
+                      onChange(role.name);
+                      setOpen(false);
+                    }}
+                    style={{ paddingLeft: `${12 + indent * 18}px` }}
+                    className={`flex w-full items-center gap-2 rounded-lg py-2.5 pr-3 text-left text-sm font-semibold transition duration-150 ${
+                      active
+                        ? "bg-[#12A150] text-white shadow-sm shadow-emerald-600/25"
+                        : "text-slate-700 hover:bg-[#EAF8F0] hover:text-[#0B7A3A]"
+                    }`}
+                  >
+                    <span
+                      className={`w-3 shrink-0 ${active ? "text-white/50" : "text-slate-300"}`}
+                    >
+                      {indent && !query.trim() ? "└" : ""}
+                    </span>
+                    <span
+                      className={`min-w-0 flex-1 truncate ${isBranchRoot ? "font-bold" : ""}`}
+                    >
+                      {teamRoleLabel(role)}
+                      {role.isCurrentRole ? " (You)" : ""}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {memberCount(role)}
+                    </span>
+                    {active ? <Check size={15} className="shrink-0 text-white" /> : null}
+                  </button>
+                );
+              })
+            ) : (
+              <p className="px-3 py-4 text-center text-xs font-semibold text-slate-400">
+                No matching roles
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }

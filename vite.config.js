@@ -1,11 +1,3 @@
-// import { defineConfig } from 'vite'
-// import react from '@vitejs/plugin-react'
-
-// // https://vite.dev/config/
-// export default defineConfig({
-//   plugins: [react()],
-// })
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -14,23 +6,31 @@ export default defineConfig({
   base: "/",
 
   build: {
-    // Use a dedicated output directory. The legacy `dist` directory can be
-    // held open by a local preview/static server on Windows, which prevents
-    // Vite from cleaning it and causes EPERM build failures.
+    // Dedicated outDir — avoids Windows EPERM when legacy `dist` is locked by a preview server.
     outDir: "build",
     rollupOptions: {
       output: {
-        manualChunks: {
-          router: ["react-router-dom"],
-          query: ["@tanstack/react-query"],
-          charts: ["recharts"],
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+
+          // ~8MB worldwide city catalogue — keep out of the entry chunk.
+          if (id.includes("country-state-city")) return "country-state-city";
+
+          if (id.includes("xlsx")) return "xlsx";
+          if (id.includes("pdfjs-dist") || id.includes("pdf-lib")) return "pdf";
+          if (id.includes("@tiptap")) return "tiptap";
+          if (id.includes("recharts") || id.includes("d3-")) return "charts";
+          if (id.includes("leaflet") || id.includes("react-leaflet")) return "maps";
+          if (id.includes("react-router")) return "router";
+          if (id.includes("@tanstack/react-query")) return "query";
+          if (id.includes("lucide-react")) return "lucide";
+          if (id.includes("framer-motion")) return "motion";
+
+          return undefined;
         },
       },
     },
-    // `country-state-city` ships its worldwide city catalogue as one module.
-    // It is only requested by lazy-loaded notification routes, so it does not
-    // increase the initial dashboard payload. Keep the warning above that
-    // isolated dataset while retaining route-level code splitting.
-    chunkSizeWarningLimit: 9000,
+    // Entry may still be large due to app shell; vendor data is split above.
+    chunkSizeWarningLimit: 12000,
   },
 });

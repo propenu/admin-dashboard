@@ -6,6 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useActivePropertySlice } from "./UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../store/common/propertyThunks";
+import { hasBlockedContentInDescription } from "../../../../utils/stripPhoneFromDescription";
 
 import TopHeader from "./common/BasicCommonComponents/TopHeader";
 import Amenities from "./common/BasicCommonComponents/Amenities";
@@ -83,6 +84,10 @@ export default function CommercialFields({ back, next }) {
     if (!form.price || Number(form.price) <= 0) e.price = "Enter a valid price";
     //if (!form.currency) e.currency = "Select currency";
     if (!form.description) e.description = "Enter a description";
+    else if (hasBlockedContentInDescription(form.description)) {
+      e.description =
+        "Phone numbers, emails, and house addresses are not allowed in the description";
+    }
     if (!form.status) e.status = "Select property status";
     if (!form.galleryFiles || form.galleryFiles.length < 5)
       e.galleryFiles = "Please upload minimum 5 photos";

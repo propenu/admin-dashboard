@@ -1,108 +1,77 @@
-
-
-// // StatePurchaseRestrictions.jsx
-// import { useState, useRef, useEffect } from "react";
-// import { ChevronDown } from "lucide-react";
-// import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
-
-// const RESTRICTION_OPTIONS = [
-//   "No Restrictions",
-//   "Local Residents Only",
-//   "Farmer Only",
-//   "State Approval Required",
-//   "Other Restrictions",
-// ];
-
-// const StatePurchaseRestrictions = ({ error }) => {
-//   const { form, updateFieldValue } = useActivePropertySlice();
-//   const [open, setOpen] = useState(false);
-//   const dropdownRef = useRef(null);
-
-//   useEffect(() => {
-//     const handleClickOutside = (e) => {
-//       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpen(false);
-//     };
-//     document.addEventListener("mousedown", handleClickOutside);
-//     return () => document.removeEventListener("mousedown", handleClickOutside);
-//   }, []);
-
-//   const selected = form.statePurchaseRestrictions || "";
-
-//   return (
-//     <div className="space-y-2">
-//       <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">
-//         State Purchase Restrictions
-//       </p>
-//       <div className="relative" ref={dropdownRef}>
-//         <div
-//           onClick={() => setOpen(!open)}
-//           className={`relative cursor-pointer rounded-xl border-2 bg-white px-4 py-3 text-sm font-semibold transition-all duration-150 ${
-//             error ? "border-red-300" : open ? "border-[#27AE60] ring-2 ring-[#27AE60]/10" : "border-[#e5e7eb] hover:border-[#bbf7d0]"
-//           } ${selected ? "text-[#111827]" : "text-[#9ca3af]"}`}
-//         >
-//           {selected || "Select restriction type"}
-//           <ChevronDown size={15} className={`absolute right-4 top-1/2 -translate-y-1/2 text-[#9ca3af] transition-transform ${open ? "rotate-180" : ""}`} />
-//         </div>
-
-//         {open && (
-//           <div className="absolute top-full left-0 mt-2 w-full rounded-xl border border-[#e5e7eb] bg-white shadow-xl z-50 overflow-hidden">
-//             <div className="max-h-48 overflow-y-auto">
-//               {RESTRICTION_OPTIONS.map((opt) => {
-//                 const isSelected = form.statePurchaseRestrictions === opt;
-//                 return (
-//                   <div
-//                     key={opt}
-//                     onClick={() => { updateFieldValue("statePurchaseRestrictions", opt); setOpen(false); }}
-//                     className={`px-4 py-3 text-sm cursor-pointer flex items-center justify-between border-b border-[#f5f5f5] last:border-none transition-colors hover:bg-[#f0fdf4] ${isSelected ? "bg-[#f0fdf4] text-[#27AE60] font-bold" : "text-[#374151]"}`}
-//                   >
-//                     {opt}
-//                     {isSelected && <div className="w-2 h-2 rounded-full bg-[#27AE60]" />}
-//                   </div>
-//                 );
-//               })}
-//             </div>
-//           </div>
-//         )}
-//       </div>
-//       {error && <p className="text-red-500 text-xs font-medium">{error}</p>}
-//     </div>
-//   );
-// };
-
-// export default StatePurchaseRestrictions; 
-
-
-// StatePurchaseRestrictions.jsx
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown } from "lucide-react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
+
+const RESTRICTION_OPTIONS = ["Applicable", "Not Applicable"];
 
 const StatePurchaseRestrictions = ({ error }) => {
   const { form, updateFieldValue } = useActivePropertySlice();
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const selected = form.statePurchaseRestrictions || "";
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (event) => {
+      if (!dropdownRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">
+      <p className="text-xs font-bold uppercase tracking-wide text-[#374151]">
         State Purchase Restrictions
       </p>
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className={`flex w-full items-center justify-between rounded-xl border-2 bg-white px-4 py-3 text-left text-sm font-semibold transition ${
+            error
+              ? "border-red-300"
+              : open
+                ? "border-[#27AE60] ring-2 ring-[#27AE60]/10"
+                : "border-[#e5e7eb] hover:border-[#bbf7d0]"
+          } ${selected ? "text-[#111827]" : "text-[#9ca3af]"}`}
+        >
+          <span>{selected || "Select Applicable / Not Applicable"}</span>
+          <ChevronDown
+            size={15}
+            className={`shrink-0 text-[#9ca3af] transition-transform ${
+              open ? "rotate-180 text-[#27AE60]" : ""
+            }`}
+          />
+        </button>
 
-      <input
-        type="text"
-        placeholder="Enter purchase restrictions"
-        value={form.statePurchaseRestrictions || ""}
-        onChange={(e) =>
-          updateFieldValue("statePurchaseRestrictions", e.target.value)
-        }
-        className={`w-full px-4 py-3 border-2 rounded-xl outline-none text-sm font-semibold placeholder:text-[#c9c9c9] text-[#111827] transition-all ${
-          error
-            ? "border-red-300"
-            : "border-[#e5e7eb] focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10"
-        }`}
-      />
-
-      {error && (
-        <p className="text-red-500 text-xs font-medium">
-          {error}
-        </p>
-      )}
+        {open ? (
+          <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-full overflow-hidden rounded-xl border border-[#d9ebe0] bg-white p-1.5 shadow-xl">
+            {RESTRICTION_OPTIONS.map((opt) => {
+              const isSelected = selected === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    updateFieldValue("statePurchaseRestrictions", opt);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition ${
+                    isSelected
+                      ? "bg-[#27AE60] text-white"
+                      : "text-[#374151] hover:bg-[#f0fdf4] hover:text-[#27AE60]"
+                  }`}
+                >
+                  <span>{opt}</span>
+                  {isSelected ? <Check size={15} /> : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+      {error ? <p className="text-xs font-medium text-red-500">{error}</p> : null}
     </div>
   );
 };
