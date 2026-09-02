@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { compressImage } from "./imageCompressor";
 import { getUserSearch } from "../../../../features/user/userService";
+import ImageLightbox from "../../../../components/ImageLightbox";
 
 const getUserId = (value) => {
   if (!value) return "";
@@ -370,33 +371,17 @@ function FileUploadBox({ label, preview, onChange, sizeBytes }) {
   const bytes =
     sizeBytes ||
     (preview instanceof File ? preview.size : null);
+  const [open, setOpen] = useState(false);
+  const inputId = `upload-${String(label || "image").replace(/\s+/g, "-").toLowerCase()}`;
 
   return (
     <div className="space-y-1.5">
       <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
         {label}
       </label>
-      <label className="block cursor-pointer">
-        <div className="relative h-20 rounded-xl border-2 border-dashed border-gray-200 hover:border-[#27AE60] overflow-hidden transition group bg-gray-50/50">
-          {previewUrl ? (
-            <>
-              <img
-                src={previewUrl}
-                alt={label}
-                className="w-full h-full object-cover"
-              />
-              {bytes ? (
-                <span className="absolute bottom-1 left-1 z-10 rounded bg-black/75 px-1.5 py-0.5 text-[8px] font-black text-white">
-                  {(bytes / (1024 * 1024)).toFixed(2)} MB
-                </span>
-              ) : null}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                <span className="text-white text-[10px] font-bold">
-                  Replace
-                </span>
-              </div>
-            </>
-          ) : (
+      {!previewUrl ? (
+        <label className="block cursor-pointer" htmlFor={inputId}>
+          <div className="relative h-20 rounded-xl border-2 border-dashed border-gray-200 hover:border-[#27AE60] overflow-hidden transition group bg-gray-50/50">
             <div className="flex flex-col items-center justify-center h-full gap-1">
               <svg
                 className="w-5 h-5 text-gray-300"
@@ -413,15 +398,64 @@ function FileUploadBox({ label, preview, onChange, sizeBytes }) {
               </svg>
               <span className="text-[10px] text-gray-400">Upload</span>
             </div>
-          )}
+          </div>
+          <input
+            id={inputId}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => onChange(e.target.files[0])}
+          />
+        </label>
+      ) : (
+        <div className="relative h-20 rounded-xl border-2 border-gray-200 overflow-hidden group bg-gray-50/50">
+          <button
+            type="button"
+            className="absolute inset-0 w-full h-full cursor-zoom-in"
+            onClick={() => setOpen(true)}
+            title="View full image"
+          >
+            <img
+              src={previewUrl}
+              alt={label}
+              className="w-full h-full object-cover"
+            />
+          </button>
+          {bytes ? (
+            <span className="absolute bottom-1 left-1 z-10 rounded bg-black/75 px-1.5 py-0.5 text-[8px] font-black text-white pointer-events-none">
+              {(bytes / (1024 * 1024)).toFixed(2)} MB
+            </span>
+          ) : null}
+          <div className="absolute top-1 right-1 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="px-1.5 py-0.5 rounded bg-black/60 text-white text-[9px] font-bold"
+            >
+              View
+            </button>
+            <label
+              htmlFor={inputId}
+              className="px-1.5 py-0.5 rounded bg-[#27AE60] text-white text-[9px] font-bold cursor-pointer"
+            >
+              Replace
+              <input
+                id={inputId}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onChange(e.target.files[0])}
+              />
+            </label>
+          </div>
+          <ImageLightbox
+            images={[{ url: previewUrl, title: label }]}
+            openIndex={open ? 0 : null}
+            onClose={() => setOpen(false)}
+            onChangeIndex={() => {}}
+          />
         </div>
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => onChange(e.target.files[0])}
-        />
-      </label>
+      )}
     </div>
   );
 }

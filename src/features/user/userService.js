@@ -3,6 +3,7 @@ import { apiClient } from "../../api/apiClient";
 import { SERVICES } from "../../config/services";
 import { ENV } from "../../config/env";
 import axios from "axios";
+import { getAuthToken } from "../../utils/authToken";
 
 ///////////////////////////////////////////////////////////////////////////////
 ///      User Services                   
@@ -324,7 +325,153 @@ export const sentBulkWhatsAppNotification = (formData) => {
     `${SERVICES.USER}/whatsapp/send-csv-bulk-whatsapp`,
     formData,
   );
-}
+};
+
+///////////////////////////////////////////////////////////////
+{/* WhatsApp Inbox */}
+
+export const getWhatsAppInboxConversations = (params = {}) => {
+  return apiClient.get(`${SERVICES.USER}/whatsapp/inbox/conversations`, {
+    params,
+  });
+};
+
+export const getWhatsAppInboxMessages = (waId, params = {}) => {
+  return apiClient.get(
+    `${SERVICES.USER}/whatsapp/inbox/conversations/${encodeURIComponent(waId)}/messages`,
+    { params },
+  );
+};
+
+export const sendWhatsAppInboxMessage = (waId, text) => {
+  return apiClient.post(
+    `${SERVICES.USER}/whatsapp/inbox/conversations/${encodeURIComponent(waId)}/messages`,
+    { text },
+  );
+};
+
+export const markWhatsAppInboxRead = (waId) => {
+  return apiClient.post(
+    `${SERVICES.USER}/whatsapp/inbox/conversations/${encodeURIComponent(waId)}/read`,
+  );
+};
+
+export const startWhatsAppInboxConversation = (payload) => {
+  return apiClient.post(
+    `${SERVICES.USER}/whatsapp/inbox/conversations`,
+    payload,
+  );
+};
+
+export const syncWhatsAppInboxFromLogs = () => {
+  return apiClient.post(`${SERVICES.USER}/whatsapp/inbox/sync`);
+};
+
+export const updateWhatsAppInboxConversation = (waId, payload) => {
+  return apiClient.patch(
+    `${SERVICES.USER}/whatsapp/inbox/conversations/${encodeURIComponent(waId)}`,
+    payload,
+  );
+};
+
+export const searchWhatsAppInboxAssignableAgents = (params = {}) => {
+  return apiClient.get(`${SERVICES.USER}/whatsapp/inbox/assignable-agents`, {
+    params,
+  });
+};
+
+export const getWhatsAppInboxAssignableRoles = () => {
+  return apiClient.get(`${SERVICES.USER}/whatsapp/inbox/assignable-roles`);
+};
+
+export const getWhatsAppInboxHealth = () => {
+  return apiClient.get(`${SERVICES.USER}/whatsapp/inbox/health`);
+};
+
+export const getWhatsAppInboxStreamUrl = () => {
+  return `${ENV.API_BASE_URL}${SERVICES.USER}/whatsapp/inbox/stream`;
+};
+
+/**
+ * Subscribe to WhatsApp Cloud inbox SSE (Bearer auth — EventSource cannot set headers).
+ * onEvent receives parsed { type, waId, ... } from `event: inbox` frames.
+ */
+export const subscribeWhatsAppInboxStream = ({
+  onEvent,
+  onConnected,
+  onError,
+  signal,
+} = {}) => {
+  const url = getWhatsAppInboxStreamUrl();
+  const token = getAuthToken();
+
+  const run = async () => {
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "text/event-stream",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        signal,
+        credentials: "include",
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`Inbox stream failed (${response.status})`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let sep;
+        while ((sep = buffer.indexOf("\n\n")) >= 0) {
+          const chunk = buffer.slice(0, sep);
+          buffer = buffer.slice(sep + 2);
+
+          let eventName = "message";
+          const dataLines = [];
+          for (const line of chunk.split("\n")) {
+            if (line.startsWith("event:")) {
+              eventName = line.slice(6).trim();
+            } else if (line.startsWith("data:")) {
+              dataLines.push(line.slice(5).trim());
+            }
+          }
+          if (!dataLines.length) continue;
+          let payload = null;
+          try {
+            payload = JSON.parse(dataLines.join("\n"));
+          } catch {
+            payload = { raw: dataLines.join("\n") };
+          }
+
+          if (eventName === "connected") {
+            onConnected?.(payload);
+          } else if (eventName === "inbox") {
+            onEvent?.(payload);
+          }
+        }
+      }
+
+      if (!signal?.aborted) {
+        onError?.(new Error("Inbox stream closed"));
+      }
+    } catch (err) {
+      if (signal?.aborted) return;
+      onError?.(err);
+    }
+  };
+
+  run();
+};
+
 ///////////////////////////////////////////////////////////////////
 
 export const getEmailCampaignStatus = (campaignId) => {

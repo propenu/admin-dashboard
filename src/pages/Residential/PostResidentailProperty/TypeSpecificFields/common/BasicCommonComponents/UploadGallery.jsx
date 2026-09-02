@@ -11,6 +11,7 @@ import {
   getImageRejectError,
   ONE_MB,
 } from "../../../../../../utils/compressProjectImage";
+import ImageLightbox from "../../../../../../components/ImageLightbox";
 
 const MIN_FILES = 5;
 const MAX_FILES = 12;
@@ -24,6 +25,7 @@ const UploadGallery = forwardRef(({ error, onCompressingChange }, ref) => {
   const [compressing, setCompressing] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [currentFileName, setCurrentFileName] = useState("");
+  const [previewIndex, setPreviewIndex] = useState(null);
 
   useEffect(() => {
     onCompressingChange?.(compressing);
@@ -423,7 +425,9 @@ const handleRemovePhoto = async (index) => {
             return (
               <div
                 key={index}
-                className="relative h-24 rounded-xl overflow-hidden border border-gray-200 shadow-sm"
+                className="relative h-24 rounded-xl overflow-hidden border border-gray-200 shadow-sm cursor-pointer"
+                onClick={() => setPreviewIndex(index)}
+                title="Click to view full image"
               >
                 
 
@@ -448,7 +452,10 @@ const handleRemovePhoto = async (index) => {
                 {/* Remove button */}
                 <button
                   type="button"
-                  onClick={() => handleRemovePhoto(index)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemovePhoto(index);
+                  }}
                   className="absolute top-1 right-1 bg-white text-red-500 rounded-full p-0.5 shadow"
                 >
                   <X size={12} />
@@ -456,7 +463,7 @@ const handleRemovePhoto = async (index) => {
 
                 {/* +N overlay */}
                 {isLast && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold text-sm rounded-xl">
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold text-sm rounded-xl pointer-events-none">
                     +{previewUrls.length - 5}
                   </div>
                 )}
@@ -465,6 +472,16 @@ const handleRemovePhoto = async (index) => {
           })}
         </div>
       )}
+
+      <ImageLightbox
+        images={previewUrls.map((url, i) => ({
+          url,
+          title: form.galleryFiles?.[i]?.name || `Photo ${i + 1}`,
+        }))}
+        openIndex={previewIndex}
+        onClose={() => setPreviewIndex(null)}
+        onChangeIndex={setPreviewIndex}
+      />
 
       {/* Error */}
       {error && (

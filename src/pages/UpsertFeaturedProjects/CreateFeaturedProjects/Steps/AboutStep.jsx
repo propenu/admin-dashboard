@@ -6,7 +6,7 @@ import {
   useEffect,
 } from "react";
 import TiptapEditor from "../Components/TiptapEditor";
-import { X, ImageIcon } from "lucide-react";
+import { X, ImageIcon, Expand } from "lucide-react";
 import { toast } from "sonner";
 
 import { saveImage, getFileFromKey, deleteImage } from "../utils/indexedDB";
@@ -16,6 +16,7 @@ import {
   formatBytesMb,
   ONE_MB,
 } from "../../../../utils/compressProjectImage";
+import ImageLightbox from "../../../../components/ImageLightbox";
 
 const LABEL =
   "block text-xs font-black uppercase tracking-widest text-gray-500 mb-2";
@@ -45,6 +46,7 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
   }; 
   const [errors, setErrors] = useState({});
   const [preview, setPreview] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const aboutRef = useRef(null);
 
   const titleText = String(payload?.title || "").trim();
@@ -307,17 +309,33 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
             />
           </label>
         ) : (
-          <div className="relative inline-block">
-            <img
-              src={preview}
-              alt="Preview"
-              className="h-52 rounded-2xl border-2 border-gray-200 object-cover shadow-sm"
-            />
+          <div className="relative inline-block group">
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="block cursor-zoom-in"
+              title="View full image"
+            >
+              <img
+                src={preview}
+                alt="Preview"
+                className="h-52 rounded-2xl border-2 border-gray-200 object-cover shadow-sm"
+              />
+            </button>
             {payload.aboutImage?.file?.size ? (
-              <span className="absolute bottom-3 left-3 z-10 rounded-md bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white shadow">
+              <span className="absolute bottom-3 left-3 z-10 rounded-md bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white shadow pointer-events-none">
                 {formatBytesMb(payload.aboutImage.file.size)}
               </span>
             ) : null}
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="absolute bottom-3 right-3 w-9 h-9 bg-black/60 rounded-xl flex items-center justify-center
+                hover:bg-black/80 transition-all shadow-lg opacity-0 group-hover:opacity-100"
+              title="View full image"
+            >
+              <Expand size={16} className="text-white" />
+            </button>
             <button
               type="button"
               onClick={removeImage}
@@ -326,6 +344,12 @@ const AboutStep = forwardRef(({ payload, update }, ref) => {
             >
               <X size={16} className="text-white" />
             </button>
+            <ImageLightbox
+              images={[{ url: preview, title: "About Image" }]}
+              openIndex={previewOpen ? 0 : null}
+              onClose={() => setPreviewOpen(false)}
+              onChangeIndex={() => {}}
+            />
           </div>
         )}
 

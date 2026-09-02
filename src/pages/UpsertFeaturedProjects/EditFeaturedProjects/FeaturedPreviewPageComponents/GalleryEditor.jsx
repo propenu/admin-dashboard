@@ -1,9 +1,10 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/GalleryEditor.jsx
-import React, { useRef } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { compressImage } from "./imageCompressor";
 
 import { deleteFeaturedProjectGalleryImage } from "../../../../features/property/propertyService";
+import ImageLightbox from "../../../../components/ImageLightbox";
 
 const FALLBACK = "";
 
@@ -16,9 +17,20 @@ export default function GalleryEditor({
 }) {
    
 
-  const gallery = formData.gallerySummary || [];
+  const gallery = formData?.gallerySummary || [];
   const fileMapRef = useRef({});
   const addingRef = useRef(false);
+  const [previewIndex, setPreviewIndex] = useState(null);
+
+  const lightboxImages = useMemo(
+    () =>
+      gallery.map((item) => ({
+        url: item.url || "",
+        title: item.title || "",
+        isVideo: Boolean(item.isVideo),
+      })),
+    [gallery],
+  );
 
   if (!formData) return null;
   
@@ -385,7 +397,11 @@ export default function GalleryEditor({
                   key={itemId}
                   className="relative group rounded-xl border border-gray-100 overflow-hidden bg-gray-50"
                 >
-                  <div className="h-28 w-full relative">
+                  <div
+                    className="h-28 w-full relative cursor-pointer"
+                    onClick={() => setPreviewIndex(index)}
+                    title="Click to view full image"
+                  >
                     {item.isVideo ? (
                       <video
                         src={previewUrl}
@@ -459,8 +475,11 @@ export default function GalleryEditor({
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2 rounded-xl">
-                    <label className="bg-white text-gray-800 text-xs px-3 py-1.5 rounded-lg shadow cursor-pointer font-semibold hover:bg-gray-50 transition">
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2 rounded-xl pointer-events-none">
+                    <label
+                      className="bg-white text-gray-800 text-xs px-3 py-1.5 rounded-lg shadow cursor-pointer font-semibold hover:bg-gray-50 transition pointer-events-auto"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       Replace
                       <input
                         type="file"
@@ -472,10 +491,24 @@ export default function GalleryEditor({
                       />
                     </label>
                     <button
-                      className="bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg shadow font-semibold hover:bg-red-600 transition"
-                      onClick={() => handleDelete(item, index)}
+                      type="button"
+                      className="bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg shadow font-semibold hover:bg-red-600 transition pointer-events-auto"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(item, index);
+                      }}
                     >
                       Delete
+                    </button>
+                    <button
+                      type="button"
+                      className="bg-[#27AE60] text-white text-xs px-3 py-1.5 rounded-lg shadow font-semibold hover:bg-[#219150] transition pointer-events-auto"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreviewIndex(index);
+                      }}
+                    >
+                      View
                     </button>
                   </div>
                 </div>
@@ -526,6 +559,13 @@ export default function GalleryEditor({
           )}
         </button>
       </div>
+
+      <ImageLightbox
+        images={lightboxImages}
+        openIndex={previewIndex}
+        onClose={() => setPreviewIndex(null)}
+        onChangeIndex={setPreviewIndex}
+      />
     </div>
   );
 }

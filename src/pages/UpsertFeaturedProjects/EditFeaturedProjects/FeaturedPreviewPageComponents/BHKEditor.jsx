@@ -1,6 +1,7 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/BHKEditor.jsx
 import React, { useState, useEffect } from "react";
 import { compressImage } from "./imageCompressor";
+import ImageLightbox from "../../../../components/ImageLightbox";
 
 const AREA_UNITS = [
   "sqft",
@@ -113,6 +114,7 @@ export default function BHKEditor({
 }) {
   const projectSummary = formData?.projectSummary || [];
   const [openUnitIndex, setOpenUnitIndex] = useState(null);
+  const [planLightbox, setPlanLightbox] = useState(null); // { url, title }
   
 
   useEffect(() => {
@@ -853,18 +855,49 @@ export default function BHKEditor({
                   </label>
                   {u.planPreview || u.plan?.url ? (
                     <div className="relative group h-36 rounded-xl overflow-hidden border border-gray-100 shadow-sm">
-                      <img
-                        src={u.planPreview || u.plan?.url}
-                        className="w-full h-full object-cover"
-                        alt="Plan"
-                      />
+                      <button
+                        type="button"
+                        className="absolute inset-0 w-full h-full cursor-zoom-in"
+                        onClick={() =>
+                          setPlanLightbox({
+                            url: u.planPreview || u.plan?.url,
+                            title:
+                              formData?.categoryType === "land"
+                                ? "Plot Image"
+                                : "Floor Plan",
+                          })
+                        }
+                        title="View full image"
+                      >
+                        <img
+                          src={u.planPreview || u.plan?.url}
+                          className="w-full h-full object-cover"
+                          alt="Plan"
+                        />
+                      </button>
                       {(u.planFile?.size || u.planSize) ? (
-                        <span className="absolute bottom-2 left-2 z-10 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white">
+                        <span className="absolute bottom-2 left-2 z-10 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white pointer-events-none">
                           {((u.planFile?.size || u.planSize) / (1024 * 1024)).toFixed(2)} MB
                         </span>
                       ) : null}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 pointer-events-none">
                         <button
+                          type="button"
+                          onClick={() =>
+                            setPlanLightbox({
+                              url: u.planPreview || u.plan?.url,
+                              title:
+                                formData?.categoryType === "land"
+                                  ? "Plot Image"
+                                  : "Floor Plan",
+                            })
+                          }
+                          className="bg-white text-gray-800 text-xs px-3 py-2 rounded-lg font-bold pointer-events-auto"
+                        >
+                          View
+                        </button>
+                        <button
+                          type="button"
                           onClick={() =>
                             updateUnit(ui, {
                               planFile: null,
@@ -874,9 +907,9 @@ export default function BHKEditor({
                               planSize: undefined,
                             })
                           }
-                          className="bg-red-500 text-white text-xs px-4 py-2 rounded-lg font-bold"
+                          className="bg-red-500 text-white text-xs px-3 py-2 rounded-lg font-bold pointer-events-auto"
                         >
-                          Replace Image
+                          Remove
                         </button>
                       </div>
                     </div>
@@ -1022,6 +1055,17 @@ export default function BHKEditor({
           </button>
         </div>
       </div>
+
+      <ImageLightbox
+        images={
+          planLightbox?.url
+            ? [{ url: planLightbox.url, title: planLightbox.title || "Plan" }]
+            : []
+        }
+        openIndex={planLightbox?.url ? 0 : null}
+        onClose={() => setPlanLightbox(null)}
+        onChangeIndex={() => {}}
+      />
     </div>
   );
 }

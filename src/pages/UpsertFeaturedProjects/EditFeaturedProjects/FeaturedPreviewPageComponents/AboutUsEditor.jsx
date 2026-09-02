@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { compressImage } from "./imageCompressor";
 import TiptapEditor from "../../CreateFeaturedProjects/Components/TiptapEditor";
+import ImageLightbox from "../../../../components/ImageLightbox";
 
 export default function AboutUsEditor({ formData, setFormData, setLivePreviewData, saving, onSave }) {
   if (!formData) return null;
@@ -21,6 +22,7 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
     imageFile:        null,
     imagePreview:     about.url              || "",
   });
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (about.url && !localState.imageFile) {
@@ -197,38 +199,63 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
             Section Image
           </label>
 
-          <label className="block cursor-pointer">
-            <div className={`relative rounded-xl overflow-hidden border-2 transition ${localState.imagePreview ? "border-[#27AE60]/20 hover:border-[#27AE60]" : "border-dashed border-gray-200 hover:border-[#27AE60]"}`}>
-              {localState.imagePreview ? (
-                <>
+          <div className="space-y-2">
+            {localState.imagePreview ? (
+              <div className="relative rounded-xl overflow-hidden border-2 border-[#27AE60]/20 group">
+                <button
+                  type="button"
+                  className="block w-full cursor-zoom-in"
+                  onClick={() => setPreviewOpen(true)}
+                  title="View full image"
+                >
                   <img
                     src={localState.imagePreview}
                     alt="Preview"
                     className="w-full h-40 object-cover"
                   />
-                  {(localState.imageSize || localState.imageFile?.size) ? (
-                    <span className="absolute bottom-2 left-2 z-10 rounded-md bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white">
-                      {((localState.imageSize || localState.imageFile?.size) / (1024 * 1024)).toFixed(2)} MB
-                    </span>
-                  ) : null}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex items-center justify-center">
-                    <span className="text-white text-xs font-bold bg-black/50 px-3 py-1.5 rounded-lg">Click to Replace</span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-32 gap-2">
-                  <div className="w-10 h-10 bg-[#27AE60]/10 rounded-xl flex items-center justify-center">
-                    <svg className="w-5 h-5 text-[#27AE60]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <span className="text-xs font-semibold text-[#27AE60]">Upload Section Image</span>
-                  <span className="text-[10px] text-gray-400">PNG, JPG — Recommended 800×600</span>
+                </button>
+                {(localState.imageSize || localState.imageFile?.size) ? (
+                  <span className="absolute bottom-2 left-2 z-10 rounded-md bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white pointer-events-none">
+                    {((localState.imageSize || localState.imageFile?.size) / (1024 * 1024)).toFixed(2)} MB
+                  </span>
+                ) : null}
+                <div className="absolute top-2 right-2 z-10 flex gap-1.5 opacity-0 group-hover:opacity-100 transition">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOpen(true)}
+                    className="px-2 py-1 rounded-lg bg-black/60 text-white text-[10px] font-bold"
+                  >
+                    View
+                  </button>
+                  <label className="px-2 py-1 rounded-lg bg-[#27AE60] text-white text-[10px] font-bold cursor-pointer">
+                    Replace
+                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                  </label>
                 </div>
-              )}
-            </div>
-            <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-          </label>
+                <ImageLightbox
+                  images={[{ url: localState.imagePreview, title: "About Image" }]}
+                  openIndex={previewOpen ? 0 : null}
+                  onClose={() => setPreviewOpen(false)}
+                  onChangeIndex={() => {}}
+                />
+              </div>
+            ) : (
+              <label className="block cursor-pointer">
+                <div className="relative rounded-xl overflow-hidden border-2 border-dashed border-gray-200 hover:border-[#27AE60] transition">
+                  <div className="flex flex-col items-center justify-center h-32 gap-2">
+                    <div className="w-10 h-10 bg-[#27AE60]/10 rounded-xl flex items-center justify-center">
+                      <svg className="w-5 h-5 text-[#27AE60]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <span className="text-xs font-semibold text-[#27AE60]">Upload Section Image</span>
+                    <span className="text-[10px] text-gray-400">PNG, JPG — Recommended 800×600</span>
+                  </div>
+                </div>
+                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+              </label>
+            )}
+          </div>
         </div>
 
         {/* Save */}

@@ -36,6 +36,7 @@ import { TemplateCard } from "./cards/TemplateCard";
 import { useWhatsAppNotificationsTemplate } from "./hooks/useWhatsAppTemplates";
 import { EMPTY_FORM } from "./common/EmptyForm";
 import { formatDate } from "./utils/helper";
+import WhatsAppInbox from "./WhatsAppInbox";
 
 // ════════════════════════════════════════════════════════
 // StatCard
@@ -141,6 +142,7 @@ const LogsTab = ({ logs, loading }) => {
 // MAIN PAGE - FULL UPDATED CODE
 // ════════════════════════════════════════════════════════
 const WhatsUpNotifications = () => {
+  const [mainTab, setMainTab] = useState("inbox"); // inbox | campaigns
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -377,6 +379,38 @@ const WhatsUpNotifications = () => {
         setShowCreate={setShowCreate}
       />
 
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4">
+        <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setMainTab("inbox")}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
+              mainTab === "inbox"
+                ? "bg-[#075E54] text-white"
+                : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Inbox
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainTab("campaigns")}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
+              mainTab === "campaigns"
+                ? "bg-[#075E54] text-white"
+                : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Campaigns & Templates
+          </button>
+        </div>
+      </div>
+
+      {mainTab === "inbox" ? (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+          <WhatsAppInbox />
+        </div>
+      ) : (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {/* Message Stats */}
         {stats && (
@@ -623,6 +657,7 @@ const WhatsUpNotifications = () => {
           <LogsTab logs={logs} loading={loadingLogs} />
         </div>
       </div>
+      )}
     </div>
   );
 };

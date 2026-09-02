@@ -1,5 +1,5 @@
 // src/pages/post-property/featured-create/steps/GalleryStep.jsx
-import { forwardRef, useImperativeHandle, useRef, useState ,useEffect} from "react";
+import { forwardRef, useImperativeHandle, useRef, useState ,useEffect, useMemo} from "react";
 import { Upload, X, Images } from "lucide-react";
 import { getDB, deleteImage, saveImage } from "../utils/indexedDB";
 import { toast } from "sonner";
@@ -9,11 +9,13 @@ import {
   formatBytesMb,
   ONE_MB,
 } from "../../../../utils/compressProjectImage";
+import ImageLightbox from "../../../../components/ImageLightbox";
 
 const GalleryStep = forwardRef(({ payload, update }, ref) => {
   const galleryFiles   = payload.galleryFiles   || [];
   const gallerySummary = payload.gallerySummary || [];
   const [errors, setErrors] = useState({});
+  const [previewIndex, setPreviewIndex] = useState(null);
   const galleryRef = useRef(null);
 
   
@@ -226,6 +228,17 @@ ${(originalSize / ONE_MB).toFixed(2)} MB → ${(compressedSize / ONE_MB).toFixed
   const needed = Math.max(0, 5 - count);
   const pct    = Math.min(100, (count / 5) * 100);
 
+  const lightboxImages = useMemo(
+    () =>
+      galleryFiles.map((file, i) => ({
+        url:
+          payload.galleryPreviews?.[i] ||
+          (file?.file instanceof Blob ? URL.createObjectURL(file.file) : ""),
+        title: gallerySummary[i]?.title || `Image ${i + 1}`,
+      })),
+    [galleryFiles, gallerySummary, payload.galleryPreviews],
+  );
+
   return (
     <div className="space-y-6" ref={galleryRef}>
       {/* Upload zone */}
@@ -299,18 +312,21 @@ ${(originalSize / ONE_MB).toFixed(2)} MB → ${(compressedSize / ONE_MB).toFixed
       {/* Image grid */}
       {count > 0 ? (
         <div className="grid grid-cols-2 md:grid-cols-6 lg:grid-cols-8 gap-4">
-          {galleryFiles.map((file, i) => (
+          {galleryFiles.map((file, i) => {
+            const previewSrc =
+              payload.galleryPreviews?.[i] ||
+              (file?.file instanceof Blob
+                ? URL.createObjectURL(file.file)
+                : "");
+            return (
             <div
               key={i}
-              className="group w-[100px] relative rounded-2xl overflow-hidden border-2 border-gray-200 shadow-sm aspect-square bg-gray-100"
+              className="group w-[100px] relative rounded-2xl overflow-hidden border-2 border-gray-200 shadow-sm aspect-square bg-gray-100 cursor-pointer"
+              onClick={() => setPreviewIndex(i)}
+              title="Click to view full image"
             >
               <img
-                src={
-                  payload.galleryPreviews?.[i] ||
-                  (file?.file instanceof Blob
-                    ? URL.createObjectURL(file.file)
-                    : "")
-                }
+                src={previewSrc}
                 alt="preview"
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               />
@@ -320,11 +336,14 @@ ${(originalSize / ONE_MB).toFixed(2)} MB → ${(compressedSize / ONE_MB).toFixed
                 </span>
               ) : null}
               {/* Overlay */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex flex-col justify-between p-3">
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex flex-col justify-between p-3 pointer-events-none">
                 <button
                   type="button"
-                  onClick={() => removeImage(i)}
-                  className="self-end w-8 h-8 bg-red-500 rounded-xl flex items-center justify-center shadow-lg"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeImage(i);
+                  }}
+                  className="self-end w-8 h-8 bg-red-500 rounded-xl flex items-center justify-center shadow-lg pointer-events-auto"
                 >
                   <X size={14} className="text-white" strokeWidth={3} />
                 </button>
@@ -352,7 +371,8 @@ ${(originalSize / ONE_MB).toFixed(2)} MB → ${(compressedSize / ONE_MB).toFixed
                 {i + 1}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="flex flex-col items-center py-8 text-gray-400">
@@ -360,6 +380,13 @@ ${(originalSize / ONE_MB).toFixed(2)} MB → ${(compressedSize / ONE_MB).toFixed
           <p className="text-sm font-bold">No images uploaded yet</p>
         </div>
       )}
+
+      <ImageLightbox
+        images={lightboxImages}
+        openIndex={previewIndex}
+        onClose={() => setPreviewIndex(null)}
+        onChangeIndex={setPreviewIndex}
+      />
     </div>
   );
 });

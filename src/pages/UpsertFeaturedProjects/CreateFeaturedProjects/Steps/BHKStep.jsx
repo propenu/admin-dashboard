@@ -15,6 +15,7 @@ import {
   formatBytesMb,
   ONE_MB,
 } from "../../../../utils/compressProjectImage";
+import ImageLightbox from "../../../../components/ImageLightbox";
 
 const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
@@ -154,6 +155,7 @@ const RESIDENTIAL_OPTIONS = [
 const BHKStep = forwardRef(({ payload, update }, ref) => {
   const projectSummary = payload.projectSummary || [];
   const [errors, setErrors] = useState({});
+  const [planLightbox, setPlanLightbox] = useState(null);
   const projectSummaryRef = useRef(null);
   const sqftRangeRef = useRef(null);
 
@@ -964,14 +966,26 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
                     />
                   </label>
                   {u.planPreview && !u.planError && (
-                    <div className="relative mt-2 inline-block">
-                      <img
-                        src={u.planPreview}
-                        className="h-32 object-contain rounded-xl border-2 border-gray-200"
-                        alt="Plan"
-                      />
+                    <div className="relative mt-2 inline-block group">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPlanLightbox({
+                            url: u.planPreview,
+                            title: "Floor Plan",
+                          })
+                        }
+                        className="cursor-zoom-in"
+                        title="View full image"
+                      >
+                        <img
+                          src={u.planPreview}
+                          className="h-32 object-contain rounded-xl border-2 border-gray-200"
+                          alt="Plan"
+                        />
+                      </button>
                       {u.planFile?.file?.size ? (
-                        <span className="absolute bottom-1 left-1 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white">
+                        <span className="absolute bottom-1 left-1 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white pointer-events-none">
                           {formatBytesMb(u.planFile.file.size)}
                         </span>
                       ) : null}
@@ -1011,6 +1025,17 @@ const BHKStep = forwardRef(({ payload, update }, ref) => {
           </div>
         </div>
       ))}
+
+      <ImageLightbox
+        images={
+          planLightbox?.url
+            ? [{ url: planLightbox.url, title: planLightbox.title || "Plan" }]
+            : []
+        }
+        openIndex={planLightbox?.url ? 0 : null}
+        onClose={() => setPlanLightbox(null)}
+        onChangeIndex={() => {}}
+      />
     </div>
   );
 });

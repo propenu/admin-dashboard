@@ -1,6 +1,6 @@
 // src/pages/post-property/featured-create/steps/HeroStep.jsx
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
-import { Upload, ImageIcon } from "lucide-react";
+import { Upload, ImageIcon, Expand } from "lucide-react";
 import { saveImage, getFileFromKey } from "../utils/indexedDB";
 import { toast } from "sonner";
 import {
@@ -9,6 +9,7 @@ import {
   formatBytesMb,
   ONE_MB,
 } from "../../../../utils/compressProjectImage";
+import ImageLightbox from "../../../../components/ImageLightbox";
 
 const fileToBase64 = (file) => {
   return new Promise((resolve, reject) => {
@@ -28,30 +29,17 @@ const LABEL = "block text-xs font-black uppercase tracking-widest text-gray-500 
 const ERR   = "text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1";
 
 function UploadBox({ label, id, preview, onFile, error, contain, sizeBytes }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div>
       <label className={LABEL}>{label}</label>
-      <label htmlFor={id}
-        className={`flex flex-col items-center justify-center h-44 rounded-2xl border-2 border-dashed
-          cursor-pointer overflow-hidden relative group transition-all duration-200
-          ${error ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50 hover:border-[#27AE60] hover:bg-[#f0fdf6]"}`}
-      >
-        {preview ? (
-          <>
-            <img src={preview} alt="preview"
-              className={`absolute inset-0 w-full h-full ${contain ? "object-contain p-3" : "object-cover"}`} />
-            {sizeBytes ? (
-              <span className="absolute bottom-2 left-2 z-10 rounded-md bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white shadow">
-                {formatBytesMb(sizeBytes)}
-              </span>
-            ) : null}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all
-              flex flex-col items-center justify-center">
-              <Upload size={22} className="text-white mb-1" />
-              <span className="text-white text-xs font-bold">Change Image</span>
-            </div>
-          </>
-        ) : (
+      {!preview ? (
+        <label htmlFor={id}
+          className={`flex flex-col items-center justify-center h-44 rounded-2xl border-2 border-dashed
+            cursor-pointer overflow-hidden relative group transition-all duration-200
+            ${error ? "border-red-400 bg-red-50" : "border-gray-200 bg-gray-50 hover:border-[#27AE60] hover:bg-[#f0fdf6]"}`}
+        >
           <div className="flex flex-col items-center gap-2 text-gray-400 group-hover:text-[#27AE60] transition-colors p-6 text-center">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all
               ${error ? "bg-red-100" : "bg-gray-100 group-hover:bg-[#27AE60]/10"}`}>
@@ -62,9 +50,56 @@ function UploadBox({ label, id, preview, onFile, error, contain, sizeBytes }) {
               <p className="text-xs text-gray-400 mt-0.5">PNG, JPG, WEBP · under 1MB kept · over → ~0.9MB</p>
             </div>
           </div>
-        )}
-        <input id={id} type="file" accept="image/*" className="hidden" onChange={onFile} />
-      </label>
+          <input id={id} type="file" accept="image/*" className="hidden" onChange={onFile} />
+        </label>
+      ) : (
+        <div
+          className={`relative h-44 rounded-2xl border-2 overflow-hidden group
+            ${error ? "border-red-400" : "border-gray-200"}`}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 w-full h-full cursor-zoom-in"
+            onClick={() => setOpen(true)}
+            title="View full image"
+          >
+            <img
+              src={preview}
+              alt="preview"
+              className={`absolute inset-0 w-full h-full ${contain ? "object-contain p-3 bg-white" : "object-cover"}`}
+            />
+          </button>
+          {sizeBytes ? (
+            <span className="absolute bottom-2 left-2 z-10 rounded-md bg-black/75 px-1.5 py-0.5 text-[9px] font-black text-white shadow pointer-events-none">
+              {formatBytesMb(sizeBytes)}
+            </span>
+          ) : null}
+          <div className="absolute top-2 right-2 z-10 flex gap-1.5 opacity-0 group-hover:opacity-100 transition">
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="w-8 h-8 rounded-lg bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+              title="View full image"
+            >
+              <Expand size={14} />
+            </button>
+            <label
+              htmlFor={id}
+              className="w-8 h-8 rounded-lg bg-[#27AE60] text-white flex items-center justify-center cursor-pointer hover:bg-[#219150]"
+              title="Change image"
+            >
+              <Upload size={14} />
+              <input id={id} type="file" accept="image/*" className="hidden" onChange={onFile} />
+            </label>
+          </div>
+          <ImageLightbox
+            images={[{ url: preview, title: label }]}
+            openIndex={open ? 0 : null}
+            onClose={() => setOpen(false)}
+            onChangeIndex={() => {}}
+          />
+        </div>
+      )}
       {error && <p className={ERR}>⚠ {error}</p>}
     </div>
   );
