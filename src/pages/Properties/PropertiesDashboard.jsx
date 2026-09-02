@@ -65,7 +65,7 @@ import {
   getPropertyCreatorTag,
   isAgentCreatedProperty,
 } from "../../utils/propertyCreatorRole";
-import { canReviewPropertyListing } from "../../utils/propertyAccessControl";
+import { canReviewPropertyListing, canEditPendingProperty } from "../../utils/propertyAccessControl";
 import { todayIso } from "../Dashboards/shared/dashboardDateRange";
 
 const CATEGORIES = [
@@ -407,6 +407,7 @@ function PropertyCard({
   property,
   category,
   canReview,
+  canEditPending,
   onOpen,
   onEdit,
   onReview,
@@ -596,33 +597,48 @@ function PropertyCard({
           >
             View <ChevronRight className="h-3 w-3" />
           </button>
-          {canReview ? (
-            <span className="relative inline-flex min-w-0">
-              {/* Soft ping + glow so pending Approve/Review stands out */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 rounded-lg bg-emerald-400/70 animate-ping"
-              />
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -inset-0.5 rounded-lg bg-emerald-500/25 animate-pulse"
-              />
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onReview();
-                }}
-                title="Action needed — approve or review this listing"
-                className="relative z-10 inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-semibold text-white shadow-md shadow-emerald-600/40 ring-2 ring-emerald-300/80 transition hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/50 sm:py-1"
-              >
-                {Number(property?.completion?.percent) === 70 ||
-                isAgentCreatedProperty(property)
-                  ? "Approve"
-                  : "Review"}{" "}
-                <ChevronRight className="h-3 w-3 shrink-0" />
-              </button>
-            </span>
+          {status === "pending" ? (
+            <>
+              {canEditPending || canReview ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onEdit();
+                  }}
+                  className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-emerald-200 bg-white px-2.5 py-2 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-50 sm:py-1"
+                >
+                  Edit
+                </button>
+              ) : null}
+              {canReview ? (
+                <span className="relative inline-flex min-w-0">
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 rounded-lg bg-emerald-400/70 animate-ping"
+                  />
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -inset-0.5 rounded-lg bg-emerald-500/25 animate-pulse"
+                  />
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onReview();
+                    }}
+                    title="Action needed — approve or review this listing"
+                    className="relative z-10 inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-semibold text-white shadow-md shadow-emerald-600/40 ring-2 ring-emerald-300/80 transition hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/50 sm:py-1"
+                  >
+                    {Number(property?.completion?.percent) === 70 ||
+                    isAgentCreatedProperty(property)
+                      ? "Approve"
+                      : "Review"}{" "}
+                    <ChevronRight className="h-3 w-3 shrink-0" />
+                  </button>
+                </span>
+              ) : null}
+            </>
           ) : (
             <button
               type="button"
@@ -1940,6 +1956,7 @@ export default function PropertiesDashboard() {
                   property={property}
                   category={property._category}
                   canReview={canReviewProperty(property)}
+                  canEditPending={canEditPendingProperty(currentUser, property)}
                   index={index}
                   onOpen={() => openPropertyDetails(property)}
                   onEdit={() => editProperty(property)}

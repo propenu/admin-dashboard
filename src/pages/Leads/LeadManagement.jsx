@@ -38,7 +38,7 @@ const tone = {
   agricultural: "bg-lime-50 text-lime-700 ring-1 ring-lime-100",
 };
 
-/** Project promotion badge â€” "featured" type displays as Top Selling (never "Featured"). */
+/** Project promotion badge - "featured" type displays as Top Selling (never "Featured"). */
 const promotionLabel = (type) => {
   const key = String(type || "normal")
     .trim()
@@ -79,7 +79,7 @@ const categoryDisplay = (project = {}) => {
     className: tone[project.category] || "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
   };
 };
-/** Each status has its own color â€” New Lead stands out. */
+/** Each status has its own color - New Lead stands out. */
 const statusTone = {
   new_lead: "bg-sky-500 text-white ring-1 ring-sky-400",
   interested: "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200",
@@ -375,8 +375,8 @@ export default function LeadManagement() {
   };
 
   const cards = [
-    ["total", "Total leads", hasLoaded ? data.summary.total : null, `${projectLeadCount} project Â· ${propertyLeadCount} property`, Users, "bg-emerald-500", filters.category === "all" && !filters.status],
-    ["featured", "Project leads", hasLoaded ? projectLeadCount : null, "Top Selling Â· Prime Â· Normal Â· Sponsored", MapPin, "bg-violet-500", filters.category === "featured"],
+    ["total", "Total leads", hasLoaded ? data.summary.total : null, `${projectLeadCount} project - ${propertyLeadCount} property`, Users, "bg-emerald-500", filters.category === "all" && !filters.status],
+    ["featured", "Project leads", hasLoaded ? projectLeadCount : null, "Top Selling - Prime - Normal - Sponsored", MapPin, "bg-violet-500", filters.category === "featured"],
     ["property", "Property leads", hasLoaded ? propertyLeadCount : null, "Residential, commercial, land & agricultural", Filter, "bg-blue-500", ["residential", "commercial", "land", "agricultural"].includes(filters.category)],
     ["new", "New leads", hasLoaded ? data.summary.byStatus.new_lead || 0 : null, `${data.summary.byStatus.sale || 0} converted to Sale`, Users, "bg-amber-500", filters.status === "new_lead"],
   ];
@@ -384,7 +384,7 @@ export default function LeadManagement() {
   const renderLeadMobileCard = (lead) => {
     const statusKey = String(lead.status || "new_lead");
     const locationText =
-      [lead.project.locality, lead.project.city, lead.project.state].filter(Boolean).join(", ") || "â€”";
+      [lead.project.locality, lead.project.city, lead.project.state].filter(Boolean).join(", ") || "-";
     const display = categoryDisplay(lead.project);
     return (
       <button
@@ -403,7 +403,7 @@ export default function LeadManagement() {
                 </span>
               ) : null}
             </div>
-            <p className="mt-1 text-[13px] font-medium text-slate-600">{lead.phone || "â€”"}</p>
+            <p className="mt-1 text-[13px] font-medium text-slate-600">{lead.phone || "-"}</p>
             {lead.email ? <p className="mt-0.5 truncate text-[11px] text-slate-400">{lead.email}</p> : null}
           </div>
           <span
@@ -415,7 +415,7 @@ export default function LeadManagement() {
         <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2">
           <p className="truncate text-[13px] font-semibold text-emerald-700">{lead.project.title}</p>
           <p className="mt-0.5 truncate text-[11px] text-slate-500">
-            {lead.project.code || "No code"} Â· {locationText}
+            {lead.project.code || "No code"} - {locationText}
           </p>
         </div>
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -442,7 +442,7 @@ export default function LeadManagement() {
           <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-600">Sales intelligence</p>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Lead management</h1>
           <p className="mt-1 text-xs leading-relaxed text-slate-500">
-            Unique enquiries only Â· tap a card for details
+            Unique enquiries only - tap a card for details
           </p>
         </header>
 
@@ -507,7 +507,7 @@ export default function LeadManagement() {
           </div>
           {datePreset === "custom" ? (
             <span className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-700">
-              Custom {filters.from || "â€¦"} â†’ {filters.to || "â€¦"}
+              Custom {filters.from || "..."} -> {filters.to || "..."}
             </span>
           ) : null}
           {filtersOpen ? (
@@ -573,7 +573,7 @@ export default function LeadManagement() {
               <h2 className="text-base font-bold text-slate-900">Lead directory</h2>
               <p className="text-[11px] text-slate-400">
                 {data.pagination.total} unique
-                {data.summary.duplicatesHidden ? ` Â· ${data.summary.duplicatesHidden} hidden` : ""}
+                {data.summary.duplicatesHidden ? ` - ${data.summary.duplicatesHidden} hidden` : ""}
               </p>
             </div>
             {loading ? <Loader2 className="h-4 w-4 animate-spin text-emerald-500" /> : null}
@@ -584,7 +584,7 @@ export default function LeadManagement() {
             <input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search name, phone, emailâ€¦"
+              placeholder="Search name, phone, email..."
               className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-9 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
             />
             {searchInput ? (
@@ -639,7 +639,7 @@ export default function LeadManagement() {
 
           <div className="flex items-center justify-between gap-2 pt-1">
             <p className="text-[11px] font-medium text-slate-400">
-              Page {data.pagination.page} of {Math.max(1, data.pagination.pages)} Â· {data.pagination.total} leads
+              Page {data.pagination.page} of {Math.max(1, data.pagination.pages)} - {data.pagination.total} leads
             </p>
             <div className="flex gap-2">
               <button
@@ -670,7 +670,7 @@ export default function LeadManagement() {
             <p className="mb-1 text-[10px] font-bold uppercase tracking-[.22em] text-emerald-600">Sales intelligence</p>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Lead management</h1>
             <p className="mt-1 text-xs text-slate-500">
-              Unique enquiries only (duplicates collapsed) Â· click a row for project details and lead origin.
+              Unique enquiries only (duplicates collapsed) - click a row for project details and lead origin.
             </p>
           </div>
         </header>
@@ -714,7 +714,7 @@ export default function LeadManagement() {
             />
             {datePreset === "custom" && (
               <span className="rounded-full bg-sky-50 px-3 py-1.5 text-[11px] font-bold text-sky-700">
-                Custom {filters.from || "â€¦"} â†’ {filters.to || "â€¦"}
+                Custom {filters.from || "..."} -> {filters.to || "..."}
               </span>
             )}
             <div className="ml-auto flex items-center gap-2">
@@ -790,7 +790,7 @@ export default function LeadManagement() {
                                 <span className="min-w-0">
                                   <span className="block truncate text-xs font-semibold text-slate-700">{project.title}</span>
                                   <span className="block truncate text-[9px] text-slate-400">
-                                    {label(project.category)} Â· {[project.locality, project.city].filter(Boolean).join(", ") || project.code || "Location unavailable"}
+                                    {label(project.category)} - {[project.locality, project.city].filter(Boolean).join(", ") || project.code || "Location unavailable"}
                                   </span>
                                 </span>
                               </button>
@@ -906,10 +906,10 @@ export default function LeadManagement() {
                 <p className="text-[10px] text-slate-400">
                   {data.pagination.total} unique leads
                   {data.summary.duplicatesHidden
-                    ? ` Â· ${data.summary.duplicatesHidden} duplicate submissions hidden`
+                    ? ` - ${data.summary.duplicatesHidden} duplicate submissions hidden`
                     : ""}
                   {selectedProjectIds.length > 0
-                    ? ` Â· from ${selectedProjectIds.length} selected items`
+                    ? ` - from ${selectedProjectIds.length} selected items`
                     : ""}
                 </p>
               </div>
@@ -987,7 +987,7 @@ export default function LeadManagement() {
                     const locationText =
                       [lead.project.locality, lead.project.city, lead.project.state]
                         .filter(Boolean)
-                        .join(", ") || "â€”";
+                        .join(", ") || "-";
                     return (
                       <tr
                         key={lead._id}
@@ -1011,7 +1011,7 @@ export default function LeadManagement() {
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
                           <p className="truncate text-xs text-slate-700" title={lead.phone}>{lead.phone}</p>
-                          <p className="truncate text-[10px] text-slate-400" title={lead.email || ""}>{lead.email || "â€”"}</p>
+                          <p className="truncate text-[10px] text-slate-400" title={lead.email || ""}>{lead.email || "-"}</p>
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
                           <p className="truncate text-xs font-semibold text-emerald-700" title={lead.project.title}>{lead.project.title}</p>
@@ -1061,7 +1061,7 @@ export default function LeadManagement() {
 
           <footer className="flex shrink-0 items-center justify-between border-t border-slate-100 px-4 py-3">
             <p className="text-[10px] text-slate-400">
-              Showing {data.pagination.total ? (data.pagination.page - 1) * filters.limit + 1 : 0}â€“{Math.min(data.pagination.page * filters.limit, data.pagination.total)} of {data.pagination.total} unique leads Â· Page {data.pagination.page} of {Math.max(1, data.pagination.pages)}
+              Showing {data.pagination.total ? (data.pagination.page - 1) * filters.limit + 1 : 0}-{Math.min(data.pagination.page * filters.limit, data.pagination.total)} of {data.pagination.total} unique leads - Page {data.pagination.page} of {Math.max(1, data.pagination.pages)}
             </p>
             <div className="flex gap-2">
               <button type="button" disabled={filters.page <= 1} onClick={() => update("page", filters.page - 1)} className="rounded-lg border border-slate-200 p-2 text-slate-500 disabled:opacity-30">

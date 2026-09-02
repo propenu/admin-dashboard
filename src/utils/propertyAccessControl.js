@@ -107,3 +107,35 @@ export const canReviewPropertyListing = (user, property) => {
   if (!canApproveProperty(user, property)) return false;
   return String(property?.status || "").toLowerCase() === "pending";
 };
+
+/** Head / approver roles that may edit a listing while it is still pending. */
+const PROPERTY_PENDING_EDIT_HEAD_ROLES = new Set([
+  "super_admin",
+  "admin",
+  "ceo",
+  "founder",
+  "operations_head",
+  "operation_head",
+  "business_development_head",
+  "business_development_manager",
+  "regional_manager",
+  "sales_manager",
+  "customer_support_head",
+]);
+
+export const isPropertyHeadRole = (user) => {
+  const role = normalizeProjectRole(user?.roleName || user?.role);
+  if (PROPERTY_PENDING_EDIT_HEAD_ROLES.has(role)) return true;
+  return canViewPendingProjectApprovals(user);
+};
+
+/**
+ * Pending listings: Edit for heads (and anyone who can approve that listing).
+ * Non-pending: callers keep their existing Edit behavior.
+ */
+export const canEditPendingProperty = (user, property) => {
+  if (!property || !user) return false;
+  if (!isPropertyAwaitingApproval(property)) return false;
+  if (isPropertyHeadRole(user)) return true;
+  return canApproveProperty(user, property);
+};

@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Eye,
   FileImage,
+  Pencil,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
@@ -24,7 +25,7 @@ import {
   updateCommercialDocumentStatus,
 } from "../../services/CommercialServices/CommercialServices";
 import { getUserDetails } from "../../features/user/userService";
-import { canApproveProperty } from "../../utils/propertyAccessControl";
+import { canApproveProperty, canEditPendingProperty } from "../../utils/propertyAccessControl";
 
 const PropertyVerification = () => {
   const { id } = useParams();
@@ -58,6 +59,15 @@ const PropertyVerification = () => {
 
   const property = response?.data;
   const canApproveDocs = canApproveProperty(currentUser, property);
+  const canShowEdit =
+    canEditPendingProperty(currentUser, property) || canApproveDocs;
+
+  const goToEditProperty = () => {
+    if (!id || !canShowEdit) return;
+    localStorage.setItem("editPropertyId", String(id));
+    localStorage.setItem("editPropertyCategory", "commercial");
+    navigate(`/edit-property/${id}`);
+  };
 
   // --- HELPER FUNCTIONS ---
 
@@ -192,6 +202,16 @@ const PropertyVerification = () => {
           </button>
 
           <h1 className="text-xl font-bold text-white mb-1">Verification</h1>
+          {canShowEdit ? (
+            <button
+              type="button"
+              onClick={goToEditProperty}
+              className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5 text-xs font-bold uppercase tracking-wide text-emerald-400 transition hover:bg-emerald-500/20"
+            >
+              <Pencil size={14} />
+              Edit property
+            </button>
+          ) : null}
           <div className="mt-4">
             <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">
               <span>Overall Progress</span>
@@ -278,6 +298,17 @@ const PropertyVerification = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            {canShowEdit ? (
+              <button
+                type="button"
+                onClick={goToEditProperty}
+                title="Edit property"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-3 text-[10px] font-bold uppercase tracking-wide text-emerald-400 transition hover:bg-emerald-500/20"
+              >
+                <Pencil size={14} />
+                Edit
+              </button>
+            ) : null}
             <button
               onClick={() =>
                 handleDownload(
