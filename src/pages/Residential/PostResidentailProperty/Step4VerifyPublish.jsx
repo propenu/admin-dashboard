@@ -9,6 +9,7 @@ import { actions } from "../../../store/newIndex";
 import { savePropertyData } from "../../../store/common/propertyThunks";
 import { useState, useEffect } from "react";
 import imageCompression from "browser-image-compression";
+import { toastApiError } from "../../../utils/postPropertyToast";
 
 
 
@@ -175,7 +176,7 @@ export default function Step4VerifyPublish({ back }) {
       setTimeout(() => { navigate(`/properties`); }, 1500);
     } catch (err) {
       console.error("Publish Error:", err);
-      toast.error(err?.message || "Submission failed.", { id: "publish" });
+      toastApiError(err, "Submission failed.", { id: "publish" });
     }
   };
 
@@ -218,7 +219,7 @@ export default function Step4VerifyPublish({ back }) {
 
       {/* Document Type Selection */}
       <CardWrapper>
-        <SectionLabel>Select Document Type datta</SectionLabel>
+        <SectionLabel>Select Document Type</SectionLabel>
         <div className="space-y-3">
           {docOptions.map((doc) => (
             <label

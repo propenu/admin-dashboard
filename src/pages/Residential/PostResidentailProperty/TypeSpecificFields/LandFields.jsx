@@ -7,6 +7,10 @@ import { toast } from "sonner";
 import { useActivePropertySlice } from "./UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../store/common/propertyThunks";
 import { hasBlockedContentInDescription } from "../../../../utils/stripPhoneFromDescription";
+import {
+  toastApiError,
+  toastValidationErrors,
+} from "../../../../utils/postPropertyToast";
 
 
 import TopHeader from "./common/BasicCommonComponents/TopHeader";
@@ -122,8 +126,7 @@ export default function LandFields({ back, next }) {
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      const firstMsg = Object.values(validationErrors)[0];
-      if (firstMsg) toast.error(firstMsg);
+      toastValidationErrors(validationErrors);
       if (validationErrors.galleryFiles)
         galleryRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -153,7 +156,7 @@ export default function LandFields({ back, next }) {
           toast.success("Land details saved successfully!");
           next();
         })
-        .catch((err) => toast.error(err?.message || err?.error))
+        .catch((err) => toastApiError(err, "Failed to save land details"))
         .finally(() => setIsSubmitting(false));
     }
   };

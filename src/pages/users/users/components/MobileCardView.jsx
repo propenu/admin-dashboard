@@ -1,16 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { Calendar, MapPin, Phone, Users as UsersIcon } from "lucide-react";
 import {
-  AccountBadge,
-  KycBadge,
   PhoneBadge,
   RoleBadge,
 } from "./ReusableComaponents";
 import { RowActionsMenu } from "./RowActionsMenu";
 import { formatJoinedIst } from "../utils/dateTime";
-
-const getKycReason = (u) =>
-  String(u?.kyc?.remarks || u?.kycReason || u?.kyc?.reason || "").trim();
 
 export const MobileCardView = ({
   filtered,
@@ -60,9 +55,6 @@ export const MobileCardView = ({
         </div>
       ) : (
         filtered.map((u) => {
-          const reason = getKycReason(u);
-          const rejected =
-            String(u?.kyc?.status || "").toLowerCase() === "rejected";
           return (
             <div
               key={u._id}
@@ -100,10 +92,6 @@ export const MobileCardView = ({
 
               <div className="mb-3 flex flex-wrap gap-2">
                 <RoleBadge role={u.roleName || u.role || u.roleId?.name} />
-                <AccountBadge
-                  status={u.isActive === false ? "inactive" : u.accountStatus}
-                />
-                <KycBadge kyc={u.kyc} />
                 <PhoneBadge verified={u.phoneVerified} />
               </div>
 
@@ -126,21 +114,6 @@ export const MobileCardView = ({
                 <Calendar className="h-3.5 w-3.5" />
                 {formatJoinedIst(u.createdAt)}
               </div>
-
-              {reason ? (
-                <div
-                  className={`mt-3 rounded-xl px-3 py-2 text-[11px] leading-snug ${
-                    rejected
-                      ? "bg-red-50 text-red-700"
-                      : "bg-slate-50 text-slate-600"
-                  }`}
-                >
-                  <span className="text-[9px] font-bold uppercase tracking-wide opacity-70">
-                    KYC reason ·{" "}
-                  </span>
-                  {reason}
-                </div>
-              ) : null}
             </div>
           );
         })

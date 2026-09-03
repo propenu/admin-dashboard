@@ -2,8 +2,6 @@
 import { Filter, Search, Tag, X } from "lucide-react";
 import { LocationSearch } from "./LocationSearch";
 import { FilterSelect } from "./ReusableComaponents";
-import { ACCOUNT_STATUS_MAP } from "../constants/accountStatusMap";
-import { KYC_STATUS_MAP } from "../constants/kycStatusMap";
 
 export const SearchFiltersPanel = ({ 
     search, 
@@ -11,10 +9,6 @@ export const SearchFiltersPanel = ({
     locationFilter, 
     setLocationFilter, 
     users, 
-    filterAccountStatus, 
-    setFilterAccountStatus, 
-    filterKycStatus, 
-    setFilterKycStatus, 
     filterPhoneVerified, 
     setFilterPhoneVerified, 
     filterIsActive, 
@@ -85,26 +79,6 @@ export const SearchFiltersPanel = ({
           />
 
           <FilterSelect
-            value={filterAccountStatus}
-            onChange={setFilterAccountStatus}
-            placeholder="All Statuses"
-            options={[
-              { value: "active", label: "Active" },
-              { value: "location_pending", label: "Location Pending" },
-              { value: "kyc_pending", label: "KYC Pending" },
-            ]}
-          />
-          <FilterSelect
-            value={filterKycStatus}
-            onChange={setFilterKycStatus}
-            placeholder="All KYC"
-            options={[
-              { value: "verified", label: "KYC Verified" },
-              { value: "not_started", label: "Not Started" },
-              { value: "rejected", label: "Rejected" },
-            ]}
-          />
-          <FilterSelect
             value={filterPhoneVerified}
             onChange={setFilterPhoneVerified}
             placeholder="Phone Status"
@@ -163,20 +137,6 @@ export const SearchFiltersPanel = ({
                 label={`${locationFilter.type === "city" ? "City" : locationFilter.type === "state" ? "State" : locationFilter.type === "locality" ? "Locality" : "Pincode"}: ${locationFilter.value}`}
                 onRemove={() => setLocationFilter(null)}
                 color="green"
-              />
-            )}
-            {filterAccountStatus && (
-              <Tag
-                label={`Status: ${ACCOUNT_STATUS_MAP[filterAccountStatus]?.label || filterAccountStatus}`}
-                onRemove={() => setFilterAccountStatus("")}
-                color="amber"
-              />
-            )}
-            {filterKycStatus && (
-              <Tag
-                label={`KYC: ${KYC_STATUS_MAP[filterKycStatus]?.label || filterKycStatus}`}
-                onRemove={() => setFilterKycStatus("")}
-                color="blue"
               />
             )}
             {filterPhoneVerified && (

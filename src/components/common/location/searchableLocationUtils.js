@@ -38,13 +38,19 @@ export function canEditFeaturedCategory(role) {
   return CATEGORY_EDIT_ROLES.has(normalizeRoleName(role));
 }
 
+/**
+ * Proper location title case:
+ * - "jubilee hills" → "Jubilee Hills"
+ * - "g.t.nagar" / "G.T.Nagar" → "G.T.Nagar" (abbrev after dots)
+ * - "north-east" → "North-East"
+ */
 export const titleCase = (str) => {
   if (!str) return "";
   return String(str)
+    .trim()
+    .replace(/\s+/g, " ")
     .toLowerCase()
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+    .replace(/\b[a-z]/g, (char) => char.toUpperCase());
 };
 
 export const stripWard = (s) =>

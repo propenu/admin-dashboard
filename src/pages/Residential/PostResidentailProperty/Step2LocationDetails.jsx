@@ -10,6 +10,10 @@ import { savePropertyData } from "../../../store/common/propertyThunks";
 import { useEffect, useState, useRef, useCallback, useId, useMemo } from "react";
 import { toast } from "sonner";
 import {
+  toastApiError,
+  toastValidationErrors,
+} from "../../../utils/postPropertyToast";
+import {
   getCitySuggestions as getSharedCitySuggestions,
   getSavedCityNamesForState,
   getSavedLocalitySuggestions,
@@ -38,17 +42,10 @@ const PHOTON_CANDIDATE_LIMIT = 15;
 const MAX_NEARBY_RADIUS_M    = 10_000;
 
 // ─────────────────────────────────────────────
-// String helpers
+// String helpers (shared titleCase keeps G.T.Nagar-style abbreviations)
 // ─────────────────────────────────────────────
 
-const titleCase = (str) => {
-  if (!str) return "";
-  return str
-    .toLowerCase()
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-};
+const titleCase = sharedTitleCase;
 
 // Strip "Ward 4B " prefix Nominatim sometimes adds
 const stripWard = (s) => (s ? s.replace(/^ward\s*\d+[a-z]?\s+/i, "").trim() : "");
@@ -170,6 +167,7 @@ function getCitySuggestions(stateName, query, savedCities = []) {
     state: city.state || stateName,
     stateCode: city.stateCode,
     isSaved: Boolean(city.isSaved),
+    isCustom: Boolean(city.isCustom),
   }));
 }
 
@@ -444,10 +442,10 @@ const FieldWrapper = ({ label, children, error }) => (
 );
 
 const inputCls =
-  "w-full border border-[#d1d5db] rounded-xl px-3.5 py-3 text-sm font-medium text-[#111827] " +
-  "focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10 outline-none transition-all placeholder:text-[#9ca3af]";
+  "w-full border-2 border-[#e5e7eb] rounded-xl px-3.5 py-3 text-sm font-semibold text-[#111827] " +
+  "focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10 outline-none transition-all placeholder:text-[#9ca3af] hover:border-[#bbf7d0]";
 
-/** Searchable dropdown matching propenu.com State / City / Locality UX */
+/** Searchable dropdown — Facing-style green open/selected states */
 function SearchableSelect({
   label,
   value,
@@ -478,8 +476,8 @@ function SearchableSelect({
           disabled={disabled}
           onClick={onToggle}
           className={`${inputCls} flex items-center justify-between gap-2 text-left ${
-            error ? "border-red-500" : ""
-          } ${open ? "border-[#27AE60]" : ""} ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
+            error ? "border-red-300" : ""
+          } ${open ? "border-[#27AE60] ring-2 ring-[#27AE60]/10" : ""} ${disabled ? "opacity-60 cursor-not-allowed" : ""}`}
           aria-haspopup="listbox"
           aria-expanded={open}
         >
@@ -491,23 +489,23 @@ function SearchableSelect({
             {value || placeholder}
           </span>
           <ChevronDown
-            size={16}
-            className={`shrink-0 text-gray-500 transition-transform ${
-              open ? "rotate-180" : ""
+            size={15}
+            className={`shrink-0 text-[#9ca3af] transition-transform ${
+              open ? "rotate-180 text-[#27AE60]" : ""
             }`}
           />
         </button>
 
         {open && (
-          <div className="absolute left-0 right-0 top-full z-[70] mt-1 max-h-60 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
-            <div className="relative border-b border-gray-100 p-2">
+          <div className="absolute left-0 right-0 top-full z-[70] mt-2 max-h-60 overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-xl">
+            <div className="relative border-b border-[#f5f5f5] p-2">
               <input
                 autoFocus
                 type="text"
                 value={searchValue}
                 placeholder={searchPlaceholder}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/20"
+                className="w-full rounded-lg border-2 border-[#e5e7eb] px-3 py-1.5 text-sm outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10"
               />
               {loading && (
                 <span className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -515,7 +513,7 @@ function SearchableSelect({
                 </span>
               )}
             </div>
-            <div className="max-h-48 overflow-y-auto py-1" role="listbox">
+            <div className="max-h-48 overflow-y-auto" role="listbox">
               {options.length > 0 ? (
                 options.map((opt, idx) => {
                   const isSelected =
@@ -528,10 +526,10 @@ function SearchableSelect({
                       role="option"
                       aria-selected={isSelected}
                       onClick={() => onSelect(opt)}
-                      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition ${
+                      className={`flex w-full items-center justify-between gap-3 border-b border-[#f5f5f5] px-4 py-3 text-left text-sm transition-colors last:border-none hover:bg-[#f0fdf4] ${
                         isSelected
-                          ? "bg-[#f0fdf4] text-[#27AE60]"
-                          : "text-gray-700 hover:bg-gray-50"
+                          ? "bg-[#f0fdf4] font-bold text-[#27AE60]"
+                          : "text-[#374151]"
                       }`}
                     >
                       {renderOption ? (
@@ -540,7 +538,7 @@ function SearchableSelect({
                         <span className="min-w-0 flex-1 truncate">{opt.label}</span>
                       )}
                       {isSelected && (
-                        <Check size={14} className="shrink-0 text-[#27AE60]" />
+                        <div className="h-2 w-2 shrink-0 rounded-full bg-[#27AE60]" />
                       )}
                     </button>
                   );
@@ -1211,13 +1209,34 @@ export default function Step2LocationDetails({ next, back, category }) {
         return;
       }
       setCityLoading(true);
-      setCitySuggestions(
-        getCitySuggestions(form.state, query || undefined, citySuggestionExtras),
+      const list = getCitySuggestions(
+        form.state,
+        query || undefined,
+        citySuggestionExtras,
       );
+      if (
+        canAddCustomCity &&
+        query.length >= 2 &&
+        !list.some((c) => sharedNormalize(c.label) === sharedNormalize(query))
+      ) {
+        list.push({
+          label: sharedTitleCase(query),
+          state: form.state,
+          isSaved: false,
+          isCustom: true,
+        });
+      }
+      setCitySuggestions(list);
       setCityLoading(false);
     }, 200);
     return () => clearTimeout(tid);
-  }, [cityOpen, citySearch, form.state, citySuggestionExtras]);
+  }, [
+    cityOpen,
+    citySearch,
+    form.state,
+    citySuggestionExtras,
+    canAddCustomCity,
+  ]);
 
   useEffect(() => {
     if (!localityOpen) {
@@ -1401,8 +1420,16 @@ export default function Step2LocationDetails({ next, back, category }) {
   const applyCitySelection = useCallback(
     (suggestion) => {
       skipNextFieldGeocodeRef.current = true;
-      setValue("city", suggestion.label);
-      if (suggestion.state) setValue("state", suggestion.state);
+      const cityName = sharedTitleCase(String(suggestion.label || "").trim());
+      setValue("city", cityName);
+      if (suggestion.state) {
+        setValue("state", sharedTitleCase(String(suggestion.state).trim()));
+      }
+      if (suggestion.isCustom) {
+        toast.message("Custom city — confirm locality and pin on the map", {
+          duration: 3500,
+        });
+      }
       setCitySearch("");
       setCityOpen(false);
     },
@@ -1416,9 +1443,14 @@ export default function Step2LocationDetails({ next, back, category }) {
         suggestion.coordinates.length === 2 &&
         suggestion.coordinates.every(Number.isFinite);
 
-      setValue("locality", suggestion.label);
-      if (suggestion.city) setValue("city", suggestion.city);
-      if (suggestion.state) setValue("state", suggestion.state);
+      const localityName = sharedTitleCase(String(suggestion.label || "").trim());
+      setValue("locality", localityName);
+      if (suggestion.city) {
+        setValue("city", sharedTitleCase(String(suggestion.city).trim()));
+      }
+      if (suggestion.state) {
+        setValue("state", sharedTitleCase(String(suggestion.state).trim()));
+      }
 
       if (hasCoords) {
         // Outside API / Photon (or enriched saved) → pin map on that locality
@@ -1548,9 +1580,11 @@ export default function Step2LocationDetails({ next, back, category }) {
 
   const handleContinue = async () => {
     const ve = validate();
-    if (Object.keys(ve).length) { setErrors(ve); return; }
-    //const activeCategory = localStorage.getItem("activeCategory");
-   // const propertyId = localStorage.getItem(`${activeCategory}_propertyId`);
+    if (Object.keys(ve).length) {
+      setErrors(ve);
+      toastValidationErrors(ve);
+      return;
+    }
    const propertyId = localStorage.getItem(`${category}_propertyId`);
     if (!propertyId) { toast.error("Property ID missing."); return; }
     try {
@@ -1559,7 +1593,7 @@ export default function Step2LocationDetails({ next, back, category }) {
       next();
     } catch (err) {
       console.error(err);
-      toast.error(err?.message || "Failed to save location");
+      toastApiError(err, "Failed to save location");
     }
   };
 
@@ -1749,15 +1783,17 @@ export default function Step2LocationDetails({ next, back, category }) {
               options={citySuggestions}
               onSelect={applyCitySelection}
               emptyHint={
-                citySearch.trim().length >= 1
-                  ? "No city found — check spelling or pick another state"
+                citySearch.trim().length >= 2
+                  ? canAddCustomCity
+                    ? "No city found — keep typing to use a custom name"
+                    : "No city found — check spelling or pick another state"
                   : form.state
                     ? "Package + saved cities for this state"
                     : "Select state first"
               }
               dropdownRef={cityDropdownRef}
               optionKey={(opt, idx) =>
-                `${opt.label}-${opt.isSaved ? "s" : "p"}-${opt.stateCode || idx}`
+                `${opt.label}-${opt.isCustom ? "c" : opt.isSaved ? "s" : "p"}-${opt.stateCode || idx}`
               }
               renderOption={(opt) => (
                 <span className="min-w-0 flex-1 truncate">
@@ -1765,6 +1801,11 @@ export default function Step2LocationDetails({ next, back, category }) {
                   {opt.isSaved ? (
                     <span className="ml-1 text-[10px] font-semibold text-[#27AE60]">
                       (saved)
+                    </span>
+                  ) : null}
+                  {opt.isCustom ? (
+                    <span className="ml-1 text-[10px] text-gray-400">
+                      (use typed)
                     </span>
                   ) : null}
                 </span>

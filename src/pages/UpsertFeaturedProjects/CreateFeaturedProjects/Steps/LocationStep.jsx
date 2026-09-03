@@ -53,11 +53,11 @@ const PHOTON_CANDIDATE_LIMIT = 20;
 ══════════════════════════════════════════════════════════════ */
 const titleCase = (str) => {
   if (!str) return "";
-  return str
+  return String(str)
+    .trim()
+    .replace(/\s+/g, " ")
     .toLowerCase()
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+    .replace(/\b[a-z]/g, (char) => char.toUpperCase());
 };
 
 const stripWard = (s) =>

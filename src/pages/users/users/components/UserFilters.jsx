@@ -4,17 +4,6 @@ import { ROLE_OPTIONS } from "../constants/roleLabels";
 import { FilterSelect } from "./ReusableComaponents";
 import { MobileFiltersSheet } from "./MobileFiltersSheet";
 
-const ACCOUNT_OPTIONS = [
-  { value: "active", label: "Active" },
-  { value: "location_pending", label: "Location Pending" },
-  { value: "kyc_pending", label: "KYC Pending" },
-];
-
-const KYC_OPTIONS = [
-  { value: "verified", label: "Verified" },
-  { value: "pending", label: "Pending" },
-];
-
 const PHONE_OPTIONS = [
   { value: "true", label: "Verified" },
   { value: "false", label: "Not Verified" },
@@ -92,15 +81,11 @@ export const UserFilters = ({
     let n = 0;
     if (datePreset && datePreset !== "all") n += 1;
     if (locationSearch) n += 1;
-    if (filterAccountStatus) n += 1;
-    if (filterKycStatus) n += 1;
     if (filterPhoneVerified) n += 1;
     return n;
   }, [
     datePreset,
     locationSearch,
-    filterAccountStatus,
-    filterKycStatus,
     filterPhoneVerified,
   ]);
 
@@ -152,19 +137,6 @@ export const UserFilters = ({
             {locationSearch ? (
               <span className="shrink-0 rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
                 Loc: {locationSearch}
-              </span>
-            ) : null}
-            {filterAccountStatus ? (
-              <span className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                {ACCOUNT_OPTIONS.find((o) => o.value === filterAccountStatus)
-                  ?.label || filterAccountStatus}
-              </span>
-            ) : null}
-            {filterKycStatus ? (
-              <span className="shrink-0 rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
-                KYC:{" "}
-                {KYC_OPTIONS.find((o) => o.value === filterKycStatus)?.label ||
-                  filterKycStatus}
               </span>
             ) : null}
             {filterPhoneVerified ? (
@@ -324,22 +296,6 @@ export const UserFilters = ({
             onChange={(value) => setFilterRole(value || "all")}
             placeholder="All Roles"
             options={ROLE_OPTIONS}
-          />
-          <FilterSelect
-            id="users-account-status"
-            label="Account Status"
-            value={filterAccountStatus}
-            onChange={setFilterAccountStatus}
-            placeholder="Account Status"
-            options={ACCOUNT_OPTIONS}
-          />
-          <FilterSelect
-            id="users-kyc-status"
-            label="KYC Status"
-            value={filterKycStatus}
-            onChange={setFilterKycStatus}
-            placeholder="KYC Status"
-            options={KYC_OPTIONS}
           />
           <FilterSelect
             id="users-phone-status"

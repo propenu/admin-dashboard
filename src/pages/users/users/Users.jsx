@@ -809,8 +809,6 @@ export default function Users() {
         Phone: u.phone || "",
         Role: roleLabel(u.roleName || u.role || u.roleId?.name),
         AccountStatus: String(u.accountStatus || "").replace(/_/g, " "),
-        KycStatus: String(u.kyc?.status || "not_started").replace(/_/g, " "),
-        KycReason: u.kyc?.rejectionReason || u.kyc?.reason || "",
         PhoneVerified: u.phoneVerified ? "Verified" : "Not Verified",
         Locality: u.locality || "",
         City: u.city || "",

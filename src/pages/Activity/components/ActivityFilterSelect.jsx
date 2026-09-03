@@ -94,7 +94,7 @@ export default function ActivityFilterSelect({
       </button>
 
       {open ? (
-        <div className="absolute left-0 right-0 z-50 mt-1.5 overflow-hidden rounded-xl border border-[#d9ebe0] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.14)] motion-safe:animate-[tlFadeUp_180ms_ease-out]">
+        <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-[#d9ebe0] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.14)] motion-safe:animate-[tlFadeUp_180ms_ease-out]">
           {searchable ? (
             <div className="border-b border-[#e8f2ec] bg-[#F6FBF8] p-2">
               <div className="relative">

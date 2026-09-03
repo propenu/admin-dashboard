@@ -3,7 +3,6 @@ import { useEffect, useRef } from "react";
 import {
   Avatar,
   AccountBadge,
-  KycBadge,
   PhoneBadge,
 } from "./ReusableComponents";
 import { Highlight } from "../utils/highlight";

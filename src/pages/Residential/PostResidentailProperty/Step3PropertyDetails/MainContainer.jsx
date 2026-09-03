@@ -10,6 +10,7 @@ import AgriculturalFields from "../TypeSpecificFields/AgriculturalFields";
 import CommercialFields from "../TypeSpecificFields/CommercialFields";
 import LandFields from "../TypeSpecificFields/LandFields";
 import { toast } from "sonner";
+import { toastApiError } from "../../../../utils/postPropertyToast";
 
 export default function MainContainer({ next, back }) {
   const dispatch = useDispatch();
@@ -111,7 +112,7 @@ export default function MainContainer({ next, back }) {
       }
       // next();
     } catch (err) {
-      toast.error("Failed to save property details");
+      toastApiError(err, "Failed to save property details");
     }
   };
 

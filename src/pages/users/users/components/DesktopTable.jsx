@@ -1,22 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import {
-  AlertCircle,
-  Calendar,
-  MapPin,
-  Phone,
-  Users as UsersIcon,
-} from "lucide-react";
-import {
-  AccountBadge,
-  KycBadge,
-  PhoneBadge,
-  RoleBadge,
-} from "./ReusableComaponents";
+import { AlertCircle, Users as UsersIcon } from "lucide-react";
 import { RowActionsMenu } from "./RowActionsMenu";
 import { formatJoinedIst } from "../utils/dateTime";
-
-const getKycReason = (u) =>
-  String(u?.kyc?.remarks || u?.kycReason || u?.kyc?.reason || "").trim();
+import { roleLabel } from "../constants/roleLabels";
 
 const formatName = (name = "") =>
   name
@@ -25,12 +11,25 @@ const formatName = (name = "") =>
     .map((n) => n.charAt(0).toUpperCase() + n.slice(1))
     .join(" ");
 
+const CompactRole = ({ role }) => (
+  <span className="inline-flex max-w-full truncate rounded-md bg-[#12A150]/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#12A150]">
+    {roleLabel(role)}
+  </span>
+);
+
+const CompactPhoneStatus = ({ verified }) =>
+  verified ? (
+    <span className="text-[11px] font-semibold text-[#12A150]">Verified</span>
+  ) : (
+    <span className="text-[11px] font-semibold text-slate-400">Unverified</span>
+  );
+
 const SkeletonRows = () =>
   Array.from({ length: 6 }).map((_, i) => (
     <tr key={i} className="animate-pulse border-t border-[#eef5f0]">
-      {Array.from({ length: 11 }).map((__, j) => (
-        <td key={j} className="px-3 py-3.5">
-          <div className="h-3 rounded bg-slate-100" />
+      {Array.from({ length: 8 }).map((__, j) => (
+        <td key={j} className="px-2 py-2.5">
+          <div className="h-2.5 rounded bg-slate-100" />
         </td>
       ))}
     </tr>
@@ -89,6 +88,17 @@ const ErrorState = ({ colSpan, message, onRetry }) => (
   </tr>
 );
 
+const COLS = [
+  { key: "no", label: "No.", className: "w-[5%]" },
+  { key: "user", label: "User", className: "w-[20%]" },
+  { key: "role", label: "Role", className: "w-[10%]" },
+  { key: "contact", label: "Contact", className: "w-[13%]" },
+  { key: "phone", label: "Phone", className: "w-[10%]" },
+  { key: "location", label: "Location", className: "w-[20%]" },
+  { key: "joined", label: "Joined", className: "w-[14%]" },
+  { key: "actions", label: "Actions", className: "w-[8%]" },
+];
+
 export const DesktopTable = ({
   filtered,
   loading,
@@ -114,28 +124,21 @@ export const DesktopTable = ({
   };
 
   return (
-    <div className="hidden max-w-full overflow-x-auto md:block">
-      <table className="w-full min-w-[1180px] border-collapse text-left">
+    <div className="hidden w-full max-w-full overflow-hidden md:block">
+      <table className="w-full table-fixed border-collapse text-left">
+        <colgroup>
+          {COLS.map((col) => (
+            <col key={col.key} className={col.className} />
+          ))}
+        </colgroup>
         <thead className="sticky top-0 z-10">
           <tr className="border-b border-[#dceee3] bg-[#eef8f1]">
-            {[
-              "No.",
-              "User",
-              "Role",
-              "Contact",
-              "Account",
-              "KYC",
-              "KYC Reason",
-              "Phone",
-              "Location",
-              "Joined",
-              "Actions",
-            ].map((h) => (
+            {COLS.map((col) => (
               <th
-                key={h}
-                className="whitespace-nowrap px-3 py-2.5 text-left align-middle text-[10px] font-bold uppercase tracking-[0.08em] text-[#12A150]"
+                key={col.key}
+                className="truncate px-2 py-2 text-left align-middle text-[9px] font-bold uppercase tracking-[0.06em] text-[#12A150]"
               >
-                {h}
+                {col.label}
               </th>
             ))}
           </tr>
@@ -144,132 +147,101 @@ export const DesktopTable = ({
           {loading ? (
             <SkeletonRows />
           ) : error ? (
-            <ErrorState colSpan={11} message={error} onRetry={onRetry} />
+            <ErrorState colSpan={8} message={error} onRetry={onRetry} />
           ) : filtered.length === 0 ? (
             <EmptyState
-              colSpan={11}
+              colSpan={8}
               hasFilters={!!hasFilters}
               onClearFilters={onClearFilters}
             />
           ) : (
             filtered.map((u, idx) => {
-              const kycReason = getKycReason(u);
-              const rejected =
-                String(u.kyc?.status || "").toLowerCase() === "rejected";
+              const locationLine = [u.locality, u.city, u.state]
+                .filter(Boolean)
+                .join(", ");
+              const joined = formatJoinedIst(u.createdAt);
               return (
                 <tr
                   key={u._id}
                   onClick={() => openUser(u._id)}
                   className="cursor-pointer border-t border-[#eef5f0] transition hover:bg-[#f5fbf7]"
                 >
-                  <td className="px-3 py-3 align-middle text-sm tabular-nums text-slate-400">
+                  <td className="px-2 py-2 align-middle text-[11px] tabular-nums text-slate-400">
                     {rowOffset + idx + 1}
                   </td>
 
-                  <td className="px-3 py-3 align-middle">
-                    <div className="min-w-[190px]">
-                      <p
-                        title={formatName(u.name)}
-                        className="truncate text-sm font-semibold text-[#102033]"
-                      >
-                        {formatName(u.name) || "—"}
-                      </p>
-                      <p
-                        title={u.email || ""}
-                        className="mt-0.5 truncate text-xs text-slate-400"
-                      >
-                        {u.email || u.userCode || u._id || "—"}
-                      </p>
-                    </div>
-                  </td>
-
-                  <td className="px-3 py-3 align-middle">
-                    <RoleBadge role={u.roleName || u.role || u.roleId?.name} />
-                  </td>
-
-                  <td className="px-3 py-3 align-middle">
-                    {u.phone ? (
-                      <div className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-[#102033]">
-                        <Phone className="h-3.5 w-3.5 text-[#12A150]" aria-hidden />
-                        {u.phone}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-slate-300">—</span>
-                    )}
-                  </td>
-
-                  <td className="px-3 py-3 align-middle">
-                    <AccountBadge
-                      status={
-                        u.isActive === false ? "inactive" : u.accountStatus
-                      }
-                    />
-                  </td>
-
-                  <td className="px-3 py-3 align-middle">
-                    <KycBadge kyc={u.kyc} />
-                  </td>
-
-                  <td className="max-w-[200px] px-3 py-3 align-middle">
-                    {kycReason ? (
-                      <p
-                        title={kycReason}
-                        className={`line-clamp-2 text-[11px] leading-snug ${
-                          rejected
-                            ? "font-medium text-red-600"
-                            : "text-slate-500"
-                        }`}
-                      >
-                        {kycReason}
-                      </p>
-                    ) : (
-                      <span className="text-sm text-slate-300">—</span>
-                    )}
-                  </td>
-
-                  <td className="px-3 py-3 align-middle">
-                    <PhoneBadge verified={u.phoneVerified} />
-                  </td>
-
-                  <td className="px-3 py-3 align-middle">
-                    {u.locality || u.city || u.state ? (
-                      <div className="flex min-w-[130px] items-center gap-1.5">
-                        <MapPin
-                          className="h-3.5 w-3.5 shrink-0 text-[#12A150]"
-                          aria-hidden
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium capitalize text-[#102033]">
-                            {u.locality || u.city || "—"}
-                          </p>
-                          <p className="mt-0.5 truncate text-xs capitalize text-slate-400">
-                            {[u.locality ? u.city : null, u.state]
-                              .filter(Boolean)
-                              .join(", ") ||
-                              u.city ||
-                              "—"}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-                        <MapPin className="h-3.5 w-3.5" /> Not set
-                      </span>
-                    )}
-                  </td>
-
-                  <td className="px-3 py-3 align-middle">
-                    <div
-                      className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-slate-500"
-                      title={u.createdAt ? formatJoinedIst(u.createdAt) : ""}
+                  <td className="px-2 py-2 align-middle">
+                    <p
+                      title={formatName(u.name)}
+                      className="truncate text-[12px] font-semibold text-[#102033]"
                     >
-                      <Calendar className="h-3.5 w-3.5 text-[#12A150]" aria-hidden />
-                      {formatJoinedIst(u.createdAt)}
-                    </div>
+                      {formatName(u.name) || "—"}
+                    </p>
+                    <p
+                      title={u.email || String(u._id || "")}
+                      className="mt-0.5 truncate text-[10px] text-slate-400"
+                    >
+                      {u.email || u.userCode || u._id || "—"}
+                    </p>
+                  </td>
+
+                  <td className="px-2 py-2 align-middle">
+                    <CompactRole role={u.roleName || u.role || u.roleId?.name} />
+                  </td>
+
+                  <td className="px-2 py-2 align-middle">
+                    {u.phone ? (
+                      <p
+                        title={u.phone}
+                        className="truncate text-[12px] tabular-nums text-[#102033]"
+                      >
+                        {u.phone}
+                      </p>
+                    ) : (
+                      <span className="text-[12px] text-slate-300">—</span>
+                    )}
+                  </td>
+
+                  <td className="px-2 py-2 align-middle">
+                    <CompactPhoneStatus verified={u.phoneVerified} />
+                  </td>
+
+                  <td className="px-2 py-2 align-middle">
+                    {locationLine ? (
+                      <div className="min-w-0">
+                        <p
+                          title={locationLine}
+                          className="truncate text-[12px] font-medium capitalize text-[#102033]"
+                        >
+                          {u.locality || u.city || "—"}
+                        </p>
+                        <p
+                          title={locationLine}
+                          className="mt-0.5 truncate text-[10px] capitalize text-slate-400"
+                        >
+                          {[u.locality ? u.city : null, u.state]
+                            .filter(Boolean)
+                            .join(", ") ||
+                            u.city ||
+                            "—"}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-amber-600">Not set</span>
+                    )}
+                  </td>
+
+                  <td className="px-2 py-2 align-middle">
+                    <p
+                      title={joined}
+                      className="truncate text-[11px] text-slate-500"
+                    >
+                      {joined}
+                    </p>
                   </td>
 
                   <td
-                    className="px-3 py-3 pr-4 align-middle"
+                    className="px-1 py-2 align-middle"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <RowActionsMenu

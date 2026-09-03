@@ -5,7 +5,6 @@ import {
   ChevronDown,
   MapPin,
   Phone,
-  ShieldCheck,
   User,
   Users,
 } from "lucide-react";
@@ -15,7 +14,6 @@ const LABELS = {
   total: "Total Users",
   active: "Active",
   joinedToday: "Joined Today",
-  kyc: "KYC Verified",
   phone: "Phone Verified",
   locPending: "Location Pending",
 };
@@ -51,15 +49,6 @@ export const StatCards = ({ stats, onStatClick, activeKey }) => {
       emphasize: false,
       highlightValue: false,
       icon: CalendarDays,
-    },
-    {
-      key: "kyc",
-      label: "KYC",
-      fullLabel: LABELS.kyc,
-      value: stats.kycVerified,
-      emphasize: false,
-      highlightValue: false,
-      icon: ShieldCheck,
     },
     {
       key: "phone",

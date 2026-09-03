@@ -10,17 +10,6 @@ import {
 } from "lucide-react";
 import { FilterSelect } from "./ReusableComaponents";
 
-const ACCOUNT_OPTIONS = [
-  { value: "active", label: "Active" },
-  { value: "location_pending", label: "Location Pending" },
-  { value: "kyc_pending", label: "KYC Pending" },
-];
-
-const KYC_OPTIONS = [
-  { value: "verified", label: "Verified" },
-  { value: "pending", label: "Pending" },
-];
-
 const PHONE_OPTIONS = [
   { value: "true", label: "Verified" },
   { value: "false", label: "Not Verified" },
@@ -213,24 +202,6 @@ export function MobileFiltersSheet({
                   Status filters
                 </p>
                 <div className="grid grid-cols-1 gap-2">
-                  <FilterSelect
-                    id="m-account"
-                    label="Account Status"
-                    value={filterAccountStatus}
-                    onChange={setFilterAccountStatus}
-                    placeholder="Account Status"
-                    options={ACCOUNT_OPTIONS}
-                    className="!max-w-none sm:!w-full"
-                  />
-                  <FilterSelect
-                    id="m-kyc"
-                    label="KYC Status"
-                    value={filterKycStatus}
-                    onChange={setFilterKycStatus}
-                    placeholder="KYC Status"
-                    options={KYC_OPTIONS}
-                    className="!max-w-none sm:!w-full"
-                  />
                   <FilterSelect
                     id="m-phone"
                     label="Phone Status"

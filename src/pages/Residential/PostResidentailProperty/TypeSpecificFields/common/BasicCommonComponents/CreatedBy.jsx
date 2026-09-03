@@ -2,6 +2,7 @@
 import { forwardRef, useState, useEffect, useRef } from "react";
 import { useActivePropertySlice } from "../../UsePropertySlice/useActivePropertySlice";
 import { getUserSearch } from "../../../../../../features/user/userService";
+import ColorfulSelect from "./ColorfulSelect";
 
 const ROLES = [
   //{ label: "All",           value: ""              },
@@ -343,69 +344,63 @@ const CreatedBy = forwardRef(
 
               {/* Location filters */}
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className={LABEL}>State</label>
-                  <select
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-xs
-                      font-bold text-gray-700 outline-none focus:border-[#27AE60] bg-white
-                      transition-all cursor-pointer"
-                    value={filters.state}
-                    onChange={(e) =>
-                      setFilters({ state: e.target.value, city: "", pincode: "", locality: "" })
-                    }
-                  >
-                    <option value="">All States</option>
-                    {uniqueStates.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className={LABEL}>City</label>
-                  <select
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-xs
-                      font-bold text-gray-700 outline-none focus:border-[#27AE60] bg-white
-                      transition-all cursor-pointer"
-                    value={filters.city}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, city: e.target.value, pincode: "", locality: "" }))
-                    }
-                  >
-                    <option value="">All Cities</option>
-                    {uniqueCities.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className={LABEL}>Pincode</label>
-                  <select
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-xs
-                      font-bold text-gray-700 outline-none focus:border-[#27AE60] bg-white
-                      transition-all cursor-pointer"
-                    value={filters.pincode}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, pincode: e.target.value, locality: "" }))
-                    }
-                  >
-                    <option value="">All Pincodes</option>
-                    {uniquePincodes.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className={LABEL}>Locality</label>
-                  <select
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-xs
-                      font-bold text-gray-700 outline-none focus:border-[#27AE60] bg-white
-                      transition-all cursor-pointer"
-                    value={filters.locality}
-                    onChange={(e) =>
-                      setFilters((f) => ({ ...f, locality: e.target.value }))
-                    }
-                  >
-                    <option value="">All Localities</option>
-                    {uniqueLocalities.map((l) => <option key={l} value={l}>{l}</option>)}
-                  </select>
-                </div>
+                <ColorfulSelect
+                  label="State"
+                  labelClassName="text-[10px] font-bold uppercase tracking-wide text-gray-500"
+                  value={filters.state}
+                  options={[
+                    { label: "All States", value: "" },
+                    ...uniqueStates.map((s) => ({ label: s, value: s })),
+                  ]}
+                  placeholder="All States"
+                  onChange={(v) =>
+                    setFilters({ state: v, city: "", pincode: "", locality: "" })
+                  }
+                />
+                <ColorfulSelect
+                  label="City"
+                  labelClassName="text-[10px] font-bold uppercase tracking-wide text-gray-500"
+                  value={filters.city}
+                  options={[
+                    { label: "All Cities", value: "" },
+                    ...uniqueCities.map((c) => ({ label: c, value: c })),
+                  ]}
+                  placeholder="All Cities"
+                  onChange={(v) =>
+                    setFilters((f) => ({
+                      ...f,
+                      city: v,
+                      pincode: "",
+                      locality: "",
+                    }))
+                  }
+                />
+                <ColorfulSelect
+                  label="Pincode"
+                  labelClassName="text-[10px] font-bold uppercase tracking-wide text-gray-500"
+                  value={filters.pincode}
+                  options={[
+                    { label: "All Pincodes", value: "" },
+                    ...uniquePincodes.map((p) => ({ label: p, value: p })),
+                  ]}
+                  placeholder="All Pincodes"
+                  onChange={(v) =>
+                    setFilters((f) => ({ ...f, pincode: v, locality: "" }))
+                  }
+                />
+                <ColorfulSelect
+                  label="Locality"
+                  labelClassName="text-[10px] font-bold uppercase tracking-wide text-gray-500"
+                  value={filters.locality}
+                  options={[
+                    { label: "All Localities", value: "" },
+                    ...uniqueLocalities.map((l) => ({ label: l, value: l })),
+                  ]}
+                  placeholder="All Localities"
+                  onChange={(v) =>
+                    setFilters((f) => ({ ...f, locality: v }))
+                  }
+                />
               </div>
 
               {/* Active filter chips */}

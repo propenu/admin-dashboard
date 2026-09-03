@@ -200,7 +200,12 @@ export default function StepBasicDetails({
             <button
               key={item.value}
               type="button"
-              onClick={() => upd("listingType", item.value)}
+              onClick={() => {
+                upd("listingType", item.value);
+                if (String(item.value || "").toLowerCase() === "rent") {
+                  upd("transactionType", "");
+                }
+              }}
               className="relative flex min-h-12 items-center gap-2 rounded-xl border-2 px-2.5 py-1.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
               style={{
                 borderColor:
@@ -470,7 +475,8 @@ export default function StepBasicDetails({
             onChange={(v) => upd("propertyAge", v)}
           />
         )}
-        {(cat === "residential" || cat === "commercial" || cat === "land") && (
+        {(cat === "residential" || cat === "commercial" || cat === "land") &&
+          String(data.listingType || "").toLowerCase() !== "rent" && (
           <ElegantDrop
             label="Transaction"
             icon={<ArrowRightLeft className="w-3.5 h-3.5" />}
@@ -772,28 +778,69 @@ function ElegantDrop({ label, icon, value, options, onChange }) {
   const [open, setOpen] = React.useState(false);
   const sel = options.find((o) => o.value === value);
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-1.5 text-[#27AE60]">{icon}<span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</span></div>
+    <div className={`relative space-y-2 ${open ? "z-[80]" : "z-10"}`}>
+      <div className="flex items-center gap-1.5 text-[#27AE60]">
+        {icon}
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+          {label}
+        </span>
+      </div>
       <div className="relative">
-        <button type="button" onClick={() => setOpen(!open)} className="flex h-10 w-full items-center justify-between rounded-xl border-2 bg-white px-3 text-xs transition-all hover:border-emerald-300"
-          style={{ borderColor: open ? "#27AE60" : "#e5e7eb", boxShadow: open ? "0 0 0 4px #27AE6010" : "none" }}>
-          <div className="flex items-center gap-2">
-            {sel ? <><span className="text-base">{sel.icon}</span><span className=" text-slate-700">{sel.label}</span></> : <span className="text-slate-400 font-medium">Select {label}</span>}
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className={`relative flex h-11 w-full items-center justify-between rounded-xl border-2 bg-white px-4 text-left text-sm font-semibold transition-all ${
+            open
+              ? "border-[#27AE60] ring-2 ring-[#27AE60]/10"
+              : "border-[#e5e7eb] hover:border-[#bbf7d0]"
+          } ${sel ? "text-[#111827]" : "text-[#9ca3af]"}`}
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            {sel ? (
+              <>
+                {sel.icon ? <span className="text-base">{sel.icon}</span> : null}
+                <span className="truncate">{sel.label}</span>
+              </>
+            ) : (
+              <span>Select {label}</span>
+            )}
           </div>
-          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 text-[#9ca3af] transition-transform ${
+              open ? "rotate-180 text-[#27AE60]" : ""
+            }`}
+          />
         </button>
         {open && (
           <>
             <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
-            <div className="absolute z-[70] w-full mt-1.5 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden py-1" style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.12)" }}>
-              {options.map((opt) => (
-                <button key={opt.value} type="button" onClick={() => { onChange(opt.value); setOpen(false); }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-sm hover:bg-[#f0fdf4] transition-colors"
-                  style={{ background: value === opt.value ? "#f0fdf4" : "" }}>
-                  <span className="text-base">{opt.icon}</span>
-                  <span className={value === opt.value ? "font-black text-[#15803d]" : "font-medium text-slate-600"}>{opt.label}</span>
-                </button>
-              ))}
+            <div className="absolute z-[90] mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white shadow-xl">
+              {options.map((opt) => {
+                const isSelected = value === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between border-b border-[#f5f5f5] px-4 py-3 text-left text-sm last:border-none hover:bg-[#f0fdf4] ${
+                      isSelected
+                        ? "bg-[#f0fdf4] font-bold text-[#27AE60]"
+                        : "text-[#374151]"
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      {opt.icon ? <span className="text-base">{opt.icon}</span> : null}
+                      <span>{opt.label}</span>
+                    </span>
+                    {isSelected ? (
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-[#27AE60]" />
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
           </>
         )}

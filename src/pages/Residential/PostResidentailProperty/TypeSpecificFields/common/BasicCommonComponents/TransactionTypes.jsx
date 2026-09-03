@@ -56,6 +56,9 @@ const TRANSACTION_TYPES = [
 
 const TransactionTypes = forwardRef(({ error }, ref) => {
   const { form, updateFieldValue } = useActivePropertySlice();
+  const isRent = String(form.listingType || "").toLowerCase() === "rent";
+  if (isRent) return null;
+
   return (
     <div ref={ref} className="space-y-2">
       <p className="text-xs font-bold text-[#374151] uppercase tracking-wide">Transaction Type</p>

@@ -7,6 +7,10 @@ import { toast } from "sonner";
 import { useActivePropertySlice } from "../UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../../store/common/propertyThunks";
 import { hasBlockedContentInDescription } from "../../../../../utils/stripPhoneFromDescription";
+import {
+  toastApiError,
+  toastValidationErrors,
+} from "../../../../../utils/postPropertyToast";
 import { Phone } from "lucide-react";
 
 import Amenities from "../common/BasicCommonComponents/Amenities";
@@ -122,8 +126,7 @@ export default function ResidentialFields({ back, next }) {
     const validationErrors = validateAll();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      const firstMsg = Object.values(validationErrors)[0];
-      if (firstMsg) toast.error(firstMsg);
+      toastValidationErrors(validationErrors);
 
       if (validationErrors.amenities)
         amenitiesRef.current?.scrollIntoView({
@@ -179,7 +182,7 @@ export default function ResidentialFields({ back, next }) {
       })
       .catch((err) => {
         console.error("Save error:", err);
-        toast.error(err?.message || err?.error);
+        toastApiError(err, "Failed to save property details");
       })
       .finally(() => setIsSubmitting(false));
 

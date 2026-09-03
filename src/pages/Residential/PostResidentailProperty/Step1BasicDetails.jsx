@@ -6,6 +6,10 @@ import { actions } from "../../../store/newIndex";
 import { Phone, Sparkles } from "lucide-react";
 import { setActiveCategory } from "../../../store/Ui/uiSlice";
 import { toast } from "sonner";
+import {
+  toastApiError,
+  toastValidationErrors,
+} from "../../../utils/postPropertyToast";
 
 import BuiltUpArea from "./TypeSpecificFields/common/BasicCommonComponents/BuiltUpArea";
 import CarpetArea from "./TypeSpecificFields/common/BasicCommonComponents/CarpetArea";
@@ -194,7 +198,11 @@ const SectionLabel = ({ children }) => (
 );
 
 const CardWrapper = ({ children, className = "" }) => (
-  <div className={`bg-white rounded-2xl border border-[#e6f4ec] p-6 shadow-sm ${className}`}>{children}</div>
+  <div
+    className={`overflow-visible bg-white rounded-2xl border border-[#e6f4ec] p-6 shadow-sm ${className}`}
+  >
+    {children}
+  </div>
 );
 
 const ChoiceChip = ({ label, selected, onClick }) => (
@@ -377,7 +385,21 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
       setErrors((prev) => { const u = { ...prev }; delete u.category; return u; });
       return;
     }
-    if (category && actions[category]) dispatch(actions[category].updateField({ key, value }));
+    if (category && actions[category]) {
+      dispatch(actions[category].updateField({ key, value }));
+      // Transaction type (New Sale / Resale) only applies to Sale listings.
+      if (key === "listingType" && String(value || "").toLowerCase() === "rent") {
+        dispatch(actions[category].updateField({ key: "transactionType", value: undefined }));
+        setErrors((prev) => {
+          if (!prev.transactionType && !prev.listingType) return prev;
+          const u = { ...prev };
+          delete u.transactionType;
+          delete u.listingType;
+          return u;
+        });
+        return;
+      }
+    }
     setErrors((prev) => { if (!prev[key]) return prev; const u = { ...prev }; delete u[key]; return u; });
   };
 
@@ -490,7 +512,10 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
       }
       if (!form.constructionStatus)
         e.constructionStatus = "Construction status required";
-      if (!form.transactionType)
+      if (
+        String(form.listingType || "").toLowerCase() !== "rent" &&
+        !form.transactionType
+      )
         e.transactionType = "Transaction type required";
     }
 
@@ -513,7 +538,10 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
       if (!form.propertyAge) e.propertyAge = "Property age required";
       if (!form.constructionStatus)
         e.constructionStatus = "Construction status required";
-      if (!form.transactionType)
+      if (
+        String(form.listingType || "").toLowerCase() !== "rent" &&
+        !form.transactionType
+      )
         e.transactionType = "Transaction type required";
     }
 
@@ -538,6 +566,11 @@ export default function Step1BasicDetails({ next, agentProject = false }) {
 
  
 const buildPayloadByCategory = (category, data, agentProject = false) => {
+  const isRent = String(data.listingType || "").toLowerCase() === "rent";
+  // Rent listings do not use New Sale / Resale — omit empty values so Mongo enum passes.
+  const transactionType =
+    !isRent && data.transactionType ? data.transactionType : undefined;
+
   const base = {
     listingType: data.listingType,
     propertyCategory: data.propertyCategory,
@@ -603,7 +636,7 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
         facing: data.facing,
         propertyAge: data.propertyAge,
         constructionStatus: data.constructionStatus,
-        transactionType: data.transactionType,
+        ...(transactionType ? { transactionType } : {}),
       };
 
     case "residential":
@@ -629,7 +662,7 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
         ? data.possessionDate
         : null,
        
-        transactionType: data.transactionType,
+        ...(transactionType ? { transactionType } : {}),
       };
 
     default:
@@ -647,6 +680,7 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
     if (Object.keys(validationErrors).length > 0) {
       console.error("❌ Validation Failed. Errors:", validationErrors);
       setErrors(validationErrors);
+      toastValidationErrors(validationErrors);
       return;
     }
 
@@ -696,7 +730,7 @@ const buildPayloadByCategory = (category, data, agentProject = false) => {
       next(); // This moves you to Step 2 (Location)
     } catch (err) {
       console.error("🔥 API SAVE ERROR:", err);
-      toast.error(err?.message || err?.error);
+      toastApiError(err, "Failed to save basic details");
     }
   };
 

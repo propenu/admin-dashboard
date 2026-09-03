@@ -5,6 +5,10 @@ import { toast } from "sonner";
 import { useActivePropertySlice } from "./UsePropertySlice/useActivePropertySlice";
 import { savePropertyData } from "../../../../store/common/propertyThunks";
 import { hasBlockedContentInDescription } from "../../../../utils/stripPhoneFromDescription";
+import {
+  toastApiError,
+  toastValidationErrors,
+} from "../../../../utils/postPropertyToast";
 
 import TopHeader from "./common/BasicCommonComponents/TopHeader";
 import Amenities from "./common/BasicCommonComponents/Amenities";
@@ -121,8 +125,7 @@ export default function AgriculturalFields({ back, next }) {
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      const firstMsg = Object.values(validationErrors)[0];
-      if (firstMsg) toast.error(firstMsg);
+      toastValidationErrors(validationErrors);
       if (validationErrors.galleryFiles) galleryRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       else setTimeout(scrollToTop, 50);
       return;
@@ -140,7 +143,7 @@ export default function AgriculturalFields({ back, next }) {
       dispatch(savePropertyData({ category: "agricultural", id: propertyId, step: "details" }))
         .unwrap()
         .then(() => { toast.success("Agricultural details saved successfully"); next(); })
-        .catch((err) => toast.error(err?.message || err?.error))
+        .catch((err) => toastApiError(err, "Failed to save agricultural details"))
         .finally(() => setIsSubmitting(false));
     }
   };

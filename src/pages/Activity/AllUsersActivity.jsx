@@ -38,10 +38,10 @@ const TIME_PILLS = [
 ];
 
 const MetricSkeleton = () => (
-  <div className="flex min-h-[4.5rem] animate-pulse flex-col items-center justify-center rounded-xl border border-[#e5eee8] bg-white px-1.5 py-2 shadow-sm lg:h-[72px]">
-    <div className="mb-1 h-6 w-6 rounded-full bg-[#EAF8F0] lg:h-7 lg:w-7" />
-    <div className="h-3.5 w-6 rounded bg-slate-100 lg:h-4 lg:w-8" />
-    <div className="mt-1 h-2 w-10 rounded bg-slate-100 lg:w-14" />
+  <div className="flex h-[52px] animate-pulse flex-col items-center justify-center rounded-lg border border-[#e5eee8] bg-white px-1 py-1.5 shadow-sm sm:h-[56px]">
+    <div className="mb-0.5 h-4 w-4 rounded-full bg-[#EAF8F0]" />
+    <div className="h-2.5 w-5 rounded bg-slate-100" />
+    <div className="mt-0.5 h-1.5 w-8 rounded bg-slate-100" />
   </div>
 );
 
@@ -182,9 +182,9 @@ export default function AllUsersActivity() {
 
   const metrics = [
     { key: "active", label: "Active now", value: kpis.activeNow ?? 0, icon: UserRound, filter: "all" },
-    { key: "actions", label: "Actions today", value: kpis.actionsToday ?? 0, icon: ChartNoAxesCombined, filter: "all" },
-    { key: "leads", label: "Leads got", value: kpis.leadsGot ?? 0, icon: UserRoundPlus, filter: "leads" },
-    { key: "visits", label: "Visits got", value: kpis.visitsGot ?? 0, icon: CalendarDays, filter: "visits" },
+    { key: "actions", label: "Actions", value: kpis.actionsToday ?? 0, icon: ChartNoAxesCombined, filter: "all" },
+    { key: "leads", label: "Leads", value: kpis.leadsGot ?? 0, icon: UserRoundPlus, filter: "leads" },
+    { key: "visits", label: "Visits", value: kpis.visitsGot ?? 0, icon: CalendarDays, filter: "visits" },
   ];
 
   const livePill =
@@ -402,8 +402,8 @@ export default function AllUsersActivity() {
         </div>
       </div>
 
-      {/* KPI cards — one row on mobile + desktop */}
-      <div className="mb-3 grid w-full grid-cols-4 gap-1.5 sm:gap-2 lg:mb-4 lg:gap-2.5">
+      {/* KPI cards — compact one-row metrics */}
+      <div className="mb-3 grid w-full grid-cols-4 gap-1.5 sm:gap-2 lg:mb-3">
         {loading && !data
           ? Array.from({ length: 4 }).map((_, i) => <MetricSkeleton key={i} />)
           : metrics.map((card) => (
@@ -411,19 +411,19 @@ export default function AllUsersActivity() {
                 key={card.key}
                 type="button"
                 onClick={() => setAction(card.filter)}
-                className={`flex min-h-[4.5rem] w-full flex-col items-center justify-center rounded-xl border border-[#e5eee8] bg-white px-1 py-2 text-center shadow-sm transition hover:border-[#12A150]/35 hover:shadow focus:outline-none focus:ring-2 focus:ring-[#12A150]/25 active:scale-[0.98] sm:px-2 lg:h-[72px] lg:min-h-0 lg:px-2 ${
+                className={`flex h-[52px] w-full flex-col items-center justify-center rounded-lg border border-[#e5eee8] bg-white px-1 py-1 text-center shadow-sm transition hover:border-[#12A150]/35 hover:shadow focus:outline-none focus:ring-2 focus:ring-[#12A150]/25 active:scale-[0.98] sm:h-[56px] sm:px-1.5 ${
                   action === card.filter && card.filter !== "all"
                     ? "border-[#12A150] ring-2 ring-[#12A150]/15"
                     : ""
                 }`}
               >
-                <span className="mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#EAF8F0] text-[#12A150] sm:h-7 sm:w-7">
-                  <card.icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" strokeWidth={2} />
+                <span className="mb-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#EAF8F0] text-[#12A150] sm:h-5 sm:w-5">
+                  <card.icon className="h-2.5 w-2.5 sm:h-3 sm:w-3" strokeWidth={2.25} />
                 </span>
-                <span className="text-[15px] font-black leading-none tabular-nums text-[#101820] sm:text-[18px]">
+                <span className="text-[13px] font-black leading-none tabular-nums text-[#101820] sm:text-[15px]">
                   {card.value}
                 </span>
-                <span className="mt-0.5 line-clamp-2 px-0.5 text-[9px] font-semibold leading-tight text-slate-500 sm:text-[11px] sm:font-medium">
+                <span className="mt-0.5 truncate px-0.5 text-[8px] font-semibold leading-tight text-slate-500 sm:text-[10px]">
                   {card.label}
                 </span>
               </button>
