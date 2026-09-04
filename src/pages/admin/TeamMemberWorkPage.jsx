@@ -3,7 +3,7 @@
  * Fixed-height scroll containers + View all on this page.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   Briefcase,
@@ -266,6 +266,7 @@ const moduleToTab = (module) => {
 export default function TeamMemberWorkPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [user, setUser] = useState(null);
@@ -550,7 +551,10 @@ export default function TeamMemberWorkPage() {
   const accountActive = user?.accountStatus === "active" && user?.isActive !== false;
   const scrollMax = viewAll ? "max-h-[70vh]" : "max-h-72";
 
-  const openProject = (project) => navigate(`/post-property/${project._id}`);
+  const openProject = (project) =>
+    navigate(`/post-property/${project._id}`, {
+      state: { from: location.pathname },
+    });
   const openProperty = (property) => navigate(`/edit-property/${property._id}`);
   const openTicket = (ticket) =>
     navigate("/tickets", { state: { focusTicketId: ticket._id, ticketNumber: ticket.ticketNumber } });

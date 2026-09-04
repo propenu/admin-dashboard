@@ -7,7 +7,7 @@ import {
   useUserFeaturedProjects,
   useUserFeaturedProjectCounts,
 } from "../../UserInformationCenter/useUserDetail";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const PROJECT_TYPES = [
   { key: "featured", label: "⭐ Featured", color: C.info },
@@ -24,6 +24,7 @@ const publicProjectPath = (type, slug) => {
 
 const ProjectCard = ({ p, type }) => {
     const navigate = useNavigate();
+    const location = useLocation();
   const [imgError, setImgError] = useState(false);
 //   const thumb =
 //     !imgError &&
@@ -126,7 +127,11 @@ const thumb =
             color: "#fff",
             cursor: "pointer",
           }}
-          onClick={() => navigate(`/post-property/${p._id}`)}
+          onClick={() =>
+            navigate(`/post-property/${p._id}`, {
+              state: { from: location.pathname },
+            })
+          }
         >
           Edit
         </div>

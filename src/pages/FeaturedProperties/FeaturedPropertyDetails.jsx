@@ -1,7 +1,7 @@
 
 // src/pages/FeaturedProperties/FeaturedPropertyDetails.jsx
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   MapPin,
@@ -182,6 +182,7 @@ function LeadRow({ lead, index }) {
 export default function FeaturedPropertyDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeImage, setActiveImage] = useState(0);
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -475,7 +476,11 @@ export default function FeaturedPropertyDetails() {
             {/* Actions */}
             <div className="flex gap-3 mt-auto pt-1">
               <button
-                onClick={() => navigate(`/post-property/${property._id}`)}
+                onClick={() =>
+                  navigate(`/post-property/${property._id}`, {
+                    state: { from: location.pathname },
+                  })
+                }
                 className="flex-1 text-sm font-bold py-2.5 rounded-xl bg-[#27AE60] text-white hover:bg-green-700 transition shadow"
               >
                 Edit Property

@@ -1,7 +1,7 @@
 // src/features/property/components/shared/PropertyCard.jsx
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -197,6 +197,7 @@ export default function PropertyCard({
   canApprove = false,
 }) {
   const navigate   = useNavigate();
+  const location   = useLocation();
 
   const queryClient = useQueryClient();
 
@@ -946,7 +947,9 @@ export default function PropertyCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/post-property/${p._id}`);
+                  navigate(`/post-property/${p._id}`, {
+                    state: { from: location.pathname },
+                  });
                 }}
                 className="flex items-center gap-0.5 whitespace-nowrap text-[10px] font-medium text-[#27AE60] hover:underline"
               >

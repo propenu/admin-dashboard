@@ -1,6 +1,6 @@
 // D:\propenu\frontend\admin-dashboard\src\pages\post-property\FeaturedPoperty\FeaturedPreviewPage.jsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
@@ -30,7 +30,7 @@ import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import PropertyDetailsEditor from "./FeaturedPreviewPageComponents/PropertyDetailsEditor";
 import PropertyDetailsSection from "./FeaturedPreviewPageComponents/PropertyDetailsSection";
 import BuilderAttachPanel from "../../features/property/components/shared/BuilderAttachPanel";
-import { Video } from "lucide-react";
+import { ArrowLeft, Video } from "lucide-react";
 
 const getSections = (categoryType) => [
   {
@@ -177,6 +177,8 @@ function SectionWrapper({
 ───────────────────────────────────────────── */
 export default function FeaturedPreviewPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData]               = useState(null);
   const [livePreviewData, setLivePreviewData] = useState(null);
   const [saving, setSaving]                   = useState(false);
@@ -296,14 +298,38 @@ export default function FeaturedPreviewPage() {
     }
   };
 
+  const handleBack = () => {
+    const from = location.state?.from;
+    // Return to the page that opened edit (projects list, details, etc.)
+    if (typeof from === "string" && from.startsWith("/")) {
+      navigate(from);
+      return;
+    }
+    // Default: projects list — never force Indetails
+    navigate("/projects");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50/60">
+      {/* Small page back — same style as other detail pages */}
+      <div className="mx-3 mb-2 sm:mx-6">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 transition hover:text-[#27AE60]"
+          aria-label="Back to project"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back
+        </button>
+      </div>
+
       {/* ── TOP NAV BAR ── */}
-      <div className="sticky top-16 z-50 bg-white/90 backdrop-blur border border-[#27AE60] rounded-xl shadow-2xl">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6">
-          <div className="flex items-center h-13 sm:h-14 gap-2">
+      <div className="sticky top-16 z-50 mx-3 mt-0 overflow-hidden rounded-xl border border-[#27AE60] bg-white/95 shadow-2xl backdrop-blur sm:mx-6">
+        <div className="mx-auto max-w-7xl px-3 sm:px-6">
+          <div className="flex h-12 items-center gap-2 sm:h-14">
             {/* Brand dot */}
-            <span className="w-2.5 h-2.5 rounded-full bg-[#27AE60] flex-shrink-0" />
+            <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full bg-[#27AE60]" />
 
             {/* Desktop nav pills — scrollable row */}
             <div className="hidden sm:flex items-center gap-1 overflow-x-auto scrollbar-none flex-1 ml-2">

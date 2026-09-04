@@ -1,6 +1,6 @@
 // frontend/admin-dashboard/src/pages/HighlightProjects/HighlightProjectsCard.jsx
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { MapPin, Bed, Building2, GripVertical, Check, X, Pencil } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -16,6 +16,7 @@ export const formatPrice = (price) => {
 };
 export default function HighlightProjectsCard({ property, onRankUpdated }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [updating, setUpdating] = useState(false);
   const [editingRank, setEditingRank] = useState(false);
@@ -200,7 +201,11 @@ export default function HighlightProjectsCard({ property, onRankUpdated }) {
             View
           </button>
           <button
-            onClick={() => navigate(`/post-property/${property._id}`)}
+            onClick={() =>
+              navigate(`/post-property/${property._id}`, {
+                state: { from: location.pathname },
+              })
+            }
             className="w-full text-xs font-semibold py-2 rounded-lg bg-[#27AE60] text-white flex items-center justify-center gap-1 hover:bg-green-700 transition"
           >
             Edit

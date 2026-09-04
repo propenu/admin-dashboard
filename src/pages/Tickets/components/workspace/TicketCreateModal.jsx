@@ -118,8 +118,26 @@ export default function TicketCreateModal({
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 
+  const clearRequesterSelection = () => {
+    setSelectedRequester(null);
+    setRequesterQuery("");
+    setRequesterResults([]);
+    setRelatedAssets([]);
+    setSelectedAssetId("");
+    setForm((current) => ({
+      ...current,
+      requesterName: "",
+      requesterEmail: "",
+      requesterPhone: "",
+      propertyId: "",
+    }));
+  };
+
   useEffect(() => {
     if (!open) return undefined;
+
+    // Keep list frozen only while the selected person is still the active search target.
+    // Role / type switches clear selection, so a fresh fetch always runs.
     if (
       selectedRequester &&
       requesterQuery.trim() === getRequesterName(selectedRequester)
@@ -127,35 +145,39 @@ export default function TicketCreateModal({
       return undefined;
     }
 
+    let active = true;
     const timer = window.setTimeout(async () => {
       setRequesterLoading(true);
       try {
-        const requesterGroups = await Promise.all([
-          searchTicketRequesters({
-            query: requesterQuery.trim(),
-            role: resolvedRequesterRole,
-            limit: 30,
-          }),
-        ]);
+        const users = await searchTicketRequesters({
+          query: requesterQuery.trim(),
+          role: resolvedRequesterRole,
+          limit: 100,
+        });
+        if (!active) return;
         const seenRequesterIds = new Set();
-        const users = requesterGroups
-          .flat()
-          .filter((user) => {
-            const id = user?.userId || user?._id || user?.id || `${user?.email || ""}:${user?.phone || ""}`;
-            if (seenRequesterIds.has(id)) return false;
-            seenRequesterIds.add(id);
-            return true;
-          })
-          .slice(0, 30);
-        setRequesterResults(users);
-      } catch (error) {
-        setRequesterResults([]);
+        const uniqueUsers = users.filter((user) => {
+          const id =
+            user?.userId ||
+            user?._id ||
+            user?.id ||
+            `${user?.email || ""}:${user?.phone || ""}`;
+          if (seenRequesterIds.has(id)) return false;
+          seenRequesterIds.add(id);
+          return true;
+        });
+        setRequesterResults(uniqueUsers);
+      } catch (_error) {
+        if (active) setRequesterResults([]);
       } finally {
-        setRequesterLoading(false);
+        if (active) setRequesterLoading(false);
       }
-    }, 300);
+    }, 250);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [open, requesterQuery, resolvedRequesterRole, selectedRequester]);
 
   useEffect(() => {
@@ -225,7 +247,6 @@ export default function TicketCreateModal({
   const selectRequester = (user) => {
     setSelectedRequester(user);
     setRequesterQuery(getRequesterName(user));
-    setRequesterResults([]);
     setForm((current) => ({
       ...current,
       requesterName: getRequesterName(user),
@@ -426,7 +447,7 @@ export default function TicketCreateModal({
                   onChange={(value) => {
                     setRequesterRole(value);
                     setStaffRole("all");
-                    setSelectedRequester(null);
+                    clearRequesterSelection();
                   }}
                 />
               </Field>
@@ -443,7 +464,7 @@ export default function TicketCreateModal({
                     searchPlaceholder="Search Super Admin, Accounts..."
                     onChange={(value) => {
                       setStaffRole(value);
-                      setSelectedRequester(null);
+                      clearRequesterSelection();
                     }}
                   />
                 </Field>

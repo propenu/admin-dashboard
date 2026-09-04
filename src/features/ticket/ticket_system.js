@@ -33,7 +33,42 @@ const getItems = (payload) => {
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.users)) return payload.users;
   if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.data?.users)) return payload.data.users;
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
   return [];
+};
+
+const normalizeRoleKey = (role) =>
+  String(role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+const REQUESTER_ROLE_ALIASES = {
+  owner: "user",
+  buyer: "user",
+  tenant: "user",
+  propenu_user: "user",
+  builderstaff: "builder_staff",
+  builder_staffs: "builder_staff",
+  sales_agent: "sales_executive",
+  sales_executives: "sales_executive",
+  customer_care: "customer_care_executive",
+  customer_care_executives: "customer_care_executive",
+  team_lead: "customer_support_team_lead",
+  team_leads: "customer_support_team_lead",
+  customer_support_team_leads: "customer_support_team_lead",
+  relationship_managers: "relationship_manager",
+  regional_managers: "regional_manager",
+  operation_head: "operations_head",
+  technical_support: "technical_support_team",
+};
+
+const canonicalRequesterRole = (role) => {
+  const key = normalizeRoleKey(role);
+  return REQUESTER_ROLE_ALIASES[key] || key;
 };
 
 const getRequesterRole = (user) => {
@@ -43,19 +78,19 @@ const getRequesterRole = (user) => {
     user?.role?.label ||
     user?.roleId?.name ||
     user?.roleId?.label ||
-    user?.role ||
+    (typeof user?.role === "string" ? user.role : user?.role?.name || user?.role?.label) ||
     "";
   if (raw && typeof raw === "object") {
-    return String(raw.name || raw.label || "").trim().toLowerCase();
+    return canonicalRequesterRole(raw.name || raw.label || "");
   }
-  return String(raw || "").trim().toLowerCase();
+  return canonicalRequesterRole(raw);
 };
 
 const CORE_REQUESTER_ROLES = new Set(["user", "agent", "builder", "builder_staff"]);
 const EXCLUDED_ASSIGNEE_ROLES = new Set(["user", "agent", "builder", "builder_staff"]);
 
 const isStaffRequesterRole = (role) => {
-  const value = String(role || "").trim().toLowerCase();
+  const value = canonicalRequesterRole(role);
   if (!value || value === "all") return false;
   if (value === "staff") return true;
   return !CORE_REQUESTER_ROLES.has(value);
@@ -63,17 +98,10 @@ const isStaffRequesterRole = (role) => {
 
 const matchesRequesterRole = (user, role) => {
   const value = getRequesterRole(user);
-  if (!role || role === "all") return CORE_REQUESTER_ROLES.has(value);
-  if (role === "staff") return Boolean(value) && !CORE_REQUESTER_ROLES.has(value);
-  const aliases = {
-    user: ["user", "owner", "buyer", "tenant", "propenu_user"],
-    builder: ["builder"],
-    agent: ["agent"],
-    builder_staff: ["builder_staff", "builderstaff", "builder_staffs"],
-  };
-  if (aliases[role]) return aliases[role].includes(value);
-  // Specific staff role (super_admin, accounts, sales_manager, ...)
-  return value === String(role).toLowerCase();
+  const wanted = canonicalRequesterRole(role);
+  if (!wanted || wanted === "all") return CORE_REQUESTER_ROLES.has(value);
+  if (wanted === "staff") return Boolean(value) && !CORE_REQUESTER_ROLES.has(value);
+  return Boolean(value) && value === wanted;
 };
 
 const matchesRequesterQuery = (user, query) => {
@@ -102,12 +130,22 @@ const matchesAssigneeLocation = (user, location = {}) => {
   return true;
 };
 
-const normalizeRequester = (user) => ({
-  ...user,
-  userId: user?.userId || user?._id || user?.id,
-  role: getRequesterRole(user),
-  roleName: getRequesterRole(user) || user?.roleName,
-});
+const normalizeRequester = (user) => {
+  const role = getRequesterRole(user);
+  return {
+    ...user,
+    userId: user?.userId || user?._id || user?.id,
+    role,
+    roleName: role || user?.roleName,
+  };
+};
+
+const roleOptionLabel = (value) =>
+  String(value || "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 
 const buildRoleOptionsFromUsers = (items) => {
   const roleMap = new Map();
@@ -121,35 +159,40 @@ const buildRoleOptionsFromUsers = (items) => {
       if (!value || roleMap.has(value)) return;
       roleMap.set(value, {
         value,
-        label: value
-          .split("_")
-          .filter(Boolean)
-          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-          .join(" "),
+        label: roleOptionLabel(value),
       });
     });
 
   return Array.from(roleMap.values());
 };
 
+const sortNewestFirst = (users) =>
+  [...users].sort(
+    (a, b) =>
+      new Date(b?.createdAt || b?.updatedAt || 0).getTime() -
+      new Date(a?.createdAt || a?.updatedAt || 0).getTime(),
+  );
+
 const filterRequesters = (items, { query, role, limit }) =>
-  items
-    .map(normalizeRequester)
-    .filter((user) => matchesRequesterRole(user, role))
-    .filter((user) => matchesRequesterQuery(user, query))
-    .slice(0, limit);
+  sortNewestFirst(
+    items
+      .map(normalizeRequester)
+      .filter((user) => matchesRequesterRole(user, role))
+      .filter((user) => matchesRequesterQuery(user, query)),
+  ).slice(0, limit);
 
 const filterAssignableUsers = (items, { query, role, limit, location } = {}) =>
-  items
-    .map(normalizeRequester)
-    .filter((user) => !EXCLUDED_ASSIGNEE_ROLES.has(getRequesterRole(user)))
-    .filter((user) => {
-      if (!role || role === "all") return true;
-      return getRequesterRole(user) === String(role).toLowerCase();
-    })
-    .filter((user) => matchesRequesterQuery(user, query))
-    .filter((user) => matchesAssigneeLocation(user, location))
-    .slice(0, limit);
+  sortNewestFirst(
+    items
+      .map(normalizeRequester)
+      .filter((user) => !EXCLUDED_ASSIGNEE_ROLES.has(getRequesterRole(user)))
+      .filter((user) => {
+        if (!role || role === "all") return true;
+        return getRequesterRole(user) === canonicalRequesterRole(role);
+      })
+      .filter((user) => matchesRequesterQuery(user, query))
+      .filter((user) => matchesAssigneeLocation(user, location)),
+  ).slice(0, limit);
 
 const getPageCount = (payload) =>
   Math.max(1, Number(payload?.meta?.pages || payload?.meta?.totalPages || payload?.pagination?.totalPages || 1));
@@ -244,27 +287,57 @@ export const getTicketAgentPerformance = async (params) => {
   return unwrapData(response);
 };
 
-export const searchTicketRequesters = async ({ query, role = "all", limit = 20 } = {}) => {
+export const searchTicketRequesters = async ({ query, role = "all", limit = 50 } = {}) => {
   const staffScope = isStaffRequesterRole(role);
+  const roleKey = canonicalRequesterRole(role);
   const response = await apiClient.get(`${SERVICES.USER}/auth/all-users`, {
     params: cleanParams({
       scope: staffScope ? "ticket_assignees" : "ticket_requesters",
     }),
   });
-  const localMatches = filterRequesters(getItems(response.data), { query, role, limit });
-  if (localMatches.length || !query?.trim()) return localMatches;
+  const localMatches = filterRequesters(getItems(response.data), {
+    query,
+    role: roleKey,
+    limit,
+  });
+  if (localMatches.length) return localMatches;
+
+  // Specific staff role with no local hits — query by role so newly created staff still appear
+  if (staffScope && roleKey && roleKey !== "all" && roleKey !== "staff") {
+    try {
+      const searchedResponse = await apiClient.get(`${SERVICES.USER}/auth/search`, {
+        params: cleanParams({
+          role: roleKey,
+          q: query?.trim() || undefined,
+        }),
+      });
+      return filterRequesters(getItems(searchedResponse.data), {
+        query,
+        role: roleKey,
+        limit,
+      });
+    } catch (_error) {
+      /* fall through */
+    }
+  }
+
+  if (!query?.trim()) return localMatches;
 
   try {
     const searchedResponse = await apiClient.get(`${SERVICES.USER}/auth/search`, {
       params: cleanParams({
         q: query,
         role:
-          !role || role === "all" || role === "staff"
+          !roleKey || roleKey === "all" || roleKey === "staff"
             ? undefined
-            : role,
+            : roleKey,
       }),
     });
-    return filterRequesters(getItems(searchedResponse.data), { query, role, limit });
+    return filterRequesters(getItems(searchedResponse.data), {
+      query,
+      role: roleKey,
+      limit,
+    });
   } catch (error) {
     return localMatches;
   }

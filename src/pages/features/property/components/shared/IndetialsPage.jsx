@@ -1753,7 +1753,11 @@ export default function FeaturedPropertyDetails() {
               )}
             <div className="flex gap-3 mt-auto pt-1">
               <button
-                onClick={() => navigate(`/post-property/${property._id}`)}
+                onClick={() =>
+                  navigate(`/post-property/${property._id}`, {
+                    state: { from: `/featured-project/${property._id}` },
+                  })
+                }
                 className="flex-1 text-sm font-bold py-2.5 rounded-xl bg-[#27AE60] text-white hover:bg-green-700 transition shadow"
               >
                 Edit Project
