@@ -16,10 +16,13 @@ const ColorfulSelect = forwardRef(function ColorfulSelect(
     className = "",
     maxHeightClass = "max-h-64",
     labelClassName = "text-xs font-bold text-[#374151] uppercase tracking-wide",
+    searchable = false,
+    searchPlaceholder = "Search...",
   },
   ref,
 ) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const dropdownRef = useRef(null);
 
   const normalized = options.map((opt) =>
@@ -31,6 +34,18 @@ const ColorfulSelect = forwardRef(function ColorfulSelect(
   const selectedLabel =
     normalized.find((o) => String(o.value) === String(value ?? ""))?.label ||
     "";
+
+  const visibleOptions = searchable
+    ? normalized.filter((opt) =>
+        String(opt.label || "")
+          .toLowerCase()
+          .includes(search.trim().toLowerCase()),
+      )
+    : normalized;
+
+  useEffect(() => {
+    if (!open) setSearch("");
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -87,35 +102,53 @@ const ColorfulSelect = forwardRef(function ColorfulSelect(
 
       {open ? (
         <div
-          className={`absolute left-0 top-full z-[90] mt-2 w-full overflow-y-auto rounded-xl border border-[#e5e7eb] bg-white shadow-xl ${maxHeightClass}`}
+          className="absolute left-0 top-full z-[90] mt-2 w-full overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-xl"
           role="listbox"
-          onMouseDown={(e) => e.preventDefault()}
         >
-          {normalized.map((opt) => {
-            const isSelected = String(value ?? "") === String(opt.value);
-            return (
-              <button
-                key={String(opt.value)}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                onClick={() => {
-                  onChange?.(opt.value);
-                  setOpen(false);
-                }}
-                className={`flex w-full cursor-pointer items-center justify-between border-b border-[#f5f5f5] px-4 py-3 text-left text-sm transition-colors last:border-none hover:bg-[#f0fdf4] ${
-                  isSelected
-                    ? "bg-[#f0fdf4] font-bold text-[#27AE60]"
-                    : "font-normal text-[#374151]"
-                }`}
-              >
-                <span>{opt.label}</span>
-                {isSelected ? (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-[#27AE60]" />
-                ) : null}
-              </button>
-            );
-          })}
+          {searchable ? (
+            <div className="border-b border-[#f5f5f5] p-2">
+              <input
+                autoFocus
+                type="text"
+                value={search}
+                placeholder={searchPlaceholder}
+                onChange={(e) => setSearch(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full rounded-lg border-2 border-[#e5e7eb] px-3 py-1.5 text-sm outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/10"
+              />
+            </div>
+          ) : null}
+          <div className={`${maxHeightClass} overflow-y-auto`}>
+            {visibleOptions.length ? (
+              visibleOptions.map((opt) => {
+                const isSelected = String(value ?? "") === String(opt.value);
+                return (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => {
+                      onChange?.(opt.value);
+                      setOpen(false);
+                    }}
+                    className={`flex w-full cursor-pointer items-center justify-between border-b border-[#f5f5f5] px-4 py-3 text-left text-sm transition-colors last:border-none hover:bg-[#f0fdf4] ${
+                      isSelected
+                        ? "bg-[#f0fdf4] font-bold text-[#27AE60]"
+                        : "font-normal text-[#374151]"
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    {isSelected ? (
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-[#27AE60]" />
+                    ) : null}
+                  </button>
+                );
+              })
+            ) : (
+              <p className="px-4 py-3 text-sm text-gray-400">No match</p>
+            )}
+          </div>
         </div>
       ) : null}
     </div>

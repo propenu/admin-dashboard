@@ -54,16 +54,26 @@ const getRequesterRole = (user) => {
 const CORE_REQUESTER_ROLES = new Set(["user", "agent", "builder", "builder_staff"]);
 const EXCLUDED_ASSIGNEE_ROLES = new Set(["user", "agent", "builder", "builder_staff"]);
 
+const isStaffRequesterRole = (role) => {
+  const value = String(role || "").trim().toLowerCase();
+  if (!value || value === "all") return false;
+  if (value === "staff") return true;
+  return !CORE_REQUESTER_ROLES.has(value);
+};
+
 const matchesRequesterRole = (user, role) => {
   const value = getRequesterRole(user);
   if (!role || role === "all") return CORE_REQUESTER_ROLES.has(value);
+  if (role === "staff") return Boolean(value) && !CORE_REQUESTER_ROLES.has(value);
   const aliases = {
     user: ["user", "owner", "buyer", "tenant", "propenu_user"],
     builder: ["builder"],
     agent: ["agent"],
     builder_staff: ["builder_staff", "builderstaff", "builder_staffs"],
   };
-  return (aliases[role] || [String(role).toLowerCase()]).includes(value);
+  if (aliases[role]) return aliases[role].includes(value);
+  // Specific staff role (super_admin, accounts, sales_manager, ...)
+  return value === String(role).toLowerCase();
 };
 
 const matchesRequesterQuery = (user, query) => {
@@ -235,9 +245,10 @@ export const getTicketAgentPerformance = async (params) => {
 };
 
 export const searchTicketRequesters = async ({ query, role = "all", limit = 20 } = {}) => {
+  const staffScope = isStaffRequesterRole(role);
   const response = await apiClient.get(`${SERVICES.USER}/auth/all-users`, {
     params: cleanParams({
-      scope: "ticket_requesters",
+      scope: staffScope ? "ticket_assignees" : "ticket_requesters",
     }),
   });
   const localMatches = filterRequesters(getItems(response.data), { query, role, limit });
@@ -247,7 +258,10 @@ export const searchTicketRequesters = async ({ query, role = "all", limit = 20 }
     const searchedResponse = await apiClient.get(`${SERVICES.USER}/auth/search`, {
       params: cleanParams({
         q: query,
-        role: role === "all" ? undefined : role,
+        role:
+          !role || role === "all" || role === "staff"
+            ? undefined
+            : role,
       }),
     });
     return filterRequesters(getItems(searchedResponse.data), { query, role, limit });
