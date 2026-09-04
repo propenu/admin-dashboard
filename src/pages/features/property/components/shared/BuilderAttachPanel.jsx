@@ -1,13 +1,16 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Mail, Search } from "lucide-react";
+import { Building2, Mail, Search, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { getUserSearch } from "../../../../../features/user/userService";
 import {
   assignExistingBuilderToProject,
+  directCreateBuilderOnProject,
   sendBuilderInviteEmail,
   submitProjectForApproval,
 } from "../../../../../features/property/propertyService";
+import { useCurrentUser } from "../../../../../store/properties/useCurrentUser";
+import { canDirectCreateBuilder } from "../../../../../utils/projectAccessControl";
 
 const inp =
   "w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10";
@@ -27,7 +30,7 @@ const builderPerson = (createdBy) => {
 
 /**
  * Attach or change builder (Created By) on project detail/edit.
- * Modes: existing_builder | invite_link
+ * Modes: existing_builder | invite_link | direct_create (SA / BDH only)
  */
 export default function BuilderAttachPanel({
   projectId,
@@ -35,6 +38,10 @@ export default function BuilderAttachPanel({
   onAttached,
 }) {
   const queryClient = useQueryClient();
+  const { data: userPayload } = useCurrentUser();
+  const currentUser = userPayload?.user || userPayload;
+  const allowDirectCreate = canDirectCreateBuilder(currentUser);
+
   const existing = builderPerson(currentBuilder);
   const hasBuilder = Boolean(existing?._id || existing?.name || existing?.email);
 
@@ -44,6 +51,17 @@ export default function BuilderAttachPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [emails, setEmails] = useState([""]);
   const [company, setCompany] = useState("");
+  const [directForm, setDirectForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    companyName: "",
+  });
+  const [directFieldErrors, setDirectFieldErrors] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  });
 
   const buildersQuery = useQuery({
     queryKey: ["builder-attach-panel", "builders"],
@@ -78,6 +96,8 @@ export default function BuilderAttachPanel({
     setSearchQuery("");
     setEmails([""]);
     setCompany("");
+    setDirectForm({ name: "", email: "", phone: "", companyName: "" });
+    setDirectFieldErrors({ name: "", email: "", phone: "" });
   };
 
   const attachMutation = useMutation({
@@ -120,7 +140,41 @@ export default function BuilderAttachPanel({
         };
       }
 
-      throw new Error("Choose Existing Builder or Builder Invite");
+      if (mode === "direct_create") {
+        if (!allowDirectCreate) {
+          throw new Error(
+            "Only Super Admin or Business Development Head can create a builder without OTP",
+          );
+        }
+        const name = String(directForm.name || "").trim();
+        const email = String(directForm.email || "").trim().toLowerCase();
+        const phone = String(directForm.phone || "").replace(/\D/g, "");
+        const companyName = String(directForm.companyName || "").trim();
+        const nextErrors = { name: "", email: "", phone: "" };
+        if (!name) nextErrors.name = "Builder name is required";
+        if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+          nextErrors.email = "Enter a valid email, or leave it empty";
+        }
+        if (phone.length < 10) nextErrors.phone = "Enter a valid 10-digit phone number";
+        setDirectFieldErrors(nextErrors);
+        if (nextErrors.name || nextErrors.email || nextErrors.phone) {
+          throw new Error(
+            nextErrors.phone || nextErrors.email || nextErrors.name,
+          );
+        }
+        const createRes = await directCreateBuilderOnProject(projectId, {
+          name,
+          email: email || undefined,
+          phone,
+          companyName: companyName || undefined,
+        });
+        return {
+          mode: "direct_create",
+          assign: createRes?.data?.data || createRes?.data || createRes,
+        };
+      }
+
+      throw new Error("Choose how to set Created By");
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({
@@ -128,6 +182,14 @@ export default function BuilderAttachPanel({
       });
       if (result?.mode === "invite_link") {
         toast.success("Builder invite email sent");
+      } else if (result?.mode === "direct_create") {
+        toast.success(
+          result?.assign?.createdNewUser
+            ? "New builder created and assigned (no OTP)"
+            : result?.assign?.wentLive
+              ? "Builder assigned — project live"
+              : "Builder created / linked as Created By",
+        );
       } else {
         toast.success(
           result?.assign?.wentLive
@@ -144,12 +206,21 @@ export default function BuilderAttachPanel({
       onAttached?.(result);
     },
     onError: (err) => {
-      toast.error(
-        err?.response?.data?.error ||
-          err?.response?.data?.message ||
-          err?.message ||
-          "Could not update builder",
-      );
+      const payload = err?.response?.data || {};
+      const message =
+        payload.error ||
+        payload.message ||
+        err?.message ||
+        "Could not update builder";
+      const field = String(payload.conflictField || "").toLowerCase();
+      if (mode === "direct_create") {
+        setDirectFieldErrors({
+          name: "",
+          email: field === "email" ? message : "",
+          phone: field === "phone" ? message : "",
+        });
+      }
+      toast.error(message);
     },
   });
 
@@ -157,6 +228,9 @@ export default function BuilderAttachPanel({
     ? "border-emerald-200 bg-emerald-50/30"
     : "border-amber-200 bg-amber-50/40";
   const eyebrowClass = hasBuilder ? "text-emerald-700" : "text-amber-700";
+
+  const updateDirect = (key) => (event) =>
+    setDirectForm((current) => ({ ...current, [key]: event.target.value }));
 
   return (
     <section className={`rounded-2xl border-2 ${borderClass} p-4 shadow-sm`}>
@@ -251,11 +325,18 @@ export default function BuilderAttachPanel({
                   : "",
               );
               setEmails([""]);
+              setDirectForm({ name: "", email: "", phone: "", companyName: "" });
+              setDirectFieldErrors({ name: "", email: "", phone: "" });
             }}
           >
             <option value="">— Choose how to set Created By —</option>
             <option value="existing_builder">Existing Builder</option>
             <option value="invite_link">Builder Invite (email)</option>
+            {allowDirectCreate ? (
+              <option value="direct_create">
+                Create new builder (direct — no OTP)
+              </option>
+            ) : null}
           </select>
 
           {mode === "existing_builder" ? (
@@ -344,6 +425,85 @@ export default function BuilderAttachPanel({
             </div>
           ) : null}
 
+          {mode === "direct_create" && allowDirectCreate ? (
+            <div className="mt-4 space-y-3 border-t border-emerald-100/80 pt-4">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                <UserPlus className="h-3.5 w-3.5" />
+                Create builder account (role = builder). Phone saved directly — no OTP.
+              </p>
+              <div>
+                <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-gray-500">
+                  Name
+                </label>
+                <input
+                  className={`${inp} ${directFieldErrors.name ? "border-red-400" : ""}`}
+                  placeholder="Builder full name"
+                  value={directForm.name}
+                  onChange={(e) => {
+                    updateDirect("name")(e);
+                    setDirectFieldErrors((c) => ({ ...c, name: "" }));
+                  }}
+                />
+                {directFieldErrors.name ? (
+                  <p className="mt-1 text-xs font-semibold text-red-600">{directFieldErrors.name}</p>
+                ) : null}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-gray-500">
+                    Email (optional)
+                  </label>
+                  <input
+                    className={`${inp} ${directFieldErrors.email ? "border-red-400" : ""}`}
+                    type="email"
+                    placeholder="builder@company.com (optional)"
+                    value={directForm.email}
+                    onChange={(e) => {
+                      updateDirect("email")(e);
+                      setDirectFieldErrors((c) => ({ ...c, email: "" }));
+                    }}
+                  />
+                  {directFieldErrors.email ? (
+                    <p className="mt-1 text-xs font-semibold text-red-600">{directFieldErrors.email}</p>
+                  ) : null}
+                </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-gray-500">
+                    Phone
+                  </label>
+                  <input
+                    className={`${inp} ${directFieldErrors.phone ? "border-red-400" : ""}`}
+                    inputMode="numeric"
+                    maxLength={15}
+                    placeholder="10-digit mobile"
+                    value={directForm.phone}
+                    onChange={(e) => {
+                      setDirectForm((current) => ({
+                        ...current,
+                        phone: e.target.value.replace(/\D/g, "").slice(0, 15),
+                      }));
+                      setDirectFieldErrors((c) => ({ ...c, phone: "" }));
+                    }}
+                  />
+                  {directFieldErrors.phone ? (
+                    <p className="mt-1 text-xs font-semibold text-red-600">{directFieldErrors.phone}</p>
+                  ) : null}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-gray-500">
+                  Company (optional)
+                </label>
+                <input
+                  className={inp}
+                  placeholder="Company name"
+                  value={directForm.companyName}
+                  onChange={updateDirect("companyName")}
+                />
+              </div>
+            </div>
+          ) : null}
+
           {mode ? (
             <button
               type="button"
@@ -355,9 +515,11 @@ export default function BuilderAttachPanel({
                 ? "Saving…"
                 : mode === "invite_link"
                   ? "Send invite"
-                  : hasBuilder
-                    ? "Update Created By"
-                    : "Assign builder"}
+                  : mode === "direct_create"
+                    ? "Create builder & assign"
+                    : hasBuilder
+                      ? "Update Created By"
+                      : "Assign builder"}
             </button>
           ) : null}
         </>

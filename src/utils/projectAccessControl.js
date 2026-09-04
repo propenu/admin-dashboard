@@ -161,3 +161,13 @@ export const canPermanentlyDeleteProject = (user) => {
   const role = normalizeProjectRole(user?.roleName || user?.role);
   return role === "super_admin" || role === "business_development_head";
 };
+
+/** Direct create builder (name/email/phone, no OTP) — Super Admin + BDH (+ admin). */
+export const canDirectCreateBuilder = (user) => {
+  const role = normalizeProjectRole(user?.roleName || user?.role);
+  return (
+    role === "super_admin" ||
+    role === "admin" ||
+    role === "business_development_head"
+  );
+};

@@ -69,6 +69,10 @@ export const requestBuilderDirectOtp = (projectId, payload) =>
 export const verifyBuilderDirectOtp = (projectId, payload) =>
   apiClient.post(`${BASE}/${projectId}/builder/direct-otp/verify`, payload);
 
+/** Super Admin / BDH: create builder with name/email/phone — no OTP */
+export const directCreateBuilderOnProject = (projectId, payload) =>
+  apiClient.post(`${BASE}/${projectId}/builder/direct-create`, payload);
+
 export const saveProjectContacts = (projectId, contacts) =>
   apiClient.put(`${BASE}/${projectId}/project-contacts`, { contacts });
 

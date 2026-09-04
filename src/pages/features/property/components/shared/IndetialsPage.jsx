@@ -43,6 +43,7 @@ import {
   Search,
   Trash2,
   Mail,
+  Briefcase,
 } from "lucide-react";
 import {
   deleteAllProjectLeads,
@@ -186,12 +187,55 @@ const formatLeadText = (value) => {
 };
 
 const formatRoleName = (role) => {
+  const key = String(role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
   const roles = {
     sales_agent: "Sales Executive",
+    sales_executive: "Sales Executive",
+    sales_executives: "Sales Executive",
+    sales_manager: "Sales Manager",
+    super_admin: "Super Admin",
+    business_development_head: "Business Development Head",
+    regional_manager: "Regional Manager",
+    builder: "Builder",
   };
 
-  return roles[role] || role?.replace(/_/g, " ");
+  if (roles[key]) return roles[key];
+  return String(role || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 };
+
+const resolvePersonRole = (person, fallback = "") => {
+  if (!person || typeof person !== "object") return fallback || "";
+  const raw =
+    person.roleName ||
+    person.role?.name ||
+    person.role?.label ||
+    person.roleId?.name ||
+    person.roleId?.label ||
+    (typeof person.role === "string" ? person.role : "") ||
+    fallback ||
+    "";
+  return String(raw || "").trim();
+};
+
+const isSalesExecutiveRole = (role) => {
+  const key = String(role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
+  return (
+    key === "sales_executive" ||
+    key === "sales_agent" ||
+    key === "sales_executives"
+  );
+};
+
+const personIdKey = (person) =>
+  String(person?._id || person?.id || person?.userId || "").trim();
 
 const formatLeadDateTime = (value) => {
   if (!value) return "-";
@@ -650,6 +694,15 @@ function PersonCard({ type, person, timestamp: explicitTimestamp, role }) {
       badgeCls: "bg-amber-50 text-amber-700 border-amber-100",
       dotBg: "bg-amber-50",
       dotText: "text-amber-600",
+    },
+    salesExecutive: {
+      label: "Sales Executive",
+      icon: Briefcase,
+      headerBg: "bg-violet-50",
+      headerText: "text-violet-700",
+      badgeCls: "bg-violet-50 text-violet-700 border-violet-100",
+      dotBg: "bg-violet-50",
+      dotText: "text-violet-600",
     },
   };
 
@@ -1479,21 +1532,81 @@ export default function FeaturedPropertyDetails() {
       : latest;
   }, null);
 
-  // Audit users may be returned directly or nested under `user`.
-  const createdBy = property.createdBy?.user || property.createdBy || null;
+  const flattenAuditPerson = (raw, roleFallback = "") => {
+    if (!raw) return null;
+    if (typeof raw === "string") {
+      return { _id: raw, name: null, roleName: roleFallback || "" };
+    }
+    if (typeof raw !== "object") return null;
+    const nested =
+      raw.user ||
+      (raw.userId && typeof raw.userId === "object" ? raw.userId : null);
+    const merged = nested
+      ? {
+          ...raw,
+          ...nested,
+          _id: nested._id || nested.id || raw.userId || raw._id,
+          email: nested.email || raw.email,
+          phone: nested.phone || raw.phone,
+          name: nested.name || raw.name,
+        }
+      : { ...raw };
+    return {
+      ...merged,
+      roleName: resolvePersonRole(merged, raw.roleName || roleFallback),
+    };
+  };
+
+  // Audit users may be returned directly or nested under `user` / populated `userId`.
+  const createdBy = flattenAuditPerson(
+    property.createdBy?.user || property.createdBy,
+    property.createdBy?.roleName,
+  );
   const hasBuilderAttached = Boolean(
     (typeof createdBy === "object" && (createdBy?._id || createdBy?.id)) ||
       (typeof createdBy === "string" && createdBy.trim()),
   );
-  // Show attach UI only when create left createdBy empty
-  const postedBy =
-    property.postedBy?.user || property.postedBy || createdBy;
-  const lastUpdatedBy =
+
+  const postedBy = flattenAuditPerson(
+    property.postedBy?.user || property.postedBy,
+    property.postedBy?.roleName,
+  );
+
+  const lastUpdatedBy = flattenAuditPerson(
     property.lastUpdatedBy?.user ||
-    property.lastUpdatedBy ||
-    latestUpdate?.user ||
-    latestUpdate ||
-    createdBy;
+      property.lastUpdatedBy ||
+      latestUpdate?.user ||
+      latestUpdate,
+    property.lastUpdatedBy?.roleName || latestUpdate?.roleName,
+  );
+
+  // Middle card: Sales Executive name + role (from postedBy or update history)
+  const salesExecutiveFromHistory = (() => {
+    const history = Array.isArray(property.updateHistory)
+      ? property.updateHistory
+      : [];
+    for (const item of history) {
+      const person = flattenAuditPerson(item?.user || item, item?.roleName);
+      if (person && isSalesExecutiveRole(person.roleName)) return person;
+    }
+    return null;
+  })();
+
+  const salesExecutive =
+    postedBy && isSalesExecutiveRole(postedBy.roleName)
+      ? postedBy
+      : lastUpdatedBy && isSalesExecutiveRole(lastUpdatedBy.roleName)
+        ? lastUpdatedBy
+        : salesExecutiveFromHistory;
+
+  const showPostedByCard = Boolean(
+    postedBy &&
+      !(
+        salesExecutive &&
+        personIdKey(postedBy) &&
+        personIdKey(postedBy) === personIdKey(salesExecutive)
+      ),
+  );
 
   const extractLeads = (raw) => {
     if (!raw) return [];
@@ -1801,17 +1914,17 @@ export default function FeaturedPropertyDetails() {
         isLoading={onboardingLoading}
       />
 
-      {/* ── PEOPLE ROW: Created By | Posted By | Last Updated By ──────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* ── PEOPLE ROW: Created By | Posted By | Sales Executive | Last Updated By ──────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {createdBy && hasBuilderAttached && (
           <PersonCard
             type="created"
             person={createdBy}
             timestamp={property.createdAt}
-            role={createdBy.roleName}
+            role={resolvePersonRole(createdBy, createdBy.roleName)}
           />
         )}
-        {postedBy && (
+        {showPostedByCard && (
           <PersonCard
             type="posted"
             person={postedBy}
@@ -1821,6 +1934,19 @@ export default function FeaturedPropertyDetails() {
               property.createdAt
             }
             role={postedBy.roleName}
+          />
+        )}
+        {salesExecutive && (
+          <PersonCard
+            type="salesExecutive"
+            person={salesExecutive}
+            timestamp={
+              property.postedBy?.postedAt ||
+              salesExecutive.postedAt ||
+              salesExecutive.updatedAt ||
+              property.createdAt
+            }
+            role={salesExecutive.roleName || "sales_executive"}
           />
         )}
         {lastUpdatedBy && (
