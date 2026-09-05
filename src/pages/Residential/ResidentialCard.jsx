@@ -11,6 +11,7 @@ import {
   isAgentCreatedProperty,
 } from "../../utils/propertyCreatorRole";
 import { navigateToPropertyEdit } from "../../utils/openPropertyEdit";
+import PropertyCardThumb from "../../components/common/PropertyCardThumb";
 
 import {
   MapPin,
@@ -35,8 +36,6 @@ import {
   CalendarDays,
   Trash2,
 } from "lucide-react";
-
-import FALLBACK from "../../assets/fallback.svg";
 
 const formatPrice = (price) => {
   if (!price || isNaN(price)) return "Price";
@@ -172,15 +171,13 @@ export default function ResidentialCard({ property, userRole }) {
       className="group relative bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-[#27AE60]/30 hover:shadow-md transition-all duration-300 cursor-pointer"
     >
       {/* ── HORIZONTAL FLEX ─────────────────────────────────────────────── */}
-      <div className="flex flex-row">
-        {/* ── LEFT: IMAGE (fixed width) ───────────────────────────────── */}
-        <div className="relative w-28 max-h-[140px] flex-shrink-0 overflow-hidden bg-slate-100">
-          <img
-            src={property?.gallery?.[0]?.url || FALLBACK}
-            alt={property?.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            style={{ minHeight: "120px"  }}
-          />
+      <div className="flex flex-row items-stretch">
+        {/* ── LEFT: IMAGE (fixed crop) ───────────────────────────────── */}
+        <PropertyCardThumb
+          property={property}
+          alt={property?.title}
+          variant="list"
+        >
           {/* Agent badge */}
           {creatorTag && (
             <div
@@ -220,7 +217,7 @@ export default function ResidentialCard({ property, userRole }) {
             <ImageIcon className="w-2 h-2" />
             {property?.gallery?.length || 0}
           </div>
-        </div>
+        </PropertyCardThumb>
 
         {/* ── RIGHT: CONTENT ──────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 p-2.5 flex flex-col justify-between">

@@ -95,7 +95,26 @@ const PropertyCard = ({ p, catColor, category }) => {
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
-          <span style={{ fontSize: "28px", opacity: 0.35 }}>🏠</span>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+              color: "#94a3b8",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              No images
+            </span>
+          </div>
         )}
         <div style={{ position: "absolute", top: "7px", left: "7px" }}>
           <Badge status={p.status || "normal"} />

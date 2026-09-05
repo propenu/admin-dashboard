@@ -13,134 +13,132 @@ import { toast } from "sonner";
 /**
  * Central hook for any featured-project type.
  * @param {"prime"|"featured"|"normal"|"sponsored"|null} type
- * @param {{promotionStatus?: string|null, search?: string, enabled?: boolean, from?: string, to?: string, status?: string}} options
+ * @param {{promotionStatus?: string|null, search?: string, enabled?: boolean, from?: string, to?: string, status?: string, prefetchAll?: boolean}} options
+ *
+ * Note: `search` is ignored for network fetches — dashboards filter client-side
+ * for instant typing. Pass `prefetchAll: true` to load every page once.
  */
 export function useFeaturedProjects(type, options = {}) {
   const queryClient = useQueryClient();
   const promotionStatus = options.promotionStatus || null;
-  const search = options.search?.trim() || "";
   const from = options.from || options.createdFrom || "";
   const to = options.to || options.createdTo || "";
   const status = options.status || "";
   const enabled = options.enabled ?? true;
+  const prefetchAll = options.prefetchAll === true;
   const hasDateRange = Boolean(from || to);
-  
-const queryKey = [
-  "featured-projects",
-  type || "all",
-  promotionStatus || "all",
-  search,
-  from || "",
-  to || "",
-  status || "",
-];
 
-const {
-  data,
-  fetchNextPage,
-  hasNextPage,
-  isLoading,
-  isError,
-  refetch,
-  isFetchingNextPage,
-} = useInfiniteQuery({
-  queryKey,
-  enabled,
-  initialPageParam: 1,
-  staleTime: hasDateRange ? 0 : 30_000,
+  // Search intentionally excluded from the query key (no refetch while typing).
+  const queryKey = [
+    "featured-projects",
+    type || "all",
+    promotionStatus || "all",
+    from || "",
+    to || "",
+    status || "",
+    prefetchAll ? "all-pages" : "paged",
+  ];
 
-  queryFn: async ({ pageParam }) => {
-    // Default list: paginate (20). Search / draft|pending|etc.: larger pages + optional prefetch.
-    const needsDeepFetch =
-      Boolean(search) ||
-      Boolean(hasDateRange) ||
-      (Boolean(status) && status !== "active" && status !== "all");
-    const limit = needsDeepFetch ? 100 : 20;
-    const res = await getFeaturedProjectsByType(type, pageParam, limit, {
-      promotionStatus: hasDateRange ? promotionStatus || "all" : promotionStatus,
-      search,
-      from: from || undefined,
-      to: to || undefined,
-      status:
-        status && status !== "all"
-          ? status
-          : hasDateRange
-            ? "all"
-            : undefined,
-    });
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isLoading,
+    isError,
+    refetch,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey,
+    enabled,
+    initialPageParam: 1,
+    staleTime: hasDateRange ? 30_000 : 5 * 60_000,
+    gcTime: 15 * 60_000,
+    refetchOnWindowFocus: false,
 
-    // Only when searching (or specific status boards) merge remaining pages so
-    // matches aren't stuck past page 1. Never do this for status=all default load.
-    if (needsDeepFetch && search && pageParam === 1) {
-      const pages = res?.data?.meta?.pages ?? 1;
-      if (pages > 1) {
-        const remainingPages = await Promise.all(
-          Array.from({ length: pages - 1 }, (_, index) =>
-            getFeaturedProjectsByType(type, index + 2, limit, {
-              promotionStatus: hasDateRange
-                ? promotionStatus || "all"
-                : promotionStatus,
-              search,
-              from: from || undefined,
-              to: to || undefined,
-              status:
-                status && status !== "all"
-                  ? status
-                  : hasDateRange
-                    ? "all"
-                    : undefined,
-            }),
-          ),
-        );
-        const seen = new Set();
-        const items = [res, ...remainingPages]
-          .flatMap((page) => page?.data?.items || [])
-          .filter((property) => {
-            if (!property?._id || seen.has(property._id)) return false;
-            seen.add(property._id);
-            return true;
-          });
+    queryFn: async ({ pageParam }) => {
+      const needsDeepFetch =
+        prefetchAll ||
+        Boolean(hasDateRange) ||
+        (Boolean(status) && status !== "active" && status !== "all");
+      const limit = needsDeepFetch ? 100 : 20;
+      const listOpts = {
+        promotionStatus: hasDateRange
+          ? promotionStatus || "all"
+          : promotionStatus,
+        from: from || undefined,
+        to: to || undefined,
+        status:
+          status && status !== "all"
+            ? status
+            : hasDateRange
+              ? "all"
+              : undefined,
+      };
 
-        return {
-          ...res,
-          data: {
-            ...res.data,
-            items,
-            meta: {
-              ...res.data.meta,
-              page: 1,
-              limit: items.length,
-              pages: 1,
+      const res = await getFeaturedProjectsByType(
+        type,
+        pageParam,
+        limit,
+        listOpts,
+      );
+
+      // Prefetch remaining pages once so client search covers the full set.
+      if (needsDeepFetch && pageParam === 1) {
+        const pages = res?.data?.meta?.pages ?? 1;
+        if (pages > 1) {
+          const remainingPages = await Promise.all(
+            Array.from({ length: pages - 1 }, (_, index) =>
+              getFeaturedProjectsByType(type, index + 2, limit, listOpts),
+            ),
+          );
+          const seen = new Set();
+          const items = [res, ...remainingPages]
+            .flatMap((page) => page?.data?.items || [])
+            .filter((property) => {
+              if (!property?._id || seen.has(property._id)) return false;
+              seen.add(property._id);
+              return true;
+            });
+
+          return {
+            ...res,
+            data: {
+              ...res.data,
+              items,
+              meta: {
+                ...res.data.meta,
+                page: 1,
+                limit: items.length,
+                pages: 1,
+              },
             },
-          },
-        };
+          };
+        }
       }
-    }
 
-    return res;
-  },
+      return res;
+    },
 
-  getNextPageParam: (lastPage) => {
-    const page = lastPage?.data?.meta?.page ?? 1;
-    const pages = lastPage?.data?.meta?.pages ?? 1;
-    return page < pages ? page + 1 : undefined;
-  },
-});
+    getNextPageParam: (lastPage) => {
+      const page = lastPage?.data?.meta?.page ?? 1;
+      const pages = lastPage?.data?.meta?.pages ?? 1;
+      return page < pages ? page + 1 : undefined;
+    },
+  });
 
-const properties =
-  data?.pages?.flatMap((page) => {
-    return page?.data?.items || [];
-  }) || [];
+  const properties =
+    data?.pages?.flatMap((page) => {
+      return page?.data?.items || [];
+    }) || [];
 
-const invalidate = () =>
-  Promise.all([
-    queryClient.invalidateQueries({ queryKey }),
-    queryClient.invalidateQueries({ queryKey: ["featured-projects"] }),
-    queryClient.invalidateQueries({ queryKey: ["pending-projects"] }),
-    queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] }),
-    queryClient.invalidateQueries({ queryKey: ["project-analytics"] }),
-  ]);
-  
+  const invalidate = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey }),
+      queryClient.invalidateQueries({ queryKey: ["featured-projects"] }),
+      queryClient.invalidateQueries({ queryKey: ["pending-projects"] }),
+      queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] }),
+      queryClient.invalidateQueries({ queryKey: ["project-analytics"] }),
+    ]);
 
   const sortedProperties = [...properties].sort((a, b) => {
     const rankA = a.rank ?? Infinity;
@@ -148,9 +146,7 @@ const invalidate = () =>
     return rankA - rankB;
   });
 
-
   const totalCount = data?.pages?.[0]?.data?.meta?.total || 0;
-  
 
   const activeCount = properties.filter((p) => p.status === "active").length;
 
@@ -160,15 +156,11 @@ const invalidate = () =>
 
   const expiredCount = properties.filter((p) => p.status === "expired").length;
 
-
-  // ── DELETE ─────────────────────────────────────────────────────────────────
   const deleteMutation = useMutation({
     mutationFn: (id) => deleteFeaturedProject(id),
     onSuccess: () => {
       toast.success("Property deleted successfully");
       invalidate();
-
-      // Refresh all property lists
       queryClient.invalidateQueries({
         queryKey: ["featured-projects"],
       });
@@ -176,15 +168,12 @@ const invalidate = () =>
     onError: () => toast.error("Failed to delete property"),
   });
 
-
   const promoteMutation = useMutation({
     mutationFn: async ({ id, newType, visibleLeadLimit }) => {
-      // STEP 1 — fetch target type projects
       const res = await getFeaturedProjectsByType(newType);
 
       const targetProjects = res?.data?.items || [];
 
-      // STEP 2 — calculate next rank
       const maxRank = Math.max(
         0,
         ...targetProjects.map((p) => Number(p.rank) || 0),
@@ -192,7 +181,6 @@ const invalidate = () =>
 
       const nextRank = maxRank + 1;
 
-      // STEP 3 — update promotion type + optional lead visibility
       const promotePayload = {
         type: newType,
       };
@@ -208,8 +196,6 @@ const invalidate = () =>
       }
 
       await promoteProjectWithRank(id, promotePayload);
-
-      // STEP 4 — update rank separately
       await updateProjectRank(id, nextRank);
 
       return {
@@ -218,14 +204,9 @@ const invalidate = () =>
       };
     },
 
-    onSuccess: (data) => {
-      
-
+    onSuccess: () => {
       toast.success("Property promoted successfully");
-
       invalidate();
-
-      // Refresh all property lists
       queryClient.invalidateQueries({
         queryKey: ["featured-projects"],
       });
@@ -233,13 +214,12 @@ const invalidate = () =>
 
     onError: (error) => {
       console.error(error);
-
       toast.error(
         error?.response?.data?.message || "Failed to promote property",
       );
     },
   });
-  
+
   const expireMutation = useMutation({
     mutationFn: (id) => expireProject(id),
     onSuccess: () => {
@@ -250,7 +230,6 @@ const invalidate = () =>
     onError: () => toast.error("Failed to expire property"),
   });
 
-  // ── RESET ──────────────────────────────────────────────────────────────────
   const resetMutation = useMutation({
     mutationFn: (id) => resetProject(id),
     onSuccess: () => {
@@ -261,7 +240,6 @@ const invalidate = () =>
     onError: () => toast.error("Failed to reset property"),
   });
 
-  // ── RANK UPDATE ────────────────────────────────────────────────────────────
   const rankMutation = useMutation({
     mutationFn: ({ id, rank }) => updateProjectRank(id, rank),
     onSuccess: () => {

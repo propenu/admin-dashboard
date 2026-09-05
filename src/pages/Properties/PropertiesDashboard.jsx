@@ -1,6 +1,6 @@
 //propenuadmindashborad/src/pages/Properties/PropertiesDashboard.jsx
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -38,9 +38,11 @@ import {
 } from "lucide-react";
 
 import LoadingSpinner from "../../components/common/LoadingSpinner";
+import PropertyCardThumb from "../../components/common/PropertyCardThumb";
 import ConfirmModal from "../features/property/components/shared/ConfirmModal";
 import { setActiveCategory } from "../../store/Ui/uiSlice";
 import { navigateToPropertyEdit } from "../../utils/openPropertyEdit";
+import { listingSearchTokens } from "../../utils/listingSearchTokens";
 import { useCurrentUser } from "../../store/properties/useCurrentUser";
 import {
   getAllPropertiesAnalytics,
@@ -136,9 +138,6 @@ const inCreatedRange = (value, from, to) => {
   if (to && createdAt > new Date(`${to}T23:59:59.999`)) return false;
   return true;
 };
-
-const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=500&q=75";
 
 const PAGE_SIZE = 20;
 
@@ -482,14 +481,12 @@ function PropertyCard({
           animation: "propertyRowIn 360ms ease both",
           animationDelay: `${Math.min(index * 35, 280)}ms`,
         }}
-        className="group flex min-h-0 w-full min-w-0 max-w-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md sm:min-h-[182px] sm:flex-row xl:min-h-[168px]"
+        className="group flex h-full min-h-0 w-full min-w-0 max-w-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md sm:min-h-[188px] sm:flex-row sm:items-stretch"
       >
-      <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden bg-slate-100 sm:aspect-auto sm:min-h-[182px] sm:w-36 sm:self-stretch xl:min-h-[168px] xl:w-40">
-        <img
-          src={property?.gallery?.[0]?.url || property?.images?.[0]?.url || FALLBACK_IMAGE}
-          alt=""
-          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-        />
+      <PropertyCardThumb
+        property={property}
+        variant="dashboard"
+      >
         <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
           <span className="rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-700 shadow-sm">
             {category}
@@ -518,21 +515,24 @@ function PropertyCard({
             <ShieldCheck className="h-2.5 w-2.5 text-emerald-400" /> {creatorTag}
           </span>
         )}
-      </div>
+      </PropertyCardThumb>
 
-      <div className="flex min-w-0 flex-1 flex-col justify-between p-3 sm:p-3.5">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3 sm:p-3.5">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h3 className="truncate text-[13px] font-medium text-slate-800 group-hover:text-emerald-700 sm:text-sm">
               {property?.title || "Unnamed property"}
             </h3>
-            {propertyName?.trim() && (
-              <p className="mt-1 flex items-center gap-1 truncate text-[11px] font-medium text-slate-600">
-                <Building2 className="h-3 w-3 shrink-0 text-emerald-600" />
-                <span className="truncate">{propertyName.trim()}</span>
-              </p>
-            )}
-            <p className="mt-1 flex items-center gap-1 truncate text-[11px] text-slate-500">
+            {/* Always reserve one line so cards align with/without building name */}
+            <p
+              className={`mt-1 flex h-4 items-center gap-1 truncate text-[11px] font-medium text-slate-600 ${
+                propertyName?.trim() ? "" : "invisible"
+              }`}
+            >
+              <Building2 className="h-3 w-3 shrink-0 text-emerald-600" />
+              <span className="truncate">{propertyName?.trim() || "—"}</span>
+            </p>
+            <p className="mt-1 flex h-4 items-center gap-1 truncate text-[11px] text-slate-500">
               <MapPin className="h-3 w-3 shrink-0 text-emerald-600" />
               {location || "Location unavailable"}
             </p>
@@ -566,17 +566,20 @@ function PropertyCard({
               </span>
             ) : null}
           </span>
-          {status === "pending" && (
-            <span className="flex min-w-0 items-center gap-1.5 truncate text-[10px] font-medium text-amber-700 sm:col-span-2">
-              <ShieldCheck className="h-3 w-3 shrink-0" />
-              <span className="truncate">
-                Document verification pending
-              </span>
-            </span>
-          )}
+          {/* Reserve line height whether pending or not — keeps action rows aligned */}
+          <span
+            className={`flex h-4 min-w-0 items-center gap-1.5 truncate text-[10px] font-medium sm:col-span-2 ${
+              status === "pending"
+                ? "text-amber-700"
+                : "invisible text-transparent"
+            }`}
+          >
+            <ShieldCheck className="h-3 w-3 shrink-0" />
+            <span className="truncate">Document verification pending</span>
+          </span>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:mt-2 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5">
+        <div className="mt-auto grid grid-cols-2 gap-2 pt-3 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5 sm:pt-2">
           <button
             type="button"
             onClick={(event) => {
@@ -842,7 +845,10 @@ export default function PropertiesDashboard() {
   const [search, setSearch] = useState(
     () => searchParams.get("search") || "",
   );
-  const debouncedSearch = useDebounce(search);
+  // URL sync only — does not trigger API refetch
+  const debouncedSearch = useDebounce(search, 400);
+  // Instant local filter while typing (no network)
+  const deferredSearch = useDeferredValue(search);
   const [sort, setSort] = useState(
     () => searchParams.get("sort") || "newest",
   );
@@ -933,10 +939,13 @@ export default function PropertiesDashboard() {
 
   const categoryQueries = useQueries({
     queries: CATEGORIES.filter((item) => item.fetcher).map((item) => ({
-      queryKey: ["properties-dashboard", item.value, debouncedSearch],
-      queryFn: () =>
-        fetchEveryPage(item.fetcher, { search: debouncedSearch }),
-      staleTime: 60_000,
+      // Do NOT put search in the query key — that re-fetched every category
+      // on each keystroke. Load once, filter client-side (instant).
+      queryKey: ["properties-dashboard", item.value],
+      queryFn: () => fetchEveryPage(item.fetcher, {}),
+      staleTime: 5 * 60_000,
+      gcTime: 15 * 60_000,
+      refetchOnWindowFocus: false,
     })),
   });
 
@@ -949,6 +958,18 @@ export default function PropertiesDashboard() {
         })),
       ),
     [categoryQueries],
+  );
+
+  // Precompute searchable text once per loaded row — typing stays O(n) string checks only.
+  const propertySearchIndex = useMemo(
+    () =>
+      allProperties.map((property) => ({
+        property,
+        haystack: normalizeSearchText(
+          listingSearchTokens(property).join(" "),
+        ),
+      })),
+    [allProperties],
   );
 
   const analytics = analyticsQuery.data || {};
@@ -1016,42 +1037,28 @@ export default function PropertiesDashboard() {
   );
 
   const visibleProperties = useMemo(() => {
-    const term = normalizeSearchText(debouncedSearch);
-    return allProperties
-      .filter((property) => category === "all" || property._category === category)
-      .filter((property) => matchesListingTypeFilter(property, listingType))
-      .filter((property) => status === "all" || getStatus(property) === status)
-      .filter((property) => !locationFilters.state || property?.state?.trim() === locationFilters.state)
-      .filter((property) => !locationFilters.city || property?.city?.trim() === locationFilters.city)
-      .filter((property) => !locationFilters.locality || property?.locality?.trim() === locationFilters.locality)
-      .filter((property) => inCreatedRange(property?.createdAt, createdFrom, createdTo))
-      .filter((property) => {
-        if (!term) return true;
-        return [
-          property?.title,
-          property?.city,
-          property?.state,
-          property?.locality,
-          property?._id,
-          property?.slug,
-          property?.propertyCode,
-          property?.address,
-          property?.buildingName,
-          property?.landName,
-          property?.createdBy?.name,
-        ].some((value) => normalizeSearchText(value).includes(term));
-      })
+    const term = normalizeSearchText(deferredSearch);
+    return propertySearchIndex
+      .filter(({ property }) => category === "all" || property._category === category)
+      .filter(({ property }) => matchesListingTypeFilter(property, listingType))
+      .filter(({ property }) => status === "all" || getStatus(property) === status)
+      .filter(({ property }) => !locationFilters.state || property?.state?.trim() === locationFilters.state)
+      .filter(({ property }) => !locationFilters.city || property?.city?.trim() === locationFilters.city)
+      .filter(({ property }) => !locationFilters.locality || property?.locality?.trim() === locationFilters.locality)
+      .filter(({ property }) => inCreatedRange(property?.createdAt, createdFrom, createdTo))
+      .filter(({ haystack }) => !term || haystack.includes(term))
+      .map(({ property }) => property)
       .sort((a, b) => {
         const first = new Date(a?.createdAt || 0).getTime();
         const second = new Date(b?.createdAt || 0).getTime();
         return sort === "newest" ? second - first : first - second;
       });
   }, [
-    allProperties,
+    propertySearchIndex,
     category,
     createdFrom,
     createdTo,
-    debouncedSearch,
+    deferredSearch,
     listingType,
     locationFilters,
     sort,
@@ -1080,7 +1087,7 @@ export default function PropertiesDashboard() {
       return;
     }
     setPage(1);
-  }, [category, listingType, status, debouncedSearch, locationFilters, sort, createdFrom, createdTo]);
+  }, [category, listingType, status, search, locationFilters, sort, createdFrom, createdTo]);
   const activeFilterCount = [
     category !== "all",
     listingType !== "all",
@@ -1828,7 +1835,7 @@ export default function PropertiesDashboard() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search title, location, poster or ID"
+                placeholder="Search title, location, posted by, approved by, ID…"
                 className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-9 text-sm outline-none transition focus:border-emerald-400 focus:bg-white"
               />
               {search ? (
@@ -1952,7 +1959,7 @@ export default function PropertiesDashboard() {
           </div>
         ) : visibleProperties.length ? (
           <>
-            <div className="mt-3 grid gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+            <div className="mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
               {paginatedProperties.map((property, index) => (
                 <PropertyCard
                   key={`${property._category}-${property._id}`}

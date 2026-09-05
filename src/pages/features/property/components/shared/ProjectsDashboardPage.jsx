@@ -1,6 +1,6 @@
 // src/pages/features/property/components/shared/ProjectsDashboardPage.jsx
 import {
-  useState, useEffect, useRef, useMemo, useCallback, useReducer,
+  useState, useEffect, useRef, useMemo, useCallback, useReducer, useDeferredValue,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -44,6 +44,7 @@ import {
 } from "../../../../../features/property/propertyService";
 import { getUserSearch } from "../../../../../features/user/userService";
 import { requestSidebarRefresh } from "../../../../../utils/sidebarActivity";
+import { listingSearchTokens } from "../../../../../utils/listingSearchTokens";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -1612,9 +1613,9 @@ export default function ProjectsDashboardPage() {
   const [projectSearch, setProjectSearch] = useState(
     () => searchParams.get("search") || "",
   );
-  const debouncedProjectSearch = useDebounce(projectSearch, 350);
-
-  
+  // URL sync only — network list is not refetched on search
+  const debouncedProjectSearch = useDebounce(projectSearch, 400);
+  const deferredProjectSearch = useDeferredValue(projectSearch);
 
   // Date filters declared later — hooks use these via state synced from URL.
   // Keep declarations above hooks by reading URL immediately for first fetch.
@@ -1630,11 +1631,11 @@ export default function ProjectsDashboardPage() {
   const serverListStatus = toServerProjectStatus(urlStatusFilter);
 
   // ── Property hooks ───────────────────────────────────────────────────────
+  // Prefetch full lists once; search filters in memory (no per-keystroke API).
   const projectQueryOptions = {
-    search: debouncedProjectSearch,
+    prefetchAll: true,
     from: urlCreatedFrom,
     to: urlCreatedTo,
-    // Never send status=all — that used to trigger full multi-page prefetch
     status: serverListStatus === "all" ? "" : serverListStatus,
   };
   const primeHook     = useFeaturedProjects("prime", projectQueryOptions);
@@ -1643,7 +1644,7 @@ export default function ProjectsDashboardPage() {
   const normalHook    = useFeaturedProjects("normal", projectQueryOptions);
   const lifecycleHook = useFeaturedProjects(null, {
     promotionStatus: serverPromotionStatus,
-    search: debouncedProjectSearch,
+    prefetchAll: true,
     from: urlCreatedFrom,
     to: urlCreatedTo,
     status: serverListStatus === "all" ? "" : serverListStatus,
@@ -2039,13 +2040,14 @@ export default function ProjectsDashboardPage() {
       }
     }
 
-    if (debouncedProjectSearch) {
-      const q = normalizeSearchText(debouncedProjectSearch);
-
-      list = list.filter((p) =>
-        [p.title, p.slug, p._id, p.propertyCode, p.city, p.locality, p.address]
-          .some((value) => normalizeSearchText(value).includes(q)),
-      );
+    if (deferredProjectSearch) {
+      const q = normalizeSearchText(deferredProjectSearch);
+      list = list.filter((p) => {
+        const haystack = normalizeSearchText(
+          listingSearchTokens(p).join(" "),
+        );
+        return haystack.includes(q);
+      });
     }
 
     let filteredList = [...list];
@@ -2142,7 +2144,7 @@ export default function ProjectsDashboardPage() {
     creatorBuilderFilter,
     propertyTypeFilter,
     selectedLocation,
-    debouncedProjectSearch,
+    deferredProjectSearch,
     canViewPendingProjects,
     isPendingApprovalsView,
     sortBy,
@@ -2198,7 +2200,7 @@ export default function ProjectsDashboardPage() {
     categoryFilter,
     propertyTypeFilter,
     selectedLocation,
-    debouncedProjectSearch,
+    projectSearch,
     sortBy,
     createdFrom,
     createdTo,
@@ -2825,7 +2827,7 @@ export default function ProjectsDashboardPage() {
           <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
           <input
             type="text"
-            placeholder="Search projects by title, city, slug, ID, address…"
+            placeholder="Search projects by title, city, posted by, approved by, ID…"
             //value={searchTerm}
             //onChange={(e) => setSearchTerm(e.target.value)}
             value={projectSearch}
