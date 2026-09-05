@@ -6,8 +6,7 @@ import { C, Badge, Skel, Empty, fmtDate } from "./shared";
 import { useUserProperties, useUserPropertyCounts } from "../../UserInformationCenter/useUserDetail";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { setActiveCategory } from "../../../store/Ui/uiSlice";
-import { actions } from "../../../store/newIndex";
+import { navigateToPropertyEdit } from "../../../utils/openPropertyEdit";
 
 const CATEGORIES = [
   { key: "residential", label: "🏠 Residential", color: C.accent },
@@ -38,15 +37,12 @@ const PropertyCard = ({ p, catColor, category }) => {
   const openEditProperty = () => {
     const cat = category || "residential";
     if (!p?._id) return;
-    localStorage.removeItem("editPropertyId");
-    localStorage.removeItem("editPropertyCategory");
-    dispatch(setActiveCategory(cat));
-    if (actions[cat]?.hydrateForm) {
-      dispatch(actions[cat].hydrateForm(p));
-    }
-    localStorage.setItem("editPropertyId", p._id);
-    localStorage.setItem("editPropertyCategory", cat);
-    navigate(`/edit-property/${p._id}`);
+    navigateToPropertyEdit({
+      navigate,
+      dispatch,
+      property: p,
+      category: cat,
+    });
   };
   const thumb =
     !imgErr &&

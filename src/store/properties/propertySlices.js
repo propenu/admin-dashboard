@@ -53,25 +53,48 @@ export const createPropertySlice = (name, uniqueInitialFields) => {
       
 
       hydrateForm: (state, action) => {
-  const cleanPayload = { ...action.payload };
-  delete cleanPayload.approval;
-  delete cleanPayload.rank;
-  delete cleanPayload.listingSource;
-  delete cleanPayload.isPublished;
-  delete cleanPayload.meta;
+        const cleanPayload = { ...action.payload };
+        delete cleanPayload.approval;
+        delete cleanPayload.rank;
+        delete cleanPayload.listingSource;
+        delete cleanPayload.isPublished;
+        delete cleanPayload.meta;
 
-  state.form = {
-    ...initialState.form,
-    ...cleanPayload,
+        const incomingGallery = Array.isArray(cleanPayload.gallery)
+          ? cleanPayload.gallery
+          : [];
+        const previousFiles = Array.isArray(state.form.galleryFiles)
+          ? state.form.galleryFiles
+          : [];
+        // Keep only unsaved local uploads; always replace server images from API.
+        const localPending = previousFiles.filter(
+          (item) => item?.source === "local" && item?.file instanceof File,
+        );
+        const serverFiles = incomingGallery
+          .map((img) => ({
+            ...img,
+            source: "server",
+            preview:
+              img?.preview ||
+              img?.url ||
+              img?.secureUrl ||
+              img?.location ||
+              "",
+            name:
+              img?.name ||
+              img?.filename ||
+              img?.key ||
+              "Property image",
+          }))
+          .filter((item) => item.preview);
 
-    // 🔑 keep uploaded files if they exist
-    galleryFiles:
-      state.form.galleryFiles?.length > 0
-        ? state.form.galleryFiles
-        : cleanPayload.gallery || [],
-    documentsFiles: [],
-  };
-},
+        state.form = {
+          ...initialState.form,
+          ...cleanPayload,
+          galleryFiles: [...serverFiles, ...localPending],
+          documentsFiles: [],
+        };
+      },
       // 🟢 Reset: Clear form after successful post
       resetForm: (state) => {
         state.form = initialState.form;

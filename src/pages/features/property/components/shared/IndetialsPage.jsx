@@ -43,7 +43,6 @@ import {
   Search,
   Trash2,
   Mail,
-  Briefcase,
 } from "lucide-react";
 import {
   deleteAllProjectLeads,
@@ -53,6 +52,7 @@ import {
   getBuilderOnboardingState,
   getFeaturedProjectById,
 } from "../../../../../features/property/propertyService";
+import { getUserSearch } from "../../../../../features/user/userService";
 import {
   fetchFeaturedProperties,
 } from "../../../../../services/PropertyService";
@@ -197,8 +197,15 @@ const formatRoleName = (role) => {
     sales_executives: "Sales Executive",
     sales_manager: "Sales Manager",
     super_admin: "Super Admin",
+    admin: "Admin",
+    ceo: "CEO",
+    founder: "Founder",
+    operations_head: "Operations Head",
+    operation_head: "Operations Head",
     business_development_head: "Business Development Head",
+    business_development_manager: "Business Development Manager",
     regional_manager: "Regional Manager",
+    regional_managers: "Regional Manager",
     builder: "Builder",
   };
 
@@ -222,11 +229,14 @@ const resolvePersonRole = (person, fallback = "") => {
   return String(raw || "").trim();
 };
 
-const isSalesExecutiveRole = (role) => {
-  const key = String(role || "")
+const canonicalStaffRole = (role) =>
+  String(role || "")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_");
+
+const isSalesExecutiveRole = (role) => {
+  const key = canonicalStaffRole(role);
   return (
     key === "sales_executive" ||
     key === "sales_agent" ||
@@ -234,8 +244,378 @@ const isSalesExecutiveRole = (role) => {
   );
 };
 
-const personIdKey = (person) =>
-  String(person?._id || person?.id || person?.userId || "").trim();
+const isRegionalManagerRole = (role) => {
+  const key = canonicalStaffRole(role);
+  return (
+    key === "regional_manager" ||
+    key === "regional_managers" ||
+    key === "sales_manager"
+  );
+};
+
+const isBdhRole = (role) =>
+  canonicalStaffRole(role) === "business_development_head";
+
+const isOpsHeadRole = (role) => {
+  const key = canonicalStaffRole(role);
+  return key === "operations_head" || key === "operation_head";
+};
+
+/** Top platform / founder band after Operations Head. */
+const isSuperOrTopRole = (role) => {
+  const key = canonicalStaffRole(role);
+  return (
+    key === "ceo" ||
+    key === "founder" ||
+    key === "admin" ||
+    key === "super_admin"
+  );
+};
+
+/** Posted By first (real role + name), then SE → RM → BDH → Ops → Super with working names. */
+const buildProjectApprovalHierarchy = ({
+  postedBy,
+  approvedBy,
+  approvalStatus,
+  staffPool = [],
+}) => {
+  const status = String(approvalStatus || "").trim().toLowerCase();
+  const hasApprover = Boolean(
+    approvedBy && (approvedBy.name || approvedBy.email || approvedBy._id),
+  );
+  const isApproved = status === "approved" || (hasApprover && status !== "rejected");
+  const isPending = status === "pending" || (!isApproved && status !== "rejected");
+  const isRejected = status === "rejected";
+
+  const posterIsSe = isSalesExecutiveRole(postedBy?.roleName);
+  const posterId = String(postedBy?._id || postedBy?.id || postedBy?.userId || "");
+
+  const chainPeople = [];
+  const seenIds = new Set();
+  const pushPerson = (person) => {
+    if (!person || typeof person !== "object") return;
+    const withRole = {
+      ...person,
+      roleName: resolvePersonRole(person, person.roleName),
+      name: person.name || null,
+    };
+    if (!withRole.name && !withRole._id && !withRole.id) return;
+    const id = String(withRole._id || withRole.id || withRole.userId || "");
+    if (id) {
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
+    }
+    chainPeople.push(withRole);
+  };
+
+  if (postedBy) pushPerson(postedBy);
+  if (Array.isArray(postedBy?.reportsToChain)) {
+    postedBy.reportsToChain.forEach(pushPerson);
+  }
+  if (postedBy?.reportsTo) pushPerson(postedBy.reportsTo);
+  if (postedBy?.managerId && typeof postedBy.managerId === "object") {
+    pushPerson(postedBy.managerId);
+  }
+  let walk =
+    postedBy?.managerId && typeof postedBy.managerId === "object"
+      ? postedBy.managerId
+      : postedBy?.reportsTo && typeof postedBy.reportsTo === "object"
+        ? postedBy.reportsTo
+        : null;
+  let guard = 0;
+  while (walk && typeof walk === "object" && guard < 6) {
+    pushPerson(walk);
+    walk =
+      walk.managerId && typeof walk.managerId === "object"
+        ? walk.managerId
+        : walk.reportsTo && typeof walk.reportsTo === "object"
+          ? walk.reportsTo
+          : null;
+    guard += 1;
+  }
+  if (approvedBy) pushPerson(approvedBy);
+  (Array.isArray(staffPool) ? staffPool : []).forEach(pushPerson);
+
+  const personId = (person) =>
+    String(person?._id || person?.id || person?.userId || "").trim();
+
+  const pickWorkingByRole = (...matchers) => {
+    const matches = chainPeople.filter((person) =>
+      matchers.some((match) => match(person.roleName)),
+    );
+    if (!matches.length) return null;
+    // Prefer someone with a manager line (actively in hierarchy), then named.
+    const ranked = [...matches].sort((a, b) => {
+      const aScore =
+        (a.managerId || a.reportsTo ? 2 : 0) + (a.name ? 1 : 0);
+      const bScore =
+        (b.managerId || b.reportsTo ? 2 : 0) + (b.name ? 1 : 0);
+      return bScore - aScore;
+    });
+    const primary = ranked[0];
+    const extra = ranked
+      .slice(1)
+      .filter((p) => personId(p) && personId(p) !== personId(primary))
+      .slice(0, 1);
+    if (!extra.length) return primary;
+    return {
+      ...primary,
+      name: [primary.name, extra[0].name].filter(Boolean).join(", "),
+    };
+  };
+
+  const sePerson = posterIsSe
+    ? postedBy
+    : pickWorkingByRole(isSalesExecutiveRole);
+  const rmPerson = pickWorkingByRole(isRegionalManagerRole);
+  const bdhPerson = pickWorkingByRole(isBdhRole);
+  const opsPerson = pickWorkingByRole(isOpsHeadRole);
+  const superPerson = pickWorkingByRole(isSuperOrTopRole);
+
+  const approverRole = approvedBy?.roleName || "";
+  const approvedAtRm = isApproved && isRegionalManagerRole(approverRole);
+  const approvedAtBdh = isApproved && isBdhRole(approverRole);
+  const approvedAtOps = isApproved && isOpsHeadRole(approverRole);
+  const approvedAtSuper = isApproved && isSuperOrTopRole(approverRole);
+  const approvedAtSe = isApproved && isSalesExecutiveRole(approverRole);
+  const approvedAtOther =
+    isApproved &&
+    !approvedAtRm &&
+    !approvedAtBdh &&
+    !approvedAtOps &&
+    !approvedAtSuper &&
+    !approvedAtSe;
+
+  const hasRmLine = Boolean(rmPerson?.name || rmPerson?._id);
+  const waitingOnRm = isPending && (hasRmLine || posterIsSe);
+  const waitingOnBdh = isPending && !hasRmLine && posterIsSe;
+  const waitingOnOps = false;
+  const waitingOnSuper = isPending && !posterIsSe && !hasRmLine;
+
+  const stepState = ({ done, waiting, escalated, idle }) => {
+    if (done) return "approved";
+    if (waiting) return "waiting";
+    if (escalated) return "escalated";
+    if (idle) return "idle";
+    return "ready";
+  };
+
+  const escalatedPast = (thisStepApproved) =>
+    isApproved && !thisStepApproved && (posterIsSe || Boolean(postedBy));
+
+  const withApproverFallback = (person, matched) => {
+    if (matched && approvedBy) return approvedBy;
+    return person;
+  };
+
+  const posterLabel = postedBy?.roleName
+    ? formatRoleName(postedBy.roleName)
+    : "Posted By";
+
+  const steps = [
+    {
+      key: "poster",
+      label: posterLabel,
+      note: "Posted project",
+      person: postedBy || null,
+      state: postedBy?.name ? "posted" : "idle",
+    },
+  ];
+
+  // Keep SE in the ladder when poster is not already SE (so working SE names still show).
+  if (!posterIsSe) {
+    steps.push({
+      key: "se",
+      label: "Sales Executive",
+      note: "Field / working",
+      person: sePerson,
+      state: sePerson?.name
+        ? "ready"
+        : stepState({
+            done: approvedAtSe,
+            waiting: false,
+            escalated: false,
+            idle: true,
+          }),
+    });
+  }
+
+  steps.push(
+    {
+      key: "rm",
+      label: "Regional Manager",
+      note: "1st approve",
+      person: withApproverFallback(rmPerson, approvedAtRm),
+      state: stepState({
+        done: approvedAtRm,
+        waiting: waitingOnRm && !approvedAtRm,
+        escalated: escalatedPast(approvedAtRm),
+        idle: !rmPerson && !approvedAtRm,
+      }),
+    },
+    {
+      key: "bdh",
+      label: "BD Head",
+      note: "If RM not there",
+      person: withApproverFallback(bdhPerson, approvedAtBdh),
+      state: stepState({
+        done: approvedAtBdh,
+        waiting: waitingOnBdh,
+        escalated: escalatedPast(approvedAtBdh),
+        idle: !bdhPerson && !approvedAtBdh,
+      }),
+    },
+    {
+      key: "ops",
+      label: "Operations Head",
+      note: "If BDH not there",
+      person: withApproverFallback(opsPerson, approvedAtOps),
+      state: stepState({
+        done: approvedAtOps,
+        waiting: waitingOnOps,
+        escalated: escalatedPast(approvedAtOps),
+        idle: !opsPerson && !approvedAtOps,
+      }),
+    },
+    {
+      key: "super",
+      label: "Super Admin",
+      note: "If Ops Head not there",
+      person:
+        withApproverFallback(superPerson, approvedAtSuper) ||
+        (approvedAtOther ? approvedBy : null) ||
+        (isSuperOrTopRole(postedBy?.roleName) ? postedBy : null),
+      state: stepState({
+        done:
+          approvedAtSuper ||
+          approvedAtOther ||
+          (isApproved && isSuperOrTopRole(postedBy?.roleName)),
+        waiting: waitingOnSuper,
+        escalated: false,
+        idle:
+          !isPending &&
+          !isApproved &&
+          !superPerson &&
+          !isSuperOrTopRole(postedBy?.roleName),
+      }),
+    },
+  );
+
+  return {
+    status: isRejected ? "rejected" : isApproved ? "approved" : "pending",
+    applies: Boolean(postedBy) || isPending || isApproved || chainPeople.length > 0,
+    postedById: posterId,
+    steps,
+  };
+};
+
+const APPROVAL_STEP_STYLES = {
+  posted: {
+    ring: "border-blue-200 bg-blue-50",
+    badge: "bg-blue-600 text-white",
+    badgeText: "Posted",
+  },
+  approved: {
+    ring: "border-emerald-200 bg-emerald-50",
+    badge: "bg-emerald-600 text-white",
+    badgeText: "Approved",
+  },
+  waiting: {
+    ring: "border-amber-200 bg-amber-50",
+    badge: "bg-amber-500 text-white",
+    badgeText: "Waiting",
+  },
+  escalated: {
+    ring: "border-slate-200 bg-slate-50",
+    badge: "bg-slate-400 text-white",
+    badgeText: "Escalated",
+  },
+  ready: {
+    ring: "border-slate-200 bg-white",
+    badge: "bg-slate-200 text-slate-600",
+    badgeText: "Next",
+  },
+  idle: {
+    ring: "border-slate-100 bg-slate-50/80",
+    badge: "bg-slate-100 text-slate-400",
+    badgeText: "—",
+  },
+};
+
+function ApprovalHierarchyBar({ hierarchy }) {
+  if (!hierarchy?.applies || !Array.isArray(hierarchy.steps)) return null;
+
+  const statusLabel =
+    hierarchy.status === "approved"
+      ? "Approved"
+      : hierarchy.status === "rejected"
+        ? "Rejected"
+        : "Pending approval";
+  const statusCls =
+    hierarchy.status === "approved"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+      : hierarchy.status === "rejected"
+        ? "bg-red-50 text-red-700 border-red-100"
+        : "bg-amber-50 text-amber-700 border-amber-100";
+
+  return (
+    <div className="w-full rounded-lg border border-slate-100 bg-white px-3 py-2.5 shadow-sm">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+            Approval hierarchy
+          </p>
+          <p className="text-[10px] text-slate-400">
+            Posted By (role + name) → Sales Executive → Regional Manager → BD
+            Head → Operations Head → Super Admin
+          </p>
+        </div>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[9px] font-bold ${statusCls}`}
+        >
+          {statusLabel}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-stretch gap-1.5">
+        {hierarchy.steps.map((step, index) => {
+          const style = APPROVAL_STEP_STYLES[step.state] || APPROVAL_STEP_STYLES.idle;
+          const who = step.person?.name || null;
+          const roleHint = step.person?.roleName
+            ? formatRoleName(step.person.roleName)
+            : step.label;
+          return (
+            <div key={step.key} className="flex min-w-0 flex-1 items-stretch gap-1.5">
+              <div
+                className={`min-w-0 flex-1 rounded-md border px-2 py-1.5 ${style.ring}`}
+              >
+                <div className="mb-1 flex items-center justify-between gap-1">
+                  <p className="truncate text-[9px] font-bold text-slate-700">
+                    {step.label}
+                  </p>
+                  <span
+                    className={`shrink-0 rounded px-1 py-0.5 text-[8px] font-bold ${style.badge}`}
+                  >
+                    {style.badgeText}
+                  </span>
+                </div>
+                <p className="truncate text-[11px] font-semibold text-slate-800">
+                  {who || "—"}
+                </p>
+                <p className="truncate text-[8px] text-slate-400">
+                  {who ? roleHint : step.note}
+                </p>
+              </div>
+              {index < hierarchy.steps.length - 1 ? (
+                <div className="hidden items-center text-slate-300 sm:flex">→</div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const formatLeadDateTime = (value) => {
   if (!value) return "-";
@@ -665,7 +1045,7 @@ function LeadRow({ lead, onDeleteLead, isDeletingLead }) {
   );
 }
 
-// ─── PersonCard (horizontal, 3-up) ────────────────────────────────────────────
+// ─── PersonCard (compact 4-up) ────────────────────────────────────────────────
 function PersonCard({ type, person, timestamp: explicitTimestamp, role }) {
   const config = {
     created: {
@@ -695,117 +1075,142 @@ function PersonCard({ type, person, timestamp: explicitTimestamp, role }) {
       dotBg: "bg-amber-50",
       dotText: "text-amber-600",
     },
-    salesExecutive: {
-      label: "Sales Executive",
-      icon: Briefcase,
-      headerBg: "bg-violet-50",
-      headerText: "text-violet-700",
-      badgeCls: "bg-violet-50 text-violet-700 border-violet-100",
-      dotBg: "bg-violet-50",
-      dotText: "text-violet-600",
+    approved: {
+      label: "Approved By",
+      icon: BadgeCheck,
+      headerBg: "bg-emerald-50",
+      headerText: "text-emerald-700",
+      badgeCls: "bg-emerald-50 text-emerald-700 border-emerald-100",
+      dotBg: "bg-emerald-50",
+      dotText: "text-emerald-600",
     },
   };
 
   const c = config[type];
   const Icon = c.icon;
-  const name = person?.name || "—";
-  const email = person?.email || "—";
-  const phone = person?.phone;
-  const idTail = (person?._id || person?.userId || "")?.slice(-4);
-  const timestamp =
-    explicitTimestamp ||
-    person?.postedAt ||
-    person?.updatedAt ||
-    person?.createdAt;
-  const displayRole = role || person?.roleName;
+  const empty =
+    !person ||
+    (!person?.name &&
+      !person?.email &&
+      (type === "approved" || (!person?._id && !person?.userId)));
+  const name = empty
+    ? type === "approved"
+      ? "Not approved"
+      : "—"
+    : person?.name || "—";
+  const email = empty
+    ? type === "approved"
+      ? "No approver yet"
+      : "—"
+    : person?.email || "—";
+  const phone = empty ? null : person?.phone;
+  const showPhoneField =
+    type === "created" ||
+    type === "posted" ||
+    type === "approved" ||
+    type === "updated";
+  const idTail = empty
+    ? ""
+    : (person?._id || person?.userId || "")?.toString?.()?.slice(-4);
+  const timestamp = empty
+    ? null
+    : explicitTimestamp ||
+      person?.approvedAt ||
+      person?.postedAt ||
+      person?.updatedAt ||
+      person?.createdAt;
+  const displayRole = empty
+    ? type === "approved"
+      ? "Pending"
+      : null
+    : role || person?.roleName;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-      {/* Header stripe */}
+    <div className="bg-white rounded-lg border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full min-w-0 w-full">
       <div
-        className={`flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 ${c.headerBg}`}
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 border-b border-slate-100 ${c.headerBg}`}
       >
-        <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${c.headerText}`} />
+        <Icon className={`w-3 h-3 flex-shrink-0 ${c.headerText}`} />
         <span
-          className={`text-[10px] font-bold uppercase tracking-widest ${c.headerText}`}
+          className={`text-[9px] font-bold uppercase tracking-wider ${c.headerText}`}
         >
           {c.label}
         </span>
       </div>
 
-      {/* Body */}
-      <div className="p-4 flex-1 flex flex-col gap-2">
-        {/* Avatar + name */}
-        <div className="flex items-center gap-3">
+      <div className="p-2.5 flex-1 flex flex-col gap-1.5">
+        <div className="flex items-center gap-2 min-w-0">
           <div
-            className={`w-8 h-8 rounded-lg ${c.dotBg} flex items-center justify-center flex-shrink-0`}
+            className={`w-6 h-6 rounded-md ${c.dotBg} flex items-center justify-center flex-shrink-0`}
           >
-            <User className={`w-4 h-4 ${c.dotText}`} />
+            <User className={`w-3 h-3 ${c.dotText}`} />
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-800 leading-tight truncate">
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-bold text-slate-800 leading-tight truncate">
               {name}
             </p>
-            {idTail && (
-              <p className="text-[9px] text-slate-400 font-mono">
+            {idTail ? (
+              <p className="text-[8px] text-slate-400 font-mono leading-tight">
                 ID: ...{idTail}
               </p>
-            )}
+            ) : empty && type === "approved" ? (
+              <p className="text-[8px] text-slate-400 leading-tight">
+                Waiting RM → BDH → Ops → Super Admin
+              </p>
+            ) : null}
           </div>
         </div>
 
-        {/* Email */}
-        <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-          <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
+        <div className="bg-slate-50 rounded-md px-2 py-1 border border-slate-100 min-w-0">
+          <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wider">
             Email
           </p>
-          <p className="text-[11px] font-semibold text-slate-700 truncate">
+          <p className="text-[10px] font-semibold text-slate-700 truncate">
             {email}
           </p>
         </div>
 
-        {/* Phone (created by only) */}
-        {phone && (
-          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
+        {showPhoneField ? (
+          <div className="bg-slate-50 rounded-md px-2 py-1 border border-slate-100">
+            <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wider">
               Phone
             </p>
-            <p className="text-[11px] font-semibold text-slate-700">{phone}</p>
+            <p className="text-[10px] font-semibold text-slate-700 truncate">
+              {phone || "—"}
+            </p>
           </div>
-        )}
+        ) : null}
 
-        {/* Location (created by) */}
         {(person?.city || person?.state) && (
-          <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-            <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5">
+          <div className="bg-slate-50 rounded-md px-2 py-1 border border-slate-100">
+            <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wider">
               Location
             </p>
-            <p className="text-[11px] font-semibold text-slate-700">
+            <p className="text-[10px] font-semibold text-slate-700 truncate">
               {[person?.locality, person?.city, person?.state]
                 .filter(Boolean)
                 .join(", ")}
-              {person?.pincode && (
-                <span className="text-slate-400"> — {person.pincode}</span>
-              )}
+              {person?.pincode ? ` — ${person.pincode}` : ""}
             </p>
           </div>
         )}
       </div>
 
-      {/* Footer */}
-      <div className="px-4 py-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
-        {displayRole && (
+      <div className="px-2.5 py-1.5 border-t border-slate-100 flex items-center justify-between gap-1.5">
+        {displayRole ? (
           <span
-            className={`text-[9px] font-bold px-2 py-1 rounded-full border capitalize ${c.badgeCls}`}
+            className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full border capitalize truncate max-w-[55%] ${c.badgeCls}`}
           >
             {formatRoleName(displayRole)}
           </span>
+        ) : (
+          <span />
         )}
-        {timestamp && (
-          <span className="text-[9px] text-slate-400 ml-auto whitespace-nowrap">
+        {timestamp ? (
+          <span className="text-[8px] text-slate-400 ml-auto whitespace-nowrap">
             {formatDate(timestamp)} · {formatTime(timestamp)}
           </span>
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -1476,6 +1881,43 @@ export default function FeaturedPropertyDetails() {
   const onboardingData =
     onboardingRes?.data?.data || onboardingRes?.data || null;
 
+  // Working staff for approval hierarchy name fill (SE / RM / BDH / Ops).
+  const { data: hierarchyStaffRes } = useQuery({
+    queryKey: ["project-approval-hierarchy-staff"],
+    queryFn: () =>
+      getUserSearch({
+        role: "sales_executive,regional_manager,business_development_head,operations_head",
+        limit: 200,
+      }),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const hierarchyStaffPool = (() => {
+    const raw = Array.isArray(hierarchyStaffRes?.data?.results)
+      ? hierarchyStaffRes.data.results
+      : Array.isArray(hierarchyStaffRes?.results)
+        ? hierarchyStaffRes.results
+        : Array.isArray(hierarchyStaffRes?.data)
+          ? hierarchyStaffRes.data
+          : [];
+    return raw
+      .map((user) => ({
+        ...user,
+        _id: user?._id || user?.id || user?.userId,
+        name: user?.name || null,
+        roleName:
+          user?.roleName ||
+          user?.role?.name ||
+          user?.roleId?.name ||
+          (typeof user?.role === "string" ? user.role : "") ||
+          "",
+        managerId: user?.managerId || user?.reportsTo || null,
+        reportsTo: user?.reportsTo || null,
+      }))
+      .filter((user) => user.name && user.roleName);
+  })();
+
   if (listLoading || analyticsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -1549,6 +1991,11 @@ export default function FeaturedPropertyDetails() {
           email: nested.email || raw.email,
           phone: nested.phone || raw.phone,
           name: nested.name || raw.name,
+          // Prefer staff reportsTo from nested populate, else flattened audit field.
+          reportsTo: nested.reportsTo || nested.managerId || raw.reportsTo || null,
+          managerId: nested.managerId || raw.managerId || null,
+          reportsToChain:
+            nested.reportsToChain || raw.reportsToChain || null,
         }
       : { ...raw };
     return {
@@ -1580,33 +2027,19 @@ export default function FeaturedPropertyDetails() {
     property.lastUpdatedBy?.roleName || latestUpdate?.roleName,
   );
 
-  // Middle card: Sales Executive name + role (from postedBy or update history)
-  const salesExecutiveFromHistory = (() => {
-    const history = Array.isArray(property.updateHistory)
-      ? property.updateHistory
-      : [];
-    for (const item of history) {
-      const person = flattenAuditPerson(item?.user || item, item?.roleName);
-      if (person && isSalesExecutiveRole(person.roleName)) return person;
-    }
-    return null;
-  })();
-
-  const salesExecutive =
-    postedBy && isSalesExecutiveRole(postedBy.roleName)
-      ? postedBy
-      : lastUpdatedBy && isSalesExecutiveRole(lastUpdatedBy.roleName)
-        ? lastUpdatedBy
-        : salesExecutiveFromHistory;
-
-  const showPostedByCard = Boolean(
-    postedBy &&
-      !(
-        salesExecutive &&
-        personIdKey(postedBy) &&
-        personIdKey(postedBy) === personIdKey(salesExecutive)
-      ),
+  // Middle card: who approved this project (populated approvedBy).
+  const approvedBy = flattenAuditPerson(
+    property.approvedBy?.user || property.approvedBy,
+    property.approvedBy?.roleName,
   );
+
+  const approvalHierarchy = buildProjectApprovalHierarchy({
+    postedBy,
+    approvedBy,
+    approvalStatus:
+      property.approvalStatus || property.approval?.status || "",
+    staffPool: hierarchyStaffPool,
+  });
 
   const extractLeads = (raw) => {
     if (!raw) return [];
@@ -1914,54 +2347,57 @@ export default function FeaturedPropertyDetails() {
         isLoading={onboardingLoading}
       />
 
-      {/* ── PEOPLE ROW: Created By | Posted By | Sales Executive | Last Updated By ──────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {createdBy && hasBuilderAttached && (
+      {/* ── PEOPLE ROW: Created By | Posted By | Last Updated By | Approved By ── */}
+      <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        {createdBy && hasBuilderAttached ? (
           <PersonCard
             type="created"
             person={createdBy}
             timestamp={property.createdAt}
             role={resolvePersonRole(createdBy, createdBy.roleName)}
           />
+        ) : (
+          <PersonCard type="created" person={null} timestamp={null} role={null} />
         )}
-        {showPostedByCard && (
-          <PersonCard
-            type="posted"
-            person={postedBy}
-            timestamp={
-              property.postedBy?.postedAt ||
-              property.postedAt ||
-              property.createdAt
-            }
-            role={postedBy.roleName}
-          />
-        )}
-        {salesExecutive && (
-          <PersonCard
-            type="salesExecutive"
-            person={salesExecutive}
-            timestamp={
-              property.postedBy?.postedAt ||
-              salesExecutive.postedAt ||
-              salesExecutive.updatedAt ||
-              property.createdAt
-            }
-            role={salesExecutive.roleName || "sales_executive"}
-          />
-        )}
-        {lastUpdatedBy && (
-          <PersonCard
-            type="updated"
-            person={lastUpdatedBy}
-            timestamp={
-              property.lastUpdatedBy?.updatedAt ||
-              latestUpdate?.updatedAt ||
-              property.updatedAt
-            }
-            role={lastUpdatedBy.roleName}
-          />
-        )}
+        <PersonCard
+          type="posted"
+          person={postedBy}
+          timestamp={
+            postedBy
+              ? property.postedBy?.postedAt ||
+                property.postedAt ||
+                property.createdAt
+              : null
+          }
+          role={postedBy?.roleName || null}
+        />
+        <PersonCard
+          type="updated"
+          person={lastUpdatedBy}
+          timestamp={
+            lastUpdatedBy
+              ? property.lastUpdatedBy?.updatedAt ||
+                latestUpdate?.updatedAt ||
+                property.updatedAt
+              : null
+          }
+          role={lastUpdatedBy?.roleName || null}
+        />
+        <PersonCard
+          type="approved"
+          person={approvedBy}
+          timestamp={
+            approvedBy
+              ? property.approvedAt ||
+                property.approvedBy?.approvedAt ||
+                null
+              : null
+          }
+          role={approvedBy?.roleName || null}
+        />
       </div>
+
+      <ApprovalHierarchyBar hierarchy={approvalHierarchy} />
 
       <GalleryLightbox
         open={galleryOpen}

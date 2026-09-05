@@ -31,7 +31,7 @@ const getKnownFileSize = (item) =>
 /* ══════════════════════════════════════════════════════════
    COMPONENT
 ══════════════════════════════════════════════════════════ */
-const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
+const UploadGallery = forwardRef(({ error, existing = [], onChange }, ref) => {
   const { form, updateFieldValue } = useActivePropertySlice();
   const inputRef = useRef(null);
   const hydratedServerImagesRef = useRef(false);
@@ -41,12 +41,36 @@ const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [currentFileName, setCurrentFileName] = useState("");
 
+  const commitGalleryFiles = (nextFiles) => {
+    updateFieldValue("galleryFiles", nextFiles);
+    if (typeof onChange === "function") onChange(nextFiles);
+  };
+
   /* ── DEBUG ── */
   useEffect(() => {
   }, [form?.galleryFiles]);
 
   useEffect(() => {
-    if (hydratedServerImagesRef.current || form?.galleryFiles?.length) return;
+    const files = Array.isArray(form?.galleryFiles) ? form.galleryFiles : [];
+    const needsNormalize = files.some(
+      (item) =>
+        item &&
+        item.source !== "local" &&
+        item.source !== "server" &&
+        (item.url || item.preview || item.secureUrl || item.location),
+    );
+
+    if (needsNormalize) {
+      commitGalleryFiles(
+        files.map((item) =>
+          item?.source === "local" ? item : normalizeServerImage(item),
+        ),
+      );
+      hydratedServerImagesRef.current = true;
+      return;
+    }
+
+    if (hydratedServerImagesRef.current || files.length) return;
 
     const serverImages = (form?.gallery?.length ? form.gallery : existing)
       .map(normalizeServerImage)
@@ -54,9 +78,9 @@ const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
 
     if (serverImages.length) {
       hydratedServerImagesRef.current = true;
-      updateFieldValue("galleryFiles", serverImages);
+      commitGalleryFiles(serverImages);
     }
-  }, [existing, form?.gallery, form?.galleryFiles, updateFieldValue]);
+  }, [existing, form?.gallery, form?.galleryFiles, updateFieldValue, onChange]);
 
   /* ── Separate existing (server) vs new (File) entries ── */
   const allFiles = form?.galleryFiles || [];
@@ -172,7 +196,7 @@ const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
     }
 
     const updated = [...allFiles, ...compressedFiles].slice(0, MAX_FILES);
-    updateFieldValue("galleryFiles", updated);
+    commitGalleryFiles(updated);
     setCompressing(false);
     setCurrentFileName("");
     setProgress({ done: 0, total: 0 });
@@ -200,7 +224,7 @@ const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
           URL.revokeObjectURL(blobUrl);
         }
         const updated = allFiles.filter((_, i) => i !== index);
-        updateFieldValue("galleryFiles", updated);
+        commitGalleryFiles(updated);
         return;
       }
 
@@ -213,7 +237,7 @@ const UploadGallery = forwardRef(({ error, existing = [] }, ref) => {
       await deletePropertyGalleryImagesIndex(category, propertyId, index);
 
       const updated = allFiles.filter((_, i) => i !== index);
-      updateFieldValue("galleryFiles", updated);
+      commitGalleryFiles(updated);
 
       toast.success("Image deleted!");
     } catch (err) {

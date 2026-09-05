@@ -40,6 +40,7 @@ import {
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import ConfirmModal from "../features/property/components/shared/ConfirmModal";
 import { setActiveCategory } from "../../store/Ui/uiSlice";
+import { navigateToPropertyEdit } from "../../utils/openPropertyEdit";
 import { useCurrentUser } from "../../store/properties/useCurrentUser";
 import {
   getAllPropertiesAnalytics,
@@ -1130,10 +1131,12 @@ export default function PropertiesDashboard() {
   };
 
   const editProperty = (property) => {
-    rememberCategory(property._category);
-    localStorage.setItem("editPropertyId", property._id);
-    localStorage.setItem("editPropertyCategory", property._category);
-    navigate(`/edit-property/${property._id}`);
+    navigateToPropertyEdit({
+      navigate,
+      dispatch,
+      property,
+      category: property._category,
+    });
   };
 
   const currentUser = userData?.user || userData || null;

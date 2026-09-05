@@ -2,6 +2,7 @@
 // frontend/admin-dashboard/src/pages/Commercial/CommercialPropertyVerification.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,
@@ -26,10 +27,12 @@ import {
 } from "../../services/CommercialServices/CommercialServices";
 import { getUserDetails } from "../../features/user/userService";
 import { canApproveProperty, canEditPendingProperty } from "../../utils/propertyAccessControl";
+import { navigateToPropertyEdit } from "../../utils/openPropertyEdit";
 
 const PropertyVerification = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const queryClient = useQueryClient();
 
   const [selectedDoc, setSelectedDoc] = useState(null);
@@ -64,9 +67,13 @@ const PropertyVerification = () => {
 
   const goToEditProperty = () => {
     if (!id || !canShowEdit) return;
-    localStorage.setItem("editPropertyId", String(id));
-    localStorage.setItem("editPropertyCategory", "commercial");
-    navigate(`/edit-property/${id}`);
+    navigateToPropertyEdit({
+      navigate,
+      dispatch,
+      property: property || { _id: id },
+      category: "commercial",
+      hydrate: Boolean(property),
+    });
   };
 
   // --- HELPER FUNCTIONS ---

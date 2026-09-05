@@ -14,6 +14,10 @@ import StepVerifyPublish from "./steps/StepVerifyPublish";
 import { getPropertyById } from "../../../services/Common/AllPropertyServices";
 import { setActiveCategory } from "../../../store/Ui/uiSlice";
 import { isAgentCreatedProperty } from "../../../utils/propertyCreatorRole";
+import {
+  PROPERTY_EDIT_CATEGORIES,
+  resolvePropertyEditCategory,
+} from "../../../utils/openPropertyEdit";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // cleanData — strips empty values, resolves createdBy._id, preserves File/Date
@@ -86,22 +90,69 @@ const normalizeOptionalRoomCounts = (form, category) => {
 const getGalleryCount = (form) =>
   form?.galleryFiles?.length || form?.gallery?.length || 0;
 
+const getCreatedById = (createdBy) => {
+  if (!createdBy) return "";
+  if (typeof createdBy === "object") {
+    return String(createdBy._id || createdBy.userId || createdBy.id || "").trim();
+  }
+  return String(createdBy).trim();
+};
+
+const isBasicStepComplete = (form) => {
+  if (!form) return false;
+  const hasTitle = Boolean(String(form.title || "").trim());
+  const hasListing = Boolean(form.listingType || form.propertyType || form.propertySubType);
+  const hasOwner = Boolean(getCreatedById(form.createdBy));
+  return hasTitle && hasListing && hasOwner;
+};
+
+const isLocationStepComplete = (form) => {
+  if (!form) return false;
+  return Boolean(
+    String(form.state || "").trim() &&
+      String(form.city || "").trim() &&
+      (String(form.locality || "").trim() || String(form.address || "").trim()),
+  );
+};
+
+const isDetailsStepComplete = (form) => getGalleryCount(form) >= 5;
+
+const isVerificationStepComplete = (form) => {
+  const docs =
+    (Array.isArray(form?.verificationDocuments) && form.verificationDocuments.length) ||
+    (Array.isArray(form?.documentsFiles) && form.documentsFiles.length);
+  return Boolean(docs);
+};
+
+const unwrapPropertyPayload = (res) =>
+  res?.data?.data || res?.data || res || null;
+
 export default function EditWizard() {
   const { id } = useParams();
   const [activeStep, setActiveStep] = useState(0);
   const [createdByError, setCreatedByError] = useState("");
+  const [hydrateError, setHydrateError] = useState("");
+  const [hydrating, setHydrating] = useState(true);
 
   const storedId       = localStorage.getItem("editPropertyId");
   const storedCategory = localStorage.getItem("editPropertyCategory");
 
   const dispatch   = useDispatch();
   const navigate   = useNavigate();
-  const category   = useSelector((s) => s.ui.activeCategory) || storedCategory;
+  const uiCategory = useSelector((s) => s.ui.activeCategory);
+  const category =
+    resolvePropertyEditCategory(uiCategory) ||
+    resolvePropertyEditCategory(storedCategory) ||
+    "";
   const propertyId = id || storedId;
+  const [resolvedCategory, setResolvedCategory] = useState(category || "");
 
   // ── Keep a stable ref to the latest Redux form state so debounced callbacks
   //    never capture a stale snapshot.
-  const { form: current, loading } = useSelector((s) => s[category] || {});
+  const activeCategory = resolvedCategory || category;
+  const { form: current, loading } = useSelector(
+    (s) => s[activeCategory] || {},
+  );
 
   const isAgentProperty = isAgentCreatedProperty(current);
   const completionPercent = Number(
@@ -115,20 +166,95 @@ export default function EditWizard() {
 
   // ── Sync stored category into Redux once ─────────────────────────────────
   useEffect(() => {
-    if (storedCategory) dispatch(setActiveCategory(storedCategory));
+    if (storedCategory) {
+      const normalized = resolvePropertyEditCategory(storedCategory);
+      if (normalized) {
+        dispatch(setActiveCategory(normalized));
+        setResolvedCategory(normalized);
+      }
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Hydrate form from server ─────────────────────────────────────────────
+  // ── If category missing (e.g. team page click), discover by probing APIs ─
   useEffect(() => {
-    if (!category || !propertyId) return;
+    if (!propertyId || activeCategory) return;
+    let cancelled = false;
     (async () => {
+      setHydrating(true);
+      for (const cat of PROPERTY_EDIT_CATEGORIES) {
+        try {
+          const res = await getPropertyById(cat, propertyId);
+          const property = unwrapPropertyPayload(res);
+          if (cancelled) return;
+          if (property && (property._id || property.id || property.title)) {
+            localStorage.setItem("editPropertyCategory", cat);
+            localStorage.setItem("editPropertyId", String(propertyId));
+            dispatch(setActiveCategory(cat));
+            setResolvedCategory(cat);
+            return;
+          }
+        } catch {
+          /* try next category */
+        }
+      }
+      if (!cancelled) {
+        setHydrating(false);
+        setHydrateError("Could not find this property in any category.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyId, activeCategory, dispatch]);
+
+  // ── Hydrate form from server for this property id ────────────────────────
+  useEffect(() => {
+    if (!activeCategory || !propertyId) {
+      if (!propertyId) setHydrating(false);
+      return;
+    }
+    let cancelled = false;
+    let keepLoading = false;
+    (async () => {
+      setHydrating(true);
+      setHydrateError("");
       try {
-        const res = await getPropertyById(category, propertyId);
-        const property = res?.data;
-        if (!property) return;
+        // Clear other category slices so previous edit data cannot bleed in.
+        PROPERTY_EDIT_CATEGORIES.forEach((cat) => {
+          if (cat !== activeCategory && actions[cat]?.resetForm) {
+            dispatch(actions[cat].resetForm());
+          }
+        });
+        // Reset active slice so gallery/local files from another property id cannot stick.
+        if (actions[activeCategory]?.resetForm) {
+          dispatch(actions[activeCategory].resetForm());
+        }
+
+        const res = await getPropertyById(activeCategory, propertyId);
+        const property = unwrapPropertyPayload(res);
+        if (cancelled) return;
+        if (!property || typeof property !== "object") {
+          setHydrateError("Property data not found for this id.");
+          return;
+        }
+
+        const nextCategory =
+          resolvePropertyEditCategory(property, activeCategory) ||
+          activeCategory;
+        // Category alias mismatch — switch and let this effect re-run once.
+        if (nextCategory !== activeCategory && actions[nextCategory]) {
+          localStorage.setItem("editPropertyCategory", nextCategory);
+          dispatch(setActiveCategory(nextCategory));
+          setResolvedCategory(nextCategory);
+          keepLoading = true;
+          return;
+        }
+
         dispatch(
-          actions[category].hydrateForm({
+          actions[activeCategory].hydrateForm({
             ...property,
+            propertyCategory: activeCategory,
+            _id: property._id || property.id || propertyId,
             createdBy:
               property.createdBy && typeof property.createdBy === "object"
                 ? {
@@ -136,15 +262,53 @@ export default function EditWizard() {
                     _selectedFromSearch: true,
                   }
                 : property.createdBy || "",
-            galleryFiles : property.galleryFiles || [],
-            amenities    : property.amenities    || [],
+            gallery: Array.isArray(property.gallery) ? property.gallery : [],
+            amenities: Array.isArray(property.amenities)
+              ? property.amenities
+              : [],
           }),
         );
+        localStorage.setItem("editPropertyId", String(propertyId));
+        localStorage.setItem("editPropertyCategory", activeCategory);
+        setActiveStep(0);
       } catch (err) {
         console.error("❌ FETCH ERROR:", err);
+        if (!cancelled) {
+          // Wrong category stored — try other categories once.
+          let found = false;
+          for (const cat of PROPERTY_EDIT_CATEGORIES) {
+            if (cat === activeCategory) continue;
+            try {
+              const retry = await getPropertyById(cat, propertyId);
+              const property = unwrapPropertyPayload(retry);
+              if (property && (property._id || property.title)) {
+                found = true;
+                localStorage.setItem("editPropertyCategory", cat);
+                dispatch(setActiveCategory(cat));
+                setResolvedCategory(cat);
+                keepLoading = true;
+                break;
+              }
+            } catch {
+              /* continue */
+            }
+          }
+          if (!found) {
+            setHydrateError(
+              err?.response?.data?.error ||
+                err?.message ||
+                "Failed to load property data.",
+            );
+          }
+        }
+      } finally {
+        if (!cancelled && !keepLoading) setHydrating(false);
       }
     })();
-  }, [category, propertyId]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCategory, propertyId, dispatch]);
 
   // ── Stable debounce — created ONCE, reads latest state via ref ───────────
   // FIX: Previously re-created on every `current` change, resetting the timer
@@ -174,12 +338,12 @@ export default function EditWizard() {
   //      render, causing all child components to re-render on every keystroke.
   const handleFieldUpdate = useCallback(
     (field, value, stepName) => {
-      if (!category || !actions[category]) {
-        console.error("❌ Category not ready:", category);
+      if (!activeCategory || !actions[activeCategory]) {
+        console.error("❌ Category not ready:", activeCategory);
         toast.error("Category not ready");
         return;
       }
-      dispatch(actions[category].updateField({ key: field, value }));
+      dispatch(actions[activeCategory].updateField({ key: field, value }));
       if (
         field === "createdBy" &&
         (value?._id || value?.userId) &&
@@ -187,20 +351,30 @@ export default function EditWizard() {
       ) {
         setCreatedByError("");
       }
-      debouncedAutoSave({ category, propertyId, stepName, dispatch });
+      debouncedAutoSave({
+        category: activeCategory,
+        propertyId,
+        stepName,
+        dispatch,
+      });
     },
-    [category, propertyId, dispatch, debouncedAutoSave],
+    [activeCategory, propertyId, dispatch, debouncedAutoSave],
   );
 
   // ── Document upload — builds payload from explicit values, not stale Redux ─
   const handleUploadDocument = useCallback(
     async (files) => {
-      if (!files?.length) return;
+      if (!files?.length || !activeCategory) return;
 
       const docType = files[0]?.docType || currentRef.current?.verificationDocumentType || "";
 
-      dispatch(actions[category].setDocumentsFiles(files));
-      dispatch(actions[category].updateField({ key: "verificationDocumentType", value: docType }));
+      dispatch(actions[activeCategory].setDocumentsFiles(files));
+      dispatch(
+        actions[activeCategory].updateField({
+          key: "verificationDocumentType",
+          value: docType,
+        }),
+      );
 
       const mergedPayload = cleanData({
         ...currentRef.current,
@@ -210,7 +384,12 @@ export default function EditWizard() {
 
       try {
         await dispatch(
-          savePropertyData({ category, id: propertyId, step: "verification", data: mergedPayload }),
+          savePropertyData({
+            category: activeCategory,
+            id: propertyId,
+            step: "verification",
+            data: mergedPayload,
+          }),
         ).unwrap();
         toast.success("Document saved successfully!");
       } catch (err) {
@@ -218,12 +397,13 @@ export default function EditWizard() {
         toast.error(err?.message || "Failed to save document");
       }
     },
-    [category, propertyId, dispatch],
+    [activeCategory, propertyId, dispatch],
   );
 
   // ── Verify document status toggle ────────────────────────────────────────
   const handleVerifyDocument = useCallback(
     (index, status) => {
+      if (!activeCategory) return;
       const cur        = currentRef.current;
       const serverDocs = [...(cur.verificationDocuments || [])];
       const localDocs  = [...(cur.documentsFiles        || [])];
@@ -235,7 +415,7 @@ export default function EditWizard() {
         if (localDocs[li]) localDocs[li] = { ...localDocs[li], status };
       }
 
-      dispatch(actions[category].setDocumentsFiles(localDocs));
+      dispatch(actions[activeCategory].setDocumentsFiles(localDocs));
 
       const payload = cleanData({
         ...cur,
@@ -243,20 +423,24 @@ export default function EditWizard() {
         verificationDocuments : serverDocs,
       });
 
-      dispatch(savePropertyData({ category, id: propertyId, step: "verification", data: payload }));
+      dispatch(
+        savePropertyData({
+          category: activeCategory,
+          id: propertyId,
+          step: "verification",
+          data: payload,
+        }),
+      );
     },
-    [category, propertyId, dispatch],
+    [activeCategory, propertyId, dispatch],
   );
 
   // ── Manual step save ─────────────────────────────────────────────────────
   const handleStepSave = useCallback(
     async (stepName) => {
+      if (!activeCategory) return false;
       if (stepName === "basic") {
-        const createdBy = currentRef.current?.createdBy;
-        const createdById =
-          typeof createdBy === "object"
-            ? createdBy?._id || createdBy?.userId || createdBy?.id
-            : "";
+        const createdById = getCreatedById(currentRef.current?.createdBy);
         if (!createdById) {
           const message = "Search and select a user from the results";
           setCreatedByError(message);
@@ -280,10 +464,17 @@ export default function EditWizard() {
       try {
         const latestForm =
           stepName === "basic"
-            ? normalizeOptionalRoomCounts(currentRef.current, category)
+            ? normalizeOptionalRoomCounts(currentRef.current, activeCategory)
             : currentRef.current;
         const payload = cleanData(latestForm);
-        await dispatch(savePropertyData({ category, id: propertyId, step: stepName, data: payload })).unwrap();
+        await dispatch(
+          savePropertyData({
+            category: activeCategory,
+            id: propertyId,
+            step: stepName,
+            data: payload,
+          }),
+        ).unwrap();
         toast.success("Saved to cloud!", { id: tid });
         return true;
       } catch {
@@ -291,21 +482,29 @@ export default function EditWizard() {
         return false;
       }
     },
-    [category, propertyId, dispatch],
+    [activeCategory, propertyId, dispatch],
   );
 
   // ── Publish ───────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async () => {
+    if (!activeCategory) return;
     const tid = toast.loading("Publishing...");
     try {
       const payload = cleanData(currentRef.current);
-      await dispatch(savePropertyData({ category, id: propertyId, step: "verification", data: payload })).unwrap();
+      await dispatch(
+        savePropertyData({
+          category: activeCategory,
+          id: propertyId,
+          step: "verification",
+          data: payload,
+        }),
+      ).unwrap();
       toast.success("Property is Live!", { id: tid });
       navigate(`/properties`);
     } catch (err) {
       toast.error(err.message || "Failed to publish", { id: tid });
     }
-  }, [category, propertyId, dispatch, navigate]);
+  }, [activeCategory, propertyId, dispatch, navigate]);
 
   // ── Debounce cleanup ─────────────────────────────────────────────────────
   useEffect(() => () => debouncedAutoSave.cancel(), [debouncedAutoSave]);
@@ -386,11 +585,7 @@ export default function EditWizard() {
 
   const selectWizardStep = (nextStepIndex) => {
     if (currentStepIndex === 0 && nextStepIndex > 0) {
-      const createdBy = currentRef.current?.createdBy;
-      const createdById =
-        typeof createdBy === "object"
-          ? createdBy?._id || createdBy?.userId || createdBy?.id
-          : "";
+      const createdById = getCreatedById(currentRef.current?.createdBy);
       if (!createdById) {
         const message = "Search and select a user from the results";
         setCreatedByError(message);
@@ -411,8 +606,20 @@ export default function EditWizard() {
     }
   };
 
+  const stepCompletion = {
+    basic: isBasicStepComplete(current),
+    location: isLocationStepComplete(current),
+    details: isDetailsStepComplete(current),
+    verification: isVerificationStepComplete(current),
+  };
+
+  const displayPropertyCode =
+    current?.propertyCode ||
+    current?.propertyId ||
+    (propertyId ? String(propertyId).slice(-6) : "");
+
   // ── Loading / missing state ───────────────────────────────────────────────
-  if (!category || !propertyId) {
+  if (!propertyId) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#f0fdf4] via-white to-[#ecfdf5] flex flex-col items-center justify-center gap-6 px-4">
         <div className="flex flex-col items-center gap-5">
@@ -423,8 +630,8 @@ export default function EditWizard() {
             </div>
           </div>
           <div className="text-center space-y-1">
-            <p className="text-slate-800 font-black text-lg">Loading secure environment</p>
-            <p className="text-slate-400 text-sm">Fetching property data...</p>
+            <p className="text-slate-800 font-black text-lg">Property id missing</p>
+            <p className="text-slate-400 text-sm">Open edit from a property card or list.</p>
           </div>
         </div>
         <button
@@ -432,6 +639,37 @@ export default function EditWizard() {
           className="px-8 py-3.5 bg-[#27AE60] text-white text-sm font-black rounded-2xl hover:bg-[#219653] transition-all active:scale-95 shadow-xl shadow-[#27AE60]/30"
         >
           ← Return to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  if (!activeCategory || (hydrating && !current?._id && !current?.title && !hydrateError)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#f0fdf4] via-white to-[#ecfdf5] flex flex-col items-center justify-center gap-6 px-4">
+        <div className="relative w-20 h-20">
+          <div className="absolute inset-0 rounded-3xl bg-[#27AE60]/20 animate-ping" style={{ animationDuration: "1.5s" }} />
+          <div className="relative w-20 h-20 rounded-3xl bg-white shadow-2xl shadow-[#27AE60]/25 flex items-center justify-center border border-[#27AE60]/20">
+            <Wifi className="w-8 h-8 text-[#27AE60]" />
+          </div>
+        </div>
+        <p className="text-slate-800 font-black text-lg">
+          Loading property #{String(propertyId).slice(-6)}…
+        </p>
+      </div>
+    );
+  }
+
+  if (hydrateError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-br from-[#f0fdf4] via-white to-[#ecfdf5] px-4">
+        <p className="text-sm font-bold text-slate-800">{hydrateError}</p>
+        <button
+          type="button"
+          onClick={() => navigate("/properties")}
+          className="rounded-xl bg-[#27AE60] px-5 py-2.5 text-sm font-bold text-white"
+        >
+          Back to properties
         </button>
       </div>
     );
@@ -455,8 +693,14 @@ export default function EditWizard() {
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#27AE60] hidden sm:inline-block" />
                   <h1 className="text-sm text-[#000000] truncate">
-                    Edit {category.charAt(0).toUpperCase() + category.slice(1)}
-                    <span className="text-[blue] font-normal text-xs ml-1.5 hidden sm:inline">#{id?.slice(-6)}</span>
+                    Edit{" "}
+                    {activeCategory.charAt(0).toUpperCase() +
+                      activeCategory.slice(1)}
+                    {displayPropertyCode ? (
+                      <span className="text-[blue] font-normal text-xs ml-1.5 hidden sm:inline">
+                        #{String(displayPropertyCode).slice(-6)}
+                      </span>
+                    ) : null}
                   </h1>
                 </div>
                 <p className="text-[12px] text-[#27AE60] uppercase truncate hidden sm:block mt-0.5">
@@ -520,7 +764,7 @@ export default function EditWizard() {
               <nav className="space-y-1.5 p-3">
                 {wizardSteps.map((step, index) => {
                   const selected = currentStepIndex === index;
-                  const completed = currentStepIndex > index;
+                  const completed = Boolean(stepCompletion[step.key]);
                   return (
                     <button
                       key={step.key}

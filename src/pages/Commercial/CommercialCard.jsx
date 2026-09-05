@@ -648,12 +648,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { setActiveCategory } from "../../store/Ui/uiSlice";
 import { propertiesAnalytics } from "../../features/property/propertyService";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import { actions } from "../../store/newIndex";
+import { navigateToPropertyEdit } from "../../utils/openPropertyEdit";
 
 import {
   MapPin,
@@ -970,11 +969,12 @@ export default function CommercialCard({ property, userRole }) {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    dispatch(setActiveCategory("commercial"));
-                    dispatch(actions.commercial.hydrateForm(property));
-                    localStorage.setItem("editPropertyId", property._id);
-                    localStorage.setItem("editPropertyCategory", "commercial");
-                    navigate(`/edit-property/${property._id}`);
+                    navigateToPropertyEdit({
+                      navigate,
+                      dispatch,
+                      property,
+                      category: "commercial",
+                    });
                   }}
                   className="flex items-center gap-0.5 px-2 py-0.5 rounded-lg text-[8px] font-bold bg-[#27AE60] text-white transition active:scale-95"
                 >

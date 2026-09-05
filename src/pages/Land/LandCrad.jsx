@@ -1,8 +1,6 @@
 // frontend/admin-dashboard/src/pages/Land/LandCard.jsx
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { setActiveCategory } from "../../store/Ui/uiSlice";
-import { actions } from "../../store/newIndex";
 import { useState } from "react";
 import { propertiesAnalytics } from "../../features/property/propertyService";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +10,7 @@ import {
   getPropertyCreatorTag,
   isAgentCreatedProperty,
 } from "../../utils/propertyCreatorRole";
+import { navigateToPropertyEdit } from "../../utils/openPropertyEdit";
 
 import {
   MapPin,
@@ -354,11 +353,12 @@ export default function LandCard({ property, userRole }) {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    dispatch(setActiveCategory("land"));
-                    dispatch(actions.land.hydrateForm(property));
-                    localStorage.setItem("editPropertyId", property._id);
-                    localStorage.setItem("editPropertyCategory", "land");
-                    navigate(`/edit-property/${property._id}`);
+                    navigateToPropertyEdit({
+                      navigate,
+                      dispatch,
+                      property,
+                      category: "land",
+                    });
                   }}
                   className="flex items-center gap-0.5 px-2 py-0.5 rounded-lg text-[8px] font-bold bg-[#27AE60] text-white transition active:scale-95"
                 >

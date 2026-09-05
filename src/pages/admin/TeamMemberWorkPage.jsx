@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams, useLocation } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import {
   ArrowLeft,
   Briefcase,
@@ -37,6 +38,7 @@ import { getAllUsers } from "../../features/user/userService";
 import { canonicalTeamRole, getReportingChildRoles } from "../../utils/roleHierarchy";
 import { filterUsersInReportingTree } from "../../utils/reportingTree";
 import { getRoleWorkProfile } from "../../utils/roleWorkProfiles";
+import { navigateToPropertyEdit } from "../../utils/openPropertyEdit";
 
 const PROPERTY_CATEGORIES = ["residential", "commercial", "land", "agricultural"];
 const PROJECT_TYPES = ["", "featured", "prime", "normal", "sponsored"];
@@ -266,6 +268,7 @@ const moduleToTab = (module) => {
 export default function TeamMemberWorkPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -555,7 +558,13 @@ export default function TeamMemberWorkPage() {
     navigate(`/post-property/${project._id}`, {
       state: { from: location.pathname },
     });
-  const openProperty = (property) => navigate(`/edit-property/${property._id}`);
+  const openProperty = (property) =>
+    navigateToPropertyEdit({
+      navigate,
+      dispatch,
+      property,
+      category: property?._category,
+    });
   const openTicket = (ticket) =>
     navigate("/tickets", { state: { focusTicketId: ticket._id, ticketNumber: ticket.ticketNumber } });
   const openMeeting = (meeting) =>

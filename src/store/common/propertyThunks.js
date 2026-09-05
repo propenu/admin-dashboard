@@ -32,12 +32,25 @@ export const savePropertyData = createAsyncThunk(
       const combinedGallery = stateForm.galleryFiles || [];
 
       const existingGallery = combinedGallery
-        .filter((item) => item?.source === "server")
-        .map((item, index) => ({ url: item.preview, filename: item.name, order: index + 1 }));
+        .filter((item) => {
+          if (!item) return false;
+          if (item.source === "local") return false;
+          // Treat tagged server images and legacy untagged url/preview rows as server.
+          if (item.source === "server") return true;
+          return Boolean(item.preview || item.url || item.secureUrl || item.location);
+        })
+        .map((item, index) => ({
+          url: item.preview || item.url || item.secureUrl || item.location,
+          filename: item.name || item.filename || item.key || `image-${index + 1}`,
+          order: index + 1,
+          key: item.key,
+        }))
+        .filter((item) => item.url);
 
       const newGalleryFiles = combinedGallery
         .filter((item) => item?.source === "local")
-        .map((item) => item.file);
+        .map((item) => item.file)
+        .filter((file) => file instanceof File);
 
       fd.append("gallery", JSON.stringify(existingGallery));
       newGalleryFiles.forEach((file) => { fd.append("galleryFiles", file); });
