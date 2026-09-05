@@ -550,7 +550,9 @@ export default function TeamMemberWorkPage() {
     ),
   );
 
-  const location = [user?.locality, user?.city, user?.state, user?.pincode].filter(Boolean).join(", ");
+  const userLocation = [user?.locality, user?.city, user?.state, user?.pincode]
+    .filter(Boolean)
+    .join(", ");
   const accountActive = user?.accountStatus === "active" && user?.isActive !== false;
   const scrollMax = viewAll ? "max-h-[70vh]" : "max-h-72";
 
@@ -660,7 +662,7 @@ export default function TeamMemberWorkPage() {
                 </span>
                 {user.email ? <span className="inline-flex items-center gap-1"><Mail size={10} />{user.email}</span> : null}
                 {user.phone ? <span className="inline-flex items-center gap-1"><Phone size={10} />{user.phone}</span> : null}
-                <span className="inline-flex items-center gap-1"><MapPin size={10} className="text-emerald-600" />{location || "No location"}</span>
+                <span className="inline-flex items-center gap-1"><MapPin size={10} className="text-emerald-600" />{userLocation || "No location"}</span>
               </div>
             </div>
             <div className="flex flex-wrap gap-1.5">

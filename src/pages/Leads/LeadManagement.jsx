@@ -507,7 +507,7 @@ export default function LeadManagement() {
           </div>
           {datePreset === "custom" ? (
             <span className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-[11px] font-bold text-sky-700">
-              Custom {filters.from || "..."} -> {filters.to || "..."}
+              Custom {filters.from || "..."} {"->"} {filters.to || "..."}
             </span>
           ) : null}
           {filtersOpen ? (
@@ -714,7 +714,7 @@ export default function LeadManagement() {
             />
             {datePreset === "custom" && (
               <span className="rounded-full bg-sky-50 px-3 py-1.5 text-[11px] font-bold text-sky-700">
-                Custom {filters.from || "..."} -> {filters.to || "..."}
+                Custom {filters.from || "..."} {"->"} {filters.to || "..."}
               </span>
             )}
             <div className="ml-auto flex items-center gap-2">
