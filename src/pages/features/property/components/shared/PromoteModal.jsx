@@ -40,7 +40,36 @@ const normalizeStatus = (value) =>
 
 const isApprovedActiveStatus = (status) => {
   const key = normalizeStatus(status);
-  return key === "active" || key === "approved";
+  return (
+    key === "active" ||
+    key === "approved" ||
+    key === "live" ||
+    key === "published"
+  );
+};
+
+/** True when project can be promoted (aligned with dashboard "Approved" filter). */
+const canPromoteProject = (projectStatus, approvalStatus) => {
+  if (
+    isApprovedActiveStatus(projectStatus) ||
+    isApprovedActiveStatus(approvalStatus)
+  ) {
+    return true;
+  }
+  const raw = normalizeStatus(projectStatus);
+  const blocked = new Set([
+    "draft",
+    "pending",
+    "onboarding",
+    "incomplete",
+    "inactive",
+    "deleted",
+    "rejected",
+    "archived",
+  ]);
+  // If status is missing/unknown but not explicitly blocked, allow promote.
+  if (!raw) return true;
+  return !blocked.has(raw);
 };
 
 const resolveLeadTotal = (res) => {
@@ -64,6 +93,7 @@ export default function PromoteModal({
   open,
   projectId,
   projectStatus,
+  approvalStatus,
   currentType,
   currentVisibleLeadLimit,
   canSetLeadCount = true,
@@ -78,7 +108,7 @@ export default function PromoteModal({
   const [leadsError, setLeadsError] = useState("");
   const [countTouched, setCountTouched] = useState(false);
 
-  const projectIsApproved = isApprovedActiveStatus(projectStatus);
+  const projectIsApproved = canPromoteProject(projectStatus, approvalStatus);
 
   useEffect(() => {
     if (!open) {
@@ -172,7 +202,7 @@ export default function PromoteModal({
 
   const promoteBlockedReason = useMemo(() => {
     if (!projectIsApproved) {
-      return "Project must be Approved / Active before promotion and lead visibility can be applied.";
+      return "Project must be Active / Approved before promotion and lead visibility can be applied.";
     }
     if (!selected) return "Select a promotion type above.";
     if (leadCountInvalid) {
@@ -225,7 +255,7 @@ export default function PromoteModal({
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
       <div className="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-blue-600 flex items-center gap-2 mb-1">
-          <TrendingUp className="w-5 h-5" /> Promote Property
+          <TrendingUp className="w-5 h-5" /> Promote Project
         </h2>
         <p className="text-slate-500 text-xs mb-4">
           1) Select listing type · 2) Set visible lead count · 3) Promote
@@ -235,12 +265,21 @@ export default function PromoteModal({
           <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold">Project is not Approved / Active</p>
+              <p className="font-semibold">Project is not Active / Approved</p>
               <p className="mt-0.5">
-                Current status:{" "}
+                Status:{" "}
                 <span className="font-semibold">
                   {normalizeStatus(projectStatus) || "unknown"}
                 </span>
+                {approvalStatus ? (
+                  <>
+                    {" "}
+                    · Approval:{" "}
+                    <span className="font-semibold">
+                      {normalizeStatus(approvalStatus)}
+                    </span>
+                  </>
+                ) : null}
                 . Approve the project first, then set promotion + lead
                 visibility.
               </p>

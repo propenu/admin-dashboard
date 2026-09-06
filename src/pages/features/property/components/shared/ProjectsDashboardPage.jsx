@@ -2330,11 +2330,17 @@ export default function ProjectsDashboardPage() {
   }, [builderSearch, creatorBuilderFilter, creatorBuilderOptions]);
 
   const getHook = useCallback((id) => {
-    const type = allProperties.find((p) => p._id === id)?.promotion?.type || "normal";
-    return { prime: primeHook, featured: featuredHook, sponsored: sponsoredHook, normal: normalHook }[type] ?? normalHook;
+    const type =
+      allProperties.find((p) => p._id === id)?.promotion?.type || "normal";
+    return (
+      {
+        prime: primeHook,
+        featured: featuredHook,
+        sponsored: sponsoredHook,
+        normal: normalHook,
+      }[type] ?? normalHook
+    );
   }, [allProperties, primeHook, featuredHook, sponsoredHook, normalHook]);
-
-  
 
   const handleDelete = useCallback(async (id) => {
     if (!id || deleteLoading) return;
@@ -2377,19 +2383,35 @@ export default function ProjectsDashboardPage() {
   }, [canPermanentDelete, permanentDeleteLoading, refreshAllProjects]);
   const handleExpire  = useCallback((id) => getHook(id).expireMutation.mutate(id,  { onSuccess: refreshAllProjects, onSettled: () => setExpireTarget(null)  }), [getHook, refreshAllProjects]);
   const handleReset   = useCallback((id) => getHook(id).resetMutation.mutate(id,   { onSuccess: refreshAllProjects, onSettled: () => setResetTarget(null)   }), [getHook, refreshAllProjects]);
-  const handlePromote = useCallback((newType, options = {}) =>
-    getHook(promoteTarget).promoteMutation.mutate(
-      {
-        id: promoteTarget,
-        newType,
-        visibleLeadLimit: options.visibleLeadLimit,
-      },
-      {
-        onSuccess: refreshAllProjects,
-        onSettled: () => setPromoteTarget(null),
-      },
-    ),
-  [getHook, promoteTarget, refreshAllProjects]);
+  const handlePromote = useCallback(
+    (newType, options = {}) => {
+      if (!promoteTarget || !newType) {
+        toast.error("Select a project and promotion type");
+        return;
+      }
+      // Use normalHook mutation always — promote API is type-agnostic.
+      const mutate = normalHook?.promoteMutation?.mutate;
+      if (typeof mutate !== "function") {
+        toast.error("Promote action is not ready — refresh and try again");
+        return;
+      }
+      mutate(
+        {
+          id: promoteTarget,
+          newType,
+          visibleLeadLimit: options.visibleLeadLimit,
+          days: options.days,
+        },
+        {
+          onSuccess: () => {
+            refreshAllProjects();
+          },
+          onSettled: () => setPromoteTarget(null),
+        },
+      );
+    },
+    [normalHook, promoteTarget, refreshAllProjects],
+  );
 
   const openPromoteModal = useCallback((id) => {
     setPromoteCurrentType(allProperties.find((p) => p._id === id)?.promotion?.type || "normal");
@@ -2562,12 +2584,16 @@ export default function ProjectsDashboardPage() {
         open={!!promoteTarget}
         projectId={promoteTarget}
         projectStatus={promoteTargetProject?.status}
+        approvalStatus={
+          promoteTargetProject?.approvalStatus ||
+          promoteTargetProject?.approval?.status
+        }
         currentType={promoteCurrentType}
         currentVisibleLeadLimit={
           promoteTargetProject?.promotion?.visibleLeadLimit
         }
         canSetLeadCount={isSuperAdmin || isAdmin}
-        isLoading={getHook(promoteTarget)?.promoteMutation?.isPending}
+        isLoading={Boolean(normalHook?.promoteMutation?.isPending)}
         onConfirm={handlePromote}
         onCancel={() => setPromoteTarget(null)}
       />

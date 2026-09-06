@@ -1,5 +1,5 @@
 // src/features/property/hooks/useFeaturedProjects.js
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import {
   getFeaturedProjectsByType,
   deleteFeaturedProject,
@@ -169,18 +169,14 @@ export function useFeaturedProjects(type, options = {}) {
   });
 
   const promoteMutation = useMutation({
-    mutationFn: async ({ id, newType, visibleLeadLimit }) => {
-      const res = await getFeaturedProjectsByType(newType);
+    mutationFn: async ({ id, newType, visibleLeadLimit, days }) => {
+      if (!id || !newType) {
+        throw new Error("Missing project id or promotion type");
+      }
 
-      const targetProjects = res?.data?.items || [];
-
-      const maxRank = Math.max(
-        0,
-        ...targetProjects.map((p) => Number(p.rank) || 0),
-      );
-
-      const nextRank = maxRank + 1;
-
+      // Promote only — do NOT call PATCH /:id for rank here.
+      // That edit route requires project:edit and was failing the whole
+      // promote action (403 / validation) even after type was updated.
       const promotePayload = {
         type: newType,
       };
@@ -194,18 +190,16 @@ export function useFeaturedProjects(type, options = {}) {
           promotePayload.visibleLeadLimit = Math.trunc(parsed);
         }
       }
+      if (typeof days === "number" && Number.isFinite(days) && days > 0) {
+        promotePayload.days = Math.trunc(days);
+      }
 
-      await promoteProjectWithRank(id, promotePayload);
-      await updateProjectRank(id, nextRank);
-
-      return {
-        success: true,
-        rank: nextRank,
-      };
+      const res = await promoteProjectWithRank(id, promotePayload);
+      return res?.data ?? res;
     },
 
     onSuccess: () => {
-      toast.success("Property promoted successfully");
+      toast.success("Project promoted successfully");
       invalidate();
       queryClient.invalidateQueries({
         queryKey: ["featured-projects"],
@@ -215,7 +209,10 @@ export function useFeaturedProjects(type, options = {}) {
     onError: (error) => {
       console.error(error);
       toast.error(
-        error?.response?.data?.message || "Failed to promote property",
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "Failed to promote project",
       );
     },
   });

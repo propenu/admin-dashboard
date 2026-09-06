@@ -375,6 +375,10 @@ export default function PropertyListPage({
         projectStatus={
           properties.find((p) => p._id === promoteTarget)?.status
         }
+        approvalStatus={
+          properties.find((p) => p._id === promoteTarget)?.approvalStatus ||
+          properties.find((p) => p._id === promoteTarget)?.approval?.status
+        }
         currentType={
           properties.find((p) => p._id === promoteTarget)?.promotion?.type ||
           type
@@ -391,16 +395,18 @@ export default function PropertyListPage({
           )
         }
         isLoading={promoteMutation.isPending}
-        onConfirm={(newType, options = {}) =>
+        onConfirm={(newType, options = {}) => {
+          if (!promoteTarget || !newType) return;
           promoteMutation.mutate(
             {
               id: promoteTarget,
               newType,
               visibleLeadLimit: options.visibleLeadLimit,
+              days: options.days,
             },
             { onSettled: () => setPromoteTarget(null) },
-          )
-        }
+          );
+        }}
         onCancel={() => setPromoteTarget(null)}
       />
 

@@ -31,15 +31,31 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  Sparkles,
   TrendingUp,
   Trash2,
   UserRound,
   X,
+  Zap,
 } from "lucide-react";
 
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 import PropertyCardThumb from "../../components/common/PropertyCardThumb";
+import PropertyPromoteModal, {
+  propertyPromoTypeMeta,
+} from "../../components/property/PropertyPromoteModal";
 import ConfirmModal from "../features/property/components/shared/ConfirmModal";
+import {
+  getPromotionTracking,
+  promotionLifecycleClass,
+  promotionLifecycleCopy,
+  titlePromotionType,
+} from "../features/property/components/shared/promotionTracking";
+import {
+  promotePropertyListing,
+  renewPropertyListing,
+  expirePropertyListing,
+} from "../../services/Common/propertyPromotionService";
 import { setActiveCategory } from "../../store/Ui/uiSlice";
 import { navigateToPropertyEdit } from "../../utils/openPropertyEdit";
 import { listingSearchTokens } from "../../utils/listingSearchTokens";
@@ -122,6 +138,48 @@ const STATUSES = [
   { value: "draft", label: "Draft" },
   { value: "rejected", label: "Rejected" },
 ];
+
+const PROMOTION_TYPE_FILTERS = [
+  { value: "all", label: "All boosts", tone: "slate" },
+  { value: "prime", label: "Prime", tone: "amber" },
+  { value: "featured", label: "Featured", tone: "sky" },
+  { value: "sponsored", label: "Sponsored", tone: "violet" },
+  { value: "normal", label: "Normal", tone: "slate" },
+];
+
+const PROMOTION_TRACKING_FILTERS = [
+  { value: "all", label: "All lifecycle" },
+  { value: "promoted", label: "Ever promoted" },
+  { value: "active", label: "Boost active" },
+  { value: "expiringSoon", label: "Expiring soon" },
+  { value: "expired", label: "Expired" },
+];
+
+const promoFilterChipClass = (tone, active) => {
+  if (!active) {
+    return "border-slate-200 bg-white text-slate-600 hover:border-slate-300";
+  }
+  if (tone === "amber") return "border-amber-400 bg-amber-400 text-amber-950 shadow-sm";
+  if (tone === "sky") return "border-sky-500 bg-sky-500 text-white shadow-sm";
+  if (tone === "violet") return "border-violet-500 bg-violet-500 text-white shadow-sm";
+  return "border-slate-800 bg-slate-800 text-white shadow-sm";
+};
+
+const matchesPromotionFilters = (property, promotionType, trackingFilter) => {
+  const tracking = getPromotionTracking(property);
+  const type = tracking.currentType || property?.promotion?.type || "normal";
+
+  if (promotionType !== "all" && type !== promotionType) return false;
+
+  if (trackingFilter === "all") return true;
+  if (trackingFilter === "promoted") return Boolean(tracking.hasHistory) || type !== "normal";
+  if (trackingFilter === "active") return tracking.lifecycle === "active";
+  if (trackingFilter === "expiringSoon") {
+    return tracking.lifecycle === "expiringSoon" || tracking.lifecycle === "critical";
+  }
+  if (trackingFilter === "expired") return tracking.lifecycle === "expired";
+  return true;
+};
 
 const normalizeStatusParam = (value = "") => {
   const key = String(value || "").trim().toLowerCase();
@@ -412,6 +470,10 @@ function PropertyCard({
   onEdit,
   onReview,
   onDelete,
+  onPromote,
+  onRenew,
+  onExpire,
+  promoteBusy,
   index = 0,
 }) {
   const [openLeads, setOpenLeads] = useState(false);
@@ -425,6 +487,12 @@ function PropertyCard({
   const location = [property?.locality, property?.city, property?.state]
     .filter(Boolean)
     .join(", ");
+  const tracking = getPromotionTracking(property);
+  const promoType = tracking.currentType || property?.promotion?.type || "normal";
+  const promoMeta = propertyPromoTypeMeta(promoType);
+  const PromoIcon = promoMeta.icon;
+  const canPromoteListing = status === "active";
+  const isBoosted = promoType !== "normal";
 
   const { data: leadsData, isLoading: leadsLoading } = useQuery({
     queryKey: ["property-leads", property?._id],
@@ -515,6 +583,12 @@ function PropertyCard({
             <ShieldCheck className="h-2.5 w-2.5 text-emerald-400" /> {creatorTag}
           </span>
         )}
+        <span
+          className={`absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide shadow-sm ${promoMeta.chip}`}
+        >
+          <PromoIcon className="h-2.5 w-2.5" />
+          {titlePromotionType(promoType)}
+        </span>
       </PropertyCardThumb>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3 sm:p-3.5">
@@ -543,6 +617,21 @@ function PropertyCard({
         <p className="mt-2 text-sm font-medium text-emerald-700">
           {formatPrice(property?.price)}
         </p>
+
+        {/* Promotion lifecycle strip — same concept as projects */}
+        <div
+          className={`mt-2 flex flex-wrap items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[10px] font-semibold ${promotionLifecycleClass(
+            tracking.lifecycle,
+          )}`}
+        >
+          <Zap className="h-3 w-3 shrink-0" />
+          <span>{promotionLifecycleCopy(tracking)}</span>
+          {isBoosted && tracking.daysLeft != null ? (
+            <span className="ml-auto rounded-full bg-white/70 px-1.5 py-0.5 text-[9px] font-bold tabular-nums">
+              {tracking.daysLeft}d
+            </span>
+          ) : null}
+        </div>
 
         <div className="mt-2 grid gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[10px] text-slate-500 sm:grid-cols-2">
           <span className="flex min-w-0 items-center gap-1.5">
@@ -666,6 +755,49 @@ function PropertyCard({
             <Trash2 className="h-3 w-3" />
             Delete
           </button>
+          {canPromoteListing ? (
+            <>
+              <button
+                type="button"
+                disabled={promoteBusy}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPromote?.(property);
+                }}
+                className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 px-2.5 py-2 text-[10px] font-bold text-amber-800 transition hover:from-amber-100 hover:to-yellow-100 disabled:opacity-50 sm:py-1"
+              >
+                <Sparkles className="h-3 w-3" />
+                Promote
+              </button>
+              {isBoosted ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={promoteBusy}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRenew?.(property);
+                    }}
+                    className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-2 text-[10px] font-bold text-sky-800 transition hover:bg-sky-100 disabled:opacity-50 sm:py-1"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Renew
+                  </button>
+                  <button
+                    type="button"
+                    disabled={promoteBusy}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onExpire?.(property);
+                    }}
+                    className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-violet-300 bg-violet-50 px-2.5 py-2 text-[10px] font-bold text-violet-800 transition hover:bg-violet-100 disabled:opacity-50 sm:py-1"
+                  >
+                    Expire
+                  </button>
+                </>
+              ) : null}
+            </>
+          ) : null}
         </div>
       </div>
     </article>
@@ -849,6 +981,14 @@ export default function PropertiesDashboard() {
   const debouncedSearch = useDebounce(search, 400);
   // Instant local filter while typing (no network)
   const deferredSearch = useDeferredValue(search);
+  const [promotionType, setPromotionType] = useState(
+    () => searchParams.get("promotion") || "all",
+  );
+  const [trackingFilter, setTrackingFilter] = useState(
+    () => searchParams.get("tracking") || "all",
+  );
+  const [promoteTarget, setPromoteTarget] = useState(null);
+  const [promoteLoading, setPromoteLoading] = useState(false);
   const [sort, setSort] = useState(
     () => searchParams.get("sort") || "newest",
   );
@@ -896,6 +1036,8 @@ export default function PropertiesDashboard() {
     if (locationFilters.locality) next.set("locality", locationFilters.locality);
     if (locationSearch.trim()) next.set("locationSearch", locationSearch);
     if (debouncedSearch.trim()) next.set("search", debouncedSearch);
+    if (promotionType !== "all") next.set("promotion", promotionType);
+    if (trackingFilter !== "all") next.set("tracking", trackingFilter);
     if (sort !== "newest") next.set("sort", sort);
     if (createdFrom) next.set("createdFrom", createdFrom);
     if (createdTo) next.set("createdTo", createdTo);
@@ -910,6 +1052,8 @@ export default function PropertiesDashboard() {
     locationSearch,
     page,
     debouncedSearch,
+    promotionType,
+    trackingFilter,
     setSearchParams,
     sort,
     status,
@@ -1046,11 +1190,17 @@ export default function PropertiesDashboard() {
       .filter(({ property }) => !locationFilters.city || property?.city?.trim() === locationFilters.city)
       .filter(({ property }) => !locationFilters.locality || property?.locality?.trim() === locationFilters.locality)
       .filter(({ property }) => inCreatedRange(property?.createdAt, createdFrom, createdTo))
+      .filter(({ property }) =>
+        matchesPromotionFilters(property, promotionType, trackingFilter),
+      )
       .filter(({ haystack }) => !term || haystack.includes(term))
       .map(({ property }) => property)
       .sort((a, b) => {
         const first = new Date(a?.createdAt || 0).getTime();
         const second = new Date(b?.createdAt || 0).getTime();
+        const promoA = Number(a?.promotion?.priority || 0);
+        const promoB = Number(b?.promotion?.priority || 0);
+        if (promoB !== promoA) return promoB - promoA;
         return sort === "newest" ? second - first : first - second;
       });
   }, [
@@ -1061,8 +1211,10 @@ export default function PropertiesDashboard() {
     deferredSearch,
     listingType,
     locationFilters,
+    promotionType,
     sort,
     status,
+    trackingFilter,
   ]);
 
   const loading = categoryQueries.some((query) => query.isLoading);
@@ -1087,7 +1239,7 @@ export default function PropertiesDashboard() {
       return;
     }
     setPage(1);
-  }, [category, listingType, status, search, locationFilters, sort, createdFrom, createdTo]);
+  }, [category, listingType, status, search, locationFilters, sort, createdFrom, createdTo, promotionType, trackingFilter]);
   const activeFilterCount = [
     category !== "all",
     listingType !== "all",
@@ -1099,6 +1251,8 @@ export default function PropertiesDashboard() {
     !!search.trim(),
     !!createdFrom,
     !!createdTo,
+    promotionType !== "all",
+    trackingFilter !== "all",
   ].filter(Boolean).length;
 
   const selectLocation = (type, value) => {
@@ -1118,6 +1272,8 @@ export default function PropertiesDashboard() {
     setLocationSearch("");
     setSort("newest");
     setLocationFilters({ state: "", city: "", locality: "" });
+    setPromotionType("all");
+    setTrackingFilter("all");
     clearDateRange();
   };
 
@@ -1144,6 +1300,74 @@ export default function PropertiesDashboard() {
       property,
       category: property._category,
     });
+  };
+
+  const invalidatePropertyLists = () =>
+    queryClient.invalidateQueries({ queryKey: ["properties-dashboard"] });
+
+  const openPromote = (property) => setPromoteTarget(property);
+
+  const handlePromoteConfirm = async (type, { days } = {}) => {
+    if (!promoteTarget?._id || !promoteTarget?._category) return;
+    setPromoteLoading(true);
+    try {
+      await promotePropertyListing(promoteTarget._category, promoteTarget._id, {
+        type,
+        ...(days ? { days } : {}),
+      });
+      toast.success(`Promoted to ${titlePromotionType(type)}`);
+      setPromoteTarget(null);
+      await invalidatePropertyLists();
+    } catch (err) {
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+      const raw =
+        typeof data === "string"
+          ? data
+          : data?.message || data?.error || err?.message;
+      const msg =
+        status === 401
+          ? "Please sign in again, then retry promote"
+          : typeof raw === "string" && raw.includes("Cannot PATCH")
+            ? "Promote route missing on the API this dashboard calls — check VITE_API_BASE_URL points to this machine’s gateway (localhost:4000)"
+            : raw || "Promotion failed";
+      toast.error(msg);
+    } finally {
+      setPromoteLoading(false);
+    }
+  };
+
+  const handleRenewPromotion = async (property) => {
+    if (!property?._id || !property?._category) return;
+    setPromoteLoading(true);
+    try {
+      await renewPropertyListing(property._category, property._id, { days: 10 });
+      toast.success("Promotion renewed (+10 days)");
+      await invalidatePropertyLists();
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.message ||
+          "Renew failed",
+      );
+    } finally {
+      setPromoteLoading(false);
+    }
+  };
+
+  const handleExpirePromotion = async (property) => {
+    if (!property?._id || !property?._category) return;
+    setPromoteLoading(true);
+    try {
+      await expirePropertyListing(property._category, property._id);
+      toast.success("Promotion expired → Normal");
+      await invalidatePropertyLists();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Expire failed");
+    } finally {
+      setPromoteLoading(false);
+    }
   };
 
   const currentUser = userData?.user || userData || null;
@@ -1209,6 +1433,22 @@ export default function PropertiesDashboard() {
           if (!deleteLoading) setDeleteTarget(null);
         }}
         isLoading={deleteLoading}
+      />
+      <PropertyPromoteModal
+        open={!!promoteTarget}
+        propertyTitle={promoteTarget?.title}
+        propertyStatus={promoteTarget?.status}
+        currentType={
+          promoteTarget?.promotion?.type ||
+          getPromotionTracking(promoteTarget).currentType ||
+          "normal"
+        }
+        category={promoteTarget?._category}
+        isLoading={promoteLoading}
+        onConfirm={handlePromoteConfirm}
+        onCancel={() => {
+          if (!promoteLoading) setPromoteTarget(null);
+        }}
       />
       <style>
         {`
@@ -1869,6 +2109,47 @@ export default function PropertiesDashboard() {
             </select>
           </div>
 
+          {/* Promotion filters — same concept as projects */}
+          <div className="mt-3 space-y-2 rounded-2xl border border-amber-100 bg-gradient-to-r from-amber-50/80 via-white to-violet-50/60 p-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-amber-600" />
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-800">
+                Property promotions
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {PROMOTION_TYPE_FILTERS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setPromotionType(item.value)}
+                  className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${promoFilterChipClass(
+                    item.tone,
+                    promotionType === item.value,
+                  )}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {PROMOTION_TRACKING_FILTERS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setTrackingFilter(item.value)}
+                  className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                    trackingFilter === item.value
+                      ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div className="min-w-0 flex-1">
@@ -1968,10 +2249,14 @@ export default function PropertiesDashboard() {
                   canReview={canReviewProperty(property)}
                   canEditPending={canEditPendingProperty(currentUser, property)}
                   index={index}
+                  promoteBusy={promoteLoading}
                   onOpen={() => openPropertyDetails(property)}
                   onEdit={() => editProperty(property)}
                   onReview={() => reviewProperty(property)}
                   onDelete={() => setDeleteTarget(property)}
+                  onPromote={openPromote}
+                  onRenew={handleRenewPromotion}
+                  onExpire={handleExpirePromotion}
                 />
               ))}
             </div>
