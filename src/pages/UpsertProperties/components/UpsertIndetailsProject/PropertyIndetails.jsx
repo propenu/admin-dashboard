@@ -565,14 +565,77 @@ const AUDIT_CARD_STYLES = {
   },
 };
 
-function AuditPersonCard({ type, person, when, extra }) {
+function AuditPersonBlock({
+  person,
+  when,
+  extra,
+  sectionLabel,
+  sectionLabelClass,
+  iconBg,
+  headerText,
+}) {
+  const empty = !person || (!person?.name && !person?.email && !person?._id);
+  const idTail = empty
+    ? ""
+    : String(person._id || person.userId || "").slice(-4);
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-0">
+      {sectionLabel ? (
+        <p
+          className={`text-[10px] font-bold uppercase tracking-wider ${
+            sectionLabelClass || "text-slate-700"
+          }`}
+        >
+          {sectionLabel}
+        </p>
+      ) : null}
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div
+          className={`w-7 h-7 rounded-md ${iconBg || "bg-slate-50"} flex items-center justify-center shrink-0`}
+        >
+          <User className={`w-3.5 h-3.5 ${headerText || "text-slate-600"}`} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-xs font-bold text-slate-800 capitalize truncate">
+              {empty ? "—" : person.name || "—"}
+            </p>
+            {idTail ? (
+              <span className="text-[9px] text-slate-400 font-mono shrink-0">
+                …{idTail}
+              </span>
+            ) : null}
+            {!empty && person.roleName ? (
+              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-100 capitalize shrink-0">
+                {formatRoleName(person.roleName)}
+              </span>
+            ) : null}
+          </div>
+          <p className="text-[10px] text-slate-500 truncate mt-0.5">
+            {empty
+              ? "—"
+              : [person.email, person.phone].filter(Boolean).join(" · ") || "—"}
+          </p>
+          <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+            {when ? formatDateTime(when) : "—"}
+            {extra ? ` · ${extra}` : ""}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuditPersonCard({ type, person, when, extra, labelOverride }) {
   if (!person) return null;
   const style = AUDIT_CARD_STYLES[type] || AUDIT_CARD_STYLES.updated;
   const Icon = style.icon || User;
   const idTail = String(person._id || person.userId || "").slice(-4);
+  const headerLabel = labelOverride || style.label;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden min-w-0">
+    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden min-w-0 h-full">
       <div
         className={`flex items-center gap-1.5 px-3 py-1.5 border-b border-slate-100 ${style.headerBg}`}
       >
@@ -580,7 +643,7 @@ function AuditPersonCard({ type, person, when, extra }) {
         <span
           className={`text-[9px] font-bold uppercase tracking-widest ${style.headerText}`}
         >
-          {style.label}
+          {headerLabel}
         </span>
       </div>
       <div className="px-3 py-2.5 flex items-center gap-2.5 min-w-0">
@@ -618,30 +681,78 @@ function AuditPersonCard({ type, person, when, extra }) {
   );
 }
 
-function CreatedByCard({ person }) {
+/** Created By header on property details: Agent details vs Owner details. */
+const getPropertyCreatedByLabel = (person, property) => {
+  const tag = property
+    ? String(getPropertyCreatorTag(property) || "").toLowerCase()
+    : "";
+  if (tag.includes("agent")) return "Agent details";
+
+  const role = String(
+    person?.roleName || person?.role || person?.roleId?.name || "",
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
+  if (role.includes("agent")) return "Agent details";
+  return "Owner details";
+};
+
+function CreatedByCard({ person, property }) {
+  if (!person) return null;
   return (
     <AuditPersonCard
       type="created"
       person={person}
+      labelOverride={getPropertyCreatedByLabel(person, property)}
       when={person?.createdAt || person?.postedAt || person?.updatedAt}
     />
   );
 }
 
-function PostedByCard({ person }) {
-  return (
-    <AuditPersonCard type="posted" person={person} when={person?.postedAt} />
-  );
-}
+/** One card: Last Updated By + Posted By (same as project details). */
+function LastUpdatedByCard({ person, postedBy, updateCount }) {
+  const style = AUDIT_CARD_STYLES.updated;
+  const Icon = style.icon || RefreshCw;
+  const postedStyle = AUDIT_CARD_STYLES.posted;
 
-function LastUpdatedByCard({ person, updateCount }) {
   return (
-    <AuditPersonCard
-      type="updated"
-      person={person}
-      when={person?.updatedAt}
-      extra={`${updateCount || 0} updates`}
-    />
+    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden min-w-0 h-full">
+      <div
+        className={`flex items-center gap-1.5 px-3 py-1.5 border-b border-slate-100 ${style.headerBg}`}
+      >
+        <Icon className={`w-3 h-3 shrink-0 ${style.headerText}`} />
+        <span
+          className={`text-[9px] font-bold uppercase tracking-widest ${style.headerText}`}
+        >
+          {style.label}
+        </span>
+      </div>
+      <div className="px-3 py-2.5 flex flex-col gap-3 min-w-0">
+        <AuditPersonBlock
+          person={person}
+          when={person?.updatedAt}
+          extra={
+            typeof updateCount === "number"
+              ? `${updateCount || 0} updates`
+              : undefined
+          }
+          sectionLabel="Last Updated By"
+          sectionLabelClass="text-blue-700"
+          iconBg={style.iconBg}
+          headerText={style.headerText}
+        />
+        <div className="border-t border-dashed border-slate-200" />
+        <AuditPersonBlock
+          person={postedBy}
+          when={postedBy?.postedAt}
+          sectionLabel="Posted By"
+          sectionLabelClass="text-[#27AE60]"
+          iconBg={postedStyle.iconBg}
+          headerText={postedStyle.headerText}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -2394,13 +2505,16 @@ export default function IndetailsProperty({
         </div>
       </SectionCard>
 
-      {/* ── CREATED / POSTED / APPROVED / LAST UPDATED ─────────────── */}
+      {/* ── Owner/Agent details | Last Updated (+ Posted By) | Approved By ── */}
       {(createdBy || postedBy || lastUpdatedBy || approvedByPerson) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
-          <CreatedByCard person={createdBy} />
-          <PostedByCard person={postedBy} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-stretch">
+          <CreatedByCard person={createdBy} property={property} />
+          <LastUpdatedByCard
+            person={lastUpdatedBy}
+            postedBy={postedBy}
+            updateCount={updateCount}
+          />
           <ApprovedByCard person={approvedByPerson} when={approvedAtValue} />
-          <LastUpdatedByCard person={lastUpdatedBy} updateCount={updateCount} />
         </div>
       )}
 

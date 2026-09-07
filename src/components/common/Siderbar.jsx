@@ -446,6 +446,82 @@ export default function Sidebar({
       allowed.has("user:create") && { path: "/access-control/credentials/new", label: "Create Credentials", icon: KeyRound },
       (allowed.has("role:view") || allowed.has("role:update_permissions")) && { path: "/access-control/users", label: "Role Permissions", icon: FileText },
     ].filter(Boolean);
+
+    // Subscriptions module ON → full tree (same as Super Admin), not a single link.
+    const showSubscriptionsTree = canView("subscription") || canView("plan");
+    const subscriptionsChildren = showSubscriptionsTree
+      ? [
+          { path: "/builder-plans", label: "Builder Plans", icon: BuilderIcon },
+          { path: "/agent-payments", label: "Agent", icon: AgentIcon },
+          {
+            label: "Post Property",
+            key: "permission-post-property",
+            icon: PostPropertyIcon,
+            children: [
+              {
+                path: "/owner-sell-property",
+                label: "Owner-Sell",
+                icon: OwnerIcon,
+              },
+              {
+                path: "/owner-rent-property",
+                label: "Owner-Rent",
+                icon: postpropertyownerrent,
+              },
+            ],
+          },
+          {
+            label: "Property View",
+            key: "permission-property-view",
+            icon: PropertyViewIcon,
+            children: [
+              {
+                path: "/owner-buy-view",
+                label: "Owner-Buy",
+                icon: PostProprtSellerIcon,
+              },
+              {
+                path: "/owner-rent-view",
+                label: "Owner-Rent",
+                icon: propertyviewrent,
+              },
+            ],
+          },
+        ]
+      : [];
+
+    // Payments / Accounts module ON → full Accounts tree (same as Super Admin).
+    const showAccountsTree = canView("payment");
+    const accountsChildren = showAccountsTree
+      ? [
+          {
+            path: "/accounts-summary",
+            label: "Accounts Summary",
+            icon: AccountsSummaryIcon,
+          },
+          {
+            path: "/payments-list",
+            label: "Payments List",
+            icon: PaymentsListIcon,
+          },
+          {
+            path: "/active-subscriptions",
+            label: "Active Subscriptions",
+            icon: ActiveSubcriptionsIcon,
+          },
+          {
+            path: "/subscription-history",
+            label: "Subscription History",
+            icon: SubcriptionHistoryIcon,
+          },
+          {
+            path: "/Revenue-by-plan",
+            label: "Revenue By Plan",
+            icon: RevenueByPlanIcon,
+          },
+        ]
+      : [];
+
     return [
       canView("dashboard") && { path: "/", label: "Dashboard", icon: DashboardIcon },
       isSalesExecutive &&
@@ -483,8 +559,18 @@ export default function Sidebar({
       operationsChildren.length && { label: "Operations", icon: Briefcase, key: "permission-operations", children: operationsChildren },
       accessControlChildren.length && { label: "Access Control", icon: Shield, key: "permission-access-control", children: accessControlChildren },
       userChildren.length && { label: "Users", icon: UserIcon, key: "permission-users", children: userChildren },
-      canView("payment") && { path: "/payments-list", label: "Payments", icon: PaymentsListIcon },
-      canView("subscription") && { path: "/active-subscriptions", label: "Subscriptions", icon: SubcriptinIcon },
+      subscriptionsChildren.length && {
+        label: "Subscriptions",
+        icon: SubcriptinIcon,
+        key: "permission-subscriptions",
+        children: subscriptionsChildren,
+      },
+      accountsChildren.length && {
+        label: "Accounts",
+        icon: AccountsIcon,
+        key: "permission-accounts",
+        children: accountsChildren,
+      },
       canView("email_campaign") && { path: "/email-notifications", label: "Email Campaigns", icon: mailnotifications },
       canView("whatsapp_campaign") && { path: "/whatsapp-notifications", label: "WhatsApp Campaigns", icon: whatsappnotifications },
       canView("notification") && { path: "/push-notifications", label: "Notifications", icon: pushnotification },

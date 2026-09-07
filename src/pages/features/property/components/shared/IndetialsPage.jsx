@@ -1046,10 +1046,105 @@ function LeadRow({ lead, onDeleteLead, isDeletingLead }) {
 }
 
 // ─── PersonCard (compact 4-up) ────────────────────────────────────────────────
-function PersonCard({ type, person, timestamp: explicitTimestamp, role }) {
+function PersonDetailBlock({
+  person,
+  role,
+  timestamp,
+  badgeCls,
+  dotBg,
+  dotText,
+  sectionLabel,
+  sectionLabelClass,
+  emptyFallbackName = "—",
+  emptyFallbackEmail = "—",
+}) {
+  const empty =
+    !person || (!person?.name && !person?.email && !person?._id && !person?.userId);
+  const name = empty ? emptyFallbackName : person?.name || "—";
+  const email = empty ? emptyFallbackEmail : person?.email || "—";
+  const phone = empty ? null : person?.phone;
+  const idTail = empty
+    ? ""
+    : (person?._id || person?.userId || "")?.toString?.()?.slice(-4);
+  const displayRole = empty ? null : role || person?.roleName;
+
+  return (
+    <div className="flex flex-col gap-1.5 min-w-0">
+      {sectionLabel ? (
+        <p
+          className={`text-[10px] font-bold uppercase tracking-wider ${
+            sectionLabelClass || "text-slate-700"
+          }`}
+        >
+          {sectionLabel}
+        </p>
+      ) : null}
+      <div className="flex items-center gap-2 min-w-0">
+        <div
+          className={`w-6 h-6 rounded-md ${dotBg} flex items-center justify-center flex-shrink-0`}
+        >
+          <User className={`w-3 h-3 ${dotText}`} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] font-bold text-slate-800 leading-tight truncate">
+            {name}
+          </p>
+          {idTail ? (
+            <p className="text-[8px] text-slate-400 font-mono leading-tight">
+              ID: ...{idTail}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="bg-slate-50 rounded-md px-2 py-1 border border-slate-100 min-w-0">
+        <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wider">
+          Email
+        </p>
+        <p className="text-[10px] font-semibold text-slate-700 truncate">{email}</p>
+      </div>
+
+      <div className="bg-slate-50 rounded-md px-2 py-1 border border-slate-100">
+        <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wider">
+          Phone
+        </p>
+        <p className="text-[10px] font-semibold text-slate-700 truncate">
+          {phone || "—"}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between gap-1.5 pt-0.5">
+        {displayRole ? (
+          <span
+            className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full border capitalize truncate max-w-[55%] ${badgeCls}`}
+          >
+            {formatRoleName(displayRole)}
+          </span>
+        ) : (
+          <span />
+        )}
+        {timestamp ? (
+          <span className="text-[8px] text-slate-400 ml-auto whitespace-nowrap">
+            {formatDate(timestamp)} · {formatTime(timestamp)}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function PersonCard({
+  type,
+  person,
+  timestamp: explicitTimestamp,
+  role,
+  secondaryPerson,
+  secondaryTimestamp,
+  secondaryRole,
+}) {
   const config = {
     created: {
-      label: "Created By",
+      label: "Builder details",
       icon: UserPlus,
       headerBg: "bg-green-50",
       headerText: "text-[#27AE60]",
@@ -1123,7 +1218,77 @@ function PersonCard({ type, person, timestamp: explicitTimestamp, role }) {
     ? type === "approved"
       ? "Pending"
       : null
-    : role || person?.roleName;
+    : type === "created"
+      ? role || person?.roleName || "builder"
+      : role || person?.roleName;
+
+  const builderLocation = (() => {
+    if (empty) return "";
+    const place = [
+      person?.locality || person?.address?.locality,
+      person?.city || person?.address?.city,
+      person?.state || person?.address?.state,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const pin = person?.pincode || person?.address?.pincode || "";
+    if (place && pin) return `${place} — ${pin}`;
+    return place || (pin ? String(pin) : "");
+  })();
+
+  const builderCompany = empty
+    ? ""
+    : person?.companyName || person?.company || person?.builderName || "";
+
+  // Last Updated By card: show Last Updated + Posted By in the same card.
+  if (type === "updated") {
+    const postedTs =
+      secondaryTimestamp ||
+      secondaryPerson?.postedAt ||
+      secondaryPerson?.createdAt ||
+      null;
+    return (
+      <div className="bg-white rounded-lg border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full min-w-0 w-full">
+        <div
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 border-b border-slate-100 ${c.headerBg}`}
+        >
+          <Icon className={`w-3 h-3 flex-shrink-0 ${c.headerText}`} />
+          <span
+            className={`text-[9px] font-bold uppercase tracking-wider ${c.headerText}`}
+          >
+            {c.label}
+          </span>
+        </div>
+        <div className="p-2.5 flex-1 flex flex-col gap-3 min-w-0">
+          <PersonDetailBlock
+            person={person}
+            role={role || person?.roleName}
+            timestamp={timestamp}
+            badgeCls={c.badgeCls}
+            dotBg={c.dotBg}
+            dotText={c.dotText}
+            sectionLabel="Last Updated By"
+            sectionLabelClass="text-amber-700"
+            emptyFallbackName="—"
+            emptyFallbackEmail="—"
+          />
+          <div className="border-t border-dashed border-slate-200" />
+          <PersonDetailBlock
+            person={secondaryPerson}
+            role={secondaryRole || secondaryPerson?.roleName}
+            timestamp={postedTs}
+            badgeCls="bg-blue-50 text-blue-700 border-blue-100"
+            dotBg="bg-blue-50"
+            dotText="text-blue-600"
+            sectionLabel="Posted By"
+            sectionLabelClass="text-blue-700"
+            emptyFallbackName="—"
+            emptyFallbackEmail="—"
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full min-w-0 w-full">
@@ -1181,7 +1346,26 @@ function PersonCard({ type, person, timestamp: explicitTimestamp, role }) {
           </div>
         ) : null}
 
-        {(person?.city || person?.state) && (
+        {type === "created" && !empty ? (
+          <>
+            <div className="bg-slate-50 rounded-md px-2 py-1 border border-slate-100 min-w-0">
+              <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wider">
+                Company
+              </p>
+              <p className="text-[10px] font-semibold text-slate-700 truncate">
+                {builderCompany || "—"}
+              </p>
+            </div>
+            <div className="bg-slate-50 rounded-md px-2 py-1 border border-slate-100 min-w-0">
+              <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wider">
+                Location
+              </p>
+              <p className="text-[10px] font-semibold text-slate-700 truncate">
+                {builderLocation || "—"}
+              </p>
+            </div>
+          </>
+        ) : person?.city || person?.state ? (
           <div className="bg-slate-50 rounded-md px-2 py-1 border border-slate-100">
             <p className="text-[8px] text-slate-400 font-semibold uppercase tracking-wider">
               Location
@@ -1193,7 +1377,7 @@ function PersonCard({ type, person, timestamp: explicitTimestamp, role }) {
               {person?.pincode ? ` — ${person.pincode}` : ""}
             </p>
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="px-2.5 py-1.5 border-t border-slate-100 flex items-center justify-between gap-1.5">
@@ -2005,10 +2189,26 @@ export default function FeaturedPropertyDetails() {
   };
 
   // Audit users may be returned directly or nested under `user` / populated `userId`.
-  const createdBy = flattenAuditPerson(
+  const createdByRaw = flattenAuditPerson(
     property.createdBy?.user || property.createdBy,
     property.createdBy?.roleName,
   );
+  // Enrich builder card with company / location from project about when user doc lacks them.
+  const createdBy = createdByRaw
+    ? {
+        ...createdByRaw,
+        companyName:
+          createdByRaw.companyName ||
+          createdByRaw.company ||
+          property?.aboutSummary?.builderName ||
+          property?.builderName ||
+          "",
+        city: createdByRaw.city || property?.city || "",
+        state: createdByRaw.state || property?.state || "",
+        locality: createdByRaw.locality || property?.locality || "",
+        pincode: createdByRaw.pincode || property?.pincode || "",
+      }
+    : null;
   const hasBuilderAttached = Boolean(
     (typeof createdBy === "object" && (createdBy?._id || createdBy?.id)) ||
       (typeof createdBy === "string" && createdBy.trim()),
@@ -2347,30 +2547,18 @@ export default function FeaturedPropertyDetails() {
         isLoading={onboardingLoading}
       />
 
-      {/* ── PEOPLE ROW: Created By | Posted By | Last Updated By | Approved By ── */}
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+      {/* ── PEOPLE ROW: Builder details | Last Updated By (+ Posted By) | Approved By ── */}
+      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-2.5 items-stretch">
         {createdBy && hasBuilderAttached ? (
           <PersonCard
             type="created"
             person={createdBy}
             timestamp={property.createdAt}
-            role={resolvePersonRole(createdBy, createdBy.roleName)}
+            role="builder"
           />
         ) : (
           <PersonCard type="created" person={null} timestamp={null} role={null} />
         )}
-        <PersonCard
-          type="posted"
-          person={postedBy}
-          timestamp={
-            postedBy
-              ? property.postedBy?.postedAt ||
-                property.postedAt ||
-                property.createdAt
-              : null
-          }
-          role={postedBy?.roleName || null}
-        />
         <PersonCard
           type="updated"
           person={lastUpdatedBy}
@@ -2382,6 +2570,15 @@ export default function FeaturedPropertyDetails() {
               : null
           }
           role={lastUpdatedBy?.roleName || null}
+          secondaryPerson={postedBy}
+          secondaryTimestamp={
+            postedBy
+              ? property.postedBy?.postedAt ||
+                property.postedAt ||
+                property.createdAt
+              : null
+          }
+          secondaryRole={postedBy?.roleName || null}
         />
         <PersonCard
           type="approved"
