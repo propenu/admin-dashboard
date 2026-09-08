@@ -2,7 +2,7 @@ export const BANNER_SLOTS = [
   { key: "desktop", label: "Desktop", size: "1920 × 600", ratio: "3.2:1" },
   { key: "laptop", label: "Laptop", size: "1440 × 500", ratio: "2.88:1" },
   { key: "tablet", label: "Tablet", size: "1536 × 768", ratio: "2:1" },
-  { key: "mobile", label: "Mobile", size: "1080 × 1350", ratio: "4:5" },
+  { key: "mobile", label: "Mobile", size: "1080 × 900", ratio: "6:5" },
 ];
 
 export const LOGO_HINT = "GIF only · ~3.34:1 (e.g. 167×50, 334×100) · under 1 MB";
@@ -16,6 +16,7 @@ export function emptyDeviceForm() {
     subLocality: "",
     addHeading: false,
     headingHtml: "",
+    clickUrl: "",
     file: null,
     preview: "",
     fileError: "",
@@ -35,6 +36,7 @@ export function deviceFormFromSaved(device = {}) {
     subLocality: loc.subLocality || "",
     addHeading: device.heading?.enabled === true,
     headingHtml: device.heading?.html || "",
+    clickUrl: device.clickUrl || "",
     file: null,
     preview: "",
     fileError: "",

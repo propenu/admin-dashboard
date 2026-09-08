@@ -102,6 +102,22 @@ function DeviceEditor({
           )}
         </div>
 
+        <div className="rounded-2xl border border-slate-200 bg-white px-3 py-3">
+          <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-slate-400">
+            Click URL <span className="font-medium normal-case text-slate-400">(optional)</span>
+          </label>
+          <input
+            type="url"
+            value={form.clickUrl || ""}
+            onChange={(e) => setForm((p) => ({ ...p, clickUrl: e.target.value }))}
+            placeholder="https://example.com/listing or /path"
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400"
+          />
+          <p className="mt-1.5 text-[10px] text-slate-400">
+            When set, banner click opens this link. Empty = open image URL.
+          </p>
+        </div>
+
         <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
           <input
             type="checkbox"
@@ -246,6 +262,7 @@ function DeviceEditor({
         <BannerDeviceFrame
           slot={slot}
           imageSrc={previewSrc || ""}
+          clickUrl={form.clickUrl}
           heading={{
             enabled: Boolean(form.addHeading),
             html: form.headingHtml,
@@ -332,6 +349,7 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
     fd.append("subLocality", form.addLocation ? form.subLocality.trim() : "");
     fd.append("headingEnabled", String(Boolean(form.addHeading)));
     fd.append("headingHtml", form.addHeading ? form.headingHtml || "" : "");
+    fd.append("clickUrl", String(form.clickUrl || "").trim());
     fd.append("subheadingEnabled", "false");
     fd.append("subheadingHtml", "");
     if (form.file) fd.append("image", form.file);
@@ -459,6 +477,7 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
                   <BannerDeviceFrame
                     slot={slot.key}
                     imageSrc={device.image}
+                    clickUrl={device.clickUrl}
                     heading={device.heading}
                     className="w-full"
                   />
@@ -471,6 +490,11 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
                       </span>
                     </p>
                     <p className="mt-1 truncate text-xs text-slate-500">{device.image}</p>
+                    {device.clickUrl ? (
+                      <p className="mt-1 truncate text-xs text-[#27AE60]">
+                        Click → {device.clickUrl}
+                      </p>
+                    ) : null}
                     <p className="mt-1 text-[11px] text-slate-400">
                       {locationSummary(device.location)}
                       {device.heading?.enabled ? " · heading on" : " · heading off"}

@@ -15,12 +15,15 @@ export function navImageForSlot(slot) {
 export default function BannerDeviceFrame({
   slot = "desktop",
   imageSrc,
+  clickUrl = "",
   heading,
   emptyHint = "Upload image to preview",
   className = "",
 }) {
   const navSrc = navImageForSlot(slot);
   const isMobile = slot === "mobile";
+  const targetUrl = String(clickUrl || "").trim() || imageSrc;
+  const openLabel = String(clickUrl || "").trim() ? "Open link" : "Open image";
 
   if (!imageSrc) {
     return (
@@ -53,8 +56,8 @@ export default function BannerDeviceFrame({
       <button
         type="button"
         className="relative block w-full"
-        onClick={() => openClickUrl(imageSrc)}
-        title="Open banner image in new tab"
+        onClick={() => openClickUrl(targetUrl)}
+        title={openLabel}
       >
         <img
           src={imageSrc}
@@ -65,7 +68,7 @@ export default function BannerDeviceFrame({
         />
         <BannerTextOverlay heading={heading} />
         <span className="absolute bottom-3 right-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold text-white">
-          <ExternalLink size={11} /> Open image
+          <ExternalLink size={11} /> {openLabel}
         </span>
       </button>
     </div>
