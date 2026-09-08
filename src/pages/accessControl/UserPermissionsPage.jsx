@@ -33,6 +33,7 @@ import {
   updateAccessUserStatus,
 } from "../../features/accessControl/accessControlService";
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
+import { PERMISSIONS_UPDATED_EVENT } from "../../utils/useLivePermissions";
 import {
   countUsersInExactRole,
   getExactRoleMatch,
@@ -247,7 +248,12 @@ export default function UserPermissionsPage() {
       const result = await updateAccessRolePermissions(role._id, [...permissions]);
       setRole(result.role);
       setPermissions(new Set(result.role.permissions || []));
-      toast.success(`${role.label} permissions updated`);
+      window.dispatchEvent(
+        new CustomEvent(PERMISSIONS_UPDATED_EVENT, {
+          detail: { roleId: role._id, permissions: result.role.permissions || [] },
+        }),
+      );
+      toast.success(`${role.label} permissions updated. Staff pages refresh automatically on focus.`);
     } catch (error) {
       toast.error(error.response?.data?.message || "Permission update failed");
     } finally {

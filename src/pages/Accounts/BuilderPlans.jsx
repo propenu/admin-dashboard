@@ -8,6 +8,7 @@ import {
   UserPlus, WalletCards, X, Zap,
 } from "lucide-react";
 import { builderPlanService } from "../../features/builderPlans/builderPlanService";
+import { useLivePermissions } from "../../utils/useLivePermissions";
 
 const EMPTY_FORM = {
   code: "", title: "", price: "", discount: "0", description: "",
@@ -58,7 +59,7 @@ function Field({ label, error, hint, children }) {
   </label>;
 }
 
-function PlanModal({ plan, mode = "create", onClose, onEdit, onCreateInvoice, onCreateReady, onSaved }) {
+function PlanModal({ plan, mode = "create", onClose, onEdit, onCreateInvoice, onCreateReady, onSaved, canUpdate = false, canCreateInvoice = false }) {
   const readOnly = mode === "view";
   const [form, setForm] = useState(plan ? {
     ...plan, promotionType: String(plan.promotionType || "normal").toLowerCase(), price: String(plan.price), discount: String(plan.discount || 0),
@@ -124,7 +125,7 @@ function PlanModal({ plan, mode = "create", onClose, onEdit, onCreateInvoice, on
 
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-normal uppercase tracking-[.14em] text-slate-400">Description</p><p className="mt-3 whitespace-pre-wrap text-[12px] font-normal leading-6 text-slate-600">{form.description || "No description provided."}</p></div>
         </div>
-        <footer className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 sm:px-6"><div className="grid grid-cols-3 gap-2"><button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-3 py-3 text-xs font-bold text-slate-600 transition hover:bg-slate-50">Close</button><button type="button" onClick={onEdit} className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 px-3 py-3 text-xs font-bold text-[#27AE60]"><Edit3 size={14}/>Edit</button><button type="button" onClick={onCreateInvoice} className="rounded-xl bg-[#27AE60] px-3 py-3 text-xs font-bold text-white shadow-md shadow-emerald-100 hover:bg-[#219653]">Create invoice</button></div></footer>
+        <footer className="shrink-0 border-t border-slate-200 bg-white px-5 py-4 sm:px-6"><div className={`grid gap-2 ${canUpdate && canCreateInvoice ? "grid-cols-3" : canUpdate || canCreateInvoice ? "grid-cols-2" : "grid-cols-1"}`}><button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-3 py-3 text-xs font-bold text-slate-600 transition hover:bg-slate-50">Close</button>{canUpdate && <button type="button" onClick={onEdit} className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 px-3 py-3 text-xs font-bold text-[#27AE60]"><Edit3 size={14}/>Edit</button>}{canCreateInvoice && <button type="button" onClick={onCreateInvoice} className="rounded-xl bg-[#27AE60] px-3 py-3 text-xs font-bold text-white shadow-md shadow-emerald-100 hover:bg-[#219653]">Create invoice</button>}</div></footer>
       </section>
     </div>;
   }
@@ -204,7 +205,7 @@ function AssignPlanDrawer({ plan, onClose, onAssigned }) {
   </div>;
 }
 
-function CreateInvoiceDrawer({ initialPlan, plans, onClose, onCreatePlan }) {
+function CreateInvoiceDrawer({ initialPlan, plans, onClose, onCreatePlan, canCreatePlan = false }) {
   const [planId, setPlanId] = useState(initialPlan?._id || "");
   const [builders, setBuilders] = useState([]);
   const [builderId, setBuilderId] = useState("");
@@ -283,7 +284,7 @@ function CreateInvoiceDrawer({ initialPlan, plans, onClose, onCreatePlan }) {
     <section className="flex h-dvh w-[min(100vw,620px)] flex-col overflow-hidden bg-[#f8faf9] shadow-[-20px_0_60px_rgba(15,23,42,.18)] sm:rounded-l-3xl">
       <header className="border-b border-slate-100 bg-white px-6 py-5"><div className="flex justify-between gap-4"><div><p className="text-[10px] uppercase tracking-[.18em] text-[#27AE60]">Create invoice</p><h2 className="mt-1 text-xl font-medium text-slate-900">Assign plan to builder project</h2><p className="mt-1 text-[11px] text-slate-500">Select the builder first, then one of that builder's projects.</p></div><button type="button" onClick={onClose} className="h-fit rounded-xl border border-slate-200 p-2.5 text-slate-400"><X size={17}/></button></div></header>
       <div className="flex-1 space-y-4 overflow-y-auto p-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="mb-2 flex items-center justify-between gap-3"><p className="text-[12px] text-slate-700">1. Subscription plan *</p>{availablePlans.length > 0 && <button type="button" onClick={onCreatePlan} className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-medium text-[#219653] hover:bg-emerald-100"><CirclePlus size={13}/>Create custom plan</button>}</div>{availablePlans.length ? <select value={planId} onChange={(e) => setPlanId(e.target.value)} className={inputClass}><option value="">Select plan</option>{availablePlans.map((item) => <option key={item._id} value={item._id}>{item.title} ({item.code})</option>)}</select> : <div className="rounded-xl bg-amber-50 p-4 text-center"><p className="text-[11px] text-amber-800">No active subscription plan is available.</p><button type="button" onClick={onCreatePlan} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#27AE60] px-4 py-2 text-[11px] font-medium text-white"><CirclePlus size={13}/>Create plan first</button></div>}</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="mb-2 flex items-center justify-between gap-3"><p className="text-[12px] text-slate-700">1. Subscription plan *</p>{canCreatePlan && availablePlans.length > 0 && <button type="button" onClick={onCreatePlan} className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-medium text-[#219653] hover:bg-emerald-100"><CirclePlus size={13}/>Create custom plan</button>}</div>{availablePlans.length ? <select value={planId} onChange={(e) => setPlanId(e.target.value)} className={inputClass}><option value="">Select plan</option>{availablePlans.map((item) => <option key={item._id} value={item._id}>{item.title} ({item.code})</option>)}</select> : <div className="rounded-xl bg-amber-50 p-4 text-center"><p className="text-[11px] text-amber-800">No active subscription plan is available.</p>{canCreatePlan && <button type="button" onClick={onCreatePlan} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#27AE60] px-4 py-2 text-[11px] font-medium text-white"><CirclePlus size={13}/>Create plan first</button>}</div>}</div>
         {plan && <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><p className="text-[10px] uppercase tracking-wider text-emerald-700">Plan values · read only</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Amount", money(amount)],["Duration", `${plan.durationDays} days`],["Promotion", plan.promotionType],["Discount", money(plan.discount)]].map(([label,value]) => <div key={label}><p className="text-[9px] uppercase text-slate-400">{label}</p><p className="mt-1 text-[12px] font-medium capitalize text-slate-800">{value}</p></div>)}</div></div>}
         <div><p className="mb-2 text-[12px] text-slate-700">2. Builder *</p><div className="mb-2"><input value={builderSearch} onChange={(e) => setBuilderSearch(e.target.value)} placeholder="Search builder name, company, email, phone or code" className={inputClass}/></div><div className="mb-2"><LocationFilterRow items={builders} value={builderLocation} onChange={setBuilderLocation} prefix="builder"/></div><select disabled={loading} value={builderId} onChange={(e) => selectBuilder(e.target.value)} className={inputClass}><option value="">{loading ? "Loading builders…" : `Select builder (${visibleBuilders.length} found)`}</option>{visibleBuilders.map((builder) => <option key={builder._id} value={builder._id}>{builder.name || "Builder"} — {builder.companyName || "No company"} {locationText(builder) ? `— ${locationText(builder)}` : ""}</option>)}</select></div>
         <div><p className="mb-2 text-[12px] text-slate-700">3. Project *</p>{builderId && <><div className="mb-2"><input value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} placeholder="Search project name, code or location" className={inputClass}/></div><div className="mb-2"><LocationFilterRow items={projects} value={projectLocation} onChange={setProjectLocation} prefix="project"/></div></>}<select disabled={!builderId || loadingProjects} value={projectId} onChange={(e) => setProjectId(e.target.value)} className={inputClass}><option value="">{loadingProjects ? "Loading projects…" : builderId ? `Select project (${visibleProjects.length} found)` : "Select a builder first"}</option>{visibleProjects.map((project) => <option key={project._id} value={project._id}>{project.title} {project.propertyCode ? `(${project.propertyCode})` : ""} — {selectedBuilderName} {locationText(project) ? `— ${locationText(project)}` : ""}</option>)}</select><p className="mt-1 text-[10px] text-slate-400">Only projects belonging to the selected builder and matching location filters are listed.</p></div>
@@ -419,7 +420,7 @@ function InvoiceListDrawer({ onClose }) {
   </div>;
 }
 
-function InvoiceTablePage({ onBack }) {
+function InvoiceTablePage({ onBack, canCreate = false, canUpdate = false, canDelete = false, onCreateInvoice }) {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -429,12 +430,23 @@ function InvoiceTablePage({ onBack }) {
   const [projectFilter, setProjectFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState({ state: "", city: "", locality: "", pincode: "" });
+  const [editingId, setEditingId] = useState(null);
+  const [editStatus, setEditStatus] = useState("pending");
+  const [editMethod, setEditMethod] = useState("cash");
+  const [savingId, setSavingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
-  useEffect(() => {
-    builderPlanService.invoices().then((data) => setInvoices(Array.isArray(data.invoices) ? data.invoices : []))
-      .catch((requestError) => setError(requestError.response?.data?.message || "Unable to load builder invoices"))
-      .finally(() => setLoading(false));
-  }, []);
+  const loadInvoices = async () => {
+    setLoading(true); setError("");
+    try {
+      const data = await builderPlanService.invoices();
+      setInvoices(Array.isArray(data.invoices) ? data.invoices : []);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "Unable to load builder invoices");
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadInvoices(); }, []);
 
   const details = (invoice) => ({
     builder: invoice.builderDetails || invoice.userId || {},
@@ -451,7 +463,8 @@ function InvoiceTablePage({ onBack }) {
     const projectName = invoice.propertyTitle || project.title || "";
     const planName = invoice.servicePlanName || plan.title || "";
     const text = [invoice.invoiceNumber, builder.name, builder.companyName, builder.email, builder.phone,
-      builder.userCode, projectName, invoice.projectCode || project.propertyCode, planName, location].filter(Boolean).join(" ").toLowerCase();
+      builder.userCode, projectName, invoice.projectCode || project.propertyCode, planName,
+      locationText(builder), locationText(project)].filter(Boolean).join(" ").toLowerCase();
     return text.includes(query.toLowerCase()) && (status === "all" || invoice.paymentStatus === status) &&
       (builderFilter === "all" || builderName === builderFilter) && (projectFilter === "all" || projectName === projectFilter) &&
       (planFilter === "all" || planName === planFilter) &&
@@ -469,16 +482,52 @@ function InvoiceTablePage({ onBack }) {
     } catch { popup?.close(); toast.error("Unable to load invoice PDF"); }
   };
 
+  const startEdit = (invoice) => {
+    setEditingId(invoice._id);
+    setEditStatus(invoice.paymentStatus || "pending");
+    setEditMethod(invoice.paymentMethod || "cash");
+  };
+
+  const saveEdit = async (invoice) => {
+    setSavingId(invoice._id);
+    try {
+      await builderPlanService.updateInvoice(invoice._id, {
+        paymentStatus: editStatus,
+        paymentMethod: editMethod,
+      });
+      toast.success("Invoice updated");
+      setEditingId(null);
+      await loadInvoices();
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Unable to update invoice");
+    } finally { setSavingId(null); }
+  };
+
+  const removeInvoice = async (invoice) => {
+    if (!window.confirm(`Delete invoice “${invoice.invoiceNumber}”? This cannot be undone.`)) return;
+    setDeletingId(invoice._id);
+    try {
+      await builderPlanService.removeInvoice(invoice._id);
+      toast.success("Invoice deleted");
+      await loadInvoices();
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Unable to delete invoice");
+    } finally { setDeletingId(null); }
+  };
+
   const statusClass = (value) => ({ paid: "bg-emerald-50 text-emerald-700", pending: "bg-amber-50 text-amber-700", partial: "bg-blue-50 text-blue-700", failed: "bg-red-50 text-red-700" }[value] || "bg-slate-100 text-slate-600");
 
   return <div className="min-h-full bg-[#f6f8f7] p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-[1600px]">
-    <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><button type="button" onClick={onBack} className="mb-3 flex items-center gap-1 text-[11px] text-slate-500 hover:text-[#219653]"><ChevronRight size={13} className="rotate-180"/>Back to builder plans</button><h1 className="text-2xl font-medium text-slate-900">Builder invoices</h1><p className="mt-1 text-[12px] text-slate-500">All builder billing records in table format.</p></div><p className="text-[11px] text-slate-500">Showing {filtered.length} of {invoices.length}</p></div>
+    <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><button type="button" onClick={onBack} className="mb-3 flex items-center gap-1 text-[11px] text-slate-500 hover:text-[#219653]"><ChevronRight size={13} className="rotate-180"/>Back to builder plans</button><h1 className="text-2xl font-medium text-slate-900">Builder invoices</h1><p className="mt-1 text-[12px] text-slate-500">All builder billing records in table format.</p></div><div className="flex flex-col items-stretch gap-2 sm:items-end"><p className="text-[11px] text-slate-500">Showing {filtered.length} of {invoices.length}</p>{canCreate && <button type="button" onClick={onCreateInvoice} className="flex items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-2.5 text-xs font-medium text-white shadow-sm hover:bg-[#219653]"><UserPlus size={15}/>Create invoice</button>}</div></div>
     <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5"><div className="relative xl:col-span-2"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search invoice, builder, phone, project…" className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-[11px] outline-none focus:border-[#27AE60]"/></div><select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All statuses</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="partial">Partial</option><option value="failed">Failed</option></select><select value={builderFilter} onChange={(e) => setBuilderFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All builders</option>{builders.map((item) => <option key={item}>{item}</option>)}</select><button type="button" onClick={() => { setQuery(""); setStatus("all"); setBuilderFilter("all"); setProjectFilter("all"); setPlanFilter("all"); setLocationFilter({ state: "", city: "", locality: "", pincode: "" }); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px] text-slate-500 hover:bg-slate-50">Clear filters</button></div><div className="mt-2 grid gap-2 md:grid-cols-2"><select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All projects</option>{projects.map((item) => <option key={item}>{item}</option>)}</select><select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All plans</option>{plansList.map((item) => <option key={item}>{item}</option>)}</select></div><div className="mt-2"><LocationFilterRow items={invoiceLocationItems} value={locationFilter} onChange={setLocationFilter} prefix="invoice"/></div></div>
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">{loading ? <p className="py-20 text-center text-xs text-slate-400">Loading invoices…</p> : error ? <p className="py-20 text-center text-xs text-red-500">{error}</p> : <div className="overflow-x-auto"><table className="min-w-[1450px] w-full text-left"><thead className="bg-slate-50 text-[9px] uppercase tracking-wider text-slate-400"><tr>{["Invoice / Date","Builder / Bill To","Contact","Location","Project / Code","Plan / Period","Subtotal","Discount","GST","Total / Paid","Payment","Actions"].map((heading) => <th key={heading} className="px-4 py-3 font-medium">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((invoice) => { const { builder, project, plan } = details(invoice); return <tr key={invoice._id} className="align-top hover:bg-slate-50/60"><td className="px-4 py-4"><p className="font-mono text-[10px] font-medium text-slate-800">{invoice.invoiceNumber}</p><p className="mt-1 text-[9px] text-slate-400">{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString("en-IN") : "—"}</p></td><td className="px-4 py-4"><p className="text-[11px] font-medium text-slate-800">{builder.name || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{builder.companyName || "No company"}</p></td><td className="px-4 py-4"><p className="text-[10px] text-slate-700">{builder.phone || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{builder.email || "—"}</p></td><td className="max-w-48 px-4 py-4 text-[10px] leading-4 text-slate-600">{locationText(builder) || locationText(project) || "—"}</td><td className="px-4 py-4"><p className="text-[10px] font-medium text-slate-700">{invoice.propertyTitle || project.title || "—"}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{invoice.projectCode || project.propertyCode || "—"}</p></td><td className="px-4 py-4"><p className="text-[10px] font-medium text-slate-700">{invoice.servicePlanName || plan.title || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{invoice.timePeriod || "—"}</p></td><td className="px-4 py-4 text-[10px] text-slate-700">{money(invoice.subtotalAmount)}</td><td className="px-4 py-4 text-[10px] text-slate-700">{money(invoice.discountAmount)}</td><td className="px-4 py-4"><p className="text-[10px] text-slate-700">{money(invoice.gstAmount)}</p><p className="text-[9px] text-slate-400">{invoice.gstRate || 0}%</p></td><td className="px-4 py-4"><p className="text-[11px] font-medium text-[#219653]">{money(invoice.totalAmount)}</p><p className="mt-1 text-[9px] text-slate-400">Paid {money(invoice.paidAmount)}</p></td><td className="px-4 py-4"><span className={`rounded-full px-2 py-1 text-[8px] font-medium uppercase ${statusClass(invoice.paymentStatus)}`}>{invoice.paymentStatus}</span><p className="mt-2 text-[9px] capitalize text-slate-500">{invoice.paymentMethod}</p></td><td className="px-4 py-4"><div className="flex gap-1"><button type="button" onClick={() => openPdf(invoice)} title="Open PDF" className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:text-[#219653]"><ExternalLink size={13}/></button><button type="button" onClick={() => openPdf(invoice, true)} title="Download PDF" className="rounded-lg bg-emerald-50 p-2 text-[#219653]"><Download size={13}/></button></div></td></tr>; })}</tbody></table>{filtered.length === 0 && <p className="py-16 text-center text-xs text-slate-400">No invoices match these filters.</p>}</div>}</div>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">{loading ? <p className="py-20 text-center text-xs text-slate-400">Loading invoices…</p> : error ? <p className="py-20 text-center text-xs text-red-500">{error}</p> : <div className="overflow-x-auto"><table className="min-w-[1450px] w-full text-left"><thead className="bg-slate-50 text-[9px] uppercase tracking-wider text-slate-400"><tr>{["Invoice / Date","Builder / Bill To","Contact","Location","Project / Code","Plan / Period","Subtotal","Discount","GST","Total / Paid","Payment","Actions"].map((heading) => <th key={heading} className="px-4 py-3 font-medium">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((invoice) => { const { builder, project, plan } = details(invoice); const isEditing = editingId === invoice._id; return <tr key={invoice._id} className="align-top hover:bg-slate-50/60"><td className="px-4 py-4"><p className="font-mono text-[10px] font-medium text-slate-800">{invoice.invoiceNumber}</p><p className="mt-1 text-[9px] text-slate-400">{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString("en-IN") : "—"}</p></td><td className="px-4 py-4"><p className="text-[11px] font-medium text-slate-800">{builder.name || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{builder.companyName || "No company"}</p></td><td className="px-4 py-4"><p className="text-[10px] text-slate-700">{builder.phone || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{builder.email || "—"}</p></td><td className="max-w-48 px-4 py-4 text-[10px] leading-4 text-slate-600">{locationText(builder) || locationText(project) || "—"}</td><td className="px-4 py-4"><p className="text-[10px] font-medium text-slate-700">{invoice.propertyTitle || project.title || "—"}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{invoice.projectCode || project.propertyCode || "—"}</p></td><td className="px-4 py-4"><p className="text-[10px] font-medium text-slate-700">{invoice.servicePlanName || plan.title || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{invoice.timePeriod || "—"}</p></td><td className="px-4 py-4 text-[10px] text-slate-700">{money(invoice.subtotalAmount)}</td><td className="px-4 py-4 text-[10px] text-slate-700">{money(invoice.discountAmount)}</td><td className="px-4 py-4"><p className="text-[10px] text-slate-700">{money(invoice.gstAmount)}</p><p className="text-[9px] text-slate-400">{invoice.gstRate || 0}%</p></td><td className="px-4 py-4"><p className="text-[11px] font-medium text-[#219653]">{money(invoice.totalAmount)}</p><p className="mt-1 text-[9px] text-slate-400">Paid {money(invoice.paidAmount)}</p></td><td className="px-4 py-4">{isEditing ? <div className="space-y-1"><select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[10px]"><option value="pending">Pending</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="failed">Failed</option></select><select value={editMethod} onChange={(e) => setEditMethod(e.target.value)} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[10px]"><option value="cash">Cash</option><option value="cheque">Cheque</option><option value="upi">UPI</option><option value="card">Card</option><option value="netbanking">Net banking</option><option value="razorpay">Razorpay</option></select></div> : <><span className={`rounded-full px-2 py-1 text-[8px] font-medium uppercase ${statusClass(invoice.paymentStatus)}`}>{invoice.paymentStatus}</span><p className="mt-2 text-[9px] capitalize text-slate-500">{invoice.paymentMethod}</p></>}</td><td className="px-4 py-4"><div className="flex flex-wrap gap-1"><button type="button" onClick={() => openPdf(invoice)} title="Open PDF" className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:text-[#219653]"><ExternalLink size={13}/></button><button type="button" onClick={() => openPdf(invoice, true)} title="Download PDF" className="rounded-lg bg-emerald-50 p-2 text-[#219653]"><Download size={13}/></button>{canUpdate && !isEditing && <button type="button" onClick={() => startEdit(invoice)} title="Edit invoice" className="rounded-lg border border-emerald-200 p-2 text-[#27AE60] hover:bg-emerald-50"><Edit3 size={13}/></button>}{canUpdate && isEditing && <button type="button" disabled={savingId === invoice._id} onClick={() => saveEdit(invoice)} className="rounded-lg bg-[#27AE60] px-2 py-1.5 text-[10px] font-medium text-white disabled:opacity-50">{savingId === invoice._id ? "Saving…" : "Save"}</button>}{canUpdate && isEditing && <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-[10px] text-slate-500">Cancel</button>}{canDelete && <button type="button" disabled={deletingId === invoice._id} onClick={() => removeInvoice(invoice)} title="Delete invoice" className="rounded-lg border border-red-100 p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"><Trash2 size={13}/></button>}</div></td></tr>; })}</tbody></table>{filtered.length === 0 && <p className="py-16 text-center text-xs text-slate-400">No invoices match these filters.</p>}</div>}</div>
   </div></div>;
 }
 
 export default function BuilderPlans() {
+  const { user: currentUser, loading: userLoading, planAccess, invoiceAccess, uiFlags } =
+    useLivePermissions();
+
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -492,73 +541,449 @@ export default function BuilderPlans() {
   const [deleting, setDeleting] = useState(null);
 
   const load = async () => {
-    setLoading(true); setError("");
-    try { const data = await builderPlanService.list(); setPlans(Array.isArray(data.plans) ? data.plans : []); }
-    catch (e) { setError(e.response?.data?.message || "Could not load builder plans."); }
-    finally { setLoading(false); }
+    if (!planAccess.canView) {
+      setPlans([]);
+      setLoading(false);
+      setError("");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const data = await builderPlanService.list();
+      setPlans(Array.isArray(data.plans) ? data.plans : []);
+    } catch (e) {
+      setError(e.response?.data?.message || "Could not load builder plans.");
+    } finally {
+      setLoading(false);
+    }
   };
-  // The catalogue is remote state; load it once when this route is mounted.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { load(); }, []);
 
-  const filtered = useMemo(() => plans.filter((plan) => {
-    const matchesQuery = `${plan.title} ${plan.code} ${plan.promotionType}`.toLowerCase().includes(query.toLowerCase());
-    return matchesQuery && (status === "all" || String(plan.isActive) === status);
-  }), [plans, query, status]);
+  // Reload when view permission becomes available.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    load();
+  }, [planAccess.canView]);
+
+  const filtered = useMemo(
+    () =>
+      plans.filter((plan) => {
+        const matchesQuery = `${plan.title} ${plan.code} ${plan.promotionType}`
+          .toLowerCase()
+          .includes(query.toLowerCase());
+        return matchesQuery && (status === "all" || String(plan.isActive) === status);
+      }),
+    [plans, query, status],
+  );
   const active = plans.filter((plan) => plan.isActive).length;
-  const avgPrice = active ? plans.filter((p) => p.isActive).reduce((sum, p) => sum + Number(p.finalPrice || 0), 0) / active : 0;
+  const avgPrice = active
+    ? plans.filter((p) => p.isActive).reduce((sum, p) => sum + Number(p.finalPrice || 0), 0) / active
+    : 0;
+
+  const openCreatePlan = () => {
+    if (!planAccess.canCreate) return toast.error("You need plan:create permission");
+    setModal({ type: "create" });
+  };
+  const openViewPlan = (plan) => {
+    if (!planAccess.canView) return toast.error("You need plan:view permission");
+    setModal({ type: "view", plan });
+  };
+  const openEditPlan = (plan) => {
+    if (!planAccess.canUpdate) return toast.error("You need plan:update permission");
+    setModal({ type: "edit", plan });
+  };
+  const openCreateInvoice = (plan = {}) => {
+    if (!invoiceAccess.canCreate) return toast.error("You need builder_invoice:create permission");
+    setInvoicingPlan(plan);
+  };
+  const openInvoices = () => {
+    if (!invoiceAccess.canView) return toast.error("You need builder_invoice:view permission");
+    setShowInvoices(true);
+  };
 
   const remove = async (plan) => {
+    if (!planAccess.canDelete) return toast.error("You need plan:delete permission");
     if (!window.confirm(`Delete “${plan.title}”? This action cannot be undone.`)) return;
     setDeleting(plan._id);
-    try { await builderPlanService.remove(plan._id); toast.success("Builder plan deleted"); await load(); }
-    catch (e) { toast.error(e.response?.data?.message || "Unable to delete plan"); }
-    finally { setDeleting(null); }
+    try {
+      await builderPlanService.remove(plan._id);
+      toast.success("Builder plan deleted");
+      await load();
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Unable to delete plan");
+    } finally {
+      setDeleting(null);
+    }
   };
 
-  if (showInvoices) {
-    return <InvoiceTablePage onBack={() => setShowInvoices(false)}/>;
+  if (showInvoices && invoiceAccess.canView) {
+    return (
+      <InvoiceTablePage
+        onBack={() => setShowInvoices(false)}
+        canCreate={invoiceAccess.canCreate}
+        canUpdate={invoiceAccess.canUpdate}
+        canDelete={invoiceAccess.canDelete}
+        onCreateInvoice={() => {
+          setShowInvoices(false);
+          openCreateInvoice({});
+        }}
+      />
+    );
   }
 
-  return <div className="min-h-full bg-[#f6f8f7] p-4 sm:p-6 lg:p-8">
-    <div className="mx-auto max-w-[1480px]">
-      <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div><div className="mb-2 flex items-center gap-1.5 text-[11px] text-slate-400"><span>Subscriptions</span><ChevronRight size={12}/><span className="text-slate-600">Builder plans</span></div><h1 className="text-2xl font-medium tracking-tight text-slate-900 sm:text-[28px]">Builder subscription plans</h1><p className="mt-1.5 max-w-2xl text-[12px] leading-5 text-slate-500">Create reusable plans and assign them to builder projects through invoices.</p></div>
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row"><button onClick={() => setShowInvoices(true)} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-medium text-slate-700 shadow-sm hover:border-emerald-200 hover:text-[#219653]"><Eye size={16}/>View invoices</button><button onClick={() => setInvoicingPlan({})} className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-medium text-slate-700 shadow-sm hover:border-emerald-200 hover:text-[#219653]"><UserPlus size={16}/>Create invoice</button><button onClick={() => setModal({ type: "create" })} className="flex items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-3 text-xs font-medium text-white shadow-sm hover:bg-[#219653]"><CirclePlus size={16}/>New subscription plan</button></div>
-      </div>
-
-      <div className="mb-5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-        <div className="flex min-w-max items-center gap-1">
-          <button className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-[11px] font-normal text-[#219653]"><PackageOpen size={15}/>Builder plans<span className="rounded-full bg-white px-2 py-0.5 text-[9px] shadow-sm">{plans.length}</span></button>
-          <span className="mx-1 h-6 w-px bg-slate-200" />
-          <span className="px-3 text-[10px] font-normal uppercase tracking-wider text-slate-400">Plan performance</span>
-          <span className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-normal text-slate-600"><Zap size={14} className="text-[#27AE60]"/>{active} live</span>
-          <span className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-normal text-slate-600"><BadgeIndianRupee size={14} className="text-[#27AE60]"/>{money(avgPrice)} average</span>
+  if (!userLoading && !planAccess.canView && !invoiceAccess.canView) {
+    return (
+      <div className="grid min-h-[60vh] place-items-center bg-[#f6f8f7] p-6">
+        <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-sm font-medium text-slate-800">No access to Builder plans</p>
+          <p className="mt-2 text-xs text-slate-500">
+            Ask a Super Admin to enable Plans view and/or Builder invoices view on your role.
+          </p>
         </div>
       </div>
+    );
+  }
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-[16px] font-medium text-slate-900">Available subscriptions</h2><p className="mt-0.5 text-[11px] text-slate-500">Compare pricing, benefits and availability at a glance.</p></div><div className="flex flex-col gap-2 sm:flex-row"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search subscriptions" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-[11px] outline-none transition focus:border-[#27AE60] focus:ring-2 focus:ring-emerald-100 sm:w-56"/></div><select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] text-slate-600 outline-none focus:border-[#27AE60]"><option value="all">All plans</option><option value="true">Active plans</option><option value="false">Inactive plans</option></select></div></div>
-
-      <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-3 sm:p-4">
-        {loading ? <div className="grid min-h-64 place-items-center"><div className="text-center"><div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-emerald-100 border-t-[#27AE60]"/><p className="mt-3 text-xs text-slate-400">Loading plans…</p></div></div>
-        : error ? <div className="grid min-h-64 place-items-center p-6 text-center"><div><p className="text-sm font-bold text-slate-700">We couldn’t load the catalogue</p><p className="mt-1 text-xs text-red-500">{error}</p><button onClick={load} className="mt-4 rounded-lg bg-emerald-50 px-4 py-2 text-xs font-bold text-[#27AE60]">Try again</button></div></div>
-        : filtered.length === 0 ? <div className="grid min-h-64 place-items-center p-6 text-center"><div><PackageOpen className="mx-auto text-slate-300" size={32}/><p className="mt-3 text-sm font-bold text-slate-700">No plans found</p><p className="mt-1 text-xs text-slate-400">Create a plan or adjust your search filters.</p></div></div>
-        : <div className="flex flex-wrap items-stretch gap-4">{filtered.map((plan) => {
-          return <article key={plan._id} className="group relative flex w-full max-w-[390px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_18px_rgba(15,23,42,.04)] transition hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-950/5">
-          <div className={`h-1.5 w-full ${plan.isActive ? "bg-gradient-to-r from-[#219653] via-[#27AE60] to-emerald-300" : "bg-slate-300"}`}/>
-          <div className="flex flex-1 flex-col p-5">
-            <div className="flex items-start justify-between gap-3"><div><div className="mb-3 flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-[#27AE60]"><Sparkles size={17}/></span><span className="rounded-lg bg-slate-50 px-2 py-1 font-mono text-[9px] font-normal uppercase tracking-wide text-slate-500">{plan.code}</span></div><h3 className="text-[17px] font-medium text-slate-900">{plan.title}</h3><p className="mt-1 text-[10px] font-normal uppercase tracking-[.12em] text-[#27AE60]">{String(plan.promotionType).toLowerCase() === "featured" ? "Top Selling" : plan.promotionType} promotion</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-normal uppercase tracking-wide ${plan.isActive ? "bg-emerald-50 text-[#219653]" : "bg-slate-100 text-slate-500"}`}><span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${plan.isActive ? "bg-[#27AE60]" : "bg-slate-400"}`}/>{plan.isActive ? "Live" : "Draft"}</span></div>
-            <div className="mt-5 rounded-2xl bg-[#f4fbf7] p-4"><p className="text-[9px] font-normal uppercase tracking-[.14em] text-slate-400">Subscription price</p><div className="mt-1 flex items-end gap-2"><span className="text-[28px] font-medium leading-none tracking-tight text-slate-900">{money(plan.finalPrice)}</span><span className="pb-0.5 text-[10px] font-normal text-slate-500">/ {plan.durationDays} days</span></div>{Number(plan.discount)>0 && <div className="mt-2 flex items-center gap-2"><span className="text-[10px] text-slate-400 line-through">{money(plan.price)}</span><span className="rounded-md bg-white px-1.5 py-0.5 text-[9px] font-normal text-[#219653]">SAVE {money(plan.discount)}</span></div>}</div>
-            <p className="mt-4 min-h-10 text-[11px] leading-5 text-slate-500">{plan.description}</p>
-            <div className="mt-auto grid grid-cols-2 gap-2 pt-5"><button onClick={() => setInvoicingPlan(plan)} className="flex items-center justify-center gap-1.5 rounded-xl bg-[#27AE60] py-2.5 text-[11px] font-medium text-white shadow-md shadow-emerald-100 hover:bg-[#219653]"><UserPlus size={13}/>Create invoice</button><button onClick={() => setModal({ type: "view", plan })} className="rounded-xl bg-emerald-50 py-2.5 text-[11px] font-medium text-[#27AE60] hover:bg-emerald-100">View</button><button onClick={() => setModal({ type: "edit", plan })} className="flex items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-[10px] text-slate-500 hover:bg-slate-50"><Edit3 size={12}/>Edit</button><button disabled={deleting===plan._id} onClick={() => remove(plan)} className="flex items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-[10px] text-slate-400 hover:border-red-100 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"><Trash2 size={12}/>Delete</button></div>
+  return (
+    <div className="min-h-full bg-[#f6f8f7] p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-[1480px]">
+        <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] text-slate-400">
+              <span>Subscriptions</span>
+              <ChevronRight size={12} />
+              <span className="text-slate-600">Builder plans</span>
+            </div>
+            <h1 className="text-2xl font-medium tracking-tight text-slate-900 sm:text-[28px]">
+              Builder subscription plans
+            </h1>
+            <p className="mt-1.5 max-w-2xl text-[12px] leading-5 text-slate-500">
+              Create reusable plans and assign them to builder projects through invoices.
+            </p>
           </div>
-          </article>;
-        })}</div>}
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+            {uiFlags.showViewInvoicesButton && (
+              <button
+                type="button"
+                onClick={openInvoices}
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-medium text-slate-700 shadow-sm hover:border-emerald-200 hover:text-[#219653]"
+              >
+                <Eye size={16} />
+                View invoices
+              </button>
+            )}
+            {uiFlags.showCreateInvoiceButton && (
+              <button
+                type="button"
+                onClick={() => openCreateInvoice({})}
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-medium text-slate-700 shadow-sm hover:border-emerald-200 hover:text-[#219653]"
+              >
+                <UserPlus size={16} />
+                Create invoice
+              </button>
+            )}
+            {uiFlags.showNewPlanButton && (
+              <button
+                type="button"
+                onClick={openCreatePlan}
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-3 text-xs font-medium text-white shadow-sm hover:bg-[#219653]"
+              >
+                <CirclePlus size={16} />
+                New subscription plan
+              </button>
+            )}
+          </div>
+        </div>
+
+        {!uiFlags.showPlanCards ? (
+          <div className="grid min-h-64 place-items-center rounded-2xl border border-slate-200 bg-white p-6 text-center">
+            <div>
+              <p className="text-sm font-medium text-slate-800">Plan catalogue is hidden</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Enable Plans → View to see subscription cards. Invoice buttons above still follow
+                Builder invoices permissions.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mb-5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+              <div className="flex min-w-max items-center gap-1">
+                <button className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-[11px] font-normal text-[#219653]">
+                  <PackageOpen size={15} />
+                  Builder plans
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[9px] shadow-sm">
+                    {plans.length}
+                  </span>
+                </button>
+                <span className="mx-1 h-6 w-px bg-slate-200" />
+                <span className="px-3 text-[10px] font-normal uppercase tracking-wider text-slate-400">
+                  Plan performance
+                </span>
+                <span className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-normal text-slate-600">
+                  <Zap size={14} className="text-[#27AE60]" />
+                  {active} live
+                </span>
+                <span className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-normal text-slate-600">
+                  <BadgeIndianRupee size={14} className="text-[#27AE60]" />
+                  {money(avgPrice)} average
+                </span>
+              </div>
+            </div>
+
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-[16px] font-medium text-slate-900">Available subscriptions</h2>
+                <p className="mt-0.5 text-[11px] text-slate-500">
+                  Compare pricing, benefits and availability at a glance.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative">
+                  <Search
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={14}
+                  />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search subscriptions"
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-[11px] outline-none transition focus:border-[#27AE60] focus:ring-2 focus:ring-emerald-100 sm:w-56"
+                  />
+                </div>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] text-slate-600 outline-none focus:border-[#27AE60]"
+                >
+                  <option value="all">All plans</option>
+                  <option value="true">Active plans</option>
+                  <option value="false">Inactive plans</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-3 sm:p-4">
+              {loading ? (
+                <div className="grid min-h-64 place-items-center">
+                  <div className="text-center">
+                    <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-emerald-100 border-t-[#27AE60]" />
+                    <p className="mt-3 text-xs text-slate-400">Loading plans…</p>
+                  </div>
+                </div>
+              ) : error ? (
+                <div className="grid min-h-64 place-items-center p-6 text-center">
+                  <div>
+                    <p className="text-sm font-bold text-slate-700">We couldn’t load the catalogue</p>
+                    <p className="mt-1 text-xs text-red-500">{error}</p>
+                    <button
+                      onClick={load}
+                      className="mt-4 rounded-lg bg-emerald-50 px-4 py-2 text-xs font-bold text-[#27AE60]"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="grid min-h-64 place-items-center p-6 text-center">
+                  <div>
+                    <PackageOpen className="mx-auto text-slate-300" size={32} />
+                    <p className="mt-3 text-sm font-bold text-slate-700">No plans found</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {planAccess.canCreate
+                        ? "Create a plan or adjust your search filters."
+                        : "No plans available for your filters."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-stretch gap-4">
+                  {filtered.map((plan) => {
+                    const cardActions = [
+                      uiFlags.showCreateInvoiceButton && (
+                        <button
+                          key="invoice"
+                          type="button"
+                          onClick={() => openCreateInvoice(plan)}
+                          className="flex items-center justify-center gap-1.5 rounded-xl bg-[#27AE60] py-2.5 text-[11px] font-medium text-white shadow-md shadow-emerald-100 hover:bg-[#219653]"
+                        >
+                          <UserPlus size={13} />
+                          Create invoice
+                        </button>
+                      ),
+                      uiFlags.showPlanViewButton && (
+                        <button
+                          key="view"
+                          type="button"
+                          onClick={() => openViewPlan(plan)}
+                          className="rounded-xl bg-emerald-50 py-2.5 text-[11px] font-medium text-[#27AE60] hover:bg-emerald-100"
+                        >
+                          View
+                        </button>
+                      ),
+                      uiFlags.showPlanEditButton && (
+                        <button
+                          key="edit"
+                          type="button"
+                          onClick={() => openEditPlan(plan)}
+                          className="flex items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-[10px] text-slate-500 hover:bg-slate-50"
+                        >
+                          <Edit3 size={12} />
+                          Edit
+                        </button>
+                      ),
+                      uiFlags.showPlanDeleteButton && (
+                        <button
+                          key="delete"
+                          type="button"
+                          disabled={deleting === plan._id}
+                          onClick={() => remove(plan)}
+                          className="flex items-center justify-center gap-1 rounded-xl border border-slate-200 py-2 text-[10px] text-slate-400 hover:border-red-100 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                        >
+                          <Trash2 size={12} />
+                          Delete
+                        </button>
+                      ),
+                    ].filter(Boolean);
+
+                    return (
+                      <article
+                        key={plan._id}
+                        className="group relative flex w-full max-w-[390px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_18px_rgba(15,23,42,.04)] transition hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-950/5"
+                      >
+                        <div
+                          className={`h-1.5 w-full ${
+                            plan.isActive
+                              ? "bg-gradient-to-r from-[#219653] via-[#27AE60] to-emerald-300"
+                              : "bg-slate-300"
+                          }`}
+                        />
+                        <div className="flex flex-1 flex-col p-5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="mb-3 flex items-center gap-2">
+                                <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-[#27AE60]">
+                                  <Sparkles size={17} />
+                                </span>
+                                <span className="rounded-lg bg-slate-50 px-2 py-1 font-mono text-[9px] font-normal uppercase tracking-wide text-slate-500">
+                                  {plan.code}
+                                </span>
+                              </div>
+                              <h3 className="text-[17px] font-medium text-slate-900">{plan.title}</h3>
+                              <p className="mt-1 text-[10px] font-normal uppercase tracking-[.12em] text-[#27AE60]">
+                                {String(plan.promotionType).toLowerCase() === "featured"
+                                  ? "Top Selling"
+                                  : plan.promotionType}{" "}
+                                promotion
+                              </p>
+                            </div>
+                            <span
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-normal uppercase tracking-wide ${
+                                plan.isActive
+                                  ? "bg-emerald-50 text-[#219653]"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              <span
+                                className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${
+                                  plan.isActive ? "bg-[#27AE60]" : "bg-slate-400"
+                                }`}
+                              />
+                              {plan.isActive ? "Live" : "Draft"}
+                            </span>
+                          </div>
+                          <div className="mt-5 rounded-2xl bg-[#f4fbf7] p-4">
+                            <p className="text-[9px] font-normal uppercase tracking-[.14em] text-slate-400">
+                              Subscription price
+                            </p>
+                            <div className="mt-1 flex items-end gap-2">
+                              <span className="text-[28px] font-medium leading-none tracking-tight text-slate-900">
+                                {money(plan.finalPrice)}
+                              </span>
+                              <span className="pb-0.5 text-[10px] font-normal text-slate-500">
+                                / {plan.durationDays} days
+                              </span>
+                            </div>
+                            {Number(plan.discount) > 0 && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="text-[10px] text-slate-400 line-through">
+                                  {money(plan.price)}
+                                </span>
+                                <span className="rounded-md bg-white px-1.5 py-0.5 text-[9px] font-normal text-[#219653]">
+                                  SAVE {money(plan.discount)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <p className="mt-4 min-h-10 text-[11px] leading-5 text-slate-500">
+                            {plan.description}
+                          </p>
+                          {cardActions.length > 0 && (
+                            <div
+                              className={`mt-auto grid gap-2 pt-5 ${
+                                cardActions.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                              }`}
+                            >
+                              {cardActions}
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
+
+      {modal &&
+        (modal.type === "view"
+          ? planAccess.canView
+          : modal.type === "edit"
+            ? planAccess.canUpdate
+            : planAccess.canCreate) && (
+          <PlanModal
+            plan={modal.plan}
+            mode={modal.type}
+            onClose={() => {
+              setModal(null);
+              setResumeInvoiceAfterPlan(false);
+            }}
+            onEdit={() => openEditPlan(modal.plan)}
+            onCreateInvoice={() => {
+              setModal(null);
+              openCreateInvoice(modal.plan);
+            }}
+            onSaved={async (savedPlan) => {
+              await load();
+              if (resumeInvoiceAfterPlan && savedPlan?._id && invoiceAccess.canCreate) {
+                setInvoicingPlan(savedPlan);
+                setResumeInvoiceAfterPlan(false);
+              }
+            }}
+            canUpdate={planAccess.canUpdate}
+            canCreateInvoice={invoiceAccess.canCreate}
+          />
+        )}
+      {assigningPlan && (
+        <AssignPlanDrawer plan={assigningPlan} onClose={() => setAssigningPlan(null)} onAssigned={load} />
+      )}
+      {invoicingPlan && invoiceAccess.canCreate && (
+        <CreateInvoiceDrawer
+          initialPlan={invoicingPlan._id ? invoicingPlan : null}
+          plans={plans}
+          onClose={() => setInvoicingPlan(null)}
+          onCreatePlan={() => {
+            if (!planAccess.canCreate) return toast.error("You need plan:create permission");
+            setInvoicingPlan(null);
+            setResumeInvoiceAfterPlan(true);
+            setModal({ type: "create" });
+          }}
+          canCreatePlan={planAccess.canCreate}
+        />
+      )}
     </div>
-    {modal && <PlanModal plan={modal.plan} mode={modal.type} onClose={() => { setModal(null); setResumeInvoiceAfterPlan(false); }} onEdit={() => setModal({ type: "edit", plan: modal.plan })} onCreateInvoice={() => { setInvoicingPlan(modal.plan); setModal(null); }} onSaved={async (savedPlan) => { await load(); if (resumeInvoiceAfterPlan && savedPlan?._id) { setInvoicingPlan(savedPlan); setResumeInvoiceAfterPlan(false); } }}/>} 
-    {assigningPlan && <AssignPlanDrawer plan={assigningPlan} onClose={() => setAssigningPlan(null)} onAssigned={load}/>} 
-    {invoicingPlan && <CreateInvoiceDrawer initialPlan={invoicingPlan._id ? invoicingPlan : null} plans={plans} onClose={() => setInvoicingPlan(null)} onCreatePlan={() => { setInvoicingPlan(null); setResumeInvoiceAfterPlan(true); setModal({ type: "create" }); }}/>} 
-    {showInvoices && <InvoiceListDrawer onClose={() => setShowInvoices(false)}/>} 
-  </div>;
+  );
 }

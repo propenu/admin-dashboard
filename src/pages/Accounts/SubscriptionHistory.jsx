@@ -1,6 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { getSubscriptionHistory } from "../../features/payment/paymentServices";
+import HigherOfficialAccessNotice from "../../components/common/HigherOfficialAccessNotice";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { getSubscriptionAccess } from "../../utils/accountsAccessControl";
+import { useLivePermissions } from "../../utils/useLivePermissions";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const SearchIcon = () => (
@@ -585,6 +589,8 @@ const MobileCard = ({ item }) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const SubscriptionHistoryPage = () => {
+  const { loading: permsLoading, user } = useLivePermissions();
+  const subscriptionAccess = getSubscriptionAccess(user);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -601,6 +607,11 @@ const SubscriptionHistoryPage = () => {
   }, []);
 
   useEffect(() => {
+    if (permsLoading || !subscriptionAccess.canViewHistory) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     getSubscriptionHistory()
       .then((res) => {
         setHistory(res.data);
@@ -611,7 +622,17 @@ const SubscriptionHistoryPage = () => {
         setError("Failed to load billing history.");
         setLoading(false);
       });
-  }, []);
+  }, [permsLoading, subscriptionAccess.canViewHistory]);
+
+  if (permsLoading) return <LoadingSpinner />;
+  if (!subscriptionAccess.canViewHistory) {
+    return (
+      <HigherOfficialAccessNotice
+        title="Subscription history is disabled"
+        permissionLabel="Subscriptions → View History"
+      />
+    );
+  }
 
   const handleSort = (field) => {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));

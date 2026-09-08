@@ -8,6 +8,9 @@ export const useCurrentUser = () => {
       const res = await getUserDetails();
       return res.data;
     },
-    staleTime: 1000 * 60 * 10, // 10 minutes
+    // Permissions change often from Role Permissions — always prefer fresh /me.
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 };

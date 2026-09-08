@@ -7,6 +7,10 @@ import {
   List,
   ChevronDown,
 } from "lucide-react";
+import HigherOfficialAccessNotice from "../../components/common/HigherOfficialAccessNotice";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { getPaymentAccess } from "../../utils/accountsAccessControl";
+import { useLivePermissions } from "../../utils/useLivePermissions";
 
 // ─── Icon wrappers ────────────────────────────────────────────────────────────
 const TrendingIcon = () => <TrendingUp size={20} strokeWidth={1.5} />;
@@ -876,6 +880,9 @@ const ConfigRow = ({ item, index }) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const RevenueByPlanPage = () => {
+  const { loading: permsLoading, user } = useLivePermissions();
+  const paymentAccess = getPaymentAccess(user);
+  const canOpen = paymentAccess.canViewReports || paymentAccess.canView;
   const [revenueData, setRevenueData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -893,6 +900,11 @@ const RevenueByPlanPage = () => {
   }, []);
 
   useEffect(() => {
+    if (permsLoading || !canOpen) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     getRevenueByPlan()
       .then((res) => {
         setRevenueData(res.data);
@@ -902,7 +914,7 @@ const RevenueByPlanPage = () => {
         setError("Failed to load revenue data.");
         setLoading(false);
       });
-  }, []);
+  }, [permsLoading, canOpen]);
 
   const handleSort = (field) => {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -955,6 +967,17 @@ const RevenueByPlanPage = () => {
     textTransform: "uppercase",
     transition: "color 0.15s",
   });
+
+  if (permsLoading) return <LoadingSpinner />;
+  if (!canOpen) {
+    return (
+      <HigherOfficialAccessNotice
+        title="Revenue by plan is disabled"
+        permissionLabel="Payments → View Reports"
+        extra="(or Payments → View)"
+      />
+    );
+  }
 
   return (
     <div style={pageStyle}>

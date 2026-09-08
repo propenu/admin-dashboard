@@ -52,6 +52,7 @@ import {
   KeyRound,
   UsersRound,
   Activity,
+  PanelTop,
 } from "lucide-react";
 import {
   accountTodayHref,
@@ -490,37 +491,35 @@ export default function Sidebar({
         ]
       : [];
 
-    // Payments / Accounts module ON → full Accounts tree (same as Super Admin).
-    const showAccountsTree = canView("payment");
-    const accountsChildren = showAccountsTree
-      ? [
-          {
-            path: "/accounts-summary",
-            label: "Accounts Summary",
-            icon: AccountsSummaryIcon,
-          },
-          {
-            path: "/payments-list",
-            label: "Payments List",
-            icon: PaymentsListIcon,
-          },
-          {
-            path: "/active-subscriptions",
-            label: "Active Subscriptions",
-            icon: ActiveSubcriptionsIcon,
-          },
-          {
-            path: "/subscription-history",
-            label: "Subscription History",
-            icon: SubcriptionHistoryIcon,
-          },
-          {
-            path: "/Revenue-by-plan",
-            label: "Revenue By Plan",
-            icon: RevenueByPlanIcon,
-          },
-        ]
-      : [];
+    // Accounts: each child follows its own payment / subscription permission.
+    const accountsChildren = [
+      canView("payment") && {
+        path: "/accounts-summary",
+        label: "Accounts Summary",
+        icon: AccountsSummaryIcon,
+      },
+      canView("payment") && {
+        path: "/payments-list",
+        label: "Payments List",
+        icon: PaymentsListIcon,
+      },
+      canView("subscription") && {
+        path: "/active-subscriptions",
+        label: "Active Subscriptions",
+        icon: ActiveSubcriptionsIcon,
+      },
+      allowed.has("subscription:view_history") && {
+        path: "/subscription-history",
+        label: "Subscription History",
+        icon: SubcriptionHistoryIcon,
+      },
+      (canView("payment") || allowed.has("payment:view_reports")) && {
+        path: "/Revenue-by-plan",
+        label: "Revenue By Plan",
+        icon: RevenueByPlanIcon,
+      },
+    ].filter(Boolean);
+    const showAccountsTree = accountsChildren.length > 0;
 
     return [
       canView("dashboard") && { path: "/", label: "Dashboard", icon: DashboardIcon },
@@ -555,6 +554,7 @@ export default function Sidebar({
       (canView("project") || propertyAccess) && { path: "/property-progress", label: "Property Progress", icon: PropertyProgressIcon },
       canView("location") && { path: "/locations", label: "Locations", icon: LocationsIcon },
       canView("blog") && { path: "/blogs", label: "Blogs", icon: Newspaper },
+      canView("site_banner") && { path: "/site-banner", label: "Banner", icon: PanelTop },
       canView("ticket") && { path: "/tickets", label: "Tickets", icon: Ticket },
       operationsChildren.length && { label: "Operations", icon: Briefcase, key: "permission-operations", children: operationsChildren },
       accessControlChildren.length && { label: "Access Control", icon: Shield, key: "permission-access-control", children: accessControlChildren },
@@ -754,6 +754,11 @@ export default function Sidebar({
           label: "Blogs",
           icon: Newspaper,
         },
+        {
+          path: "/site-banner",
+          label: "Banner",
+          icon: PanelTop,
+        },
       ],
       admin: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
@@ -932,6 +937,11 @@ export default function Sidebar({
           path: "/blogs",
           label: "Blogs",
           icon: Newspaper,
+        },
+        {
+          path: "/site-banner",
+          label: "Banner",
+          icon: PanelTop,
         },
       ],
       sales_manager: [
@@ -1170,6 +1180,11 @@ export default function Sidebar({
           path: "/blogs",
           label: "Blogs",
           icon: Newspaper,
+        },
+        {
+          path: "/site-banner",
+          label: "Banner",
+          icon: PanelTop,
         },
       ],
     })[role] || getPermissionMenu(user?.permissions || []);

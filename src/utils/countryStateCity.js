@@ -2,17 +2,19 @@
 
 import { State, City } from "country-state-city";
 
-export const INDIAN_STATES = State.getStatesOfCountry("IN");
+export const INDIAN_STATES = State.getStatesOfCountry("IN") || [];
 
 /** Sentinel value for "Other (custom city)" in selects */
 export const CITY_OTHER = "__other__";
 
 export const getCitiesByState = (stateName) => {
-  const state = INDIAN_STATES.find(
+  const list = Array.isArray(INDIAN_STATES) ? INDIAN_STATES : [];
+  const state = list.find(
     (s) => s.name === stateName || s.isoCode === stateName,
   );
 
-  return state ? City.getCitiesOfState("IN", state.isoCode) : [];
+  if (!state?.isoCode) return [];
+  return City.getCitiesOfState("IN", state.isoCode) || [];
 };
 
 export function normalizePlaceName(value = "") {

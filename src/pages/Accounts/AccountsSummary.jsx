@@ -16,6 +16,10 @@ import {
   BarChart3,
   Activity,
 } from "lucide-react";
+import HigherOfficialAccessNotice from "../../components/common/HigherOfficialAccessNotice";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { getPaymentAccess } from "../../utils/accountsAccessControl";
+import { useLivePermissions } from "../../utils/useLivePermissions";
 
 const PLAN_COLORS = [
   "#27AE60",
@@ -317,6 +321,8 @@ const StatCard = ({
 };
 
 const DashboardPage = () => {
+  const { loading: permsLoading, user } = useLivePermissions();
+  const paymentAccess = getPaymentAccess(user);
   const [summary, setSummary] = useState(null);
   const [plans, setPlans] = useState([]);
   const [paidPayments, setPaidPayments] = useState([]);
@@ -326,6 +332,11 @@ const DashboardPage = () => {
   const [error, setError] = useState("");
 
   const loadAll = async (isRefresh = false) => {
+    if (!paymentAccess.canView) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError("");
@@ -351,8 +362,9 @@ const DashboardPage = () => {
   };
 
   useEffect(() => {
+    if (permsLoading) return;
     loadAll();
-  }, []);
+  }, [permsLoading, paymentAccess.canView]);
 
   const revenueSeries = useMemo(() => {
     const fromPaid = buildDailySeries(paidPayments, 14);
@@ -453,6 +465,16 @@ const DashboardPage = () => {
       },
     ];
   }, [summary, revenueSeries, todaySeries, subsSeries, failedSeries]);
+
+  if (permsLoading) return <LoadingSpinner />;
+  if (!paymentAccess.canView) {
+    return (
+      <HigherOfficialAccessNotice
+        title="Accounts summary is disabled"
+        permissionLabel="Payments → View"
+      />
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#f4f7f5] px-4 py-6 font-[Manrope,system-ui,sans-serif] sm:px-8 sm:py-8">

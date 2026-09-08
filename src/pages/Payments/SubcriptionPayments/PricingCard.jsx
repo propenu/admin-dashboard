@@ -15,7 +15,7 @@ const UP_TO_FEATURES = [
   "LEAD_DASHBOARD",
 ];
 
-export default function PricingCard({ plan, userType }) {
+export default function PricingCard({ plan, userType, canUpdate = false, canAssign = false }) {
   const dispatch = useDispatch();
 
   const {
@@ -38,6 +38,16 @@ export default function PricingCard({ plan, userType }) {
   /* ================= STATE ================= */
   const [editingKey, setEditingKey] = useState(null);
   const [editValue, setEditValue] = useState("");
+
+  useEffect(() => {
+    if (!canUpdate) setEditingKey(null);
+  }, [canUpdate]);
+
+  const startEdit = (key, value) => {
+    if (!canUpdate) return;
+    setEditingKey(key);
+    setEditValue(value ?? "");
+  };
 
   /* ================= SAVE HANDLER ================= */
   // const handleSave = (key) => {
@@ -87,6 +97,10 @@ export default function PricingCard({ plan, userType }) {
   // };
 
   const handleSave = (key) => {
+    if (!canUpdate) {
+      setEditingKey(null);
+      return;
+    }
     let oldValue;
 
     if (key === "PRICE") oldValue = price;
@@ -106,7 +120,7 @@ export default function PricingCard({ plan, userType }) {
     else if (key === "DPRICE") {
       payload = { dprice: Number(editValue) };
     }
-    // ✅ DURATION update
+    // ✅ DURATION / plan time update
     else if (key === "DURATION_DAYS") {
       payload = { durationDays: Number(editValue) };
     }
@@ -128,7 +142,7 @@ export default function PricingCard({ plan, userType }) {
       .unwrap()
       .catch((err) => {
         console.error("Update failed:", err);
-        alert("Update failed");
+        alert(err?.message || "Update failed — check Plans → Update permission");
       });
 
     setEditingKey(null);
@@ -176,14 +190,13 @@ export default function PricingCard({ plan, userType }) {
             ) : (
               <>
                 <p className="text-black text-xl font-semibold">₹{price}</p>
-                <Pencil
-                  size={12}
-                  className="cursor-pointer text-gray-400 hover:text-[#27AE60]"
-                  onClick={() => {
-                    setEditingKey("PRICE");
-                    setEditValue(price);
-                  }}
-                />
+                {canUpdate && (
+                  <Pencil
+                    size={12}
+                    className="cursor-pointer text-gray-400 hover:text-[#27AE60]"
+                    onClick={() => startEdit("PRICE", price)}
+                  />
+                )}
               </>
             )}
 
@@ -204,14 +217,13 @@ export default function PricingCard({ plan, userType }) {
                 <p className="text-red-500 text-[10px] font-semibold line-through">
                   ₹{dprice}
                 </p>
-                <Pencil
-                  size={12}
-                  className="cursor-pointer text-gray-400 hover:text-[#27AE60]"
-                  onClick={() => {
-                    setEditingKey("DPRICE");
-                    setEditValue(dprice);
-                  }}
-                />
+                {canUpdate && (
+                  <Pencil
+                    size={12}
+                    className="cursor-pointer text-gray-400 hover:text-[#27AE60]"
+                    onClick={() => startEdit("DPRICE", dprice)}
+                  />
+                )}
               </>
             )}
 
@@ -226,7 +238,7 @@ export default function PricingCard({ plan, userType }) {
             )}
           </div>
 
-          {/* ================= DURATION ================= */}
+          {/* ================= DURATION / PLAN TIME ================= */}
           <div className="flex items-center justify-center gap-1 text-xs text-gray-600">
             {editingKey === "DURATION_DAYS" ? (
               <input
@@ -241,22 +253,23 @@ export default function PricingCard({ plan, userType }) {
               <span>{durationDays} Days</span>
             )}
 
-            <Pencil
-              size={10}
-              className={"cursor-pointer text-gray-400 hover:text-[#27AE60]"}
-              onClick={() => {
-                setEditingKey("DURATION_DAYS");
-                setEditValue(durationDays);
-              }}
-            />
+            {canUpdate && (
+              <Pencil
+                size={10}
+                className={"cursor-pointer text-gray-400 hover:text-[#27AE60]"}
+                onClick={() => startEdit("DURATION_DAYS", durationDays)}
+              />
+            )}
           </div>
 
-          <button
-            onClick={() => dispatch(setSelectedPlan(plan))}
-            className="mt-2 w-full bg-[#27AE60] text-white text-xs py-1 rounded"
-          >
-            Buy Now
-          </button>
+          {canAssign && (
+            <button
+              onClick={() => dispatch(setSelectedPlan(plan))}
+              className="mt-2 w-full bg-[#27AE60] text-white text-xs py-1 rounded"
+            >
+              Buy Now
+            </button>
+          )}
         </div>
       </div>
 
@@ -286,16 +299,15 @@ export default function PricingCard({ plan, userType }) {
                 )}
               </div>
 
-              <Pencil
-                size={12}
-                className={
-                  "cursor-pointer text-gray-400 hover:text-[#27AE60] shrink-0"
-                }
-                onClick={() => {
-                  setEditingKey(key);
-                  setEditValue(value ?? "");
-                }}
-              />
+              {canUpdate && (
+                <Pencil
+                  size={12}
+                  className={
+                    "cursor-pointer text-gray-400 hover:text-[#27AE60] shrink-0"
+                  }
+                  onClick={() => startEdit(key, value)}
+                />
+              )}
             </div>
           );
         })}

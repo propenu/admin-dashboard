@@ -234,6 +234,10 @@ const Blogs = lazy(() =>
   import("./pages/blogs/Blogs")
 );
 
+const SiteBrandingPage = lazy(() =>
+  import("./pages/siteBranding/SiteBrandingPage")
+);
+
 const TicketDashboard = lazy(() =>
   import("./pages/Tickets/TicketDashboard")
 );
@@ -625,6 +629,14 @@ function App() {
 
                 {/* Blogs */}
                 <Route path="/blogs" element={<Blogs />} />
+                <Route
+                  path="/site-banner"
+                  element={
+                    <PermissionRoute permission="site_banner:view">
+                      <SiteBrandingPage />
+                    </PermissionRoute>
+                  }
+                />
                 <Route path="/tickets" element={<PermissionRoute permission="ticket:view"><TicketDashboard /></PermissionRoute>} />
                 <Route path="/leads" element={<PermissionRoute permission="lead:view"><LeadManagement /></PermissionRoute>} />
                 <Route path="/lead-capture" element={<PermissionRoute anyPermissions={["lead:view", "user:view", "builder:view", "agent:view"]}><LeadCaptureAnalytics /></PermissionRoute>} />

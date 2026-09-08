@@ -13,6 +13,8 @@ export const builderPlanService = {
   builders: () => apiClient.get("/api/users/auth/search?role=builder").then((response) => response.data?.results || []),
   builderProjects: (builderId) => apiClient.get("/api/properties/featured-project", { params: { createdBy: builderId, limit: 100, promotionStatus: "all" } }).then((response) => response.data?.items || []),
   createInvoice: (payload) => apiClient.post(INVOICE_URL, payload).then((response) => response.data),
+  updateInvoice: (id, payload) => apiClient.patch(`${INVOICE_URL}/${id}`, payload).then((response) => response.data),
+  removeInvoice: (id) => apiClient.delete(`${INVOICE_URL}/${id}`).then((response) => response.data),
   invoices: (params = {}) => apiClient.get(INVOICE_URL, { params }).then((response) => response.data),
   invoicePdf: (id, download = false) => apiClient.get(`${INVOICE_URL}/${id}/pdf`, {
     params: download ? { download: true } : {}, responseType: "blob",

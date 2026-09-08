@@ -8,6 +8,10 @@ import {
   FileX,
   ChevronRight,
 } from "lucide-react";
+import HigherOfficialAccessNotice from "../../components/common/HigherOfficialAccessNotice";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { getPaymentAccess } from "../../utils/accountsAccessControl";
+import { useLivePermissions } from "../../utils/useLivePermissions";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const TransactionIcon = () => <ArrowLeftRight size={20} strokeWidth={1.5} />;
@@ -221,12 +225,18 @@ const PaymentRow = ({ payment, onClick, index }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 const PaymentsList = () => {
   const navigate = useNavigate();
+  const { loading: permsLoading, user } = useLivePermissions();
+  const paymentAccess = getPaymentAccess(user);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("paid");
 
   const fetchPayments = useCallback(async (status) => {
+    if (!paymentAccess.canView) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -237,11 +247,12 @@ const PaymentsList = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [paymentAccess.canView]);
 
   useEffect(() => {
+    if (permsLoading) return;
     fetchPayments(currentStatus);
-  }, [currentStatus, fetchPayments]);
+  }, [currentStatus, fetchPayments, permsLoading]);
 
   const totalAmount = payments.reduce((s, p) => s + (p.amount || 0), 0);
 
@@ -251,6 +262,16 @@ const PaymentsList = () => {
       navigate(`/dashboard/users/${uid}`);
     }
   };
+
+  if (permsLoading) return <LoadingSpinner />;
+  if (!paymentAccess.canView) {
+    return (
+      <HigherOfficialAccessNotice
+        title="Payments list is disabled"
+        permissionLabel="Payments → View"
+      />
+    );
+  }
 
   return (
     <div

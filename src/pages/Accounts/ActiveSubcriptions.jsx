@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { getActiveSubscriptions } from "../../features/payment/paymentServices";
 import { Activity, Download, FileX } from "lucide-react";
+import HigherOfficialAccessNotice from "../../components/common/HigherOfficialAccessNotice";
+import { getSubscriptionAccess } from "../../utils/accountsAccessControl";
+import { useLivePermissions } from "../../utils/useLivePermissions";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
 
 // ─── Icon wrappers ────────────────────────────────────────────────────────────
 const ActivityIcon = () => <Activity size={20} strokeWidth={1.5} />;
@@ -546,6 +550,8 @@ const MobileCard = ({ sub }) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const ActiveSubscriptions = () => {
+  const { loading: permsLoading, user } = useLivePermissions();
+  const subscriptionAccess = getSubscriptionAccess(user);
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -560,6 +566,11 @@ const ActiveSubscriptions = () => {
   }, []);
 
   useEffect(() => {
+    if (permsLoading || !subscriptionAccess.canView) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     getActiveSubscriptions()
       .then((res) => {
         setSubscriptions(res?.data || []);
@@ -570,8 +581,17 @@ const ActiveSubscriptions = () => {
         setError("Unable to fetch subscriptions. Please try again.");
         setLoading(false);
       });
-  }, []);
+  }, [permsLoading, subscriptionAccess.canView]);
 
+  if (permsLoading) return <LoadingSpinner />;
+  if (!subscriptionAccess.canView) {
+    return (
+      <HigherOfficialAccessNotice
+        title="Active subscriptions view is disabled"
+        permissionLabel="Subscriptions → View"
+      />
+    );
+  }
   // Summaries
   const now = new Date();
   const expiringSoon = subscriptions.filter((s) => {

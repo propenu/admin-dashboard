@@ -4,6 +4,10 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   base: "/",
+  test: {
+    environment: "node",
+    include: ["src/**/*.test.js"],
+  },
 
   build: {
     // Dedicated outDir — avoids Windows EPERM when legacy `dist` is locked by a preview server.
