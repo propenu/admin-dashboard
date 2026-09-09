@@ -4,12 +4,12 @@ import { ArrowLeft, ArrowRight, BadgeCheck, Building2, Check, KeyRound, Mail, Ma
 import { toast } from "sonner";
 import HierarchyRoleFilterSelect from "../../components/common/HierarchyRoleFilterSelect";
 import ActivityFilterSelect from "../Activity/components/ActivityFilterSelect";
-import { completeCredentialLocation, getAccessUsers, getAssignableRoles, requestCredentialOtp, verifyCredentialOtp } from "../../features/accessControl/accessControlService";
+import { completeCredentialLocation, getAssignableRoles, requestCredentialOtp, verifyCredentialOtp } from "../../features/accessControl/accessControlService";
 import { getEligibleReportsTo } from "../../features/user/userService";
 import { cleanRoleLabel, formatHierarchyHint } from "../../utils/reportsToHierarchy";
 import {
   orderRolesByHierarchy,
-  countUsersInExactRole,
+  getAssignedUserCountForRole,
   canonicalTeamRole,
 } from "../../utils/roleHierarchy";
 import { requestSidebarRefresh } from "../../utils/sidebarActivity";
@@ -22,7 +22,6 @@ export default function CreateCredentialPage() {
   const location = useLocation();
   const [form, setForm] = useState({ ...EMPTY, role: location.state?.roleName || "" });
   const [roles, setRoles] = useState([]);
-  const [users, setUsers] = useState([]);
   const [reportsToOptions, setReportsToOptions] = useState([]);
   const [hierarchy, setHierarchy] = useState(null);
   const [createdRole, setCreatedRole] = useState(null);
@@ -33,11 +32,12 @@ export default function CreateCredentialPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    Promise.allSettled([getAssignableRoles(), getAccessUsers()]).then(([roleResult, userResult]) => {
-      if (roleResult.status === "fulfilled") setRoles(roleResult.value.roles || []);
-      else toast.error(roleResult.reason?.response?.data?.message || "Unable to load dashboard roles");
-      if (userResult.status === "fulfilled") setUsers(Array.isArray(userResult.value) ? userResult.value : userResult.value?.users || []);
-    });
+    // Roles carry assignedUserCount — avoid loading every user just for the dropdown.
+    getAssignableRoles()
+      .then((roleResult) => setRoles(roleResult.roles || []))
+      .catch((error) =>
+        toast.error(error?.response?.data?.message || "Unable to load dashboard roles"),
+      );
   }, []);
 
   useEffect(() => {
@@ -166,7 +166,7 @@ export default function CreateCredentialPage() {
           {done ? <Success name={form.name} role={createdRole?.label || "Custom access"} onCreateAnother={() => { setForm(EMPTY); setStep(1); setToken(""); setDone(false); }} onDone={() => navigate("/propenu-team-members")} /> : <>
             <div className="mb-8 flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">Step {step} of 3</p><h2 className="mt-2 text-2xl font-bold">{step === 1 ? "Account, role and work location" : step === 2 ? "Verify the work email" : "Review and activate credential"}</h2></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{Math.round(step / 3 * 100)}% complete</span></div>
 
-            {step === 1 && <form onSubmit={sendOtp} className="grid gap-5 sm:grid-cols-2"><Field label="Full name" icon={UserRound}><input value={form.name} onChange={update("name")} placeholder="e.g. Aarav Sharma" /></Field><Field label="Work email" icon={Mail}><input type="email" value={form.email} onChange={update("email")} placeholder="aarav@propenu.com" /></Field><div className="sm:col-span-2"><RoleSelect roles={roles} users={users} value={form.role} onChange={(role) => setForm((current) => ({ ...current, role, reportsToUserId: "" }))} /></div>
+            {step === 1 && <form onSubmit={sendOtp} className="grid gap-5 sm:grid-cols-2"><Field label="Full name" icon={UserRound}><input value={form.name} onChange={update("name")} placeholder="e.g. Aarav Sharma" /></Field><Field label="Work email" icon={Mail}><input type="email" value={form.email} onChange={update("email")} placeholder="aarav@propenu.com" /></Field><div className="sm:col-span-2"><RoleSelect roles={roles} value={form.role} onChange={(role) => setForm((current) => ({ ...current, role, reportsToUserId: "" }))} /></div>
             {form.role && hierarchy && (
               <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600">
                 <div className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800"><Network size={16} className="text-emerald-600" /> Hierarchy for {cleanRoleLabel(form.role)}</div>
@@ -270,14 +270,14 @@ const roleDisplayLabel = (role) =>
   role?.label ||
   cleanRoleLabel(role?.name);
 
-function RoleSelect({ roles, users, value, onChange }) {
+function RoleSelect({ roles, value, onChange }) {
   const orderedRoles = useMemo(
     () =>
       orderRolesByHierarchy(roles).map((role) => ({
         ...role,
-        userCount: countUsersInExactRole(users, role.name, roles),
+        userCount: getAssignedUserCountForRole(role, roles),
       })),
-    [roles, users],
+    [roles],
   );
 
   const selected =
@@ -285,15 +285,7 @@ function RoleSelect({ roles, users, value, onChange }) {
     orderedRoles.find((role) => canonicalTeamRole(role.name) === canonicalTeamRole(value)) ||
     roles.find((role) => role.name === value);
 
-  const selectedMembers = selected
-    ? users.filter(
-        (user) =>
-          String(user.roleId) === String(selected._id) ||
-          user.roleName === selected.name ||
-          canonicalTeamRole(user.roleName) === canonicalTeamRole(selected.name) ||
-          (selected.aliasRoleNames || []).includes(user.roleName),
-      )
-    : [];
+  const selectedCount = selected ? getAssignedUserCountForRole(selected, roles) : 0;
 
   return (
     <div className="relative z-30">
@@ -322,26 +314,14 @@ function RoleSelect({ roles, users, value, onChange }) {
               {roleDisplayLabel(selected)}
             </span>
             <span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-[#0B7A3A]">
-              {selectedMembers.length}
+              {selectedCount}
             </span>
           </div>
-          {selectedMembers.length ? (
-            <div className="mt-2 flex max-h-24 flex-wrap gap-2 overflow-y-auto">
-              {selectedMembers.map((user) => (
-                <span
-                  key={user._id}
-                  title={user.email || user.phone}
-                  className="rounded-lg border border-[#d9ebe0] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700"
-                >
-                  {user.name || user.email || "Unnamed user"}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-2 text-[11px] text-slate-400">
-              No users are currently assigned to this role.
-            </p>
-          )}
+          <p className="mt-2 text-[11px] text-slate-400">
+            {selectedCount
+              ? `${selectedCount} user${selectedCount === 1 ? "" : "s"} currently hold this role.`
+              : "No users are currently assigned to this role."}
+          </p>
         </div>
       ) : null}
     </div>

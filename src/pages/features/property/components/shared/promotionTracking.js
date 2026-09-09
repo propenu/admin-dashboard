@@ -1,4 +1,5 @@
 const DAY = 1000 * 60 * 60 * 24;
+const BOOSTED_TYPES = new Set(["prime", "featured", "sponsored"]);
 
 const toDate = (value) => {
   if (!value) return null;
@@ -6,10 +7,88 @@ const toDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+/** Canonical promotion type for filters / badges (`featured` = Top Selling). */
+export const normalizePromoType = (value) => {
+  const key = String(value || "normal")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+  if (key === "topselling" || key === "featured") return "featured";
+  if (key === "prime" || key === "sponsored" || key === "normal") return key;
+  return "normal";
+};
+
 export const titlePromotionType = (value) => {
-  const type = String(value || "normal");
+  const type = normalizePromoType(value);
   if (type === "featured") return "Top Selling";
   return type.charAt(0).toUpperCase() + type.slice(1);
+};
+
+/** Current boost type from listing payload (handles displayType fallback). */
+export const resolvePromotionType = (property) => {
+  const tracking = getPromotionTracking(property);
+  return normalizePromoType(
+    property?.promotion?.type ||
+      property?.displayType ||
+      tracking.currentType ||
+      "normal",
+  );
+};
+
+/** True when listing was auto/manual expired back to normal (or still past expiry). */
+export const isPromotionExpiredListing = (property) => {
+  const tracking = getPromotionTracking(property);
+  if (tracking.lifecycle === "expired") return true;
+
+  const type = resolvePromotionType(property);
+  if (type !== "normal") return false;
+
+  return getPromotionHistory(property).some((entry) => {
+    const from = normalizePromoType(entry?.fromType);
+    const to = normalizePromoType(entry?.toType);
+    return (
+      BOOSTED_TYPES.has(from) &&
+      to === "normal" &&
+      /expired/i.test(String(entry?.reason || ""))
+    );
+  });
+};
+
+/**
+ * Client-side PROPERTY PROMOTIONS chip matching (type + lifecycle).
+ * Type chip uses current boost; lifecycle includes history-based expired.
+ */
+export const matchesPropertyPromotionFilters = (
+  property,
+  promotionType = "all",
+  trackingFilter = "all",
+) => {
+  const tracking = getPromotionTracking(property);
+  const type = resolvePromotionType(property);
+  const wantedType = normalizePromoType(promotionType);
+
+  if (promotionType !== "all" && type !== wantedType) return false;
+
+  if (trackingFilter === "all") return true;
+  if (trackingFilter === "promoted") {
+    return (
+      Boolean(tracking.hasHistory) ||
+      BOOSTED_TYPES.has(type) ||
+      BOOSTED_TYPES.has(normalizePromoType(property?.lastPromotionType))
+    );
+  }
+  if (trackingFilter === "active") {
+    return BOOSTED_TYPES.has(type) && tracking.lifecycle === "active";
+  }
+  if (trackingFilter === "expiringSoon") {
+    return (
+      BOOSTED_TYPES.has(type) &&
+      (tracking.lifecycle === "expiringSoon" ||
+        tracking.lifecycle === "critical")
+    );
+  }
+  if (trackingFilter === "expired") return isPromotionExpiredListing(property);
+  return true;
 };
 
 export const formatPromotionDate = (value, withYear = false) => {
@@ -53,12 +132,14 @@ export const getPromotionTracking = (project) => {
   const activeRecord = getActivePromotionRecord(project);
   const latestRecord = getLatestPromotionRecord(project);
   const promotion = project?.promotion || {};
-  const currentType =
+  // Live type only — do not fall back to lastPromotionType (that would mislabel expired → normal).
+  const currentType = normalizePromoType(
     promotion?.type ||
-    activeRecord?.toType ||
-    project?.lastPromotionType ||
-    latestRecord?.toType ||
-    "normal";
+      project?.displayType ||
+      activeRecord?.toType ||
+      latestRecord?.toType ||
+      "normal",
+  );
   const startedAt =
     activeRecord?.startedAt || promotion?.startDate || latestRecord?.startedAt;
   const expiresAt =
@@ -83,11 +164,12 @@ export const getPromotionTracking = (project) => {
     activeRecord,
     latestRecord,
     currentType,
-    previousType:
+    previousType: normalizePromoType(
       activeRecord?.fromType ||
-      project?.lastPromotionType ||
-      latestRecord?.fromType ||
-      "normal",
+        project?.lastPromotionType ||
+        latestRecord?.fromType ||
+        "normal",
+    ),
     startedAt,
     expiresAt,
     endedAt,

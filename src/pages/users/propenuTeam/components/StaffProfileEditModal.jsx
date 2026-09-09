@@ -59,6 +59,7 @@ export default function StaffProfileEditModal({ user, roleLabel = "Staff", onClo
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
 
   useEffect(() => {
     setFormData(payloadFromUser(user));
@@ -66,6 +67,7 @@ export default function StaffProfileEditModal({ user, roleLabel = "Staff", onClo
     setOtpSent(false);
     setVerifiedPhone(normalizeProfilePhone(user?.phone));
     setError("");
+    setEmailError("");
   }, [user?._id]);
 
   if (!userId) return null;
@@ -79,6 +81,7 @@ export default function StaffProfileEditModal({ user, roleLabel = "Staff", onClo
 
   const handleChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "email") setEmailError("");
     if (name === "phone") {
       setOtp("");
       setOtpSent(false);
@@ -162,8 +165,17 @@ export default function StaffProfileEditModal({ user, roleLabel = "Staff", onClo
 
     if (!payload.name || !payload.email) {
       setError("Name and email are required.");
+      if (!payload.email) setEmailError("Email is required.");
       return;
     }
+
+    const email = payload.email.toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setEmailError("Enter a valid email address.");
+      setError("Enter a valid email address.");
+      return;
+    }
+    payload.email = email;
 
     // Phone is optional — validate / OTP only when a number is provided.
     const hasPhone = Boolean(payload.phone);
@@ -188,6 +200,7 @@ export default function StaffProfileEditModal({ user, roleLabel = "Staff", onClo
 
     setSaving(true);
     setError("");
+    setEmailError("");
     try {
       const body = { ...payload };
       if (!hasPhone) {
@@ -204,7 +217,14 @@ export default function StaffProfileEditModal({ user, roleLabel = "Staff", onClo
       onSaved?.(userId, payload);
       onClose?.();
     } catch (err) {
-      const message = err?.response?.data?.message || "Failed to update staff profile";
+      const message =
+        err?.response?.data?.message || "Failed to update staff profile";
+      const isEmailTaken =
+        err?.response?.status === 409 &&
+        /email already exists/i.test(String(message));
+      if (isEmailTaken) {
+        setEmailError(message);
+      }
       setError(message);
       toast.error(message);
     } finally {
@@ -249,6 +269,8 @@ export default function StaffProfileEditModal({ user, roleLabel = "Staff", onClo
             {FIELDS.map((field) => {
               const Icon = field.icon;
               const isPhone = field.name === "phone";
+              const isEmail = field.name === "email";
+              const fieldHasError = isEmail && Boolean(emailError);
               return (
                 <label key={field.name} className={field.span ? "sm:col-span-2" : ""}>
                   <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -272,13 +294,23 @@ export default function StaffProfileEditModal({ user, roleLabel = "Staff", onClo
                         }));
                       }
                     }}
-                    className="w-full rounded-xl border-2 border-slate-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                    aria-invalid={fieldHasError}
+                    className={`w-full rounded-xl border-2 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:ring-2 ${
+                      fieldHasError
+                        ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                        : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-100"
+                    }`}
                     placeholder={
                       isPhone
                         ? "Optional · +919876543224"
                         : `Enter ${field.label.toLowerCase()}`
                     }
                   />
+                  {fieldHasError ? (
+                    <p className="mt-1.5 text-[11px] font-semibold text-red-500">
+                      {emailError}
+                    </p>
+                  ) : null}
                   {isPhone ? (
                     <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

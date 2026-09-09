@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Zap,
 } from "lucide-react";
+import PromotionLocationCoverage from "../../pages/features/property/components/shared/PromotionLocationCoverage";
 
 export const PROPERTY_PROMO_TYPES = [
   {
@@ -20,8 +21,8 @@ export const PROPERTY_PROMO_TYPES = [
   },
   {
     value: "featured",
-    label: "Featured",
-    desc: "Highlighted in featured property sections.",
+    label: "Top Selling",
+    desc: "Highlighted in top selling property sections.",
     color: "border-sky-400 bg-gradient-to-r from-sky-50 to-blue-50 text-sky-800",
     chip: "bg-sky-500 text-white",
     icon: Sparkles,
@@ -73,11 +74,13 @@ export default function PropertyPromoteModal({
 }) {
   const [selected, setSelected] = useState(null);
   const [days, setDays] = useState("10");
+  const [sponsoredAd, setSponsoredAd] = useState({});
 
   useEffect(() => {
     if (!open) {
       setSelected(null);
       setDays("10");
+      setSponsoredAd({});
     }
   }, [open]);
 
@@ -128,7 +131,7 @@ export default function PropertyPromoteModal({
           </div>
         </div>
 
-        <div className="space-y-4 p-5 sm:p-6">
+        <div className="max-h-[80vh] space-y-4 overflow-y-auto p-5 sm:p-6">
           {!approved && (
             <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -153,7 +156,10 @@ export default function PropertyPromoteModal({
                 <button
                   key={t.value}
                   type="button"
-                  onClick={() => setSelected(t.value)}
+                  onClick={() => {
+                    setSelected(t.value);
+                    if (t.value !== "sponsored") setSponsoredAd({});
+                  }}
                   className={`group flex w-full items-start gap-3 rounded-2xl border-2 p-3.5 text-left transition ${
                     active
                       ? `${t.color} shadow-md scale-[1.01]`
@@ -180,6 +186,14 @@ export default function PropertyPromoteModal({
               );
             })}
           </div>
+
+          {selected === "sponsored" ? (
+            <PromotionLocationCoverage
+              enabled
+              value={sponsoredAd}
+              onChange={setSponsoredAd}
+            />
+          ) : null}
 
           {selected && selected !== "normal" ? (
             <label className="block space-y-1.5 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3">
@@ -219,6 +233,7 @@ export default function PropertyPromoteModal({
                 if (!canPromote) return;
                 onConfirm(selected, {
                   days: selected === "normal" ? undefined : Math.trunc(daysNum),
+                  sponsoredAd: selected === "sponsored" ? sponsoredAd : {},
                 });
               }}
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:from-emerald-700 hover:to-teal-700 disabled:cursor-not-allowed disabled:opacity-50"

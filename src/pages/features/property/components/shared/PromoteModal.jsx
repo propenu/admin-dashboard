@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { TrendingUp, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { projectAnalytics } from "../../../../../features/property/propertyService";
+import PromotionLocationCoverage from "./PromotionLocationCoverage";
 
 const TYPES = [
   {
@@ -107,6 +108,7 @@ export default function PromoteModal({
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [leadsError, setLeadsError] = useState("");
   const [countTouched, setCountTouched] = useState(false);
+  const [sponsoredAd, setSponsoredAd] = useState({});
 
   const projectIsApproved = canPromoteProject(projectStatus, approvalStatus);
 
@@ -117,6 +119,7 @@ export default function PromoteModal({
       setTotalLeads(null);
       setLeadsError("");
       setCountTouched(false);
+      setSponsoredAd({});
       return;
     }
 
@@ -248,17 +251,20 @@ export default function PromoteModal({
       : canSetLeadCount
         ? Math.max(0, Math.trunc(Number(leadCountInput) || 0))
         : undefined;
-    onConfirm(selected, { visibleLeadLimit });
+    onConfirm(selected, {
+      visibleLeadLimit,
+      sponsoredAd: selected === "sponsored" ? sponsoredAd : {},
+    });
   };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white w-full max-w-xl p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-blue-600 flex items-center gap-2 mb-1">
           <TrendingUp className="w-5 h-5" /> Promote Project
         </h2>
         <p className="text-slate-500 text-xs mb-4">
-          1) Select listing type · 2) Set visible lead count · 3) Promote
+          1) Select listing type · 2) Locations · 3) Visible leads · 4) Promote
         </p>
 
         {!projectIsApproved && (
@@ -295,6 +301,7 @@ export default function PromoteModal({
               onClick={() => {
                 setSelected(t.value);
                 setCountTouched(false);
+                if (t.value !== "sponsored") setSponsoredAd({});
               }}
               className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition text-left
                 ${selected === t.value ? t.color + " border-current" : "border-slate-200 hover:border-slate-300"}`}
@@ -307,6 +314,14 @@ export default function PromoteModal({
             </button>
           ))}
         </div>
+
+        {selected === "sponsored" && (
+          <PromotionLocationCoverage
+            enabled
+            value={sponsoredAd}
+            onChange={setSponsoredAd}
+          />
+        )}
 
         {canSetLeadCount && (
           <div

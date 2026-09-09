@@ -35,7 +35,7 @@ import {
 import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 import { PERMISSIONS_UPDATED_EVENT } from "../../utils/useLivePermissions";
 import {
-  countUsersInExactRole,
+  getAssignedUserCountForRole,
   getExactRoleMatch,
   orderRolesByHierarchy,
   userMatchesExactRole,
@@ -107,16 +107,17 @@ export default function UserPermissionsPage() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    // Roles first → Filter by Role dropdown opens fast with API user counts.
     Promise.all([
-      getAccessUsers({ scope: "team_directory" }),
       getPermissionCatalog(),
       getAccessRoles(),
       getTeamDirectoryRoles().catch(() => ({ roles: [] })),
     ])
-      .then(([userResult, catalogResult, roleResult, hierarchyResult]) => {
-        const dashboardUsers = (Array.isArray(userResult) ? userResult : userResult.users || []).filter(
-          (user) => user.roleId && !EXCLUDED_ROLES.has(String(user.roleName || "")),
-        );
+      .then(([catalogResult, roleResult, hierarchyResult]) => {
+        if (cancelled) return;
         const hierarchyById = new Map(
           (hierarchyResult.roles || []).map((item) => [String(item._id), item]),
         );
@@ -126,6 +127,10 @@ export default function UserPermissionsPage() {
             const hierarchyRole = hierarchyById.get(String(item._id));
             return {
               ...item,
+              assignedUserCount:
+                Number(item.assignedUserCount) ||
+                Number(hierarchyRole?.assignedUserCount) ||
+                0,
               effectiveParentRoleId:
                 hierarchyRole?.effectiveParentRoleId ||
                 item.parentRoleId?._id ||
@@ -133,13 +138,37 @@ export default function UserPermissionsPage() {
                 null,
             };
           });
-        setUsers(dashboardUsers);
         setRoles(dashboardRoles);
         setModules(catalogResult.modules || []);
-        if (dashboardUsers[0]) setSelectedUserId(String(dashboardUsers[0]._id));
+        setLoading(false);
       })
-      .catch((error) => toast.error(error.response?.data?.message || "Unable to load user access data"))
-      .finally(() => setLoading(false));
+      .catch((error) => {
+        if (cancelled) return;
+        toast.error(error.response?.data?.message || "Unable to load user access data");
+        setLoading(false);
+      });
+
+    getAccessUsers({ scope: "team_directory" })
+      .then((userResult) => {
+        if (cancelled) return;
+        const dashboardUsers = (Array.isArray(userResult) ? userResult : userResult.users || []).filter(
+          (user) => user.roleId && !EXCLUDED_ROLES.has(String(user.roleName || "")),
+        );
+        setUsers(dashboardUsers);
+        setSelectedUserId((current) => {
+          if (current) return current;
+          return dashboardUsers[0] ? String(dashboardUsers[0]._id) : "";
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(error.response?.data?.message || "Unable to load team users");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const selectedRoleMatch = useMemo(
@@ -147,12 +176,14 @@ export default function UserPermissionsPage() {
     [roles, selectedRole],
   );
 
-  const roleOptions = useMemo(() => {
-    return orderRolesByHierarchy(roles).map((item) => ({
-      ...item,
-      userCount: countUsersInExactRole(users, item.name, roles),
-    }));
-  }, [roles, users]);
+  const roleOptions = useMemo(
+    () =>
+      orderRolesByHierarchy(roles).map((item) => ({
+        ...item,
+        userCount: getAssignedUserCountForRole(item, roles),
+      })),
+    [roles],
+  );
 
   const visibleUsers = useMemo(() => {
     const value = query.trim().toLowerCase();

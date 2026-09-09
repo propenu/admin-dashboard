@@ -2401,6 +2401,7 @@ export default function ProjectsDashboardPage() {
           newType,
           visibleLeadLimit: options.visibleLeadLimit,
           days: options.days,
+          sponsoredAd: options.sponsoredAd,
         },
         {
           onSuccess: () => {

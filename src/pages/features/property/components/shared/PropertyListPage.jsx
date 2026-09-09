@@ -403,6 +403,7 @@ export default function PropertyListPage({
               newType,
               visibleLeadLimit: options.visibleLeadLimit,
               days: options.days,
+              sponsoredAd: options.sponsoredAd,
             },
             { onSettled: () => setPromoteTarget(null) },
           );

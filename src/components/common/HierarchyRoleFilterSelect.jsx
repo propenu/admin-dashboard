@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, ShieldCheck } from "lucide-react";
 
 const DEPTH_STYLE = [
@@ -89,6 +89,9 @@ export default function HierarchyRoleFilterSelect({
       return name.includes(q) || labelText.includes(q);
     });
   }, [getLabel, query, roles]);
+
+  // Defer heavy list paint while typing so the search input stays snappy.
+  const deferredFiltered = useDeferredValue(filtered);
 
   useEffect(() => {
     if (!open) {
@@ -194,8 +197,8 @@ export default function HierarchyRoleFilterSelect({
               </button>
             ) : null}
 
-            {filtered.length ? (
-              filtered.map((role) => {
+            {deferredFiltered.length ? (
+              deferredFiltered.map((role) => {
                 const roleValue = String(getValue(role) ?? "");
                 const depth = Math.max(
                   0,

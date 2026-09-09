@@ -47,6 +47,7 @@ import PropertyPromoteModal, {
 import ConfirmModal from "../features/property/components/shared/ConfirmModal";
 import {
   getPromotionTracking,
+  matchesPropertyPromotionFilters,
   promotionLifecycleClass,
   promotionLifecycleCopy,
   titlePromotionType,
@@ -142,7 +143,7 @@ const STATUSES = [
 const PROMOTION_TYPE_FILTERS = [
   { value: "all", label: "All boosts", tone: "slate" },
   { value: "prime", label: "Prime", tone: "amber" },
-  { value: "featured", label: "Featured", tone: "sky" },
+  { value: "featured", label: "Top Selling", tone: "sky" },
   { value: "sponsored", label: "Sponsored", tone: "violet" },
   { value: "normal", label: "Normal", tone: "slate" },
 ];
@@ -163,22 +164,6 @@ const promoFilterChipClass = (tone, active) => {
   if (tone === "sky") return "border-sky-500 bg-sky-500 text-white shadow-sm";
   if (tone === "violet") return "border-violet-500 bg-violet-500 text-white shadow-sm";
   return "border-slate-800 bg-slate-800 text-white shadow-sm";
-};
-
-const matchesPromotionFilters = (property, promotionType, trackingFilter) => {
-  const tracking = getPromotionTracking(property);
-  const type = tracking.currentType || property?.promotion?.type || "normal";
-
-  if (promotionType !== "all" && type !== promotionType) return false;
-
-  if (trackingFilter === "all") return true;
-  if (trackingFilter === "promoted") return Boolean(tracking.hasHistory) || type !== "normal";
-  if (trackingFilter === "active") return tracking.lifecycle === "active";
-  if (trackingFilter === "expiringSoon") {
-    return tracking.lifecycle === "expiringSoon" || tracking.lifecycle === "critical";
-  }
-  if (trackingFilter === "expired") return tracking.lifecycle === "expired";
-  return true;
 };
 
 const normalizeStatusParam = (value = "") => {
@@ -1180,7 +1165,7 @@ export default function PropertiesDashboard() {
     [analytics.localityWise, locationSearchTerm, relatedLocationMatches],
   );
 
-  const visibleProperties = useMemo(() => {
+  const baseFilteredProperties = useMemo(() => {
     const term = normalizeSearchText(deferredSearch);
     return propertySearchIndex
       .filter(({ property }) => category === "all" || property._category === category)
@@ -1190,19 +1175,8 @@ export default function PropertiesDashboard() {
       .filter(({ property }) => !locationFilters.city || property?.city?.trim() === locationFilters.city)
       .filter(({ property }) => !locationFilters.locality || property?.locality?.trim() === locationFilters.locality)
       .filter(({ property }) => inCreatedRange(property?.createdAt, createdFrom, createdTo))
-      .filter(({ property }) =>
-        matchesPromotionFilters(property, promotionType, trackingFilter),
-      )
       .filter(({ haystack }) => !term || haystack.includes(term))
-      .map(({ property }) => property)
-      .sort((a, b) => {
-        const first = new Date(a?.createdAt || 0).getTime();
-        const second = new Date(b?.createdAt || 0).getTime();
-        const promoA = Number(a?.promotion?.priority || 0);
-        const promoB = Number(b?.promotion?.priority || 0);
-        if (promoB !== promoA) return promoB - promoA;
-        return sort === "newest" ? second - first : first - second;
-      });
+      .map(({ property }) => property);
   }, [
     propertySearchIndex,
     category,
@@ -1211,11 +1185,53 @@ export default function PropertiesDashboard() {
     deferredSearch,
     listingType,
     locationFilters,
-    promotionType,
-    sort,
     status,
-    trackingFilter,
   ]);
+
+  const promotionTypeCounts = useMemo(() => {
+    const counts = Object.fromEntries(
+      PROMOTION_TYPE_FILTERS.map((item) => [item.value, 0]),
+    );
+    baseFilteredProperties.forEach((property) => {
+      if (!matchesPropertyPromotionFilters(property, "all", trackingFilter)) return;
+      counts.all += 1;
+      const key = getPromotionTracking(property).currentType;
+      if (Object.prototype.hasOwnProperty.call(counts, key)) counts[key] += 1;
+    });
+    return counts;
+  }, [baseFilteredProperties, trackingFilter]);
+
+  const trackingFilterCounts = useMemo(() => {
+    const counts = Object.fromEntries(
+      PROMOTION_TRACKING_FILTERS.map((item) => [item.value, 0]),
+    );
+    baseFilteredProperties.forEach((property) => {
+      if (!matchesPropertyPromotionFilters(property, promotionType, "all")) return;
+      counts.all += 1;
+      PROMOTION_TRACKING_FILTERS.forEach((item) => {
+        if (item.value === "all") return;
+        if (matchesPropertyPromotionFilters(property, promotionType, item.value)) {
+          counts[item.value] += 1;
+        }
+      });
+    });
+    return counts;
+  }, [baseFilteredProperties, promotionType]);
+
+  const visibleProperties = useMemo(() => {
+    return baseFilteredProperties
+      .filter((property) =>
+        matchesPropertyPromotionFilters(property, promotionType, trackingFilter),
+      )
+      .sort((a, b) => {
+        const first = new Date(a?.createdAt || 0).getTime();
+        const second = new Date(b?.createdAt || 0).getTime();
+        const promoA = Number(a?.promotion?.priority || 0);
+        const promoB = Number(b?.promotion?.priority || 0);
+        if (promoB !== promoA) return promoB - promoA;
+        return sort === "newest" ? second - first : first - second;
+      });
+  }, [baseFilteredProperties, promotionType, sort, trackingFilter]);
 
   const loading = categoryQueries.some((query) => query.isLoading);
   const failed = categoryQueries.filter((query) => query.isError).length;
@@ -1307,13 +1323,16 @@ export default function PropertiesDashboard() {
 
   const openPromote = (property) => setPromoteTarget(property);
 
-  const handlePromoteConfirm = async (type, { days } = {}) => {
+  const handlePromoteConfirm = async (type, { days, sponsoredAd } = {}) => {
     if (!promoteTarget?._id || !promoteTarget?._category) return;
     setPromoteLoading(true);
     try {
       await promotePropertyListing(promoteTarget._category, promoteTarget._id, {
         type,
         ...(days ? { days } : {}),
+        ...(sponsoredAd && typeof sponsoredAd === "object"
+          ? { sponsoredAd }
+          : {}),
       });
       toast.success(`Promoted to ${titlePromotionType(type)}`);
       setPromoteTarget(null);
@@ -2122,13 +2141,21 @@ export default function PropertiesDashboard() {
                 <button
                   key={item.value}
                   type="button"
-                  onClick={() => setPromotionType(item.value)}
+                  onClick={() => {
+                    setPromotionType(item.value);
+                    document
+                      .getElementById("property-cards-grid")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
                   className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${promoFilterChipClass(
                     item.tone,
                     promotionType === item.value,
                   )}`}
                 >
                   {item.label}
+                  <span className="ml-1.5 opacity-80">
+                    {promotionTypeCounts[item.value] ?? 0}
+                  </span>
                 </button>
               ))}
             </div>
@@ -2137,7 +2164,12 @@ export default function PropertiesDashboard() {
                 <button
                   key={item.value}
                   type="button"
-                  onClick={() => setTrackingFilter(item.value)}
+                  onClick={() => {
+                    setTrackingFilter(item.value);
+                    document
+                      .getElementById("property-cards-grid")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
                   className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
                     trackingFilter === item.value
                       ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
@@ -2145,6 +2177,9 @@ export default function PropertiesDashboard() {
                   }`}
                 >
                   {item.label}
+                  <span className="ml-1.5 opacity-80">
+                    {trackingFilterCounts[item.value] ?? 0}
+                  </span>
                 </button>
               ))}
             </div>
@@ -2218,9 +2253,20 @@ export default function PropertiesDashboard() {
           </div>
 
           <div className="mt-3 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex flex-wrap items-center gap-1.5">
               <Filter className="h-4 w-4 shrink-0" /> {visibleProperties.length} cards
               shown below • {activeFilterCount} filters active
+              {(promotionType !== "all" || trackingFilter !== "all") && (
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">
+                  {promotionType === "all"
+                    ? "All boosts"
+                    : PROMOTION_TYPE_FILTERS.find((item) => item.value === promotionType)
+                        ?.label}{" "}
+                  ·{" "}
+                  {PROMOTION_TRACKING_FILTERS.find((item) => item.value === trackingFilter)
+                    ?.label}
+                </span>
+              )}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <CalendarClock className="h-4 w-4 shrink-0" /> Analytics source:
@@ -2240,7 +2286,10 @@ export default function PropertiesDashboard() {
           </div>
         ) : visibleProperties.length ? (
           <>
-            <div className="mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+            <div
+              id="property-cards-grid"
+              className="mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3"
+            >
               {paginatedProperties.map((property, index) => (
                 <PropertyCard
                   key={`${property._category}-${property._id}`}
@@ -2303,13 +2352,26 @@ export default function PropertiesDashboard() {
             </div>
           </>
         ) : (
-          <div className="mt-4 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-center">
+          <div
+            id="property-cards-grid"
+            className="mt-4 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-center"
+          >
             <MapPin className="h-9 w-9 text-slate-300" />
             <p className="mt-3 font-medium text-slate-700">
               No matching properties
             </p>
-            <p className="mt-1 text-sm text-slate-400">
-              Try another category, location, or status.
+            <p className="mt-1 max-w-sm text-sm text-slate-400">
+              {promotionType !== "all" || trackingFilter !== "all"
+                ? `No cards for ${
+                    promotionType === "all"
+                      ? "All boosts"
+                      : PROMOTION_TYPE_FILTERS.find((item) => item.value === promotionType)
+                          ?.label
+                  } · ${
+                    PROMOTION_TRACKING_FILTERS.find((item) => item.value === trackingFilter)
+                      ?.label
+                  }. Try All boosts / All lifecycle.`
+                : "Try another category, location, or status."}
             </p>
           </div>
         )}

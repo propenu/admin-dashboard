@@ -164,7 +164,21 @@ const SIDEBAR_ROLE_ALIASES = {
   customer_care_executives: "customer_care_executive",
   relationship_managers: "relationship_manager",
   sales_executives: "sales_executive",
+  bd_head: "business_development_head",
+  bdh: "business_development_head",
+  business_dev_head: "business_development_head",
 };
+
+/** Roles that always get Field Meetings in the sidebar. */
+const FIELD_MEETINGS_SIDEBAR_ROLES = new Set([
+  "sales_executive",
+  "sales_agent",
+  "sales_manager",
+  "business_development_manager",
+  "regional_manager",
+  "business_development_head",
+  "operations_head",
+]);
 
 /* ─── Animated collapse ─────────────────────────────────────────────── */
 const CollapsePanel = ({ open, children }) => {
@@ -414,15 +428,7 @@ export default function Sidebar({
     const isLeafHierarchyRole = LEAF_HIERARCHY_ROLES.has(currentRoleName);
     const isSalesExecutive =
       currentRoleName === "sales_executive" || currentRoleName === "sales_agent";
-    const isFieldMeetingsRole = [
-      "sales_executive",
-      "sales_agent",
-      "sales_manager",
-      "business_development_manager",
-      "regional_manager",
-      "business_development_head",
-      "operations_head",
-    ].includes(currentRoleName);
+    const isFieldMeetingsRole = FIELD_MEETINGS_SIDEBAR_ROLES.has(currentRoleName);
     const canView = (module) => allowed.has(`${module}:view`);
     const propertyAccess = canView("residential") || canView("commercial") || canView("land") || canView("agricultural");
     const operationsChildren = [
@@ -529,12 +535,12 @@ export default function Sidebar({
           label: "My workspace",
           icon: Briefcase,
         },
-      isFieldMeetingsRole &&
-        (canView("dashboard") || canView("user") || canView("team")) && {
-          path: "/field-meetings",
-          label: "Field Meetings",
-          icon: CalendarDays,
-        },
+      // BDH / RM / Ops Head / sales roles always see Field Meetings (role-gated, not permission-gated).
+      isFieldMeetingsRole && {
+        path: "/field-meetings",
+        label: "Field Meetings",
+        icon: CalendarDays,
+      },
       (canView("user") || canView("dashboard") || canView("team")) && {
         path: "/follow-up-tracking",
         label: "Client Progress Queue",
@@ -1034,6 +1040,8 @@ export default function Sidebar({
         },
       ],
       regional_manager: [
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
+        { path: "/field-meetings", label: "Field Meetings", icon: CalendarDays },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         { path: "/tickets", label: "Tickets", icon: Ticket },
@@ -1170,7 +1178,19 @@ export default function Sidebar({
           ],
         },
       ],
-      business_development_head: getPermissionMenu(user?.permissions || []),
+      business_development_head: [
+        { path: "/", label: "Dashboard", icon: DashboardIcon },
+        { path: "/field-meetings", label: "Field Meetings", icon: CalendarDays },
+        { path: "/follow-up-tracking", label: "Client Progress Queue", icon: ClipboardList },
+        { path: "/operations/reports", label: "Reports", icon: RevenueByPlanIcon },
+        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
+        { path: "/properties", label: "Properties", icon: PropertiesIcon },
+        { path: "/propenu-team-members", label: "Team Directory", icon: AllUsersIcon },
+        { path: "/dashboard/team-management", label: "Team Management", icon: TeamManagementIcon },
+        { path: "/tickets", label: "Tickets", icon: Ticket },
+        { path: "/leads", label: "Leads", icon: Activity },
+        { path: "/locations", label: "Locations", icon: LocationsIcon },
+      ],
       digital_marketing: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
@@ -1190,11 +1210,27 @@ export default function Sidebar({
     })[role] || getPermissionMenu(user?.permissions || []);
 
   // One navigation policy for every dashboard role. Super Admin controls the
-  // role's permission set; the sidebar is derived exclusively from that set.
+  // role's permission set; the sidebar is derived from that set — except a few
+  // hierarchy heads that keep an explicit menu (BDH includes Field Meetings).
+  const sidebarRoleKey = (() => {
+    const raw = normalizeSidebarRoleName(
+      user?.roleName || user?.roleLabel || user?.role || "",
+    );
+    return SIDEBAR_ROLE_ALIASES[raw] || raw;
+  })();
+  const dedicatedRoleMenu =
+    sidebarRoleKey && sidebarRoleKey !== "super_admin"
+      ? getMenuByRole(sidebarRoleKey)
+      : null;
+  const useDedicatedRoleMenu =
+    sidebarRoleKey === "business_development_head" ||
+    sidebarRoleKey === "regional_manager";
   const menuItems = user
-    ? user.roleName === "super_admin"
+    ? user.roleName === "super_admin" || sidebarRoleKey === "super_admin"
       ? getMenuByRole("super_admin")
-      : getPermissionMenu(user.permissions || [])
+      : useDedicatedRoleMenu && Array.isArray(dedicatedRoleMenu) && dedicatedRoleMenu.length
+        ? dedicatedRoleMenu
+        : getPermissionMenu(user.permissions || [])
     : [];
   const showText  = expanded || isMobileOpen;
   const sidebarClosed = !showText;

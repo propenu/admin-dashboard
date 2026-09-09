@@ -169,7 +169,7 @@ export function useFeaturedProjects(type, options = {}) {
   });
 
   const promoteMutation = useMutation({
-    mutationFn: async ({ id, newType, visibleLeadLimit, days }) => {
+    mutationFn: async ({ id, newType, visibleLeadLimit, days, sponsoredAd }) => {
       if (!id || !newType) {
         throw new Error("Missing project id or promotion type");
       }
@@ -192,6 +192,9 @@ export function useFeaturedProjects(type, options = {}) {
       }
       if (typeof days === "number" && Number.isFinite(days) && days > 0) {
         promotePayload.days = Math.trunc(days);
+      }
+      if (sponsoredAd && typeof sponsoredAd === "object") {
+        promotePayload.sponsoredAd = sponsoredAd;
       }
 
       const res = await promoteProjectWithRank(id, promotePayload);

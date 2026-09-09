@@ -1,5 +1,6 @@
 // frontend/admin-dashboard/src/pages/Locations/hooks/useLocations.jsx
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   fetchLocationsService,
@@ -8,6 +9,7 @@ import {
   deleteLocationService,
   deleteLocalityService,
 } from "../../../services/LocationsServices/LocationServices";
+import { invalidateAdminLocations } from "../../../features/locations/adminLocationsQuery";
 
 function extractApiError(err, fallback = "Operation failed") {
   const data = err?.response?.data;
@@ -67,6 +69,7 @@ function extractApiError(err, fallback = "Operation failed") {
 }
 
 export default function useLocations() {
+  const queryClient = useQueryClient();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -77,6 +80,7 @@ export default function useLocations() {
     try {
       const res = await fetchLocationsService();
       setData(res);
+      invalidateAdminLocations(queryClient);
     } catch (err) {
       setErrorMsg(extractApiError(err, "Failed to fetch locations"));
     } finally {
@@ -112,7 +116,9 @@ export default function useLocations() {
         setSuccessMsg("Location updated successfully");
       }
 
-      fetchLocations();
+      // Invalidate Promote coverage cache immediately, then refresh list
+      invalidateAdminLocations(queryClient);
+      await fetchLocations();
     } catch (err) {
       console.error("saveLocation failed:", err?.response?.status, err?.response?.data || err);
       setErrorMsg(extractApiError(err, "Operation failed"));
@@ -129,7 +135,8 @@ export default function useLocations() {
     try {
       await deleteLocationService(id);
       setSuccessMsg("City deleted successfully");
-      fetchLocations();
+      invalidateAdminLocations(queryClient);
+      await fetchLocations();
     } catch (err) {
       setErrorMsg(extractApiError(err, "Failed to delete city"));
     } finally {
@@ -145,7 +152,8 @@ export default function useLocations() {
     try {
       await deleteLocalityService({ locationId, localityName });
       setSuccessMsg(`Locality '${localityName}' deleted`);
-      fetchLocations();
+      invalidateAdminLocations(queryClient);
+      await fetchLocations();
     } catch (err) {
       setErrorMsg(extractApiError(err, "Failed to delete locality"));
     } finally {
@@ -181,6 +189,7 @@ export default function useLocations() {
       // Refresh without flipping global `loading` (keeps list interactive)
       const res = await fetchLocationsService();
       setData(res);
+      invalidateAdminLocations(queryClient);
       return true;
     } catch (err) {
       const msg = extractApiError(err, "Failed to update locality Home");

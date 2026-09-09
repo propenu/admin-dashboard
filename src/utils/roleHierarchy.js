@@ -352,3 +352,19 @@ export const countUsersInExactRole = (users = [], roleName, roles = []) => {
   const match = getExactRoleMatch(roleName, roles);
   return users.filter((user) => userMatchesExactRole(user, match)).length;
 };
+
+/** Prefer API `assignedUserCount` (sum aliases after hierarchy dedupe). */
+export const getAssignedUserCountForRole = (role, roles = []) => {
+  if (!role) return 0;
+  const countById = new Map(
+    roles.map((item) => [
+      String(item._id || ""),
+      Number(item.assignedUserCount) || 0,
+    ]),
+  );
+  const ids =
+    Array.isArray(role.aliasRoleIds) && role.aliasRoleIds.length
+      ? role.aliasRoleIds
+      : [role._id];
+  return ids.reduce((sum, id) => sum + (countById.get(String(id)) || 0), 0);
+};

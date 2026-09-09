@@ -764,12 +764,10 @@ export default function PropertyCard({
           {!hasPromotion && (
             <div className="mt-2 flex min-h-[74px] items-center rounded-xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 text-[10px]">
               <div className="min-w-0">
-                <p className="truncate font-semibold text-slate-600">
-                  Standard listing
+                <p className="truncate font-semibold text-slate-700">
+                  Normal promotion
                 </p>
-                <p className="mt-1 text-slate-400">
-                  No active promotion
-                </p>
+                <p className="mt-0.5 truncate text-slate-400">Normal</p>
               </div>
             </div>
           )}
