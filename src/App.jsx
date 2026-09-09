@@ -10,7 +10,7 @@ import ProtectedRoute from "./pages/ProtectedRoute";
 import PermissionRoute from "./pages/PermissionRoute";
 
 // Lazy Loaded Pages
-const Dashboard = lazy(() => import("./pages/Dashboards/MainDashboard.jsx"));
+const Dashboard = lazy(() => import("./pages/Dashboards/MainDashboard"));
 const FollowUpTrackingPage = lazy(() => import("./pages/Dashboards/FollowUpTrackingPage.jsx"));
 const MarketingHeadDashboard = lazy(() =>
   import("./pages/Dashboards/MarketingHeadDashboard.jsx"),
