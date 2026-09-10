@@ -139,7 +139,14 @@ export default function UserPermissionsPage() {
             };
           });
         setRoles(dashboardRoles);
-        setModules(catalogResult.modules || []);
+        const catalogModules =
+          catalogResult?.modules ||
+          catalogResult?.data?.modules ||
+          [];
+        setModules(Array.isArray(catalogModules) ? catalogModules : []);
+        if (Array.isArray(catalogModules) && catalogModules.length) {
+          setExpanded(new Set(catalogModules.map((item) => item.key)));
+        }
         setLoading(false);
       })
       .catch((error) => {
@@ -642,7 +649,7 @@ export default function UserPermissionsPage() {
           </div>
         </aside>
 
-        <section className="p-5 sm:p-7">
+        <section className="max-h-[calc(100vh-140px)] overflow-y-auto p-5 sm:p-7">
           {!role ? (
             <div className="grid h-full place-items-center text-center text-slate-500">
               <div>
@@ -699,6 +706,80 @@ export default function UserPermissionsPage() {
                   </div>
                 )}
               </div>
+
+              <div className="mt-5 grid gap-3 xl:grid-cols-2">
+                {!modules.length ? (
+                  <div className="col-span-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-8 text-center text-sm text-amber-800">
+                    Permission modules did not load. Refresh the page or confirm catalog access (
+                    role:view).
+                  </div>
+                ) : (
+                  modules.map((item) => {
+                    const open = expanded.has(item.key);
+                    const count = item.actions.filter(({ key }) => permissions.has(key)).length;
+                    return (
+                      <article key={item.key} className="self-start overflow-hidden rounded-2xl border border-slate-200">
+                        <div className="flex items-center gap-3 p-4">
+                          <button
+                            type="button"
+                            onClick={() => toggleModule(item)}
+                            className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border ${
+                              count === item.actions.length
+                                ? "border-emerald-600 bg-emerald-600 text-white"
+                                : "border-slate-300"
+                            }`}
+                          >
+                            {count === item.actions.length && <Check size={14} />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpanded((current) => {
+                                const next = new Set(current);
+                                next.has(item.key) ? next.delete(item.key) : next.add(item.key);
+                                return next;
+                              })
+                            }
+                            className="flex min-w-0 flex-1 items-center text-left"
+                          >
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-bold">{item.label}</span>
+                              <span className="block truncate text-xs text-slate-500">{item.description}</span>
+                            </span>
+                            <span className="mx-3 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold">
+                              {count}/{item.actions.length}
+                            </span>
+                            {open ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
+                          </button>
+                        </div>
+                        {open && (
+                          <div className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50 p-4 sm:grid-cols-3">
+                            {item.actions.map((action) => (
+                              <label
+                                key={action.key}
+                                className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold capitalize ${
+                                  permissions.has(action.key)
+                                    ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                                    : "border-slate-200 bg-white text-slate-600"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={permissions.has(action.key)}
+                                  onChange={() => togglePermission(action.key)}
+                                  className="accent-emerald-600"
+                                />
+                                {action.label}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+
               {isSuperAdmin && selectedUser && (
                 <div
                   className={`mt-5 rounded-2xl border p-4 ${
@@ -770,71 +851,6 @@ export default function UserPermissionsPage() {
                   </div>
                 </div>
               )}
-              <div className="mt-5 grid gap-3 xl:grid-cols-2">
-                {modules.map((item) => {
-                  const open = expanded.has(item.key);
-                  const count = item.actions.filter(({ key }) => permissions.has(key)).length;
-                  return (
-                    <article key={item.key} className="self-start overflow-hidden rounded-2xl border border-slate-200">
-                      <div className="flex items-center gap-3 p-4">
-                        <button
-                          type="button"
-                          onClick={() => toggleModule(item)}
-                          className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border ${
-                            count === item.actions.length
-                              ? "border-emerald-600 bg-emerald-600 text-white"
-                              : "border-slate-300"
-                          }`}
-                        >
-                          {count === item.actions.length && <Check size={14} />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpanded((current) => {
-                              const next = new Set(current);
-                              next.has(item.key) ? next.delete(item.key) : next.add(item.key);
-                              return next;
-                            })
-                          }
-                          className="flex min-w-0 flex-1 items-center text-left"
-                        >
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-bold">{item.label}</span>
-                            <span className="block truncate text-xs text-slate-500">{item.description}</span>
-                          </span>
-                          <span className="mx-3 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold">
-                            {count}/{item.actions.length}
-                          </span>
-                          {open ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
-                        </button>
-                      </div>
-                      {open && (
-                        <div className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50 p-4 sm:grid-cols-3">
-                          {item.actions.map((action) => (
-                            <label
-                              key={action.key}
-                              className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold capitalize ${
-                                permissions.has(action.key)
-                                  ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                                  : "border-slate-200 bg-white text-slate-600"
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={permissions.has(action.key)}
-                                onChange={() => togglePermission(action.key)}
-                                className="accent-emerald-600"
-                              />
-                              {action.label}
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
             </>
           )}
         </section>

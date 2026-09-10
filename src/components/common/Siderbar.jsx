@@ -385,10 +385,12 @@ export default function Sidebar({
 
     refreshUser();
     window.addEventListener("focus", refreshUser);
+    window.addEventListener("propenu:permissions-updated", refreshUser);
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       active = false;
       window.removeEventListener("focus", refreshUser);
+      window.removeEventListener("propenu:permissions-updated", refreshUser);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
@@ -432,10 +434,38 @@ export default function Sidebar({
     const canView = (module) => allowed.has(`${module}:view`);
     const propertyAccess = canView("residential") || canView("commercial") || canView("land") || canView("agricultural");
     const operationsChildren = [
-      !isLeafHierarchyRole && (canView("team") || canView("user")) && { path: "/propenu-team-members", label: "Team Directory", icon: AllUsersIcon },
-      !isLeafHierarchyRole && canView("team") && { path: "/dashboard/team-management", label: "Team Management", icon: TeamManagementIcon },
-      !isLeafHierarchyRole && allowed.has("user:update") && { label: "Transfer Credentials", icon: CreateCredentialsIcon, key: "transfer-credentials", action: "openTranforCredentialsModal" },
-      !isLeafHierarchyRole && allowed.has("team:assign_manager") && { label: "Assign Reports To", icon: AgentIcon, key: "assign-agent", action: "openAssignAgentModal" },
+      !isLeafHierarchyRole &&
+        allowed.has("user:update") && {
+          label: "Transfer Credentials",
+          icon: CreateCredentialsIcon,
+          key: "transfer-credentials",
+          action: "openTranforCredentialsModal",
+        },
+      !isLeafHierarchyRole &&
+        allowed.has("team:assign_manager") && {
+          label: "Assign Reports To",
+          icon: AgentIcon,
+          key: "assign-agent",
+          action: "openAssignAgentModal",
+        },
+      !isLeafHierarchyRole &&
+        canView("team") && {
+          path: "/sales-managers",
+          label: "Sales Managers",
+          icon: SalesManagerIcon,
+        },
+      !isLeafHierarchyRole &&
+        canView("team") && {
+          path: "/sales-agents",
+          label: "Sales Executives",
+          icon: SalesAgentIcon,
+        },
+      !isLeafHierarchyRole &&
+        canView("team") && {
+          path: "/relationship-managers",
+          label: "Relationship Managers",
+          icon: SalesManagerIcon,
+        },
     ].filter(Boolean);
     const userChildren = [
       canView("user") && { path: "/users", label: "All Users", icon: AllUsersIcon },
@@ -525,7 +555,6 @@ export default function Sidebar({
         icon: RevenueByPlanIcon,
       },
     ].filter(Boolean);
-    const showAccountsTree = accountsChildren.length > 0;
 
     return [
       canView("dashboard") && { path: "/", label: "Dashboard", icon: DashboardIcon },
@@ -535,7 +564,7 @@ export default function Sidebar({
           label: "My workspace",
           icon: Briefcase,
         },
-      // BDH / RM / Ops Head / sales roles always see Field Meetings (role-gated, not permission-gated).
+      // Field-meeting roles always see this entry (no dedicated field_meetings permission yet).
       isFieldMeetingsRole && {
         path: "/field-meetings",
         label: "Field Meetings",
@@ -546,25 +575,63 @@ export default function Sidebar({
         label: "Client Progress Queue",
         icon: ClipboardList,
       },
-      allowed.has("dashboard:view_reports") &&
-        currentRoleName !== "regional_manager" && {
-          path: "/operations/reports",
-          label: "Reports",
-          icon: RevenueByPlanIcon,
-        },
+      allowed.has("dashboard:view_reports") && {
+        path: "/operations/reports",
+        label: "Reports",
+        icon: RevenueByPlanIcon,
+      },
       canView("project") && { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
       propertyAccess && { path: "/properties", label: "Properties", icon: PropertiesIcon },
-      canView("lead") && { path: "/leads", label: "Lead Management", icon: UsersRound },
-      (canView("lead") || canView("user") || canView("builder") || canView("agent")) && { path: "/all-users-activity", label: "All Users Activity", icon: Activity },
-      (canView("lead") || canView("user") || canView("builder") || canView("agent")) && { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
-      (canView("project") || propertyAccess) && { path: "/property-progress", label: "Property Progress", icon: PropertyProgressIcon },
+      !isLeafHierarchyRole &&
+        (canView("team") || canView("user")) && {
+          path: "/propenu-team-members",
+          label: "Team Directory",
+          icon: AllUsersIcon,
+        },
+      !isLeafHierarchyRole &&
+        canView("team") && {
+          path: "/dashboard/team-management",
+          label: "Team Management",
+          icon: TeamManagementIcon,
+        },
+      canView("lead") && { path: "/leads", label: "Leads", icon: UsersRound },
+      (canView("lead") || canView("user") || canView("builder") || canView("agent")) && {
+        path: "/all-users-activity",
+        label: "All Users Activity",
+        icon: Activity,
+      },
+      (canView("lead") || canView("user") || canView("builder") || canView("agent")) && {
+        path: "/lead-capture",
+        label: "User Journey",
+        icon: SalesManagerIcon,
+      },
+      (canView("project") || propertyAccess) && {
+        path: "/property-progress",
+        label: "Property Progress",
+        icon: PropertyProgressIcon,
+      },
       canView("location") && { path: "/locations", label: "Locations", icon: LocationsIcon },
       canView("blog") && { path: "/blogs", label: "Blogs", icon: Newspaper },
       canView("site_banner") && { path: "/site-banner", label: "Banner", icon: PanelTop },
       canView("ticket") && { path: "/tickets", label: "Tickets", icon: Ticket },
-      operationsChildren.length && { label: "Operations", icon: Briefcase, key: "permission-operations", children: operationsChildren },
-      accessControlChildren.length && { label: "Access Control", icon: Shield, key: "permission-access-control", children: accessControlChildren },
-      userChildren.length && { label: "Users", icon: UserIcon, key: "permission-users", children: userChildren },
+      operationsChildren.length && {
+        label: "Operations",
+        icon: Briefcase,
+        key: "permission-operations",
+        children: operationsChildren,
+      },
+      accessControlChildren.length && {
+        label: "Access Control",
+        icon: Shield,
+        key: "permission-access-control",
+        children: accessControlChildren,
+      },
+      userChildren.length && {
+        label: "Users",
+        icon: UserIcon,
+        key: "permission-users",
+        children: userChildren,
+      },
       subscriptionsChildren.length && {
         label: "Subscriptions",
         icon: SubcriptinIcon,
@@ -577,9 +644,21 @@ export default function Sidebar({
         key: "permission-accounts",
         children: accountsChildren,
       },
-      canView("email_campaign") && { path: "/email-notifications", label: "Email Campaigns", icon: mailnotifications },
-      canView("whatsapp_campaign") && { path: "/whatsapp-notifications", label: "WhatsApp Campaigns", icon: whatsappnotifications },
-      canView("notification") && { path: "/push-notifications", label: "Notifications", icon: pushnotification },
+      canView("email_campaign") && {
+        path: "/email-notifications",
+        label: "Email Campaigns",
+        icon: mailnotifications,
+      },
+      canView("whatsapp_campaign") && {
+        path: "/whatsapp-notifications",
+        label: "WhatsApp Campaigns",
+        icon: whatsappnotifications,
+      },
+      canView("notification") && {
+        path: "/push-notifications",
+        label: "Notifications",
+        icon: pushnotification,
+      },
     ].filter(Boolean);
   };
 
@@ -1209,28 +1288,18 @@ export default function Sidebar({
       ],
     })[role] || getPermissionMenu(user?.permissions || []);
 
-  // One navigation policy for every dashboard role. Super Admin controls the
-  // role's permission set; the sidebar is derived from that set — except a few
-  // hierarchy heads that keep an explicit menu (BDH includes Field Meetings).
+  // Super Admin keeps the full fixed menu. Every other dashboard role uses
+  // the live role permission set so sidebar items match User Permissions.
   const sidebarRoleKey = (() => {
     const raw = normalizeSidebarRoleName(
       user?.roleName || user?.roleLabel || user?.role || "",
     );
     return SIDEBAR_ROLE_ALIASES[raw] || raw;
   })();
-  const dedicatedRoleMenu =
-    sidebarRoleKey && sidebarRoleKey !== "super_admin"
-      ? getMenuByRole(sidebarRoleKey)
-      : null;
-  const useDedicatedRoleMenu =
-    sidebarRoleKey === "business_development_head" ||
-    sidebarRoleKey === "regional_manager";
   const menuItems = user
     ? user.roleName === "super_admin" || sidebarRoleKey === "super_admin"
       ? getMenuByRole("super_admin")
-      : useDedicatedRoleMenu && Array.isArray(dedicatedRoleMenu) && dedicatedRoleMenu.length
-        ? dedicatedRoleMenu
-        : getPermissionMenu(user.permissions || [])
+      : getPermissionMenu(user.permissions || [])
     : [];
   const showText  = expanded || isMobileOpen;
   const sidebarClosed = !showText;
