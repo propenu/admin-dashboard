@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
   CheckCircle2,
+  ChevronRight,
   ImagePlus,
   Loader2,
   Monitor,
@@ -12,6 +14,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { toast } from "sonner";
 import { INDIAN_STATES, getCitiesByState } from "../../utils/countryStateCity";
 import {
   clearSiteBannerDevice,
@@ -25,12 +28,15 @@ import {
 } from "../../features/siteBranding/siteBrandingService";
 import {
   BANNER_SLOTS,
+  LOGO_ACCEPT,
+  LOGO_ALLOWED_PIXEL_SIZES,
   LOGO_HINT,
   deviceFormFromSaved,
   emptyDeviceForm,
   isDeviceSaved,
+  isLogoVideoMedia,
   locationSummary,
-  validateGifFile,
+  validateLogoFileAsync,
   validateWebpFile,
 } from "../../features/siteBranding/siteBrandingUtils";
 import BannerRichTextField from "./BannerRichTextField";
@@ -322,8 +328,12 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
         priority: Number(priority) || 0,
       });
       onChanged?.(res?.data?.data || { ...banner, title, priority });
+      toast.success("Banner title saved");
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || "Meta save failed");
+      const message =
+        err?.response?.data?.message || err?.message || "Meta save failed";
+      setError(message);
+      toast.error(message);
     } finally {
       setMetaSaving(false);
     }
@@ -361,15 +371,18 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
       onChanged?.(next);
       setEditingSlot(null);
       setForm(emptyDeviceForm());
+      toast.success(`${activeSlot} creative saved`);
     } catch (err) {
-      setError(err?.response?.data?.message || err?.message || "Save failed");
+      const message =
+        err?.response?.data?.message || err?.message || "Save failed";
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
   };
 
-  const clearDevice = async (slot) => {
-    if (!window.confirm(`Clear ${slot} device data?`)) return;
+  const runClearDevice = async (slot) => {
     try {
       const res = await clearSiteBannerDevice(banner._id, slot);
       onChanged?.(res?.data?.data);
@@ -377,9 +390,24 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
         setEditingSlot(null);
         setForm(emptyDeviceForm());
       }
+      toast.success(`${slot} device cleared`);
     } catch (err) {
-      alert(err?.response?.data?.message || "Clear failed");
+      toast.error(err?.response?.data?.message || "Clear failed");
     }
+  };
+
+  const clearDevice = (slot) => {
+    toast.warning(`Clear ${slot} device data?`, {
+      description: "This removes the creative for that device.",
+      duration: 8000,
+      action: {
+        label: "Clear",
+        onClick: () => {
+          void runClearDevice(slot);
+        },
+      },
+      cancel: { label: "Cancel" },
+    });
   };
 
   return (
@@ -541,10 +569,16 @@ export default function SiteBrandingPage() {
   const [logoSaving, setLogoSaving] = useState(false);
 
   const [banners, setBanners] = useState([]);
+  const [openBannerId, setOpenBannerId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+
+  const openBanner = useMemo(
+    () => banners.find((b) => String(b._id) === String(openBannerId)) || null,
+    [banners, openBannerId],
+  );
 
   const load = async () => {
     setLoading(true);
@@ -567,19 +601,31 @@ export default function SiteBrandingPage() {
     load();
   }, []);
 
-  const onLogoPick = (file) => {
+  const onLogoPick = async (file) => {
     if (!file) return;
-    const msg = validateGifFile(file);
+    const msg = await validateLogoFileAsync(file);
     setLogoError(msg);
-    if (msg) return;
+    if (msg) {
+      toast.warning(msg);
+      return;
+    }
     setLogoFile(file);
     setLogoPreview(URL.createObjectURL(file));
   };
 
   const saveLogo = async () => {
-    if (!logoFile) return setLogoError("Choose a GIF file first");
-    const msg = validateGifFile(logoFile);
-    if (msg) return setLogoError(msg);
+    if (!logoFile) {
+      const message = "Choose a logo file first";
+      setLogoError(message);
+      toast.warning(message);
+      return;
+    }
+    const msg = await validateLogoFileAsync(logoFile);
+    if (msg) {
+      setLogoError(msg);
+      toast.warning(msg);
+      return;
+    }
     setLogoSaving(true);
     setLogoError("");
     try {
@@ -587,8 +633,12 @@ export default function SiteBrandingPage() {
       setLogo(res?.data?.data || null);
       setLogoFile(null);
       setLogoPreview("");
+      toast.success("Logo saved");
     } catch (err) {
-      setLogoError(err?.response?.data?.message || err?.message || "Logo save failed");
+      const message =
+        err?.response?.data?.message || err?.message || "Logo save failed";
+      setLogoError(message);
+      toast.error(message);
     } finally {
       setLogoSaving(false);
     }
@@ -600,11 +650,15 @@ export default function SiteBrandingPage() {
     try {
       const res = await createSiteBanner({ title, priority: 0 });
       const created = res?.data?.data;
-      if (created) setBanners((prev) => [created, ...prev]);
+      if (created) {
+        setBanners((prev) => [created, ...prev]);
+        setOpenBannerId(created._id);
+      }
       setNewTitle("");
       setMainTab("banner");
+      toast.success("Banner created");
     } catch (err) {
-      alert(err?.response?.data?.message || "Create failed");
+      toast.error(err?.response?.data?.message || "Create failed");
     } finally {
       setCreating(false);
     }
@@ -615,14 +669,29 @@ export default function SiteBrandingPage() {
     setBanners((prev) => prev.map((b) => (b._id === next._id ? next : b)));
   };
 
-  const onBannerDeleted = async (id) => {
-    if (!window.confirm("Delete this banner and all device creatives?")) return;
+  const runBannerDelete = async (id) => {
     try {
       await deleteSiteBanner(id);
       setBanners((prev) => prev.filter((b) => b._id !== id));
+      if (String(openBannerId) === String(id)) setOpenBannerId(null);
+      toast.success("Banner deleted");
     } catch (err) {
-      alert(err?.response?.data?.message || "Delete failed");
+      toast.error(err?.response?.data?.message || "Delete failed");
     }
+  };
+
+  const onBannerDeleted = (id) => {
+    toast.warning("Delete this banner and all device creatives?", {
+      description: "This cannot be undone.",
+      duration: 10000,
+      action: {
+        label: "Delete",
+        onClick: () => {
+          void runBannerDelete(id);
+        },
+      },
+      cancel: { label: "Cancel" },
+    });
   };
 
   return (
@@ -634,9 +703,6 @@ export default function SiteBrandingPage() {
               Site branding
             </p>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Banner & Logo</h1>
-            <p className="mt-1 max-w-xl text-sm text-slate-500">
-              Logo tab for GIF. Banner tab: Desktop / Laptop / Tablet / Mobile each saved separately.
-            </p>
           </div>
           <button
             type="button"
@@ -699,10 +765,25 @@ export default function SiteBrandingPage() {
                 </p>
                 <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 hover:border-emerald-300">
                   <ImagePlus size={22} className="text-slate-400" />
-                  <span className="text-xs font-bold text-slate-600">Choose GIF</span>
+                  <span className="text-xs font-bold text-slate-600">
+                    Choose logo file
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-400">
+                    PNG · SVG · GIF · WebP · MP4 · WebM
+                  </span>
+                  <div className="mt-1 flex flex-wrap justify-center gap-1.5">
+                    {LOGO_ALLOWED_PIXEL_SIZES.map((size) => (
+                      <span
+                        key={size.label}
+                        className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700"
+                      >
+                        GIF {size.label}
+                      </span>
+                    ))}
+                  </div>
                   <input
                     type="file"
-                    accept="image/gif,.gif"
+                    accept={LOGO_ACCEPT}
                     className="hidden"
                     onChange={(e) => onLogoPick(e.target.files?.[0] || null)}
                   />
@@ -715,11 +796,22 @@ export default function SiteBrandingPage() {
                 </p>
                 <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-6">
                   {logoPreview || logo?.logoUrl ? (
-                    <img
-                      src={logoPreview || logo.logoUrl}
-                      alt="Company logo"
-                      className="max-h-24 max-w-full object-contain"
-                    />
+                    isLogoVideoMedia(logoFile || logoPreview || logo?.logoUrl) ? (
+                      <video
+                        src={logoPreview || logo.logoUrl}
+                        className="max-h-24 max-w-full object-contain"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                      />
+                    ) : (
+                      <img
+                        src={logoPreview || logo.logoUrl}
+                        alt="Company logo"
+                        className="max-h-24 max-w-full object-contain"
+                      />
+                    )
                   ) : (
                     <span className="text-xs text-slate-400">No logo yet</span>
                   )}
@@ -749,19 +841,105 @@ export default function SiteBrandingPage() {
               </div>
             </section>
 
-            {banners.length === 0 ? (
+            {openBanner ? (
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setOpenBannerId(null)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  <ArrowLeft size={14} /> Back to banner list
+                </button>
+                <BannerWorkspace
+                  key={openBanner._id}
+                  banner={openBanner}
+                  onChanged={onBannerChanged}
+                  onDeleted={onBannerDeleted}
+                />
+              </div>
+            ) : banners.length === 0 ? (
               <p className="rounded-3xl border border-slate-200 bg-white py-16 text-center text-sm text-slate-400">
                 No banners yet — create one, then save Desktop / Laptop / Tablet / Mobile separately
               </p>
             ) : (
-              banners.map((banner) => (
-                <BannerWorkspace
-                  key={banner._id}
-                  banner={banner}
-                  onChanged={onBannerChanged}
-                  onDeleted={onBannerDeleted}
-                />
-              ))
+              <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-5 py-4">
+                  <h2 className="text-sm font-bold text-slate-900">Saved banners</h2>
+                  <p className="text-xs text-slate-500">
+                    {banners.length} banner{banners.length === 1 ? "" : "s"} · click one to open
+                  </p>
+                </div>
+                <ul className="divide-y divide-slate-100">
+                  {banners.map((banner) => {
+                    const devices = banner.devices || {};
+                    const savedCount = BANNER_SLOTS.filter((s) =>
+                      isDeviceSaved(devices[s.key]),
+                    ).length;
+                    const thumb =
+                      devices.desktop?.image ||
+                      devices.laptop?.image ||
+                      devices.tablet?.image ||
+                      devices.mobile?.image ||
+                      "";
+                    const updated = banner.updatedAt
+                      ? new Date(banner.updatedAt).toLocaleString()
+                      : "";
+                    return (
+                      <li key={banner._id}>
+                        <button
+                          type="button"
+                          onClick={() => setOpenBannerId(banner._id)}
+                          className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-emerald-50/50 sm:gap-4 sm:px-5"
+                        >
+                          <div className="flex h-14 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                            {thumb ? (
+                              <img
+                                src={thumb}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <ImagePlus size={16} className="text-slate-300" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-bold text-slate-900">
+                              {banner.title || "Untitled banner"}
+                            </p>
+                            <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+                              Priority {banner.priority ?? 0}
+                              {" · "}
+                              {savedCount}/4 devices
+                              {updated ? ` · ${updated}` : ""}
+                            </p>
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {BANNER_SLOTS.map((slot) => {
+                                const done = isDeviceSaved(devices[slot.key]);
+                                return (
+                                  <span
+                                    key={slot.key}
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                      done
+                                        ? "bg-emerald-50 text-emerald-700"
+                                        : "bg-slate-100 text-slate-400"
+                                    }`}
+                                  >
+                                    {slot.label}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <ChevronRight
+                            size={18}
+                            className="shrink-0 text-slate-300"
+                          />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             )}
           </div>
         )}

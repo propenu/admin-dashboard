@@ -5,7 +5,51 @@ export const BANNER_SLOTS = [
   { key: "mobile", label: "Mobile", size: "1080 × 900", ratio: "6:5" },
 ];
 
-export const LOGO_HINT = "GIF only · ~3.34:1 (e.g. 167×50, 334×100) · under 1 MB";
+/** Recommended logo pixel sizes (GIF and other rasters). */
+export const LOGO_ALLOWED_PIXEL_SIZES = [
+  { width: 220, height: 80, label: "220 × 80" },
+  { width: 300, height: 120, label: "300 × 120" },
+  { width: 500, height: 165, label: "500 × 165" },
+  { width: 670, height: 220, label: "670 × 220" },
+];
+
+export const LOGO_HINT =
+  "PNG · SVG · GIF · WebP · MP4 · WebM · sizes 220×80 · 300×120 · 500×165 · 670×220 · under 4 MB";
+
+export const LOGO_ACCEPT =
+  "image/png,image/svg+xml,image/gif,image/webp,video/mp4,video/webm,.png,.svg,.gif,.webp,.mp4,.webm";
+
+const LOGO_IMAGE_EXT = [".png", ".svg", ".gif", ".webp"];
+const LOGO_VIDEO_EXT = [".mp4", ".webm"];
+const LOGO_ALLOWED_EXT = [...LOGO_IMAGE_EXT, ...LOGO_VIDEO_EXT];
+const LOGO_ALLOWED_MIME = new Set([
+  "image/png",
+  "image/svg+xml",
+  "image/gif",
+  "image/webp",
+  "video/mp4",
+  "video/webm",
+]);
+const LOGO_ASPECT_RATIO = 167 / 50;
+const LOGO_ASPECT_TOLERANCE = 0.12;
+const LOGO_SIZE_TOLERANCE_PX = 4;
+const LOGO_MAX_BYTES = 4 * 1024 * 1024;
+
+function logoExtension(name = "") {
+  const match = String(name).toLowerCase().match(/(\.[a-z0-9]+)$/);
+  return match?.[1] || "";
+}
+
+export function isLogoVideoMedia(fileOrUrl) {
+  if (!fileOrUrl) return false;
+  if (typeof File !== "undefined" && fileOrUrl instanceof File) {
+    const mime = String(fileOrUrl.type || "").toLowerCase();
+    const ext = logoExtension(fileOrUrl.name);
+    return mime.startsWith("video/") || LOGO_VIDEO_EXT.includes(ext);
+  }
+  const value = String(fileOrUrl).toLowerCase().split("?")[0];
+  return LOGO_VIDEO_EXT.some((ext) => value.endsWith(ext));
+}
 
 export function emptyDeviceForm() {
   return {
@@ -71,16 +115,73 @@ export function validateWebpFile(file) {
   return "";
 }
 
-export function validateGifFile(file) {
-  if (!file) return "GIF file is required";
-  const name = String(file.name || "").toLowerCase();
-  if (file.type !== "image/gif" && !name.endsWith(".gif")) {
-    return "Only GIF files are allowed";
+/** Logo: PNG / SVG / GIF / WebP / MP4 / WebM under 4 MB. */
+export function validateLogoFile(file) {
+  if (!file) return "Logo file is required";
+  const mime = String(file.type || "").toLowerCase();
+  const ext = logoExtension(file.name);
+  const allowed =
+    LOGO_ALLOWED_MIME.has(mime) || LOGO_ALLOWED_EXT.includes(ext);
+  if (!allowed) {
+    return "Allowed formats: PNG, SVG, GIF, WebP, MP4, WebM";
   }
-  if (file.size > 1024 * 1024) {
-    return "File must be below 1 MB";
+  if (file.size > LOGO_MAX_BYTES) {
+    return "File must be below 4 MB";
   }
   return "";
+}
+
+function readImageDimensions(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const width = img.naturalWidth || 0;
+      const height = img.naturalHeight || 0;
+      URL.revokeObjectURL(url);
+      resolve({ width, height });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read image dimensions"));
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * Raster logos (incl. GIF): allow 220×80 / 300×120 / 500×165 or ~3.34:1.
+ * Videos and SVG skip pixel checks here.
+ */
+export async function validateLogoFileAsync(file) {
+  const basic = validateLogoFile(file);
+  if (basic) return basic;
+  if (isLogoVideoMedia(file)) return "";
+  const ext = logoExtension(file.name);
+  if (ext === ".svg" || String(file.type || "").toLowerCase() === "image/svg+xml") {
+    return "";
+  }
+  try {
+    const { width, height } = await readImageDimensions(file);
+    if (!width || !height) return "Could not read logo dimensions";
+    const matchesSize = LOGO_ALLOWED_PIXEL_SIZES.some(
+      (size) =>
+        Math.abs(width - size.width) <= LOGO_SIZE_TOLERANCE_PX &&
+        Math.abs(height - size.height) <= LOGO_SIZE_TOLERANCE_PX,
+    );
+    if (matchesSize) return "";
+    const ratio = width / height;
+    if (Math.abs(ratio - LOGO_ASPECT_RATIO) <= LOGO_ASPECT_TOLERANCE) return "";
+    const sizeList = LOGO_ALLOWED_PIXEL_SIZES.map((s) => s.label).join(", ");
+    return `Use GIF sizes ${sizeList} (or ~3.34:1). Got ${width}×${height}`;
+  } catch {
+    return "Could not read logo dimensions";
+  }
+}
+
+/** @deprecated use validateLogoFile */
+export function validateGifFile(file) {
+  return validateLogoFile(file);
 }
 
 export function isDeviceSaved(device) {
