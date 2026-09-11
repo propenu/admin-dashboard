@@ -16,6 +16,49 @@ export async function fetchAdminLocationsList() {
   return [];
 }
 
+const normLoc = (v) =>
+  String(v || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+
+/**
+ * Hierarchy from Locations admin saved docs (exact names for promote + banners):
+ * { [state]: { [city]: string[] localities } }
+ */
+export function buildHierarchyFromAdminLocations(locations = []) {
+  const hierarchy = {};
+  for (const loc of Array.isArray(locations) ? locations : []) {
+    const state = String(loc?.state || "").trim();
+    const city = String(loc?.city || "").trim();
+    if (!state || !city) continue;
+    if (!hierarchy[state]) hierarchy[state] = {};
+    if (!hierarchy[state][city]) hierarchy[state][city] = [];
+
+    const locs = Array.isArray(loc?.localities) ? loc.localities : [];
+    for (const item of locs) {
+      const name = String(item?.name || item || "").trim();
+      if (!name) continue;
+      if (!hierarchy[state][city].some((x) => normLoc(x) === normLoc(name))) {
+        hierarchy[state][city].push(name);
+      }
+    }
+  }
+
+  const sorted = {};
+  for (const state of Object.keys(hierarchy).sort((a, b) => a.localeCompare(b))) {
+    sorted[state] = {};
+    for (const city of Object.keys(hierarchy[state]).sort((a, b) =>
+      a.localeCompare(b),
+    )) {
+      sorted[state][city] = [...hierarchy[state][city]].sort((a, b) =>
+        a.localeCompare(b),
+      );
+    }
+  }
+  return sorted;
+}
+
 /** Call after create / edit / delete so Promote picks up changes immediately. */
 export function invalidateAdminLocations(queryClient) {
   if (!queryClient) return;

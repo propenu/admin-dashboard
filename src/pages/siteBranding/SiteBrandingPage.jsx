@@ -15,11 +15,11 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import { INDIAN_STATES, getCitiesByState } from "../../utils/countryStateCity";
 import {
   clearSiteBannerDevice,
   createSiteBanner,
   deleteSiteBanner,
+  getSiteBanner,
   getSiteLogo,
   listSiteBanners,
   updateSiteBannerMeta,
@@ -35,10 +35,12 @@ import {
   emptyDeviceForm,
   isDeviceSaved,
   isLogoVideoMedia,
+  locationFromBanner,
   locationSummary,
   validateLogoFileAsync,
   validateWebpFile,
 } from "../../features/siteBranding/siteBrandingUtils";
+import PromotionLocationCoverage from "../features/property/components/shared/PromotionLocationCoverage";
 import BannerRichTextField from "./BannerRichTextField";
 import BannerDeviceFrame from "./BannerDeviceFrame";
 import {
@@ -53,8 +55,6 @@ const DEVICE_ICONS = {
   mobile: Smartphone,
 };
 
-const safeStates = Array.isArray(INDIAN_STATES) ? INDIAN_STATES : [];
-
 function DeviceEditor({
   slot,
   form,
@@ -65,10 +65,6 @@ function DeviceEditor({
   onSave,
   onCancel,
 }) {
-  const cities = useMemo(
-    () => (form.state ? getCitiesByState(form.state) : []),
-    [form.state],
-  );
   const previewSrc = form.preview || existingImage || "";
   const meta = BANNER_SLOTS.find((s) => s.key === slot) || BANNER_SLOTS[0];
 
@@ -154,88 +150,6 @@ function DeviceEditor({
           />
         )}
 
-        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
-          <input
-            type="checkbox"
-            checked={Boolean(form.addLocation)}
-            onChange={(e) =>
-              setForm((p) => ({
-                ...p,
-                addLocation: e.target.checked,
-                ...(e.target.checked
-                  ? {}
-                  : { state: "", city: "", locality: "", subLocality: "" }),
-              }))
-            }
-            className="h-4 w-4 rounded border-slate-300 text-[#27AE60] focus:ring-[#27AE60]"
-          />
-          <span className="text-sm font-semibold text-slate-700">
-            Add location (optional — empty = all)
-          </span>
-        </label>
-
-        {form.addLocation && (
-          <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">
-              Location details
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <select
-                value={form.state}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    state: e.target.value,
-                    city: "",
-                    locality: "",
-                    subLocality: "",
-                  }))
-                }
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
-              >
-                <option value="">All states</option>
-                {safeStates.map((s) => (
-                  <option key={s.isoCode || s.name} value={s.name}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={form.city}
-                disabled={!form.state}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    city: e.target.value,
-                    locality: "",
-                    subLocality: "",
-                  }))
-                }
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm disabled:opacity-50"
-              >
-                <option value="">All cities</option>
-                {(cities || []).map((c) => (
-                  <option key={c.name} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                value={form.locality}
-                onChange={(e) => setForm((p) => ({ ...p, locality: e.target.value }))}
-                placeholder="Locality"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
-              />
-              <input
-                value={form.subLocality}
-                onChange={(e) => setForm((p) => ({ ...p, subLocality: e.target.value }))}
-                placeholder="Sub-locality"
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm"
-              />
-            </div>
-          </div>
-        )}
-
         {error && <p className="text-xs font-medium text-red-500">{error}</p>}
 
         <div className="flex gap-2">
@@ -285,18 +199,47 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
   const [editingSlot, setEditingSlot] = useState(null);
   const [title, setTitle] = useState(banner.title || "");
   const [priority, setPriority] = useState(banner.priority ?? 0);
+  const [locForm, setLocForm] = useState(() => locationFromBanner(banner));
   const [form, setForm] = useState(emptyDeviceForm());
   const [saving, setSaving] = useState(false);
   const [metaSaving, setMetaSaving] = useState(false);
+  const [locSaving, setLocSaving] = useState(false);
+  const [locLoading, setLocLoading] = useState(true);
   const [error, setError] = useState("");
 
   const devices = banner.devices || {};
   const saved = BANNER_SLOTS.filter((s) => isDeviceSaved(devices[s.key]));
 
+  // Always reload banner from API on open so saved location shows in edit.
   useEffect(() => {
+    let cancelled = false;
+    setLocLoading(true);
+    setLocForm(locationFromBanner(banner));
     setTitle(banner.title || "");
     setPriority(banner.priority ?? 0);
-  }, [banner._id, banner.title, banner.priority]);
+
+    getSiteBanner(banner._id)
+      .then((res) => {
+        if (cancelled) return;
+        const fresh = res?.data?.data;
+        if (!fresh?._id) return;
+        onChanged?.(fresh);
+        setLocForm(locationFromBanner(fresh));
+        setTitle(fresh.title || "");
+        setPriority(fresh.priority ?? 0);
+      })
+      .catch(() => {
+        // Keep list payload if detail fetch fails.
+      })
+      .finally(() => {
+        if (!cancelled) setLocLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when opening this banner
+  }, [banner._id]);
 
   const openEditor = (slot) => {
     setActiveSlot(slot);
@@ -339,6 +282,53 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
     }
   };
 
+  const saveLocation = async () => {
+    setLocSaving(true);
+    try {
+      const coverage =
+        locForm.addLocation && locForm.coverage && typeof locForm.coverage === "object"
+          ? locForm.coverage
+          : {};
+      const locationPayload = {
+        coverage,
+        subLocality: locForm.addLocation
+          ? String(locForm.subLocality || "").trim()
+          : "",
+        state: "",
+        city: "",
+        locality: "",
+      };
+      await updateSiteBannerMeta(banner._id, {
+        location: locationPayload,
+      });
+      // Re-fetch so edit UI matches what is actually stored in DB.
+      const verifyRes = await getSiteBanner(banner._id);
+      const next = verifyRes?.data?.data;
+      onChanged?.(next);
+      if (next) setLocForm(locationFromBanner(next));
+      const savedCoverage = next?.location?.coverage;
+      const persisted =
+        savedCoverage &&
+        typeof savedCoverage === "object" &&
+        Object.keys(savedCoverage).length > 0;
+      if (Object.keys(coverage).length && !persisted) {
+        toast.error(
+          "Location did not persist — restart property-service, then Save location again",
+        );
+      } else {
+        toast.success(
+          Object.keys(coverage).length
+            ? "Location updated (shared for all devices)"
+            : "Location cleared · all India",
+        );
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Location save failed");
+    } finally {
+      setLocSaving(false);
+    }
+  };
+
   const saveDevice = async () => {
     setError("");
     const existingImage = devices[activeSlot]?.image;
@@ -351,12 +341,7 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
       const headingErr = validateHeadingLines(getHtmlLines(form.headingHtml));
       if (headingErr) return setError(headingErr);
     }
-
     const fd = new FormData();
-    fd.append("state", form.addLocation ? form.state.trim() : "");
-    fd.append("city", form.addLocation ? form.city.trim() : "");
-    fd.append("locality", form.addLocation ? form.locality.trim() : "");
-    fd.append("subLocality", form.addLocation ? form.subLocality.trim() : "");
     fd.append("headingEnabled", String(Boolean(form.addHeading)));
     fd.append("headingHtml", form.addHeading ? form.headingHtml || "" : "");
     fd.append("clickUrl", String(form.clickUrl || "").trim());
@@ -446,6 +431,88 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
         </button>
       </div>
 
+      <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-sky-50/50 p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800">
+              Banner location (shared · all 4 devices)
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Saved once for this banner — Desktop / Laptop / Tablet / Mobile all use it.
+            </p>
+            <p className="mt-1 text-xs font-semibold text-emerald-700">
+              {locLoading
+                ? "Loading saved location…"
+                : locationSummary(
+                    locForm.addLocation
+                      ? {
+                          coverage: locForm.coverage || {},
+                          subLocality: locForm.subLocality || "",
+                        }
+                      : {},
+                  )}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={locSaving || locLoading}
+            onClick={saveLocation}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#27AE60] px-3.5 py-2 text-xs font-bold text-white disabled:opacity-60"
+          >
+            {locSaving ? <Loader2 size={13} className="animate-spin" /> : null}
+            Save location
+          </button>
+        </div>
+
+        <label className="mb-3 flex cursor-pointer items-center gap-3 rounded-xl border border-emerald-100 bg-white/80 px-3 py-2.5">
+          <input
+            type="checkbox"
+            checked={Boolean(locForm.addLocation)}
+            disabled={locLoading}
+            onChange={(e) =>
+              setLocForm((p) => ({
+                ...p,
+                addLocation: e.target.checked,
+                ...(e.target.checked ? {} : { coverage: {}, subLocality: "" }),
+              }))
+            }
+            className="h-4 w-4 rounded border-slate-300 text-[#27AE60] focus:ring-[#27AE60]"
+          />
+          <span className="text-sm font-semibold text-emerald-900">
+            Target specific locations (off = all India)
+          </span>
+        </label>
+
+        {locForm.addLocation && !locLoading ? (
+          <div className="space-y-3">
+            <PromotionLocationCoverage
+              key={`${banner._id}-coverage-ready`}
+              enabled
+              value={locForm.coverage || {}}
+              onChange={(coverage) =>
+                setLocForm((p) => ({ ...p, coverage: coverage || {} }))
+              }
+              title="Banner locations"
+              subtitle="Edit saved coverage: tick to add, untick to remove, then Save location (PATCH)."
+            />
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-2.5">
+              <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Sub-locality{" "}
+                <span className="font-medium normal-case">(optional, manual)</span>
+              </label>
+              <input
+                value={locForm.subLocality || ""}
+                onChange={(e) =>
+                  setLocForm((p) => ({ ...p, subLocality: e.target.value }))
+                }
+                placeholder="Not required"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       <div className="flex flex-wrap gap-1.5">
         {BANNER_SLOTS.map((slot) => {
           const Icon = DEVICE_ICONS[slot.key];
@@ -524,8 +591,8 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
                       </p>
                     ) : null}
                     <p className="mt-1 text-[11px] text-slate-400">
-                      {locationSummary(device.location)}
-                      {device.heading?.enabled ? " · heading on" : " · heading off"}
+                      {device.heading?.enabled ? "Heading on" : "Heading off"}
+                      {" · uses banner location"}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -634,6 +701,7 @@ export default function SiteBrandingPage() {
       setLogoFile(null);
       setLogoPreview("");
       toast.success("Logo saved");
+      window.dispatchEvent(new CustomEvent("propenu:site-logo-updated"));
     } catch (err) {
       const message =
         err?.response?.data?.message || err?.message || "Logo save failed";

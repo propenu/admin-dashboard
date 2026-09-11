@@ -53,11 +53,6 @@ export function isLogoVideoMedia(fileOrUrl) {
 
 export function emptyDeviceForm() {
   return {
-    addLocation: false,
-    state: "",
-    city: "",
-    locality: "",
-    subLocality: "",
     addHeading: false,
     headingHtml: "",
     clickUrl: "",
@@ -68,16 +63,7 @@ export function emptyDeviceForm() {
 }
 
 export function deviceFormFromSaved(device = {}) {
-  const loc = device.location || {};
-  const hasLocation = Boolean(
-    loc.state || loc.city || loc.locality || loc.subLocality,
-  );
   return {
-    addLocation: hasLocation,
-    state: loc.state || "",
-    city: loc.city || "",
-    locality: loc.locality || "",
-    subLocality: loc.subLocality || "",
     addHeading: device.heading?.enabled === true,
     headingHtml: device.heading?.html || "",
     clickUrl: device.clickUrl || "",
@@ -87,7 +73,59 @@ export function deviceFormFromSaved(device = {}) {
   };
 }
 
+export function locationFromBanner(banner = {}) {
+  const loc = banner.location || {};
+  let coverage = {};
+  if (loc.coverage && typeof loc.coverage === "object" && !Array.isArray(loc.coverage)) {
+    coverage = loc.coverage;
+  } else if (typeof loc.coverage === "string") {
+    try {
+      const parsed = JSON.parse(loc.coverage);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        coverage = parsed;
+      }
+    } catch {
+      coverage = {};
+    }
+  }
+  const hasCoverage = Object.keys(coverage).length > 0;
+  const hasFlat = Boolean(loc.state || loc.city || loc.locality || loc.subLocality);
+  const migratedCoverage = hasCoverage
+    ? coverage
+    : loc.state && loc.city
+      ? {
+          [loc.state]: {
+            [loc.city]: loc.locality ? [loc.locality] : [],
+          },
+        }
+      : {};
+  return {
+    addLocation: hasCoverage || hasFlat,
+    coverage: migratedCoverage,
+    subLocality: loc.subLocality || "",
+  };
+}
+
 export function locationSummary(location = {}) {
+  const coverage = location.coverage;
+  if (coverage && typeof coverage === "object" && !Array.isArray(coverage)) {
+    const states = Object.keys(coverage);
+    if (states.length) {
+      let cities = 0;
+      let localities = 0;
+      for (const cityMap of Object.values(coverage)) {
+        if (!cityMap || typeof cityMap !== "object") continue;
+        for (const locs of Object.values(cityMap)) {
+          cities += 1;
+          localities += Array.isArray(locs) ? locs.length : 0;
+        }
+      }
+      const base = `${states.length} state(s) · ${cities} city(ies) · ${localities} localit${localities === 1 ? "y" : "ies"}`;
+      return location.subLocality
+        ? `${base} · sub: ${location.subLocality}`
+        : base;
+    }
+  }
   const parts = [
     location.state,
     location.city,

@@ -10,16 +10,44 @@ import {
   getSidebarHamburgerTotal,
   readSidebarCounts,
 } from "../../utils/sidebarActivity";
+import { getSiteLogo } from "../../features/siteBranding/siteBrandingService";
+import { isLogoVideoMedia } from "../../features/siteBranding/siteBrandingUtils";
+
+export const SITE_LOGO_UPDATED_EVENT = "propenu:site-logo-updated";
 
 export default function Navbar({ toggleSidebar, hideSidebarToggle = false }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(false);
   const [menuBadge, setMenuBadge] = useState(0);
+  const [brandLogoUrl, setBrandLogoUrl] = useState("");
   const dropRef = useRef(null);
 
   useEffect(() => {
     fetchLoggedInUser().then(setUser).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadBrandLogo = () => {
+      getSiteLogo()
+        .then((res) => {
+          if (cancelled) return;
+          const url = res?.data?.data?.logoUrl || "";
+          setBrandLogoUrl(typeof url === "string" ? url.trim() : "");
+        })
+        .catch(() => {
+          if (!cancelled) setBrandLogoUrl("");
+        });
+    };
+    loadBrandLogo();
+    window.addEventListener(SITE_LOGO_UPDATED_EVENT, loadBrandLogo);
+    window.addEventListener("focus", loadBrandLogo);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(SITE_LOGO_UPDATED_EVENT, loadBrandLogo);
+      window.removeEventListener("focus", loadBrandLogo);
+    };
   }, []);
 
   useEffect(() => {
@@ -118,12 +146,32 @@ export default function Navbar({ toggleSidebar, hideSidebarToggle = false }) {
             <div
               onClick={() => navigate("/")}
               className="flex min-w-0 cursor-pointer select-none items-center gap-2"
+              title="Propenu"
             >
-              <img
-                src={LOGO}
-                alt="Logo"
-                className="h-8 w-auto object-contain sm:h-9"
-              />
+              {brandLogoUrl && isLogoVideoMedia(brandLogoUrl) ? (
+                <video
+                  key={brandLogoUrl}
+                  src={brandLogoUrl}
+                  className="h-8 w-auto max-w-[160px] object-contain sm:h-9 sm:max-w-[200px]"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  aria-label="Propenu logo"
+                />
+              ) : (
+                <img
+                  key={brandLogoUrl || "fallback-logo"}
+                  src={brandLogoUrl || LOGO}
+                  alt="Propenu"
+                  className="h-8 w-auto max-w-[160px] object-contain sm:h-9 sm:max-w-[200px]"
+                  onError={(e) => {
+                    if (e.currentTarget.src !== LOGO) {
+                      e.currentTarget.src = LOGO;
+                    }
+                  }}
+                />
+              )}
             </div>
           </div>
 

@@ -12,6 +12,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import {
   ADMIN_LOCATIONS_QUERY_KEY,
+  buildHierarchyFromAdminLocations,
   fetchAdminLocationsList,
 } from "../../../../../features/locations/adminLocationsQuery";
 import {
@@ -36,37 +37,7 @@ function matchesQuery(label, query) {
  * { [state]: { [city]: string[] localities } }
  */
 function buildHierarchyFromLocations(locations = []) {
-  const hierarchy = {};
-  for (const loc of Array.isArray(locations) ? locations : []) {
-    const state = String(loc?.state || "").trim();
-    const city = String(loc?.city || "").trim();
-    if (!state || !city) continue;
-    if (!hierarchy[state]) hierarchy[state] = {};
-    if (!hierarchy[state][city]) hierarchy[state][city] = [];
-
-    const locs = Array.isArray(loc?.localities) ? loc.localities : [];
-    for (const item of locs) {
-      const name = String(item?.name || item || "").trim();
-      if (!name) continue;
-      if (!hierarchy[state][city].some((x) => norm(x) === norm(name))) {
-        hierarchy[state][city].push(name);
-      }
-    }
-  }
-
-  // Stable sort
-  const sorted = {};
-  for (const state of Object.keys(hierarchy).sort((a, b) => a.localeCompare(b))) {
-    sorted[state] = {};
-    for (const city of Object.keys(hierarchy[state]).sort((a, b) =>
-      a.localeCompare(b),
-    )) {
-      sorted[state][city] = [...hierarchy[state][city]].sort((a, b) =>
-        a.localeCompare(b),
-      );
-    }
-  }
-  return sorted;
+  return buildHierarchyFromAdminLocations(locations);
 }
 
 function CheckboxRow({ checked, onChange, label }) {
@@ -100,6 +71,9 @@ export default function PromotionLocationCoverage({
   enabled = true,
   value,
   onChange,
+  title = "Promotion locations",
+  subtitle = "Live from Locations page. Expand ▶ to browse cities/localities even without ticking; tick to select for save.",
+  accentClass = "border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-sky-50/60",
 }) {
   const [stateQuery, setStateQuery] = useState("");
   const [cityQueryByState, setCityQueryByState] = useState({});
@@ -110,6 +84,7 @@ export default function PromotionLocationCoverage({
   const [selectedStates, setSelectedStates] = useState([]);
   const [selectedCitiesByState, setSelectedCitiesByState] = useState({});
   const [selectedLocalitiesByCity, setSelectedLocalitiesByCity] = useState({});
+  const hydratedKeyRef = useRef("");
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -138,10 +113,48 @@ export default function PromotionLocationCoverage({
     [locations],
   );
 
+  // Hydrate editor from saved coverage when value changes (edit load / after PATCH).
+  useEffect(() => {
+    if (!enabled) return;
+    const map =
+      value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const key = JSON.stringify(map);
+    if (hydratedKeyRef.current === key) return;
+    hydratedKeyRef.current = key;
+
+    const nextStates = Object.keys(map);
+    const nextCities = {};
+    const nextLocs = {};
+    const nextExpandedStates = {};
+    const nextExpandedCities = {};
+    for (const st of nextStates) {
+      const cities = map[st] && typeof map[st] === "object" ? map[st] : {};
+      nextCities[st] = Object.keys(cities);
+      nextLocs[st] = {};
+      nextExpandedStates[st] = true;
+      for (const city of nextCities[st]) {
+        nextLocs[st][city] = Array.isArray(cities[city])
+          ? [...cities[city]]
+          : [];
+        nextExpandedCities[`${st}||${city}`] = true;
+      }
+    }
+    setSelectedStates(nextStates);
+    setSelectedCitiesByState(nextCities);
+    setSelectedLocalitiesByCity(nextLocs);
+    setExpandedStates(nextExpandedStates);
+    setExpandedCities(nextExpandedCities);
+  }, [enabled, value]);
+
   const emitChange = useCallback((states, citiesByState, locsByCity) => {
-    onChangeRef.current?.(
-      buildSponsoredAdFromSelection(states, citiesByState, locsByCity),
+    const next = buildSponsoredAdFromSelection(
+      states,
+      citiesByState,
+      locsByCity,
     );
+    // Keep hydrate key in sync so parent updates don't wipe in-progress edits.
+    hydratedKeyRef.current = JSON.stringify(next);
+    onChangeRef.current?.(next);
   }, []);
 
   useEffect(() => {
@@ -276,27 +289,24 @@ export default function PromotionLocationCoverage({
   if (!enabled) return null;
 
   return (
-    <div className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+    <div className={`mb-4 space-y-3 rounded-xl border p-3 ${accentClass}`}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-600">
+          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-800">
             <MapPin size={12} className="text-[#27AE60]" />
-            Promotion locations
+            {title}
           </p>
-          <p className="mt-0.5 text-[11px] text-slate-500">
-            Live from Locations page. Expand ▶ to browse cities/localities even
-            without ticking; tick to select for save.
-          </p>
+          <p className="mt-0.5 text-[11px] leading-4 text-slate-600">{subtitle}</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <p className="text-right text-[10px] font-semibold text-slate-500">
+          <p className="rounded-full bg-emerald-100 px-2 py-0.5 text-right text-[10px] font-bold text-emerald-800">
             {coverageSummary}
           </p>
           <button
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
             title="Refresh locations"
           >
             <RefreshCw
