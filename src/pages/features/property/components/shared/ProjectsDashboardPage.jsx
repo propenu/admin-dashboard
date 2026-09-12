@@ -9,7 +9,7 @@ import {
   Search, X, ChevronDown, ChevronRight, MapPin, Building2, Plus, Clock,
   Star, TrendingUp, Zap, BarChart3, Filter, RefreshCw, Trash2, ArrowUpDown,
   Navigation, Globe, ChevronUp, Eye, MousePointerClick, MessageSquare, Home,
-  Layers, Activity, DollarSign, CheckCircle2, AlertCircle, PieChart,
+  Layers, CheckCircle2, AlertCircle, PieChart,
   AlertTriangle,
 } from "lucide-react";
 
@@ -217,7 +217,7 @@ const PROJECTS_PER_PAGE = 20;
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-const fmt = (n) => {
+const FMT = (n) => {
   if (n == null) return "—";
   if (n >= 1_00_00_000) return `₹${(n / 1_00_00_000).toFixed(1)}Cr`;
   if (n >= 1_00_000)    return `₹${(n / 1_00_000).toFixed(1)}L`;
@@ -1053,28 +1053,25 @@ function InlineLocationSelector({
 // ANALYTICS COMPONENTS — each fully standalone, no inter-dependency
 // ─────────────────────────────────────────────────────────────────────────────
 
-function KPICard({ label, display, icon: Icon, onClick, isActive }) {
+function KPICard({ label, display, onClick, isActive }) {
   return (
     <div
       onClick={onClick}
-      className={`group flex h-full min-h-[58px] min-w-[118px] flex-1 items-center gap-2 rounded-lg border bg-white px-2.5 py-2 shadow-sm transition-colors duration-200
+      className={`group flex min-h-[52px] min-w-0 w-full flex-col items-start justify-center gap-1 rounded-lg border bg-white px-3 py-2 shadow-sm transition-colors duration-200
         ${onClick ? "cursor-pointer hover:border-emerald-300 hover:shadow-md" : "border-slate-200"}
         ${isActive ? "border-emerald-500 ring-2 ring-emerald-500/15 shadow-md" : "border-slate-200"}`}
     >
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-100 text-emerald-700">
-        <Icon className="h-3.5 w-3.5" />
-      </div>
-      <div className="min-w-0 flex-1">
+      <div>
         <p
-          className="truncate text-[10px] font-medium leading-none text-slate-600"
+          className="whitespace-nowrap text-[10px] font-semibold leading-none text-slate-500"
           title={label}
         >
           {label}
         </p>
-        <p className="mt-1 truncate text-base font-bold leading-none tracking-tight text-slate-900">
-          {display}
-        </p>
       </div>
+      <p className="text-base font-bold leading-none tracking-tight text-slate-900">
+          {display}
+      </p>
     </div>
   );
 }
@@ -1172,7 +1169,7 @@ function AnalyticsOverviewRow({
   ];
 
   return (
-    <div className="flex w-full flex-nowrap items-stretch gap-2 overflow-x-auto pb-0.5">
+    <>
       {cards.map((c) => (
         <KPICard
           key={c.label}
@@ -1193,7 +1190,7 @@ function AnalyticsOverviewRow({
           isActive={Boolean(c.filter && activeStatusFilter === c.filter)}
         />
       ))}
-    </div>
+    </>
   );
 }
 
@@ -1207,9 +1204,8 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
   ];
 
   return (
-    <div className="grid auto-rows-fr grid-cols-2 items-stretch gap-3 lg:grid-cols-4">
+    <>
       {cards.map((c) => {
-        const Icon = c.icon;
         const isActive = activePromotionFilter === c.key;
         return (
           <div
@@ -1217,22 +1213,17 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
             onClick={() =>
               onPromotionFilter(isActive ? "all" : c.key)
             }
-            className={`flex h-full min-h-[72px] min-w-0 cursor-pointer items-center justify-between gap-3 rounded-xl border bg-white px-4 py-3.5 shadow-[0_4px_14px_rgba(22,163,74,0.10)] transition-colors duration-200 hover:border-emerald-300 hover:shadow-md
+            className={`flex min-h-[52px] min-w-0 w-full cursor-pointer flex-col items-start justify-center gap-1 rounded-lg border bg-white px-3 py-2 shadow-sm transition-colors duration-200 hover:border-emerald-300 hover:shadow-md
               ${isActive ? "border-emerald-500 ring-2 ring-emerald-500/15 shadow-md" : "border-slate-200"}`}
           >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                <Icon className="h-4 w-4" />
-              </span>
-              <p className="truncate text-sm font-semibold text-slate-600">{c.label}</p>
-            </div>
-            <p className="shrink-0 text-xl font-bold leading-none text-slate-900">
+            <p className="whitespace-nowrap text-[10px] font-semibold leading-none text-slate-500">{c.label}</p>
+            <p className="text-base font-bold leading-none text-slate-900">
               {c.value}
             </p>
           </div>
         );
       })}
-    </div>
+    </>
   );
 }
 
@@ -1240,12 +1231,12 @@ function AnalyticsCategoryBlock({ categoryWise, total }) {
   const filtered = (categoryWise || []).filter((c) => c._id && c._id !== "unknown");
   if (!filtered.length) return null;
   return (
-    <div className="h-full rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-5">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+    <div className="custom-scrollbar h-[210px] overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-3 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-4">
+      <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
         <Layers className="w-3.5 h-3.5 text-[#27AE60]" />
         By Category
       </p>
-      <div className="space-y-4">
+      <div className="space-y-3">
         {filtered.map((cat) => (
           <div key={cat._id}>
             <div className="flex items-center justify-between mb-1.5">
@@ -1276,12 +1267,12 @@ function AnalyticsPropertyTypeBlock({ propertyTypeWise }) {
   if (!rows.length) return null;
   const maxVal = rows[0]?.total || 1;
   return (
-    <div className="h-full rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-5">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+    <div className="custom-scrollbar h-[210px] overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-3 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-4">
+      <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
         <Home className="w-3.5 h-3.5 text-[#27AE60]" />
         Property Types
       </p>
-      <div className="space-y-3">
+      <div className="space-y-2">
         {rows.map((pt, i) => (
           <div key={pt._id} className="flex items-center gap-3">
             <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${TYPE_COLORS[i % TYPE_COLORS.length]}`} />
@@ -1325,16 +1316,16 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
    const isSingleRow = rows.length === 1;
 
   return (
-    <div className="custom-scrollbar h-[300px] overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-5">
+    <div className="custom-scrollbar h-[210px] overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-3 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-4">
       
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-3 flex items-center justify-between">
         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5 text-[#27AE60]" />
           By {label}
         </p>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-3">
         <div className="flex items-center gap-2 border border-[#27AE60] rounded-xl px-3 py-2 bg-slate-50">
           <Search className="w-4 h-4 text-slate-400" />
 
@@ -1468,33 +1459,6 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
   );
 }
 
-function AnalyticsPriceBlock({ priceAnalytics }) {
-  if (!priceAnalytics) return null;
-  const tiles = [
-    { label: "Min Price",  value: fmt(priceAnalytics.minPrice),     sub: "Lowest listed",  accent: "text-slate-700" },
-    { label: "Max Price",  value: fmt(priceAnalytics.maxPrice),     sub: "Highest listed", accent: "text-slate-700" },
-    { label: "Avg From",   value: fmt(priceAnalytics.avgPriceFrom), sub: "Avg start",      accent: "text-[#27AE60]" },
-    { label: "Avg To",     value: fmt(priceAnalytics.avgPriceTo),   sub: "Avg end",        accent: "text-[#27AE60]" },
-  ];
-  return (
-    <div className="h-full rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-5">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-        <DollarSign className="w-3.5 h-3.5 text-[#27AE60]" />
-        Price Analytics
-      </p>
-      <div className="grid grid-cols-2 gap-3">
-        {tiles.map((t) => (
-          <div key={t.label} className="bg-white/70 rounded-xl p-3 border border-white">
-            <p className="text-[10px] text-slate-500 font-medium">{t.label}</p>
-            <p className={`text-base font-bold mt-0.5 leading-tight ${t.accent}`}>{t.value}</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">{t.sub}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // FULL ANALYTICS DASHBOARD — purely display, receives all data as props
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1534,6 +1498,7 @@ function AnalyticsDashboard({
   return (
     <div className="space-y-4">
       {/* Row 1 — Overview KPIs */}
+      <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-11">
       <AnalyticsOverviewRow
         ov={ov}
         total={total}
@@ -1548,11 +1513,12 @@ function AnalyticsDashboard({
         activePromotionFilter={activePromotionFilter}
         onPromotionFilter={onPromotionFilter}
       />
+      </div>
 
       {/* Row 3 — Category + Property type */}
       {(analytics.categoryWise?.length > 0 ||
         analytics.propertyTypeWise?.length > 0) && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <AnalyticsCategoryBlock
             categoryWise={analytics.categoryWise}
             total={total}
@@ -1560,18 +1526,15 @@ function AnalyticsDashboard({
           <AnalyticsPropertyTypeBlock
             propertyTypeWise={analytics.propertyTypeWise}
           />
+          <AnalyticsLocationBlock
+            analytics={analytics}
+            locationType={locationType}
+            locationLabel={locationLabel}
+          />
         </div>
       )}
 
       {/* Row 4 — Location + Price */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-        <AnalyticsLocationBlock
-          analytics={analytics}
-          locationType={locationType}
-          locationLabel={locationLabel}
-        />
-        <AnalyticsPriceBlock priceAnalytics={analytics.priceAnalytics} />
-      </div>
     </div>
   );
 }
@@ -1585,7 +1548,14 @@ export default function ProjectsDashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // ── User / Role ──────────────────────────────────────────────────────────
-  const { data: user }  = useQuery({ queryKey: ["current-user"], queryFn: getUserInDetails });
+  const { data: user }  = useQuery({
+    queryKey: ["current-user"],
+    queryFn: getUserInDetails,
+    // The signed-in user does not change while this board is open. Reuse the
+    // shared cache instead of adding a request every time the page mounts.
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
   const currentUser = user?.user || user || null;
   const roleName = normalizeProjectRole(currentUser?.roleName);
   const isSalesManager  = roleName === "sales_manager";
@@ -1631,9 +1601,11 @@ export default function ProjectsDashboardPage() {
   const serverListStatus = toServerProjectStatus(urlStatusFilter);
 
   // ── Property hooks ───────────────────────────────────────────────────────
-  // Prefetch full lists once; search filters in memory (no per-keystroke API).
+  // Load the first page of each promotion type immediately. The former eager
+  // "all pages" prefetch delayed first render significantly as the catalogue
+  // grew; pagination below now fetches additional pages on demand.
   const projectQueryOptions = {
-    prefetchAll: true,
+    prefetchAll: false,
     from: urlCreatedFrom,
     to: urlCreatedTo,
     status: serverListStatus === "all" ? "" : serverListStatus,
@@ -1731,7 +1703,9 @@ export default function ProjectsDashboardPage() {
   const { data: allBuildersSearch } = useQuery({
     queryKey: ["project-page-builders-only"],
     queryFn: () => getUserSearch("builder"),
+    enabled: Boolean(currentUser),
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const creatorBuilderOptions = useMemo(() => {
@@ -1797,6 +1771,9 @@ export default function ProjectsDashboardPage() {
       featuredHook.isLoading ||
       sponsoredHook.isLoading ||
       normalHook.isLoading;
+  // Do not hide already-arrived cards while a slower project type is still
+  // loading. This makes the board feel responsive on slow connections.
+  const isInitialListLoading = isLoading && allProperties.length === 0;
   // ── Unified top-bar state (location + search) — drives analytics ─────────
   const [selectedLocation, setSelectedLocation] = useState(() => {
     const savedLocation = searchParams.get("location");
@@ -1920,6 +1897,7 @@ export default function ProjectsDashboardPage() {
     queryKey: ["master-project-analytics"],
     queryFn: () => getAllProjectsAnalytics({}),
     staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const masterAnalytics = masterAnalyticsData?.data?.data || null;
@@ -1954,14 +1932,27 @@ export default function ProjectsDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  const hasAnalyticsScope = Boolean(
+    selectedLocation ||
+      debouncedAnalyticsSearch.trim() ||
+      createdFrom ||
+      createdTo,
+  );
+
   const { data: analyticsData, isLoading: analyticsLoading } = useQuery({
     queryKey:  ["project-analytics", analyticsParams],
     queryFn:   () => getAllProjectsAnalytics(analyticsParams),
-    enabled:   canViewAnalytics,
+    // With no filters this is identical to master-project-analytics. Reusing
+    // that response removes one full API request from the initial page load.
+    enabled:   canViewAnalytics && hasAnalyticsScope,
     staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 
- const analytics = analyticsData?.data?.data || analyticsData?.data || null;
+ const analytics =
+   analyticsData?.data?.data ||
+   analyticsData?.data ||
+   masterAnalytics;
 
   const isPendingApprovalsView =
     canViewPendingProjects &&
@@ -2520,7 +2511,7 @@ export default function ProjectsDashboardPage() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div
-      className="mx-auto w-full max-w-[1600px] space-y-5 rounded-3xl px-1 pb-8 sm:px-2"
+      className="mx-auto w-full max-w-[1600px] space-y-2 rounded-3xl px-1 pb-8 sm:px-2"
       style={{
         backgroundColor: "#effcf5",
         backgroundImage:
@@ -2600,32 +2591,45 @@ export default function ProjectsDashboardPage() {
       />
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_6px_20px_rgba(22,163,74,0.12)] sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-[#27AE60] sm:text-3xl">
-            Projects
-          </h1>
-          <p className="text-slate-500 mt-0.5 text-sm">
-            Unified view across all project types
-          </p>
+      <section className="flex items-center justify-between gap-4 px-4 py-2 sm:px-6">
+        <h1 className="text-2xl font-bold tracking-tight text-[#27AE60] sm:text-3xl">Projects</h1>
+        <div className="flex items-center gap-3">
+          <InlineLocationSelector
+            properties={allProperties}
+            analytics={analytics}
+            masterAnalytics={masterAnalytics}
+            selectedLocation={selectedLocation}
+            onLocationChange={setSelectedLocation}
+            analyticsSearch={analyticsSearch}
+            setAnalyticsSearch={setAnalyticsSearch}
+          />
+          {canViewAnalytics && (
+            <button
+              type="button"
+              onClick={() => setShowAnalytics((visible) => !visible)}
+              className="hidden shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 transition hover:border-emerald-400 hover:text-emerald-700 lg:inline-flex"
+              aria-pressed={showAnalytics}
+            >
+              {showAnalytics ? "Hide analytics" : "Show analytics"}
+            </button>
+          )}
+          {canCreate && (
+            <button
+              type="button"
+              onClick={() => navigate("/create-featured-project")}
+              className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200 sm:px-5"
+            >
+              <Plus className="h-4 w-4" />
+              Create Project
+            </button>
+          )}
         </div>
-        {canCreate && (
-          <button
-            type="button"
-            onClick={() => navigate("/create-featured-project")}
-            className="flex w-full items-center justify-center gap-2 self-start rounded-xl bg-[#27AE60] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 sm:w-auto sm:self-auto"
-          >
-            <Plus className="w-4 h-4" />
-            Create Project
-          </button>
-        )}
-      </div>
+      </section>
 
       {/* ── TOP BAR: Location selector + Search — both drive analytics ──── */}
-      <div className="w-full rounded-2xl border border-emerald-100 bg-white p-3 shadow-[0_6px_20px_rgba(22,163,74,0.12)] sm:p-4 lg:max-w-2xl">
-        <div className="flex  flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Location selector (left) */}
-          <div className="min-w-0 flex-1">
+      <div className="hidden">
+        <div className="flex items-center">
+          <div className="min-w-0">
             <InlineLocationSelector
               properties={allProperties}
               analytics={analytics}
@@ -2637,19 +2641,46 @@ export default function ProjectsDashboardPage() {
             />
           </div>
 
-          {/* Clear all (shown only when something is active) */}
-          {(selectedLocation || analyticsSearch) && (
+          <div className="hidden">
             <button
-              onClick={clearAll}
-              className="flex-shrink-0 text-xs text-red-500 hover:text-red-700 font-semibold px-3 py-2 rounded-xl border border-red-100 hover:border-red-300 bg-red-50 transition whitespace-nowrap"
+              type="button"
+              onClick={() => {
+                setStatusFilter("approved");
+                setPromotionFilter("all");
+                setCurrentPage(1);
+              }}
+              className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                statusFilter === "approved"
+                  ? "border-emerald-600 bg-emerald-600 text-white"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-400"
+              }`}
             >
-              Clear all
+              Live projects
             </button>
-          )}
+            <button
+              type="button"
+              onClick={clearAll}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-900"
+            >
+              All projects
+            </button>
+            {(selectedLocation || analyticsSearch) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedLocation(null);
+                  setAnalyticsSearch("");
+                }}
+                className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 transition hover:border-red-300 hover:text-red-700"
+              >
+                Clear location
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Active scope indicator */}
-        {(selectedLocation || analyticsSearch) && (
+        {false && (selectedLocation || analyticsSearch) && (
           <div className="flex  flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100">
             <span className="text-[11px] text-slate-400 font-medium">
               Analytics scope:
@@ -2678,8 +2709,8 @@ export default function ProjectsDashboardPage() {
 
       {/* ── ANALYTICS DASHBOARD (role-gated, driven by location + search) ── */}
       {canViewAnalytics && (
-        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-green-50/80 to-white p-3 shadow-[0_8px_26px_rgba(22,163,74,0.14)] sm:p-5">
-          <div className="mb-5 flex items-start justify-between gap-3 sm:items-center">
+        <div className="px-4 py-1 sm:px-6">
+          <div className="hidden">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-200">
                 <BarChart3 className="w-5 h-5 text-[#27AE60]" />
@@ -2704,10 +2735,11 @@ export default function ProjectsDashboardPage() {
             </button>
           </div>
 
-          {showAnalytics && (
+          {showAnalytics && analytics && (
             <AnalyticsDashboard
               analytics={analytics}
-              isLoading={analyticsLoading}
+              // Cached figures remain visible while filtered data refreshes.
+              isLoading={false}
               locationLabel={selectedLocation?.label || "All India"}
               locationType={selectedLocation?.type || null}
               // Independent callbacks — each updates only its respective filter
@@ -2721,7 +2753,7 @@ export default function ProjectsDashboardPage() {
       )}
 
       {/* ── PENDING APPROVALS (RM / higher hierarchy notification) ── */}
-      {canViewPendingProjects && (
+      {canViewPendingProjects && isPendingApprovalsView && (
         <div id="projects-approve-queue" className="space-y-3">
           <div
             role="button"
@@ -2848,9 +2880,9 @@ export default function ProjectsDashboardPage() {
       )}
 
       {/* ── PROJECT LIST FILTERS ─────────────────────────────────────────── */}
-      <div className="relative z-10 space-y-4 overflow-visible rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_6px_20px_rgba(22,163,74,0.12)] sm:p-5">
+      <div className="relative z-10 space-y-2 overflow-visible rounded-xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-3">
         {/* Search bar (right, fills remaining space) */}
-        <div className="flex-1  flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 min-w-0 focus-within:border-[#27AE60]/50 focus-within:bg-white transition">
+        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-[#27AE60]/50 focus-within:bg-white transition">
           <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
           <input
             type="text"
@@ -3064,13 +3096,24 @@ export default function ProjectsDashboardPage() {
           </button>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <details
+          className="rounded-xl border border-slate-200 bg-slate-50/80"
+          open={Boolean(createdFrom || createdTo)}
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-semibold text-slate-700 marker:content-none">
+            <span className="inline-flex items-center gap-2">
+              <Clock className="h-3.5 w-3.5 text-emerald-600" />
+              Date range
+            </span>
+            <ChevronDown className="h-4 w-4 text-slate-400 transition-transform" />
+          </summary>
+          <div className="border-t border-slate-200 p-2.5">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0 flex-1">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-600">
+              <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-600">
                 Custom date range
               </p>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <label className="block min-w-0">
                   <span className="mb-1 block text-[11px] font-medium text-slate-500">From</span>
                   <input
@@ -3078,7 +3121,7 @@ export default function ProjectsDashboardPage() {
                     value={createdFrom}
                     max={createdTo || undefined}
                     onChange={(event) => setCreatedFrom(event.target.value)}
-                    className="h-11 w-full min-w-[11.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500"
+                    className="h-9 w-full min-w-[11.5rem] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500"
                   />
                 </label>
                 <label className="block min-w-0">
@@ -3088,16 +3131,16 @@ export default function ProjectsDashboardPage() {
                     value={createdTo}
                     min={createdFrom || undefined}
                     onChange={(event) => setCreatedTo(event.target.value)}
-                    className="h-11 w-full min-w-[11.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500"
+                    className="h-9 w-full min-w-[11.5rem] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500"
                   />
                 </label>
               </div>
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => (isTodayRange ? clearDateRange() : applyTodayRange())}
-                className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
                   isTodayRange
                     ? "border-emerald-600 bg-emerald-600 text-white"
                     : "border-slate-200 bg-white text-slate-600 hover:border-emerald-400"
@@ -3109,7 +3152,7 @@ export default function ProjectsDashboardPage() {
                 type="button"
                 onClick={clearDateRange}
                 disabled={!createdFrom && !createdTo}
-                className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
                   createdFrom || createdTo
                     ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
                     : "cursor-not-allowed border-slate-100 bg-white text-slate-300"
@@ -3119,12 +3162,13 @@ export default function ProjectsDashboardPage() {
               </button>
             </div>
           </div>
-          <p className="mt-2 min-h-[18px] text-xs text-slate-500">
+          <p className="mt-1.5 min-h-[16px] text-[11px] text-slate-500">
             {createdFrom || createdTo
               ? `${isTodayRange ? "Today" : "Selected"}: ${createdFrom || "—"} → ${createdTo || "—"}`
               : "Pick From / To, or use Today projects."}
           </p>
-        </div>
+          </div>
+        </details>
 
         {/* Property type sub-filter */}
         {categoryFilter !== "all" && PROPERTY_TYPES[categoryFilter] && (
@@ -3253,7 +3297,7 @@ export default function ProjectsDashboardPage() {
           </div>
         </div>
 
-      {isLoading ? (
+      {isInitialListLoading ? (
         <div className="flex justify-center py-20">
           <LoadingSpinner size="lg" />
         </div>
@@ -3279,7 +3323,7 @@ export default function ProjectsDashboardPage() {
           className={`grid w-full gap-3 ${
             isPendingApprovalsView || paginatedProperties.length === 1
               ? "grid-cols-1"
-              : "grid-cols-1 md:grid-cols-2"
+              : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
           }`}
         >
           {paginatedProperties.map((p) => (
