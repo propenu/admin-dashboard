@@ -46,3 +46,15 @@ export const clearSiteBannerDevice = (id, slot) =>
 
 export const deleteSiteBanner = (id) =>
   apiClient.delete(`${BASE}/banners/${id}`);
+
+export const getSiteBannerDefaults = () =>
+  apiClient.get(`${BASE}/banner-defaults`);
+
+/** Save one default device image (desktop|laptop|tablet|mobile). */
+export const upsertSiteBannerDefaultDevice = (slot, formData) =>
+  apiClient.patch(`${BASE}/banner-defaults/devices/${slot}`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+export const clearSiteBannerDefaultDevice = (slot) =>
+  apiClient.delete(`${BASE}/banner-defaults/devices/${slot}`);

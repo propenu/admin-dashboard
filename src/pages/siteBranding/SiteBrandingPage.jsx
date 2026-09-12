@@ -17,12 +17,15 @@ import {
 import { toast } from "sonner";
 import {
   clearSiteBannerDevice,
+  clearSiteBannerDefaultDevice,
   createSiteBanner,
   deleteSiteBanner,
   getSiteBanner,
+  getSiteBannerDefaults,
   getSiteLogo,
   listSiteBanners,
   updateSiteBannerMeta,
+  upsertSiteBannerDefaultDevice,
   upsertSiteBannerDevice,
   upsertSiteLogo,
 } from "../../features/siteBranding/siteBrandingService";
@@ -627,8 +630,183 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
   );
 }
 
+function BannerDefaultsPanel({ defaults, onChanged }) {
+  const [pending, setPending] = useState({});
+  const [savingSlot, setSavingSlot] = useState("");
+  const [clearingSlot, setClearingSlot] = useState("");
+
+  const devices = defaults?.devices || {};
+
+  const pickFile = (slot, file) => {
+    if (!file) return;
+    const msg = validateWebpFile(file);
+    if (msg) {
+      toast.warning(msg);
+      return;
+    }
+    setPending((prev) => {
+      const prevUrl = prev[slot]?.preview;
+      if (prevUrl) URL.revokeObjectURL(prevUrl);
+      return {
+        ...prev,
+        [slot]: {
+          file,
+          preview: URL.createObjectURL(file),
+        },
+      };
+    });
+  };
+
+  const saveSlot = async (slot) => {
+    const file = pending[slot]?.file;
+    if (!file) {
+      toast.warning("Choose a WebP image first");
+      return;
+    }
+    setSavingSlot(slot);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await upsertSiteBannerDefaultDevice(slot, fd);
+      onChanged?.(res?.data?.data);
+      setPending((prev) => {
+        const next = { ...prev };
+        if (next[slot]?.preview) URL.revokeObjectURL(next[slot].preview);
+        delete next[slot];
+        return next;
+      });
+      toast.success(`${slot} default image saved`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Default save failed");
+    } finally {
+      setSavingSlot("");
+    }
+  };
+
+  const clearSlot = async (slot) => {
+    setClearingSlot(slot);
+    try {
+      const res = await clearSiteBannerDefaultDevice(slot);
+      onChanged?.(res?.data?.data);
+      setPending((prev) => {
+        const next = { ...prev };
+        if (next[slot]?.preview) URL.revokeObjectURL(next[slot].preview);
+        delete next[slot];
+        return next;
+      });
+      toast.success(`${slot} default cleared`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Clear failed");
+    } finally {
+      setClearingSlot("");
+    }
+  };
+
+  return (
+    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-5 py-4">
+        <h2 className="text-sm font-bold text-slate-900">Default banner images</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Used on the website when location search finds no banner image for that
+          device (Desktop / Laptop / Tablet / Mobile). Same WebP sizes as normal
+          banners.
+        </p>
+      </div>
+      <div className="grid gap-4 p-5 sm:grid-cols-2">
+        {BANNER_SLOTS.map((slot) => {
+          const Icon = DEVICE_ICONS[slot.key];
+          const savedUrl = devices[slot.key]?.image || "";
+          const preview = pending[slot.key]?.preview || savedUrl;
+          const busy = savingSlot === slot.key || clearingSlot === slot.key;
+          return (
+            <div
+              key={slot.key}
+              className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
+            >
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Icon size={16} className="text-emerald-600" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{slot.label}</p>
+                    <p className="text-[11px] text-slate-500">
+                      {slot.size} · WebP &lt; 1 MB
+                    </p>
+                  </div>
+                </div>
+                {savedUrl ? (
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                    Saved
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-400">
+                    Empty
+                  </span>
+                )}
+              </div>
+
+              <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                {preview ? (
+                  <img
+                    src={preview}
+                    alt={`${slot.label} default`}
+                    className="h-28 w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-28 items-center justify-center text-xs text-slate-400">
+                    No default image
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                  <Upload size={13} /> Choose WebP
+                  <input
+                    type="file"
+                    accept="image/webp,.webp"
+                    className="hidden"
+                    onChange={(e) =>
+                      pickFile(slot.key, e.target.files?.[0] || null)
+                    }
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={busy || !pending[slot.key]?.file}
+                  onClick={() => saveSlot(slot.key)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#27AE60] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                >
+                  {savingSlot === slot.key ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : null}
+                  Save
+                </button>
+                {savedUrl ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => clearSlot(slot.key)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-red-100 px-3 py-2 text-xs font-bold text-red-500 disabled:opacity-50"
+                  >
+                    {clearingSlot === slot.key ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={13} />
+                    )}
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function SiteBrandingPage() {
-  const [mainTab, setMainTab] = useState("logo"); // logo | banner
+  const [mainTab, setMainTab] = useState("logo"); // logo | banner | defaults
   const [logo, setLogo] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState("");
@@ -636,6 +814,7 @@ export default function SiteBrandingPage() {
   const [logoSaving, setLogoSaving] = useState(false);
 
   const [banners, setBanners] = useState([]);
+  const [bannerDefaults, setBannerDefaults] = useState(null);
   const [openBannerId, setOpenBannerId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -651,12 +830,14 @@ export default function SiteBrandingPage() {
     setLoading(true);
     setError("");
     try {
-      const [logoRes, bannerRes] = await Promise.all([
+      const [logoRes, bannerRes, defaultsRes] = await Promise.all([
         getSiteLogo(),
         listSiteBanners(),
+        getSiteBannerDefaults().catch(() => null),
       ]);
       setLogo(logoRes?.data?.data || null);
       setBanners(Array.isArray(bannerRes?.data?.data) ? bannerRes.data.data : []);
+      setBannerDefaults(defaultsRes?.data?.data || null);
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || "Failed to load");
     } finally {
@@ -785,6 +966,7 @@ export default function SiteBrandingPage() {
           {[
             { key: "logo", label: "Logo" },
             { key: "banner", label: "Banner" },
+            { key: "defaults", label: "Defaults" },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -887,6 +1069,11 @@ export default function SiteBrandingPage() {
               </div>
             </div>
           </section>
+        ) : mainTab === "defaults" ? (
+          <BannerDefaultsPanel
+            defaults={bannerDefaults}
+            onChanged={setBannerDefaults}
+          />
         ) : (
           <div className="space-y-4">
             <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">

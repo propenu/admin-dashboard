@@ -1,0 +1,1 @@
+import{u as e}from"./query-BkEkXOlT.js";import{e as r}from"./index-BvtL5YRB.js";const a=()=>e({queryKey:["userDetails"],queryFn:async()=>(await r()).data,staleTime:0,refetchOnMount:"always",refetchOnWindowFocus:!0});export{a as u};
