@@ -9,13 +9,16 @@ import {
   Loader2,
   MessageCircle,
   Paperclip,
+  Play,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
   Smile,
   UserRound,
   X,
+  XCircle,
 } from "lucide-react";
 import {
   getWhatsAppInboxAssignableRoles,
@@ -30,6 +33,8 @@ import {
   updateWhatsAppInboxConversation,
 } from "../../features/user/userService";
 import { useCurrentUser } from "../../store/properties/useCurrentUser";
+import { InboxFailureViewModal } from "./modals/InboxFailureViewModal";
+import { toast } from "sonner";
 
 const STATUS_META = {
   new: {
@@ -143,9 +148,10 @@ const StatusTicks = ({ status, error }) => {
   if (status === "failed") {
     return (
       <span
-        className="text-[10px] text-red-500 font-semibold max-w-[180px] truncate"
+        className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-500"
         title={error || "Failed to send"}
       >
+        <XCircle size={12} />
         Failed
       </span>
     );
@@ -173,7 +179,7 @@ const Avatar = ({ size = "md" }) => {
   );
 };
 
-export default function WhatsAppInbox() {
+export default function WhatsAppInbox({ embedded = false }) {
   const { data: currentUserPayload } = useCurrentUser();
   const currentUser = currentUserPayload?.user || currentUserPayload;
   const meId = getCurrentUserId(currentUser);
@@ -207,6 +213,9 @@ export default function WhatsAppInbox() {
   const [updatingMeta, setUpdatingMeta] = useState(false);
   const [health, setHealth] = useState(null);
   const [liveStatus, setLiveStatus] = useState("connecting");
+  const [timeFilter, setTimeFilter] = useState("all"); // all | today | yesterday | older
+  const [failureDetail, setFailureDetail] = useState(null);
+  const [retryingMsgId, setRetryingMsgId] = useState("");
   const bottomRef = useRef(null);
   const activeWaIdRef = useRef(null);
   const searchRef = useRef(search);
@@ -346,6 +355,19 @@ export default function WhatsAppInbox() {
     if (!activeWaId) return;
     loadMessages(activeWaId);
   }, [activeWaId, loadMessages]);
+
+  useEffect(() => {
+    if (!activeWaId) return;
+    const matched =
+      conversations.find((c) => String(c.waId) === String(activeWaId)) || null;
+    if (matched) {
+      setActiveConversation((prev) =>
+        prev && String(prev.waId) === String(activeWaId)
+          ? { ...prev, ...matched }
+          : matched,
+      );
+    }
+  }, [conversations, activeWaId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -547,6 +569,34 @@ export default function WhatsAppInbox() {
     }
   };
 
+  const handleRetryFailedMessage = async (msg) => {
+    const text = String(msg?.body || msg?.text || "").trim();
+    if (!activeWaId || !text) {
+      toast.error("Nothing to retry for this message");
+      return;
+    }
+    const id = msg?._id || msg?.wamid || text;
+    setRetryingMsgId(String(id));
+    setError("");
+    try {
+      const res = await sendWhatsAppInboxMessage(activeWaId, text);
+      const message = res?.data?.data || res?.data;
+      if (message) setMessages((prev) => [...prev, message]);
+      else await loadMessages(activeWaId, { silent: true });
+      await loadConversations(search);
+      toast.success("Message resent");
+      setFailureDetail(null);
+    } catch (err) {
+      const apiMsg =
+        err?.response?.data?.message || err?.message || "Retry failed";
+      setError(apiMsg);
+      toast.error(apiMsg);
+      await loadMessages(activeWaId, { silent: true });
+    } finally {
+      setRetryingMsgId("");
+    }
+  };
+
   const handleStartChat = async (event) => {
     event?.preventDefault?.();
     try {
@@ -572,11 +622,36 @@ export default function WhatsAppInbox() {
 
   const active =
     activeConversation ||
-    conversations.find((c) => c.waId === activeWaId) ||
+    conversations.find((c) => String(c.waId) === String(activeWaId)) ||
     null;
   const activeStatus = active?.inboxStatus || "new";
   const activeTitle = active?.profileName || activeWaId || "Chat";
   const assignedAgentId = String(active?.assignedAgentId || "").trim();
+
+  const filteredMessages = useMemo(() => {
+    if (!Array.isArray(messages) || timeFilter === "all") return messages || [];
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startYesterday = new Date(startToday);
+    startYesterday.setDate(startYesterday.getDate() - 1);
+    return messages.filter((msg) => {
+      const d = new Date(msg.createdAt || 0);
+      if (Number.isNaN(d.getTime())) return timeFilter === "older";
+      if (timeFilter === "today") return d >= startToday;
+      if (timeFilter === "yesterday") return d >= startYesterday && d < startToday;
+      return d < startYesterday;
+    });
+  }, [messages, timeFilter]);
+
+  const selectChatByWaId = (waId) => {
+    const id = String(waId || "").trim();
+    if (!id) return;
+    const chat =
+      conversations.find((c) => String(c.waId) === id) || null;
+    setActiveWaId(id);
+    setActiveConversation(chat);
+    setError("");
+  };
   const isAssignedToMe = Boolean(
     meId && assignedAgentId && meId === assignedAgentId,
   );
@@ -588,7 +663,13 @@ export default function WhatsAppInbox() {
   const selectedRoleColor = selectedRole?.color || FALLBACK_ROLE_COLOR;
 
   return (
-    <div className="h-[calc(100vh-8.5rem)] min-h-[560px] rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm flex flex-col">
+    <div
+      className={
+        embedded
+          ? "flex h-full min-h-0 flex-col overflow-hidden bg-white"
+          : "h-[calc(100vh-8.5rem)] min-h-[560px] rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm flex flex-col"
+      }
+    >
       <div className="px-3 py-2 border-b border-gray-100 flex flex-wrap items-center gap-2 bg-[#f7f8fa] shrink-0">
         <span
           className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
@@ -723,7 +804,7 @@ export default function WhatsAppInbox() {
             </div>
           ) : (
             filtered.map((chat) => {
-              const selected = chat.waId === activeWaId;
+              const selected = String(chat.waId) === String(activeWaId);
               const status = chat.inboxStatus || "new";
               const meta = STATUS_META[status] || STATUS_META.new;
               const unread = Number(chat.unreadCount || 0);
@@ -731,9 +812,9 @@ export default function WhatsAppInbox() {
                 <button
                   key={chat.waId}
                   type="button"
-                  onClick={() => setActiveWaId(chat.waId)}
+                  onClick={() => selectChatByWaId(chat.waId)}
                   className={`w-full flex items-start gap-3 px-4 py-3.5 text-left border-b border-gray-100 transition ${
-                    selected ? "bg-[#f0faf4]" : "bg-white hover:bg-gray-50"
+                    selected ? "bg-slate-100" : "bg-white hover:bg-gray-50"
                   }`}
                 >
                   <Avatar />
@@ -819,6 +900,30 @@ export default function WhatsAppInbox() {
               </select>
             </div>
 
+            <div className="px-4 py-2 border-b border-gray-100 bg-white flex justify-center shrink-0">
+              <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                {[
+                  ["all", "All"],
+                  ["today", "Today"],
+                  ["yesterday", "Yesterday"],
+                  ["older", "Older"],
+                ].map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setTimeFilter(id)}
+                    className={`rounded-full px-3 py-1 text-[11px] font-bold ${
+                      timeFilter === id
+                        ? "bg-[#25D366] text-white"
+                        : "text-slate-600"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div
               className="flex-1 overflow-y-auto px-4 py-3"
               style={{
@@ -832,18 +937,29 @@ export default function WhatsAppInbox() {
                 <div className="flex justify-center py-16">
                   <Loader2 className="animate-spin text-[#128C7E]" size={24} />
                 </div>
-              ) : messages.length === 0 ? (
+              ) : filteredMessages.length === 0 ? (
                 <div className="flex justify-center py-16">
                   <span className="text-xs bg-white/80 text-gray-500 px-3 py-1.5 rounded-lg shadow-sm">
-                    No messages in this chat yet
+                    No messages in this filter
                   </span>
                 </div>
               ) : (
-                messages.map((msg, index) => {
-                  const prev = messages[index - 1];
+                filteredMessages.map((msg, index) => {
+                  const prev = filteredMessages[index - 1];
                   const showDay =
                     !prev || formatDay(prev.createdAt) !== formatDay(msg.createdAt);
                   const outbound = msg.direction === "outbound";
+                  const isBot =
+                    outbound &&
+                    (msg.source === "bot" ||
+                      msg.source === "flow" ||
+                      msg.senderType === "bot" ||
+                      Boolean(msg.conditionBranch));
+                  const label = outbound
+                    ? isBot
+                      ? "BOT"
+                      : "AGENT"
+                    : "CUSTOMER";
                   return (
                     <div key={msg._id || `${msg.wamid}-${index}`}>
                       {showDay && (
@@ -860,9 +976,19 @@ export default function WhatsAppInbox() {
                           className={`max-w-[78%] rounded-xl px-3 pt-2 pb-1.5 shadow-sm ${
                             outbound
                               ? "bg-[#dcf8c6] rounded-tr-sm"
-                              : "bg-white rounded-tl-sm"
+                              : "bg-white rounded-tl-sm border border-slate-100"
                           }`}
                         >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[9px] font-black tracking-wide text-slate-400">
+                              {label}
+                            </span>
+                            {isBot && msg.conditionBranch ? (
+                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
+                                condition branch
+                              </span>
+                            ) : null}
+                          </div>
                           <p className="text-[14px] text-gray-900 whitespace-pre-wrap break-words leading-snug">
                             {msg.body}
                           </p>
@@ -874,10 +1000,42 @@ export default function WhatsAppInbox() {
                               <StatusTicks status={msg.status} error={msg.error} />
                             )}
                           </div>
-                          {outbound && msg.status === "failed" && msg.error ? (
-                            <p className="text-[10px] text-red-500 mt-1 leading-snug max-w-[260px]">
-                              {msg.error}
-                            </p>
+                          {outbound && msg.status === "failed" ? (
+                            <div className="mt-1.5 space-y-1.5 border-t border-rose-100/80 pt-1.5">
+                              <p className="text-[10px] font-semibold text-rose-500">
+                                Delivery failed
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setFailureDetail(msg)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-600 hover:underline"
+                                >
+                                  <Play size={10} fill="currentColor" />
+                                  View reason
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={
+                                    retryingMsgId ===
+                                    String(msg._id || msg.wamid || "")
+                                  }
+                                  onClick={() => handleRetryFailedMessage(msg)}
+                                  className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-1 text-[10px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                                >
+                                  {retryingMsgId ===
+                                  String(msg._id || msg.wamid || "") ? (
+                                    <Loader2
+                                      size={11}
+                                      className="animate-spin"
+                                    />
+                                  ) : (
+                                    <RotateCcw size={11} />
+                                  )}
+                                  Retry send
+                                </button>
+                              </div>
+                            </div>
                           ) : null}
                         </div>
                       </div>
@@ -959,10 +1117,14 @@ export default function WhatsAppInbox() {
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
                   Customer
                 </p>
-                <p className="text-sm font-bold text-gray-900 mt-1">
-                  {active?.profileName || "Unknown"}
+                <p className="text-base font-extrabold text-gray-900 mt-1 break-all">
+                  {activeWaId}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5">{activeWaId}</p>
+                {active?.profileName ? (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {active.profileName}
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"
@@ -1286,9 +1448,23 @@ export default function WhatsAppInbox() {
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
                 CRM record
               </p>
-              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-center">
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-center space-y-3">
                 <p className="text-xs text-gray-500 leading-relaxed">
                   No customer record linked to this phone number.
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setError(
+                      `Create / Link Customer for waId ${activeWaId} — CRM link API not connected yet.`,
+                    )
+                  }
+                  className="w-full rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-bold text-white hover:bg-slate-800 transition"
+                >
+                  Create / Link Customer
+                </button>
+                <p className="text-[10px] text-slate-400 font-mono">
+                  Key: {activeWaId}
                 </p>
               </div>
             </div>
@@ -1343,6 +1519,19 @@ export default function WhatsAppInbox() {
           </div>
         </div>
       )}
+
+      {failureDetail ? (
+        <InboxFailureViewModal
+          message={failureDetail}
+          conversation={active}
+          retrying={
+            retryingMsgId ===
+            String(failureDetail._id || failureDetail.wamid || "")
+          }
+          onClose={() => setFailureDetail(null)}
+          onRetry={handleRetryFailedMessage}
+        />
+      ) : null}
       </div>
     </div>
   );

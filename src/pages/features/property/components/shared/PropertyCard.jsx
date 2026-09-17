@@ -1,5 +1,5 @@
 // src/features/property/components/shared/PropertyCard.jsx
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -184,7 +184,7 @@ function PortalMenu({ anchorRef, open, onClose, children }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-export default function PropertyCard({
+export default memo(function PropertyCard({
   property: p,
   type,
   onDelete,
@@ -215,7 +215,9 @@ export default function PropertyCard({
       const res = await projectAnalytics(p?._id);
       return res.data;
     },
-    enabled: !!p?._id,
+    enabled: Boolean(openLeads && p?._id),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const leads = (Array.isArray(leadsData?.data) ? leadsData.data : [])
@@ -1307,5 +1309,5 @@ export default function PropertyCard({
       )}
     </div>
   );
-}
+});
 

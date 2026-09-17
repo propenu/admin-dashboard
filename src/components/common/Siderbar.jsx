@@ -650,7 +650,7 @@ export default function Sidebar({
         icon: mailnotifications,
       },
       canView("whatsapp_campaign") && {
-        path: "/whatsapp-notifications",
+        path: "/whatsapp-notifications?section=inbox",
         label: "WhatsApp Campaigns",
         icon: whatsappnotifications,
       },
@@ -825,7 +825,7 @@ export default function Sidebar({
           icon: mailnotifications,
         },
         {
-          path: "/whatsapp-notifications",
+          path: "/whatsapp-notifications?section=inbox",
           label: "WhatsApp Notifications",
           icon: whatsappnotifications,
         },
@@ -1009,7 +1009,7 @@ export default function Sidebar({
           icon: mailnotifications,
         },
         {
-          path: "/whatsapp-notifications",
+          path: "/whatsapp-notifications?section=inbox",
           label: "WhatsApp Notifications",
           icon: whatsappnotifications,
         },

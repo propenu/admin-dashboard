@@ -28,6 +28,7 @@ const getErrorMessage = (err) => {
 };
 
 import { parseTemplateList } from "../utils/parser";
+import { tipForMetaTemplateError } from "../utils/payloadBuilder";
 
 export const useWhatsAppNotificationsTemplate = () => {
   const queryClient = useQueryClient();
@@ -48,15 +49,10 @@ export const useWhatsAppNotificationsTemplate = () => {
       toast.success("Template created successfully");
       queryClient.invalidateQueries({ queryKey: ["whatsappTemplates"] });
     },
-    
-    
-     
-
-
     onError: (err) => {
       const msg = getErrorMessage(err);
-
-      toast.error(msg); // ✅ always safe string
+      const tip = tipForMetaTemplateError(msg);
+      toast.error(tip ? `${msg}\n${tip}` : msg, { duration: 8000 });
     },
   });
 

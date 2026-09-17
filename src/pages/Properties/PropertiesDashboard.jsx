@@ -1,6 +1,14 @@
 //propenuadmindashborad/src/pages/Properties/PropertiesDashboard.jsx
 
-import { useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useDeferredValue,
+} from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -95,6 +103,7 @@ const CATEGORIES = [
   { value: "agricultural", label: "Agricultural", fetcher: fetchAgricultural },
   { value: "land", label: "Land", fetcher: fetchLand },
 ];
+const PROPERTY_CATEGORIES = CATEGORIES.filter((item) => item.fetcher);
 
 /** Scalable listing-type sub-filters (Sale / Rent). Add values here as needed. */
 const LISTING_TYPE_FILTERS = [
@@ -404,21 +413,20 @@ function useDebounce(value, delay = 350) {
   return debounced;
 }
 
-async function fetchEveryPage(fetcher, params = {}) {
-  const limit = 100;
-  const first = await fetcher({ ...params, page: 1, limit });
-  const total = first?.meta?.total ?? first?.items?.length ?? 0;
-  const pages = Math.ceil(total / (first?.meta?.limit || limit));
+const FIRST_PAGE_LIMIT = 40;
 
-  if (pages <= 1) return first?.items || [];
+async function fetchCategoryFirstPage(fetcher) {
+  const first = await fetcher({ page: 1, limit: FIRST_PAGE_LIMIT });
+  const items = first?.items || [];
+  const limit = first?.meta?.limit || FIRST_PAGE_LIMIT;
+  const total = Number(first?.meta?.total ?? items.length) || 0;
+  const pages = Math.max(1, Math.ceil(total / Math.max(limit, 1)) || 1);
+  return { items, pages, limit };
+}
 
-  const rest = await Promise.all(
-    Array.from({ length: pages - 1 }, (_, index) =>
-      fetcher({ ...params, page: index + 2, limit }),
-    ),
-  );
-
-  return [first, ...rest].flatMap((page) => page?.items || []);
+function categoryItems(data) {
+  if (Array.isArray(data)) return data;
+  return data?.items || [];
 }
 
 const formatPrice = (price) => {
@@ -445,6 +453,39 @@ const getStatus = (property) => {
   if (property?.status === "draft" && property?.rejectedReason) return "rejected";
   return property?.status || "draft";
 };
+
+const PropertyGridCard = memo(function PropertyGridCard({
+  property,
+  canReview,
+  canEditPending,
+  promoteBusy,
+  index,
+  onOpen,
+  onEdit,
+  onReview,
+  onDelete,
+  onPromote,
+  onRenew,
+  onExpire,
+}) {
+  return (
+    <PropertyCard
+      property={property}
+      category={property._category}
+      canReview={canReview}
+      canEditPending={canEditPending}
+      index={index}
+      promoteBusy={promoteBusy}
+      onOpen={() => onOpen(property)}
+      onEdit={() => onEdit(property)}
+      onReview={() => onReview(property)}
+      onDelete={() => onDelete(property)}
+      onPromote={onPromote}
+      onRenew={onRenew}
+      onExpire={onExpire}
+    />
+  );
+});
 
 function PropertyCard({
   property,
@@ -485,7 +526,9 @@ function PropertyCard({
       const res = await propertiesAnalytics(property?._id);
       return res.data;
     },
-    enabled: !!property?._id,
+    enabled: Boolean(openLeads && property?._id),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const leads = Array.isArray(leadsData?.data) ? leadsData.data : [];
@@ -663,7 +706,7 @@ function PropertyCard({
             className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-100 sm:py-1"
           >
             <BarChart3 className="h-3 w-3" />
-            Leads {leadsLoading ? "..." : totalLeads}
+            Leads{openLeads ? (leadsLoading ? " ..." : ` ${totalLeads}`) : ""}
           </button>
           <button
             type="button"
@@ -1064,30 +1107,55 @@ export default function PropertiesDashboard() {
       return res.data?.data || res.data;
     },
     staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const categoryQueries = useQueries({
-    queries: CATEGORIES.filter((item) => item.fetcher).map((item) => ({
+    queries: PROPERTY_CATEGORIES.map((item) => ({
       // Do NOT put search in the query key — that re-fetched every category
       // on each keystroke. Load once, filter client-side (instant).
       queryKey: ["properties-dashboard", item.value],
-      queryFn: () => fetchEveryPage(item.fetcher, {}),
+      queryFn: () => fetchCategoryFirstPage(item.fetcher),
       staleTime: 5 * 60_000,
       gcTime: 15 * 60_000,
       refetchOnWindowFocus: false,
     })),
   });
+  const residentialData = categoryQueries[0]?.data;
+  const commercialData = categoryQueries[1]?.data;
+  const agriculturalData = categoryQueries[2]?.data;
+  const landData = categoryQueries[3]?.data;
+  const [extraProperties, setExtraProperties] = useState({});
+  const [catalogFilling, setCatalogFilling] = useState(false);
 
-  const allProperties = useMemo(
-    () =>
-      CATEGORIES.filter((item) => item.fetcher).flatMap((item, index) =>
-        (categoryQueries[index]?.data || []).map((property) => ({
-          ...property,
-          _category: item.value,
-        })),
-      ),
-    [categoryQueries],
-  );
+  const allProperties = useMemo(() => {
+    const packs = [
+      ["residential", residentialData, extraProperties.residential],
+      ["commercial", commercialData, extraProperties.commercial],
+      ["agricultural", agriculturalData, extraProperties.agricultural],
+      ["land", landData, extraProperties.land],
+    ];
+    return packs.flatMap(([category, data, extra]) => {
+      const seen = new Set();
+      return [...categoryItems(data), ...(extra || [])]
+        .filter((property) => {
+          if (!property?._id || seen.has(property._id)) return false;
+          seen.add(property._id);
+          return true;
+        })
+        .map((property) =>
+          property._category === category
+            ? property
+            : { ...property, _category: category },
+        );
+    });
+  }, [
+    agriculturalData,
+    commercialData,
+    extraProperties,
+    landData,
+    residentialData,
+  ]);
 
   // Precompute searchable text once per loaded row — typing stays O(n) string checks only.
   const propertySearchIndex = useMemo(
@@ -1167,6 +1235,7 @@ export default function PropertiesDashboard() {
 
   const baseFilteredProperties = useMemo(() => {
     const term = normalizeSearchText(deferredSearch);
+    const tokens = term ? term.split(" ").filter(Boolean) : [];
     return propertySearchIndex
       .filter(({ property }) => category === "all" || property._category === category)
       .filter(({ property }) => matchesListingTypeFilter(property, listingType))
@@ -1175,7 +1244,7 @@ export default function PropertiesDashboard() {
       .filter(({ property }) => !locationFilters.city || property?.city?.trim() === locationFilters.city)
       .filter(({ property }) => !locationFilters.locality || property?.locality?.trim() === locationFilters.locality)
       .filter(({ property }) => inCreatedRange(property?.createdAt, createdFrom, createdTo))
-      .filter(({ haystack }) => !term || haystack.includes(term))
+      .filter(({ haystack }) => !tokens.length || tokens.every((token) => haystack.includes(token)))
       .map(({ property }) => property);
   }, [
     propertySearchIndex,
@@ -1234,8 +1303,11 @@ export default function PropertiesDashboard() {
   }, [baseFilteredProperties, promotionType, sort, trackingFilter]);
 
   const loading = categoryQueries.some((query) => query.isLoading);
+  const isInitialListLoading = loading && allProperties.length === 0;
   const failed = categoryQueries.filter((query) => query.isError).length;
-  const propertyCategories = CATEGORIES.filter((item) => item.fetcher);
+  const catalogStamp = categoryQueries
+    .map((query) => query.dataUpdatedAt || 0)
+    .join("|");
   const userRoleName = userData?.user?.roleName;
   const totalPages = Math.max(1, Math.ceil(visibleProperties.length / PAGE_SIZE));
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1).filter(
@@ -1248,6 +1320,52 @@ export default function PropertiesDashboard() {
     (page - 1) * PAGE_SIZE,
     page * PAGE_SIZE,
   );
+
+  useEffect(() => {
+    if (isInitialListLoading) return undefined;
+    let stopped = false;
+    const timer = window.setTimeout(async () => {
+      setCatalogFilling(true);
+      try {
+        for (const item of PROPERTY_CATEGORIES) {
+          if (stopped) return;
+          const cached = queryClient.getQueryData([
+            "properties-dashboard",
+            item.value,
+          ]);
+          const pages = Array.isArray(cached) ? 1 : cached?.pages || 1;
+          const limit = Array.isArray(cached) ? FIRST_PAGE_LIMIT : cached?.limit || FIRST_PAGE_LIMIT;
+          if (pages <= 1) continue;
+          const collected = [];
+          for (let pageNumber = 2; pageNumber <= pages && pageNumber <= 40; pageNumber += 1) {
+            if (stopped) return;
+            let items = [];
+            try {
+              const next = await item.fetcher({ page: pageNumber, limit });
+              items = next?.items || [];
+            } catch {
+              break;
+            }
+            if (!items.length) break;
+            collected.push(...items);
+            if (!stopped) {
+              setExtraProperties((prev) => ({
+                ...prev,
+                [item.value]: collected.slice(),
+              }));
+            }
+            if (items.length < limit) break;
+          }
+        }
+      } finally {
+        if (!stopped) setCatalogFilling(false);
+      }
+    }, 400);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+    };
+  }, [catalogStamp, isInitialListLoading, queryClient]);
 
   useEffect(() => {
     if (!hasMounted.current) {
@@ -1293,10 +1411,10 @@ export default function PropertiesDashboard() {
     clearDateRange();
   };
 
-  const rememberCategory = (nextCategory) => {
+  const rememberCategory = useCallback((nextCategory) => {
     localStorage.setItem("activeCategory", nextCategory);
     dispatch(setActiveCategory(nextCategory));
-  };
+  }, [dispatch]);
 
   const startCreateProperty = (nextCategory) => {
     rememberCategory(nextCategory);
@@ -1304,24 +1422,24 @@ export default function PropertiesDashboard() {
     navigate("/post-property");
   };
 
-  const openPropertyDetails = (property) => {
+  const openPropertyDetails = useCallback((property) => {
     rememberCategory(property._category);
     navigate(`/property/${property._category}/${property._id}`);
-  };
+  }, [navigate, rememberCategory]);
 
-  const editProperty = (property) => {
+  const editProperty = useCallback((property) => {
     navigateToPropertyEdit({
       navigate,
       dispatch,
       property,
       category: property._category,
     });
-  };
+  }, [dispatch, navigate]);
 
   const invalidatePropertyLists = () =>
     queryClient.invalidateQueries({ queryKey: ["properties-dashboard"] });
 
-  const openPromote = (property) => setPromoteTarget(property);
+  const openPromote = useCallback((property) => setPromoteTarget(property), []);
 
   const handlePromoteConfirm = async (type, { days, sponsoredAd } = {}) => {
     if (!promoteTarget?._id || !promoteTarget?._category) return;
@@ -1356,13 +1474,13 @@ export default function PropertiesDashboard() {
     }
   };
 
-  const handleRenewPromotion = async (property) => {
+  const handleRenewPromotion = useCallback(async (property) => {
     if (!property?._id || !property?._category) return;
     setPromoteLoading(true);
     try {
       await renewPropertyListing(property._category, property._id, { days: 10 });
       toast.success("Promotion renewed (+10 days)");
-      await invalidatePropertyLists();
+      await queryClient.invalidateQueries({ queryKey: ["properties-dashboard"] });
     } catch (err) {
       toast.error(
         err?.response?.data?.message ||
@@ -1373,21 +1491,21 @@ export default function PropertiesDashboard() {
     } finally {
       setPromoteLoading(false);
     }
-  };
+  }, [queryClient]);
 
-  const handleExpirePromotion = async (property) => {
+  const handleExpirePromotion = useCallback(async (property) => {
     if (!property?._id || !property?._category) return;
     setPromoteLoading(true);
     try {
       await expirePropertyListing(property._category, property._id);
       toast.success("Promotion expired → Normal");
-      await invalidatePropertyLists();
+      await queryClient.invalidateQueries({ queryKey: ["properties-dashboard"] });
     } catch (err) {
       toast.error(err?.response?.data?.message || "Expire failed");
     } finally {
       setPromoteLoading(false);
     }
-  };
+  }, [queryClient]);
 
   const currentUser = userData?.user || userData || null;
 
@@ -1398,7 +1516,7 @@ export default function PropertiesDashboard() {
     return true;
   };
 
-  const reviewProperty = (property) => {
+  const reviewProperty = useCallback((property) => {
     rememberCategory(property._category);
     const percent = Number(property?.completion?.percent || 0);
     if (percent === 70 || isAgentCreatedProperty(property)) {
@@ -1408,7 +1526,7 @@ export default function PropertiesDashboard() {
     const buildRoute = VERIFICATION_ROUTES[property._category];
     if (buildRoute) navigate(buildRoute(property._id));
     else navigate(`/property/${property._category}/${property._id}`);
-  };
+  }, [navigate, rememberCategory]);
 
   const deleteProperty = async () => {
     if (!deleteTarget?._id || deleteLoading) return;
@@ -1506,7 +1624,7 @@ export default function PropertiesDashboard() {
                   <p className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
                     Select category
                   </p>
-                  {propertyCategories.map((item) => (
+                  {PROPERTY_CATEGORIES.map((item) => (
                     <button
                       key={item.value}
                       type="button"
@@ -2256,6 +2374,7 @@ export default function PropertiesDashboard() {
             <span className="inline-flex flex-wrap items-center gap-1.5">
               <Filter className="h-4 w-4 shrink-0" /> {visibleProperties.length} cards
               shown below • {activeFilterCount} filters active
+              {catalogFilling ? " • loading remaining listings" : ""}
               {(promotionType !== "all" || trackingFilter !== "all") && (
                 <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">
                   {promotionType === "all"
@@ -2280,7 +2399,7 @@ export default function PropertiesDashboard() {
           </div>
         </div>
 
-        {loading ? (
+        {isInitialListLoading ? (
           <div className="flex min-h-72 items-center justify-center">
             <LoadingSpinner />
           </div>
@@ -2291,18 +2410,17 @@ export default function PropertiesDashboard() {
               className="mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3"
             >
               {paginatedProperties.map((property, index) => (
-                <PropertyCard
+                <PropertyGridCard
                   key={`${property._category}-${property._id}`}
                   property={property}
-                  category={property._category}
                   canReview={canReviewProperty(property)}
                   canEditPending={canEditPendingProperty(currentUser, property)}
                   index={index}
                   promoteBusy={promoteLoading}
-                  onOpen={() => openPropertyDetails(property)}
-                  onEdit={() => editProperty(property)}
-                  onReview={() => reviewProperty(property)}
-                  onDelete={() => setDeleteTarget(property)}
+                  onOpen={openPropertyDetails}
+                  onEdit={editProperty}
+                  onReview={reviewProperty}
+                  onDelete={setDeleteTarget}
                   onPromote={openPromote}
                   onRenew={handleRenewPromotion}
                   onExpire={handleExpirePromotion}

@@ -1,6 +1,6 @@
 // src/pages/features/property/components/shared/ProjectsDashboardPage.jsx
 import {
-  useState, useEffect, useRef, useMemo, useCallback, useReducer, useDeferredValue,
+  useState, useEffect, useRef, useMemo, useCallback, useReducer, useDeferredValue, memo,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -212,6 +212,37 @@ const TYPE_COLORS = [
 ];
 
 const PROJECTS_PER_PAGE = 20;
+
+const ProjectGridCard = memo(function ProjectGridCard({
+  property,
+  canPermanentDelete,
+  canApprove,
+  onDelete,
+  onPermanentDelete,
+  onPromote,
+  onExpire,
+  onReset,
+  onRankUpdated,
+}) {
+  return (
+    <div className="min-w-0 w-full">
+      <PropertyCard
+      property={property}
+      type={property.promotion?.type || "normal"}
+      onDelete={() => onDelete(property._id)}
+      onPermanentDelete={
+        canPermanentDelete ? () => onPermanentDelete(property._id) : undefined
+      }
+      canPermanentDelete={canPermanentDelete}
+      onPromote={() => onPromote(property._id)}
+      onExpire={() => onExpire(property._id)}
+      onReset={() => onReset(property._id)}
+      onRankUpdated={onRankUpdated}
+      canApprove={canApprove}
+    />
+    </div>
+  );
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -1628,7 +1659,8 @@ export default function ProjectsDashboardPage() {
 
   const { data: pendingProjectsData, refetch: refetchPendingProjects } = usePendingProjects({
     enabled: canViewPendingProjects,
-    refetchInterval: canViewPendingProjects ? 45_000 : false,
+    refetchInterval:
+      canViewPendingProjects && urlStatusFilter === "pending" ? 120_000 : false,
   });
   const pendingProjects = pendingProjectsData?.data || [];
   const actionablePendingProjects = useMemo(
@@ -1653,6 +1685,19 @@ export default function ProjectsDashboardPage() {
     sponsoredHook,
   ]);
 
+  const catalogHooksRef = useRef({
+    primeHook,
+    featuredHook,
+    sponsoredHook,
+    normalHook,
+  });
+  catalogHooksRef.current = {
+    primeHook,
+    featuredHook,
+    sponsoredHook,
+    normalHook,
+  };
+
   const allProperties = useMemo(() => {
     if (serverPromotionStatus) {
       return lifecycleHook.properties;
@@ -1672,6 +1717,21 @@ export default function ProjectsDashboardPage() {
     sponsoredHook.properties,
     normalHook.properties,
   ]);
+
+  const projectSearchIndex = useMemo(() => {
+    const index = new Map();
+    for (const project of allProperties) {
+      if (!project?._id) continue;
+      const createdAt = new Date(project.createdAt || 0);
+      index.set(project._id, {
+        search: normalizeSearchText(listingSearchTokens(project).join(" ")),
+        day: Number.isNaN(createdAt.getTime())
+          ? ""
+          : createdAt.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }),
+      });
+    }
+    return index;
+  }, [allProperties]);
 
   // Builder ownership only (Select Builder / createdBy) — not postedBy staff.
   const getProjectCreatorId = (property) => {
@@ -1774,6 +1834,26 @@ export default function ProjectsDashboardPage() {
   // Do not hide already-arrived cards while a slower project type is still
   // loading. This makes the board feel responsive on slow connections.
   const isInitialListLoading = isLoading && allProperties.length === 0;
+
+  useEffect(() => {
+    if (isInitialListLoading || serverPromotionStatus) return undefined;
+    let stopped = false;
+    const timer = window.setTimeout(async () => {
+      const hooks = Object.values(catalogHooksRef.current);
+      for (const hook of hooks) {
+        let guard = 0;
+        while (!stopped && hook?.hasNextPage && guard < 15) {
+          await hook.fetchNextPage();
+          guard += 1;
+        }
+      }
+    }, 600);
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+    };
+  }, [isInitialListLoading, serverPromotionStatus]);
+
   // ── Unified top-bar state (location + search) — drives analytics ─────────
   const [selectedLocation, setSelectedLocation] = useState(() => {
     const savedLocation = searchParams.get("location");
@@ -1998,12 +2078,8 @@ export default function ProjectsDashboardPage() {
     }
     if (createdFrom || createdTo) {
       list = list.filter((p) => {
-        const createdAt = new Date(p.createdAt || 0);
-        if (Number.isNaN(createdAt.getTime())) return false;
-        // Compare calendar day in IST so sidebar "today" matches list rows.
-        const day = createdAt.toLocaleDateString("en-CA", {
-          timeZone: "Asia/Kolkata",
-        });
+        const day = projectSearchIndex.get(p._id)?.day || "";
+        if (!day) return false;
         if (createdFrom && day < createdFrom) return false;
         if (createdTo && day > createdTo) return false;
         return true;
@@ -2033,11 +2109,10 @@ export default function ProjectsDashboardPage() {
 
     if (deferredProjectSearch) {
       const q = normalizeSearchText(deferredProjectSearch);
+      const tokens = q.split(" ").filter(Boolean);
       list = list.filter((p) => {
-        const haystack = normalizeSearchText(
-          listingSearchTokens(p).join(" "),
-        );
-        return haystack.includes(q);
+        const haystack = projectSearchIndex.get(p._id)?.search || "";
+        return tokens.every((token) => haystack.includes(token));
       });
     }
 
@@ -2139,6 +2214,7 @@ export default function ProjectsDashboardPage() {
     canViewPendingProjects,
     isPendingApprovalsView,
     sortBy,
+    projectSearchIndex,
   ]);
 
   const openPendingApprovalsView = useCallback(() => {
@@ -3327,24 +3403,18 @@ export default function ProjectsDashboardPage() {
           }`}
         >
           {paginatedProperties.map((p) => (
-            <div key={p._id} className="min-w-0 w-full">
-              <PropertyCard
-                property={p}
-                type={p.promotion?.type || "normal"}
-                onDelete={() => setDeleteTarget(p._id)}
-                onPermanentDelete={
-                  canPermanentDelete
-                    ? () => setPermanentDeleteTarget(p._id)
-                    : undefined
-                }
-                canPermanentDelete={canPermanentDelete}
-                onPromote={() => openPromoteModal(p._id)}
-                onExpire={() => setExpireTarget(p._id)}
-                onReset={() => setResetTarget(p._id)}
-                onRankUpdated={refreshAllProjects}
-                canApprove={canApproveProject(currentUser, p)}
-              />
-            </div>
+            <ProjectGridCard
+              key={p._id}
+              property={p}
+              canPermanentDelete={canPermanentDelete}
+              canApprove={canApproveProject(currentUser, p)}
+              onDelete={setDeleteTarget}
+              onPermanentDelete={setPermanentDeleteTarget}
+              onPromote={openPromoteModal}
+              onExpire={setExpireTarget}
+              onReset={setResetTarget}
+              onRankUpdated={refreshAllProjects}
+            />
           ))}
         </div>
       )}

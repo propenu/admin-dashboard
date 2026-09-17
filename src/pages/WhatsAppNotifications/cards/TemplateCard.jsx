@@ -1,100 +1,191 @@
-//src/pages/WhatsAppNotifications/cards/TemplateCard.jsx
-import { Globe, Hash, MessageSquare, Trash2 } from "lucide-react";
-import { CAT_COLOR, getStatusMeta } from "../utils/constants";
+import {
+  Copy,
+  Eye,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { countVars, formatDate } from "../utils/helper";
 
+function bodyPreview(item) {
+  const body = item.components?.find((c) => c.type === "BODY");
+  return body?.text || "";
+}
 
-export const TemplateCard = ({ item, onView, onEdit, onDelete }) => {
-  const sm = getStatusMeta(item.status);
-  const Icon = sm.icon;
+function varTokens(text = "") {
+  const matches = text.match(/\{\{\d+\}\}/g) || [];
+  return [...new Set(matches)];
+}
 
-  const bodyComp = item.components?.find((c) => c.type === "BODY");
-  const btnComp = item.components?.find((c) => c.type === "BUTTONS");
-  const hdrComp = item.components?.find((c) => c.type === "HEADER");
-  const varCount = countVars(bodyComp?.text || "");
+/**
+ * Compact template card — grid or list, matching Template library mockup.
+ */
+export function TemplateCard({
+  item,
+  viewMode = "grid",
+  onView,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}) {
+  const body = bodyPreview(item);
+  const vars = varTokens(body);
+  const varCount = countVars(body);
+  const category = String(item.category || "UTILITY").toUpperCase();
+  const status = String(item.status || "PENDING").toUpperCase();
+  const updated =
+    formatDate(item.updatedAt || item.createdAt) === "—"
+      ? "—"
+      : formatDate(item.updatedAt || item.createdAt);
 
-  return (
-    <div
-      onClick={() => onView(item)}
-      className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-[#C2EDD6] transition-all cursor-pointer group"
-    >
-      <div className="flex items-start gap-3 p-4">
-        <div className="w-10 h-10 rounded-xl bg-[#E8F8EF] border border-[#C2EDD6] flex items-center justify-center text-[#27AE60] flex-shrink-0">
-          <MessageSquare size={18} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-gray-800 truncate font-mono">
-            {item.name
-              .split("_")
-              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-              .join(" ")}
-          </p>
-          <div className="flex gap-1.5 mt-1.5 flex-wrap">
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${sm.color}`}
-            >
-              <Icon size={11} /> {sm.label}
-            </span>
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${CAT_COLOR[item.category] || "bg-gray-100 text-gray-500 border-gray-200"}`}
-            >
-              {item.category}
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-gray-50 text-gray-500 border-gray-200">
-              <Globe size={9} /> {item.language}
-            </span>
-            {hdrComp && hdrComp.format !== "TEXT" && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-blue-50 text-blue-600 border-blue-200">
-                {hdrComp.format}
+  const stop = (e, fn) => {
+    e.stopPropagation();
+    fn?.(item);
+  };
+
+  const actions = (
+    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        title="View"
+        onClick={(e) => stop(e, onView)}
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+      >
+        <Eye size={14} />
+      </button>
+      <button
+        type="button"
+        title="Edit copy"
+        onClick={(e) => stop(e, onEdit)}
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+      >
+        <Pencil size={14} />
+      </button>
+      <button
+        type="button"
+        title="Duplicate"
+        onClick={(e) => stop(e, onDuplicate || onEdit)}
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+      >
+        <Copy size={14} />
+      </button>
+      <button
+        type="button"
+        title="Delete"
+        onClick={(e) => stop(e, onDelete)}
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-rose-100 bg-white text-rose-500 hover:bg-rose-50"
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
+  );
+
+  if (viewMode === "list") {
+    return (
+      <div
+        onClick={() => onView?.(item)}
+        className="cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-emerald-200 hover:shadow-md"
+      >
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate text-sm font-extrabold text-slate-900">
+                {item.name}
+              </p>
+              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-600">
+                {category}
               </span>
-            )}
+            </div>
+            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+              {body || "No body text"}
+            </p>
           </div>
-        </div>
-        <div
-          className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => onDelete(item)}
-            className="w-8 h-8 flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors"
-          >
-            <Trash2 size={13} />
-          </button>
+
+          <div className="shrink-0 lg:w-36">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {status}
+            </span>
+            <p className="mt-1 text-[11px] text-slate-400">
+              {updated === "—" ? "No date" : updated}
+              <span className="text-slate-300"> · </span>
+              by Admin
+            </p>
+          </div>
+
+          <div className="shrink-0 lg:w-32">
+            <p className="text-xs font-semibold text-slate-600">
+              {varCount} Variable{varCount === 1 ? "" : "s"}
+            </p>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {vars.length ? (
+                vars.map((v) => (
+                  <span
+                    key={v}
+                    className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500"
+                  >
+                    {v}
+                  </span>
+                ))
+              ) : (
+                <span className="text-[11px] text-slate-300">—</span>
+              )}
+            </div>
+          </div>
+
+          <div className="shrink-0">{actions}</div>
         </div>
       </div>
+    );
+  }
 
-      {bodyComp?.text && (
-        <div className="mx-4 mb-3 px-3 py-2 bg-gray-50 rounded-xl border border-gray-100">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">
-            Body
-          </p>
-          <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
-            {bodyComp.text}
-          </p>
+  // Compact grid card
+  return (
+    <div
+      onClick={() => onView?.(item)}
+      className="flex cursor-pointer flex-col rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm transition hover:border-emerald-200 hover:shadow-md"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          {category}
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50/80 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          {status}
+        </span>
+      </div>
+
+      <p className="mt-2 truncate text-sm font-extrabold text-slate-900">
+        {item.name}
+      </p>
+      <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-xs leading-relaxed text-slate-500">
+        {body || "No body text"}
+      </p>
+
+      {vars.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {vars.slice(0, 4).map((v) => (
+            <span
+              key={v}
+              className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500"
+            >
+              {v}
+            </span>
+          ))}
         </div>
+      ) : (
+        <div className="mt-2 h-5" />
       )}
 
-      <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 bg-gray-50/50">
-        <div className="flex items-center gap-2">
-          {varCount > 0 && (
-            <span className="flex items-center gap-1 text-[10px] text-gray-400 font-semibold">
-              <Hash size={9} /> {varCount} var{varCount > 1 ? "s" : ""}
-            </span>
-          )}
-          {btnComp?.buttons?.length > 0 && (
-            <span className="text-[10px] text-gray-400 font-semibold">
-              · {btnComp.buttons.length} btn
-              {btnComp.buttons.length > 1 ? "s" : ""}
-            </span>
-          )}
-          <span className="text-[10px] font-mono text-gray-300">
-            #{item.id || item._id || ""}
-          </span>
-        </div>
-        <span className="text-[10px] text-gray-400">
-          {formatDate(item.createdAt)}
-        </span>
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+        <p className="text-[11px] text-slate-400">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-300 align-middle" />{" "}
+          Updated {updated}
+        </p>
+        {actions}
       </div>
     </div>
   );
-};
+}
+
+export default TemplateCard;

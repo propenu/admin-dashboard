@@ -291,6 +291,18 @@ export const getWhatsAppNotificationAnalytics = () => {
   return apiClient.get(`${SERVICES.USER}/whatsapp/whatsapp-logs/stats`);
 }
 
+export const getWhatsAppCampaignStats = (campaignId) => {
+  return apiClient.get(
+    `${SERVICES.USER}/whatsapp/whatsapp-logs/campaign/${encodeURIComponent(campaignId)}`,
+  );
+};
+
+export const retryFailedWhatsAppCampaign = (campaignId) => {
+  return apiClient.post(
+    `${SERVICES.USER}/whatsapp/whatsapp-logs/retry-failed/${encodeURIComponent(campaignId)}`,
+  );
+};
+
 
 
 export const createWhatsAppNotification = (formData) => {
@@ -324,6 +336,16 @@ export const sentBulkWhatsAppNotification = (formData) => {
   return apiClient.post(
     `${SERVICES.USER}/whatsapp/send-csv-bulk-whatsapp`,
     formData,
+  );
+};
+
+/** Upload campaign header image → public S3 URL for Meta */
+export const uploadWhatsAppCampaignImage = (file) => {
+  const fd = new FormData();
+  fd.append("image", file);
+  return apiClient.post(
+    `${SERVICES.USER}/whatsapp/upload-campaign-image`,
+    fd,
   );
 };
 

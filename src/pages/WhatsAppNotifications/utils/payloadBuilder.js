@@ -1,18 +1,135 @@
-
-
 import { countVars } from "./helper";
 
-const countWords = (text) => text.trim().split(/\s+/).filter(Boolean).length;
+const countWords = (text) =>
+  String(text || "")
+    .replace(/\{\{\d+\}\}/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
 
-const validateBody = (text) => {
-  const varMatches = text.match(/{{\d+}}/g) || [];
-  const varCount = varMatches.length;
+/**
+ * Meta WhatsApp BODY variable rules + how to fix each issue.
+ * Returns { ok, errors: [{ code, message, fix }] }
+ */
+export const validateTemplateBody = (rawText = "") => {
+  const text = String(rawText || "");
+  const errors = [];
+
+  if (!text.trim()) {
+    errors.push({
+      code: "EMPTY_BODY",
+      message: "Message body is required.",
+      fix: "Write your template text in Message Body.",
+    });
+    return { ok: false, errors };
+  }
+
+  const invalidNamed = text.match(/\{\{(?!\d+\})[^}]+\}\}/g) || [];
+  if (invalidNamed.length) {
+    errors.push({
+      code: "NAMED_VARS",
+      message: `Invalid variable(s): ${[...new Set(invalidNamed)].join(", ")}`,
+      fix: "Use only numbered variables like {{1}}, {{2}}. Remove named tokens.",
+    });
+  }
+
+  const matches = text.match(/\{\{\d+\}\}/g) || [];
+  const numbers = matches.map((m) => Number(m.replace(/[{}]/g, "")));
+  const uniqueSorted = [...new Set(numbers)].sort((a, b) => a - b);
+  const varCount = uniqueSorted.length;
   const wordCount = countWords(text);
 
-  if (varCount > 0 && wordCount / varCount < 2) {
-    throw new Error(
-      "Too many variables for message length. Please add more text.",
-    );
+  if (varCount > 0) {
+    // Must start at 1 and be consecutive
+    for (let i = 0; i < uniqueSorted.length; i++) {
+      if (uniqueSorted[i] !== i + 1) {
+        errors.push({
+          code: "NON_SEQUENTIAL",
+          message: "Variables must be sequential starting from {{1}}.",
+          fix: "Use {{1}}, then {{2}}, then {{3}}… without skipping numbers.",
+        });
+        break;
+      }
+    }
+
+    // Cannot start with a variable
+    if (/^\s*\{\{\d+\}\}/.test(text)) {
+      errors.push({
+        code: "VAR_AT_START",
+        message: "Variables can't be at the start of the template.",
+        fix: 'Add text before the first variable. Example: "Hi {{1}}, welcome…" (not "{{1}} welcome…").',
+      });
+    }
+
+    // Cannot end with a variable
+    if (/\{\{\d+\}\}\s*$/.test(text)) {
+      errors.push({
+        code: "VAR_AT_END",
+        message: "Variables can't be at the end of the template.",
+        fix: 'Add text after the last variable. Example: "…city is {{2}}. Thank you!"',
+      });
+    }
+
+    // Adjacent variables with little/no text between
+    if (/\{\{\d+\}\}\s*\{\{\d+\}\}/.test(text)) {
+      errors.push({
+        code: "ADJACENT_VARS",
+        message: "Two variables are next to each other.",
+        fix: "Put words between variables. Example: \"{{1}} from {{2}}\" → \"Customer {{1}} from city {{2}}\".",
+      });
+    }
+
+    // Too many variables for message length (Meta rule)
+    // Meta rejects when there isn't enough real text vs placeholders.
+    if (wordCount < varCount * 3 || (varCount > 0 && wordCount / varCount < 2)) {
+      errors.push({
+        code: "TOO_MANY_VARS",
+        message: "Too many variables for this message length.",
+        fix: `You have ${varCount} variable(s) but only ~${wordCount} word(s). Add more real text (aim for at least 3 words per variable), or remove unused {{n}} tokens.`,
+      });
+    }
+
+    // Soft max — Meta templates rarely need more than ~5–10 vars in body
+    if (varCount > 10) {
+      errors.push({
+        code: "VAR_LIMIT",
+        message: `Too many variables (${varCount}).`,
+        fix: "Keep body variables to 10 or fewer. Split content across templates if needed.",
+      });
+    }
+  }
+
+  return { ok: errors.length === 0, errors, varCount, wordCount };
+};
+
+/**
+ * Map Meta / API error text to a user-facing fix tip.
+ */
+export const tipForMetaTemplateError = (msg = "") => {
+  const m = String(msg || "").toLowerCase();
+  if (m.includes("start or end") || m.includes("beginning or end")) {
+    return 'Fix: do not start or end the body with {{1}}. Put words before and after, e.g. "Hi {{1}}, … Thank you."';
+  }
+  if (m.includes("too many variable") || m.includes("variable param")) {
+    return "Fix: add more message text, or remove extra {{n}} variables so each variable has enough surrounding words.";
+  }
+  if (m.includes("sequential") || m.includes("format")) {
+    return "Fix: use only {{1}}, {{2}}, {{3}}… in order — no skipped numbers and no named tokens.";
+  }
+  if (m.includes("already exists") || m.includes("language already")) {
+    return "Fix: change the template name (e.g. add _v2) or pick another language.";
+  }
+  if (m.includes("example")) {
+    return "Fix: fill sample values for every {{n}} variable before submit.";
+  }
+  return "";
+};
+
+const validateBody = (text) => {
+  const result = validateTemplateBody(text);
+  if (!result.ok) {
+    const first = result.errors[0];
+    throw new Error(`${first.message} ${first.fix}`);
   }
 };
 
@@ -51,7 +168,9 @@ export const buildPayload = (form) => {
     const examples = form.body.examples.slice(0, varCount);
 
     if (examples.some((e) => !e)) {
-      throw new Error("All variable examples are required");
+      throw new Error(
+        "All variable examples are required. Fix: fill sample values for each {{n}}.",
+      );
     }
 
     bodyComp.example = {

@@ -14,6 +14,9 @@ const SIDEBAR_COLLAPSED = 56;
 /** Full-bleed flows (no sidebar) — email-style SE user onboarding, etc. */
 const HIDE_SIDEBAR_PREFIXES = ["/sales-executives/onboard-user"];
 
+/** Pages that should use the full content width (no extra inner padding). */
+const FULL_WIDTH_PREFIXES = ["/whatsapp-notifications"];
+
 const APP_BACKGROUND = {
   backgroundColor: "#f8fffb",
   backgroundImage:
@@ -29,6 +32,9 @@ const CONTENT_BACKGROUND = {
 export default function MainLayout() {
   const { pathname } = useLocation();
   const hideSidebar = HIDE_SIDEBAR_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+  const fullWidthContent = FULL_WIDTH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -87,12 +93,17 @@ export default function MainLayout() {
         >
           <div
             className={`min-w-0 max-w-full ${
-              hideSidebar
+              hideSidebar || fullWidthContent
                 ? "p-0"
                 : "px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:p-4 lg:p-6"
             }`}
           >
-            {!hideSidebar ? <PageBackNav /> : null}
+            {!hideSidebar && !fullWidthContent ? <PageBackNav /> : null}
+            {fullWidthContent && !hideSidebar ? (
+              <div className="px-3 pt-2 sm:px-4">
+                <PageBackNav />
+              </div>
+            ) : null}
             <Outlet />
           </div>
         </main>

@@ -1,7 +1,8 @@
 export const EMPTY_FORM = {
   name: "",
   language: "en",
-  category: "UTILITY",
+  category: "MARKETING",
+  templateType: "text",
   header: {
     enabled: false,
     format: "TEXT",
