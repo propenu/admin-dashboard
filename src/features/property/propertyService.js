@@ -24,7 +24,10 @@ export const getFeaturedProjectsByType = (
     query.set("promotionStatus", params.promotionStatus);
   }
   if (params.search?.trim()) {
-    query.set("search", params.search.trim());
+    const term = params.search.trim();
+    // `q` is what the property API reads today. `search` is kept for newer builds.
+    query.set("search", term);
+    query.set("q", term);
   }
   if (params.status) query.set("status", params.status);
   if (params.from) query.set("from", params.from);

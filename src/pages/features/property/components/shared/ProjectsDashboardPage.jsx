@@ -31,6 +31,7 @@ import {
   deleteFeaturedProject,
   permanentlyDeleteFeaturedProject,
   getAllProjectsAnalytics,
+  getFeaturedProjectsByType,
 } from "../../../../../features/property/propertyService";
 import {
   getPromotionTracking,
@@ -2034,6 +2035,43 @@ export default function ProjectsDashboardPage() {
    analyticsData?.data ||
    masterAnalytics;
 
+  const projectTitleSearch = debouncedProjectSearch.trim();
+  const projectSearchType =
+    promotionFilter !== "all" && promotionFilter !== "pending"
+      ? promotionFilter
+      : undefined;
+  const {
+    data: projectTitleSearchData,
+    isFetching: projectTitleSearchLoading,
+  } = useQuery({
+    queryKey: [
+      "project-title-search",
+      projectTitleSearch,
+      statusFilter,
+      projectSearchType || "all",
+      trackingFilter,
+      serverPromotionStatus || "",
+    ],
+    // Loaded pages are only a slice of the catalogue. Title search must hit
+    // the database, including rows the board has not paged in yet.
+    enabled: projectTitleSearch.length >= 2,
+    staleTime: 20_000,
+    refetchOnWindowFocus: false,
+    queryFn: () =>
+      getFeaturedProjectsByType(projectSearchType, 1, 100, {
+        search: projectTitleSearch,
+        status: toServerProjectStatus(statusFilter),
+        promotionStatus:
+          serverPromotionStatus ||
+          (trackingFilter === "all" ? "all" : "active"),
+      }),
+  });
+  const serverSearchItems = Array.isArray(projectTitleSearchData?.data?.items)
+    ? projectTitleSearchData.data.items
+    : Array.isArray(projectTitleSearchData?.data?.data?.items)
+      ? projectTitleSearchData.data.data.items
+      : null;
+
   const isPendingApprovalsView =
     canViewPendingProjects &&
     (statusFilter === "pending" || promotionFilter === "pending");
@@ -2041,7 +2079,13 @@ export default function ProjectsDashboardPage() {
   // ── Project list filtering — uses all filter state ────────────────────────
   const visibleProperties = useMemo(() => {
     // Pending approvals live in a dedicated API — list hooks often omit them.
-    let list = isPendingApprovalsView ? pendingProjects : allProperties;
+    // A typed title search uses the database result, not the loaded page slice.
+    let list =
+      projectTitleSearch.length >= 2 && serverSearchItems
+        ? serverSearchItems
+        : isPendingApprovalsView
+          ? pendingProjects
+          : allProperties;
 
     if (promotionFilter !== "all" && promotionFilter !== "pending") {
       list = list.filter((p) => p.promotion?.type === promotionFilter);
@@ -2078,7 +2122,15 @@ export default function ProjectsDashboardPage() {
     }
     if (createdFrom || createdTo) {
       list = list.filter((p) => {
-        const day = projectSearchIndex.get(p._id)?.day || "";
+        let day = projectSearchIndex.get(p._id)?.day || "";
+        if (!day && p?.createdAt) {
+          const createdAt = new Date(p.createdAt);
+          if (!Number.isNaN(createdAt.getTime())) {
+            day = createdAt.toLocaleDateString("en-CA", {
+              timeZone: "Asia/Kolkata",
+            });
+          }
+        }
         if (!day) return false;
         if (createdFrom && day < createdFrom) return false;
         if (createdTo && day > createdTo) return false;
@@ -2111,7 +2163,9 @@ export default function ProjectsDashboardPage() {
       const q = normalizeSearchText(deferredProjectSearch);
       const tokens = q.split(" ").filter(Boolean);
       list = list.filter((p) => {
-        const haystack = projectSearchIndex.get(p._id)?.search || "";
+        const haystack =
+          projectSearchIndex.get(p._id)?.search ||
+          normalizeSearchText(listingSearchTokens(p).join(" "));
         return tokens.every((token) => haystack.includes(token));
       });
     }
@@ -2215,6 +2269,8 @@ export default function ProjectsDashboardPage() {
     isPendingApprovalsView,
     sortBy,
     projectSearchIndex,
+    projectTitleSearch,
+    serverSearchItems,
   ]);
 
   const openPendingApprovalsView = useCallback(() => {
@@ -3357,6 +3413,11 @@ export default function ProjectsDashboardPage() {
             <span className="ml-2 text-sm font-semibold text-slate-400">
               ({visibleProperties.length})
             </span>
+            {projectTitleSearchLoading && projectTitleSearch.length >= 2 ? (
+              <span className="ml-2 text-xs font-medium text-slate-400">
+                Searching catalogue…
+              </span>
+            ) : null}
           </h2>
 
           <div className="flex w-full items-center gap-2 sm:w-auto">
