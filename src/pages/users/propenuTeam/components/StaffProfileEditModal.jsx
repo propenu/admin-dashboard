@@ -46,7 +46,8 @@ const payloadFromUser = (user = {}) =>
   }, {});
 
 /**
- * Super Admin / Admin — edit ops staff profile (name, email, phone, location).
+ * Hierarchy managers (CSH / Team Lead / Ops) + Super Admin / Admin —
+ * edit ops staff profile (name, email, phone, location).
  * Phone changes require WhatsApp OTP, same as marketplace profile edit.
  */
 export default function StaffProfileEditModal({ user, roleLabel = "Staff", onClose, onSaved }) {

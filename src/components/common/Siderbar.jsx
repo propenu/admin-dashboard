@@ -428,45 +428,77 @@ export default function Sidebar({
     const rawRoleName = normalizeSidebarRoleName(user?.roleName || user?.roleLabel || user?.role || "");
     const currentRoleName = SIDEBAR_ROLE_ALIASES[rawRoleName] || rawRoleName;
     const isLeafHierarchyRole = LEAF_HIERARCHY_ROLES.has(currentRoleName);
+    const isCustomerSupportHead = currentRoleName === "customer_support_head";
     const isSalesExecutive =
       currentRoleName === "sales_executive" || currentRoleName === "sales_agent";
     const isFieldMeetingsRole = FIELD_MEETINGS_SIDEBAR_ROLES.has(currentRoleName);
     const canView = (module) => allowed.has(`${module}:view`);
     const propertyAccess = canView("residential") || canView("commercial") || canView("land") || canView("agricultural");
-    const operationsChildren = [
-      !isLeafHierarchyRole &&
-        allowed.has("user:update") && {
-          label: "Transfer Credentials",
-          icon: CreateCredentialsIcon,
-          key: "transfer-credentials",
-          action: "openTranforCredentialsModal",
-        },
-      !isLeafHierarchyRole &&
-        allowed.has("team:assign_manager") && {
-          label: "Assign Reports To",
-          icon: AgentIcon,
-          key: "assign-agent",
-          action: "openAssignAgentModal",
-        },
-      !isLeafHierarchyRole &&
-        canView("team") && {
-          path: "/sales-managers",
-          label: "Sales Managers",
-          icon: SalesManagerIcon,
-        },
-      !isLeafHierarchyRole &&
-        canView("team") && {
-          path: "/sales-agents",
-          label: "Sales Executives",
-          icon: SalesAgentIcon,
-        },
-      !isLeafHierarchyRole &&
-        canView("team") && {
-          path: "/relationship-managers",
-          label: "Relationship Managers",
-          icon: SalesManagerIcon,
-        },
-    ].filter(Boolean);
+    const canOpenTeamDirectory =
+      !isLeafHierarchyRole && (canView("team") || canView("user"));
+    const canOpenTeamManagement = !isLeafHierarchyRole && canView("team");
+
+    // CSH: Operations = Team Directory + Team Management + transfer/assign tools
+    // (no Sales Managers / Sales Executives / RM list pages).
+    const operationsChildren = isCustomerSupportHead
+      ? [
+          canOpenTeamDirectory && {
+            path: "/propenu-team-members",
+            label: "Team Directory",
+            icon: AllUsersIcon,
+          },
+          canOpenTeamManagement && {
+            path: "/dashboard/team-management",
+            label: "Team Management",
+            icon: TeamManagementIcon,
+          },
+          allowed.has("user:update") && {
+            label: "Transfer Credentials",
+            icon: CreateCredentialsIcon,
+            key: "transfer-credentials",
+            action: "openTranforCredentialsModal",
+          },
+          allowed.has("team:assign_manager") && {
+            label: "Assign Reports To",
+            icon: AgentIcon,
+            key: "assign-agent",
+            action: "openAssignAgentModal",
+          },
+        ].filter(Boolean)
+      : [
+          !isLeafHierarchyRole &&
+            allowed.has("user:update") && {
+              label: "Transfer Credentials",
+              icon: CreateCredentialsIcon,
+              key: "transfer-credentials",
+              action: "openTranforCredentialsModal",
+            },
+          !isLeafHierarchyRole &&
+            allowed.has("team:assign_manager") && {
+              label: "Assign Reports To",
+              icon: AgentIcon,
+              key: "assign-agent",
+              action: "openAssignAgentModal",
+            },
+          !isLeafHierarchyRole &&
+            canView("team") && {
+              path: "/sales-managers",
+              label: "Sales Managers",
+              icon: SalesManagerIcon,
+            },
+          !isLeafHierarchyRole &&
+            canView("team") && {
+              path: "/sales-agents",
+              label: "Sales Executives",
+              icon: SalesAgentIcon,
+            },
+          !isLeafHierarchyRole &&
+            canView("team") && {
+              path: "/relationship-managers",
+              label: "Relationship Managers",
+              icon: SalesManagerIcon,
+            },
+        ].filter(Boolean);
     const userChildren = [
       canView("user") && { path: "/users", label: "All Users", icon: AllUsersIcon },
       canView("user") && { path: "/owners", label: "Owners", icon: OwnerIcon },
@@ -582,14 +614,15 @@ export default function Sidebar({
       },
       canView("project") && { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
       propertyAccess && { path: "/properties", label: "Properties", icon: PropertiesIcon },
-      !isLeafHierarchyRole &&
-        (canView("team") || canView("user")) && {
+      // CSH keeps Team Directory / Team Management under Operations only.
+      !isCustomerSupportHead &&
+        canOpenTeamDirectory && {
           path: "/propenu-team-members",
           label: "Team Directory",
           icon: AllUsersIcon,
         },
-      !isLeafHierarchyRole &&
-        canView("team") && {
+      !isCustomerSupportHead &&
+        canOpenTeamManagement && {
           path: "/dashboard/team-management",
           label: "Team Management",
           icon: TeamManagementIcon,

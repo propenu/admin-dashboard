@@ -12,7 +12,12 @@ export const useUsers = (params) => {
     queryKey: ["users", params || null],
     queryFn: async () => {
       const res = await getAllUsers(params);
-      return res.data; // ✅ IMPORTANT
+      const payload = res?.data;
+      // API may return a bare array or { data: [...] }
+      if (Array.isArray(payload)) return payload;
+      if (Array.isArray(payload?.data)) return payload.data;
+      if (Array.isArray(payload?.users)) return payload.users;
+      return [];
     },
   });
 };

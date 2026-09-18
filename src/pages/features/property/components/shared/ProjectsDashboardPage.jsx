@@ -1,7 +1,8 @@
 // src/pages/features/property/components/shared/ProjectsDashboardPage.jsx
 import {
-  useState, useEffect, useRef, useMemo, useCallback, useReducer, useDeferredValue, memo,
+  useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, useReducer, useDeferredValue, memo,
 } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -741,20 +742,63 @@ function InlineLocationSelector({
   onLocationChange,
   analyticsSearch,
   setAnalyticsSearch,
+  /** Prefer anchoring under Create Project group when present */
+  menuAlign = "start",
 }) {
   const [open, setOpen] = useState(false);
-  
+  const [menuPos, setMenuPos] = useState(null);
   const [openZones, setOpenZones] = useState({});
   const [openStates, setOpenStates] = useState({});
   const ref = useRef(null);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      const t = e.target;
+      if (ref.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!open || !ref.current) {
+      setMenuPos(null);
+      return undefined;
+    }
+
+    const place = () => {
+      const trigger = ref.current?.getBoundingClientRect();
+      if (!trigger) return;
+
+      const gutter = 8;
+      const width = Math.min(420, Math.max(280, window.innerWidth - gutter * 2));
+      let left =
+        menuAlign === "end" ? trigger.right - width : trigger.left;
+
+      // Keep fully inside the viewport (Create hidden or narrow screens).
+      if (left + width > window.innerWidth - gutter) {
+        left = window.innerWidth - gutter - width;
+      }
+      if (left < gutter) left = gutter;
+
+      const top = Math.min(
+        trigger.bottom + gutter,
+        Math.max(gutter, window.innerHeight - gutter - 120),
+      );
+
+      setMenuPos({ top, left, width });
+    };
+
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, menuAlign]);
 
  
   const hierarchy = useMemo(() => {
@@ -1033,9 +1077,10 @@ function InlineLocationSelector({
   };
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={`relative ${open ? "z-[100]" : ""}`}>
       {/* Trigger button */}
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition min-w-[180px]
           ${
@@ -1069,9 +1114,21 @@ function InlineLocationSelector({
         />
       </button>
 
-      {/* Dropdown panel */}
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-[calc(100vw-2rem)] max-w-[420px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:w-[420px]">
+      {/* Fixed portal — escapes filter z-index / overflow so menu is never clipped */}
+      {open &&
+        menuPos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              position: "fixed",
+              top: menuPos.top,
+              left: menuPos.left,
+              width: menuPos.width,
+              zIndex: 9999,
+            }}
+            className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+          >
           {/* Search */}
           <div className="border-b border-slate-100 bg-slate-50 p-3">
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10">
@@ -1085,7 +1142,7 @@ function InlineLocationSelector({
                 autoFocus
               />
               {analyticsSearch && (
-                <button onClick={() => setAnalyticsSearch("")}>
+                <button type="button" onClick={() => setAnalyticsSearch("")}>
                   <X className="w-3 h-3 text-slate-400 hover:text-red-500" />
                 </button>
               )}
@@ -1094,6 +1151,7 @@ function InlineLocationSelector({
 
           {/* All India */}
           <button
+            type="button"
             onClick={() => {
               onLocationChange(null);
               setOpen(false);
@@ -1104,7 +1162,6 @@ function InlineLocationSelector({
             <Globe className="w-3.5 h-3.5" />
             All India
             <span className="ml-auto text-[10px] bg-[#27AE60] text-white px-1.5 py-0.5 rounded-full">
-              {/* {properties.length} */}
               {masterAnalytics?.overview?.totalProjects || 0}
             </span>
           </button>
@@ -1125,6 +1182,7 @@ function InlineLocationSelector({
               return (
                 <div key={zone.zone}>
                   <button
+                    type="button"
                     onClick={() => toggle(setOpenZones, zone.zone)}
                     className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider hover:bg-slate-100 transition"
                   >
@@ -1146,8 +1204,9 @@ function InlineLocationSelector({
             })}
             {ungroupedStates.filter(stateVisible).map((s) => renderState(s))}
           </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -2855,7 +2914,7 @@ export default function ProjectsDashboardPage() {
       {/* ── PAGE HEADER ─────────────────────────────────────────────────── */}
       <section className="flex items-center justify-between gap-4 px-4 py-2 sm:px-6">
         <h1 className="text-2xl font-bold tracking-tight text-[#27AE60] sm:text-3xl">Projects</h1>
-        <div className="flex items-center gap-3">
+        <div className="relative flex items-center gap-3">
           <InlineLocationSelector
             properties={allProperties}
             analytics={analytics}
@@ -2864,6 +2923,7 @@ export default function ProjectsDashboardPage() {
             onLocationChange={setSelectedLocation}
             analyticsSearch={analyticsSearch}
             setAnalyticsSearch={setAnalyticsSearch}
+            menuAlign={canCreate ? "start" : "end"}
           />
           {canViewAnalytics && (
             <button

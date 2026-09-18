@@ -37,7 +37,8 @@ import {
 import {
   canManageUserLifecycle,
   canUseLifecycleActions,
-  normalizeLifecycleRole,
+  canEditStaffProfile,
+  canonicalLifecycleRole,
 } from "../../../utils/userLifecycleAccess";
 import CceTerritoryManagerModal from "../../Dashboards/customerSupportTeamLeadDashboard/components/CceTerritoryManagerModal";
 import SafeUserDeleteModal from "../users/components/SafeUserDeleteModal";
@@ -114,17 +115,23 @@ const teamRoleLabel = (role) =>
   role?.label ||
   cleanRole(role?.name);
 /** Always show the real role title on a person (never raw slug like "team lead"). */
-const personRoleLabel = (roleName, roleOptions = []) => {
+const personRoleLabel = (roleName, roleOptions = [], user = null) => {
+  const fromUser =
+    roleName ||
+    user?.roleName ||
+    user?.role?.name ||
+    user?.roleId?.name ||
+    "";
   if (
-    roleName == null ||
-    roleName === "" ||
-    String(roleName).toLowerCase() === "null" ||
-    String(roleName).toLowerCase() === "undefined"
+    fromUser == null ||
+    fromUser === "" ||
+    String(fromUser).toLowerCase() === "null" ||
+    String(fromUser).toLowerCase() === "undefined"
   ) {
-    return "";
+    return user?.roleLabel || user?.role?.label || user?.roleId?.label || "";
   }
-  const key = canonicalTeamRole(roleName);
-  const raw = String(roleName || "").toLowerCase();
+  const key = canonicalTeamRole(fromUser);
+  const raw = String(fromUser || "").toLowerCase();
   // Prefer canonical singular labels so table badges stay consistent
   // (DB labels like "Customer Care" can be short/legacy duplicates).
   if (PERSON_ROLE_LABELS[key] || PERSON_ROLE_LABELS[raw]) {
@@ -133,10 +140,15 @@ const personRoleLabel = (roleName, roleOptions = []) => {
   const fromOptions = roleOptions.find(
     (role) =>
       canonicalTeamRole(role?.name) === key ||
-      String(role?.name || "").toLowerCase() === String(roleName || "").toLowerCase(),
+      String(role?.name || "").toLowerCase() === String(fromUser || "").toLowerCase(),
   );
   if (fromOptions?.label) return fromOptions.label;
-  return TEAM_ROLE_LABELS[key] || cleanRole(roleName);
+  return (
+    TEAM_ROLE_LABELS[key] ||
+    user?.roleLabel ||
+    user?.role?.label ||
+    cleanRole(fromUser)
+  );
 };
 /** Title-case person names for table/cards (e.g. pawan → Pawan). */
 const displayPersonName = (value = "") => {
@@ -219,9 +231,16 @@ export default function PropenuTeam() {
   const [previewUser, setPreviewUser] = useState(null);
 
   const canUseLifecycle = canUseLifecycleActions(viewerRole);
-  const canEditStaffProfiles =
-    normalizeLifecycleRole(viewerRole) === "super_admin" ||
-    normalizeLifecycleRole(viewerRole) === "admin";
+
+  const canEditMember = useCallback(
+    (user) =>
+      canEditStaffProfile({
+        actorRole: viewerRole,
+        targetRole: user?.roleName || user?.role || "",
+        isSelf: Boolean(viewerId && String(user?._id || user?.id) === String(viewerId)),
+      }),
+    [viewerId, viewerRole],
+  );
 
   const canManageMember = useCallback(
     (user) =>
@@ -236,8 +255,22 @@ export default function PropenuTeam() {
   const users = useMemo(() => {
     const list = Array.isArray(rawUsers) ? rawUsers : [];
     if (!viewerReady) return [];
+    // Super Admin / Admin see the full staff list from the API.
     if (!shouldScopeTeamToReports(viewerRole) || !viewerId) return list;
-    return filterUsersInReportingTree(list, viewerId);
+
+    // Backend already scopes team_directory. Only re-filter when manager
+    // links exist; otherwise keep role-descendant staff (avoids empty cards
+    // when Reports-to was never set on legacy users).
+    const hasManagerLinks = list.some(
+      (user) =>
+        Boolean(user?.managerId) ||
+        Boolean(user?.reportsTo?._id) ||
+        Boolean(user?.reportsTo),
+    );
+    if (!hasManagerLinks) return list;
+
+    const inTree = filterUsersInReportingTree(list, viewerId);
+    return inTree.length > 0 ? inTree : list;
   }, [rawUsers, viewerId, viewerReady, viewerRole]);
 
   const openTerritoryManager = (user) => {
@@ -281,9 +314,22 @@ export default function PropenuTeam() {
     try {
       const result = await deleteAccessUser(
         deleteTarget._id,
-        normalizeLifecycleRole(viewerRole) === "business_development_head"
-          ? "Deleted by Business Development Head from Team directory"
-          : "Deleted by Super Admin from Team directory",
+        (() => {
+          const role = canonicalLifecycleRole(viewerRole);
+          if (role === "business_development_head") {
+            return "Deleted by Business Development Head from Team directory";
+          }
+          if (role === "customer_support_head") {
+            return "Deleted by Customer Support Head from Team directory";
+          }
+          if (role === "customer_support_team_lead") {
+            return "Deleted by Customer Support Team Lead from Team directory";
+          }
+          if (role === "operations_head") {
+            return "Deleted by Operations Head from Team directory";
+          }
+          return "Deleted by Super Admin from Team directory";
+        })(),
       );
       toast.success(result?.message || "User permanently deleted");
       setDeleteTarget(null);
@@ -566,7 +612,7 @@ export default function PropenuTeam() {
         const active = user.accountStatus === "active" && user.isActive !== false;
         return <article key={user._id} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md cursor-pointer" onClick={() => setPreviewUser(user)}>
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-600 to-emerald-300" />
-          <div className="flex items-start gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700">{initials}</div><div className="min-w-0 flex-1"><h3 className="truncate text-base font-black text-slate-800">{displayPersonName(user.name) || "Unnamed user"}</h3><p className="mt-0.5 truncate text-[11px] font-bold tracking-wide text-emerald-600">{personRoleLabel(user.roleName, roleOptions)}</p></div><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${user.isActive === false ? "bg-slate-400" : active ? "bg-emerald-500" : "bg-amber-400"}`} title={user.isActive === false ? "Deactivated" : active ? "Active" : "Pending"} /></div>
+          <div className="flex items-start gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-700">{initials}</div><div className="min-w-0 flex-1"><h3 className="truncate text-base font-black text-slate-800">{displayPersonName(user.name) || "Unnamed user"}</h3><p className="mt-0.5 truncate text-[11px] font-bold tracking-wide text-emerald-600">{personRoleLabel(user.roleName, roleOptions, user) || "Role not set"}</p></div><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${user.isActive === false ? "bg-slate-400" : active ? "bg-emerald-500" : "bg-amber-400"}`} title={user.isActive === false ? "Deactivated" : active ? "Active" : "Pending"} /></div>
           <div className="mt-4 grid gap-2 border-t border-slate-100 pt-3 text-xs">
             <p className="flex items-center gap-2 text-slate-600"><Hash size={13} className="shrink-0 text-emerald-600" /><span className="font-mono font-bold">{user.userCode || String(user._id).slice(-10).toUpperCase()}</span></p>
             <p className="flex items-center gap-2 text-slate-600"><Mail size={13} className="shrink-0 text-emerald-600" /><span className="truncate">{user.email || "No email"}</span></p>
@@ -580,13 +626,13 @@ export default function PropenuTeam() {
               <span className="text-[10px] text-slate-400">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-IN") : "-"}</span>
             </div>
             {isTerritoryRole(user.roleName) ||
-            canEditStaffProfiles ||
+            canEditMember(user) ||
             canManageMember(user) ? (
               <div className="flex justify-end pt-0.5">
                 <TeamMemberActionsMenu
                   busy={statusBusyId === String(user._id)}
                   showAlign={isTerritoryRole(user.roleName)}
-                  showEdit={canEditStaffProfiles && String(user._id) !== String(viewerId)}
+                  showEdit={canEditMember(user)}
                   showLifecycle={canManageMember(user)}
                   isActive={user.isActive !== false}
                   onAlign={() => openTerritoryManager(user)}
@@ -628,7 +674,7 @@ export default function PropenuTeam() {
               {filtered.map((user) => {
                 const location = [user.locality, user.city, user.state, user.pincode].filter(Boolean).join(", ");
                 const memberName = displayPersonName(user.name) || "Unnamed user";
-                const roleLabel = personRoleLabel(user.roleName, roleOptions) || "—";
+                const roleLabel = personRoleLabel(user.roleName, roleOptions, user) || "—";
                 const managerId = user.reportsTo?._id || user.managerId;
                 const managerFromList = managerId
                   ? users.find((item) => String(item._id) === String(managerId))
@@ -707,7 +753,7 @@ export default function PropenuTeam() {
                           compact
                           busy={statusBusyId === String(user._id)}
                           showAlign={isTerritoryRole(user.roleName)}
-                          showEdit={canEditStaffProfiles && String(user._id) !== String(viewerId)}
+                          showEdit={canEditMember(user)}
                           showLifecycle={canManageMember(user)}
                           isActive={user.isActive !== false}
                           onAlign={() => openTerritoryManager(user)}
