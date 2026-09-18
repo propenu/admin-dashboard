@@ -11,14 +11,21 @@ export const useUsers = (params) => {
   return useQuery({
     queryKey: ["users", params || null],
     queryFn: async () => {
-      const res = await getAllUsers(params);
-      const payload = res?.data;
-      // API may return a bare array or { data: [...] }
-      if (Array.isArray(payload)) return payload;
-      if (Array.isArray(payload?.data)) return payload.data;
-      if (Array.isArray(payload?.users)) return payload.users;
-      return [];
+      try {
+        const res = await getAllUsers(params);
+        const payload = res?.data;
+        // API may return a bare array or { data: [...] }
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload?.data)) return payload.data;
+        if (Array.isArray(payload?.users)) return payload.users;
+        return [];
+      } catch (err) {
+        console.warn("team-directory users query failed", err);
+        return [];
+      }
     },
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 };
 

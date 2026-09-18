@@ -1,0 +1,1 @@
+import{u as e}from"./query-BkEkXOlT.js";import{j as a}from"./index-DyEE6vQs.js";const n=s=>e({queryKey:["users",s||null],queryFn:async()=>{const r=(await a(s))?.data;return Array.isArray(r)?r:Array.isArray(r?.data)?r.data:Array.isArray(r?.users)?r.users:[]}});export{n as u};

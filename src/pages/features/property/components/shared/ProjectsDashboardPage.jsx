@@ -2151,9 +2151,17 @@ export default function ProjectsDashboardPage() {
 
   const { data: masterAnalyticsData } = useQuery({
     queryKey: ["master-project-analytics"],
-    queryFn: () => getAllProjectsAnalytics({}),
+    queryFn: async () => {
+      try {
+        return await getAllProjectsAnalytics({});
+      } catch (err) {
+        console.warn("master-project-analytics failed", err);
+        return { data: { data: null } };
+      }
+    },
     staleTime: Infinity,
     refetchOnWindowFocus: false,
+    retry: 1,
   });
 
   const masterAnalytics = masterAnalyticsData?.data?.data || null;
@@ -2196,13 +2204,21 @@ export default function ProjectsDashboardPage() {
   );
 
   const { data: analyticsData, isLoading: analyticsLoading } = useQuery({
-    queryKey:  ["project-analytics", analyticsParams],
-    queryFn:   () => getAllProjectsAnalytics(analyticsParams),
+    queryKey: ["project-analytics", analyticsParams],
+    queryFn: async () => {
+      try {
+        return await getAllProjectsAnalytics(analyticsParams);
+      } catch (err) {
+        console.warn("project-analytics failed", err);
+        return { data: { data: null } };
+      }
+    },
     // With no filters this is identical to master-project-analytics. Reusing
     // that response removes one full API request from the initial page load.
-    enabled:   canViewAnalytics && hasAnalyticsScope,
+    enabled: canViewAnalytics && hasAnalyticsScope,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    retry: 1,
   });
 
  const analytics =
@@ -2232,14 +2248,21 @@ export default function ProjectsDashboardPage() {
     enabled: projectTitleSearch.length >= 2,
     staleTime: 20_000,
     refetchOnWindowFocus: false,
-    queryFn: () =>
-      getFeaturedProjectsByType(projectSearchType, 1, 100, {
-        search: projectTitleSearch,
-        status: toServerProjectStatus(statusFilter),
-        promotionStatus:
-          serverPromotionStatus ||
-          (trackingFilter === "all" ? "all" : "active"),
-      }),
+    retry: 1,
+    queryFn: async () => {
+      try {
+        return await getFeaturedProjectsByType(projectSearchType, 1, 100, {
+          search: projectTitleSearch,
+          status: toServerProjectStatus(statusFilter),
+          promotionStatus:
+            serverPromotionStatus ||
+            (trackingFilter === "all" ? "all" : "active"),
+        });
+      } catch (err) {
+        console.warn("project-title-search failed", err);
+        return { data: { items: [] } };
+      }
+    },
   });
   const serverSearchItems = Array.isArray(projectTitleSearchData?.data?.items)
     ? projectTitleSearchData.data.items
@@ -3259,17 +3282,6 @@ export default function ProjectsDashboardPage() {
               <p className="text-[11px] font-bold text-slate-600">
                 Promotion Tracking
               </p>
-              {expiringSoon3DayCount > 0 ? (
-                <span
-                  className="relative inline-flex"
-                  title={`${expiringSoon3DayCount} promotion(s) expire within ${EXPIRING_SOON_DAYS} days`}
-                >
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-60" />
-                  <span className="relative inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-red-600 px-1 py-0.5 text-[9px] font-black leading-none text-white shadow-sm">
-                    {expiringSoon3DayCount}
-                  </span>
-                </span>
-              ) : null}
             </div>
 
             <div className="relative" ref={trackingTriggerRef}>
