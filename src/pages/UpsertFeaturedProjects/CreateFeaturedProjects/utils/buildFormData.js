@@ -1,4 +1,6 @@
 import { getFileFromKey } from "./indexedDB";
+import { normalizeWebsiteUrl } from "../../../../utils/normalizeWebsiteUrl";
+
 export async function buildFormData(payload) {
   const fd = new FormData();
 
@@ -122,7 +124,11 @@ export async function buildFormData(payload) {
     "redirectUrl",
   ].forEach((key) => {
     if (payload[key] !== undefined && payload[key] !== null && payload[key] !== "") {
-      fd.append(key, payload[key]);
+      let value = payload[key];
+      if (key === "redirectUrl" || key === "mapEmbedUrl") {
+        value = normalizeWebsiteUrl(value) || value;
+      }
+      fd.append(key, value);
     }
   });
 

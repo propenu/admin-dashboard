@@ -45,7 +45,10 @@ import {
 } from "../../../../../features/property/propertyService";
 import { getUserSearch } from "../../../../../features/user/userService";
 import { requestSidebarRefresh } from "../../../../../utils/sidebarActivity";
-import { listingSearchTokens } from "../../../../../utils/listingSearchTokens";
+import {
+  listingBuilderNameTokens,
+  listingSearchTokens,
+} from "../../../../../utils/listingSearchTokens";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -59,6 +62,19 @@ const INDIA_ZONES = [
   { zone: "Central India",    states: ["Madhya Pradesh","Chhattisgarh"] },
   { zone: "North East India", states: ["Assam","Arunachal Pradesh","Manipur","Meghalaya","Mizoram","Nagaland","Sikkim","Tripura"] },
 ];
+
+const ZONE_STATE_LOOKUP = new Map(
+  INDIA_ZONES.flatMap((z) => z.states.map((s) => [s.toLowerCase(), s])),
+);
+
+const canonicalStateName = (name) => {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) return "";
+  return ZONE_STATE_LOOKUP.get(trimmed.toLowerCase()) || trimmed;
+};
+
+const analyticsRowKey = (row) =>
+  String(row?._id ?? row?.name ?? "").trim();
 
 const CATEGORY_TYPES = [
   { value: "all",         label: "All"           },
@@ -741,36 +757,56 @@ function InlineLocationSelector({
   }, []);
 
  
- const hierarchy = useMemo(() => {
-   const map = {};
+  const hierarchy = useMemo(() => {
+    const map = {};
 
-   properties.forEach((p) => {
-     const state = p.state?.trim();
-     const city = p.city?.trim();
-     const locality = p.locality?.trim();
+    const ensureState = (raw) => {
+      const state = canonicalStateName(raw);
+      if (!state) return "";
+      if (!map[state]) map[state] = {};
+      return state;
+    };
 
-     if (!state) return;
+    const ensureCity = (state, rawCity) => {
+      const city = String(rawCity || "").trim();
+      if (!state || !city) return "";
+      if (!map[state][city]) map[state][city] = new Set();
+      return city;
+    };
 
-     if (!map[state]) map[state] = {};
+    // Complete state set from master analytics (not just the loaded page).
+    (masterAnalytics?.stateWise || []).forEach((row) => {
+      ensureState(analyticsRowKey(row));
+    });
 
-     if (city) {
-       if (!map[state][city]) {
-         map[state][city] = new Set();
-       }
+    // Cities / localities with state from analytics when available.
+    (masterAnalytics?.cityWise || []).forEach((row) => {
+      const state = ensureState(row?.state);
+      ensureCity(state, analyticsRowKey(row));
+    });
 
-       if (locality) {
-         map[state][city].add(locality);
-       }
-     }
-   });
+    (masterAnalytics?.localityWise || []).forEach((row) => {
+      const state = ensureState(row?.state);
+      const city = ensureCity(state, row?.city);
+      const locality = analyticsRowKey(row);
+      if (city && locality) map[state][city].add(locality);
+    });
 
-   return map;
- }, [properties]);
+    // Enrich from currently loaded projects (fills gaps before analytics ships state).
+    (properties || []).forEach((p) => {
+      const state = ensureState(p?.state);
+      if (!state) return;
+      const city = ensureCity(state, p?.city);
+      const locality = String(p?.locality || "").trim();
+      if (city && locality) map[state][city].add(locality);
+    });
+
+    return map;
+  }, [properties, masterAnalytics]);
 
   const q = analyticsSearch.toLowerCase().trim();
   const toggle = (setter, key) =>
     setter((prev) => ({ ...prev, [key]: !prev[key] }));
-  
 
   const isActive = (type, val) =>
     selectedLocation?.type === type &&
@@ -781,6 +817,28 @@ function InlineLocationSelector({
     setOpen(false);
   };
 
+  const findAnalyticsTotal = (rows, name, extra = {}) => {
+    const key = String(name || "").trim().toLowerCase();
+    if (!key) return 0;
+    const match = (rows || []).find((row) => {
+      if (String(row?._id || "").trim().toLowerCase() !== key) return false;
+      if (extra.state) {
+        const rowState = canonicalStateName(row?.state);
+        if (rowState && rowState.toLowerCase() !== extra.state.toLowerCase()) {
+          return false;
+        }
+      }
+      if (extra.city) {
+        const rowCity = String(row?.city || "").trim();
+        if (rowCity && rowCity.toLowerCase() !== extra.city.toLowerCase()) {
+          return false;
+        }
+      }
+      return true;
+    });
+    return match?.total || 0;
+  };
+
   const stateVisible = useCallback(
     (state) => {
       if (!q) return true;
@@ -788,7 +846,7 @@ function InlineLocationSelector({
       return Object.keys(hierarchy[state] || {}).some(
         (c) =>
           c.toLowerCase().includes(q) ||
-          Array.from(hierarchy[state][c]).some((l) =>
+          Array.from(hierarchy[state][c] || []).some((l) =>
             l.toLowerCase().includes(q),
           ),
       );
@@ -799,23 +857,24 @@ function InlineLocationSelector({
   const zonesWithData = INDIA_ZONES.filter((z) =>
     z.states.some((s) => hierarchy[s]),
   );
-  const allStateKeys = Object.keys(hierarchy);
-  const ungroupedStates = allStateKeys.filter(
-    (s) => !INDIA_ZONES.flatMap((z) => z.states).includes(s),
+  const zoneStateSet = useMemo(
+    () => new Set(INDIA_ZONES.flatMap((z) => z.states)),
+    [],
   );
+  const allStateKeys = Object.keys(hierarchy).sort((a, b) =>
+    a.localeCompare(b),
+  );
+  const ungroupedStates = allStateKeys.filter((s) => !zoneStateSet.has(s));
 
   const renderState = (state) => {
-    
+    const cities = Object.keys(hierarchy[state] || {})
+      .sort((a, b) => a.localeCompare(b))
+      .map((city) => ({
+        name: city,
+        count: findAnalyticsTotal(masterAnalytics?.cityWise, city, { state }),
+      }));
 
-    const cities = Object.keys(hierarchy[state] || {}).map((city) => ({
-      name: city,
-      count: masterAnalytics?.cityWise?.find((x) => x._id === city)?.total || 0,
-    }));
-    
-   
-
-  const stateCount =
-    masterAnalytics?.stateWise?.find((x) => x._id === state)?.total || 0;
+    const stateCount = findAnalyticsTotal(masterAnalytics?.stateWise, state);
 
    
    const isStateOpen = openStates[state];
@@ -835,7 +894,7 @@ function InlineLocationSelector({
               )
             }
             className={`flex-1 flex items-center gap-2 pl-7 pr-2 py-2 text-xs transition
-              ${isActive("state", state) ? "bg-[#27AE60]/10 text-[#27AE60] font-semibold" : "text-slate-600 hover:bg-green-50"}`}
+              ${isActive("state", { state }) ? "bg-[#27AE60]/10 text-[#27AE60] font-semibold" : "text-slate-600 hover:bg-green-50"}`}
           >
             <MapPin className="w-3 h-3 flex-shrink-0 opacity-40" />
             <span className="flex-1 text-left">{state}</span>
@@ -910,12 +969,16 @@ function InlineLocationSelector({
               
               const localities = Array.from(
                 hierarchy[state][cityForLocalities] || [],
-              ).map((locality) => ({
-                name: locality,
-                count:
-                  masterAnalytics?.localityWise?.find((x) => x._id === locality)
-                    ?.total || 0,
-              }));
+              )
+                .sort((a, b) => a.localeCompare(b))
+                .map((locality) => ({
+                  name: locality,
+                  count: findAnalyticsTotal(
+                    masterAnalytics?.localityWise,
+                    locality,
+                    { state, city: cityForLocalities },
+                  ),
+                }));
               if (!localities.length) return null;
               return (
                 <SelectDropdown
@@ -1053,7 +1116,12 @@ function InlineLocationSelector({
               const childMatch = zoneStates.some(stateVisible);
               const zoneMatch = !q || zone.zone.toLowerCase().includes(q);
               if (q && !zoneMatch && !childMatch) return null;
-              const isZoneOpen = openZones[zone.zone];
+              const zoneCount = zoneStates.reduce(
+                (sum, s) =>
+                  sum + findAnalyticsTotal(masterAnalytics?.stateWise, s),
+                0,
+              );
+              const isZoneOpen = Boolean(openZones[zone.zone]) || Boolean(q);
               return (
                 <div key={zone.zone}>
                   <button
@@ -1062,6 +1130,9 @@ function InlineLocationSelector({
                   >
                     <Navigation className="w-3 h-3 text-[#27AE60]" />
                     <span className="flex-1 text-left">{zone.zone}</span>
+                    <span className="text-[10px] bg-slate-200/80 text-slate-600 px-1.5 py-0.5 rounded-full normal-case tracking-normal font-semibold">
+                      {zoneCount}
+                    </span>
                     {isZoneOpen ? (
                       <ChevronUp className="w-3 h-3" />
                     ) : (
@@ -1744,12 +1815,34 @@ export default function ProjectsDashboardPage() {
     return String(raw || "").trim();
   };
 
+  const getProjectAboutBuilderName = (property) => {
+    const about = Array.isArray(property?.aboutSummary)
+      ? property.aboutSummary
+      : Array.isArray(property?.about)
+        ? property.about
+        : [];
+    return String(about?.[0]?.builderName || property?.builderName || "").trim();
+  };
+
   const getProjectCreatorName = (property) =>
     property?.createdBy?.fullName ||
     property?.createdBy?.name ||
     property?.createdBy?.companyName ||
-    property?.builderName ||
+    getProjectAboutBuilderName(property) ||
     "Unknown builder";
+
+  const getProjectBuilderHaystack = (property) =>
+    normalizeSearchText(
+      [
+        getProjectCreatorName(property),
+        getProjectAboutBuilderName(property),
+        ...listingBuilderNameTokens(property),
+        property?.createdBy?.email,
+        property?.createdBy?.companyName,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
 
   const isBuilderRole = (roleLike) => {
     const role = String(roleLike || "")
@@ -1797,23 +1890,46 @@ export default function ProjectsDashboardPage() {
       map.set(id, name);
     }
 
-    // Enrich names from projects when createdBy is a builder (never builder_staff).
+    // Enrich from projects: createdBy owners + website about.builderName.
     for (const property of allProperties) {
       const id = getProjectCreatorId(property);
-      if (!id) continue;
-
+      const aboutName = getProjectAboutBuilderName(property);
       const createdByRole =
         property?.createdBy?.roleName ||
         property?.createdBy?.role ||
         property?.createdBy?.roleId?.name ||
         "";
 
-      const knownBuilder = map.has(id);
-      if (!knownBuilder && !isBuilderRole(createdByRole)) continue;
+      if (id) {
+        const knownBuilder = map.has(id);
+        // Keep known builders; also include any createdBy that owns a project
+        // so filter-by-name still finds website listings.
+        if (knownBuilder || isBuilderRole(createdByRole) || !createdByRole) {
+          const name = titleCaseWords(
+            getProjectCreatorName(property) || aboutName || "Builder",
+          );
+          if (!knownBuilder || map.get(id) === "Unknown Builder") {
+            map.set(id, name);
+          } else if (aboutName) {
+            const current = String(map.get(id) || "");
+            if (
+              current.toLowerCase() === "unknown builder" ||
+              current.toLowerCase() === "builder"
+            ) {
+              map.set(id, titleCaseWords(aboutName));
+            }
+          }
+        }
+      }
 
-      const name = titleCaseWords(getProjectCreatorName(property));
-      if (!knownBuilder || map.get(id) === "Unknown Builder") {
-        map.set(id, name);
+      // Name-only option when marketing builder name exists without a user id.
+      if (aboutName) {
+        const nameKey = `name:${normalizeSearchText(aboutName)}`;
+        if (![...map.values()].some(
+          (n) => normalizeSearchText(n) === normalizeSearchText(aboutName),
+        )) {
+          map.set(nameKey, titleCaseWords(aboutName));
+        }
       }
     }
 
@@ -2118,7 +2234,19 @@ export default function ProjectsDashboardPage() {
       list = list.filter((p) => p.propertyType === propertyTypeFilter);
     }
     if (creatorBuilderFilter !== "all") {
-      list = list.filter((p) => getProjectCreatorId(p) === creatorBuilderFilter);
+      const selected = creatorBuilderOptions.find(
+        (builder) => builder.id === creatorBuilderFilter,
+      );
+      const selectedName = normalizeSearchText(selected?.name || "");
+      list = list.filter((p) => {
+        if (getProjectCreatorId(p) === creatorBuilderFilter) return true;
+        if (!selectedName) return false;
+        return getProjectBuilderHaystack(p).includes(selectedName);
+      });
+    } else if (builderSearch.trim().length >= 2) {
+      // Live name filter while typing — covers about.builderName and createdBy.
+      const q = normalizeSearchText(builderSearch);
+      list = list.filter((p) => getProjectBuilderHaystack(p).includes(q));
     }
     if (createdFrom || createdTo) {
       list = list.filter((p) => {
@@ -2262,6 +2390,7 @@ export default function ProjectsDashboardPage() {
     createdFrom,
     createdTo,
     creatorBuilderFilter,
+    builderSearch,
     propertyTypeFilter,
     selectedLocation,
     deferredProjectSearch,
@@ -2271,6 +2400,7 @@ export default function ProjectsDashboardPage() {
     projectSearchIndex,
     projectTitleSearch,
     serverSearchItems,
+    creatorBuilderOptions,
   ]);
 
   const openPendingApprovalsView = useCallback(() => {

@@ -1371,6 +1371,13 @@ const LocationStep = forwardRef(({ payload, update }, ref) => {
             >
               {places.length}
             </span>
+            <button
+              type="button"
+              onClick={() => update({ nearbyPlaces: [] })}
+              className="ml-auto rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 transition hover:bg-red-100"
+            >
+              Delete all
+            </button>
           </div>
 
           <div className="max-h-56 overflow-y-auto space-y-1 pr-0.5">

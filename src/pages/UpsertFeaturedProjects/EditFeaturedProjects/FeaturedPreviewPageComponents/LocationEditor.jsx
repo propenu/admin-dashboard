@@ -1055,6 +1055,15 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
               >
                 {places.length}
               </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setFormData((prev) => ({ ...prev, nearbyPlaces: [] }))
+                }
+                className="ml-auto rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 transition hover:bg-red-100"
+              >
+                Delete all
+              </button>
             </div>
             <p className="text-[9px] text-gray-400 font-medium">
               Expand a searched place to edit details. Manual names stay compact.

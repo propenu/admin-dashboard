@@ -23,6 +23,7 @@ import {
   canAddCustomLocation,
   canEditFeaturedCategory,
 } from "../../../../components/common/location/searchableLocationUtils";
+import { normalizeWebsiteUrl } from "../../../../utils/normalizeWebsiteUrl";
 
 const MAX_BROCHURE_BYTES = 20 * 1024 * 1024; // 20 MB — no compression
 
@@ -536,8 +537,18 @@ export default function PropertyDetailsEditor({
       }
     }
 
+    const website = String(local.redirectUrl || "").trim();
+    const normalizedWebsite = website ? normalizeWebsiteUrl(website) : "";
+    if (website && !normalizedWebsite) {
+      toast.error(
+        "Enter a valid website URL (e.g. https://propenu.com or propenu.com)",
+      );
+      return;
+    }
+
     const payload = {
       ...local,
+      redirectUrl: normalizedWebsite || "",
       ...(formData.brochure && { brochure: formData.brochure }),
     };
 
@@ -1023,10 +1034,19 @@ export default function PropertyDetailsEditor({
               label={isLand ? "Layout Website URL" : "Project Website URL"}
             >
               <input
+                type="text"
+                inputMode="url"
+                autoComplete="url"
                 className={inputCls}
-                placeholder="https://projectname.com"
+                placeholder="https://propenu.com or propenu.com"
                 value={local.redirectUrl ?? ""}
                 onChange={(e) => change("redirectUrl", e.target.value)}
+                onBlur={() => {
+                  const raw = String(local.redirectUrl || "").trim();
+                  if (!raw) return;
+                  const normalized = normalizeWebsiteUrl(raw);
+                  if (normalized) change("redirectUrl", normalized);
+                }}
               />
             </FieldGroup>
 

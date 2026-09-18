@@ -1,7 +1,7 @@
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/SpecificationEditor.jsx
 import React from "react";
 import { toast } from "react-hot-toast";
-import { pasteRichAsPlainText } from "../../../../utils/pasteRichPlainText";
+import TiptapEditor from "../../CreateFeaturedProjects/Components/TiptapEditor";
 
 export default function SpecificationEditor({
   formData,
@@ -35,12 +35,23 @@ export default function SpecificationEditor({
   function updateItem(gIndex, iIndex, field, value) {
     const updated = specs.map((g, gi) => {
       if (gi !== gIndex) return g;
-      const current = g.items?.[iIndex] || { title: "", description: "" };
+      const items = Array.isArray(g.items) && g.items.length
+        ? [...g.items]
+        : [{ title: "", description: "" }];
+      // Single blog-style post — keep only the first item in sync with the editor.
+      const current = items[0] || { title: "", description: "" };
       return {
         ...g,
         items: [{ ...current, [field]: value }],
       };
     });
+    sync(updated);
+  }
+
+  function updateCategory(gIndex, value) {
+    const updated = specs.map((g, gi) =>
+      gi === gIndex ? { ...g, category: value } : g,
+    );
     sync(updated);
   }
 
@@ -63,7 +74,24 @@ export default function SpecificationEditor({
 
   async function saveSpecifications() {
     try {
-      await onSave({ specifications: specs });
+      // Persist as one clear post per group (matches editor + preview).
+      const cleaned = (specs || []).map((g, order) => {
+        const first = Array.isArray(g.items) && g.items.length
+          ? g.items[0]
+          : { title: "", description: "" };
+        return {
+          category: String(g.category || "").trim(),
+          order,
+          items: [
+            {
+              title: String(first?.title || "").trim(),
+              description: first?.description || "",
+            },
+          ],
+        };
+      });
+      await onSave({ specifications: cleaned });
+      sync(cleaned);
       toast.success("Specifications saved!");
     } catch {
       toast.error("Save failed");
@@ -98,8 +126,7 @@ export default function SpecificationEditor({
                 Specifications Editor
               </h3>
               <p className="text-[10px] text-gray-400">
-                {specs.length} {specs.length === 1 ? "group" : "groups"} ·
-                description only
+                One post per group · rich text (blog-style)
               </p>
             </div>
           </div>
@@ -147,32 +174,65 @@ export default function SpecificationEditor({
             </div>
 
             <div className="p-3 space-y-2 bg-gray-50/40">
+              <div>
+                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wide text-gray-500">
+                  Section title{" "}
+                  <span className="font-semibold normal-case tracking-normal text-gray-400">
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={group.category || ""}
+                  onChange={(e) => updateCategory(gIndex, e.target.value)}
+                  placeholder="e.g. Structure, Flooring, Kitchen…"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 outline-none placeholder:text-gray-400 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/15"
+                />
+              </div>
+
               {(group.items?.length
                 ? group.items.slice(0, 1)
                 : [{ title: "", description: "" }]
               ).map((item, iIndex) => (
                 <div
                   key={iIndex}
-                  className="bg-white rounded-xl border border-gray-100 p-3 hover:border-[#27AE60]/30 hover:shadow-sm transition-all"
+                  className="bg-white rounded-xl border border-gray-100 p-3 hover:border-[#27AE60]/30 hover:shadow-sm transition-all space-y-3"
                 >
-                  <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-[#27AE60]">
-                    Description
-                  </p>
-                  <textarea
-                    className="w-full min-h-[280px] text-sm text-gray-700 outline-none placeholder-gray-300 resize-y bg-transparent leading-relaxed focus:text-gray-900 transition-colors whitespace-pre-wrap"
-                    placeholder="Paste or type specification text exactly…"
-                    value={item.description}
-                    rows={18}
-                    spellCheck={false}
-                    onChange={(e) =>
-                      updateItem(gIndex, iIndex, "description", e.target.value)
-                    }
-                    onPaste={(e) =>
-                      pasteRichAsPlainText(e, item.description, (v) =>
-                        updateItem(gIndex, iIndex, "description", v),
-                      )
-                    }
-                  />
+                  <div>
+                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wide text-[#27AE60]">
+                      Post title{" "}
+                      <span className="font-semibold normal-case tracking-normal text-gray-400">
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={item.title || ""}
+                      onChange={(e) =>
+                        updateItem(gIndex, iIndex, "title", e.target.value)
+                      }
+                      placeholder="Short heading for this specification"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 outline-none placeholder:text-gray-400 focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/15"
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-1.5 text-[10px] font-black uppercase tracking-wide text-[#27AE60]">
+                      Description
+                    </p>
+                    <p className="mb-2 text-[11px] text-slate-500">
+                      One clear post — paste from Word/Docs, bold, lists,
+                      tables, links.
+                    </p>
+                    <div className="overflow-hidden rounded-xl border border-gray-200">
+                      <TiptapEditor
+                        value={item.description || ""}
+                        onChange={(html) =>
+                          updateItem(gIndex, iIndex, "description", html)
+                        }
+                        placeholder="Write or paste specification details…"
+                      />
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

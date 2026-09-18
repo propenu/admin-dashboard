@@ -5,6 +5,10 @@ import { Building2, FileText, BadgeCheck, Globe, Map, Tag, UserCheck } from "luc
 import { getUserSearch } from "../../../../features/user/userService";
 import { saveImage, deleteImage } from "../utils/indexedDB";
 import { toast } from "sonner";
+import {
+  isValidWebsiteUrl,
+  normalizeWebsiteUrl,
+} from "../../../../utils/normalizeWebsiteUrl";
 
 const MAX_BROCHURE_BYTES = 20 * 1024 * 1024; // 20 MB — no compression
 
@@ -399,14 +403,27 @@ const shouldHideTowerFields =
         console.log("❌ Brochure missing");
       }
 
-      // Redirect URL
+      // Redirect URL — accept loose inputs like https.propenu.com / propenu.com
       if (payload.redirectUrl?.trim()) {
-        try {
-          new URL(payload.redirectUrl.trim());
-          console.log("✅ URL valid");
-        } catch (err) {
-          e.redirectUrl = "Enter valid URL";
+        const normalized = normalizeWebsiteUrl(payload.redirectUrl);
+        if (!normalized) {
+          e.redirectUrl =
+            "Enter a valid URL (e.g. https://propenu.com or propenu.com)";
           console.log("❌ Invalid URL");
+        } else if (normalized !== payload.redirectUrl.trim()) {
+          update({ redirectUrl: normalized });
+          console.log("✅ URL normalized =>", normalized);
+        } else {
+          console.log("✅ URL valid");
+        }
+      }
+
+      if (payload.mapEmbedUrl?.trim() && !isValidWebsiteUrl(payload.mapEmbedUrl)) {
+        e.mapEmbedUrl = "Enter a valid map embed URL";
+      } else if (payload.mapEmbedUrl?.trim()) {
+        const normalizedMap = normalizeWebsiteUrl(payload.mapEmbedUrl);
+        if (normalizedMap && normalizedMap !== payload.mapEmbedUrl.trim()) {
+          update({ mapEmbedUrl: normalizedMap });
         }
       }
 
@@ -850,20 +867,30 @@ const shouldHideTowerFields =
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
               />
               <input
-                type="url"
+                type="text"
+                inputMode="url"
+                autoComplete="url"
                 className={`${inp(errors.redirectUrl)} pl-10`}
-                placeholder="https://project-website.com"
+                placeholder="https://propenu.com or propenu.com"
                 value={payload.redirectUrl || ""}
                 onChange={(e) => handleChange("redirectUrl", e.target.value)}
+                onBlur={() => {
+                  const raw = String(payload.redirectUrl || "").trim();
+                  if (!raw) return;
+                  const normalized = normalizeWebsiteUrl(raw);
+                  if (normalized) handleChange("redirectUrl", normalized);
+                }}
               />
             </div>
             {errors.redirectUrl && (
               <p className={ERR}>⚠ {errors.redirectUrl}</p>
             )}
             {/* Live preview link when valid URL entered */}
-            {payload.redirectUrl && !errors.redirectUrl && (
+            {payload.redirectUrl &&
+              !errors.redirectUrl &&
+              normalizeWebsiteUrl(payload.redirectUrl) && (
               <a
-                href={payload.redirectUrl}
+                href={normalizeWebsiteUrl(payload.redirectUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs font-bold mt-1.5 hover:underline"

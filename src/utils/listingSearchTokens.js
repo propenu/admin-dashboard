@@ -37,6 +37,19 @@ export const listingPeopleSearchTokens = (doc) => [
   ...personSearchTokens(doc?.ownerId),
 ];
 
+/** Marketing / about builder name shown on the website hero. */
+export const listingBuilderNameTokens = (doc) => {
+  const about = Array.isArray(doc?.aboutSummary)
+    ? doc.aboutSummary
+    : Array.isArray(doc?.about)
+      ? doc.about
+      : [];
+  return [
+    doc?.builderName,
+    ...about.map((row) => row?.builderName).filter(Boolean),
+  ].filter(Boolean);
+};
+
 /**
  * Core listing text fields + posted by / approved by / created by.
  * Used by properties + projects dashboard free-text search.
@@ -55,5 +68,8 @@ export const listingSearchTokens = (doc) =>
     doc?.buildingName,
     doc?.landName,
     doc?.projectName,
+    doc?.heroTagline,
+    doc?.metaTitle,
+    ...listingBuilderNameTokens(doc),
     ...listingPeopleSearchTokens(doc),
   ].filter(Boolean);

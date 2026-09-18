@@ -1,11 +1,7 @@
 // src/pages/post-property/featured-create/steps/Components/SpecificationsStep.jsx
 import { forwardRef, useImperativeHandle, useState, useRef, useEffect } from "react";
 import { X, ListChecks } from "lucide-react";
-import { pasteRichAsPlainText } from "../../../../utils/pasteRichPlainText";
-
-const inp = (err) => `w-full px-3 py-2.5 bg-white border-2 rounded-xl text-gray-900 text-sm font-semibold
-  outline-none placeholder:text-gray-400 transition-all duration-200
-  ${err ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10"}`;
+import TiptapEditor from "./TiptapEditor";
 
 const LABEL = "block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1.5";
 
@@ -14,6 +10,15 @@ const emptyGroup = (order = 0) => ({
   order,
   items: [{ title: "", description: "" }],
 });
+
+const plainTextFromHtml = (value = "") =>
+  String(value || "")
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
   const specs = payload.specifications || [];
@@ -32,7 +37,7 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
     validate() {
       const e = {};
       specs.forEach((cat, i) => {
-        const desc = String(cat.items?.[0]?.description || "").trim();
+        const desc = plainTextFromHtml(cat.items?.[0]?.description || "");
         if (!desc) {
           e[`spec-${i}-item-0-desc`] = "Required";
         }
@@ -132,21 +137,22 @@ const SpecificationsStep = forwardRef(({ payload, update }, ref) => {
               >
                 <div>
                   <label className={LABEL}>Description *</label>
-                  <textarea
-                    rows={18}
-                    className={`${inp(errors[`spec-${i}-item-${j}-desc`])} min-h-[280px] resize-y whitespace-pre-wrap`}
-                    placeholder="Paste or type specification text exactly…"
-                    value={item.description}
-                    onChange={(e) =>
-                      updItem(i, j, "description", e.target.value)
-                    }
-                    onPaste={(e) =>
-                      pasteRichAsPlainText(e, item.description, (v) =>
-                        updItem(i, j, "description", v),
-                      )
-                    }
-                    spellCheck={false}
-                  />
+                  <p className="mb-2 text-[11px] text-slate-500">
+                    Blog-style editor — paste from Word/Docs, bold, lists, tables, links.
+                  </p>
+                  <div
+                    className={`rounded-xl border-2 overflow-hidden bg-white ${
+                      errors[`spec-${i}-item-${j}-desc`]
+                        ? "border-red-400"
+                        : "border-gray-200 focus-within:border-[#27AE60]"
+                    }`}
+                  >
+                    <TiptapEditor
+                      value={item.description || ""}
+                      onChange={(html) => updItem(i, j, "description", html)}
+                      placeholder="Write or paste specification details…"
+                    />
+                  </div>
                   {errors[`spec-${i}-item-${j}-desc`] && (
                     <p className="text-xs text-red-500 mt-1 font-semibold">
                       ⚠ Required

@@ -32,6 +32,86 @@ import PropertyDetailsSection from "./FeaturedPreviewPageComponents/PropertyDeta
 import BuilderAttachPanel from "../../features/property/components/shared/BuilderAttachPanel";
 import { ArrowLeft, Video } from "lucide-react";
 
+/** Website + admin payloads can differ; normalize so every edit section has safe shapes. */
+function normalizeProjectForEdit(raw = {}) {
+  const data = raw && typeof raw === "object" ? { ...raw } : {};
+
+  const aboutSource = Array.isArray(data.aboutSummary)
+    ? data.aboutSummary
+    : Array.isArray(data.about)
+      ? data.about
+      : [];
+  data.aboutSummary = (aboutSource.length ? aboutSource : [{}]).map((row) => ({
+    builderName: row?.builderName || data.builderName || "",
+    aboutDescription: row?.aboutDescription || "",
+    rightContent: row?.rightContent || "",
+    url: row?.url || "",
+    key: row?.key || "",
+    filename: row?.filename || "",
+    mimetype: row?.mimetype || "",
+  }));
+
+  data.specifications = Array.isArray(data.specifications)
+    ? data.specifications.map((group, order) => ({
+        category: group?.category || "",
+        order: Number.isFinite(group?.order) ? group.order : order,
+        items: Array.isArray(group?.items) && group.items.length
+          ? group.items.map((item) => ({
+              title: item?.title || "",
+              description: item?.description || "",
+            }))
+          : [{ title: "", description: "" }],
+      }))
+    : [];
+
+  data.nearbyPlaces = Array.isArray(data.nearbyPlaces)
+    ? data.nearbyPlaces.map((place, order) => ({
+        name: place?.name || "",
+        type: place?.type || place?.category || "place",
+        distanceText: place?.distanceText || "",
+        fullAddress: place?.fullAddress || "",
+        locality: place?.locality || "",
+        city: place?.city || "",
+        coordinates: Array.isArray(place?.coordinates)
+          ? place.coordinates
+          : [
+              Number(place?.longitude) || 0,
+              Number(place?.latitude) || 0,
+            ],
+        order: Number.isFinite(place?.order) ? place.order : order,
+      }))
+    : [];
+
+  data.amenities = Array.isArray(data.amenities) ? data.amenities : [];
+  data.gallerySummary = Array.isArray(data.gallerySummary)
+    ? data.gallerySummary
+    : [];
+  data.youtubeVideos = Array.isArray(data.youtubeVideos)
+    ? data.youtubeVideos
+    : Array.isArray(data.youtube)
+      ? data.youtube
+      : [];
+  data.projectSummary = Array.isArray(data.projectSummary)
+    ? data.projectSummary
+    : Array.isArray(data.bhkSummary)
+      ? data.bhkSummary
+      : [];
+  data.location =
+    data.location && typeof data.location === "object"
+      ? data.location
+      : { type: "Point", coordinates: [0, 0] };
+
+  if (!Array.isArray(data.location.coordinates) || data.location.coordinates.length < 2) {
+    data.location = {
+      ...data.location,
+      type: "Point",
+      coordinates: [0, 0],
+    };
+  }
+
+  return data;
+}
+
 const getSections = (categoryType) => [
   {
     id: "hero",
@@ -191,12 +271,12 @@ export default function FeaturedPreviewPage() {
   const SECTIONS = getSections(livePreviewData?.categoryType);
   const isLandProject = livePreviewData?.categoryType === "land";
 
-  /* Load */
+  /* Load — normalize website/admin payloads so every section is editable */
   useEffect(() => {
     async function load() {
       try {
         const result = await fetchPostFeaturedPropertyById(id);
-        const data = result?.data ?? result;
+        const data = normalizeProjectForEdit(result?.data ?? result);
         setFormData(data);
         setLivePreviewData(data);
       } catch (err) {
@@ -290,7 +370,7 @@ export default function FeaturedPreviewPage() {
   const reloadProject = async () => {
     try {
       const result = await fetchPostFeaturedPropertyById(id);
-      const data = result?.data ?? result;
+      const data = normalizeProjectForEdit(result?.data ?? result);
       setFormData(data);
       setLivePreviewData(data);
     } catch (err) {
