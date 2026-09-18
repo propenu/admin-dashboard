@@ -184,6 +184,31 @@ export const normalizeRole = (value = "") =>
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 
+/** How a manager joins an SE visit */
+export const STAFF_JOIN_ROLE_OPTIONS = [
+  { value: "co_attendee", label: "Co-attendee / ride-along" },
+  { value: "observer", label: "Observer / manager support" },
+];
+
+export const staffJoinRoleLabel = (value) =>
+  STAFF_JOIN_ROLE_OPTIONS.find((o) => o.value === value)?.label ||
+  String(value || "").replace(/_/g, " ") ||
+  "Joined";
+
+export const staffRoleShortLabel = (roleName = "") => {
+  const key = normalizeRole(roleName);
+  const map = {
+    sales_manager: "SM",
+    business_development_manager: "BDM",
+    regional_manager: "RM",
+    business_development_head: "BDH",
+    operations_head: "Ops",
+    admin: "Admin",
+    super_admin: "Admin",
+  };
+  return map[key] || roleName || "Manager";
+};
+
 export const getPageMeta = (roleName) => {
   const key = normalizeRole(roleName);
   const alias = key === "sales_agent" ? "sales_executive" : key;

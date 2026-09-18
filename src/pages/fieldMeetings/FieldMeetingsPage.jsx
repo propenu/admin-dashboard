@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Search,
   User,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -22,6 +23,8 @@ import {
   completeFieldMeetingNextAction,
   getFieldMeetingTeamSummary,
   getFieldMeetingTerritory,
+  joinFieldMeeting,
+  leaveFieldMeeting,
   listFieldMeetings,
   updateFieldMeeting,
   updateFieldMeetingPrepTask,
@@ -41,6 +44,9 @@ import {
   MEETING_STATUS_OPTIONS,
   modeLabel,
   normalizeRole,
+  STAFF_JOIN_ROLE_OPTIONS,
+  staffJoinRoleLabel,
+  staffRoleShortLabel,
 } from "./fieldMeetingUtils";
 
 const getId = (u) => String(u?._id || u?.id || u?.userId || "").trim();
@@ -51,6 +57,8 @@ export default function FieldMeetingsPage() {
   const [detail, setDetail] = useState(null);
   const [menuId, setMenuId] = useState(null);
   const [actionBusy, setActionBusy] = useState("");
+  const [joinRole, setJoinRole] = useState("co_attendee");
+  const [joinNote, setJoinNote] = useState("");
 
   const meQuery = useQuery({
     queryKey: ["field-meetings", "me"],
@@ -128,6 +136,12 @@ export default function FieldMeetingsPage() {
     const fresh = meetings.find((m) => m.id === detail.id);
     if (fresh) setDetail(fresh);
   }, [meetings, detail?.id]);
+
+  useEffect(() => {
+    if (!detail?.id) return;
+    setJoinRole("co_attendee");
+    setJoinNote("");
+  }, [detail?.id]);
 
   const crmNextActions = useMemo(() => {
     const nowMs = Date.now();
@@ -207,6 +221,43 @@ export default function FieldMeetingsPage() {
       if (detail?.id === meeting.id) setDetail(updated?.id ? updated : { ...meeting, ...updated });
     } catch (err) {
       toast.error(err?.response?.data?.message || err?.message || "Next action failed");
+    } finally {
+      setActionBusy("");
+    }
+  };
+
+  const runJoin = async (meeting, opts = {}) => {
+    setActionBusy(`join-${meeting.id}`);
+    setMenuId(null);
+    try {
+      const updated = await joinFieldMeeting(meeting.id, {
+        joinRole: opts.joinRole || joinRole || "co_attendee",
+        note: opts.note != null ? opts.note : joinNote,
+      });
+      toast.success("Joined meeting — SE remains owner for punch / follow-up");
+      setJoinNote("");
+      await meetingsQuery.refetch();
+      if (detail?.id === meeting.id || opts.openDetail) {
+        setDetail(updated?.id ? updated : { ...meeting, ...updated, hasJoined: true, canJoin: false });
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Join failed");
+    } finally {
+      setActionBusy("");
+    }
+  };
+
+  const runLeave = async (meeting) => {
+    setActionBusy(`leave-${meeting.id}`);
+    try {
+      const updated = await leaveFieldMeeting(meeting.id);
+      toast.success("Left meeting");
+      await meetingsQuery.refetch();
+      if (detail?.id === meeting.id) {
+        setDetail(updated?.id ? updated : { ...meeting, ...updated, hasJoined: false });
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Leave failed");
     } finally {
       setActionBusy("");
     }
@@ -505,6 +556,20 @@ export default function FieldMeetingsPage() {
                           <LogOut className="h-3 w-3" /> Punched out
                         </span>
                       ) : null}
+                      {(m.staffJoiners || []).length > 0 ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-800">
+                          <UserPlus className="h-3 w-3" />
+                          {(m.staffJoiners || [])
+                            .map((j) => staffRoleShortLabel(j.roleName))
+                            .join(" · ")}{" "}
+                          joined
+                        </span>
+                      ) : null}
+                      {m.hasJoined ? (
+                        <span className="inline-flex items-center rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                          You joined
+                        </span>
+                      ) : null}
                       {m.punchOutAt &&
                       m.nextAction &&
                       m.nextAction.status !== "done" &&
@@ -523,6 +588,17 @@ export default function FieldMeetingsPage() {
                         </span>
                       ) : null}
                       <div className="flex items-center gap-1">
+                        {m.canJoin ? (
+                          <button
+                            type="button"
+                            disabled={actionBusy === `join-${m.id}`}
+                            onClick={() => runJoin(m, { openDetail: true })}
+                            className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-violet-300 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-800 hover:bg-violet-100 disabled:opacity-50"
+                          >
+                            <UserPlus className="h-3.5 w-3.5" />
+                            Join
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           onClick={() => setDetail(m)}
@@ -820,6 +896,87 @@ export default function FieldMeetingsPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* Staff join (RM / BDM ride-along) */}
+              <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+                <p className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-violet-700">
+                  <UserPlus className="h-3.5 w-3.5" /> Staff on visit
+                </p>
+                {(detail.staffJoiners || []).length === 0 ? (
+                  <p className="mt-1 text-xs text-slate-600">
+                    No manager has joined yet. RM / BDM can join mid-meeting; SE stays owner.
+                  </p>
+                ) : (
+                  <ul className="mt-2 space-y-1.5">
+                    {(detail.staffJoiners || []).map((j) => (
+                      <li
+                        key={j.id || j.userId}
+                        className="rounded-lg border border-violet-100 bg-white px-2.5 py-2 text-xs"
+                      >
+                        <p className="font-bold text-slate-900">
+                          {j.name || "Manager"}
+                          <span className="ml-1 font-semibold text-violet-700">
+                            · {staffRoleShortLabel(j.roleName)}
+                          </span>
+                        </p>
+                        <p className="text-slate-500">
+                          {staffJoinRoleLabel(j.joinRole)}
+                          {j.joinedAt
+                            ? ` · ${formatMeetingDate(j.joinedAt)} ${formatMeetingTime(j.joinedAt)}`
+                            : ""}
+                        </p>
+                        {j.note ? (
+                          <p className="mt-0.5 text-[11px] text-slate-500">{j.note}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {detail.canJoin ? (
+                  <div className="mt-3 space-y-2 border-t border-violet-100 pt-3">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-violet-700">
+                      Join as
+                    </label>
+                    <select
+                      value={joinRole}
+                      onChange={(e) => setJoinRole(e.target.value)}
+                      className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-800"
+                    >
+                      {STAFF_JOIN_ROLE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={joinNote}
+                      onChange={(e) => setJoinNote(e.target.value)}
+                      placeholder="Optional note (e.g. supported SE on site)"
+                      className="w-full rounded-lg border border-violet-200 bg-white px-2.5 py-2 text-xs text-slate-800 placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={actionBusy === `join-${detail.id}`}
+                      onClick={() => runJoin(detail)}
+                      className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800 disabled:opacity-50"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      Join this meeting
+                    </button>
+                  </div>
+                ) : null}
+                {detail.hasJoined ? (
+                  <button
+                    type="button"
+                    disabled={actionBusy === `leave-${detail.id}`}
+                    onClick={() => runLeave(detail)}
+                    className="mt-3 min-h-9 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Leave meeting
+                  </button>
+                ) : null}
               </div>
 
               {/* Next CRM action — due immediately after punch-out */}

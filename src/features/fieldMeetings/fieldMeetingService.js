@@ -25,6 +25,18 @@ export const updateFieldMeeting = async (id, payload) => {
   return unwrap(response);
 };
 
+/** RM/BDM/SM/BDH join an SE-owned meeting mid-stream. */
+export const joinFieldMeeting = async (id, payload = {}) => {
+  const response = await apiClient.post(`${BASE}/${id}/join`, payload);
+  return unwrap(response);
+};
+
+/** Leave a meeting you previously joined. */
+export const leaveFieldMeeting = async (id) => {
+  const response = await apiClient.post(`${BASE}/${id}/leave`);
+  return unwrap(response);
+};
+
 export const updateFieldMeetingPrepTask = async (meetingId, taskId, completed) => {
   const response = await apiClient.patch(`${BASE}/${meetingId}/prep/${taskId}`, {
     completed,
