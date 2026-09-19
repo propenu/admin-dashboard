@@ -2,14 +2,26 @@
 //src/api/apiClient.js
 import axios from "axios";
 import { ENV } from "../config/env";
-import { getAuthToken } from "../utils/authToken";
+import { clearAuthToken, getAuthToken } from "../utils/authToken";
 
 export const apiClient = axios.create({
   baseURL: ENV.API_BASE_URL,
+  timeout: 15000,
   headers: {
     Accept: "application/json",
   },
 });
+
+let handlingUnauthorized = false;
+
+function redirectToSignIn() {
+  if (handlingUnauthorized) return;
+  const path = window.location.pathname || "";
+  if (path.includes("/signin") || path.includes("/login")) return;
+  handlingUnauthorized = true;
+  clearAuthToken();
+  window.location.assign("/signin");
+}
 
 // Auth Interceptor — do not overwrite an explicit Authorization (e.g. SE user onboarding token)
 apiClient.interceptors.request.use((config) => {
@@ -30,9 +42,16 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    const status = error?.response?.status;
+    if (status === 401) {
+      redirectToSignIn();
+    }
+
     const backendMessage = error?.response?.data?.message;
     if (typeof backendMessage === "string" && backendMessage.trim()) {
       error.message = backendMessage;
+    } else if (error?.code === "ECONNABORTED") {
+      error.message = "Request timed out. Please try again.";
     }
     return Promise.reject(error);
   },

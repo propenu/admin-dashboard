@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { Toaster } from "sonner";
 import Layout from "./components/Layout/Layout";
-import LoadingSpinner from "./components/common/LoadingSpinner";
+import RouteFallback from "./components/common/RouteFallback";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import PublicRoute from "./pages/PublicRoute";
 import ProtectedRoute from "./pages/ProtectedRoute";
@@ -277,11 +277,13 @@ function App() {
       <Toaster
         position="top-right"
         richColors
-        expand={true}
-        visibleToasts={10}
+        expand={false}
+        visibleToasts={3}
+        duration={3500}
+        closeButton
       />
       <ErrorBoundary>
-        <Suspense fallback={<LoadingSpinner />}>
+        <Suspense fallback={<RouteFallback />}>
           <Routes>
             {/* PUBLIC */}
             <Route element={<PublicRoute />}>

@@ -2,7 +2,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Provider } from "react-redux";
 
 import App from "./App.jsx";
@@ -28,8 +27,6 @@ window.addEventListener("vite:preloadError", (event) => {
   recoverFromStaleDeployment();
 });
 
-// Some browsers surface React.lazy failures as an unhandled promise rejection
-// without emitting Vite's preload event.
 window.addEventListener("unhandledrejection", (event) => {
   const message = String(event.reason?.message || event.reason || "");
   if (
@@ -45,21 +42,56 @@ window.addEventListener("unhandledrejection", (event) => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
+      staleTime: 60 * 1000,
+      gcTime: 15 * 60 * 1000,
       refetchOnWindowFocus: false,
-      retry: 1,
-      refetchOnMount: true,
+      refetchOnReconnect: true,
+      refetchOnMount: false,
+      retry: (failureCount, error) => {
+        const status = error?.response?.status;
+        if (status === 401 || status === 403 || status === 404) return false;
+        return failureCount < 1;
+      },
+      networkMode: "online",
+    },
+    mutations: {
+      retry: 0,
+      networkMode: "online",
     },
   },
 });
+
+/** Lazy-load DevTools so production never ships them open/permanent. */
+function ReactQueryDevtoolsLazy() {
+  const [Devtools, setDevtools] = React.useState(null);
+
+  React.useEffect(() => {
+    let alive = true;
+    import("@tanstack/react-query-devtools").then((mod) => {
+      if (alive) setDevtools(() => mod.ReactQueryDevtools);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!Devtools) return null;
+  return (
+    <Devtools
+      initialIsOpen={false}
+      buttonPosition="bottom-left"
+      position="bottom"
+    />
+  );
+}
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <App />
-        <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
+        {import.meta.env.DEV ? <ReactQueryDevtoolsLazy /> : null}
       </QueryClientProvider>
     </Provider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

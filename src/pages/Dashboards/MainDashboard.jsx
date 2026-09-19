@@ -1,34 +1,37 @@
-import React, { useEffect, useState } from "react";
-import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 import DashboardRouter from "./DashboardRouter";
-import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { ContentSkeleton } from "../../components/common/RouteFallback";
+import { useAuthUserProfile } from "../../hooks/useAuthUser";
 
+/**
+ * Home dashboard entry — uses shared /me cache.
+ * No extra LoadingSpinner (Suspense already covered chunk load).
+ */
 const Dashboard = () => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, permissions, roleName, isPending, isError, error } =
+    useAuthUserProfile();
 
-  useEffect(() => {
-    fetchLoggedInUser()
-      .then((res) => {
-        setUser(res);
-      })
-      .catch((err) => {
-        console.error("User Fetch Error", err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+  if (isPending && !user) {
+    return <ContentSkeleton rows={4} />;
+  }
 
-  if (loading) {
+  if (isError && !user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" />
+      <div className="mx-auto max-w-lg rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-950">
+        <h1 className="text-xl font-black">Unable to load your session</h1>
+        <p className="mt-2 text-sm leading-6">
+          {error?.message ||
+            "Your account details could not be loaded. Please sign in again."}
+        </p>
       </div>
     );
   }
 
-  return <DashboardRouter role={user?.roleName} permissions={user?.permissions || []} />;
+  return (
+    <DashboardRouter
+      role={roleName || user?.roleName}
+      permissions={permissions}
+    />
+  );
 };
 
 export default Dashboard;

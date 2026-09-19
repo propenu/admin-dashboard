@@ -1,16 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
-import { getUserDetails } from "../../features/user/userService";
+import { useAuthUser } from "../../hooks/useAuthUser";
 
-export const useCurrentUser = () => {
-  return useQuery({
-    queryKey: ["userDetails"],
-    queryFn: async () => {
-      const res = await getUserDetails();
-      return res.data;
-    },
-    // Permissions change often from Role Permissions — always prefer fresh /me.
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
+/**
+ * Shared current-user hook (backed by one React Query /me cache).
+ * Prefer useAuthUser / useAuthUserProfile for new code.
+ */
+export const useCurrentUser = (options = {}) => {
+  return useAuthUser({
+    // Keep permissions reasonably fresh without remount storms.
+    staleTime: 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    ...options,
   });
 };

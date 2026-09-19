@@ -7,6 +7,7 @@ import Sidebar from "../common/Siderbar";
 import PageBackNav from "../common/PageBackNav";
 import { useSidebarActivityBadges } from "../../hooks/useSidebarActivityBadges";
 import { usePresenceHeartbeat } from "../../hooks/usePresenceHeartbeat";
+import { useAuthUser } from "../../hooks/useAuthUser";
 
 const SIDEBAR_EXPANDED = 240;
 const SIDEBAR_COLLAPSED = 56;
@@ -41,6 +42,8 @@ export default function MainLayout() {
   const [isHovered, setIsHovered] = useState(false);
   useSidebarActivityBadges();
   usePresenceHeartbeat();
+  // Warm shared /me cache once so child routes don't each show a spinner
+  useAuthUser();
 
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
