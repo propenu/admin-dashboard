@@ -12,6 +12,57 @@ import { StepHeaderCard } from "./Components/StepHeaderCard";
 import { MainFormCard } from "./Components/MainFormCard";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { apiClient } from "../../../api/apiClient";
+import { normalizeWebsiteUrl } from "../../../utils/normalizeWebsiteUrl";
+
+const toNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : undefined;
+};
+
+const mapWebsiteAutofill = (data, websiteUrl, previous) => {
+  const projectSummary = Array.isArray(data.projectSummary)
+    ? data.projectSummary.map((item) => ({
+        bhk: toNumber(item.bhk) || 0,
+        label: (() => {
+          const fromLabel = String(item.label || "").match(/\b([1-6])\s*BHK\b/i)?.[1];
+          return fromLabel ? `${fromLabel} BHK` : String(item.label || (item.bhk ? `${item.bhk} BHK` : "")).trim();
+        })(),
+        units: (Array.isArray(item.units) ? item.units : []).map((unit) => ({
+          minSqft: toNumber(unit.minSqft) || "",
+          maxSqft: toNumber(unit.maxSqft) || "",
+          minPrice: toNumber(unit.minPrice) || "",
+          maxPrice: toNumber(unit.maxPrice) || "",
+          availableCount: toNumber(unit.availableCount) || "",
+          area: { value: "", unit: "sqft", sqftValue: "" },
+        })),
+      })).filter((item) => item.label && item.units.length)
+    : [];
+  const unitRanges = projectSummary.flatMap((item) => item.units);
+  const minSqft = Math.min(...unitRanges.map((unit) => Number(unit.minSqft)).filter(Boolean));
+  const maxSqft = Math.max(...unitRanges.map((unit) => Number(unit.maxSqft)).filter(Boolean));
+  const aboutDescription = String(data.aboutDescription || "").trim();
+  const builderName = String(data.builderName || "").trim();
+
+  return {
+    ...previous,
+    ...data,
+    redirectUrl: websiteUrl,
+    ...(projectSummary.length ? { projectSummary } : {}),
+    ...(Number.isFinite(minSqft) && Number.isFinite(maxSqft)
+      ? { sqftRange: { min: minSqft, max: maxSqft } }
+      : {}),
+    ...(aboutDescription || builderName || data.rightContent ? {
+      aboutSummary: [{
+        ...(previous.aboutSummary?.[0] || {}),
+        builderName: builderName || previous.aboutSummary?.[0]?.builderName || "",
+        aboutDescription: aboutDescription || previous.aboutSummary?.[0]?.aboutDescription || "",
+        rightContent: String(data.rightContent || aboutDescription || previous.aboutSummary?.[0]?.rightContent || ""),
+        url: websiteUrl,
+      }],
+    } : {}),
+  };
+};
 
 
 export default function CreateFeaturedWizard() {
@@ -39,6 +90,8 @@ export default function CreateFeaturedWizard() {
 
   const [isSeoValid, setIsSeoValid] = useState(false);
   const [stepperOpen, setStepperOpen] = useState(false);
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [isAutofilling, setIsAutofilling] = useState(false);
 
   const location = useLocation();
   const projectTypeRef = useRef(location.state?.type);
@@ -130,6 +183,23 @@ export default function CreateFeaturedWizard() {
     submit();
     localStorage.removeItem("featured_step");
     localStorage.removeItem("featured_max_completed");
+  };
+
+  const fillFromWebsite = async () => {
+    const url = normalizeWebsiteUrl(websiteUrl);
+    if (!url) return toast.error("Enter a valid project website URL");
+    setIsAutofilling(true);
+    try {
+      const response = await apiClient.post("/api/chatbot/project-autofill", { websiteUrl: url });
+      const values = response?.data?.data || {};
+      if (!Object.keys(values).length) throw new Error("No project details were found on this website.");
+      setPayload((previous) => mapWebsiteAutofill(values, url, previous));
+      toast.success("Available project details were filled. Add images, floor plans, map pin, and brochure manually.");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message || "Could not fill project details from this website.");
+    } finally {
+      setIsAutofilling(false);
+    }
   };
 
   // ── Triggers UI error display for a specific step ──
@@ -287,6 +357,18 @@ export default function CreateFeaturedWizard() {
       <Header current={current} />
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5">
+        <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
+              <label htmlFor="project-website-autofill" className="block text-xs font-black uppercase tracking-wider text-emerald-800">Fill project details with AI</label>
+              <p className="mb-2 text-xs text-emerald-700">Paste the project website. Gemini reads its public details and fills the form; always review before posting.</p>
+              <input id="project-website-autofill" type="url" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} placeholder="https://builder.com/project-name" className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-500" />
+            </div>
+            <button type="button" onClick={fillFromWebsite} disabled={isAutofilling} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60 hover:bg-emerald-700">
+              {isAutofilling ? "Reading website…" : "Auto-fill details"}
+            </button>
+          </div>
+        </section>
         {/* ── Desktop Stepper (md+) ── */}
         <div className="hidden md:block">
           <Stepper

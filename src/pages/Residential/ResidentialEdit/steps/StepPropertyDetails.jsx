@@ -13,6 +13,7 @@ import BorewellDetails from "../components/editable/BorewellDetails";
 import {
   KITCHEN_TYPES, PARKING_TYPES, COMMERCIAL_FLOORING, RESIDENTIAL_FLOORING,
   FACING_TYPES, LAYOUT_TYPES, SOIL_TYPES, WATER_SOURCES, IRRIGATION_TYPES,
+  ACCESS_ROAD_TYPES, STATE_PURCHASE_RESTRICTIONS,
 } from "../components/editable/residentialEnums";
 
 const FIRE_SAFETY = [
@@ -391,20 +392,13 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              // { label: "Plantation Age", key: "plantationAge", type: "number" },
               {
                 label: "Number of Borewells",
                 key: "numberOfBorewells",
                 type: "number",
               },
               { label: "Current Crop", key: "currentCrop" },
-              // { label: "Suitable For", key: "suitableFor" },
               { label: "Land Shape", key: "landShape" },
-              {
-                label: "Purchase Restrictions",
-                key: "statePurchaseRestrictions",
-              },
-              { label: "Access Road Type", key: "accessRoadType" },
             ].map(({ label, key, type }) => (
               <FI
                 key={key}
@@ -415,6 +409,28 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
               />
             ))}
             <FS
+              label="Purchase Restrictions"
+              value={
+                STATE_PURCHASE_RESTRICTIONS.some(
+                  (o) => o.value === data.statePurchaseRestrictions,
+                )
+                  ? data.statePurchaseRestrictions
+                  : ""
+              }
+              onChange={(v) => upd("statePurchaseRestrictions", v)}
+              options={STATE_PURCHASE_RESTRICTIONS}
+            />
+            <FS
+              label="Access Road Type"
+              value={
+                ACCESS_ROAD_TYPES.some((o) => o.value === data.accessRoadType)
+                  ? data.accessRoadType
+                  : ""
+              }
+              onChange={(v) => upd("accessRoadType", v)}
+              options={ACCESS_ROAD_TYPES}
+            />
+            <FS
               label="Soil Type"
               value={data.soilType || ""}
               onChange={(v) => upd("soilType", v)}
@@ -422,8 +438,8 @@ export default function StepPropertyDetails({ data, onChange, onSave }) {
             />
             <FS
               label="Irrigation Type"
-              value={data.irigationType || ""}
-              onChange={(v) => upd("irigationType", v)}
+              value={data.irrigationType || data.irigationType || ""}
+              onChange={(v) => upd("irrigationType", v)}
               options={IRRIGATION_TYPES}
             />
             <FS

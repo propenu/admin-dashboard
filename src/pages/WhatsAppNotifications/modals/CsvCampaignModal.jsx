@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   Check,
@@ -19,7 +19,7 @@ import {
   uploadWhatsAppCampaignImage,
 } from "../../../features/user/userService";
 import { componentsToForm } from "../utils/formMapper";
-import { applyVars } from "../utils/helper";
+import { applyVars, countVars } from "../utils/helper";
 import { WhatsAppTemplatePreview } from "../preview/WhatsAppTemplatePreview";
 
 const CONTACT_ACCEPT =
@@ -73,6 +73,53 @@ async function parseContactFile(file) {
       return next;
     }),
   };
+}
+
+/** Guess phone column from headers (Phone, Mobile, …). */
+function guessPhoneHeader(headers = []) {
+  const list = headers.map((h) => String(h || "").trim()).filter(Boolean);
+  const exact = list.find((h) =>
+    /^(phone|mobile|whatsapp|wa[_-]?id|msisdn)$/i.test(h),
+  );
+  if (exact) return exact;
+  return (
+    list.find((h) => /phone|mobile|whatsapp|msisdn/i.test(h)) || list[0] || ""
+  );
+}
+
+/**
+ * Auto-map {{1}}, {{2}}, … to file columns (skip phone).
+ * Prefers Name for {{1}}, City for {{2}}, etc.
+ */
+function guessVarMapping(headers = [], varCount = 0, phoneHeader = "") {
+  const mapping = {};
+  if (!varCount) return mapping;
+  const phoneLc = String(phoneHeader || "").trim().toLowerCase();
+  const usable = headers
+    .map((h) => String(h || "").trim())
+    .filter((h) => h && h.toLowerCase() !== phoneLc);
+
+  const preferFor = [
+    /^(name|full.?name|first.?name|customer|client)$/i,
+    /^(city|location|place|area)$/i,
+    /^(state|region)$/i,
+    /^(locality|area|zone)$/i,
+    /^(company|business|org)$/i,
+  ];
+
+  const used = new Set();
+  for (let i = 1; i <= varCount; i++) {
+    const prefer = preferFor[i - 1];
+    let pick = prefer
+      ? usable.find((h) => !used.has(h) && prefer.test(h))
+      : null;
+    if (!pick) pick = usable.find((h) => !used.has(h));
+    if (pick) {
+      mapping[String(i)] = pick;
+      used.add(pick);
+    }
+  }
+  return mapping;
 }
 
 function uid(prefix) {
@@ -132,6 +179,9 @@ export function CsvCampaignModal({
   const [csvFile, setCsvFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [parsingFile, setParsingFile] = useState(false);
+  const [phoneField, setPhoneField] = useState("");
+  /** {{1}} → column header, {{2}} → column header, … */
+  const [fieldMapping, setFieldMapping] = useState({});
   const [sendMode, setSendMode] = useState("now");
   const [scheduleAt, setScheduleAt] = useState(toLocalDateTimeValue());
   const [sending, setSending] = useState(false);
@@ -152,8 +202,80 @@ export function CsvCampaignModal({
     templateSampleImage ||
     "";
 
+  const templateVarCount = useMemo(
+    () => countVars(previewForm?.body?.text || ""),
+    [previewForm?.body?.text],
+  );
+
+  const fileHeaders = filePreview?.headers || [];
+
+  // When template or file headers change, refresh default mappings
+  useEffect(() => {
+    if (!fileHeaders.length) {
+      setPhoneField("");
+      setFieldMapping({});
+      return;
+    }
+    setPhoneField((prev) =>
+      prev && fileHeaders.includes(prev) ? prev : guessPhoneHeader(fileHeaders),
+    );
+  }, [fileHeaders.join("|")]);
+
+  useEffect(() => {
+    if (!fileHeaders.length || !templateVarCount) {
+      setFieldMapping({});
+      return;
+    }
+    setFieldMapping((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      // Drop mappings beyond var count
+      Object.keys(next).forEach((key) => {
+        if (parseInt(key, 10) > templateVarCount) {
+          delete next[key];
+          changed = true;
+        }
+      });
+      const phone = phoneField || guessPhoneHeader(fileHeaders);
+      const guessed = guessVarMapping(fileHeaders, templateVarCount, phone);
+      for (let i = 1; i <= templateVarCount; i++) {
+        const k = String(i);
+        if (!next[k] || !fileHeaders.includes(next[k])) {
+          next[k] = guessed[k] || "";
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [fileHeaders.join("|"), templateVarCount, phoneField]);
+
+  const mappedExamples = useMemo(() => {
+    if (!templateVarCount) return previewForm?.body?.examples || [];
+    const row = filePreview?.rows?.[0];
+    if (!row) {
+      return Array.from(
+        { length: templateVarCount },
+        (_, i) => previewForm?.body?.examples?.[i] || `Sample ${i + 1}`,
+      );
+    }
+    return Array.from({ length: templateVarCount }, (_, i) => {
+      const header = fieldMapping[String(i + 1)];
+      const fromFile = header ? String(row[header] ?? "").trim() : "";
+      return (
+        fromFile ||
+        previewForm?.body?.examples?.[i] ||
+        `{{${i + 1}}}`
+      );
+    });
+  }, [
+    templateVarCount,
+    filePreview?.rows,
+    fieldMapping,
+    previewForm?.body?.examples,
+  ]);
+
   const bodyPreview = previewForm
-    ? applyVars(previewForm.body.text, previewForm.body.examples)
+    ? applyVars(previewForm.body.text, mappedExamples)
     : "";
 
   const nowLabel = new Date().toLocaleTimeString("en-IN", {
@@ -262,7 +384,16 @@ export function CsvCampaignModal({
   const clearContactFile = () => {
     setCsvFile(null);
     setFilePreview(null);
+    setPhoneField("");
+    setFieldMapping({});
     if (csvInputRef.current) csvInputRef.current.value = "";
+  };
+
+  const setVarMapping = (varIndex, header) => {
+    setFieldMapping((prev) => ({
+      ...prev,
+      [String(varIndex)]: header,
+    }));
   };
 
   const handleSubmit = async () => {
@@ -273,6 +404,18 @@ export function CsvCampaignModal({
     if (!csvFile) {
       toast.error("Choose a contacts file first");
       return;
+    }
+    if (!phoneField) {
+      toast.error("Select which column has the WhatsApp / phone number");
+      return;
+    }
+    if (templateVarCount > 0) {
+      for (let i = 1; i <= templateVarCount; i++) {
+        if (!fieldMapping[String(i)]) {
+          toast.error(`Map a file column to {{${i}}}`);
+          return;
+        }
+      }
     }
     if (sendMode === "schedule" && !scheduleAt) {
       toast.error("Pick a campaign date and time");
@@ -301,6 +444,10 @@ export function CsvCampaignModal({
       fd.append("file", sendFile);
       fd.append("templateName", selectedTemplate.name);
       fd.append("sendMode", sendMode);
+      fd.append("phoneField", phoneField);
+      if (templateVarCount > 0) {
+        fd.append("fieldMapping", JSON.stringify(fieldMapping));
+      }
       if (sendMode === "schedule") {
         fd.append("scheduleAt", new Date(scheduleAt).toISOString());
       }
@@ -546,7 +693,8 @@ export function CsvCampaignModal({
               </h4>
               <p className="text-xs text-slate-500">
                 CSV, Excel (.xlsx, .xls), TSV, TXT, or ODS. First row must be
-                headers (phone, name, and other variables).
+                headers. After upload, map the phone column and each {"{{n}}"}
+                placeholder.
               </p>
               <input
                 ref={csvInputRef}
@@ -586,6 +734,87 @@ export function CsvCampaignModal({
               ) : (
                 <p className="text-[11px] text-slate-400">No file chosen</p>
               )}
+
+              {fileHeaders.length ? (
+                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                  <div>
+                    <p className="text-xs font-extrabold text-slate-800">
+                      Map file columns
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Choose which uploaded column is the phone number, and which
+                      columns fill each template placeholder like {"{{1}}"}.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                      Select number field
+                    </label>
+                    <select
+                      value={phoneField}
+                      onChange={(e) => setPhoneField(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                    >
+                      <option value="">Select phone / WhatsApp column</option>
+                      {fileHeaders.map((header) => (
+                        <option key={header} value={header}>
+                          {header}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {templateVarCount > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                        Template variables
+                      </p>
+                      {Array.from({ length: templateVarCount }, (_, i) => {
+                        const index = i + 1;
+                        const key = String(index);
+                        return (
+                          <div
+                            key={key}
+                            className="grid grid-cols-[72px_1fr] items-center gap-2"
+                          >
+                            <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-center text-xs font-extrabold text-emerald-800">
+                              {`{{${index}}}`}
+                            </span>
+                            <select
+                              value={fieldMapping[key] || ""}
+                              onChange={(e) =>
+                                setVarMapping(index, e.target.value)
+                              }
+                              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                            >
+                              <option value="">Select column</option>
+                              {fileHeaders.map((header) => (
+                                <option key={header} value={header}>
+                                  {header}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                      <p className="text-[11px] text-slate-400">
+                        Preview uses the first row with these mappings.
+                      </p>
+                    </div>
+                  ) : selectedTemplate ? (
+                    <p className="text-[11px] text-slate-500">
+                      This template has no {"{{n}}"} placeholders — only the
+                      phone column is required.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-amber-700">
+                      Select a template to map its {"{{1}}"}, {"{{2}}"}, …
+                      fields.
+                    </p>
+                  )}
+                </div>
+              ) : null}
 
               {filePreview?.headers?.length ? (
                 <div className="overflow-hidden rounded-xl border border-slate-200">
@@ -689,7 +918,17 @@ export function CsvCampaignModal({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={sending || parsingFile || !selectedTemplate || !csvFile}
+              disabled={
+                sending ||
+                parsingFile ||
+                !selectedTemplate ||
+                !csvFile ||
+                !phoneField ||
+                (templateVarCount > 0 &&
+                  Array.from({ length: templateVarCount }, (_, i) =>
+                    fieldMapping[String(i + 1)],
+                  ).some((v) => !v))
+              }
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3.5 text-sm font-extrabold text-white shadow-[0_4px_14px_rgba(37,211,102,.3)] hover:bg-[#1EAF54] disabled:opacity-50"
             >
               {sending ? (

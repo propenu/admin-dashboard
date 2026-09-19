@@ -45,6 +45,20 @@ const cleanData = (obj) => {
       if (key === "createdBy" && typeof value === "object") {
         value = value?._id || value?.userId || value?.id;
       }
+      // Edit form used to free-text this; only allow Meta-valid enum values
+      if (key === "statePurchaseRestrictions" && typeof value === "string") {
+        const n = value.trim().toLowerCase().replace(/[_-]+/g, " ");
+        if (n === "applicable") value = "Applicable";
+        else if (
+          n === "not applicable" ||
+          n === "notapplicable" ||
+          n === "na"
+        ) {
+          value = "Not Applicable";
+        } else {
+          value = "";
+        }
+      }
       const cv = cleanData(value);
       if (
         cv !== "" &&

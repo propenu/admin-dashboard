@@ -27,6 +27,7 @@ export const STEP_META = [
 ];
 
 export const INITIAL_PAYLOAD = {
+  redirectUrl: "",
   title: "",
   logo: "",
   description: "",

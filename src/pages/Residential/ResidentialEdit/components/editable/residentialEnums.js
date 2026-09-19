@@ -104,6 +104,19 @@ export const WATER_SOURCES = [
   { label: "Multiple Sources", value: "multiple Sources"},
 ];
 
+export const ACCESS_ROAD_TYPES = [
+  { label: "Paved", value: "paved" },
+  { label: "Unpaved", value: "unpaved" },
+  { label: "Gravel", value: "gravel" },
+  { label: "Concrete", value: "concrete" },
+  { label: "Earthen", value: "earthen" },
+];
+
+export const STATE_PURCHASE_RESTRICTIONS = [
+  { label: "Applicable", value: "Applicable" },
+  { label: "Not Applicable", value: "Not Applicable" },
+];
+
 export const WALL_FINISH_STATUS = [
   { label: "No Partitions", value: "no-partitions" },
   { label: "Brick Walls", value: "brick-walls" },
