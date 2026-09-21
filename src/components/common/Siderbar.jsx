@@ -2,7 +2,8 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
-import { fetchLoggedInUser } from "../../services/UserServices/userServices";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuthUserProfile, USER_DETAILS_QUERY_KEY } from "../../hooks/useAuthUser";
 
 import DashboardIcon           from "../../assets/dashboard/dashboard.svg";
 import PropertiesIcon          from "../../assets/dashboard/Properties.svg";
@@ -343,11 +344,12 @@ export default function Sidebar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const { user, isPending: userPending } = useAuthUserProfile();
 
   const [showCreateModal,         setShowCreateModal]         = useState(false);
   const [showAssignAgentModal,    setShowAssignAgentModal]    = useState(false);
   const [showTransferCredentials, setShowTransferCredentials] = useState(false);
-  const [user,       setUser]       = useState(null);
   const [openMenus,  setOpenMenus]  = useState({});
   const [labelCard, setLabelCard] = useState(null);
   const asideRef = useRef(null);
@@ -375,25 +377,14 @@ export default function Sidebar({
   const toggleMenu = (key) => setOpenMenus((p) => ({ ...p, [key]: !p[key] }));
 
   useEffect(() => {
-    let active = true;
-    const refreshUser = () => fetchLoggedInUser().then((nextUser) => {
-      if (active) setUser(nextUser);
-    }).catch(() => {});
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") refreshUser();
+    const refreshUser = () => {
+      queryClient.invalidateQueries({ queryKey: USER_DETAILS_QUERY_KEY });
     };
-
-    refreshUser();
-    window.addEventListener("focus", refreshUser);
     window.addEventListener("propenu:permissions-updated", refreshUser);
-    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
-      active = false;
-      window.removeEventListener("focus", refreshUser);
       window.removeEventListener("propenu:permissions-updated", refreshUser);
-      document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     const updateCounts = (event) => setLiveCounts(event.detail || {});
@@ -1660,6 +1651,16 @@ export default function Sidebar({
         {/* ── Navigation ── */}
         <nav className={`sb-scroll flex-1 ${S.navPy} ${S.navPx} overflow-y-auto overflow-x-hidden ${S.space}`}>
 
+          {userPending && !user ? (
+            <div className="space-y-1.5 px-0.5" aria-hidden>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-8 animate-pulse rounded-md bg-slate-100/90"
+                />
+              ))}
+            </div>
+          ) : null}
           {menuItems.map((item) => {
             const parentActive = hasActiveDescendant(item);
 

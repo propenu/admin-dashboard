@@ -1,78 +1,73 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Bold,
   Check,
   ChevronDown,
+  Code2,
   Copy,
   FileText,
-  Image as ImageIcon,
+  Italic,
   Loader2,
   MessageCircle,
+  Phone,
+  Plus,
   Sparkles,
-  Tag,
+  Strikethrough,
+  Trash2,
   Upload,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EMPTY_FORM } from "../common/EmptyForm";
-import { CATEGORIES, LANGUAGES } from "../utils/constants";
+import {
+  CATEGORIES,
+  HEADER_MEDIA_OPTIONS,
+  LANGUAGES,
+  MEDIA_ACCEPT,
+  META_BUTTON_OPTIONS,
+} from "../utils/constants";
 import { uploadWhatsAppCampaignImage } from "../../../features/user/userService";
 import {
   buildPayload,
   validateTemplateBody,
 } from "../utils/payloadBuilder";
 import { applyVars, countVars } from "../utils/helper";
+import { WhatsAppTemplatePreview } from "../preview/WhatsAppTemplatePreview";
 
-const TEMPLATE_TYPES = [
-  {
-    id: "text",
-    label: "Text",
-    description: "Simple approved message with variables.",
-  },
-  {
-    id: "media",
-    label: "Media",
-    description: "One image or document header with body text.",
-  },
-  {
-    id: "quick_replies",
-    label: "Quick replies",
-    description: "Tap buttons that return text replies.",
-  },
-  {
-    id: "cta",
-    label: "CTA buttons",
-    description: "Website URL and phone call buttons.",
-  },
-  {
-    id: "carousel",
-    label: "Project carousel",
-    description: "Multiple project cards with shared title/description vars.",
-  },
-  {
-    id: "authentication",
-    label: "Authentication",
-    description: "OTP / copy-code verification template.",
-  },
-];
-
+/** Real-estate sample aligned with Meta component metadata. */
 const SAMPLE = {
-  name: "welcome_customer",
+  name: "property_inquiry_followup",
   language: "en",
   category: "MARKETING",
-  templateType: "text",
+  templateType: "cta",
   header: {
-    enabled: false,
+    enabled: true,
     format: "TEXT",
-    text: "",
+    text: "New property update",
+    example: "",
     mediaHandle: "",
     mediaPreview: null,
   },
   body: {
-    text: "Hi {{1}}, welcome to Propenu. Your service city is {{2}}. Thank you!",
-    examples: ["Ramana", "Hyderabad"],
+    text: "Hi {{1}}, thank you for your interest in *{{2}}* at {{3}}. Our advisor will share floor plans and pricing shortly. Reply if you want a site visit.",
+    examples: ["Priya", "Green Valley Residences", "Gachibowli, Hyderabad"],
   },
-  footer: { enabled: true, text: "Reply STOP to opt out" },
-  buttons: [],
+  footer: { enabled: true, text: "Propenu Real Estate" },
+  buttons: [
+    {
+      type: "URL",
+      text: "View property",
+      url: "https://propenu.com/",
+      phone: "",
+    },
+    {
+      type: "PHONE_NUMBER",
+      text: "Call advisor",
+      url: "",
+      phone: "+919876543210",
+    },
+    { type: "QUICK_REPLY", text: "Book site visit", url: "", phone: "" },
+  ],
 };
 
 const fieldLabel =
@@ -98,18 +93,6 @@ function deepMergeForm(initial) {
       ? initial.buttons.map((b) => ({ ...b }))
       : [],
   };
-  if (!base.templateType) {
-    if (base.category === "AUTHENTICATION") base.templateType = "authentication";
-    else if (base.header?.enabled && base.header.format !== "TEXT")
-      base.templateType = "media";
-    else if (base.buttons?.some((b) => b.type === "QUICK_REPLY"))
-      base.templateType = "quick_replies";
-    else if (
-      base.buttons?.some((b) => b.type === "URL" || b.type === "PHONE_NUMBER")
-    )
-      base.templateType = "cta";
-    else base.templateType = "text";
-  }
   return base;
 }
 
@@ -125,74 +108,65 @@ function extractVars(text = "") {
   };
 }
 
-function renderPreviewHtml(text) {
-  return String(text || "")
-    .replace(/\*(.*?)\*/g, "<strong>$1</strong>")
-    .replace(/_(.*?)_/g, "<em>$1</em>")
-    .replace(/~(.*?)~/g, "<s>$1</s>")
-    .replace(/\n/g, "<br/>");
+function insertAtCursor(el, current, token, onChange) {
+  if (!el) {
+    onChange(`${current || ""}${token}`);
+    return;
+  }
+  const start = el.selectionStart ?? (current || "").length;
+  const end = el.selectionEnd ?? (current || "").length;
+  const next = (current || "").slice(0, start) + token + (current || "").slice(end);
+  onChange(next);
+  setTimeout(() => {
+    el.focus();
+    const pos = start + token.length;
+    el.setSelectionRange(pos, pos);
+  }, 0);
+}
+
+function wrapSelection(el, current, before, after, onChange) {
+  if (!el) {
+    onChange(`${current || ""}${before}${after}`);
+    return;
+  }
+  const start = el.selectionStart ?? 0;
+  const end = el.selectionEnd ?? 0;
+  const selected = (current || "").slice(start, end) || "text";
+  const next =
+    (current || "").slice(0, start) +
+    before +
+    selected +
+    after +
+    (current || "").slice(end);
+  onChange(next);
+  setTimeout(() => {
+    el.focus();
+    el.setSelectionRange(
+      start + before.length,
+      start + before.length + selected.length,
+    );
+  }, 0);
 }
 
 /**
- * Create / Edit WhatsApp template composer — industry-aligned layout.
+ * Meta Business Suite–style Create WhatsApp Template composer.
  */
 export function TemplateComposerModal({
-  mode = "create", // create | edit
+  mode = "create",
   initial = EMPTY_FORM,
   submitting = false,
   onClose,
   onSubmit,
 }) {
   const [form, setForm] = useState(() => deepMergeForm(initial));
-  const [typeOpen, setTypeOpen] = useState(false);
+  const [buttonMenuOpen, setButtonMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [payloadOpen, setPayloadOpen] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const bodyRef = useRef(null);
-  const typeRef = useRef(null);
+  const headerRef = useRef(null);
+  const buttonMenuRef = useRef(null);
   const mediaInputRef = useRef(null);
-
-  const uploadMediaSample = async (file) => {
-    if (!file) return;
-    if (!file.type?.startsWith("image/")) {
-      toast.error("Please choose an image file");
-      return;
-    }
-    try {
-      setUploadingMedia(true);
-      const localPreview = URL.createObjectURL(file);
-      setForm((prev) => ({
-        ...prev,
-        header: {
-          ...prev.header,
-          enabled: true,
-          format: "IMAGE",
-          mediaPreview: localPreview,
-        },
-      }));
-      const res = await uploadWhatsAppCampaignImage(file);
-      const publicUrl = res?.data?.url || "";
-      if (!publicUrl) throw new Error("Upload did not return a URL");
-      setForm((prev) => ({
-        ...prev,
-        header: {
-          ...prev.header,
-          enabled: true,
-          format: "IMAGE",
-          mediaHandle: publicUrl,
-          mediaPreview: publicUrl,
-        },
-      }));
-      if (localPreview.startsWith("blob:")) URL.revokeObjectURL(localPreview);
-      toast.success("Media uploaded — URL added");
-    } catch (err) {
-      toast.error(
-        err?.response?.data?.message || err?.message || "Image upload failed",
-      );
-    } finally {
-      setUploadingMedia(false);
-    }
-  };
 
   useEffect(() => {
     setForm(deepMergeForm(initial));
@@ -200,8 +174,8 @@ export function TemplateComposerModal({
 
   useEffect(() => {
     const onDoc = (e) => {
-      if (typeRef.current && !typeRef.current.contains(e.target)) {
-        setTypeOpen(false);
+      if (buttonMenuRef.current && !buttonMenuRef.current.contains(e.target)) {
+        setButtonMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", onDoc);
@@ -211,12 +185,113 @@ export function TemplateComposerModal({
   const setField = (key, value) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const vars = useMemo(() => extractVars(form.body.text), [form.body.text]);
+  const bodyVars = useMemo(() => extractVars(form.body.text), [form.body.text]);
+  const headerVars = useMemo(
+    () => extractVars(form.header.text || ""),
+    [form.header.text],
+  );
 
   const bodyValidation = useMemo(
     () => validateTemplateBody(form.body.text),
     [form.body.text],
   );
+
+  const mediaSampleValue = !form.header.enabled
+    ? "NONE"
+    : ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"].includes(form.header.format)
+      ? form.header.format
+      : "NONE";
+
+  const setMediaSample = (value) => {
+    if (value === "NONE") {
+      setForm((prev) => ({
+        ...prev,
+        header: {
+          ...prev.header,
+          enabled: Boolean(String(prev.header.text || "").trim()),
+          format: "TEXT",
+          mediaHandle: "",
+          mediaPreview: null,
+        },
+      }));
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      header: {
+        ...prev.header,
+        enabled: true,
+        format: value,
+        text: "",
+        example: "",
+        mediaHandle: "",
+        mediaPreview: null,
+      },
+    }));
+  };
+
+  const uploadMediaSample = async (file) => {
+    if (!file) return;
+    const format = form.header.format;
+    const maxMB = format === "VIDEO" ? 16 : format === "DOCUMENT" ? 100 : 5;
+    if (file.size > maxMB * 1024 * 1024) {
+      toast.error(`File too large. Max ${maxMB}MB for ${format}.`);
+      return;
+    }
+
+    try {
+      setUploadingMedia(true);
+      const localPreview = URL.createObjectURL(file);
+
+      if (format === "IMAGE") {
+        setForm((prev) => ({
+          ...prev,
+          header: {
+            ...prev.header,
+            enabled: true,
+            format: "IMAGE",
+            mediaPreview: localPreview,
+          },
+        }));
+        const res = await uploadWhatsAppCampaignImage(file);
+        const publicUrl = res?.data?.url || "";
+        if (!publicUrl) throw new Error("Upload did not return a URL");
+        setForm((prev) => ({
+          ...prev,
+          header: {
+            ...prev.header,
+            enabled: true,
+            format: "IMAGE",
+            mediaHandle: publicUrl,
+            mediaPreview: publicUrl,
+          },
+        }));
+        if (localPreview.startsWith("blob:")) URL.revokeObjectURL(localPreview);
+        toast.success("Header image uploaded");
+      } else {
+        // Video / document: store public URL or local name; Meta prefers upload handle.
+        setForm((prev) => ({
+          ...prev,
+          header: {
+            ...prev.header,
+            enabled: true,
+            format,
+            mediaHandle: file.name,
+            mediaPreview: localPreview,
+          },
+        }));
+        toast.success(
+          `${format} sample attached. For Meta approval, use a valid media handle/URL.`,
+        );
+      }
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message || err?.message || "Media upload failed",
+      );
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
 
   const payload = useMemo(() => {
     try {
@@ -231,7 +306,7 @@ export function TemplateComposerModal({
       };
       if (!soft.name?.trim()) soft.name = "template_name";
       if (!soft.body.text?.trim()) {
-        soft.body.text = "Your template message body";
+        soft.body.text = "Your template message body goes here.";
       }
       return buildPayload(soft);
     } catch {
@@ -249,22 +324,32 @@ export function TemplateComposerModal({
     }
   }, [form]);
 
-  const previewText = useMemo(() => {
+  const previewBody = useMemo(() => {
     const examples = Array.from(
       { length: countVars(form.body.text) },
       (_, i) => form.body.examples[i] || `{{${i + 1}}}`,
     );
-    return applyVars(form.body.text, examples) || "WhatsApp message preview";
+    return applyVars(form.body.text, examples) || "";
   }, [form.body.text, form.body.examples]);
 
-  const selectedType =
-    TEMPLATE_TYPES.find((t) => t.id === form.templateType) || TEMPLATE_TYPES[0];
+  const previewHeaderText = useMemo(() => {
+    if (!form.header.enabled || form.header.format !== "TEXT") return "";
+    const sample = form.header.example || "{{1}}";
+    return applyVars(form.header.text || "", [sample]);
+  }, [form.header]);
 
   const canSubmit =
     Boolean(form.name?.trim()) &&
     Boolean(form.body.text?.trim()) &&
-    vars.invalid.length === 0 &&
-    bodyValidation.ok;
+    bodyVars.invalid.length === 0 &&
+    headerVars.invalid.length === 0 &&
+    bodyValidation.ok &&
+    !(
+      form.header.enabled &&
+      form.header.enabled &&
+      ["IMAGE", "VIDEO", "DOCUMENT"].includes(form.header.format) &&
+      !form.header.mediaHandle
+    );
 
   const statusHint = !form.name?.trim()
     ? "Add a template name to continue."
@@ -272,9 +357,13 @@ export function TemplateComposerModal({
       ? "Add a message body to continue."
       : !bodyValidation.ok
         ? bodyValidation.errors[0]?.message || "Fix variable issues to continue."
-        : vars.invalid.length
+        : bodyVars.invalid.length || headerVars.invalid.length
           ? "Use numbered variables like {{1}}, not named tokens."
-          : "Ready to submit to Meta for review.";
+          : form.header.enabled &&
+              ["IMAGE", "VIDEO", "DOCUMENT"].includes(form.header.format) &&
+              !form.header.mediaHandle
+            ? `Upload a ${form.header.format.toLowerCase()} sample for the header.`
+            : "Ready to submit to Meta for review.";
 
   const syncExamples = (text, examples) => {
     const n = countVars(text);
@@ -291,67 +380,95 @@ export function TemplateComposerModal({
     }));
   };
 
-  const insertNextVar = () => {
-    const el = bodyRef.current;
-    const n = Math.max(1, vars.nextIndex);
-    const token = `{{${n}}}`;
-    const current = form.body.text || "";
-    if (!el) {
-      setBodyText(`${current}${token}`);
+  const setHeaderText = (text) => {
+    setForm((prev) => {
+      const hasMedia = ["IMAGE", "VIDEO", "DOCUMENT", "LOCATION"].includes(
+        prev.header.format,
+      );
+      const trimmed = String(text || "").trim();
+      return {
+        ...prev,
+        header: {
+          ...prev.header,
+          text,
+          enabled: hasMedia || Boolean(trimmed),
+          format: hasMedia ? prev.header.format : "TEXT",
+        },
+      };
+    });
+  };
+
+  const insertBodyVar = () => {
+    const n = Math.max(1, bodyVars.nextIndex);
+    insertAtCursor(bodyRef.current, form.body.text, `{{${n}}}`, setBodyText);
+  };
+
+  const insertHeaderVar = () => {
+    if ((form.header.text || "").includes("{{")) {
+      toast.error("Header can include at most one variable {{1}}");
       return;
     }
-    const start = el.selectionStart ?? current.length;
-    const end = el.selectionEnd ?? current.length;
-    const next = current.slice(0, start) + token + current.slice(end);
-    setBodyText(next);
-    setTimeout(() => {
-      el.focus();
-      const pos = start + token.length;
-      el.setSelectionRange(pos, pos);
-    }, 0);
+    insertAtCursor(headerRef.current, form.header.text || "", "{{1}}", setHeaderText);
   };
 
   const applySample = () => {
     setForm(deepMergeForm(SAMPLE));
-    toast.success("Sample template loaded");
+    toast.success("Real-estate sample template loaded");
   };
 
-  const selectType = (typeId) => {
+  const addButton = (type) => {
     setForm((prev) => {
-      const next = { ...prev, templateType: typeId };
-      if (typeId === "media") {
-        next.header = {
-          ...prev.header,
-          enabled: true,
-          format: prev.header.format === "TEXT" ? "IMAGE" : prev.header.format,
-        };
-      } else if (typeId === "text" || typeId === "authentication") {
-        next.header = { ...EMPTY_FORM.header };
-        if (typeId === "authentication") next.category = "AUTHENTICATION";
-      } else if (typeId === "quick_replies") {
-        next.buttons =
-          prev.buttons?.length > 0
-            ? prev.buttons
-            : [
-                { type: "QUICK_REPLY", text: "Yes", url: "", phone: "" },
-                { type: "QUICK_REPLY", text: "No", url: "", phone: "" },
-              ];
-      } else if (typeId === "cta") {
-        next.buttons =
-          prev.buttons?.some((b) => b.type === "URL")
-            ? prev.buttons
-            : [
-                {
-                  type: "URL",
-                  text: "For More Details",
-                  url: "https://propenu.com/",
-                  phone: "",
-                },
-              ];
+      if (prev.buttons.length >= 10) {
+        toast.error("Meta allows at most 10 buttons");
+        return prev;
       }
-      return next;
+      const urlCount = prev.buttons.filter((b) => b.type === "URL").length;
+      const phoneCount = prev.buttons.filter(
+        (b) => b.type === "PHONE_NUMBER",
+      ).length;
+      if (type === "URL" && urlCount >= 2) {
+        toast.error("At most 2 Visit website buttons");
+        return prev;
+      }
+      if (type === "PHONE_NUMBER" && phoneCount >= 1) {
+        toast.error("At most 1 Call phone number button");
+        return prev;
+      }
+      const defaults = {
+        QUICK_REPLY: { type, text: "Interested", url: "", phone: "" },
+        URL: {
+          type,
+          text: "View property",
+          url: "https://propenu.com/",
+          phone: "",
+        },
+        PHONE_NUMBER: {
+          type,
+          text: "Call now",
+          url: "",
+          phone: "+91",
+        },
+      };
+      return {
+        ...prev,
+        buttons: [...prev.buttons, defaults[type] || defaults.QUICK_REPLY],
+      };
     });
-    setTypeOpen(false);
+    setButtonMenuOpen(false);
+  };
+
+  const updateButton = (index, patch) => {
+    setForm((prev) => ({
+      ...prev,
+      buttons: prev.buttons.map((b, i) => (i === index ? { ...b, ...patch } : b)),
+    }));
+  };
+
+  const removeButton = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      buttons: prev.buttons.filter((_, i) => i !== index),
+    }));
   };
 
   const copyPayload = async () => {
@@ -368,7 +485,7 @@ export function TemplateComposerModal({
   const handleSubmit = (e) => {
     e?.preventDefault?.();
     try {
-      if (vars.invalid.length) {
+      if (bodyVars.invalid.length || headerVars.invalid.length) {
         toast.error("Use numbered variables like {{1}}, not named tokens.");
         return;
       }
@@ -393,22 +510,25 @@ export function TemplateComposerModal({
   };
 
   const title =
-    mode === "edit" ? "Edit Template Copy" : "Create WhatsApp Template";
+    mode === "edit" ? "Edit Template Copy" : "Create template";
   const subtitle =
     mode === "edit"
       ? "Meta templates cannot be changed after approval; submit a revised copy."
-      : "Submit a template to Meta for review.";
+      : "Templates will be reviewed by Meta to ensure they follow guidelines.";
+
+  const showTextHeader =
+    form.header.enabled &&
+    (form.header.format === "TEXT" || mediaSampleValue === "NONE");
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-[2px] md:items-center md:p-5"
       onClick={(e) => e.target === e.currentTarget && onClose?.()}
     >
-      <div className="flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-white shadow-2xl md:h-[min(900px,92vh)] md:rounded-2xl">
-        {/* Header */}
+      <div className="flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-white shadow-2xl md:h-[min(920px,94vh)] md:rounded-2xl">
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 md:px-6">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#25D366]/15 text-[#128C7E]">
               <MessageCircle size={20} />
             </div>
             <div className="min-w-0 pt-0.5">
@@ -420,60 +540,40 @@ export function TemplateComposerModal({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="mt-0.5 rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-          >
-            <X size={18} />
-          </button>
-        </header>
-
-        {/* Tip strip */}
-        <div className="shrink-0 border-b border-emerald-100/80 bg-emerald-50/70 px-5 py-3 md:px-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white">
-                <MessageCircle size={14} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-emerald-950">
-                  WhatsApp template composer
-                </p>
-                <p className="mt-0.5 text-[12px] leading-relaxed text-emerald-900/75">
-                  Use numbered variables like {"{{1}}"}. After approval, map
-                  them to CRM fields when sending.
-                </p>
-              </div>
-            </div>
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={applySample}
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 self-start rounded-lg border border-emerald-200 bg-white px-3 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-50 sm:self-auto"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-100"
             >
               <Sparkles size={13} />
               Sample
             </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            >
+              <X size={18} />
+            </button>
           </div>
-        </div>
+        </header>
 
-        {/* Two-pane workspace — no page-level horizontal scroll */}
-        <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-          {/* LEFT: form */}
-          <div className="min-h-0 overflow-y-auto overflow-x-hidden border-b border-slate-100 px-5 py-5 md:px-6 lg:border-b-0 lg:border-r lg:border-slate-100">
-            <div className="mx-auto flex max-w-xl flex-col gap-5">
-              {/* Identity */}
+        <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+          {/* LEFT — Meta content form */}
+          <div className="min-h-0 overflow-y-auto overflow-x-hidden border-b border-slate-100 px-5 py-5 md:px-6 lg:border-b-0 lg:border-r">
+            <div className="mx-auto flex max-w-2xl flex-col gap-5">
+              {/* Template details */}
               <section className={sectionCard}>
                 <div className="mb-4">
-                  <h3 className="text-[13px] font-semibold text-slate-900">
+                  <h3 className="text-[14px] font-semibold text-slate-900">
                     Template details
                   </h3>
                   <p className="mt-0.5 text-[12px] text-slate-500">
                     Name, category, and language sent to Meta.
                   </p>
                 </div>
-
                 <div className="flex flex-col gap-4">
                   <div>
                     <label className={fieldLabel} htmlFor="tpl-name">
@@ -491,13 +591,12 @@ export function TemplateComposerModal({
                             .replace(/[^a-z0-9_]/g, ""),
                         )
                       }
-                      placeholder="welcome_customer"
+                      placeholder="property_inquiry_followup"
                       className={`${fieldControl} font-mono text-[13px]`}
                     />
                   </div>
-
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="min-w-0">
+                    <div>
                       <label className={fieldLabel} htmlFor="tpl-category">
                         Category
                       </label>
@@ -514,7 +613,7 @@ export function TemplateComposerModal({
                         ))}
                       </select>
                     </div>
-                    <div className="min-w-0">
+                    <div>
                       <label className={fieldLabel} htmlFor="tpl-language">
                         Language
                       </label>
@@ -535,46 +634,39 @@ export function TemplateComposerModal({
                 </div>
               </section>
 
-              {/* Template type */}
-              <section className={sectionCard} ref={typeRef}>
-                <label className={fieldLabel}>Template type</label>
-                <button
-                  type="button"
-                  onClick={() => setTypeOpen((v) => !v)}
-                  className="mt-0.5 flex w-full items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3.5 py-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40"
-                >
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-semibold text-slate-900">
-                      {selectedType.label}
-                    </p>
-                    <p className="mt-0.5 text-[12px] leading-snug text-slate-500">
-                      {selectedType.description}
-                    </p>
-                  </div>
-                  <ChevronDown
-                    size={16}
-                    className={`mt-1 shrink-0 text-slate-400 transition ${
-                      typeOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-                {typeOpen ? (
-                  <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                    {TEMPLATE_TYPES.map((t) => {
-                      const active = t.id === form.templateType;
+              {/* Content — Meta parity */}
+              <section className={sectionCard}>
+                <div className="mb-4">
+                  <h3 className="text-[14px] font-semibold text-slate-900">
+                    Content
+                  </h3>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-slate-500">
+                    Fill in the header, body and footer sections of your
+                    template. Templates require review by Meta.
+                  </p>
+                </div>
+
+                {/* Media sample */}
+                <div className="mb-5">
+                  <label className={fieldLabel}>Media sample (optional)</label>
+                  <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                    {HEADER_MEDIA_OPTIONS.map((opt) => {
+                      const active = mediaSampleValue === opt.value;
                       return (
                         <button
-                          key={t.id}
+                          key={opt.value}
                           type="button"
-                          onClick={() => selectType(t.id)}
-                          className={`flex w-full items-start gap-2.5 border-b border-slate-100 px-3.5 py-2.5 text-left last:border-0 hover:bg-slate-50 ${
-                            active ? "bg-emerald-50" : ""
+                          onClick={() => setMediaSample(opt.value)}
+                          className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-[13px] font-semibold transition ${
+                            active
+                              ? "border-sky-500 bg-sky-50 text-sky-800"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                           }`}
                         >
                           <span
-                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                               active
-                                ? "border-emerald-500 bg-emerald-500 text-white"
+                                ? "border-sky-500 bg-sky-500 text-white"
                                 : "border-slate-300"
                             }`}
                           >
@@ -582,359 +674,568 @@ export function TemplateComposerModal({
                               <Check size={10} strokeWidth={3} />
                             ) : null}
                           </span>
-                          <span className="min-w-0">
-                            <span className="block text-[13px] font-semibold text-slate-800">
-                              {t.label}
-                            </span>
-                            <span className="block text-[12px] text-slate-500">
-                              {t.description}
-                            </span>
-                          </span>
+                          {opt.label}
                         </button>
                       );
                     })}
                   </div>
-                ) : null}
-              </section>
 
-              {form.templateType === "media" ? (
-                <section className={sectionCard}>
-                  <div className="mb-3 flex items-center gap-2">
-                    <ImageIcon size={14} className="text-slate-500" />
-                    <h3 className="text-[13px] font-semibold text-slate-900">
-                      Header image
-                    </h3>
+                  {["IMAGE", "VIDEO", "DOCUMENT"].includes(mediaSampleValue) ? (
+                    <div className="mt-3 space-y-2">
+                      <button
+                        type="button"
+                        disabled={uploadingMedia}
+                        onClick={() => mediaInputRef.current?.click()}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-[13px] font-semibold text-slate-600 hover:border-emerald-300 disabled:opacity-60"
+                      >
+                        {uploadingMedia ? (
+                          <>
+                            <Loader2 size={15} className="animate-spin" />
+                            Uploading…
+                          </>
+                        ) : (
+                          <>
+                            <Upload size={15} />
+                            Upload {mediaSampleValue.toLowerCase()} sample
+                          </>
+                        )}
+                      </button>
+                      <input
+                        ref={mediaInputRef}
+                        type="file"
+                        accept={MEDIA_ACCEPT[mediaSampleValue]}
+                        className="hidden"
+                        onChange={(e) => {
+                          uploadMediaSample(e.target.files?.[0]);
+                          e.target.value = "";
+                        }}
+                      />
+                      <input
+                        type="url"
+                        value={form.header.mediaHandle || ""}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            header: {
+                              ...prev.header,
+                              enabled: true,
+                              format: mediaSampleValue,
+                              mediaHandle: e.target.value,
+                              mediaPreview: e.target.value,
+                            },
+                          }))
+                        }
+                        placeholder="Or paste public media URL / Meta header handle"
+                        className={`${fieldControl} text-[12px]`}
+                      />
+                      {form.header.format === "IMAGE" &&
+                      (form.header.mediaPreview || form.header.mediaHandle) ? (
+                        <img
+                          src={
+                            form.header.mediaPreview || form.header.mediaHandle
+                          }
+                          alt=""
+                          className="max-h-36 w-full rounded-lg border border-slate-200 object-contain bg-slate-50"
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {mediaSampleValue === "LOCATION" ? (
+                    <p className="mt-3 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2.5 text-[12px] leading-relaxed text-sky-900">
+                      Location header shows a map pin in WhatsApp. You do not
+                      upload a sample here — lat/long, name, and address are
+                      sent when the template is used (e.g. project site visit).
+                    </p>
+                  ) : null}
+                </div>
+
+                {/* Header text */}
+                <div className="mb-5 border-t border-slate-100 pt-5">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-[13px] font-semibold text-slate-900">
+                        Header{" "}
+                        <span className="font-normal text-slate-400">
+                          · Optional
+                        </span>
+                      </h4>
+                      <p className="text-[12px] text-slate-500">
+                        Add a short line of text to the header of your message.
+                      </p>
+                    </div>
+                    {showTextHeader || mediaSampleValue === "NONE" ? (
+                      <button
+                        type="button"
+                        onClick={insertHeaderVar}
+                        className="shrink-0 text-[12px] font-semibold text-sky-600 hover:text-sky-700"
+                      >
+                        + Add variable
+                      </button>
+                    ) : null}
                   </div>
-                  <p className="mb-3 text-[12px] text-slate-500">
-                    Shown only for Media templates. Upload fills the sample URL
-                    automatically.
-                  </p>
-                  <button
-                    type="button"
-                    disabled={uploadingMedia}
-                    onClick={() => mediaInputRef.current?.click()}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-[13px] font-semibold text-slate-600 hover:border-emerald-300 disabled:opacity-60"
-                  >
-                    {uploadingMedia ? (
-                      <>
-                        <Loader2 size={15} className="animate-spin" />
-                        Uploading…
-                      </>
-                    ) : (
-                      <>
-                        <Upload size={15} />
-                        Upload header image
-                      </>
-                    )}
-                  </button>
+                  {(showTextHeader || mediaSampleValue === "NONE") &&
+                  mediaSampleValue === "NONE" ? (
+                    <>
+                      <input
+                        ref={headerRef}
+                        maxLength={60}
+                        value={form.header.text || ""}
+                        onChange={(e) => setHeaderText(e.target.value)}
+                        placeholder="Enter the text for the header of your message"
+                        className={fieldControl}
+                      />
+                      <p className="mt-1 text-right text-[11px] text-slate-400">
+                        {(form.header.text || "").length}/60
+                      </p>
+                      {headerVars.numbered.length > 0 ? (
+                        <input
+                          value={form.header.example || ""}
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              header: {
+                                ...prev.header,
+                                example: e.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="Sample value for header {{1}}"
+                          className={`${fieldControl} mt-2`}
+                        />
+                      ) : null}
+                    </>
+                  ) : mediaSampleValue !== "NONE" ? (
+                    <p className="rounded-lg bg-slate-50 px-3 py-2 text-[12px] text-slate-500">
+                      Media header selected — text header is disabled for this
+                      format (Meta rule).
+                    </p>
+                  ) : null}
+                </div>
+
+                {/* Body */}
+                <div className="mb-5 border-t border-slate-100 pt-5">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-[13px] font-semibold text-slate-900">
+                        Body
+                      </h4>
+                      <p className="text-[12px] text-slate-500">
+                        Enter the text for your message in{" "}
+                        {LANGUAGES.find((l) => l.code === form.language)
+                          ?.label || "English"}
+                        .
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={insertBodyVar}
+                      className="shrink-0 text-[12px] font-semibold text-sky-600 hover:text-sky-700"
+                    >
+                      + Add variable
+                    </button>
+                  </div>
+                  <div className="overflow-hidden rounded-lg border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/15">
+                    <textarea
+                      ref={bodyRef}
+                      rows={7}
+                      maxLength={1024}
+                      value={form.body.text}
+                      onChange={(e) => setBodyText(e.target.value)}
+                      placeholder="Hi {{1}}, thank you for your interest in {{2}}…"
+                      className="w-full resize-y border-0 px-3.5 py-3 text-[13px] leading-relaxed text-slate-800 outline-none"
+                    />
+                    <div className="flex flex-wrap items-center gap-1 border-t border-slate-100 bg-slate-50/80 px-2 py-1.5">
+                      {[
+                        {
+                          icon: Bold,
+                          label: "Bold",
+                          action: () =>
+                            wrapSelection(
+                              bodyRef.current,
+                              form.body.text,
+                              "*",
+                              "*",
+                              setBodyText,
+                            ),
+                        },
+                        {
+                          icon: Italic,
+                          label: "Italic",
+                          action: () =>
+                            wrapSelection(
+                              bodyRef.current,
+                              form.body.text,
+                              "_",
+                              "_",
+                              setBodyText,
+                            ),
+                        },
+                        {
+                          icon: Strikethrough,
+                          label: "Strikethrough",
+                          action: () =>
+                            wrapSelection(
+                              bodyRef.current,
+                              form.body.text,
+                              "~",
+                              "~",
+                              setBodyText,
+                            ),
+                        },
+                        {
+                          icon: Code2,
+                          label: "Monospace",
+                          action: () =>
+                            wrapSelection(
+                              bodyRef.current,
+                              form.body.text,
+                              "```",
+                              "```",
+                              setBodyText,
+                            ),
+                        },
+                      ].map(({ icon: Icon, label, action }) => (
+                        <button
+                          key={label}
+                          type="button"
+                          title={label}
+                          onClick={action}
+                          className="rounded-md p-1.5 text-slate-500 hover:bg-white hover:text-slate-800"
+                        >
+                          <Icon size={14} />
+                        </button>
+                      ))}
+                      <span className="ml-auto text-[11px] text-slate-400">
+                        {(form.body.text || "").length}/1024
+                      </span>
+                    </div>
+                  </div>
+
+                  {bodyVars.invalid.length > 0 ? (
+                    <p className="mt-2 text-[12px] font-semibold text-rose-600">
+                      Use numbered variables like {"{{1}}"}, not{" "}
+                      {bodyVars.invalid[0]}.
+                    </p>
+                  ) : null}
+
+                  {form.body.text.trim() && !bodyValidation.ok ? (
+                    <div className="mt-3 space-y-2 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-rose-600">
+                        Fix before submit
+                      </p>
+                      {bodyValidation.errors.map((err) => (
+                        <div key={err.code} className="text-[12px] text-rose-800">
+                          <p className="font-semibold">{err.message}</p>
+                          <p className="mt-0.5 text-rose-700/90">{err.fix}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {bodyVars.numbered.length > 0 ? (
+                    <div className="mt-4 space-y-2.5">
+                      <p className={fieldLabel}>Samples for body variables</p>
+                      {bodyVars.numbered.map((token, i) => (
+                        <div
+                          key={token}
+                          className="grid grid-cols-[56px_minmax(0,1fr)] items-center gap-2.5"
+                        >
+                          <span className="rounded-md bg-slate-100 px-1.5 py-1.5 text-center font-mono text-[11px] font-semibold text-slate-600">
+                            {token}
+                          </span>
+                          <input
+                            value={form.body.examples[i] || ""}
+                            onChange={(e) => {
+                              const next = [...form.body.examples];
+                              next[i] = e.target.value;
+                              setForm((prev) => ({
+                                ...prev,
+                                body: { ...prev.body, examples: next },
+                              }));
+                            }}
+                            placeholder={
+                              i === 0
+                                ? "Customer name"
+                                : i === 1
+                                  ? "Project name"
+                                  : `Sample for ${token}`
+                            }
+                            className={fieldControl}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Footer */}
+                <div className="mb-5 border-t border-slate-100 pt-5">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-[13px] font-semibold text-slate-900">
+                        Footer{" "}
+                        <span className="font-normal text-slate-400">
+                          · Optional
+                        </span>
+                      </h4>
+                      <p className="text-[12px] text-slate-500">
+                        Add a short line of text to the bottom of your message.
+                      </p>
+                    </div>
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-[12px] font-medium text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={form.footer.enabled}
+                        onChange={(e) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            footer: {
+                              ...prev.footer,
+                              enabled: e.target.checked,
+                            },
+                          }))
+                        }
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      Enable
+                    </label>
+                  </div>
                   <input
-                    ref={mediaInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      uploadMediaSample(e.target.files?.[0]);
-                      e.target.value = "";
-                    }}
-                  />
-                  <input
-                    type="url"
-                    value={form.header.mediaHandle || ""}
+                    disabled={!form.footer.enabled}
+                    maxLength={60}
+                    value={form.footer.text}
                     onChange={(e) =>
                       setForm((prev) => ({
                         ...prev,
-                        header: {
-                          ...prev.header,
+                        footer: {
+                          ...prev.footer,
+                          text: e.target.value,
                           enabled: true,
-                          format: "IMAGE",
-                          mediaHandle: e.target.value,
-                          mediaPreview: e.target.value,
                         },
                       }))
                     }
-                    placeholder="Public image URL (filled after upload)"
-                    className={`${fieldControl} mt-3 text-[12px]`}
+                    placeholder="Propenu Real Estate"
+                    className={`${fieldControl} disabled:bg-slate-50 disabled:text-slate-400`}
                   />
-                  {form.header.mediaPreview || form.header.mediaHandle ? (
-                    <img
-                      src={form.header.mediaPreview || form.header.mediaHandle}
-                      alt=""
-                      className="mt-3 max-h-40 w-full rounded-lg border border-slate-200 object-contain bg-slate-50"
-                    />
+                  {form.footer.enabled ? (
+                    <p className="mt-1 text-right text-[11px] text-slate-400">
+                      {(form.footer.text || "").length}/60
+                    </p>
                   ) : null}
-                </section>
-              ) : null}
-
-              {/* Message body */}
-              <section className={sectionCard}>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-[13px] font-semibold text-slate-900">
-                      Message body
-                    </h3>
-                    <p className="mt-0.5 text-[12px] text-slate-500">
-                      Up to 1024 characters
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={insertNextVar}
-                    className="inline-flex h-8 shrink-0 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 font-mono text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                  >
-                    + {`{{${Math.max(1, vars.nextIndex)}}}`}
-                  </button>
                 </div>
 
-                <textarea
-                  ref={bodyRef}
-                  rows={8}
-                  maxLength={1024}
-                  value={form.body.text}
-                  onChange={(e) => setBodyText(e.target.value)}
-                  placeholder="Hello {{1}}, your service is scheduled for {{2}}."
-                  className="w-full resize-y rounded-lg border border-slate-200 px-3.5 py-3 text-[13px] leading-relaxed text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15"
-                />
-
-                <p className="mt-2.5 text-[12px] leading-relaxed text-slate-500">
-                  Use numbered variables only ({"{{1}}"}, {"{{2}}"}). Map them
-                  to CRM fields after approval.
-                </p>
-
-                {vars.invalid.length > 0 ? (
-                  <p className="mt-2 text-[12px] font-semibold text-rose-600">
-                    Use numbered variables like {"{{1}}"}, not {vars.invalid[0]}
-                    .
-                  </p>
-                ) : null}
-
-                {form.body.text.trim() && !bodyValidation.ok ? (
-                  <div className="mt-3 space-y-2 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-rose-600">
-                      Fix before submit
+                {/* Buttons */}
+                <div className="border-t border-slate-100 pt-5">
+                  <div className="mb-3">
+                    <h4 className="text-[13px] font-semibold text-slate-900">
+                      Buttons{" "}
+                      <span className="font-normal text-slate-400">
+                        · Optional
+                      </span>
+                    </h4>
+                    <p className="text-[12px] text-slate-500">
+                      Create buttons that let customers respond or take action.
+                      You can add up to 10 buttons.
                     </p>
-                    {bodyValidation.errors.map((err) => (
-                      <div key={err.code} className="text-[12px] text-rose-800">
-                        <p className="font-semibold">{err.message}</p>
-                        <p className="mt-0.5 text-rose-700/90">{err.fix}</p>
-                      </div>
-                    ))}
-                    <div className="rounded-md border border-rose-100 bg-white/80 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
-                      <p className="font-semibold text-slate-800">
-                        Good example
-                      </p>
-                      <p className="mt-0.5 font-mono text-[11px] text-slate-700">
-                        Hi {"{{1}}"}, your visit is booked in {"{{2}}"}. See you
-                        soon!
-                      </p>
-                      <p className="mt-2 font-semibold text-slate-800">
-                        Rejected by Meta
-                      </p>
-                      <p className="mt-0.5 font-mono text-[11px] text-rose-600">
-                        {"{{1}}"} welcome… · …city is {"{{2}}"} · Hi {"{{1}}"}
-                        {"{{2}}"}
-                      </p>
-                    </div>
                   </div>
-                ) : null}
 
-                {vars.numbered.length > 0 ? (
-                  <div className="mt-4 space-y-2.5 border-t border-slate-100 pt-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">
-                      Variable samples
-                    </p>
-                    {vars.numbered.map((token, i) => (
+                  <div className="space-y-3">
+                    {form.buttons.map((btn, i) => (
                       <div
-                        key={token}
-                        className="grid grid-cols-[56px_minmax(0,1fr)] items-center gap-2.5"
+                        key={i}
+                        className="rounded-xl border border-slate-200 bg-slate-50/60 p-3"
                       >
-                        <span className="rounded-md bg-slate-100 px-1.5 py-1.5 text-center font-mono text-[11px] font-semibold text-slate-600">
-                          {token}
-                        </span>
-                        <input
-                          value={form.body.examples[i] || ""}
-                          onChange={(e) => {
-                            const next = [...form.body.examples];
-                            next[i] = e.target.value;
-                            setForm((prev) => ({
-                              ...prev,
-                              body: { ...prev.body, examples: next },
-                            }));
-                          }}
-                          placeholder={`Sample for ${token}`}
-                          className={fieldControl}
-                        />
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                            {btn.type === "URL"
+                              ? "Visit website"
+                              : btn.type === "PHONE_NUMBER"
+                                ? "Call phone number"
+                                : "Custom"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeButton(i)}
+                            className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <input
+                            maxLength={25}
+                            value={btn.text}
+                            onChange={(e) =>
+                              updateButton(i, { text: e.target.value })
+                            }
+                            placeholder="Button text"
+                            className={fieldControl}
+                          />
+                          <p className="text-right text-[11px] text-slate-400">
+                            {(btn.text || "").length}/25
+                          </p>
+                          {btn.type === "URL" ? (
+                            <input
+                              value={btn.url || ""}
+                              onChange={(e) =>
+                                updateButton(i, { url: e.target.value })
+                              }
+                              placeholder="https://propenu.com/property/…"
+                              className={fieldControl}
+                            />
+                          ) : null}
+                          {btn.type === "PHONE_NUMBER" ? (
+                            <div className="relative">
+                              <Phone
+                                size={14}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                              />
+                              <input
+                                value={btn.phone || ""}
+                                onChange={(e) =>
+                                  updateButton(i, { phone: e.target.value })
+                                }
+                                placeholder="+919876543210"
+                                className={`${fieldControl} pl-9`}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     ))}
                   </div>
-                ) : null}
-              </section>
 
-              {/* Footer text */}
-              <section className={sectionCard}>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-[13px] font-semibold text-slate-900">
-                      Footer
-                    </h3>
-                    <p className="mt-0.5 text-[12px] text-slate-500">
-                      Optional small text under the message
-                    </p>
+                  <div className="relative mt-3" ref={buttonMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setButtonMenuOpen((v) => !v)}
+                      disabled={form.buttons.length >= 10}
+                      className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      <Plus size={15} />
+                      Add button
+                      <ChevronDown
+                        size={14}
+                        className={`text-slate-400 transition ${
+                          buttonMenuOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                    {buttonMenuOpen ? (
+                      <div className="absolute left-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                        {META_BUTTON_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.type}
+                            type="button"
+                            onClick={() => addButton(opt.type)}
+                            className="flex w-full flex-col items-start border-b border-slate-100 px-3.5 py-2.5 text-left last:border-0 hover:bg-slate-50"
+                          >
+                            <span className="text-[13px] font-semibold text-slate-800">
+                              {opt.label}
+                            </span>
+                            <span className="text-[12px] text-slate-500">
+                              {opt.description}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-[12px] font-medium text-slate-600">
-                    <input
-                      type="checkbox"
-                      checked={form.footer.enabled}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          footer: {
-                            ...prev.footer,
-                            enabled: e.target.checked,
-                          },
-                        }))
-                      }
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    Enable
-                  </label>
                 </div>
-                <input
-                  disabled={!form.footer.enabled}
-                  value={form.footer.text}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      footer: { ...prev.footer, text: e.target.value },
-                    }))
-                  }
-                  placeholder="Reply STOP to opt out"
-                  className={`${fieldControl} disabled:bg-slate-50 disabled:text-slate-400`}
-                />
               </section>
             </div>
           </div>
 
-          {/* RIGHT: preview + payload */}
-          <div className="flex min-h-0 flex-col overflow-y-auto overflow-x-hidden bg-slate-50/80 px-5 py-5 md:px-6">
-            <div className="flex flex-col gap-4">
-              {/* Variables */}
-              <section className={sectionCard}>
-                <div className="mb-3 flex items-center gap-2">
-                  <Tag size={14} className="text-emerald-600" />
-                  <h3 className="text-[13px] font-semibold text-slate-900">
-                    Variables
-                  </h3>
-                </div>
-                {vars.numbered.length === 0 && vars.invalid.length === 0 ? (
-                  <p className="text-[12px] text-slate-400">
-                    No variables yet — insert {"{{1}}"} in the message body.
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {vars.numbered.map((v) => (
-                      <span
-                        key={v}
-                        className="rounded-md bg-emerald-50 px-2 py-1 font-mono text-[11px] font-semibold text-emerald-700"
-                      >
-                        {v}
-                      </span>
-                    ))}
-                    {vars.invalid.map((v) => (
-                      <span
-                        key={v}
-                        className="rounded-md bg-rose-50 px-2 py-1 font-mono text-[11px] font-semibold text-rose-600"
-                      >
-                        Invalid {v}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </section>
+          {/* RIGHT — Template preview */}
+          <div className="flex min-h-0 flex-col overflow-y-auto bg-[#f0f2f5] px-5 py-5 md:px-6">
+            <div className="mb-3">
+              <h3 className="text-[13px] font-semibold text-slate-900">
+                Template preview
+              </h3>
+              <p className="mt-0.5 text-[12px] text-slate-500">
+                How the message will appear in WhatsApp
+              </p>
+            </div>
 
-              {/* Preview */}
-              <section className={sectionCard}>
-                <div className="mb-3">
+            <div
+              className="rounded-2xl p-4"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle at 20% 20%, rgba(0,0,0,0.03) 0, transparent 40%), radial-gradient(circle at 80% 60%, rgba(0,0,0,0.04) 0, transparent 35%)",
+                backgroundColor: "#e5ddd5",
+              }}
+            >
+              <WhatsAppTemplatePreview
+                headerFormat={
+                  form.header.enabled ? form.header.format : ""
+                }
+                headerText={previewHeaderText}
+                headerImage={
+                  form.header.enabled && form.header.format === "IMAGE"
+                    ? form.header.mediaPreview || form.header.mediaHandle
+                    : ""
+                }
+                bodyText={previewBody || "Message preview"}
+                footerText={
+                  form.footer.enabled ? form.footer.text : ""
+                }
+                buttons={form.buttons}
+                timeLabel="09:45"
+              />
+            </div>
+
+            <section className={`${sectionCard} mt-4`}>
+              <button
+                type="button"
+                onClick={() => setPayloadOpen((v) => !v)}
+                className="flex w-full items-start justify-between gap-3 text-left"
+              >
+                <div>
                   <h3 className="text-[13px] font-semibold text-slate-900">
-                    Live preview
+                    Meta payload
                   </h3>
                   <p className="mt-0.5 text-[12px] text-slate-500">
-                    How the message will appear in WhatsApp
+                    API JSON submitted for review
                   </p>
                 </div>
-                <div className="rounded-xl bg-[#e5ddd5] p-4">
-                  <div className="ml-auto max-w-[280px] rounded-lg rounded-tr-sm bg-[#dcf8c6] px-3 py-2.5 shadow-sm">
-                    <p
-                      className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-slate-800"
-                      dangerouslySetInnerHTML={{
-                        __html: renderPreviewHtml(previewText),
-                      }}
-                    />
-                    {form.footer.enabled && form.footer.text ? (
-                      <p className="mt-1.5 break-words text-[11px] text-slate-500">
-                        {form.footer.text}
-                      </p>
-                    ) : null}
-                    <p className="mt-1 text-right text-[10px] text-slate-400">
-                      Preview
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              {/* Payload — collapsed by default to avoid nested scroll clutter */}
-              <section className={sectionCard}>
-                <button
-                  type="button"
-                  onClick={() => setPayloadOpen((v) => !v)}
-                  className="flex w-full items-start justify-between gap-3 text-left"
-                >
-                  <div className="min-w-0">
-                    <h3 className="text-[13px] font-semibold text-slate-900">
-                      Payload check
-                    </h3>
-                    <p className="mt-0.5 text-[12px] text-slate-500">
-                      Meta API JSON before submit
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => {
+                <div className="flex items-center gap-2">
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      copyPayload();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
                         e.stopPropagation();
                         copyPayload();
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          copyPayload();
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
-                    >
-                      {copied ? <Check size={12} /> : <Copy size={12} />}
-                      {copied ? "Copied" : "Copy"}
-                    </span>
-                    <ChevronDown
-                      size={16}
-                      className={`mt-0.5 text-slate-400 transition ${
-                        payloadOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </div>
-                </button>
-                {payloadOpen ? (
-                  <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-slate-950 p-3.5 font-mono text-[11px] leading-relaxed text-emerald-100">
-                    {JSON.stringify(payload, null, 2)}
-                  </pre>
-                ) : null}
-              </section>
-            </div>
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    {copied ? <Check size={12} /> : <Copy size={12} />}
+                    {copied ? "Copied" : "Copy"}
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className={`text-slate-400 transition ${
+                      payloadOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </div>
+              </button>
+              {payloadOpen ? (
+                <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-slate-950 p-3.5 font-mono text-[11px] leading-relaxed text-emerald-100">
+                  {JSON.stringify(payload, null, 2)}
+                </pre>
+              ) : null}
+            </section>
           </div>
         </div>
 
-        {/* Footer actions */}
         <footer className="flex shrink-0 flex-col gap-3 border-t border-slate-100 bg-white px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between md:px-6">
           <p
             className={`text-[12px] leading-snug ${
@@ -943,19 +1244,28 @@ export function TemplateComposerModal({
           >
             {statusHint}
           </p>
-          <button
-            type="button"
-            disabled={!canSubmit || submitting}
-            onClick={handleSubmit}
-            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-5 text-[13px] font-bold text-white transition hover:bg-[#1EAF54] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
-          >
-            {submitting ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <FileText size={15} />
-            )}
-            {submitting ? "Submitting…" : "Submit Template"}
-          </button>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={!canSubmit || submitting}
+              onClick={handleSubmit}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#1877F2] px-4 text-[13px] font-bold text-white transition hover:bg-[#166fe5] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+            >
+              {submitting ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <FileText size={15} />
+              )}
+              {submitting ? "Submitting…" : "Submit for Review"}
+            </button>
+          </div>
         </footer>
       </div>
     </div>

@@ -7,6 +7,7 @@ export const EMPTY_FORM = {
     enabled: false,
     format: "TEXT",
     text: "",
+    example: "",
     mediaHandle: "",
     mediaPreview: null,
   },

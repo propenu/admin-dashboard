@@ -39,6 +39,7 @@ export const componentsToForm = (item) => {
       enabled: hasHeader,
       format: headerComp.format || "TEXT",
       text: headerComp.text || "",
+      example: headerComp.example?.header_text?.[0] || "",
       mediaHandle:
         headerComp.example?.header_handle?.[0] ||
         headerComp.example?.header_url?.[0] ||

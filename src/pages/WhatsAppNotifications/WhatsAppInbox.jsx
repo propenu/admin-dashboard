@@ -137,15 +137,8 @@ const formatDay = (value) => {
 };
 
 const StatusTicks = ({ status, error }) => {
-  if (status === "read") return <CheckCheck size={14} className="text-[#53bdeb]" />;
-  if (status === "delivered" || status === "sent") {
-    return (
-      <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-gray-400 text-gray-500">
-        <Check size={9} strokeWidth={3} />
-      </span>
-    );
-  }
-  if (status === "failed") {
+  const s = String(status || "").toLowerCase();
+  if (s === "failed") {
     return (
       <span
         className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-red-500"
@@ -156,10 +149,34 @@ const StatusTicks = ({ status, error }) => {
       </span>
     );
   }
+  // WhatsApp-style: pending → clock-ish grey single; sent → grey ✓; delivered → grey ✓✓; read → blue ✓✓
+  if (s === "read") {
+    return (
+      <CheckCheck
+        size={14}
+        className="text-[#53bdeb]"
+        strokeWidth={2.5}
+        title="Read"
+      />
+    );
+  }
+  if (s === "delivered") {
+    return (
+      <CheckCheck
+        size={14}
+        className="text-[#8696a0]"
+        strokeWidth={2.5}
+        title="Delivered"
+      />
+    );
+  }
+  if (s === "sent") {
+    return (
+      <Check size={14} className="text-[#8696a0]" strokeWidth={2.5} title="Sent" />
+    );
+  }
   return (
-    <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-gray-300 text-gray-400">
-      <Check size={9} strokeWidth={3} />
-    </span>
+    <Check size={14} className="text-[#8696a0]/70" strokeWidth={2} title="Pending" />
   );
 };
 
@@ -320,10 +337,29 @@ export default function WhatsAppInbox({ embedded = false }) {
         signal: controller.signal,
         onConnected: () => setLiveStatus("live"),
         onEvent: (event) => {
-          const waId = event?.waId;
+          const eventWa = String(event?.waId || "").replace(/\D/g, "");
+          const activeWa = String(activeWaIdRef.current || "").replace(/\D/g, "");
           loadConversations(searchRef.current, { silent: true });
-          if (waId && waId === activeWaIdRef.current) {
-            loadMessages(waId, { silent: true });
+
+          // Instant tick update from Meta status webhook
+          if (event?.type === "status" && event?.wamid && event?.status) {
+            setMessages((prev) =>
+              prev.map((m) =>
+                String(m.wamid || "") === String(event.wamid)
+                  ? { ...m, status: event.status }
+                  : m,
+              ),
+            );
+          }
+
+          const sameChat =
+            eventWa &&
+            activeWa &&
+            (eventWa === activeWa ||
+              eventWa.endsWith(activeWa) ||
+              activeWa.endsWith(eventWa));
+          if (sameChat) {
+            loadMessages(activeWaIdRef.current, { silent: true });
           }
         },
         onError: () => {
@@ -698,14 +734,19 @@ export default function WhatsAppInbox({ embedded = false }) {
         {health ? (
           <span
             className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
-              health.ok
+              health.ok && health.inboundReady !== false
                 ? "bg-white text-gray-600 border-gray-200"
-                : "bg-red-50 text-red-600 border-red-200"
+                : health.ok
+                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                  : "bg-red-50 text-red-600 border-red-200"
             }`}
+            title={health.message || ""}
           >
-            {health.ok
-              ? `Cloud API · ${health.displayPhoneNumber || health.verifiedName || "connected"}`
-              : health.message || "WhatsApp credentials invalid"}
+            {!health.ok
+              ? health.message || "WhatsApp credentials invalid"
+              : health.inboundReady === false
+                ? "Inbound webhook not pointed at Propenu — customer replies won’t show"
+                : `Cloud API · ${health.displayPhoneNumber || health.verifiedName || "connected"}`}
           </span>
         ) : null}
         <span
@@ -720,6 +761,23 @@ export default function WhatsAppInbox({ embedded = false }) {
             : "My assigned chats only"}
         </span>
       </div>
+
+      {health?.ok && health?.inboundReady === false ? (
+        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[12px] leading-relaxed text-amber-950">
+          <p className="font-semibold">Customer replies are not reaching this inbox</p>
+          <p className="mt-0.5 text-amber-900/80">
+            Meta is still sending webhooks to{" "}
+            <span className="font-mono text-[11px]">
+              {health.metaWebhookUrl || "another URL"}
+            </span>
+            . Point the WhatsApp webhook to your Propenu public URL
+            {health.expectedPublicWebhook
+              ? ` (${health.expectedPublicWebhook})`
+              : ""}{" "}
+            so end-user messages and blue read ticks appear here.
+          </p>
+        </div>
+      ) : null}
 
       <div className="flex flex-1 min-h-0">
       {/* ── LEFT: inbox list ─────────────────────────────── */}

@@ -7,13 +7,15 @@ const HEARTBEAT_MS = 45_000;
 
 /**
  * While staff keep the admin dashboard open (and tab visible), ping presence.
- * Online/Offline on RM Team Floor = lastSeenAt within ~3 minutes.
- * Closing the tab / hiding it long enough → Offline (logout not required).
+ * Starts only after shell session is ready (enabled).
  */
-export function usePresenceHeartbeat() {
+export function usePresenceHeartbeat(options = {}) {
+  const { enabled = true } = options;
   const inFlight = useRef(false);
 
   useEffect(() => {
+    if (!enabled) return undefined;
+
     const beat = async () => {
       if (!getAuthToken()) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
@@ -42,5 +44,5 @@ export function usePresenceHeartbeat() {
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [enabled]);
 }

@@ -10,13 +10,26 @@ import {
 } from "../../../../features/property/propertyService";
 import { toast } from "sonner";
 
+/** Admin board page size — industry-standard first paint + load-more. */
+export const PROJECT_BOARD_PAGE_SIZE = 12;
+
 /**
  * Central hook for any featured-project type.
  * @param {"prime"|"featured"|"normal"|"sponsored"|null} type
- * @param {{promotionStatus?: string|null, search?: string, enabled?: boolean, from?: string, to?: string, status?: string, prefetchAll?: boolean}} options
+ * @param {{
+ *   promotionStatus?: string|null,
+ *   search?: string,
+ *   enabled?: boolean,
+ *   from?: string,
+ *   to?: string,
+ *   status?: string,
+ *   prefetchAll?: boolean,
+ *   pageSize?: number,
+ *   adminBoard?: boolean,
+ * }} options
  *
- * Note: `search` is ignored for network fetches — dashboards filter client-side
- * for instant typing. Pass `prefetchAll: true` to load every page once.
+ * `adminBoard: true` always sends status (incl. "all") + promotionStatus=all
+ * so Draft/Pending/Approved/All match server totals — not active-only default.
  */
 export function useFeaturedProjects(type, options = {}) {
   const queryClient = useQueryClient();
@@ -26,17 +39,23 @@ export function useFeaturedProjects(type, options = {}) {
   const status = options.status || "";
   const enabled = options.enabled ?? true;
   const prefetchAll = options.prefetchAll === true;
+  const adminBoard = options.adminBoard === true;
+  const pageSize = Math.min(
+    100,
+    Math.max(10, Number(options.pageSize) || PROJECT_BOARD_PAGE_SIZE),
+  );
   const hasDateRange = Boolean(from || to);
 
-  // Search intentionally excluded from the query key (no refetch while typing).
   const queryKey = [
     "featured-projects",
     type || "all",
-    promotionStatus || "all",
+    promotionStatus || (adminBoard ? "all" : "default"),
     from || "",
     to || "",
-    status || "",
+    status || (adminBoard ? "all" : ""),
     prefetchAll ? "all-pages" : "paged",
+    pageSize,
+    adminBoard ? "admin" : "public",
   ];
 
   const {
@@ -47,32 +66,37 @@ export function useFeaturedProjects(type, options = {}) {
     isError,
     refetch,
     isFetchingNextPage,
+    isFetching,
   } = useInfiniteQuery({
     queryKey,
     enabled,
     initialPageParam: 1,
-    staleTime: hasDateRange ? 30_000 : 5 * 60_000,
+    staleTime: hasDateRange || adminBoard ? 30_000 : 5 * 60_000,
     gcTime: 15 * 60_000,
     refetchOnWindowFocus: false,
 
     queryFn: async ({ pageParam }) => {
-      const needsDeepFetch =
-        prefetchAll ||
-        Boolean(hasDateRange) ||
-        (Boolean(status) && status !== "active" && status !== "all");
-      const limit = needsDeepFetch ? 100 : 20;
+      const limit = prefetchAll ? 100 : pageSize;
+
+      // Explicit status for admin: "all" | draft | pending | active | inactive
+      let statusParam;
+      if (status === "all" || (adminBoard && !status)) {
+        statusParam = "all";
+      } else if (status) {
+        statusParam = status;
+      } else if (hasDateRange) {
+        statusParam = "all";
+      }
+
       const listOpts = {
-        promotionStatus: hasDateRange
-          ? promotionStatus || "all"
-          : promotionStatus,
+        promotionStatus:
+          promotionStatus ||
+          (adminBoard || hasDateRange || (statusParam && statusParam !== "active")
+            ? "all"
+            : undefined),
         from: from || undefined,
         to: to || undefined,
-        status:
-          status && status !== "all"
-            ? status
-            : hasDateRange
-              ? "all"
-              : undefined,
+        status: statusParam,
       };
 
       const res = await getFeaturedProjectsByType(
@@ -82,15 +106,16 @@ export function useFeaturedProjects(type, options = {}) {
         listOpts,
       );
 
-      // Prefetch remaining pages once so client search covers the full set.
-      if (needsDeepFetch && pageParam === 1) {
+      // Sequential prefetch only when explicitly requested (expired/scheduled views).
+      if (prefetchAll && pageParam === 1) {
         const pages = res?.data?.meta?.pages ?? 1;
         if (pages > 1) {
-          const remainingPages = await Promise.all(
-            Array.from({ length: pages - 1 }, (_, index) =>
-              getFeaturedProjectsByType(type, index + 2, limit, listOpts),
-            ),
-          );
+          const remainingPages = [];
+          for (let p = 2; p <= Math.min(pages, 50); p += 1) {
+            remainingPages.push(
+              await getFeaturedProjectsByType(type, p, limit, listOpts),
+            );
+          }
           const seen = new Set();
           const items = [res, ...remainingPages]
             .flatMap((page) => page?.data?.items || [])
@@ -110,6 +135,7 @@ export function useFeaturedProjects(type, options = {}) {
                 page: 1,
                 limit: items.length,
                 pages: 1,
+                total: res?.data?.meta?.total ?? items.length,
               },
             },
           };
@@ -127,9 +153,7 @@ export function useFeaturedProjects(type, options = {}) {
   });
 
   const properties =
-    data?.pages?.flatMap((page) => {
-      return page?.data?.items || [];
-    }) || [];
+    data?.pages?.flatMap((page) => page?.data?.items || []) || [];
 
   const invalidate = () =>
     Promise.all([
@@ -149,11 +173,9 @@ export function useFeaturedProjects(type, options = {}) {
   const totalCount = data?.pages?.[0]?.data?.meta?.total || 0;
 
   const activeCount = properties.filter((p) => p.status === "active").length;
-
   const inactiveCount = properties.filter(
     (p) => p.status === "inactive",
   ).length;
-
   const expiredCount = properties.filter((p) => p.status === "expired").length;
 
   const deleteMutation = useMutation({
@@ -161,9 +183,6 @@ export function useFeaturedProjects(type, options = {}) {
     onSuccess: () => {
       toast.success("Property deleted successfully");
       invalidate();
-      queryClient.invalidateQueries({
-        queryKey: ["featured-projects"],
-      });
     },
     onError: () => toast.error("Failed to delete property"),
   });
@@ -173,13 +192,7 @@ export function useFeaturedProjects(type, options = {}) {
       if (!id || !newType) {
         throw new Error("Missing project id or promotion type");
       }
-
-      // Promote only — do NOT call PATCH /:id for rank here.
-      // That edit route requires project:edit and was failing the whole
-      // promote action (403 / validation) even after type was updated.
-      const promotePayload = {
-        type: newType,
-      };
+      const promotePayload = { type: newType };
       if (
         visibleLeadLimit !== undefined &&
         visibleLeadLimit !== null &&
@@ -196,78 +209,58 @@ export function useFeaturedProjects(type, options = {}) {
       if (sponsoredAd && typeof sponsoredAd === "object") {
         promotePayload.sponsoredAd = sponsoredAd;
       }
-
-      const res = await promoteProjectWithRank(id, promotePayload);
-      return res?.data ?? res;
+      return promoteProjectWithRank(id, promotePayload);
     },
-
     onSuccess: () => {
-      toast.success("Project promoted successfully");
+      toast.success("Promotion updated");
       invalidate();
-      queryClient.invalidateQueries({
-        queryKey: ["featured-projects"],
-      });
     },
-
-    onError: (error) => {
-      console.error(error);
-      toast.error(
-        error?.response?.data?.message ||
-          error?.response?.data?.error ||
-          error?.message ||
-          "Failed to promote project",
-      );
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || err?.message || "Promote failed");
     },
   });
 
   const expireMutation = useMutation({
     mutationFn: (id) => expireProject(id),
     onSuccess: () => {
-      toast.success("Property expired");
+      toast.success("Promotion expired");
       invalidate();
-      queryClient.refetchQueries({ queryKey: ["featured-projects"] });
     },
-    onError: () => toast.error("Failed to expire property"),
+    onError: () => toast.error("Expire failed"),
   });
 
   const resetMutation = useMutation({
     mutationFn: (id) => resetProject(id),
     onSuccess: () => {
-      toast.success("Property reset successfully");
+      toast.success("Promotion reset");
       invalidate();
-      queryClient.refetchQueries({ queryKey: ["featured-projects"] });
     },
-    onError: () => toast.error("Failed to reset property"),
+    onError: () => toast.error("Reset failed"),
   });
 
   const rankMutation = useMutation({
     mutationFn: ({ id, rank }) => updateProjectRank(id, rank),
-    onSuccess: () => {
-      toast.success("Rank updated");
-      invalidate();
-      queryClient.refetchQueries({ queryKey: ["featured-projects"] });
-    },
-    onError: () => toast.error("Failed to update rank"),
+    onSuccess: () => invalidate(),
+    onError: () => toast.error("Rank update failed"),
   });
 
   return {
-    properties,
-    sortedProperties,
+    properties: sortedProperties,
+    totalCount,
+    activeCount,
+    inactiveCount,
+    expiredCount,
     isLoading,
     isError,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
     refetch,
-    invalidate,
     deleteMutation,
     promoteMutation,
     expireMutation,
     resetMutation,
     rankMutation,
-    totalCount,
-    activeCount,
-    inactiveCount,
-    expiredCount,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
   };
 }

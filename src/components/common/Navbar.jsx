@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import LOGO from "../../assets/logo.svg";
 import { Menu, User, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
-import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 import { clearAuthToken } from "../../utils/authToken";
+import { useAuthUserProfile } from "../../hooks/useAuthUser";
 import {
   SIDEBAR_ACTIVITY_EVENT,
   getSidebarHamburgerTotal,
@@ -17,15 +17,11 @@ export const SITE_LOGO_UPDATED_EVENT = "propenu:site-logo-updated";
 
 export default function Navbar({ toggleSidebar, hideSidebarToggle = false }) {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user } = useAuthUserProfile();
   const [openDropdown, setOpenDropdown] = useState(false);
   const [menuBadge, setMenuBadge] = useState(0);
   const [brandLogoUrl, setBrandLogoUrl] = useState("");
   const dropRef = useRef(null);
-
-  useEffect(() => {
-    fetchLoggedInUser().then(setUser).catch(() => {});
-  }, []);
 
   useEffect(() => {
     let cancelled = false;

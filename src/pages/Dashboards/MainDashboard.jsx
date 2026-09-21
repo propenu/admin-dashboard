@@ -1,18 +1,12 @@
 import DashboardRouter from "./DashboardRouter";
-import { ContentSkeleton } from "../../components/common/RouteFallback";
 import { useAuthUserProfile } from "../../hooks/useAuthUser";
 
 /**
- * Home dashboard entry — uses shared /me cache.
- * No extra LoadingSpinner (Suspense already covered chunk load).
+ * Home dashboard — session already warmed by Layout shell.
+ * No extra spinner here (avoids double loading).
  */
 const Dashboard = () => {
-  const { user, permissions, roleName, isPending, isError, error } =
-    useAuthUserProfile();
-
-  if (isPending && !user) {
-    return <ContentSkeleton rows={4} />;
-  }
+  const { user, permissions, roleName, isError, error } = useAuthUserProfile();
 
   if (isError && !user) {
     return (
@@ -25,6 +19,8 @@ const Dashboard = () => {
       </div>
     );
   }
+
+  if (!user) return null;
 
   return (
     <DashboardRouter

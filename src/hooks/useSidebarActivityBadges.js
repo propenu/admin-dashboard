@@ -572,14 +572,19 @@ function toPublishedCounts(raw, seenMap, caps, user) {
  * Starts empty; publishes only after /auth/me and scoped count APIs resolve.
  * Clears when a path is opened; reappears only for activity after that open (same day).
  */
-export function useSidebarActivityBadges() {
+export function useSidebarActivityBadges(options = {}) {
+  const { enabled = true, user: sessionUser = null } = options;
   const location = useLocation();
-  const userRef = useRef(null);
+  const userRef = useRef(sessionUser);
   const rawRef = useRef(null);
   const capsRef = useRef({});
   const busyRef = useRef(false);
   const pendingAckPathRef = useRef(pathForLocation(location.pathname));
   const lastAckedPathRef = useRef("");
+
+  useEffect(() => {
+    if (sessionUser) userRef.current = sessionUser;
+  }, [sessionUser]);
 
   const acknowledgePath = (path, raw, user) => {
     if (!path || !raw || !user) return readSidebarSeen(getSidebarUserKey(user));
@@ -592,6 +597,8 @@ export function useSidebarActivityBadges() {
   };
 
   useEffect(() => {
+    if (!enabled) return undefined;
+
     let active = true;
 
     // Never flash stale localStorage counts from another session/user
@@ -692,7 +699,7 @@ export function useSidebarActivityBadges() {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener(SIDEBAR_REFRESH_EVENT, onRefreshRequest);
     };
-  }, []);
+  }, [enabled]);
 
   // When user opens a tracked page, clear badges for that path once.
   // Later creates that day still raise the badge via snapshot delta on refresh.

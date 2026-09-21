@@ -1,4 +1,4 @@
-import { ExternalLink, Phone } from "lucide-react";
+import { ExternalLink, FileType, MapPin, Phone, Video } from "lucide-react";
 
 function formatPreviewHtml(text) {
   const escaped = String(text || "")
@@ -10,6 +10,7 @@ function formatPreviewHtml(text) {
     .replace(/\*(.*?)\*/g, "<strong>$1</strong>")
     .replace(/_(.*?)_/g, "<em>$1</em>")
     .replace(/~(.*?)~/g, "<s>$1</s>")
+    .replace(/```(.*?)```/g, "<code>$1</code>")
     .replace(
       /(\+?\d[\d\s-]{8,}\d)/g,
       '<span style="color:#128C7E;font-weight:600">$1</span>',
@@ -18,7 +19,7 @@ function formatPreviewHtml(text) {
 }
 
 /**
- * Recipient-style WhatsApp template card (white, header image, CTA buttons).
+ * Recipient-style WhatsApp template card (Meta Create-template preview).
  */
 export function WhatsAppTemplatePreview({
   headerFormat = "",
@@ -31,6 +32,9 @@ export function WhatsAppTemplatePreview({
 }) {
   const format = String(headerFormat || "").toUpperCase();
   const showImage = format === "IMAGE" || Boolean(headerImage);
+  const showVideo = format === "VIDEO";
+  const showDocument = format === "DOCUMENT";
+  const showLocation = format === "LOCATION";
   const showTextHeader = format === "TEXT" && headerText;
 
   return (
@@ -47,6 +51,48 @@ export function WhatsAppTemplatePreview({
             Header image
           </div>
         )
+      ) : null}
+
+      {showVideo ? (
+        <div className="flex aspect-[16/10] flex-col items-center justify-center gap-2 bg-[#111b21] text-white">
+          <Video size={28} className="opacity-80" />
+          <span className="text-xs opacity-70">Video header</span>
+        </div>
+      ) : null}
+
+      {showDocument ? (
+        <div className="flex items-center gap-3 border-b border-[#e9edef] bg-[#f0f2f5] px-3 py-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-[#00a884] shadow-sm">
+            <FileType size={20} />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-semibold text-[#111b21]">
+              Document.pdf
+            </p>
+            <p className="text-[11px] text-[#667781]">PDF document</p>
+          </div>
+        </div>
+      ) : null}
+
+      {showLocation ? (
+        <div className="relative aspect-[16/9] w-full overflow-hidden bg-[#e8f0e6]">
+          <div
+            className="absolute inset-0 opacity-40"
+            style={{
+              backgroundImage:
+                "linear-gradient(#c5d4c8 1px, transparent 1px), linear-gradient(90deg, #c5d4c8 1px, transparent 1px)",
+              backgroundSize: "24px 24px",
+            }}
+          />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#ea4335] text-white shadow-md">
+              <MapPin size={20} />
+            </div>
+            <p className="rounded bg-white/90 px-2 py-0.5 text-[11px] font-semibold text-[#111b21] shadow-sm">
+              Project location
+            </p>
+          </div>
+        </div>
       ) : null}
 
       {showTextHeader ? (

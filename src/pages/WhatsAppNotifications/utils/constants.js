@@ -12,9 +12,37 @@ import {
 
 export const CATEGORIES = ["UTILITY", "MARKETING", "AUTHENTICATION"];
 
-export const HEADER_FORMATS = ["TEXT", "IMAGE", "VIDEO", "DOCUMENT"];
+export const HEADER_FORMATS = ["TEXT", "IMAGE", "VIDEO", "DOCUMENT", "LOCATION"];
 
+/** Meta-style button add options (Create template → Add button). */
 export const BUTTON_TYPES = ["QUICK_REPLY", "URL", "PHONE_NUMBER"];
+
+export const META_BUTTON_OPTIONS = [
+  {
+    type: "QUICK_REPLY",
+    label: "Custom",
+    description: "Quick reply button",
+  },
+  {
+    type: "URL",
+    label: "Visit website",
+    description: "Open a URL",
+  },
+  {
+    type: "PHONE_NUMBER",
+    label: "Call phone number",
+    description: "Dial a phone number",
+  },
+];
+
+/** Meta media sample choices for header. */
+export const HEADER_MEDIA_OPTIONS = [
+  { value: "NONE", label: "None" },
+  { value: "IMAGE", label: "Image" },
+  { value: "VIDEO", label: "Video" },
+  { value: "DOCUMENT", label: "Document" },
+  { value: "LOCATION", label: "Location" },
+];
 
 export const LANGUAGES = [
   { code: "en", label: "English" },

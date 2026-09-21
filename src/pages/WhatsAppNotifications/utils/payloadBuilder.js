@@ -141,21 +141,38 @@ export const buildPayload = (form) => {
 
   // HEADER
   if (form.header.enabled) {
-    if (form.header.format !== "TEXT" && !form.header.mediaHandle) {
-      throw new Error("Header media is required");
+    const format = String(form.header.format || "TEXT").toUpperCase();
+    if (format === "TEXT") {
+      const headerText = String(form.header.text || "").trim();
+      if (!headerText) throw new Error("Header text is required when header is enabled");
+      if (headerText.length > 60) {
+        throw new Error("Header text must be 60 characters or fewer");
+      }
+      const h = { type: "HEADER", format: "TEXT", text: headerText };
+      const headerVars = (headerText.match(/\{\{\d+\}\}/g) || []).length;
+      if (headerVars > 1) {
+        throw new Error("Header text can include at most one variable {{1}}");
+      }
+      if (headerVars === 1) {
+        const sample = String(form.header.example || "").trim() || "Sample";
+        h.example = { header_text: [sample] };
+      }
+      components.push(h);
+    } else if (["IMAGE", "VIDEO", "DOCUMENT"].includes(format)) {
+      if (!form.header.mediaHandle) {
+        throw new Error(`Header ${format.toLowerCase()} sample is required`);
+      }
+      components.push({
+        type: "HEADER",
+        format,
+        example: {
+          header_handle: [form.header.mediaHandle],
+        },
+      });
+    } else if (format === "LOCATION") {
+      // Meta: location pin is supplied at send time — no sample handle on create.
+      components.push({ type: "HEADER", format: "LOCATION" });
     }
-
-    const h = { type: "HEADER", format: form.header.format };
-
-    if (form.header.format === "TEXT") {
-      h.text = form.header.text;
-    } else {
-      h.example = {
-        header_handle: [form.header.mediaHandle],
-      };
-    }
-
-    components.push(h);
   }
 
   // BODY
@@ -182,19 +199,47 @@ export const buildPayload = (form) => {
 
   // FOOTER
   if (form.footer.enabled && form.footer.text.trim()) {
-    components.push({ type: "FOOTER", text: form.footer.text });
+    const footerText = form.footer.text.trim();
+    if (footerText.length > 60) {
+      throw new Error("Footer text must be 60 characters or fewer");
+    }
+    components.push({ type: "FOOTER", text: footerText });
   }
 
-  // BUTTONS
+  // BUTTONS (Meta: up to 10; practical mix of QR + CTA)
   if (form.buttons.length > 0) {
+    if (form.buttons.length > 10) {
+      throw new Error("Meta allows at most 10 buttons on a template");
+    }
+    const urlCount = form.buttons.filter((b) => b.type === "URL").length;
+    const phoneCount = form.buttons.filter((b) => b.type === "PHONE_NUMBER").length;
+    if (urlCount > 2) throw new Error("At most 2 Visit website buttons allowed");
+    if (phoneCount > 1) throw new Error("At most 1 Call phone number button allowed");
+
     components.push({
       type: "BUTTONS",
-      buttons: form.buttons.map((b) => {
-        if (!b.text) throw new Error("Button text required");
+      buttons: form.buttons.map((b, index) => {
+        const text = String(b.text || "").trim();
+        if (!text) throw new Error(`Button ${index + 1}: text is required`);
+        if (text.length > 25) {
+          throw new Error(`Button ${index + 1}: text must be 25 characters or fewer`);
+        }
 
-        const btn = { type: b.type, text: b.text };
-        if (b.type === "URL") btn.url = b.url;
-        if (b.type === "PHONE_NUMBER") btn.phone_number = b.phone;
+        const type = String(b.type || "QUICK_REPLY").toUpperCase();
+        const btn = { type, text };
+        if (type === "URL") {
+          const url = String(b.url || "").trim();
+          if (!url) throw new Error(`Button "${text}": website URL is required`);
+          if (!/^https?:\/\//i.test(url)) {
+            throw new Error(`Button "${text}": URL must start with http:// or https://`);
+          }
+          btn.url = url;
+        }
+        if (type === "PHONE_NUMBER") {
+          const phone = String(b.phone || "").trim();
+          if (!phone) throw new Error(`Button "${text}": phone number is required`);
+          btn.phone_number = phone;
+        }
 
         return btn;
       }),

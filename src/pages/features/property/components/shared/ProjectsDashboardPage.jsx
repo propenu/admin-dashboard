@@ -14,7 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-import { useFeaturedProjects }     from "../../../../features/property/hooks/useFeaturedProjects";
+import { useFeaturedProjects, PROJECT_BOARD_PAGE_SIZE } from "../../../../features/property/hooks/useFeaturedProjects";
 import { usePendingProjects }      from "../../../../features/property/hooks/usePendingProjects";
 import { getUserInDetails }        from "./userInDetails";
 import PropertyCard                from "../../../../features/property/components/shared/PropertyCard";
@@ -229,7 +229,7 @@ const TYPE_COLORS = [
   "bg-teal-600","bg-teal-500","bg-teal-400","bg-teal-300",
 ];
 
-const PROJECTS_PER_PAGE = 20;
+const PROJECTS_PER_PAGE = PROJECT_BOARD_PAGE_SIZE;
 
 const ProjectGridCard = memo(function ProjectGridCard({
   property,
@@ -529,9 +529,9 @@ function FilterMenu({
                 }`}
               >
                 <span className="min-w-0 flex-1 truncate">{opt.label}</span>
-                {typeof count === "number" && count > 0 ? (
+                {typeof count === "number" ? (
                   <span
-                    className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black ${
+                    className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${
                       selectedOpt
                         ? "bg-white/25 text-white"
                         : "bg-slate-200 text-slate-700"
@@ -1749,49 +1749,68 @@ export default function ProjectsDashboardPage() {
   const debouncedProjectSearch = useDebounce(projectSearch, 400);
   const deferredProjectSearch = useDeferredValue(projectSearch);
 
-  // Date filters declared later — hooks use these via state synced from URL.
-  // Keep declarations above hooks by reading URL immediately for first fetch.
-  const urlCreatedFrom =
-    searchParams.get("createdFrom") || searchParams.get("from") || "";
-  const urlCreatedTo =
-    searchParams.get("createdTo") || searchParams.get("to") || "";
-  const urlStatusFilter = normalizeProjectStatusParam(
-    searchParams.get("status") ||
-      (searchParams.get("promotion") === "pending" ? "pending" : "all"),
+  // Status / promotion filters must be declared before board hooks so dropdown
+  // changes refetch immediately (not after URL write-back).
+  const [promotionFilter, setPromotionFilter] = useState(
+    () => searchParams.get("promotion") || "all",
   );
-  // Admin Status dropdown must hit the API (default API is active-only).
-  const serverListStatus = toServerProjectStatus(urlStatusFilter);
+  const [statusFilter, setStatusFilter] = useState(
+    () =>
+      normalizeProjectStatusParam(
+        searchParams.get("status") ||
+          (searchParams.get("promotion") === "pending" ? "pending" : "all"),
+      ),
+  );
+  const [createdFrom, setCreatedFrom] = useState(
+    () => searchParams.get("createdFrom") || searchParams.get("from") || "",
+  );
+  const [createdTo, setCreatedTo] = useState(
+    () => searchParams.get("createdTo") || searchParams.get("to") || "",
+  );
 
-  // ── Property hooks ───────────────────────────────────────────────────────
-  // Load the first page of each promotion type immediately. The former eager
-  // "all pages" prefetch delayed first render significantly as the catalogue
-  // grew; pagination below now fetches additional pages on demand.
-  const projectQueryOptions = {
+  const serverListStatus = toServerProjectStatus(statusFilter);
+  const boardPromotionType =
+    promotionFilter !== "all" && promotionFilter !== "pending"
+      ? promotionFilter
+      : null;
+  const useUnifiedBoard = !serverPromotionStatus;
+
+  const boardHook = useFeaturedProjects(boardPromotionType, {
+    adminBoard: true,
+    promotionStatus: "all",
     prefetchAll: false,
-    from: urlCreatedFrom,
-    to: urlCreatedTo,
-    status: serverListStatus === "all" ? "" : serverListStatus,
-  };
-  const primeHook     = useFeaturedProjects("prime", projectQueryOptions);
-  const featuredHook  = useFeaturedProjects("featured", projectQueryOptions);
-  const sponsoredHook = useFeaturedProjects("sponsored", projectQueryOptions);
-  const normalHook    = useFeaturedProjects("normal", projectQueryOptions);
+    pageSize: PROJECT_BOARD_PAGE_SIZE,
+    from: createdFrom,
+    to: createdTo,
+    status: serverListStatus,
+    enabled: useUnifiedBoard,
+  });
+
+  // Kept as aliases so existing mutation / promote UI keeps working.
+  const primeHook = boardHook;
+  const featuredHook = boardHook;
+  const sponsoredHook = boardHook;
+  const normalHook = boardHook;
+  const statusBoardHook = boardHook;
+
   const lifecycleHook = useFeaturedProjects(null, {
     promotionStatus: serverPromotionStatus,
     prefetchAll: true,
-    from: urlCreatedFrom,
-    to: urlCreatedTo,
-    status: serverListStatus === "all" ? "" : serverListStatus,
+    pageSize: PROJECT_BOARD_PAGE_SIZE,
+    from: createdFrom,
+    to: createdTo,
+    status: serverListStatus,
     enabled: !!serverPromotionStatus,
   });
 
-  
+  const isStatusBoardView = useUnifiedBoard && serverListStatus !== "all";
+
 
 
   const { data: pendingProjectsData, refetch: refetchPendingProjects } = usePendingProjects({
     enabled: canViewPendingProjects,
     refetchInterval:
-      canViewPendingProjects && urlStatusFilter === "pending" ? 120_000 : false,
+      canViewPendingProjects && statusFilter === "pending" ? 120_000 : false,
   });
   const pendingProjects = pendingProjectsData?.data || [];
   const actionablePendingProjects = useMemo(
@@ -1800,53 +1819,27 @@ export default function ProjectsDashboardPage() {
   );
 
   const refreshAllProjects = useCallback(() => {
-    primeHook.refetch();
-    featuredHook.refetch();
-    sponsoredHook.refetch();
-    normalHook.refetch();
+    if (useUnifiedBoard) boardHook.refetch();
     if (serverPromotionStatus) lifecycleHook.refetch();
     refetchPendingProjects?.();
   }, [
-    featuredHook,
+    boardHook,
     lifecycleHook,
-    normalHook,
-    primeHook,
     refetchPendingProjects,
     serverPromotionStatus,
-    sponsoredHook,
+    useUnifiedBoard,
   ]);
 
-  const catalogHooksRef = useRef({
-    primeHook,
-    featuredHook,
-    sponsoredHook,
-    normalHook,
-  });
-  catalogHooksRef.current = {
-    primeHook,
-    featuredHook,
-    sponsoredHook,
-    normalHook,
-  };
+  const catalogHooksRef = useRef({ boardHook });
+  catalogHooksRef.current = { boardHook };
 
   const allProperties = useMemo(() => {
-    if (serverPromotionStatus) {
-      return lifecycleHook.properties;
-    }
-
-    const merged = [
-      ...primeHook.properties, ...featuredHook.properties,
-      ...sponsoredHook.properties, ...normalHook.properties,
-    ];
-    const seen = new Set();
-    return merged.filter((p) => { if (seen.has(p._id)) return false; seen.add(p._id); return true; });
+    if (serverPromotionStatus) return lifecycleHook.properties;
+    return boardHook.properties;
   }, [
     serverPromotionStatus,
     lifecycleHook.properties,
-    primeHook.properties,
-    featuredHook.properties,
-    sponsoredHook.properties,
-    normalHook.properties,
+    boardHook.properties,
   ]);
 
   const projectSearchIndex = useMemo(() => {
@@ -2003,32 +1996,10 @@ export default function ProjectsDashboardPage() {
 
   const isLoading = serverPromotionStatus
     ? lifecycleHook.isLoading
-    : primeHook.isLoading ||
-      featuredHook.isLoading ||
-      sponsoredHook.isLoading ||
-      normalHook.isLoading;
-  // Do not hide already-arrived cards while a slower project type is still
-  // loading. This makes the board feel responsive on slow connections.
+    : boardHook.isLoading;
   const isInitialListLoading = isLoading && allProperties.length === 0;
 
-  useEffect(() => {
-    if (isInitialListLoading || serverPromotionStatus) return undefined;
-    let stopped = false;
-    const timer = window.setTimeout(async () => {
-      const hooks = Object.values(catalogHooksRef.current);
-      for (const hook of hooks) {
-        let guard = 0;
-        while (!stopped && hook?.hasNextPage && guard < 15) {
-          await hook.fetchNextPage();
-          guard += 1;
-        }
-      }
-    }, 600);
-    return () => {
-      stopped = true;
-      window.clearTimeout(timer);
-    };
-  }, [isInitialListLoading, serverPromotionStatus]);
+  // Load next pages on demand via UI pagination — no eager multi-page prefetch.
 
   // ── Unified top-bar state (location + search) — drives analytics ─────────
   const [selectedLocation, setSelectedLocation] = useState(() => {
@@ -2047,12 +2018,7 @@ export default function ProjectsDashboardPage() {
   const debouncedAnalyticsSearch = useDebounce(analyticsSearch, 400);
 
   // ── Project list filter state (independent of analytics) ─────────────────
-  const [promotionFilter, setPromotionFilter] = useState(
-    () => searchParams.get("promotion") || "all",
-  );
-  const [statusFilter, setStatusFilter] = useState(
-    () => normalizeProjectStatusParam(searchParams.get("status") || "all"),
-  );
+  // promotionFilter + statusFilter are declared above (before board hooks).
   const [categoryFilter, setCategoryFilter] = useState(
     () => searchParams.get("category") || "all",
   );
@@ -2063,12 +2029,7 @@ export default function ProjectsDashboardPage() {
     () => searchParams.get("createdBy") || "all",
   );
   const [builderSearch, setBuilderSearch] = useState("");
-  const [createdFrom, setCreatedFrom] = useState(
-    () => searchParams.get("createdFrom") || searchParams.get("from") || "",
-  );
-  const [createdTo, setCreatedTo] = useState(
-    () => searchParams.get("createdTo") || searchParams.get("to") || "",
-  );
+  // createdFrom / createdTo declared above (before board hooks).
 
   const isTodayRange =
     Boolean(createdFrom) &&
@@ -2510,7 +2471,7 @@ export default function ProjectsDashboardPage() {
 
   const projectHooks = serverPromotionStatus
     ? [lifecycleHook]
-    : [normalHook, featuredHook, primeHook, sponsoredHook];
+    : [boardHook];
   const hasMoreLoadedProjects =
     paginationStart + PROJECTS_PER_PAGE < visibleProperties.length;
   const nextPageEnd = (currentPage + 1) * PROJECTS_PER_PAGE;
@@ -2570,7 +2531,7 @@ export default function ProjectsDashboardPage() {
       return lifecycleHook.totalCount;
     }
 
-    // Property Type (highest priority)
+    // Property Type (highest priority) — client-filtered subset of loaded pages
     if (propertyTypeFilter !== "all") {
       return (
         analytics?.propertyTypeWise?.find((p) => p._id === propertyTypeFilter)
@@ -2578,7 +2539,6 @@ export default function ProjectsDashboardPage() {
       );
     }
 
-    // Category
     if (categoryFilter !== "all") {
       return (
         analytics?.categoryWise?.find((c) => c._id === categoryFilter)?.total ??
@@ -2586,35 +2546,26 @@ export default function ProjectsDashboardPage() {
       );
     }
 
-    // Promotion
     if (promotionFilter === "prime")
-      return analytics?.overview?.primeProjects ?? 0;
-
+      return analytics?.overview?.primeProjects ?? boardHook.totalCount ?? 0;
     if (promotionFilter === "featured")
-      return analytics?.overview?.featuredProjects ?? 0;
-
+      return analytics?.overview?.featuredProjects ?? boardHook.totalCount ?? 0;
     if (promotionFilter === "sponsored")
-      return analytics?.overview?.sponsoredProjects ?? 0;
-
+      return analytics?.overview?.sponsoredProjects ?? boardHook.totalCount ?? 0;
     if (promotionFilter === "normal")
-      return analytics?.overview?.normalProjects ?? 0;
+      return analytics?.overview?.normalProjects ?? boardHook.totalCount ?? 0;
 
-    // Status
-    if (statusFilter === "approved" || statusFilter === "active")
-      return analytics?.overview?.activeProjects ?? 0;
+    // Status filter: prefer live board meta.total (exact match to list query)
+    if (statusFilter !== "all") {
+      return boardHook.totalCount || 0;
+    }
 
-    if (statusFilter === "draft" || statusFilter === "inactive")
-      return analytics?.overview?.inactiveProjects ?? 0;
-
-    if (statusFilter === "pending")
-      return analytics?.overview?.pendingProjects ?? 0;
-
-    // Default
-    return analytics?.overview?.totalProjects ?? 0;
+    return boardHook.totalCount || analytics?.overview?.totalProjects || 0;
   }, [
     analytics,
     serverPromotionStatus,
     lifecycleHook.totalCount,
+    boardHook.totalCount,
     promotionFilter,
     statusFilter,
     categoryFilter,
@@ -2623,22 +2574,67 @@ export default function ProjectsDashboardPage() {
 
   const statusFilterOptions = useMemo(() => {
     const ov = analytics?.overview || {};
+    const statusWise = Array.isArray(analytics?.statusWise)
+      ? analytics.statusWise
+      : [];
+
+    const fromWise = (...keys) => {
+      const set = new Set(keys.map((k) => String(k).toLowerCase()));
+      const sum = statusWise
+        .filter((row) => set.has(String(row?._id || "").toLowerCase()))
+        .reduce((acc, row) => acc + Number(row?.total || 0), 0);
+      return sum;
+    };
+
     const countFor = (value) => {
-      if (value === "all") return Number(ov.totalProjects);
-      if (value === "draft") return Number(ov.inactiveProjects);
-      if (value === "pending") return Number(ov.pendingProjects);
-      if (value === "approved") return Number(ov.activeProjects);
+      if (value === "all") {
+        const total = Number(ov.totalProjects);
+        if (Number.isFinite(total)) return total;
+        return fromWise(
+          "active",
+          "draft",
+          "pending",
+          "onboarding",
+          "incomplete",
+        );
+      }
+      if (value === "draft") {
+        const n = Number(ov.draftProjects);
+        if (Number.isFinite(n)) return n;
+        return fromWise("draft", "onboarding", "incomplete");
+      }
+      if (value === "pending") {
+        const n = Number(ov.pendingProjects);
+        if (Number.isFinite(n)) return n;
+        return fromWise("pending");
+      }
+      if (value === "approved") {
+        const n = Number(ov.activeProjects);
+        if (Number.isFinite(n)) return n;
+        return fromWise("active", "approved");
+      }
+      if (value === "deleted") {
+        const n = fromWise("inactive", "deleted");
+        if (n > 0) return n;
+        return Number(ov.inactiveProjects);
+      }
       return NaN;
     };
 
     return STATUS_FILTERS.map((item) => {
       const count = countFor(item.value);
+      // When this status is selected, prefer exact board total so dropdown
+      // badge matches Projects (N) below.
+      const live =
+        statusFilter === item.value && boardHook.totalCount > 0
+          ? boardHook.totalCount
+          : count;
       return {
         ...item,
-        ...(Number.isFinite(count) ? { count } : {}),
+        ...(Number.isFinite(live) ? { count: live } : {}),
       };
     });
-  }, [analytics]);
+  }, [analytics, statusFilter, boardHook.totalCount]);
 
   const builderFilterOptions = useMemo(() => {
     const query = builderSearch.trim().toLowerCase();
@@ -3612,9 +3608,14 @@ export default function ProjectsDashboardPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-bold text-slate-800">
             Projects
-            <span className="ml-2 text-sm font-semibold text-slate-400">
-              ({visibleProperties.length})
+            <span className="ml-2 text-sm font-semibold text-slate-400 tabular-nums">
+              ({Number(displayedCount) || visibleProperties.length})
             </span>
+            {boardHook.isFetching && !isInitialListLoading ? (
+              <span className="ml-2 text-xs font-medium text-slate-400">
+                Updating…
+              </span>
+            ) : null}
             {projectTitleSearchLoading && projectTitleSearch.length >= 2 ? (
               <span className="ml-2 text-xs font-medium text-slate-400">
                 Searching catalogue…
