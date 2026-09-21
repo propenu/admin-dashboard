@@ -133,6 +133,7 @@ const STATUS_FILTERS = [
   { value: "draft", label: "Draft" },
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
   { value: "deleted", label: "Deleted" },
 ];
 
@@ -144,13 +145,14 @@ const normalizeProjectStatusParam = (value = "") => {
   if (key === "inactive" || key === "deactivated" || key === "deleted") {
     return "deleted";
   }
+  if (key === "archived") return "deleted";
+  if (key === "rejected") return "rejected";
   return key || "all";
 };
 
 const matchesProjectStatusFilter = (project, statusFilter) => {
   if (!statusFilter || statusFilter === "all") {
-    const raw = String(project?.status || "").toLowerCase();
-    return raw !== "inactive" && !project?.deletedAt;
+    return true; // All Status = every project (including deleted/rejected)
   }
   const raw = String(project?.status || "").toLowerCase();
   const approval = String(project?.approvalStatus || "").toLowerCase();
@@ -168,8 +170,16 @@ const matchesProjectStatusFilter = (project, statusFilter) => {
   if (statusFilter === "approved") {
     return raw === "active" || raw === "approved" || approval === "approved";
   }
+  if (statusFilter === "rejected") {
+    return raw === "rejected" || approval === "rejected";
+  }
   if (statusFilter === "deleted") {
-    return raw === "inactive" || raw === "deleted" || Boolean(project?.deletedAt);
+    return (
+      raw === "inactive" ||
+      raw === "deleted" ||
+      raw === "archived" ||
+      Boolean(project?.deletedAt)
+    );
   }
   return raw === statusFilter;
 };
@@ -180,6 +190,7 @@ const toServerProjectStatus = (statusFilter = "all") => {
   if (key === "draft") return "draft";
   if (key === "pending") return "pending";
   if (key === "approved") return "active";
+  if (key === "rejected") return "rejected";
   if (key === "deleted") return "inactive";
   return "all";
 };
@@ -1297,7 +1308,12 @@ function AnalyticsOverviewRow({
     },
     {
       label: "Draft",
-      display: String(ov.inactiveProjects ?? 0),
+      display: String(
+        ov.draftProjects ??
+          ov.inactiveProjects ??
+          0,
+      ),
+      sub: `${pct(ov.draftProjects ?? ov.inactiveProjects, total)}% of total`,
       icon: AlertCircle,
       color: "text-purple-700",
       iconBg: "bg-purple-50",
@@ -2596,6 +2612,9 @@ export default function ProjectsDashboardPage() {
           "pending",
           "onboarding",
           "incomplete",
+          "inactive",
+          "rejected",
+          "archived",
         );
       }
       if (value === "draft") {
@@ -2613,10 +2632,17 @@ export default function ProjectsDashboardPage() {
         if (Number.isFinite(n)) return n;
         return fromWise("active", "approved");
       }
+      if (value === "rejected") {
+        const n = Number(ov.rejectedProjects);
+        if (Number.isFinite(n)) return n;
+        return fromWise("rejected");
+      }
       if (value === "deleted") {
-        const n = fromWise("inactive", "deleted");
+        const n = fromWise("inactive", "deleted", "archived");
         if (n > 0) return n;
-        return Number(ov.inactiveProjects);
+        const inactive = Number(ov.inactiveProjects) || 0;
+        const archived = Number(ov.archivedProjects) || 0;
+        return inactive + archived;
       }
       return NaN;
     };
