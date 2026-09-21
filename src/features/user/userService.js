@@ -142,6 +142,18 @@ export const updateFollowUpWorkStatus = (id, followUpWorkStatus) => {
   });
 };
 
+/**
+ * Client Progress Queue — server-paginated (default limit 12).
+ * Params: track, page, limit, from, to, q, assigneeId, assigneeIds,
+ * includeCounts, includeCreatorIds, export
+ */
+export const getClientProgressQueue = (params = {}) => {
+  return apiClient.get(`${SERVICES.USER}/auth/client-progress-queue`, {
+    params,
+    timeout: 30000,
+  });
+};
+
 // User search — `role` may be a string, or params object ({ role, q, page, limit, createdFrom, createdTo })
 // Default page=1, limit=20 (server-paginated).
 export const getUserSearch = (queryOrParams, extraParams = {}) => {

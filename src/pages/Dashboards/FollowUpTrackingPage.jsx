@@ -18,7 +18,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { getAllUsers, getUserDetails } from "../../features/user/userService";
+import { getClientProgressQueue, getUserDetails } from "../../features/user/userService";
 import { getUserProperties } from "../../features/user/userDetailService";
 import { getAllPropertiesAnalytics } from "../../features/property/propertyService";
 import { getUserWorkingLocations } from "../../features/accessControl/accessControlService";
@@ -49,7 +49,8 @@ import {
 } from "../../utils/workingLocations";
 
 const ONBOARDING = new Set(["location_pending", "kyc_pending", "pending", "incomplete"]);
-const USER_PAGE_SIZE = 40;
+/** Server page size — keep small for fast Client Progress Queue loads. */
+const USER_PAGE_SIZE = 12;
 
 /** Client Progress Queue: only these platform roles (never staff / admin). */
 const PLATFORM_CLIENT_ROLES = new Set([
@@ -503,6 +504,16 @@ const unpackUsers = (payload) => {
   return [];
 };
 
+const unpackQueueMeta = (payload) => {
+  const meta = payload?.meta || {};
+  return {
+    total: Number(meta.total) || 0,
+    page: Math.max(1, Number(meta.page) || 1),
+    limit: Math.max(1, Number(meta.limit) || USER_PAGE_SIZE),
+    pages: Math.max(1, Number(meta.pages) || 1),
+  };
+};
+
 const inCreatedPeriod = (value, range) => {
   if (!range?.from && !range?.to) return true;
   if (!value) return false;
@@ -714,26 +725,72 @@ export default function FollowUpTrackingPage() {
   const meId = String(me?._id || me?.id || "");
   const isCceViewer = isCustomerCareExecutiveRole(me?.roleName || me?.role);
   const isOversightViewer = isFollowUpOversightRole(me?.roleName || me?.role);
+  const cceExclusive = Boolean(isCceViewer && meId && !isOversightViewer);
 
-  /** Always load users so every User journey / Roles status can show a count. */
+  /** Debounced search for server q= (industry pattern). */
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const queueParams = useMemo(() => {
+    const params = {
+      track: meta.kind === "users" ? track : "onboarding_all",
+      page: Math.max(1, Number(page) || 1),
+      limit: USER_PAGE_SIZE,
+      from: range.from || undefined,
+      to: range.to || undefined,
+    };
+    if (debouncedSearch) params.q = debouncedSearch;
+    if (isOversightViewer && urlAssigneeId) params.assigneeId = urlAssigneeId;
+    else if (isOversightViewer && urlAssigneeIds.length) {
+      params.assigneeIds = urlAssigneeIds.join(",");
+    }
+    if (cceExclusive) {
+      params.includeCounts = 1;
+      params.includeCreatorIds = 1;
+    }
+    return params;
+  }, [
+    meta.kind,
+    track,
+    page,
+    range.from,
+    range.to,
+    debouncedSearch,
+    isOversightViewer,
+    urlAssigneeId,
+    urlAssigneeIds,
+    cceExclusive,
+  ]);
+
+  /** Server-paginated people list (limit 12) — replaces full getAllUsers dump. */
   const usersQuery = useQuery({
-    queryKey: ["follow-up-tracking", "users", range.from, range.to],
+    queryKey: ["follow-up-tracking", "queue", queueParams],
+    enabled: meta.kind === "users" && meQuery.isFetched,
     queryFn: async () => {
-      const response = await getAllUsers();
-      return unpackUsers(response?.data);
+      const response = await getClientProgressQueue(queueParams);
+      const body = response?.data ?? response;
+      return {
+        data: unpackUsers(body),
+        meta: unpackQueueMeta(body),
+        trackCounts: body?.trackCounts || null,
+        creatorIds: Array.isArray(body?.creatorIds) ? body.creatorIds : [],
+      };
     },
-    staleTime: 60_000,
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   /** Creators exclusively owned by this CCE — used for property counts (no territory mix). */
   const myAssignedCreatorIds = useMemo(() => {
-    if (!isCceViewer || !meId) return null;
-    return (usersQuery.data || [])
-      .filter((u) => assigneeIdOf(u) === meId)
-      .map((u) => userIdOf(u))
-      .filter(Boolean)
-      .sort();
-  }, [isCceViewer, meId, usersQuery.data]);
+    if (!cceExclusive) return null;
+    const ids = usersQuery.data?.creatorIds || [];
+    return [...ids].filter(Boolean).sort();
+  }, [cceExclusive, usersQuery.data?.creatorIds]);
 
   /** Property status totals — CCE only (own creators). TL / Super Admin: no counts. */
   const propertyCountsQuery = useQuery({
@@ -745,7 +802,7 @@ export default function FollowUpTrackingPage() {
       meId,
       (myAssignedCreatorIds || []).join(","),
     ],
-    enabled: Boolean(isCceViewer && meId && usersQuery.isSuccess),
+    enabled: Boolean(cceExclusive && meId && usersQuery.isSuccess),
     queryFn: async () => {
       const creatorIds = myAssignedCreatorIds || [];
       if (!creatorIds.length) {
@@ -763,23 +820,24 @@ export default function FollowUpTrackingPage() {
   /** Creator → exclusive CCE map (inventory exclusivity + assignee name fallback). */
   const creatorAssigneeById = useMemo(() => {
     const map = {};
-    (usersQuery.data || []).forEach((u) => {
+    (usersQuery.data?.data || []).forEach((u) => {
       const id = userIdOf(u);
       const owner = assigneeIdOf(u);
       if (id && owner) map[id] = owner;
     });
     return map;
-  }, [usersQuery.data]);
+  }, [usersQuery.data?.data]);
 
-  /** Staff id → name for resolving CCE assignee labels (SA / CSH / TL). */
+  /** Staff id → name for resolving CCE assignee labels (from populated followUpAssignee). */
   const staffNameById = useMemo(() => {
     const map = {};
-    (usersQuery.data || []).forEach((u) => {
-      const id = userIdOf(u);
-      if (id && u?.name) map[id] = String(u.name).trim();
+    (usersQuery.data?.data || []).forEach((u) => {
+      const id = assigneeIdOf(u);
+      const name = String(u?.followUpAssignee?.name || "").trim();
+      if (id && name) map[id] = name;
     });
     return map;
-  }, [usersQuery.data]);
+  }, [usersQuery.data?.data]);
 
   const canEditWorkStatus = (user) => {
     if (!user) return false;
@@ -792,15 +850,15 @@ export default function FollowUpTrackingPage() {
     const id = String(userId || "");
     if (!id) return;
     setWorkStatusOverrides((prev) => ({ ...prev, [id]: nextStatus }));
-    queryClient.setQueryData(
-      ["follow-up-tracking", "users", range.from, range.to],
-      (prev) => {
-        if (!Array.isArray(prev)) return prev;
-        return prev.map((u) =>
+    queryClient.setQueryData(["follow-up-tracking", "queue", queueParams], (prev) => {
+      if (!prev?.data) return prev;
+      return {
+        ...prev,
+        data: prev.data.map((u) =>
           userIdOf(u) === id ? { ...u, followUpWorkStatus: nextStatus } : u,
-        );
-      },
-    );
+        ),
+      };
+    });
   };
 
   const territoriesQuery = useQuery({
@@ -824,32 +882,19 @@ export default function FollowUpTrackingPage() {
 
   const cceTerritories = territoriesQuery.data || [];
   const territoryScoped = isCceViewer && cceTerritories.length > 0;
-  /** Every CCE login is exclusive to their assigned cases — never mix other CCEs. */
-  const cceExclusive = Boolean(isCceViewer && meId);
 
-  const scopedUsers = useMemo(() => {
-    let list = (usersQuery.data || []).filter((u) => isPlatformClientRole(roleOf(u)));
-    if (cceExclusive) {
-      list = list.filter((u) => assigneeIdOf(u) === meId);
-    } else if (isOversightViewer && urlAssigneeId) {
-      // Team Lead / Head: drill into one CCE’s assigned cases
-      list = list.filter((u) => assigneeIdOf(u) === urlAssigneeId);
-    } else if (isOversightViewer && urlAssigneeIds.length) {
-      // Support Head: drill into a Team Lead pod (multiple CCEs)
-      const allowed = new Set(urlAssigneeIds);
-      list = list.filter((u) => allowed.has(assigneeIdOf(u)));
-    }
-    return list;
-  }, [
-    usersQuery.data,
-    cceExclusive,
-    meId,
-    isOversightViewer,
-    urlAssigneeId,
-    urlAssigneeIds,
-  ]);
+  const pageRows = usersQuery.data?.data || [];
+  const queueMeta = usersQuery.data?.meta || {
+    total: 0,
+    page: 1,
+    limit: USER_PAGE_SIZE,
+    pages: 1,
+  };
+  const totalFiltered = queueMeta.total || 0;
+  const totalPages = Math.max(1, queueMeta.pages || 1);
+  const safePage = Math.min(Math.max(1, page), totalPages);
 
-  /** Per-status counts — CCE only. Team Lead / Super Admin see no count badges. */
+  /** Per-status counts — CCE only (from server). Team Lead / Super Admin: no badges. */
   const trackCounts = useMemo(() => {
     const counts = {};
     if (!cceExclusive) {
@@ -858,46 +903,37 @@ export default function FollowUpTrackingPage() {
       });
       return counts;
     }
+    const serverCounts = usersQuery.data?.trackCounts || {};
     const propertyCounts = propertyCountsQuery.data || {};
     Object.entries(TRACK_META).forEach(([key, item]) => {
       if (item.kind === "users") {
-        counts[key] = scopedUsers.filter((u) => matchesTrack(u, key, range)).length;
+        counts[key] =
+          serverCounts[key] != null ? Number(serverCounts[key]) : null;
         return;
       }
       if (item.groupId === "properties") {
         counts[key] = Number(propertyCounts[item.status] || 0);
         return;
       }
-      // Projects intentionally have no count badge.
       counts[key] = null;
     });
     return counts;
-  }, [cceExclusive, scopedUsers, range.from, range.to, propertyCountsQuery.data]);
+  }, [cceExclusive, usersQuery.data?.trackCounts, propertyCountsQuery.data]);
 
   const showTrackCounts = cceExclusive;
 
-  const rows = useMemo(() => {
-    if (meta.kind !== "users") return [];
-    let list = scopedUsers.filter((u) => matchesTrack(u, track, range));
-
-    const q = search.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter((u) =>
-      `${u.name || ""} ${u.email || ""} ${u.phone || ""} ${u.roleName || ""} ${u.accountStatus || ""} ${u.state || ""} ${u.city || ""} ${u.locality || ""}`
-        .toLowerCase()
-        .includes(q),
-    );
-  }, [meta.kind, scopedUsers, track, range.from, range.to, search]);
+  /** Alias for selected-user lookup (current page rows). */
+  const rows = pageRows;
 
   useEffect(() => {
     setPage(1);
     setSelectedId(null);
     setSearch("");
-  }, [track, range.from, range.to, urlAssigneeId]);
+  }, [track, range.from, range.to, urlAssigneeId, urlAssigneeIdsParam]);
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / USER_PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageRows = rows.slice((safePage - 1) * USER_PAGE_SIZE, safePage * USER_PAGE_SIZE);
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     if (page !== safePage) setPage(safePage);
@@ -993,11 +1029,23 @@ export default function FollowUpTrackingPage() {
     else navigate(usersPeriodHref(range, {}));
   };
 
-  const exportUsersExcel = () => {
-    if (!rows.length) return;
+  const exportUsersExcel = async () => {
+    if (!totalFiltered) return;
     setExporting(true);
     try {
-      const sheetRows = rows.map((user, index) => {
+      const response = await getClientProgressQueue({
+        ...queueParams,
+        page: 1,
+        limit: Math.min(2000, Math.max(totalFiltered, USER_PAGE_SIZE)),
+        export: 1,
+        includeCounts: undefined,
+        includeCreatorIds: undefined,
+      });
+      const body = response?.data ?? response;
+      const exportRows = unpackUsers(body);
+      if (!exportRows.length) return;
+
+      const sheetRows = exportRows.map((user, index) => {
         const stage = journeyStage(user);
         return {
           SNo: index + 1,
@@ -1317,7 +1365,7 @@ export default function FollowUpTrackingPage() {
           <article className="overflow-hidden rounded-[14px] border border-slate-200 bg-white shadow-sm">
             <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5">
               <p className="text-xs font-bold text-slate-900">
-                {rows.length.toLocaleString("en-IN")} people · journey stage for CCE follow-up
+                {totalFiltered.toLocaleString("en-IN")} people · journey stage for CCE follow-up
               </p>
               <div className="flex flex-wrap items-center gap-1.5">
                 <label className="relative block w-full min-w-[200px] max-w-xs">
@@ -1337,7 +1385,7 @@ export default function FollowUpTrackingPage() {
                 </label>
                 <button
                   type="button"
-                  disabled={!rows.length || exporting}
+                  disabled={!totalFiltered || exporting}
                   onClick={exportUsersExcel}
                   className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
@@ -1353,7 +1401,25 @@ export default function FollowUpTrackingPage() {
                   <div key={i} className="h-10 animate-pulse rounded-lg bg-slate-100" />
                 ))}
               </div>
-            ) : !rows.length ? (
+            ) : usersQuery.isError ? (
+              <div className="space-y-2 py-12 text-center">
+                <p className="text-sm font-semibold text-rose-600">
+                  Could not load Client Progress Queue
+                </p>
+                <p className="text-xs text-slate-500">
+                  {usersQuery.error?.response?.data?.message ||
+                    usersQuery.error?.message ||
+                    "Network or server error"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => usersQuery.refetch()}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : !pageRows.length ? (
               <p className="py-12 text-center text-xs text-slate-400">
                 {territoryScoped
                   ? "No people in your territories for this track"
@@ -1484,9 +1550,13 @@ export default function FollowUpTrackingPage() {
                 </div>
                 <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-3.5 py-2.5">
                   <p className="text-[11px] text-slate-500">
-                    Showing {(safePage - 1) * USER_PAGE_SIZE + 1}–
-                    {Math.min(safePage * USER_PAGE_SIZE, rows.length)} of{" "}
-                    {rows.length.toLocaleString("en-IN")}
+                    Showing{" "}
+                    {totalFiltered === 0
+                      ? 0
+                      : (safePage - 1) * USER_PAGE_SIZE + 1}
+                    –
+                    {Math.min(safePage * USER_PAGE_SIZE, totalFiltered)} of{" "}
+                    {totalFiltered.toLocaleString("en-IN")}
                   </p>
                   <div className="flex items-center gap-1">
                     <button
