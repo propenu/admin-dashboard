@@ -75,6 +75,7 @@ export const useUsers = (params, options = {}) => {
     enabled,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+    retry: 1,
     refetchOnWindowFocus: false,
   });
 };

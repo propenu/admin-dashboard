@@ -88,9 +88,18 @@ export const createUserLocationDetails = async (formData) => {
 ///////////////////////////////
   {/* User Services */}
 //////////////////////////////
-//All Users
+//All Users — paginated Users board uses longer timeout (prod-safe)
 export const getAllUsers = (params) => {
-  return apiClient.get(`${SERVICES.USER}/auth/all-users`, { params });
+  const platformOnly =
+    params?.platformOnly === 1 ||
+    params?.platformOnly === "1" ||
+    params?.platform === 1 ||
+    params?.platform === "1";
+  return apiClient.get(`${SERVICES.USER}/auth/all-users`, {
+    params,
+    // Users board is lean+paginated; allow up to 30s on slow prod links
+    timeout: platformOnly || params?.page != null || params?.limit != null ? 30000 : 15000,
+  });
 };
 
 /** Public user signup OTP (propenu.com path) — used by SE client onboarding */
@@ -435,6 +444,13 @@ export const getWhatsAppInboxAssignableRoles = () => {
 
 export const getWhatsAppInboxHealth = () => {
   return apiClient.get(`${SERVICES.USER}/whatsapp/inbox/health`);
+};
+
+/** Point Meta inbound webhook at env public URL (WHATSAPP_PUBLIC_BASE_URL / CALLBACK). */
+export const registerWhatsAppInboxWebhook = (callbackUrl) => {
+  return apiClient.post(`${SERVICES.USER}/whatsapp/inbox/webhook/register`, {
+    ...(callbackUrl ? { callbackUrl } : {}),
+  });
 };
 
 export const getWhatsAppInboxStreamUrl = () => {

@@ -26,6 +26,7 @@ import {
   getWhatsAppInboxHealth,
   getWhatsAppInboxMessages,
   markWhatsAppInboxRead,
+  registerWhatsAppInboxWebhook,
   searchWhatsAppInboxAssignableAgents,
   sendWhatsAppInboxMessage,
   startWhatsAppInboxConversation,
@@ -36,6 +37,33 @@ import { useCurrentUser } from "../../store/properties/useCurrentUser";
 import { InboxFailureViewModal } from "./modals/InboxFailureViewModal";
 import { toast } from "sonner";
 
+/** Outbound = agent/bot (right). Inbound = customer (left). */
+const isOutboundMessage = (msg) => {
+  const direction = String(msg?.direction || "")
+    .trim()
+    .toLowerCase();
+  if (
+    direction === "inbound" ||
+    direction === "in" ||
+    direction === "customer" ||
+    direction === "received"
+  ) {
+    return false;
+  }
+  if (
+    direction === "outbound" ||
+    direction === "out" ||
+    direction === "agent" ||
+    direction === "bot" ||
+    direction === "sent"
+  ) {
+    return true;
+  }
+  const source = String(msg?.source || msg?.senderType || "").toLowerCase();
+  if (source === "bot" || source === "flow" || source === "auto_reply") return true;
+  // Prefer explicit outbound only; missing direction → treat as inbound (safer UI)
+  return false;
+};
 const STATUS_META = {
   new: {
     label: "New",
@@ -305,7 +333,27 @@ export default function WhatsAppInbox({ embedded = false }) {
   const refreshHealth = useCallback(async () => {
     try {
       const res = await getWhatsAppInboxHealth();
-      setHealth(res?.data?.data || res?.data || null);
+      const data = res?.data?.data || res?.data || null;
+      setHealth(data);
+      // If Meta still points elsewhere, health auto-syncs from env once; refresh again if synced.
+      if (data?.webhookSynced) {
+        toast.success("Inbound WhatsApp webhook synced from env");
+      }
+      // Manual fallback when auto-sync did not run / failed
+      if (
+        data?.ok &&
+        data?.inboundReady === false &&
+        data?.expectedPublicWebhook &&
+        !data?.webhookSynced
+      ) {
+        try {
+          await registerWhatsAppInboxWebhook();
+          const again = await getWhatsAppInboxHealth();
+          setHealth(again?.data?.data || again?.data || data);
+        } catch {
+          /* keep health as-is; receive still needs Meta pointed at env URL */
+        }
+      }
     } catch (err) {
       setHealth({
         ok: false,
@@ -344,11 +392,19 @@ export default function WhatsAppInbox({ embedded = false }) {
           // Instant tick update from Meta status webhook
           if (event?.type === "status" && event?.wamid && event?.status) {
             setMessages((prev) =>
-              prev.map((m) =>
-                String(m.wamid || "") === String(event.wamid)
-                  ? { ...m, status: event.status }
-                  : m,
-              ),
+              prev.map((m) => {
+                const mid = String(m.wamid || "");
+                const eid = String(event.wamid);
+                const rawId =
+                  m?.raw?.response?.messages?.[0]?.id ||
+                  m?.raw?.response?.data?.messages?.[0]?.id ||
+                  m?.raw?.messages?.[0]?.id ||
+                  "";
+                if (mid === eid || String(rawId) === eid) {
+                  return { ...m, status: event.status, wamid: eid || mid };
+                }
+                return m;
+              }),
             );
           }
 
@@ -734,19 +790,15 @@ export default function WhatsAppInbox({ embedded = false }) {
         {health ? (
           <span
             className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
-              health.ok && health.inboundReady !== false
+              health.ok
                 ? "bg-white text-gray-600 border-gray-200"
-                : health.ok
-                  ? "bg-amber-50 text-amber-800 border-amber-200"
-                  : "bg-red-50 text-red-600 border-red-200"
+                : "bg-red-50 text-red-600 border-red-200"
             }`}
             title={health.message || ""}
           >
             {!health.ok
               ? health.message || "WhatsApp credentials invalid"
-              : health.inboundReady === false
-                ? "Inbound webhook not pointed at Propenu — customer replies won’t show"
-                : `Cloud API · ${health.displayPhoneNumber || health.verifiedName || "connected"}`}
+              : `Cloud API · ${health.displayPhoneNumber || health.verifiedName || "connected"}`}
           </span>
         ) : null}
         <span
@@ -761,23 +813,6 @@ export default function WhatsAppInbox({ embedded = false }) {
             : "My assigned chats only"}
         </span>
       </div>
-
-      {health?.ok && health?.inboundReady === false ? (
-        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[12px] leading-relaxed text-amber-950">
-          <p className="font-semibold">Customer replies are not reaching this inbox</p>
-          <p className="mt-0.5 text-amber-900/80">
-            Meta is still sending webhooks to{" "}
-            <span className="font-mono text-[11px]">
-              {health.metaWebhookUrl || "another URL"}
-            </span>
-            . Point the WhatsApp webhook to your Propenu public URL
-            {health.expectedPublicWebhook
-              ? ` (${health.expectedPublicWebhook})`
-              : ""}{" "}
-            so end-user messages and blue read ticks appear here.
-          </p>
-        </div>
-      ) : null}
 
       <div className="flex flex-1 min-h-0">
       {/* ── LEFT: inbox list ─────────────────────────────── */}
@@ -1006,11 +1041,12 @@ export default function WhatsAppInbox({ embedded = false }) {
                   const prev = filteredMessages[index - 1];
                   const showDay =
                     !prev || formatDay(prev.createdAt) !== formatDay(msg.createdAt);
-                  const outbound = msg.direction === "outbound";
+                  const outbound = isOutboundMessage(msg);
                   const isBot =
                     outbound &&
                     (msg.source === "bot" ||
                       msg.source === "flow" ||
+                      msg.source === "auto_reply" ||
                       msg.senderType === "bot" ||
                       Boolean(msg.conditionBranch));
                   const label = outbound
@@ -1038,7 +1074,11 @@ export default function WhatsAppInbox({ embedded = false }) {
                           }`}
                         >
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[9px] font-black tracking-wide text-slate-400">
+                            <span
+                              className={`text-[9px] font-black tracking-wide ${
+                                outbound ? "text-slate-400" : "text-[#128C7E]"
+                              }`}
+                            >
                               {label}
                             </span>
                             {isBot && msg.conditionBranch ? (
