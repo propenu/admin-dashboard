@@ -1,21 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  CalendarDays,
-  ChevronDown,
-  MapPin,
-  Phone,
-  User,
-  Users,
-} from "lucide-react";
+import { CalendarDays, ChevronDown, User, Users } from "lucide-react";
 import { StatCard } from "./ReusableComaponents";
+import { formatShortCount } from "../utils/formatShortCount";
 
 const LABELS = {
   total: "Total Users",
   active: "Active",
   joinedToday: "Joined Today",
-  phone: "Phone Verified",
-  locPending: "Location Pending",
 };
 
 export const StatCards = ({ stats, onStatClick, activeKey }) => {
@@ -28,6 +20,7 @@ export const StatCards = ({ stats, onStatClick, activeKey }) => {
       label: "Total",
       fullLabel: LABELS.total,
       value: stats.total,
+      display: formatShortCount(stats.total),
       emphasize: true,
       highlightValue: false,
       icon: Users,
@@ -37,6 +30,7 @@ export const StatCards = ({ stats, onStatClick, activeKey }) => {
       label: "Active",
       fullLabel: LABELS.active,
       value: stats.active,
+      display: formatShortCount(stats.active),
       emphasize: false,
       highlightValue: true,
       icon: User,
@@ -46,27 +40,10 @@ export const StatCards = ({ stats, onStatClick, activeKey }) => {
       label: "Today",
       fullLabel: LABELS.joinedToday,
       value: stats.joinedToday ?? 0,
+      display: formatShortCount(stats.joinedToday ?? 0),
       emphasize: false,
       highlightValue: false,
       icon: CalendarDays,
-    },
-    {
-      key: "phone",
-      label: "Phone",
-      fullLabel: LABELS.phone,
-      value: stats.phoneVerified,
-      emphasize: false,
-      highlightValue: false,
-      icon: Phone,
-    },
-    {
-      key: "locPending",
-      label: "Loc.",
-      fullLabel: LABELS.locPending,
-      value: stats.locPending,
-      emphasize: false,
-      highlightValue: false,
-      icon: MapPin,
     },
   ];
 
@@ -102,8 +79,8 @@ export const StatCards = ({ stats, onStatClick, activeKey }) => {
             </span>
             <span className="block truncate text-sm font-bold text-[#102033]">
               {selected.fullLabel}
-              <span className="ml-2 tabular-nums text-[#12A150]">
-                {selected.value}
+              <span className="ml-2 tabular-nums text-[#12A150]" title={String(selected.value)}>
+                {selected.display}
               </span>
             </span>
           </span>
@@ -167,8 +144,9 @@ export const StatCards = ({ stats, onStatClick, activeKey }) => {
                             ? "text-[#12A150]"
                             : "text-[#102033]"
                         }`}
+                        title={String(card.value)}
                       >
-                        {card.value}
+                        {card.display}
                       </span>
                     </button>
                   </motion.li>
@@ -179,16 +157,17 @@ export const StatCards = ({ stats, onStatClick, activeKey }) => {
         </AnimatePresence>
       </div>
 
-      {/* Desktop / tablet: card grid */}
-      <div className="mb-3 hidden grid-cols-6 gap-2 md:grid">
+      {/* Desktop / tablet: compact cards (not full-bleed) */}
+      <div className="mb-2.5 hidden flex-wrap items-stretch gap-1 md:flex">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
             <StatCard
               key={card.key}
               label={card.label}
-              value={card.value}
-              icon={<Icon className="h-4 w-4" aria-hidden />}
+              value={card.display}
+              title={String(card.value)}
+              icon={<Icon aria-hidden />}
               highlightValue={card.highlightValue}
               emphasize={card.emphasize}
               active={activeKey === card.key}

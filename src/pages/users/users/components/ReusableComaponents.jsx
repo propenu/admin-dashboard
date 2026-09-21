@@ -99,13 +99,14 @@ export const PhoneBadge = ({ verified }) =>
 export const StatCard = ({
   label,
   value,
+  title,
   icon,
   onClick,
   active = false,
   highlightValue = false,
   emphasize = false,
 }) => {
-  const className = `flex h-full w-full min-w-0 items-center gap-2 rounded-2xl border bg-gradient-to-br from-white to-[#f3faf6] px-2.5 py-2.5 text-left shadow-sm transition duration-150 ${
+  const className = `inline-flex w-auto min-w-0 max-w-full items-center gap-1 rounded-lg border bg-gradient-to-br from-white to-[#f3faf6] px-1.5 py-1 text-left shadow-sm transition duration-150 ${
     active || emphasize
       ? "border-[#12A150]/50 ring-1 ring-[#12A150]/10"
       : "border-[#dceee3]"
@@ -113,17 +114,18 @@ export const StatCard = ({
 
   const content = (
     <>
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#12A150]/10 text-[#12A150]">
+      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#12A150]/10 text-[#12A150] [&>svg]:h-2.5 [&>svg]:w-2.5">
         {icon}
       </div>
-      <div className="min-w-0">
-        <p className="truncate text-[8px] font-semibold uppercase tracking-[0.06em] text-slate-400 sm:text-[9px]">
+      <div className="min-w-0 leading-none">
+        <p className="truncate text-[7px] font-semibold uppercase tracking-[0.04em] text-slate-400">
           {label}
         </p>
         <p
-          className={`mt-0.5 text-lg font-bold tabular-nums leading-none tracking-tight sm:text-xl ${
+          className={`mt-px text-sm font-bold tabular-nums tracking-tight ${
             highlightValue ? "text-[#12A150]" : "text-[#102033]"
           }`}
+          title={title || undefined}
         >
           {value}
         </p>
@@ -133,13 +135,23 @@ export const StatCard = ({
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className={className} aria-pressed={active}>
+      <button
+        type="button"
+        onClick={onClick}
+        className={className}
+        aria-pressed={active}
+        title={title || undefined}
+      >
         {content}
       </button>
     );
   }
 
-  return <div className={className}>{content}</div>;
+  return (
+    <div className={className} title={title || undefined}>
+      {content}
+    </div>
+  );
 };
 
 const OPTION_TONES = [

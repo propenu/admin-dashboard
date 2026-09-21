@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Mail, Search, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { getUserSearch } from "../../../../../features/user/userService";
+import {
+  getUserSearch,
+  unpackUserSearch,
+} from "../../../../../features/user/userService";
 import {
   assignExistingBuilderToProject,
   directCreateBuilderOnProject,
@@ -11,6 +14,8 @@ import {
 } from "../../../../../features/property/propertyService";
 import { useCurrentUser } from "../../../../../store/properties/useCurrentUser";
 import { canDirectCreateBuilder } from "../../../../../utils/projectAccessControl";
+
+const SEARCH_PAGE_SIZE = 20;
 
 const inp =
   "w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10";
@@ -49,6 +54,9 @@ export default function BuilderAttachPanel({
   const [mode, setMode] = useState("");
   const [builderId, setBuilderId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [searchPage, setSearchPage] = useState(1);
+  const [builderPages, setBuilderPages] = useState([]);
   const [emails, setEmails] = useState([""]);
   const [company, setCompany] = useState("");
   const [directForm, setDirectForm] = useState({
@@ -63,37 +71,64 @@ export default function BuilderAttachPanel({
     phone: "",
   });
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedQ(searchQuery.trim());
+      setSearchPage(1);
+      setBuilderPages([]);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
   const buildersQuery = useQuery({
-    queryKey: ["builder-attach-panel", "builders"],
+    queryKey: [
+      "builder-attach-panel",
+      "builders",
+      debouncedQ,
+      searchPage,
+    ],
     enabled: editing && mode === "existing_builder",
     queryFn: async () => {
-      const res = await getUserSearch({ role: "builder", limit: 200 });
-      const rows =
-        res?.data?.results ||
-        res?.data?.data?.results ||
-        res?.data?.data ||
-        (Array.isArray(res?.data) ? res.data : []);
-      return Array.isArray(rows) ? rows : [];
+      const res = await getUserSearch({
+        role: "builder",
+        page: searchPage,
+        limit: SEARCH_PAGE_SIZE,
+        ...(debouncedQ ? { q: debouncedQ } : {}),
+      });
+      return unpackUserSearch(res);
     },
-    staleTime: 60_000,
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
 
-  const builders = buildersQuery.data || [];
-  const filtered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return builders;
-    return builders.filter((b) =>
-      [b.name, b.email, b.phone, b.city, b.locality]
-        .map((x) => String(x || "").toLowerCase())
-        .join(" ")
-        .includes(q),
-    );
-  }, [builders, searchQuery]);
+  useEffect(() => {
+    if (!buildersQuery.data?.results) return;
+    setBuilderPages((prev) => {
+      if (searchPage <= 1) return buildersQuery.data.results;
+      const seen = new Set(prev.map((b) => String(b._id)));
+      const next = [...prev];
+      for (const row of buildersQuery.data.results) {
+        const id = String(row._id);
+        if (!seen.has(id)) {
+          seen.add(id);
+          next.push(row);
+        }
+      }
+      return next;
+    });
+  }, [buildersQuery.data, searchPage]);
+
+  const builders = builderPages;
+  const searchMeta = buildersQuery.data?.meta;
+  const hasMoreBuilders = Boolean(searchMeta?.hasMore);
 
   const resetForm = () => {
     setMode("");
     setBuilderId("");
     setSearchQuery("");
+    setDebouncedQ("");
+    setSearchPage(1);
+    setBuilderPages([]);
     setEmails([""]);
     setCompany("");
     setDirectForm({ name: "", email: "", phone: "", companyName: "" });
@@ -353,17 +388,17 @@ export default function BuilderAttachPanel({
               <select
                 className={inp}
                 value={builderId}
-                disabled={buildersQuery.isLoading}
+                disabled={buildersQuery.isLoading && !builders.length}
                 onChange={(e) => setBuilderId(e.target.value)}
               >
                 <option value="">
-                  {buildersQuery.isLoading
+                  {buildersQuery.isLoading && !builders.length
                     ? "Loading builders…"
-                    : filtered.length
+                    : builders.length
                       ? "— Select existing builder —"
                       : "No builders found"}
                 </option>
-                {filtered.map((b) => (
+                {builders.map((b) => (
                   <option key={b._id} value={String(b._id)}>
                     {b.name || "Unnamed"}
                     {b.city ? ` · ${b.city}` : ""}
@@ -371,6 +406,25 @@ export default function BuilderAttachPanel({
                   </option>
                 ))}
               </select>
+              <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-slate-500">
+                <span>
+                  {searchMeta?.total
+                    ? `Showing ${builders.length} of ${searchMeta.total}`
+                    : builders.length
+                      ? `${builders.length} builders`
+                      : ""}
+                </span>
+                {hasMoreBuilders ? (
+                  <button
+                    type="button"
+                    className="font-bold text-[#27AE60] hover:underline disabled:opacity-50"
+                    disabled={buildersQuery.isFetching}
+                    onClick={() => setSearchPage((p) => p + 1)}
+                  >
+                    {buildersQuery.isFetching ? "Loading…" : "Load more"}
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : null}
 

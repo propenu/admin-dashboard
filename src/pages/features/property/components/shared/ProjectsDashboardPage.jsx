@@ -1924,7 +1924,7 @@ export default function ProjectsDashboardPage() {
   // Builder role only (not builder_staff). Options = all builders; filter uses createdBy.
   const { data: allBuildersSearch } = useQuery({
     queryKey: ["project-page-builders-only"],
-    queryFn: () => getUserSearch("builder"),
+    queryFn: () => getUserSearch({ role: "builder", page: 1, limit: 20 }),
     enabled: Boolean(currentUser),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -1935,9 +1935,11 @@ export default function ProjectsDashboardPage() {
 
     const searchResults = Array.isArray(allBuildersSearch?.data?.results)
       ? allBuildersSearch.data.results
-      : Array.isArray(allBuildersSearch?.results)
-        ? allBuildersSearch.results
-        : [];
+      : Array.isArray(allBuildersSearch?.data?.data)
+        ? allBuildersSearch.data.data
+        : Array.isArray(allBuildersSearch?.results)
+          ? allBuildersSearch.results
+          : [];
 
     for (const builder of searchResults) {
       const role =

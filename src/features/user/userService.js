@@ -133,13 +133,40 @@ export const updateFollowUpWorkStatus = (id, followUpWorkStatus) => {
   });
 };
 
-// User search — `role` may be a string, or params object ({ role, createdFrom, createdTo })
+// User search — `role` may be a string, or params object ({ role, q, page, limit, createdFrom, createdTo })
+// Default page=1, limit=20 (server-paginated).
 export const getUserSearch = (queryOrParams, extraParams = {}) => {
   const params =
     queryOrParams && typeof queryOrParams === "object"
       ? { ...queryOrParams, ...extraParams }
       : { role: queryOrParams, ...extraParams };
+  if (params.page == null) params.page = 1;
+  if (params.limit == null && params.pageSize == null) params.limit = 20;
   return apiClient.get(`${SERVICES.USER}/auth/search`, { params });
+};
+
+/** Normalize /auth/search payload → { results, meta } */
+export const unpackUserSearch = (payload) => {
+  const body = payload?.data ?? payload;
+  const results = Array.isArray(body?.results)
+    ? body.results
+    : Array.isArray(body?.data)
+      ? body.data
+      : Array.isArray(body)
+        ? body
+        : [];
+  const meta = {
+    total: Number(body?.meta?.total ?? body?.count ?? results.length) || 0,
+    page: Math.max(1, Number(body?.meta?.page) || 1),
+    limit: Math.max(1, Number(body?.meta?.limit) || 20),
+    pages: Math.max(1, Number(body?.meta?.pages) || 1),
+    hasMore: Boolean(
+      body?.meta?.hasMore ??
+        (Number(body?.meta?.page || 1) * Number(body?.meta?.limit || 20) <
+          Number(body?.meta?.total || 0)),
+    ),
+  };
+  return { results, meta, count: results.length };
 };
 
 //User Details

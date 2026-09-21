@@ -7,13 +7,14 @@ import { Header } from "./components/Header";
 import { StatCards } from "./components/StatCards";
 import { UserFilters } from "./components/UserFilters";
 import { MobileRoleTabs } from "./components/MobileRoleTabs";
-import { useUsers } from "./hook/useUserData";
+import { normalizeUsersResponse, useUsers } from "./hook/useUserData";
+import { getAllUsers } from "../../../features/user/userService";
 import { MobileCardView } from "./components/MobileCardView";
 import { DesktopTable } from "./components/DesktopTable";
 import { Pagination } from "./components/Pagination";
 import SafeUserDeleteModal from "./components/SafeUserDeleteModal";
 import { roleLabel } from "./constants/roleLabels";
-import { todayIstIso, toIstIso } from "./utils/dateTime";
+import { todayIstIso } from "./utils/dateTime";
 import {
   clearUsersFilterStorage,
   DEFAULT_PAGE_SIZE,
@@ -30,41 +31,43 @@ import {
 } from "../../../features/accessControl/accessControlService";
 import { canUseLifecycleActions } from "../../../utils/userLifecycleAccess";
 
-const ONBOARDING_STATUSES = [
-  "location_pending",
-  "kyc_pending",
-  "pending",
-  "incomplete",
-];
-
-const matchesAccountStatus = (userStatus, filterStatus) => {
-  if (!filterStatus) return true;
-  const status = String(userStatus || "").toLowerCase();
-  if (filterStatus === "onboarding") return ONBOARDING_STATUSES.includes(status);
-  if (filterStatus === "inactive") {
-    return status === "inactive" || status === "";
+/** Build query params for GET /auth/all-users — fixed limit 20 (same as backend). */
+const buildUsersApiParams = ({
+  page = 1,
+  q = "",
+  location = "",
+  role = "all",
+  status = "",
+  phone = "",
+  active = "",
+  date = "",
+  from = "",
+  to = "",
+  exportMode = false,
+} = {}) => {
+  const params = {
+    page: Math.max(1, Number(page) || 1),
+    limit: exportMode ? 5000 : DEFAULT_PAGE_SIZE,
+    platformOnly: 1,
+  };
+  if (exportMode) params.export = 1;
+  const search = String(q || "").trim();
+  if (search) params.q = search;
+  const loc = String(location || "").trim();
+  if (loc) params.location = loc;
+  if (role && role !== "all") params.role = role;
+  if (status === "onboarding") params.filter = "onboarding";
+  else if (status) params.status = status;
+  if (phone) params.phone = phone;
+  if (active) params.active = active;
+  if (from && to) {
+    params.createdFrom = from;
+    params.createdTo = to;
+  } else if (date) {
+    params.createdFrom = date;
+    params.createdTo = date;
   }
-  return status === filterStatus;
-};
-
-const matchesLocation = (user, query) => {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return [user.locality, user.city, user.state, user.pincode]
-    .filter(Boolean)
-    .some((part) => String(part).toLowerCase().includes(q));
-};
-
-const matchesKyc = (kyc, filterKycStatus) => {
-  if (!filterKycStatus) return true;
-  const kycStatus = String(kyc?.status || "not_started").toLowerCase();
-  if (filterKycStatus === "pending") {
-    return kycStatus === "pending" || kycStatus === "not_started";
-  }
-  if (filterKycStatus === "not_started") {
-    return kycStatus === "not_started";
-  }
-  return kycStatus === filterKycStatus;
+  return params;
 };
 
 export default function Users() {
@@ -93,14 +96,6 @@ export default function Users() {
   const [filterPhoneVerified, setFilterPhoneVerified] = useState("");
   const [filterIsActive, setFilterIsActive] = useState("");
   const [filterRole, setFilterRole] = useState("all");
-  const {
-    data: allUsers = [],
-    isLoading,
-    isFetching,
-    isError,
-    error,
-    refetch,
-  } = useUsers();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState("");
   const [isExporting, setIsExporting] = useState(false);
@@ -114,15 +109,79 @@ export default function Users() {
   const [page, setPage] = useState(() =>
     parsePositiveInt(searchParams.get("page"), 1),
   );
-  const [pageSize, setPageSize] = useState(() =>
-    parsePositiveInt(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE),
-  );
+  const pageSize = DEFAULT_PAGE_SIZE;
 
   const [actorRoleName, setActorRoleName] = useState("");
   const [currentUserId, setCurrentUserId] = useState("");
   const [statusBusyId, setStatusBusyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const apiParams = useMemo(
+    () =>
+      buildUsersApiParams({
+        page,
+        q: search,
+        location: locationSearch,
+        role: filterRole,
+        status: filterAccountStatus,
+        phone: filterPhoneVerified,
+        active: filterIsActive,
+        date: selectedDate,
+        from: fromDate,
+        to: toDate,
+      }),
+    [
+      page,
+      search,
+      locationSearch,
+      filterRole,
+      filterAccountStatus,
+      filterPhoneVerified,
+      filterIsActive,
+      selectedDate,
+      fromDate,
+      toDate,
+    ],
+  );
+
+  const {
+    data: usersPayload,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useUsers(apiParams);
+
+  const pagedUsers = usersPayload?.data || [];
+  const meta = usersPayload?.meta || {
+    total: 0,
+    page: 1,
+    limit: pageSize,
+    pages: 1,
+  };
+  const stats = usersPayload?.stats || {
+    total: 0,
+    active: 0,
+    kycVerified: 0,
+    phoneVerified: 0,
+    locPending: 0,
+    joinedToday: 0,
+  };
+  const roleTabCounts = usersPayload?.roleCounts || {
+    all: 0,
+    user: 0,
+    builder: 0,
+    builder_staff: 0,
+    agent: 0,
+  };
+
+  const totalFiltered = meta.total || 0;
+  const totalPages = Math.max(1, meta.pages || 1);
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const rangeStart = totalFiltered === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safePage * pageSize, totalFiltered);
 
   useEffect(() => {
     fetchLoggedInUser()
@@ -222,11 +281,7 @@ export default function Users() {
     if (stored.q) params.set("q", stored.q);
     if (stored.location) params.set("location", stored.location);
     const storedPage = parsePositiveInt(stored.page, 1);
-    const storedPageSize = parsePositiveInt(stored.pageSize, DEFAULT_PAGE_SIZE);
     if (storedPage > 1) params.set("page", String(storedPage));
-    if (storedPageSize !== DEFAULT_PAGE_SIZE) {
-      params.set("pageSize", String(storedPageSize));
-    }
 
     if ([...params.keys()].length === 0) return;
     skipPersistRef.current = true;
@@ -235,7 +290,6 @@ export default function Users() {
     setLocationInput(stored.location || "");
     setLocationSearch(stored.location || "");
     setPage(storedPage);
-    setPageSize(storedPageSize);
     setSearchParams(params, { replace: true });
     queueMicrotask(() => {
       skipPersistRef.current = false;
@@ -262,10 +316,6 @@ export default function Users() {
     const q = searchParams.get("q") || searchParams.get("search") || "";
     const loc = searchParams.get("location") || "";
     const nextPage = parsePositiveInt(searchParams.get("page"), 1);
-    const nextPageSize = parsePositiveInt(
-      searchParams.get("pageSize"),
-      DEFAULT_PAGE_SIZE,
-    );
 
     let nextDate = dateParam;
     if (!nextDate && joined === "today") nextDate = todayIstIso();
@@ -283,7 +333,6 @@ export default function Users() {
     setFromDate(rangeFrom);
     setToDate(rangeTo);
     setPage(nextPage);
-    setPageSize(nextPageSize);
     if (lastUrlTextRef.current.q !== q) {
       lastUrlTextRef.current.q = q;
       setSearchInput(q);
@@ -342,11 +391,7 @@ export default function Users() {
     if (next.q) params.set("q", next.q);
     if (next.location) params.set("location", next.location);
     const nextPage = parsePositiveInt(next.page, 1);
-    const nextPageSize = parsePositiveInt(next.pageSize, DEFAULT_PAGE_SIZE);
     if (nextPage > 1) params.set("page", String(nextPage));
-    if (nextPageSize !== DEFAULT_PAGE_SIZE) {
-      params.set("pageSize", String(nextPageSize));
-    }
     return params;
   };
 
@@ -367,7 +412,6 @@ export default function Users() {
       q: next.q || "",
       location: next.location || "",
       page: parsePositiveInt(next.page, 1),
-      pageSize: parsePositiveInt(next.pageSize, DEFAULT_PAGE_SIZE),
     };
     const hasAny =
       Boolean(state.status) ||
@@ -380,8 +424,7 @@ export default function Users() {
       Boolean(state.q) ||
       Boolean(state.location) ||
       (state.role && state.role !== "all") ||
-      state.page > 1 ||
-      state.pageSize !== DEFAULT_PAGE_SIZE;
+      state.page > 1;
     if (!hasAny) {
       clearUsersFilterStorage();
       return;
@@ -393,7 +436,6 @@ export default function Users() {
     const payload = {
       ...next,
       page: parsePositiveInt(next.page, page),
-      pageSize: parsePositiveInt(next.pageSize, pageSize),
     };
     const params = buildParams(payload);
     persistFilters(payload);
@@ -409,8 +451,23 @@ export default function Users() {
     q: searchInput,
     location: locationInput,
     page,
-    pageSize,
   });
+
+  // Clamp URL page when server meta shrinks (filters / delete)
+  useEffect(() => {
+    if (isLoading || isFetching) return;
+    if (page <= totalPages) return;
+    const next = totalPages;
+    setPage(next);
+    syncUrl({
+      ...currentFilterBase(),
+      date: selectedDate,
+      from: fromDate,
+      to: toDate,
+      page: next,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPages, page, isLoading, isFetching]);
 
   // Debounce text filters into URL + session (survives leaving All Users)
   useEffect(() => {
@@ -432,7 +489,6 @@ export default function Users() {
         q: searchInput,
         location: locationInput,
         page: 1,
-        pageSize,
       });
     }, 300);
     return () => clearTimeout(t);
@@ -531,175 +587,6 @@ export default function Users() {
     syncUrl(next);
   };
 
-  const users = useMemo(
-    () =>
-      allUsers.filter((u) => {
-        const roleKey = String(u.roleName || u.role || u.roleId?.name || "")
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "_");
-        const platformRoles = new Set([
-          "user",
-          "users",
-          "owner",
-          "owners",
-          "builder",
-          "builders",
-          "builder_staff",
-          "builderstaff",
-          "agent",
-          "agents",
-        ]);
-        if (filterRole === "all") {
-          return platformRoles.has(roleKey);
-        }
-        const wanted = String(filterRole || "")
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "_");
-        if (wanted === "user") {
-          return ["user", "users", "owner", "owners"].includes(roleKey);
-        }
-        if (wanted === "agent") return roleKey === "agent" || roleKey === "agents";
-        if (wanted === "builder") return roleKey === "builder" || roleKey === "builders";
-        if (wanted === "builder_staff") {
-          return roleKey === "builder_staff" || roleKey === "builderstaff";
-        }
-        return roleKey === wanted;
-      }),
-    [allUsers, filterRole],
-  );
-
-  const roleTabCounts = useMemo(() => {
-    const countFor = (wanted) =>
-      allUsers.filter((u) => {
-        const roleKey = String(u.roleName || u.role || u.roleId?.name || "")
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "_");
-        const platformRoles = new Set([
-          "user",
-          "users",
-          "owner",
-          "owners",
-          "builder",
-          "builders",
-          "builder_staff",
-          "builderstaff",
-          "agent",
-          "agents",
-        ]);
-        if (wanted === "all") return platformRoles.has(roleKey);
-        if (wanted === "user") {
-          return ["user", "users", "owner", "owners"].includes(roleKey);
-        }
-        if (wanted === "agent") return roleKey === "agent" || roleKey === "agents";
-        if (wanted === "builder") return roleKey === "builder" || roleKey === "builders";
-        if (wanted === "builder_staff") {
-          return roleKey === "builder_staff" || roleKey === "builderstaff";
-        }
-        return roleKey === wanted;
-      }).length;
-
-    return {
-      all: countFor("all"),
-      user: countFor("user"),
-      builder: countFor("builder"),
-      builder_staff: countFor("builder_staff"),
-      agent: countFor("agent"),
-    };
-  }, [allUsers]);
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-
-    return users
-      .filter((u) => {
-        if (
-          q &&
-          !u.name?.toLowerCase().includes(q) &&
-          !u.phone?.includes(q) &&
-          !u.email?.toLowerCase().includes(q) &&
-          !String(u._id || "").toLowerCase().includes(q) &&
-          !String(u.id || "").toLowerCase().includes(q) &&
-          !String(u.userId || "").toLowerCase().includes(q)
-        ) {
-          return false;
-        }
-
-        if (!matchesLocation(u, locationSearch)) return false;
-        if (!matchesAccountStatus(u.accountStatus, filterAccountStatus)) {
-          return false;
-        }
-        if (!matchesKyc(u.kyc, filterKycStatus)) return false;
-
-        if (filterPhoneVerified) {
-          const verified = Boolean(u.phoneVerified);
-          if (filterPhoneVerified === "true" && !verified) return false;
-          if (filterPhoneVerified === "false" && verified) return false;
-        }
-
-        // Active = already onboarded (accountStatus === "active")
-        if (filterIsActive) {
-          const onboarded = String(u.accountStatus || "").toLowerCase() === "active";
-          if (filterIsActive === "true" && !onboarded) return false;
-          if (filterIsActive === "false" && onboarded) return false;
-        }
-
-        const createdDay = toIstIso(u.createdAt);
-        if (selectedDate && createdDay !== selectedDate) return false;
-        if (fromDate || toDate) {
-          if (!createdDay) return false;
-          if (fromDate && createdDay < fromDate) return false;
-          if (toDate && createdDay > toDate) return false;
-        }
-
-        return true;
-      })
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt || 0).getTime() -
-          new Date(a.createdAt || 0).getTime(),
-      );
-  }, [
-    users,
-    search,
-    locationSearch,
-    filterAccountStatus,
-    filterKycStatus,
-    filterPhoneVerified,
-    filterIsActive,
-    selectedDate,
-    fromDate,
-    toDate,
-  ]);
-
-  const stats = useMemo(
-    () => ({
-      total: users.length,
-      active: users.filter(
-        (u) => String(u.accountStatus || "").toLowerCase() === "active",
-      ).length,
-      kycVerified: users.filter((u) => u.kyc?.status === "verified").length,
-      phoneVerified: users.filter((u) => u.phoneVerified).length,
-      locPending: users.filter((u) => u.accountStatus === "location_pending")
-        .length,
-      joinedToday: users.filter((u) => toIstIso(u.createdAt) === todayIstIso())
-        .length,
-    }),
-    [users],
-  );
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-
-  const pagedUsers = useMemo(() => {
-    const start = (safePage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, safePage, pageSize]);
-  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
-  const rangeEnd = Math.min(safePage * pageSize, filtered.length);
-
   const hasFilters = Boolean(
     searchInput ||
       locationInput ||
@@ -734,7 +621,6 @@ export default function Users() {
     setCustomTo(todayIstIso());
     setCustomError("");
     setPage(1);
-    setPageSize(DEFAULT_PAGE_SIZE);
     setSearchParams({}, { replace: true });
   };
 
@@ -751,7 +637,6 @@ export default function Users() {
       q: searchInput,
       location: locationInput,
       page: 1,
-      pageSize,
     };
     setPage(1);
 
@@ -763,18 +648,6 @@ export default function Users() {
       syncUrl({ ...base, status: "active" });
       return;
     }
-    if (key === "kyc") {
-      syncUrl({ ...base, kyc: "verified" });
-      return;
-    }
-    if (key === "phone") {
-      syncUrl({ ...base, phone: "true" });
-      return;
-    }
-    if (key === "locPending") {
-      syncUrl({ ...base, status: "location_pending" });
-      return;
-    }
     if (key === "joinedToday") {
       syncUrl({ ...base, date: todayIstIso() });
     }
@@ -782,7 +655,6 @@ export default function Users() {
 
   const handleRefresh = async () => {
     if (isRefreshing || isFetching) return;
-    // In-page Refresh = reset working filters to initial + reload data
     clearAll();
     setIsRefreshing(true);
     setRefreshError("");
@@ -795,14 +667,30 @@ export default function Users() {
     }
   };
 
-  const handleExportExcel = () => {
-    if (!filtered.length) {
-      toast.message("No users to download for the current filters");
-      return;
-    }
+  const handleExportExcel = async () => {
     setIsExporting(true);
     try {
-      const rows = filtered.map((u, i) => ({
+      const exportParams = buildUsersApiParams({
+        page: 1,
+        q: search,
+        location: locationSearch,
+        role: filterRole,
+        status: filterAccountStatus,
+        phone: filterPhoneVerified,
+        active: filterIsActive,
+        date: selectedDate,
+        from: fromDate,
+        to: toDate,
+        exportMode: true,
+      });
+      const res = await getAllUsers(exportParams);
+      const normalized = normalizeUsersResponse(res?.data);
+      const rowsSource = normalized.data || [];
+      if (!rowsSource.length) {
+        toast.message("No users to download for the current filters");
+        return;
+      }
+      const rows = rowsSource.map((u, i) => ({
         NO: i + 1,
         Name: u.name || "",
         Email: u.email || "",
@@ -830,7 +718,9 @@ export default function Users() {
         }),
         `users-filtered-${stamp}.xlsx`,
       );
-      toast.success(`Downloaded ${filtered.length} user${filtered.length === 1 ? "" : "s"}`);
+      toast.success(
+        `Downloaded ${rowsSource.length} user${rowsSource.length === 1 ? "" : "s"}`,
+      );
     } catch {
       toast.error("Could not export Excel. Try again.");
     } finally {
@@ -848,24 +738,8 @@ export default function Users() {
       from: fromDate,
       to: toDate,
       page: target,
-      pageSize,
     });
     tableTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const changePageSize = (size) => {
-    const nextSize = parsePositiveInt(size, DEFAULT_PAGE_SIZE);
-    setPageSize(nextSize);
-    setPage(1);
-    skipPersistRef.current = false;
-    syncUrl({
-      ...currentFilterBase(),
-      date: selectedDate,
-      from: fromDate,
-      to: toDate,
-      page: 1,
-      pageSize: nextSize,
-    });
   };
 
   /** Save filters + page, then open user — Back returns to same list state */
@@ -879,7 +753,6 @@ export default function Users() {
         from: fromDate,
         to: toDate,
         page: safePage,
-        pageSize,
       };
       skipPersistRef.current = false;
       writeUsersFilterStorage(working);
@@ -903,7 +776,6 @@ export default function Users() {
       fromDate,
       toDate,
       safePage,
-      pageSize,
       navigate,
       setSearchParams,
     ],
@@ -920,8 +792,8 @@ export default function Users() {
       <Header
         isLoading={isLoading}
         isRefreshing={isRefreshing || isFetching}
-        usersCount={users.length}
-        filteredCount={filtered.length}
+        usersCount={stats.total || totalFiltered}
+        filteredCount={totalFiltered}
         onRefresh={handleRefresh}
         error={refreshError}
       />
@@ -933,15 +805,9 @@ export default function Users() {
             ? "joinedToday"
             : filterAccountStatus === "active"
               ? "active"
-              : filterAccountStatus === "location_pending"
-                ? "locPending"
-                : filterKycStatus === "verified"
-                  ? "kyc"
-                  : filterPhoneVerified === "true"
-                    ? "phone"
-                    : !hasFilters
-                      ? "total"
-                      : null
+              : !hasFilters
+                ? "total"
+                : null
         }
         onStatClick={applyStatFilter}
       />
@@ -976,7 +842,7 @@ export default function Users() {
         setFilterRole={(value) => patchFilters({ role: value || "all" })}
         hasFilters={hasFilters}
         clearAll={clearAll}
-        filteredCount={filtered.length}
+        filteredCount={totalFiltered}
         isExporting={isExporting}
         onExportExcel={handleExportExcel}
       />
@@ -987,8 +853,8 @@ export default function Users() {
       >
         <DesktopTable
           filtered={pagedUsers}
-          loading={isLoading && !allUsers.length}
-          error={loadError && !allUsers.length ? loadError : ""}
+          loading={isLoading && !pagedUsers.length}
+          error={loadError && !pagedUsers.length ? loadError : ""}
           hasFilters={hasFilters}
           rowOffset={(safePage - 1) * pageSize}
           onRetry={handleRefresh}
@@ -1004,7 +870,7 @@ export default function Users() {
         />
         <MobileCardView
           filtered={pagedUsers}
-          loading={isLoading && !allUsers.length}
+          loading={isLoading && !pagedUsers.length}
           hasFilters={hasFilters}
           onClearFilters={clearAll}
           onOpenUser={openUserDetail}
@@ -1019,9 +885,7 @@ export default function Users() {
         <Pagination
           rangeStart={rangeStart}
           rangeEnd={rangeEnd}
-          totalFiltered={filtered.length}
-          pageSize={pageSize}
-          onPageSizeChange={changePageSize}
+          totalFiltered={totalFiltered}
           page={safePage}
           totalPages={totalPages}
           onPrev={() => goToPage(Math.max(1, safePage - 1))}

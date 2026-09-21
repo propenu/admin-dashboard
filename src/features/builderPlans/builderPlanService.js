@@ -10,7 +10,12 @@ export const builderPlanService = {
   create: (payload) => apiClient.post(BASE_URL, payload).then((response) => response.data),
   update: (id, payload) => apiClient.patch(`${BASE_URL}/${id}`, payload).then((response) => response.data),
   remove: (id) => apiClient.delete(`${BASE_URL}/${id}`).then((response) => response.data),
-  builders: () => apiClient.get("/api/users/auth/search?role=builder").then((response) => response.data?.results || []),
+  builders: () =>
+    apiClient
+      .get("/api/users/auth/search", {
+        params: { role: "builder", page: 1, limit: 20 },
+      })
+      .then((response) => response.data?.results || response.data?.data || []),
   builderProjects: (builderId) => apiClient.get("/api/properties/featured-project", { params: { createdBy: builderId, limit: 100, promotionStatus: "all" } }).then((response) => response.data?.items || []),
   createInvoice: (payload) => apiClient.post(INVOICE_URL, payload).then((response) => response.data),
   updateInvoice: (id, payload) => apiClient.patch(`${INVOICE_URL}/${id}`, payload).then((response) => response.data),

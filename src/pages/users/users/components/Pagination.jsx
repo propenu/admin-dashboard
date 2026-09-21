@@ -4,8 +4,6 @@ export const Pagination = ({
   rangeStart,
   rangeEnd,
   totalFiltered,
-  pageSize,
-  onPageSizeChange,
   page,
   totalPages,
   onPrev,
@@ -25,21 +23,9 @@ export const Pagination = ({
           <span className="font-semibold text-[#17212B]">{totalFiltered}</span>{" "}
           users
         </span>
-        <label className="sr-only" htmlFor="users-page-size">
-          Rows per page
-        </label>
-        <select
-          id="users-page-size"
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="rounded-lg border border-[#d9ebe0] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#17212B] focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10"
-        >
-          {[10, 20, 50, 100].map((size) => (
-            <option key={size} value={size}>
-              {size}/page
-            </option>
-          ))}
-        </select>
+        <span className="rounded-lg border border-[#d9ebe0] bg-[#f7fbf8] px-2.5 py-1.5 text-xs font-semibold text-[#17212B]">
+          20/page
+        </span>
       </div>
 
       <div className="flex items-center gap-2">

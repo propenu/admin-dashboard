@@ -11,7 +11,7 @@ export const Header = ({
   return (
     <div className="mb-3 flex items-start justify-between gap-2 sm:mb-4 sm:items-center">
       <div className="min-w-0">
-        <h1 className="text-xl font-bold tracking-tight text-[#102033] sm:text-[28px]">
+        <h1 className="text-xl font-bold tracking-tight text-[#12A150] sm:text-[28px]">
           Users
         </h1>
         <p className="mt-0.5 hidden text-sm text-slate-500 sm:block">
