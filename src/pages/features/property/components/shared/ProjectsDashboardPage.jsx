@@ -1,6 +1,6 @@
 // src/pages/features/property/components/shared/ProjectsDashboardPage.jsx
 import {
-  useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, useReducer, useDeferredValue, memo,
+  useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, useDeferredValue, memo,
 } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -14,7 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-import { useFeaturedProjects, PROJECT_BOARD_PAGE_SIZE } from "../../../../features/property/hooks/useFeaturedProjects";
+import { useFeaturedProjects, PROJECT_BOARD_PAGE_SIZE, PROJECT_BOARD_FETCH_SIZE } from "../../../../features/property/hooks/useFeaturedProjects";
 import { usePendingProjects }      from "../../../../features/property/hooks/usePendingProjects";
 import { getUserInDetails }        from "./userInDetails";
 import PropertyCard                from "../../../../features/property/components/shared/PropertyCard";
@@ -37,7 +37,6 @@ import {
 import {
   getPromotionTracking,
   promotionLifecycleClass,
-  promotionLifecycleCopy,
 } from "./promotionTracking";
 import { todayIso } from "../../../../Dashboards/shared/dashboardDateRange";
 import {
@@ -82,6 +81,18 @@ const CATEGORY_TYPES = [
   { value: "residential", label: "Residential"   },
   { value: "land",        label: "Land"          },
 ];
+
+const PRICE_SLICE_SORTS = new Set([
+  "0-1L",
+  "1L-5L",
+  "5L-10L",
+  "10L-25L",
+  "25L-50L",
+  "50L-1Cr",
+  "1Cr-2Cr",
+  "2Cr-5Cr",
+  "5Cr+",
+]);
 
 const SORT_OPTIONS = [
   { value: "newest", label: "Newest first" },
@@ -242,6 +253,9 @@ const TYPE_COLORS = [
 
 const PROJECTS_PER_PAGE = PROJECT_BOARD_PAGE_SIZE;
 
+const filteredPageCount = (total, pageSize = PROJECTS_PER_PAGE) =>
+  Math.max(1, Math.ceil(Math.max(0, Number(total) || 0) / pageSize));
+
 const ProjectGridCard = memo(function ProjectGridCard({
   property,
   canPermanentDelete,
@@ -291,25 +305,6 @@ const fmtNum = (n) => {
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 };
-
-// ───────────────────────────────────────────
-// PROJECT STATUS HELPER
-// ───────────────────────────────────────────
-
-const getProjectStatus = (project) => {
-  const tracking = getPromotionTracking(project);
-  if (tracking.currentType === "normal") {
-    return {
-      status: project.status || "inactive",
-      daysLeft: null,
-    };
-  }
-  return {
-    status: tracking.lifecycle === "critical" ? "expiringSoon" : tracking.lifecycle,
-    daysLeft: tracking.daysLeft,
-  };
-};
-
 
 const pct = (part, total) => (!total ? 0 : Math.round((part / total) * 100));
 
@@ -747,7 +742,7 @@ function BuilderSearchFilter({
 
 function InlineLocationSelector({
   properties,
-  analytics,
+  analytics: _analytics,
   masterAnalytics,
   selectedLocation,
   onLocationChange,
@@ -1372,7 +1367,7 @@ function AnalyticsOverviewRow({
   );
 }
 
-function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFilter }) {
+function AnalyticsPromotionRow({ ov, total: _total, activePromotionFilter, onPromotionFilter }) {
   // onPromotionFilter — independent action, only updates project list promotion filter
   const cards = [
     { key: "prime",     label: "Prime",       value: ov.primeProjects     ?? 0, icon: Star,       color: "text-yellow-700", bg: "bg-yellow-50",  border: "border-yellow-100", iconBg: "bg-yellow-100", bar: "bg-yellow-400" },
@@ -1405,7 +1400,7 @@ function AnalyticsPromotionRow({ ov, total, activePromotionFilter, onPromotionFi
   );
 }
 
-function AnalyticsCategoryBlock({ categoryWise, total }) {
+function AnalyticsCategoryBlock({ categoryWise, total: _total }) {
   const filtered = (categoryWise || []).filter((c) => c._id && c._id !== "unknown");
   if (!filtered.length) return null;
   return (
@@ -1466,7 +1461,7 @@ function AnalyticsPropertyTypeBlock({ propertyTypeWise }) {
   );
 }
 
-function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
+function AnalyticsLocationBlock({ analytics, locationType, locationLabel: _locationLabel }) {
  
    const [search, setSearch] = useState("");
 
@@ -1487,11 +1482,7 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel }) {
     );
   }
   
- // const maxVal = rows.reduce((m, r) => Math.max(m, r.total), 1);
- const maxVal =
-   rows?.length > 0 ? rows.reduce((m, r) => Math.max(m, r?.total || 0), 1) : 1;
-  
-   const isSingleRow = rows.length === 1;
+  const isSingleRow = rows.length === 1;
 
   return (
     <div className="custom-scrollbar h-[210px] overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-3 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-4">
@@ -1795,7 +1786,7 @@ export default function ProjectsDashboardPage() {
     adminBoard: true,
     promotionStatus: "all",
     prefetchAll: false,
-    pageSize: PROJECT_BOARD_PAGE_SIZE,
+    pageSize: PROJECT_BOARD_FETCH_SIZE,
     from: createdFrom,
     to: createdTo,
     status: serverListStatus,
@@ -1807,19 +1798,16 @@ export default function ProjectsDashboardPage() {
   const featuredHook = boardHook;
   const sponsoredHook = boardHook;
   const normalHook = boardHook;
-  const statusBoardHook = boardHook;
 
   const lifecycleHook = useFeaturedProjects(null, {
     promotionStatus: serverPromotionStatus,
-    prefetchAll: true,
-    pageSize: PROJECT_BOARD_PAGE_SIZE,
+    prefetchAll: false,
+    pageSize: PROJECT_BOARD_FETCH_SIZE,
     from: createdFrom,
     to: createdTo,
     status: serverListStatus,
     enabled: !!serverPromotionStatus,
   });
-
-  const isStatusBoardView = useUnifiedBoard && serverListStatus !== "all";
 
 
 
@@ -2073,6 +2061,8 @@ export default function ProjectsDashboardPage() {
     return Number.isInteger(savedPage) && savedPage > 0 ? savedPage : 1;
   });
   const hasMountedProjectFilters = useRef(false);
+  /** Advance UI page only after the next server page actually arrives. */
+  const pendingPageAdvanceRef = useRef(false);
   /** Avoid wiping sidebar drill-down query before state syncs from URL. */
   const allowUrlWrite = useRef(false);
 
@@ -2481,31 +2471,81 @@ export default function ProjectsDashboardPage() {
     });
   }, [promotionFilter, statusFilter]);
 
-  const paginationStart = (currentPage - 1) * PROJECTS_PER_PAGE;
-  const paginatedProperties = visibleProperties.slice(
-    paginationStart,
-    paginationStart + PROJECTS_PER_PAGE,
-  );
+  const isClientShrunkList =
+    isPendingApprovalsView ||
+    Boolean(projectTitleSearch.length >= 2 && serverSearchItems) ||
+    (trackingFilter !== "all" && !serverPromotionStatus) ||
+    categoryFilter !== "all" ||
+    propertyTypeFilter !== "all" ||
+    creatorBuilderFilter !== "all" ||
+    builderSearch.trim().length >= 2 ||
+    Boolean(selectedLocation) ||
+    Boolean(deferredProjectSearch) ||
+    PRICE_SLICE_SORTS.has(sortBy);
 
   const projectHooks = serverPromotionStatus
     ? [lifecycleHook]
     : [boardHook];
-  const hasMoreLoadedProjects =
-    paginationStart + PROJECTS_PER_PAGE < visibleProperties.length;
-  const nextPageEnd = (currentPage + 1) * PROJECTS_PER_PAGE;
-  const needsMoreProjectsForNextPage =
-    visibleProperties.length < nextPageEnd;
   const hasMoreServerProjects =
     !isPendingApprovalsView && projectHooks.some((hook) => hook.hasNextPage);
   const isFetchingMoreProjects = projectHooks.some(
     (hook) => hook.isFetchingNextPage,
   );
 
+  const loadedPageCount = filteredPageCount(visibleProperties.length);
+  const safePage = Math.min(currentPage, loadedPageCount);
+  const paginationStart = (safePage - 1) * PROJECTS_PER_PAGE;
+  const paginatedProperties = visibleProperties.slice(
+    paginationStart,
+    paginationStart + PROJECTS_PER_PAGE,
+  );
+  const hasMoreFilteredPages = safePage < loadedPageCount;
+  const canGoNext =
+    hasMoreFilteredPages ||
+    (!isClientShrunkList && hasMoreServerProjects);
+  const waitingForNextPage =
+    !hasMoreFilteredPages && isFetchingMoreProjects && canGoNext;
+
+  const catalogHasNext = serverPromotionStatus
+    ? lifecycleHook.hasNextPage
+    : boardHook.hasNextPage;
+  const catalogFetchingNext = serverPromotionStatus
+    ? lifecycleHook.isFetchingNextPage
+    : boardHook.isFetchingNextPage;
+  const catalogLoading = serverPromotionStatus
+    ? lifecycleHook.isLoading
+    : boardHook.isLoading;
+  const catalogFetchNext = serverPromotionStatus
+    ? lifecycleHook.fetchNextPage
+    : boardHook.fetchNextPage;
+  const catalogError = serverPromotionStatus
+    ? lifecycleHook.isError
+    : boardHook.isError;
+
+  // Keep two UI pages ahead in cache so Next never waits on the network.
+  useEffect(() => {
+    if (isPendingApprovalsView || catalogLoading || catalogError) return;
+    if (!catalogHasNext || catalogFetchingNext) return;
+    const needed = (safePage + 2) * PROJECTS_PER_PAGE;
+    if (visibleProperties.length >= needed) return;
+    catalogFetchNext();
+  }, [
+    isPendingApprovalsView,
+    catalogLoading,
+    catalogError,
+    catalogHasNext,
+    catalogFetchingNext,
+    catalogFetchNext,
+    safePage,
+    visibleProperties.length,
+  ]);
+
   useEffect(() => {
     if (!hasMountedProjectFilters.current) {
       hasMountedProjectFilters.current = true;
       return;
     }
+    pendingPageAdvanceRef.current = false;
     setCurrentPage(1);
   }, [
     promotionFilter,
@@ -2513,6 +2553,7 @@ export default function ProjectsDashboardPage() {
     trackingFilter,
     categoryFilter,
     propertyTypeFilter,
+    creatorBuilderFilter,
     selectedLocation,
     projectSearch,
     sortBy,
@@ -2520,22 +2561,39 @@ export default function ProjectsDashboardPage() {
     createdTo,
   ]);
 
-  const handleNextPage = useCallback(async () => {
-    if (needsMoreProjectsForNextPage && hasMoreServerProjects) {
-      await Promise.all(
-        projectHooks.map((hook) =>
-          hook.hasNextPage && !hook.isFetchingNextPage
-            ? hook.fetchNextPage()
-            : Promise.resolve(),
-        ),
-      );
+  useEffect(() => {
+    if (isFetchingMoreProjects || isLoading) return;
+    if (currentPage > loadedPageCount) {
+      setCurrentPage(loadedPageCount);
+    }
+  }, [currentPage, loadedPageCount, isFetchingMoreProjects, isLoading]);
+
+  useEffect(() => {
+    if (!pendingPageAdvanceRef.current) return;
+    if (isFetchingMoreProjects) return;
+    pendingPageAdvanceRef.current = false;
+    setCurrentPage((page) => Math.min(page + 1, loadedPageCount));
+  }, [visibleProperties.length, isFetchingMoreProjects, loadedPageCount]);
+
+  const handleNextPage = useCallback(() => {
+    if (hasMoreFilteredPages) {
+      setCurrentPage((page) => Math.min(page + 1, loadedPageCount));
+      return;
     }
 
-    setCurrentPage((page) => page + 1);
+    if (isClientShrunkList || !hasMoreServerProjects) return;
+
+    pendingPageAdvanceRef.current = true;
+    if (!isFetchingMoreProjects) {
+      catalogFetchNext();
+    }
   }, [
-    needsMoreProjectsForNextPage,
+    catalogFetchNext,
+    hasMoreFilteredPages,
     hasMoreServerProjects,
-    projectHooks,
+    isClientShrunkList,
+    isFetchingMoreProjects,
+    loadedPageCount,
   ]);
 
   
@@ -2545,6 +2603,10 @@ export default function ProjectsDashboardPage() {
   // ── Mutation helpers — fully decoupled per action ─────────────────────────
   
   const displayedCount = useMemo(() => {
+    if (isClientShrunkList || trackingFilter !== "all") {
+      return visibleProperties.length;
+    }
+
     if (serverPromotionStatus) {
       return lifecycleHook.totalCount;
     }
@@ -2581,6 +2643,9 @@ export default function ProjectsDashboardPage() {
     return boardHook.totalCount || analytics?.overview?.totalProjects || 0;
   }, [
     analytics,
+    isClientShrunkList,
+    trackingFilter,
+    visibleProperties.length,
     serverPromotionStatus,
     lifecycleHook.totalCount,
     boardHook.totalCount,
@@ -3049,7 +3114,7 @@ export default function ProjectsDashboardPage() {
         </div>
 
         {/* Active scope indicator */}
-        {false && (selectedLocation || analyticsSearch) && (
+        {(selectedLocation || analyticsSearch) && (
           <div className="flex  flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100">
             <span className="text-[11px] text-slate-400 font-medium">
               Analytics scope:
@@ -3712,39 +3777,42 @@ export default function ProjectsDashboardPage() {
       )}
 
       {/* ── PROJECT PAGINATION ───────────────────────────────────────────── */}
-      {visibleProperties.length > 0 && (
+      {visibleProperties.length > 0 &&
+        (loadedPageCount > 1 || canGoNext || safePage > 1) && (
         <div className="flex flex-col items-center justify-center gap-3 border-t border-slate-100 pt-4 sm:flex-row">
           <button
             type="button"
-            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-            disabled={currentPage === 1 || isFetchingMoreProjects}
+            onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
+            disabled={safePage === 1}
             className="min-w-[110px] rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Previous
           </button>
 
-          <div className="min-w-[100px] text-center">
+          <div className="min-w-[120px] text-center">
             <p className="text-sm font-semibold text-slate-700">
-              Page {currentPage}
+              Page {safePage} of {loadedPageCount}
             </p>
             <p className="mt-0.5 text-xs text-slate-400">
               {paginationStart + 1}–
               {Math.min(
                 paginationStart + PROJECTS_PER_PAGE,
                 visibleProperties.length,
-              )}
+              )}{" "}
+              of {visibleProperties.length}
+              {isFetchingMoreProjects ? " · loading…" : ""}
             </p>
           </div>
 
           <button
             type="button"
             onClick={handleNextPage}
-            disabled={
-              isFetchingMoreProjects ||
-              (!hasMoreLoadedProjects && !hasMoreServerProjects)
-            }
+            disabled={!canGoNext}
             className="flex min-w-[110px] items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
+            {waitingForNextPage ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : null}
             Next
           </button>
         </div>

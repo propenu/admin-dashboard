@@ -20,6 +20,8 @@ function getYoutubeId(url) {
 }
 
 export default function PropertyDetailsSection({ data }) {
+  const [activeVideo, setActiveVideo] = useState(0);
+
   if (!data) return null;
 
   const color = data.color || PRIMARY;
@@ -39,8 +41,6 @@ export default function PropertyDetailsSection({ data }) {
   const videos = Array.isArray(data.youtubeVideos) ? data.youtubeVideos : [];
   const banks = Array.isArray(data.banksApproved) ? data.banksApproved : [];
   const sorted = [...videos].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-  const [activeVideo, setActiveVideo] = useState(0);
 
   /* ── Stats config ── */
  

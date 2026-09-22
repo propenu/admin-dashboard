@@ -3,28 +3,26 @@ import React, { useState, useMemo } from "react";
 import { compressImage } from "./imageCompressor";
 
 function HeroSectionBase({ data }) {
-  if (!data) return null;
-
   const hero = useMemo(
     () => ({
       heroImage:
-        typeof data.heroImage === "string"
+        typeof data?.heroImage === "string"
           ? data.heroImage
-          : data.heroImage instanceof File
+          : data?.heroImage instanceof File
             ? URL.createObjectURL(data.heroImage)
-            : data.heroImage?.url || data.heroImage?.location,
+            : data?.heroImage?.url || data?.heroImage?.location,
 
       logo:
-        typeof data.logo === "string"
+        typeof data?.logo === "string"
           ? data.logo
-          : data.logo instanceof File
+          : data?.logo instanceof File
             ? URL.createObjectURL(data.logo)
-            : data.logo?.url || data.logo?.location,
+            : data?.logo?.url || data?.logo?.location,
 
-      tagline: data.heroTagline,
-      subTagline: data.heroSubTagline,
-      description: data.heroDescription,
-      color: data.color || "#27AE60",
+      tagline: data?.heroTagline,
+      subTagline: data?.heroSubTagline,
+      description: data?.heroDescription,
+      color: data?.color || "#27AE60",
     }),
     [data],
   );
@@ -101,7 +99,7 @@ function HeroSectionBase({ data }) {
       },
     ];
 
-    if (data.reraNumber) {
+    if (data?.reraNumber) {
       items.push({
         label: "Approved",
         value: "RERA ✓",
@@ -114,6 +112,8 @@ function HeroSectionBase({ data }) {
   const [form, setForm]       = useState({ name: "", phone: "", email: "", message: "" });
   const [loading, setLoading] = useState(false);
   const [sent, setSent]       = useState(false);
+
+  if (!data) return null;
 
   function handleInput(e) {
     const { name, value } = e.target;

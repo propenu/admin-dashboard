@@ -107,6 +107,15 @@ export const validateTemplateBody = (rawText = "") => {
  */
 export const tipForMetaTemplateError = (msg = "") => {
   const m = String(msg || "").toLowerCase();
+  if (
+    (m.includes("image") || m.includes("video") || m.includes("document")) &&
+    (m.includes("header") || m.includes("example") || m.includes("sample"))
+  ) {
+    return "Fix: under Media sample, choose Image/Video/Document and upload a real sample file before Submit. Or choose None if you do not want a media header.";
+  }
+  if (m.includes("header_handle") || m.includes("media handle")) {
+    return "Fix: upload a media sample for the header (Meta needs it for review).";
+  }
   if (m.includes("start or end") || m.includes("beginning or end")) {
     return 'Fix: do not start or end the body with {{1}}. Put words before and after, e.g. "Hi {{1}}, … Thank you."';
   }
@@ -119,7 +128,14 @@ export const tipForMetaTemplateError = (msg = "") => {
   if (m.includes("already exists") || m.includes("language already")) {
     return "Fix: change the template name (e.g. add _v2) or pick another language.";
   }
-  if (m.includes("example")) {
+  // Body/header text variable examples ({{1}}, {{2}}) — not media headers
+  if (
+    m.includes("example") &&
+    (m.includes("variable") || m.includes("body") || m.includes("{{"))
+  ) {
+    return "Fix: fill sample values for every {{n}} variable before submit.";
+  }
+  if (m.includes("example") && !m.includes("header")) {
     return "Fix: fill sample values for every {{n}} variable before submit.";
   }
   return "";
@@ -159,14 +175,21 @@ export const buildPayload = (form) => {
       }
       components.push(h);
     } else if (["IMAGE", "VIDEO", "DOCUMENT"].includes(format)) {
-      if (!form.header.mediaHandle) {
+      const handle = String(form.header.mediaHandle || "").trim();
+      if (!handle) {
         throw new Error(`Header ${format.toLowerCase()} sample is required`);
+      }
+      // Meta rejects public URLs here — must be Resumable Upload handle (e.g. "4::…")
+      if (/^https?:\/\//i.test(handle)) {
+        throw new Error(
+          `Header ${format.toLowerCase()} sample is invalid. Re-upload the file so Meta can issue a media handle (S3/CDN URLs are not accepted).`,
+        );
       }
       components.push({
         type: "HEADER",
         format,
         example: {
-          header_handle: [form.header.mediaHandle],
+          header_handle: [handle],
         },
       });
     } else if (format === "LOCATION") {
@@ -213,19 +236,41 @@ export const buildPayload = (form) => {
     }
     const urlCount = form.buttons.filter((b) => b.type === "URL").length;
     const phoneCount = form.buttons.filter((b) => b.type === "PHONE_NUMBER").length;
+    const voiceCount = form.buttons.filter((b) => b.type === "VOICE_CALL").length;
+    const flowCount = form.buttons.filter((b) => b.type === "FLOW").length;
+    const copyCount = form.buttons.filter((b) => b.type === "COPY_CODE").length;
     if (urlCount > 2) throw new Error("At most 2 Visit website buttons allowed");
     if (phoneCount > 1) throw new Error("At most 1 Call phone number button allowed");
+    if (voiceCount > 1) throw new Error("At most 1 Call on WhatsApp button allowed");
+    if (flowCount > 1) throw new Error("At most 1 Complete flow button allowed");
+    if (copyCount > 1) throw new Error("At most 1 Copy offer code button allowed");
 
     components.push({
       type: "BUTTONS",
       buttons: form.buttons.map((b, index) => {
+        const type = String(b.type || "QUICK_REPLY").toUpperCase();
         const text = String(b.text || "").trim();
+
+        if (type === "COPY_CODE") {
+          const example = String(b.exampleCode || "").trim();
+          if (!example) {
+            throw new Error(`Button ${index + 1}: offer code example is required`);
+          }
+          return { type: "COPY_CODE", example };
+        }
+
+        if (type === "SHARE_CONTACT") {
+          return {
+            type: "QUICK_REPLY",
+            text: text || "Share contact info",
+          };
+        }
+
         if (!text) throw new Error(`Button ${index + 1}: text is required`);
         if (text.length > 25) {
           throw new Error(`Button ${index + 1}: text must be 25 characters or fewer`);
         }
 
-        const type = String(b.type || "QUICK_REPLY").toUpperCase();
         const btn = { type, text };
         if (type === "URL") {
           const url = String(b.url || "").trim();
@@ -239,6 +284,21 @@ export const buildPayload = (form) => {
           const phone = String(b.phone || "").trim();
           if (!phone) throw new Error(`Button "${text}": phone number is required`);
           btn.phone_number = phone;
+        }
+        if (type === "VOICE_CALL") {
+          const ttl = Number(b.ttlMinutes || 10080);
+          if (!Number.isFinite(ttl) || ttl < 1) {
+            throw new Error(`Button "${text}": active minutes must be a number`);
+          }
+          btn.ttl_minutes = ttl;
+        }
+        if (type === "FLOW") {
+          const flowId = String(b.flowId || "").trim();
+          if (!flowId) {
+            throw new Error(`Button "${text}": Flow ID is required`);
+          }
+          btn.flow_id = flowId;
+          btn.flow_action = "navigate";
         }
 
         return btn;

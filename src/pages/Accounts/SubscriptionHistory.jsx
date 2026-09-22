@@ -624,24 +624,6 @@ const SubscriptionHistoryPage = () => {
       });
   }, [permsLoading, subscriptionAccess.canViewHistory]);
 
-  if (permsLoading) return <LoadingSpinner />;
-  if (!subscriptionAccess.canViewHistory) {
-    return (
-      <HigherOfficialAccessNotice
-        title="Subscription history is disabled"
-        permissionLabel="Subscriptions → View History"
-      />
-    );
-  }
-
-  const handleSort = (field) => {
-    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else {
-      setSortField(field);
-      setSortDir("desc");
-    }
-  };
-
   const filteredAndSorted = useMemo(() => {
     let data = history.filter((item) => {
       const matchesSearch =
@@ -671,6 +653,24 @@ const SubscriptionHistoryPage = () => {
 
     return data;
   }, [history, searchTerm, filterType, sortField, sortDir]);
+
+  if (permsLoading) return <LoadingSpinner />;
+  if (!subscriptionAccess.canViewHistory) {
+    return (
+      <HigherOfficialAccessNotice
+        title="Subscription history is disabled"
+        permissionLabel="Subscriptions → View History"
+      />
+    );
+  }
+
+  const handleSort = (field) => {
+    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+  };
 
   // Summaries
   const totalSpend = history.reduce((s, i) => s + (i.price || 0), 0);

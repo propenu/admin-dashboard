@@ -716,16 +716,14 @@ function PlaceCard({ place, index, onUpdate, onRemove }) {
    MAIN LocationEditor
 ══════════════════════════════════════════════════════════════ */
 export default function LocationEditor({ formData, setFormData, onSave, saving }) {
-  if (!formData) return null;
-
  // const location = formData.location     || { type: "Point", coordinates: ["", ""] };
  const location = {
    type: "Point",
    coordinates: ["", ""],
-   ...(formData.location || {}),
+   ...(formData?.location || {}),
  };
 
-  const places   = formData.nearbyPlaces || [];
+  const places   = formData?.nearbyPlaces || [];
 
   const [markerPlaced, setMarkerPlaced] = useState(
     !!(location.coordinates?.[0] && location.coordinates?.[1])
@@ -895,6 +893,8 @@ export default function LocationEditor({ formData, setFormData, onSave, saving }
   useEffect(() => {
     return () => { gpsAbortRef.current?.abort(); };
   }, []);
+
+  if (!formData) return null;
 
   /* ════════════════════════════════════════════════════════════
      RENDER

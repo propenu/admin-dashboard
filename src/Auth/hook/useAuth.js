@@ -53,7 +53,7 @@ export const useVerifyOtp = () => {
 };
 
 
-export const adiminCreateOtp = () => {
+export const useAdminCreateOtp = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -70,7 +70,7 @@ export const adiminCreateOtp = () => {
 }
 
 
-export const adminCreateVerifyOtp = () => {
+export const useAdminCreateVerifyOtp = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -87,7 +87,7 @@ export const adminCreateVerifyOtp = () => {
     }
 
 
-export const adminCreateUserLocationDetails = () => {
+export const useAdminCreateUserLocationDetails = () => {
   const queryClient = useQueryClient();
 
   return useMutation({

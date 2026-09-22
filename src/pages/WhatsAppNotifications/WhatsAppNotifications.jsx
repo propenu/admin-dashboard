@@ -231,9 +231,11 @@ const WhatsAppNotifications = () => {
           submitting={submitting}
           onClose={() => setShowCreate(false)}
           onSubmit={async (payload) => {
-            await handleCreate(payload);
-            setShowCreate(false);
-            refetch?.();
+            const ok = await handleCreate(payload);
+            if (ok) {
+              setShowCreate(false);
+              refetch?.();
+            }
           }}
         />
       ) : null}
@@ -245,9 +247,11 @@ const WhatsAppNotifications = () => {
           submitting={submitting}
           onClose={() => setEditForm(null)}
           onSubmit={async (payload) => {
-            await handleCreate(payload);
-            setEditForm(null);
-            refetch?.();
+            const ok = await handleCreate(payload);
+            if (ok) {
+              setEditForm(null);
+              refetch?.();
+            }
           }}
         />
       ) : null}

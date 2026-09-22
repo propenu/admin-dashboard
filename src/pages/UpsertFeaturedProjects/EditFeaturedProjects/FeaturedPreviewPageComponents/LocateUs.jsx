@@ -227,7 +227,9 @@ export default function LocateUs(incomingProps) {
         const sw   = { lat: Math.min(...lats), lng: Math.min(...lngs) };
         const ne   = { lat: Math.max(...lats), lng: Math.max(...lngs) };
         map.fitBounds?.([sw, ne], { padding: [40, 40] });
-      } catch {}
+      } catch {
+        /* Mappls fitBounds can throw on invalid bounds */
+      }
     } else if (bounds.length === 1) {
       map.setCenter?.(bounds[0]);
       map.setZoom?.(13);
@@ -261,7 +263,9 @@ export default function LocateUs(incomingProps) {
       // Open popup if marker supports it
       const marker = nearbyMarkersRef.current[index];
       marker?.openPopup?.();
-    } catch {}
+    } catch {
+      /* Marker popup APIs differ across Mappls SDK versions */
+    }
   }
 
   // ─────────────────────────────────────────────

@@ -387,13 +387,28 @@ export const sentBulkWhatsAppNotification = (formData) => {
   );
 };
 
-/** Upload campaign header image → public S3 URL for Meta */
+/** Upload campaign header image → public S3 URL for Meta *sends* */
 export const uploadWhatsAppCampaignImage = (file) => {
   const fd = new FormData();
   fd.append("image", file);
   return apiClient.post(
     `${SERVICES.USER}/whatsapp/upload-campaign-image`,
     fd,
+  );
+};
+
+/**
+ * Upload IMAGE/VIDEO/DOCUMENT sample via Meta Resumable Upload.
+ * Returns { handle } for template create header_handle (S3 URLs are rejected by Meta).
+ */
+export const uploadWhatsAppTemplateMedia = (file, format = "IMAGE") => {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("format", String(format || "IMAGE").toUpperCase());
+  return apiClient.post(
+    `${SERVICES.USER}/whatsapp/upload-template-media`,
+    fd,
+    { timeout: 120000 },
   );
 };
 

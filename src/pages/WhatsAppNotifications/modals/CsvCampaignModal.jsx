@@ -479,21 +479,20 @@ export function CsvCampaignModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/45 p-0 md:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/25 p-0 backdrop-blur-[2px] md:items-center md:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose?.()}
     >
-      <div className="flex h-[96vh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl md:h-[90vh] md:rounded-2xl">
-        {/* Header */}
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+      <div className="flex h-[min(820px,88vh)] w-full max-w-[980px] flex-col overflow-hidden rounded-t-[28px] bg-[#f7fbf8] shadow-[0_24px_80px_rgba(16,185,129,0.16)] md:rounded-[28px]">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-emerald-100 bg-white px-5 py-4">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2563eb]/10 text-[#2563eb]">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#25D366] text-white shadow-[0_8px_18px_rgba(37,211,102,0.35)]">
               <MessageCircle size={20} />
             </div>
             <div className="min-w-0">
-              <h2 className="text-lg font-extrabold text-slate-900">
+              <h2 className="text-lg font-semibold tracking-tight text-[#0f3d2e]">
                 WhatsApp Campaign
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-[13px] text-[#5c7d6d]">
                 Create and send personalized WhatsApp campaigns.
               </p>
             </div>
@@ -501,7 +500,7 @@ export function CsvCampaignModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-full p-2 text-slate-400 hover:bg-emerald-50 hover:text-slate-700"
           >
             <X size={18} />
           </button>
@@ -509,12 +508,15 @@ export function CsvCampaignModal({
 
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-2">
           {/* LEFT */}
-          <div className="min-h-0 space-y-4 overflow-y-auto border-r border-slate-100 p-4 sm:p-5">
+          <div className="min-h-0 space-y-4 overflow-y-auto border-r border-emerald-100 p-4 sm:p-5">
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">
+              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+                01 · Settings
+              </p>
+              <h3 className="mt-1 text-base font-semibold text-[#0f3d2e]">
                 Campaign Settings
               </h3>
-              <p className="text-sm text-slate-500">
+              <p className="text-[13px] text-[#5c7d6d]">
                 Configure your WhatsApp campaign.
               </p>
             </div>
@@ -525,7 +527,7 @@ export function CsvCampaignModal({
                 WhatsApp Template
               </label>
               <select
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                className="h-11 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-400"
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
               >
@@ -548,9 +550,9 @@ export function CsvCampaignModal({
             ["IMAGE", "VIDEO", "DOCUMENT"].includes(
               String(previewForm.header.format || "").toUpperCase(),
             ) ? (
-            <section className="space-y-3 rounded-xl border border-slate-200 p-3.5">
+            <section className="space-y-3 rounded-2xl border border-emerald-100 bg-white p-3.5 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
               <div className="flex items-center gap-2">
-                <ImageIcon size={16} className="text-slate-500" />
+                <ImageIcon size={16} className="text-[#5c7d6d]" />
                 <p className="text-sm font-bold text-slate-800">Header Image</p>
               </div>
 
@@ -558,7 +560,7 @@ export function CsvCampaignModal({
                 type="button"
                 disabled={uploadingImage}
                 onClick={() => imageInputRef.current?.click()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-600 hover:border-emerald-300 hover:bg-emerald-50/40 disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-3 text-sm font-semibold text-[#0f3d2e] hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-60"
               >
                 {uploadingImage ? (
                   <>
@@ -594,7 +596,7 @@ export function CsvCampaignModal({
                   }
                 }}
                 placeholder="Paste public image URL (S3 / CDN)…"
-                className="h-10 w-full rounded-xl border border-slate-200 px-3 text-xs outline-none focus:border-emerald-400"
+                className="h-10 w-full rounded-xl border border-emerald-100 px-3 text-xs outline-none focus:border-emerald-400"
               />
               {headerUrl ? (
                 <p className="truncate text-[11px] text-emerald-700">
@@ -607,7 +609,7 @@ export function CsvCampaignModal({
               )}
 
               {effectivePreview ? (
-                <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <div className="relative overflow-hidden rounded-xl border border-emerald-100 bg-slate-50">
                   <img
                     src={effectivePreview}
                     alt="Selected campaign"
@@ -619,7 +621,7 @@ export function CsvCampaignModal({
                   <button
                     type="button"
                     onClick={clearSelectedImage}
-                    className="absolute bottom-2 right-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600"
+                    className="absolute bottom-2 right-2 rounded-lg border border-emerald-100 bg-white px-2.5 py-1 text-xs font-bold text-slate-600"
                   >
                     Clear
                   </button>
@@ -647,7 +649,7 @@ export function CsvCampaignModal({
                               if (img.url) setHeaderUrl(img.url);
                             }}
                             className={`block h-16 w-16 overflow-hidden rounded-lg border-2 ${
-                              active ? "border-emerald-500" : "border-slate-200"
+                              active ? "border-emerald-500" : "border-emerald-100"
                             }`}
                           >
                             <img
@@ -687,11 +689,11 @@ export function CsvCampaignModal({
             ) : null}
 
             {/* Contacts file */}
-            <section className="space-y-2 rounded-xl border border-slate-200 p-3.5">
-              <h4 className="text-sm font-extrabold text-slate-900">
+            <section className="space-y-2 rounded-2xl border border-emerald-100 bg-white p-3.5 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
+              <h4 className="text-sm font-extrabold text-[#0f3d2e]">
                 Contact file
               </h4>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#5c7d6d]">
                 CSV, Excel (.xlsx, .xls), TSV, TXT, or ODS. First row must be
                 headers. After upload, map the phone column and each {"{{n}}"}
                 placeholder.
@@ -707,7 +709,7 @@ export function CsvCampaignModal({
                 }}
               />
               {parsingFile ? (
-                <p className="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+                <p className="inline-flex items-center gap-1.5 text-[11px] text-[#5c7d6d]">
                   <Loader2 size={12} className="animate-spin" />
                   Reading file…
                 </p>
@@ -736,25 +738,25 @@ export function CsvCampaignModal({
               )}
 
               {fileHeaders.length ? (
-                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+                <div className="space-y-3 rounded-xl border border-emerald-100 bg-slate-50/80 p-3">
                   <div>
                     <p className="text-xs font-extrabold text-slate-800">
                       Map file columns
                     </p>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-[#5c7d6d]">
                       Choose which uploaded column is the phone number, and which
                       columns fill each template placeholder like {"{{1}}"}.
                     </p>
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                    <label className="mb-1 block text-[10px] font-black uppercase tracking-[0.12em] text-[#5c7d6d]">
                       Select number field
                     </label>
                     <select
                       value={phoneField}
                       onChange={(e) => setPhoneField(e.target.value)}
-                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                      className="h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-400"
                     >
                       <option value="">Select phone / WhatsApp column</option>
                       {fileHeaders.map((header) => (
@@ -767,7 +769,7 @@ export function CsvCampaignModal({
 
                   {templateVarCount > 0 ? (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#5c7d6d]">
                         Template variables
                       </p>
                       {Array.from({ length: templateVarCount }, (_, i) => {
@@ -786,7 +788,7 @@ export function CsvCampaignModal({
                               onChange={(e) =>
                                 setVarMapping(index, e.target.value)
                               }
-                              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-emerald-400"
+                              className="h-10 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm outline-none focus:border-emerald-400"
                             >
                               <option value="">Select column</option>
                               {fileHeaders.map((header) => (
@@ -803,7 +805,7 @@ export function CsvCampaignModal({
                       </p>
                     </div>
                   ) : selectedTemplate ? (
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-[#5c7d6d]">
                       This template has no {"{{n}}"} placeholders — only the
                       phone column is required.
                     </p>
@@ -817,9 +819,9 @@ export function CsvCampaignModal({
               ) : null}
 
               {filePreview?.headers?.length ? (
-                <div className="overflow-hidden rounded-xl border border-slate-200">
+                <div className="overflow-hidden rounded-xl border border-emerald-100">
                   <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-[#5c7d6d]">
                       File preview
                     </p>
                     <p className="text-[11px] text-slate-400">
@@ -863,12 +865,12 @@ export function CsvCampaignModal({
             </section>
 
             {/* Send time */}
-            <section className="space-y-3 rounded-xl border border-slate-200 p-3.5">
+            <section className="space-y-3 rounded-2xl border border-emerald-100 bg-white p-3.5 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
               <div>
-                <h4 className="text-sm font-extrabold text-slate-900">
+                <h4 className="text-sm font-extrabold text-[#0f3d2e]">
                   Send Time
                 </h4>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[#5c7d6d]">
                   Send immediately or schedule this campaign for a specific date
                   and time.
                 </p>
@@ -880,7 +882,7 @@ export function CsvCampaignModal({
                   className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm font-bold transition ${
                     sendMode === "now"
                       ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                      : "border-slate-200 bg-white text-slate-600"
+                      : "border-emerald-100 bg-white text-slate-600"
                   }`}
                 >
                   <Send size={14} /> Send now
@@ -891,7 +893,7 @@ export function CsvCampaignModal({
                   className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm font-bold transition ${
                     sendMode === "schedule"
                       ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                      : "border-slate-200 bg-white text-slate-600"
+                      : "border-emerald-100 bg-white text-slate-600"
                   }`}
                 >
                   <CalendarDays size={14} /> Schedule
@@ -906,7 +908,7 @@ export function CsvCampaignModal({
                     type="datetime-local"
                     value={scheduleAt}
                     onChange={(e) => setScheduleAt(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-400"
+                    className="h-11 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-400"
                   />
                   <p className="mt-1 text-[11px] text-slate-400">
                     Scheduled for {formatDisplayDateTime(scheduleAt)}
@@ -929,7 +931,7 @@ export function CsvCampaignModal({
                     fieldMapping[String(i + 1)],
                   ).some((v) => !v))
               }
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3.5 text-sm font-extrabold text-white shadow-[0_4px_14px_rgba(37,211,102,.3)] hover:bg-[#1EAF54] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#12A150] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(18,161,80,0.24)] hover:bg-[#0e8a43] disabled:opacity-50"
             >
               {sending ? (
                 <>
@@ -948,17 +950,20 @@ export function CsvCampaignModal({
           </div>
 
           {/* RIGHT — preview */}
-          <div className="hidden min-h-0 overflow-y-auto bg-[#f7f8fa] p-4 sm:p-5 lg:block">
+          <div className="hidden min-h-0 overflow-y-auto bg-[#f7fbf8] p-4 sm:p-5 lg:block">
             <div className="mb-3">
-              <h3 className="text-base font-extrabold text-slate-900">
+              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+                02 · Preview
+              </p>
+              <h3 className="mt-1 text-base font-semibold text-[#0f3d2e]">
                 WhatsApp Preview
               </h3>
-              <p className="text-sm text-slate-500">
+              <p className="text-[13px] text-[#5c7d6d]">
                 Template as it will appear in chat.
               </p>
             </div>
 
-            <div className="mx-auto w-full max-w-[340px] overflow-hidden rounded-2xl border border-slate-200 bg-[#ECE5DD] shadow-sm">
+            <div className="mx-auto w-full max-w-[340px] overflow-hidden rounded-2xl border border-emerald-100 bg-[#ECE5DD] shadow-[0_12px_32px_rgba(16,185,129,0.14)]">
               <div className="flex items-center gap-2 bg-[#075E54] px-3 py-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-sm font-bold text-white">
                   W

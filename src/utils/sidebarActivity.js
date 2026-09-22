@@ -286,7 +286,7 @@ export const isCreatedToday = (value) => {
 };
 
 /** Open Properties/Projects filtered to today (sidebar badge drill-down). */
-export const inventoryTodayHref = (path, detail = {}) => {
+export const inventoryTodayHref = (path, _detail = {}) => {
   if (path !== SIDEBAR_ACTIVITY_PATHS.properties && path !== SIDEBAR_ACTIVITY_PATHS.projects) {
     return path;
   }

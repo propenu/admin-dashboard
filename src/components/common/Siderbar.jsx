@@ -1883,6 +1883,7 @@ export default function Sidebar({
       </aside>
 
       {/* Sidebar closed page-name card disabled — overlaps table/content on Team Directory */}
+      {/* eslint-disable-next-line no-constant-binary-expression, no-constant-condition -- kept off: overlaps Team Directory */}
       {false && sidebarClosed && labelCard ? <SidebarLabelCard tip={labelCard} /> : null}
 
       {/* ── Modals ── */}

@@ -6,9 +6,7 @@ import TiptapEditor from "../../CreateFeaturedProjects/Components/TiptapEditor";
 import ImageLightbox from "../../../../components/ImageLightbox";
 
 export default function AboutUsEditor({ formData, setFormData, setLivePreviewData, saving, onSave }) {
-  if (!formData) return null;
-
-  const about = formData.aboutSummary?.[0] || {
+  const about = formData?.aboutSummary?.[0] || {
     builderName: "",
     aboutDescription: "",
     rightContent: "",
@@ -39,6 +37,8 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [about.builderName, about.aboutDescription, about.rightContent]);
+
+  if (!formData) return null;
 
   const syncAbout = (patch) => {
     const next = { ...localState, ...patch };

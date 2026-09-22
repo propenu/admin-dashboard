@@ -39,7 +39,7 @@ export const fetchPaymentPlans = createAsyncThunk(
       }
 
       return [];
-    } catch (error) {
+    } catch {
       return rejectWithValue("Failed to load plans");
     }
   },

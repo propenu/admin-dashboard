@@ -14,7 +14,7 @@ import "react-phone-number-input/style.css";
 //   createUserLocationDetails,
 // } from "../../features/user/userService";
 
-import { adiminCreateOtp, adminCreateUserLocationDetails, adminCreateVerifyOtp } from "../../Auth/hook/useAuth";
+import { useAdminCreateOtp, useAdminCreateUserLocationDetails, useAdminCreateVerifyOtp } from "../../Auth/hook/useAuth";
 
 /* ─── Constants ─────────────────────────────────────────────── */
 const PRIMARY       = "#27AE60";
@@ -271,11 +271,11 @@ export default function CreateUserModal({ onClose, currentUserRole, currentUser 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [otp,     setOtp]     = useState(["", "", "", ""]);
-  const [locationToken, setLocationToken] = useState("");
+  const [_locationToken, setLocationToken] = useState("");
 
-  const { mutateAsync: createRequestOtp } = adiminCreateOtp();
-  const { mutateAsync: createVerifyOtpService } = adminCreateVerifyOtp();
-  const { mutateAsync: createUserLocationDetails } = adminCreateUserLocationDetails();
+  const { mutateAsync: createRequestOtp } = useAdminCreateOtp();
+  const { mutateAsync: createVerifyOtpService } = useAdminCreateVerifyOtp();
+  const { mutateAsync: createUserLocationDetails } = useAdminCreateUserLocationDetails();
   const availableRoles =
     currentUserRole === "regional_manager" ? REGIONAL_MANAGER_CREATABLE_ROLES : ROLES;
   const defaultRole = availableRoles[0]?.value || "sales_manager";

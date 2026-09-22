@@ -255,7 +255,6 @@ export async function buildFormData(payload) {
     // ✅ CASE 3: IndexedDB key
     else if (value.key) {
       file = await getFileFromKey(value.key, "other");
-      conso
     }
 
     if (file instanceof File) {

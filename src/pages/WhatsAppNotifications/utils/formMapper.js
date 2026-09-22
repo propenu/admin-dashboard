@@ -16,6 +16,9 @@ export const componentsToForm = (item) => {
     text: b.text || "",
     url: b.url || "",
     phone: b.phone_number || "",
+    ttlMinutes: String(b.ttl_minutes || "10080"),
+    flowId: b.flow_id || "",
+    exampleCode: b.example || "",
   }));
 
   let templateType = "text";
@@ -51,6 +54,8 @@ export const componentsToForm = (item) => {
         (String(headerComp.example?.header_url?.[0] || "").startsWith("http")
           ? headerComp.example.header_url[0]
           : null),
+      locationName: "",
+      locationAddress: "",
     },
     body: {
       text: bodyText,

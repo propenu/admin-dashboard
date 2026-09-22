@@ -1308,17 +1308,17 @@ export default function PropertiesDashboard() {
   const catalogStamp = categoryQueries
     .map((query) => query.dataUpdatedAt || 0)
     .join("|");
-  const userRoleName = userData?.user?.roleName;
   const totalPages = Math.max(1, Math.ceil(visibleProperties.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1).filter(
     (pageNumber) =>
       pageNumber === 1 ||
       pageNumber === totalPages ||
-      Math.abs(pageNumber - page) <= 1,
+      Math.abs(pageNumber - safePage) <= 1,
   );
   const paginatedProperties = visibleProperties.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE,
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
   );
 
   useEffect(() => {
@@ -1374,6 +1374,10 @@ export default function PropertiesDashboard() {
     }
     setPage(1);
   }, [category, listingType, status, search, locationFilters, sort, createdFrom, createdTo, promotionType, trackingFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
   const activeFilterCount = [
     category !== "all",
     listingType !== "all",
@@ -2427,17 +2431,18 @@ export default function PropertiesDashboard() {
                 />
               ))}
             </div>
+            {visibleProperties.length > PAGE_SIZE && (
             <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <span className="font-medium text-slate-500">
-                Showing {(page - 1) * PAGE_SIZE + 1}-
-                {Math.min(page * PAGE_SIZE, visibleProperties.length)} of{" "}
+                Showing {(safePage - 1) * PAGE_SIZE + 1}-
+                {Math.min(safePage * PAGE_SIZE, visibleProperties.length)} of{" "}
                 {visibleProperties.length}
               </span>
               <div className="flex max-w-full items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
                 <button
                   type="button"
-                  disabled={page === 1}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={safePage === 1}
+                  onClick={() => setPage(Math.max(1, safePage - 1))}
                   className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Previous
@@ -2448,7 +2453,7 @@ export default function PropertiesDashboard() {
                     type="button"
                     onClick={() => setPage(pageNumber)}
                     className={`h-8 min-w-8 rounded-lg px-2 font-medium transition ${
-                      page === pageNumber
+                      safePage === pageNumber
                         ? "bg-emerald-600 text-white"
                         : "border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
                     }`}
@@ -2458,9 +2463,9 @@ export default function PropertiesDashboard() {
                 ))}
                 <button
                   type="button"
-                  disabled={page === totalPages}
+                  disabled={safePage === totalPages}
                   onClick={() =>
-                    setPage((current) => Math.min(totalPages, current + 1))
+                    setPage(Math.min(totalPages, safePage + 1))
                   }
                   className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
@@ -2468,6 +2473,7 @@ export default function PropertiesDashboard() {
                 </button>
               </div>
             </div>
+            )}
           </>
         ) : (
           <div

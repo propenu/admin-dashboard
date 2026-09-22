@@ -10,8 +10,26 @@ import {
 } from "../../../../features/property/propertyService";
 import { toast } from "sonner";
 
-/** Admin board page size — industry-standard first paint + load-more. */
+/** Cards shown per UI page (3-col grid). */
 export const PROJECT_BOARD_PAGE_SIZE = 12;
+/** Network window — one request covers 3 UI pages so Next is instant. */
+export const PROJECT_BOARD_FETCH_SIZE = 36;
+const PREFETCH_CONCURRENCY = 4;
+
+async function runPool(jobs, concurrency = PREFETCH_CONCURRENCY) {
+  const results = new Array(jobs.length);
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < jobs.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await jobs[index]();
+    }
+  };
+  const size = Math.min(Math.max(1, concurrency), jobs.length);
+  await Promise.all(Array.from({ length: size }, worker));
+  return results;
+}
 
 /**
  * Central hook for any featured-project type.
@@ -42,7 +60,11 @@ export function useFeaturedProjects(type, options = {}) {
   const adminBoard = options.adminBoard === true;
   const pageSize = Math.min(
     100,
-    Math.max(10, Number(options.pageSize) || PROJECT_BOARD_PAGE_SIZE),
+    Math.max(
+      10,
+      Number(options.pageSize) ||
+        (adminBoard ? PROJECT_BOARD_FETCH_SIZE : PROJECT_BOARD_PAGE_SIZE),
+    ),
   );
   const hasDateRange = Boolean(from || to);
 
@@ -71,11 +93,13 @@ export function useFeaturedProjects(type, options = {}) {
     queryKey,
     enabled,
     initialPageParam: 1,
-    staleTime: hasDateRange || adminBoard ? 30_000 : 5 * 60_000,
+    staleTime: hasDateRange || adminBoard ? 60_000 : 5 * 60_000,
     gcTime: 15 * 60_000,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    placeholderData: (previous) => previous,
 
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam, signal }) => {
       const limit = prefetchAll ? 100 : pageSize;
 
       // Explicit status for admin: "all" | draft | pending | active | inactive
@@ -105,17 +129,18 @@ export function useFeaturedProjects(type, options = {}) {
         limit,
         listOpts,
       );
+      if (signal?.aborted) return res;
 
-      // Sequential prefetch only when explicitly requested (expired/scheduled views).
+      // Parallel remaining-page fetch only when explicitly requested.
       if (prefetchAll && pageParam === 1) {
         const pages = res?.data?.meta?.pages ?? 1;
-        if (pages > 1) {
-          const remainingPages = [];
-          for (let p = 2; p <= Math.min(pages, 50); p += 1) {
-            remainingPages.push(
-              await getFeaturedProjectsByType(type, p, limit, listOpts),
-            );
-          }
+        const last = Math.min(pages, 50);
+        if (last > 1) {
+          const remainingPages = await runPool(
+            Array.from({ length: last - 1 }, (_, index) => () =>
+              getFeaturedProjectsByType(type, index + 2, limit, listOpts),
+            ),
+          );
           const seen = new Set();
           const items = [res, ...remainingPages]
             .flatMap((page) => page?.data?.items || [])

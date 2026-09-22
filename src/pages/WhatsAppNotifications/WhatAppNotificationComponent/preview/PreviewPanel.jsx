@@ -1,8 +1,7 @@
 // src/pages/WhatsAppNotifications/WhatAppNotificationComponent/preview/PreviewPanel.jsx
 import { FileText, MessageSquare, Link2, PhoneIcon } from "lucide-react";
-import { buildPayload } from "../../utils/payloadBuilder";
 import { LANGUAGES, MEDIA_ICON } from "../../utils/constants";
-import { applyVars, countVars } from "../../utils/helper";
+import { applyVars } from "../../utils/helper";
 
 
 

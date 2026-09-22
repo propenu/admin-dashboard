@@ -32,9 +32,6 @@ export default function TeamMemberActionsMenu({
   const menuRef = useRef(null);
 
   const hasAny = showAlign || showEdit || showLifecycle;
-  if (!hasAny) {
-    return <span className="text-slate-300">—</span>;
-  }
 
   const place = () => {
     const btn = btnRef.current;
@@ -54,12 +51,12 @@ export default function TeamMemberActionsMenu({
   };
 
   useLayoutEffect(() => {
-    if (!open) return undefined;
+    if (!open || !hasAny) return undefined;
     place();
-  }, [open, align]);
+  }, [open, align, hasAny]);
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || !hasAny) return undefined;
     const onDoc = (event) => {
       if (
         btnRef.current?.contains(event.target) ||
@@ -83,7 +80,11 @@ export default function TeamMemberActionsMenu({
       window.removeEventListener("resize", onScroll);
       window.removeEventListener("scroll", onScroll, true);
     };
-  }, [open]);
+  }, [open, hasAny]);
+
+  if (!hasAny) {
+    return <span className="text-slate-300">—</span>;
+  }
 
   const itemClass =
     "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[12px] font-semibold transition disabled:opacity-50";

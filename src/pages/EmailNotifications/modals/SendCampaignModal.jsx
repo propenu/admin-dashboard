@@ -56,23 +56,25 @@ const CsvUploadPanel = ({ item, onClose }) => {
   //   }
   // };
 
- const handleSend = async () => {
-   try {
-     await sentEmailNotification({
-       slug: item.slug,
-       state: stateCode
-         ? IN_STATES.find((s) => s.isoCode === stateCode)?.name
-         : "",
-       city: cityName,
-       locality: locality,
-     });
-
-     toast.success("Campaign triggered based on filters 🚀");
-     onClose();
-   } catch (err) {
-     toast.error(err?.message || "Failed");
-   }
- };
+  const handleSend = async () => {
+    if (!file) {
+      toast.error("Please upload a file first");
+      return;
+    }
+    try {
+      setBusy(true);
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("templateId", item._id);
+      await sentBulkEmailNotification(fd);
+      toast.success("Bulk email campaign started!");
+      onClose();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Bulk send failed");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-3 sm:gap-4">

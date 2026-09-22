@@ -16,6 +16,12 @@ export default function MainContainer({ next, back }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const category = useSelector((state) => state.ui.activeCategory);
+  const form = useSelector((state) => state[category]?.form || {});
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [category]);
 
   // Safety guard
   if (!actions[category]) {
@@ -25,13 +31,6 @@ export default function MainContainer({ next, back }) {
       </div>
     );
   }
-
-  const form = useSelector((state) => state[category]?.form || {});
-  const [errors, setErrors] = useState({});
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [category]);
 
   /* ─── Data Helpers ───────────────────────────────────────── */
 

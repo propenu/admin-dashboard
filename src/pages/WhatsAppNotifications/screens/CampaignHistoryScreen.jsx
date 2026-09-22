@@ -161,22 +161,22 @@ export default function CampaignHistoryScreen({
   const pageLabel = `${Math.min(pageCount, page + 1)} of ${pageCount}`;
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-3 p-3 sm:p-4">
-      <div className="flex min-w-0 flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex w-full min-w-0 flex-col gap-4 p-4 lg:p-6">
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <h1 className="text-lg font-extrabold text-slate-900 sm:text-xl">
+          <h1 className="text-xl font-semibold tracking-tight text-[#0f3d2e] sm:text-2xl">
             WhatsApp Campaigns
           </h1>
-          <p className="text-xs text-slate-500 sm:text-sm">
+          <p className="mt-0.5 text-[13px] text-[#5c7d6d]">
             Track delivery progress, failures, and campaign retries.
           </p>
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <div className="relative min-w-0 flex-1 sm:flex-none">
             <Search
               size={13}
-              className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#5c7d6d]"
             />
             <input
               value={search}
@@ -185,11 +185,11 @@ export default function CampaignHistoryScreen({
                 setPage(0);
               }}
               placeholder="Search campaign"
-              className="h-8 w-full rounded-md border border-slate-200 bg-white pl-7 pr-2 text-xs outline-none focus:border-emerald-400 sm:w-40"
+              className="h-9 w-full rounded-full border border-emerald-100 bg-white pl-8 pr-3 text-xs text-[#0f3d2e] shadow-[0_6px_16px_rgba(16,185,129,0.08)] outline-none placeholder:text-[#5c7d6d] focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 sm:w-44"
             />
           </div>
 
-          <div className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white p-0.5">
+          <div className="inline-flex h-9 items-center rounded-full border border-emerald-100 bg-white p-0.5 shadow-[0_6px_16px_rgba(16,185,129,0.08)]">
             {[
               ["1", "Today"],
               ["7", "7 Days"],
@@ -203,10 +203,10 @@ export default function CampaignHistoryScreen({
                   setRange(id);
                   setPage(0);
                 }}
-                className={`h-7 rounded px-2 text-[11px] font-semibold ${
+                className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
                   range === id
-                    ? "bg-[#25D366] text-white"
-                    : "text-slate-600 hover:bg-slate-50"
+                    ? "bg-[#25D366] text-white shadow-[0_6px_14px_rgba(37,211,102,0.28)]"
+                    : "text-[#0f3d2e] hover:bg-emerald-50"
                 }`}
               >
                 {label}
@@ -214,23 +214,23 @@ export default function CampaignHistoryScreen({
             ))}
           </div>
 
-          <div className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-0.5">
+          <div className="inline-flex h-9 items-center rounded-full border border-emerald-100 bg-white px-0.5 shadow-[0_6px_16px_rgba(16,185,129,0.08)]">
             <button
               type="button"
               disabled={page <= 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="flex h-7 w-7 items-center justify-center text-slate-500 disabled:opacity-35"
+              className="flex h-8 w-8 items-center justify-center text-[#5c7d6d] disabled:opacity-35"
             >
               <ChevronLeft size={14} />
             </button>
-            <span className="px-1 text-[11px] font-semibold tabular-nums text-slate-500">
+            <span className="px-1 text-[11px] font-semibold tabular-nums text-[#0f3d2e]">
               {pageLabel}
             </span>
             <button
               type="button"
               disabled={page >= pageCount - 1}
               onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-              className="flex h-7 w-7 items-center justify-center text-slate-500 disabled:opacity-35"
+              className="flex h-8 w-8 items-center justify-center text-[#5c7d6d] disabled:opacity-35"
             >
               <ChevronRight size={14} />
             </button>
@@ -238,48 +238,50 @@ export default function CampaignHistoryScreen({
         </div>
       </div>
 
-      <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="min-w-0 overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
         {loading ? (
           <div className="flex justify-center py-14">
             <Loader2 size={18} className="animate-spin text-[#25D366]" />
           </div>
         ) : pageRows.length === 0 ? (
-          <p className="py-14 text-center text-sm text-slate-400">
+          <p className="py-14 text-center text-sm text-[#5c7d6d]">
             No campaigns found for this range
           </p>
         ) : (
           <table className="w-full table-fixed border-collapse">
             <colgroup>
-              <col style={{ width: "19%" }} />
+              <col style={{ width: "17%" }} />
               <col style={{ width: "13%" }} />
-              <col style={{ width: "9%" }} />
-              <col style={{ width: "6%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "5%" }} />
               <col style={{ width: "8%" }} />
               <col style={{ width: "6%" }} />
               <col style={{ width: "7%" }} />
               <col style={{ width: "7%" }} />
-              <col style={{ width: "9%" }} />
-              <col style={{ width: "16%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "21%" }} />
             </colgroup>
             <thead>
-              <tr className="border-b border-emerald-200 bg-emerald-50/40">
+              <tr className="bg-emerald-50/80">
                 {[
                   ["Campaign", "left"],
-                  ["Date & time", "left"],
-                  ["Status", "left"],
-                  ["Total", "right"],
-                  ["Delivered", "right"],
-                  ["Failed", "right"],
-                  ["Pending", "right"],
-                  ["Progress", "right"],
-                  ["Est. spend", "right"],
-                  ["Actions", "right"],
+                  ["Date & time", "center"],
+                  ["Status", "center"],
+                  ["Total", "center"],
+                  ["Delivered", "center"],
+                  ["Failed", "center"],
+                  ["Pending", "center"],
+                  ["Progress", "center"],
+                  ["Est. spend", "center"],
+                  ["Actions", "center"],
                 ].map(([label, align], idx, arr) => (
                   <th
                     key={label}
-                    className={`px-1.5 py-2 text-[11px] font-extrabold uppercase tracking-[0.03em] text-[#16a34a] ${
-                      align === "right" ? "text-right" : "text-left"
-                    } ${idx < arr.length - 1 ? "border-r border-emerald-200/80" : ""}`}
+                    className={`whitespace-nowrap border-b border-emerald-100 px-2 py-2.5 text-[10px] font-bold uppercase tracking-[0.03em] text-emerald-700 ${
+                      idx === 0 ? "pl-3.5" : ""
+                    } ${
+                      idx < arr.length - 1 ? "border-r border-emerald-100" : "pr-3"
+                    } ${align === "left" ? "text-left" : "text-center"}`}
                   >
                     {label}
                   </th>
@@ -291,89 +293,78 @@ export default function CampaignHistoryScreen({
                 const label = statusOf(row);
                 const spend = (row.delivered * 0.86).toFixed(2);
                 const busy = retryingId === row.campaignId;
-                const cellBorder = "border-r border-slate-200/80";
+                const line =
+                  "border-b border-r border-emerald-100 px-2 py-2 align-middle";
 
                 return (
                   <tr
                     key={row.campaignId}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80"
+                    className="hover:bg-emerald-50/40 last:[&>td]:border-b-0"
                   >
-                    <td className={`px-1.5 py-1.5 align-middle ${cellBorder}`}>
-                      <div className="min-w-0">
-                        <p
-                          className="truncate text-[12px] font-semibold text-slate-900"
-                          title={row.name}
-                        >
-                          {row.name}
-                        </p>
-                        <p className="mt-0.5 truncate text-[10px] text-slate-400">
-                          <span className="font-medium text-emerald-600">
-                            {row.category}
-                          </span>
-                          <span> · {row.language}</span>
-                        </p>
-                      </div>
+                    <td className={`${line} pl-3.5`}>
+                      <p
+                        className="break-words text-[12px] font-semibold leading-snug text-[#0f3d2e]"
+                        title={row.name}
+                      >
+                        {row.name}
+                      </p>
+                      <p className="mt-0.5 text-[10px] leading-snug text-[#5c7d6d]">
+                        <span className="font-medium text-emerald-600">
+                          {row.category}
+                        </span>
+                        <span> · {row.language}</span>
+                      </p>
                     </td>
 
-                    <td className={`px-1.5 py-1.5 align-middle ${cellBorder}`}>
-                      <p className="truncate text-[11px] text-slate-600">
+                    <td className={`${line} text-center`}>
+                      <p className="whitespace-nowrap text-[11px] text-[#5c7d6d]">
                         {formatWhen(row.createdAt)}
                       </p>
                     </td>
 
-                    <td className={`px-1.5 py-1.5 align-middle ${cellBorder}`}>
+                    <td className={`${line} text-center`}>
                       <span
                         title={row.failureReason || undefined}
-                        className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${statusTone(label)}`}
+                        className={`inline-flex whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${statusTone(label)}`}
                       >
                         {label}
                       </span>
                     </td>
 
-                    <td
-                      className={`px-1.5 py-1.5 align-middle text-right text-[12px] font-semibold tabular-nums text-slate-800 ${cellBorder}`}
-                    >
+                    <td className={`${line} text-center text-[12px] font-semibold tabular-nums text-[#0f3d2e]`}>
                       {row.total}
                     </td>
-                    <td
-                      className={`px-1.5 py-1.5 align-middle text-right text-[12px] font-semibold tabular-nums text-emerald-600 ${cellBorder}`}
-                    >
+                    <td className={`${line} text-center text-[12px] font-semibold tabular-nums text-emerald-600`}>
                       {row.delivered}
                     </td>
-                    <td
-                      className={`px-1.5 py-1.5 align-middle text-right text-[12px] font-semibold tabular-nums text-rose-600 ${cellBorder}`}
-                    >
+                    <td className={`${line} text-center text-[12px] font-semibold tabular-nums text-rose-600`}>
                       {row.failed}
                     </td>
-                    <td
-                      className={`px-1.5 py-1.5 align-middle text-right text-[12px] font-semibold tabular-nums text-amber-500 ${cellBorder}`}
-                    >
+                    <td className={`${line} text-center text-[12px] font-semibold tabular-nums text-amber-500`}>
                       {row.pending}
                     </td>
-                    <td
-                      className={`px-1.5 py-1.5 align-middle text-right text-[11px] font-medium tabular-nums text-slate-600 ${cellBorder}`}
-                    >
+                    <td className={`${line} whitespace-nowrap text-center text-[11px] font-medium tabular-nums text-[#5c7d6d]`}>
                       {row.delivered}/{row.total}
                     </td>
 
-                    <td className={`px-1.5 py-1.5 align-middle text-right ${cellBorder}`}>
-                      <p className="text-[12px] font-semibold tabular-nums text-slate-800">
+                    <td className={`${line} text-center`}>
+                      <p className="whitespace-nowrap text-[12px] font-semibold tabular-nums text-[#0f3d2e]">
                         ₹{spend}
                       </p>
-                      <p className="text-[9px] text-slate-400">
+                      <p className="whitespace-nowrap text-[9px] text-[#5c7d6d]">
                         {row.delivered} billable
                       </p>
                     </td>
 
-                    <td className="px-1.5 py-1.5 align-middle text-right">
-                      <div className="inline-flex w-full items-center justify-end gap-1">
+                    <td className="border-b border-emerald-100 px-1.5 py-2 pr-2.5 align-middle text-center">
+                      <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                         <button
                           type="button"
                           title="View campaign"
                           onClick={() => onView?.(row)}
-                          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50"
+                          className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md border border-emerald-100 bg-white px-1.5 text-[9px] font-bold text-[#0f3d2e] hover:bg-emerald-50"
                         >
-                          <Eye size={12} strokeWidth={2} />
+                          <Eye size={11} strokeWidth={2} />
                           View
                         </button>
                         <button
@@ -381,16 +372,16 @@ export default function CampaignHistoryScreen({
                           title="Retry pending or failed messages"
                           disabled={busy || (row.failed === 0 && row.pending === 0)}
                           onClick={() => onRetry?.(row.campaignId)}
-                          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-rose-200 bg-white px-1.5 text-[10px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-40"
+                          className="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md border border-rose-100 bg-white px-1.5 text-[9px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-40"
                         >
                           {busy ? (
                             <RefreshCw
-                              size={12}
+                              size={11}
                               strokeWidth={2}
                               className="animate-spin"
                             />
                           ) : (
-                            <RotateCcw size={12} strokeWidth={2} />
+                            <RotateCcw size={11} strokeWidth={2} />
                           )}
                           Retry
                         </button>

@@ -16,7 +16,6 @@ import { State, City } from "country-state-city";
 import {
   getUserSearch,
   sentWhatsAppNotification,
-  getAllWhatsAppNotifications,
 } from "../../../features/user/userService";
 import { Modal } from "./Modal";
 

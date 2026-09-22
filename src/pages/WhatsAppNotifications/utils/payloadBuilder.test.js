@@ -110,7 +110,9 @@ describe("buildPayload Meta metadata", () => {
     ]);
   });
 
-  it("builds IMAGE header with header_handle", () => {
+  it("builds IMAGE header with Meta media handle", () => {
+    const handle =
+      "4::aW1hZ2UvanBlZw==:ARZ9oTHzo9igJVD5QgwemUWSkOv3vl4dzdBovSFUy2yz5fFAgSqDZOI";
     const payload = buildPayload({
       name: "project_launch",
       language: "en",
@@ -119,7 +121,7 @@ describe("buildPayload Meta metadata", () => {
         enabled: true,
         format: "IMAGE",
         text: "",
-        mediaHandle: "https://cdn.example.com/project.jpg",
+        mediaHandle: handle,
       },
       body: {
         text: "Hello {{1}}, the new project brochure is ready for you today.",
@@ -133,8 +135,30 @@ describe("buildPayload Meta metadata", () => {
     expect(header).toEqual({
       type: "HEADER",
       format: "IMAGE",
-      example: { header_handle: ["https://cdn.example.com/project.jpg"] },
+      example: { header_handle: [handle] },
     });
+  });
+
+  it("rejects IMAGE header when mediaHandle is a public URL", () => {
+    expect(() =>
+      buildPayload({
+        name: "project_launch",
+        language: "en",
+        category: "MARKETING",
+        header: {
+          enabled: true,
+          format: "IMAGE",
+          text: "",
+          mediaHandle: "https://cdn.example.com/project.jpg",
+        },
+        body: {
+          text: "Hello {{1}}, the new project brochure is ready for you today.",
+          examples: ["Ravi"],
+        },
+        footer: { enabled: false, text: "" },
+        buttons: [],
+      }),
+    ).toThrow(/media handle/i);
   });
 
   it("builds LOCATION header without sample handle", () => {
@@ -209,5 +233,41 @@ describe("buildPayload Meta metadata", () => {
     expect(() =>
       buildPayload({ ...realEstateSample, name: "" }),
     ).toThrow(/Template name is required/);
+  });
+
+  it("builds VOICE_CALL, FLOW, and COPY_CODE buttons", () => {
+    const payload = buildPayload({
+      ...realEstateSample,
+      buttons: [
+        {
+          type: "VOICE_CALL",
+          text: "Call on WhatsApp",
+          ttlMinutes: "10080",
+        },
+        {
+          type: "FLOW",
+          text: "Complete flow",
+          flowId: "1234567890",
+        },
+        {
+          type: "COPY_CODE",
+          text: "Copy offer code",
+          exampleCode: "SAVE20",
+        },
+        { type: "SHARE_CONTACT", text: "Share contact info" },
+      ],
+    });
+    const buttons = payload.components.find((c) => c.type === "BUTTONS");
+    expect(buttons.buttons).toEqual([
+      { type: "VOICE_CALL", text: "Call on WhatsApp", ttl_minutes: 10080 },
+      {
+        type: "FLOW",
+        text: "Complete flow",
+        flow_id: "1234567890",
+        flow_action: "navigate",
+      },
+      { type: "COPY_CODE", example: "SAVE20" },
+      { type: "QUICK_REPLY", text: "Share contact info" },
+    ]);
   });
 });

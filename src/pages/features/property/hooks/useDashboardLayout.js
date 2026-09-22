@@ -1,5 +1,7 @@
+import { useCallback, useState } from "react";
+
 // Persist layout in localStorage across sessions
-function useDashboardLayout(defaultLayout) {
+export default function useDashboardLayout(defaultLayout) {
   const [layout, setLayout] = useState(() => {
     try {
       const saved = localStorage.getItem("projects-dashboard-layout");

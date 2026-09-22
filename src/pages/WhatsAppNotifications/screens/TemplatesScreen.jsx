@@ -56,16 +56,16 @@ export default function TemplatesScreen({
   ];
 
   return (
-    <div className="w-full p-4 sm:p-5 lg:p-6 space-y-4">
+    <div className="w-full space-y-4 p-5 lg:p-7">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <MessageSquare size={16} className="text-[#25D366]" />
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#25D366]">
+            <MessageSquare size={16} className="text-emerald-600" />
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-600">
               WhatsApp templates
             </p>
           </div>
-          <h1 className="mt-1 text-2xl font-extrabold text-slate-900">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#0f3d2e]">
             Template library
           </h1>
         </div>
@@ -73,19 +73,19 @@ export default function TemplatesScreen({
           <div className="relative">
             <Search
               size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5c7d6d]"
             />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search templates..."
-              className="h-10 w-56 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-emerald-400"
+              className="h-10 w-56 rounded-full border border-emerald-100 bg-white pl-9 pr-3 text-sm text-[#0f3d2e] shadow-[0_6px_16px_rgba(16,185,129,0.08)] outline-none placeholder:text-[#5c7d6d] focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
           <button
             type="button"
             onClick={onCreate}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#25D366] px-4 text-sm font-bold text-white hover:bg-[#1EAF54]"
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-[#25D366] px-4 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(37,211,102,0.28)] hover:bg-[#1EAF54]"
           >
             <Plus size={16} /> Create Template
           </button>
@@ -101,22 +101,22 @@ export default function TemplatesScreen({
               onClick={() => setCategory(tab.id)}
               className={`rounded-full px-3 py-1.5 text-xs font-bold ${
                 category === tab.id
-                  ? "bg-[#25D366] text-white"
-                  : "border border-slate-200 bg-white text-slate-600"
+                  ? "bg-[#25D366] text-white shadow-[0_8px_16px_rgba(37,211,102,0.28)]"
+                  : "border border-emerald-100 bg-white text-[#0f3d2e] shadow-[0_4px_12px_rgba(16,185,129,0.08)]"
               }`}
             >
               {tab.label}
             </button>
           ))}
         </div>
-        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+        <div className="inline-flex rounded-xl border border-emerald-100 bg-white p-1 shadow-[0_4px_12px_rgba(16,185,129,0.08)]">
           <button
             type="button"
             onClick={() => setViewMode("grid")}
             className={`rounded-lg p-1.5 ${
               viewMode === "grid"
                 ? "bg-emerald-50 text-emerald-700"
-                : "text-slate-400"
+                : "text-[#5c7d6d]"
             }`}
           >
             <Grid2X2 size={16} />
@@ -127,7 +127,7 @@ export default function TemplatesScreen({
             className={`rounded-lg p-1.5 ${
               viewMode === "list"
                 ? "bg-emerald-50 text-emerald-700"
-                : "text-slate-400"
+                : "text-[#5c7d6d]"
             }`}
           >
             <List size={16} />
@@ -140,14 +140,14 @@ export default function TemplatesScreen({
           <Loader2 className="animate-spin text-[#25D366]" size={24} />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-sm text-slate-400">
+        <div className="rounded-2xl border border-dashed border-emerald-100 bg-white py-16 text-center text-sm text-[#5c7d6d] shadow-[0_8px_24px_rgba(16,185,129,0.06)]">
           No templates in this filter
         </div>
       ) : (
         <div
           className={
             viewMode === "grid"
-              ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+              ? "grid gap-3 sm:grid-cols-2"
               : "space-y-2.5"
           }
         >
@@ -166,7 +166,7 @@ export default function TemplatesScreen({
       )}
 
       {!loading && templates.length === 0 ? (
-        <p className="text-center text-xs text-slate-400">
+        <p className="text-center text-xs text-[#5c7d6d]">
           Categories available:{" "}
           {CATEGORIES?.join?.(", ") || "MARKETING, UTILITY, AUTHENTICATION"}
         </p>
