@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { toast } from "sonner";
@@ -8,9 +9,13 @@ import { StatCards } from "./components/StatCards";
 import { UserFilters } from "./components/UserFilters";
 import { MobileRoleTabs } from "./components/MobileRoleTabs";
 import { normalizeUsersResponse, useUsers } from "./hook/useUserData";
-import { getAllUsers } from "../../../features/user/userService";
+import {
+  getAllUsers,
+  getDeletedAccounts,
+} from "../../../features/user/userService";
 import { MobileCardView } from "./components/MobileCardView";
 import { DesktopTable } from "./components/DesktopTable";
+import { DeletedUsersPanel } from "./components/DeletedUsersPanel";
 import { Pagination } from "./components/Pagination";
 import SafeUserDeleteModal from "./components/SafeUserDeleteModal";
 import { roleLabel } from "./constants/roleLabels";
@@ -116,6 +121,10 @@ export default function Users() {
   const [statusBusyId, setStatusBusyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showDeletedUsers, setShowDeletedUsers] = useState(false);
+  const [deletedPage, setDeletedPage] = useState(1);
+
+  const isSuperAdmin = actorRoleName === "super_admin";
 
   const apiParams = useMemo(
     () =>
@@ -194,6 +203,35 @@ export default function Users() {
         setCurrentUserId("");
       });
   }, []);
+
+  useEffect(() => {
+    if (!isSuperAdmin && showDeletedUsers) {
+      setShowDeletedUsers(false);
+    }
+  }, [isSuperAdmin, showDeletedUsers]);
+
+  const deletedAccountsQuery = useQuery({
+    queryKey: ["users-deleted-accounts", deletedPage],
+    enabled: isSuperAdmin && showDeletedUsers,
+    queryFn: async () => {
+      const res = await getDeletedAccounts({
+        page: deletedPage,
+        limit: 20,
+      });
+      const body = res?.data ?? res;
+      const rows = Array.isArray(body?.data) ? body.data : [];
+      const meta = body?.meta || {};
+      return {
+        rows,
+        total: Number(meta.total ?? rows.length) || 0,
+        page: Math.max(1, Number(meta.page) || deletedPage),
+        pages: Math.max(1, Number(meta.pages) || 1),
+      };
+    },
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+    retry: 1,
+  });
 
   const changeUserActive = useCallback(
     async (user, isActive) => {
@@ -654,6 +692,19 @@ export default function Users() {
   };
 
   const handleRefresh = async () => {
+    if (showDeletedUsers) {
+      if (deletedAccountsQuery.isFetching) return;
+      setIsRefreshing(true);
+      setRefreshError("");
+      try {
+        await deletedAccountsQuery.refetch();
+      } catch {
+        setRefreshError("Could not refresh deleted users. Try again.");
+      } finally {
+        setIsRefreshing(false);
+      }
+      return;
+    }
     if (isRefreshing || isFetching) return;
     clearAll();
     setIsRefreshing(true);
@@ -790,14 +841,77 @@ export default function Users() {
   return (
     <div className="w-full max-w-full pb-28 md:pb-16">
       <Header
-        isLoading={isLoading}
-        isRefreshing={isRefreshing || isFetching}
-        usersCount={stats.total || totalFiltered}
-        filteredCount={totalFiltered}
+        isLoading={
+          showDeletedUsers
+            ? deletedAccountsQuery.isLoading
+            : isLoading
+        }
+        isRefreshing={
+          showDeletedUsers
+            ? isRefreshing || deletedAccountsQuery.isFetching
+            : isRefreshing || isFetching
+        }
+        usersCount={
+          showDeletedUsers
+            ? deletedAccountsQuery.data?.total || 0
+            : stats.total || totalFiltered
+        }
+        filteredCount={
+          showDeletedUsers
+            ? deletedAccountsQuery.data?.total || 0
+            : totalFiltered
+        }
         onRefresh={handleRefresh}
-        error={refreshError}
+        error={
+          showDeletedUsers
+            ? refreshError ||
+              (deletedAccountsQuery.isError
+                ? deletedAccountsQuery.error?.response?.data?.message ||
+                  deletedAccountsQuery.error?.message ||
+                  "Failed to load deleted accounts"
+                : "")
+            : refreshError
+        }
+        isSuperAdmin={isSuperAdmin}
+        showDeletedUsers={showDeletedUsers}
+        onToggleDeletedUsers={() => {
+          setShowDeletedUsers((v) => {
+            const next = !v;
+            if (next) setDeletedPage(1);
+            return next;
+          });
+        }}
       />
 
+      {showDeletedUsers && isSuperAdmin ? (
+        <DeletedUsersPanel
+          rows={deletedAccountsQuery.data?.rows || []}
+          loading={
+            deletedAccountsQuery.isLoading || deletedAccountsQuery.isFetching
+          }
+          error={
+            deletedAccountsQuery.isError
+              ? deletedAccountsQuery.error?.response?.data?.message ||
+                deletedAccountsQuery.error?.message ||
+                "Failed to load deleted accounts"
+              : ""
+          }
+          page={Math.min(
+            Math.max(1, deletedPage),
+            deletedAccountsQuery.data?.pages || 1,
+          )}
+          pages={deletedAccountsQuery.data?.pages || 1}
+          total={deletedAccountsQuery.data?.total || 0}
+          onRetry={() => deletedAccountsQuery.refetch()}
+          onPrev={() => setDeletedPage((p) => Math.max(1, p - 1))}
+          onNext={() =>
+            setDeletedPage((p) =>
+              Math.min(deletedAccountsQuery.data?.pages || 1, p + 1),
+            )
+          }
+        />
+      ) : (
+        <>
       <StatCards
         stats={stats}
         activeKey={
@@ -892,6 +1006,8 @@ export default function Users() {
           onNext={() => goToPage(Math.min(totalPages, safePage + 1))}
         />
       </div>
+        </>
+      )}
 
       <SafeUserDeleteModal
         open={Boolean(deleteTarget)}
@@ -903,11 +1019,13 @@ export default function Users() {
         onConfirm={confirmDeleteUser}
       />
 
-      <MobileRoleTabs
-        value={filterRole || "all"}
-        onChange={(role) => patchFilters({ role: role || "all" })}
-        counts={roleTabCounts}
-      />
+      {!showDeletedUsers ? (
+        <MobileRoleTabs
+          value={filterRole || "all"}
+          onChange={(role) => patchFilters({ role: role || "all" })}
+          counts={roleTabCounts}
+        />
+      ) : null}
     </div>
   );
 }

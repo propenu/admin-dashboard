@@ -12,6 +12,16 @@ export default defineConfig({
   build: {
     // Dedicated outDir — avoids Windows EPERM when legacy `dist` is locked by a preview server.
     outDir: "build",
+    modulePreload: {
+      resolveDependencies(filename, deps) {
+        return deps.filter(
+          (dep) =>
+            !dep.includes("country-state-city") &&
+            !dep.includes("xlsx") &&
+            !dep.includes("tiptap"),
+        );
+      },
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

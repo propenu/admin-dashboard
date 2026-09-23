@@ -102,6 +102,13 @@ export const getAllUsers = (params) => {
   });
 };
 
+/** Super Admin — deletedaccounts tombstones (Users page). */
+export const getDeletedAccounts = (params) =>
+  apiClient.get(`${SERVICES.USER}/auth/deleted-accounts`, {
+    params,
+    timeout: 30000,
+  });
+
 /** Public user signup OTP (propenu.com path) — used by SE client onboarding */
 export const seCreateRequestOtp = (payload) =>
   apiClient.post(`${SERVICES.USER}/auth/request-otp/create`, payload);

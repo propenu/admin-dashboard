@@ -13,7 +13,8 @@ import {
   getBlogs,
   getSuperAdimnAnalytics,
 } from "../../../features/property/propertyService";
-import { getAllUsers, getUserDetails } from "../../../features/user/userService";
+import { getAllUsers } from "../../../features/user/userService";
+import { useAuthUserProfile } from "../../../hooks/useAuthUser";
 import { getTicketDashboardOverview } from "../../../features/ticket/ticket_system";
 import { getPlatformEngagement } from "../../../features/activity/allUsersActivityService";
 import { useDashboardDateRange } from "../shared/useDashboardDateRange";
@@ -33,15 +34,7 @@ const unpackAnalytics = (response) => response?.data?.data || response?.data || 
 export function useSuperAdminDashboard() {
   const dateRange = useDashboardDateRange("today", DATE_PRESETS);
   const { range, filters } = dateRange;
-
-  const currentUserQuery = useQuery({
-    queryKey: ["super-admin-dashboard", "me"],
-    queryFn: async () => {
-      const response = await getUserDetails();
-      return response?.data?.user || response?.data || null;
-    },
-    staleTime: 120_000,
-  });
+  const { user: currentUser } = useAuthUserProfile();
 
   const summaryQuery = useQuery({
     queryKey: ["super-admin-dashboard", "summary", filters],
@@ -208,7 +201,7 @@ export function useSuperAdminDashboard() {
   const mapped = useMemo(
     () =>
       mapSuperAdminData({
-        currentUser: currentUserQuery.data,
+        currentUser,
         summary: summaryQuery.data || {},
         revenueByPlan: plansQuery.data || [],
         subscriptions: subsQuery.data || [],
@@ -226,7 +219,7 @@ export function useSuperAdminDashboard() {
       }),
     [
       blogsQuery.data,
-      currentUserQuery.data,
+      currentUser,
       dateRange.preset,
       failedQuery.data,
       leadsQuery.data,
@@ -243,7 +236,7 @@ export function useSuperAdminDashboard() {
     ],
   );
 
-  const isLoading = summaryQuery.isLoading || platformQuery.isLoading || currentUserQuery.isLoading;
+  const isLoading = summaryQuery.isLoading || platformQuery.isLoading;
   const isFetching = [
     summaryQuery,
     plansQuery,
@@ -258,12 +251,10 @@ export function useSuperAdminDashboard() {
     blogsQuery,
     usersQuery,
     engagementQuery,
-    currentUserQuery,
   ].some((q) => q.isFetching);
 
   const refetch = async () => {
     await Promise.allSettled([
-      currentUserQuery.refetch(),
       summaryQuery.refetch(),
       plansQuery.refetch(),
       subsQuery.refetch(),

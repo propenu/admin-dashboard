@@ -181,7 +181,9 @@ const TeamManagement = lazy(() =>
   import("./pages/users/AllUserInDetails/TeamManager.jsx")
 );
 
-import PostPropertyController from "./pages/Residential/PostResidentailProperty/PostPropertyControler";
+const PostPropertyController = lazy(() =>
+  import("./pages/Residential/PostResidentailProperty/PostPropertyControler")
+);
 
 const Payments = lazy(() => import("./pages/Payments/SubcriptionPayments/PricingSection.jsx"));
 

@@ -1,24 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getUserDetails } from "../features/user/userService";
-import { fetchLoggedInUser } from "../services/UserServices/userServices";
 import { USER_DETAILS_QUERY_KEY } from "../hooks/useAuthUser";
 import {
   getBuilderInvoiceAccess,
   getBuilderPlansUiFlags,
   getPlanAccess,
-  resolveUserPermissions,
 } from "./planAccessControl";
 
 export const PERMISSIONS_UPDATED_EVENT = "propenu:permissions-updated";
-
-const pickRicherUser = (a, b) => {
-  const aCount = resolveUserPermissions(a).length;
-  const bCount = resolveUserPermissions(b).length;
-  if (!a) return b || null;
-  if (!b) return a;
-  return bCount >= aCount ? b : a;
-};
 
 const userFromCache = (cached) =>
   cached?.user ||
@@ -49,22 +39,11 @@ export function useLivePermissions() {
       setLoading(!user);
       setError("");
       try {
-        const [viaAuth, viaApiClient] = await Promise.allSettled([
-          fetchLoggedInUser(),
-          getUserDetails().then((res) => res?.data?.user || res?.data || null),
-        ]);
-
-        const authUser = viaAuth.status === "fulfilled" ? viaAuth.value : null;
-        const apiUser =
-          viaApiClient.status === "fulfilled" ? viaApiClient.value : null;
-        const next = pickRicherUser(authUser, apiUser);
+        const res = await getUserDetails();
+        const next = res?.data?.user || res?.data || null;
 
         if (!next) {
-          throw new Error(
-            viaAuth.status === "rejected"
-              ? viaAuth.reason?.message || "Failed to load permissions"
-              : "Failed to load permissions",
-          );
+          throw new Error("Failed to load permissions");
         }
 
         setUser(next);
