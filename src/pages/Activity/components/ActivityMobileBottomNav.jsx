@@ -60,7 +60,7 @@ export default function ActivityMobileBottomNav({
         >
           <span
             aria-hidden
-            className="pointer-events-none absolute top-1.5 bottom-1.5 rounded-[16px] bg-[#12A150] shadow-md shadow-emerald-600/30 transition-all duration-300 ease-[cubic-bezier(0.34,1.3,0.64,1)]"
+            className="pointer-events-none absolute top-1.5 bottom-1.5 rounded-[16px] bg-[#27AE60] shadow-md shadow-emerald-600/30 transition-all duration-300 ease-[cubic-bezier(0.34,1.3,0.64,1)]"
             style={{
               left: pill.left,
               width: pill.width,

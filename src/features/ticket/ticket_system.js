@@ -266,9 +266,10 @@ const getAllCreatedByRequester = async (url, query, requester) => {
     });
 };
 
-export const getTicketDashboardOverview = async (params) => {
+export const getTicketDashboardOverview = async (params, config = {}) => {
   const response = await apiClient.get(`${DASHBOARD_BASE}/overview`, {
     params: cleanParams(params),
+    ...config,
   });
   return unwrapData(response);
 };

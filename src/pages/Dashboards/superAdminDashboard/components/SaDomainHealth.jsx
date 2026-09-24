@@ -2,7 +2,7 @@ const toneMap = {
   emerald: "border-emerald-200 bg-emerald-50/70 text-emerald-700",
   amber: "border-amber-200 bg-amber-50/70 text-amber-700",
   rose: "border-rose-200 bg-rose-50/70 text-rose-700",
-  slate: "border-slate-200 bg-slate-50 text-slate-600",
+  slate: "border-emerald-100 bg-emerald-50 text-emerald-700",
 };
 
 export default function SaDomainHealth({ domains = [], onOpen }) {
@@ -15,10 +15,10 @@ export default function SaDomainHealth({ domains = [], onOpen }) {
           return (
             <article
               key={domain.key}
-              className="rounded-[14px] border border-slate-200 bg-white p-3 text-left shadow-sm"
+              className="rounded-2xl border border-emerald-100 bg-white p-3 text-left shadow-[0_8px_24px_rgba(16,185,129,0.08)]"
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                   {domain.label}
                 </p>
                 <span
@@ -36,29 +36,29 @@ export default function SaDomainHealth({ domains = [], onOpen }) {
                     type="button"
                     title={item.hint || item.label}
                     onClick={() => onOpen?.(item.href)}
-                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-left transition hover:border-emerald-300 hover:bg-emerald-50"
+                    className="rounded-xl border border-emerald-100 bg-white px-2 py-1.5 text-left shadow-[0_4px_10px_rgba(16,185,129,0.06)] transition hover:border-emerald-300 hover:bg-emerald-50"
                   >
-                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-600">
                       {item.label}
                     </p>
-                    <p className="mt-0.5 text-base font-black tabular-nums leading-none text-slate-950">
+                    <p className="mt-0.5 text-base font-semibold tabular-nums leading-none text-[#0f3d2e]">
                       {item.value}
                     </p>
                     {item.hint ? (
-                      <p className="mt-0.5 truncate text-[9px] text-slate-500">{item.hint}</p>
+                      <p className="mt-0.5 truncate text-[9px] text-[#5c7d6d]">{item.hint}</p>
                     ) : null}
                   </button>
                 ))}
               </div>
 
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-50">
                 <div
                   className={`h-full rounded-full ${
                     domain.tone === "rose"
                       ? "bg-rose-500"
                       : domain.tone === "amber"
                         ? "bg-amber-500"
-                        : "bg-emerald-500"
+                        : "bg-[#27AE60]"
                   }`}
                   style={{ width: `${Math.max(4, Number(domain.score) || 0)}%` }}
                 />
@@ -72,10 +72,10 @@ export default function SaDomainHealth({ domains = [], onOpen }) {
             key={domain.key}
             type="button"
             onClick={() => onOpen?.(domain.href)}
-            className="rounded-[14px] border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50/30"
+            className="rounded-2xl border border-emerald-100 bg-white p-3 text-left shadow-[0_8px_24px_rgba(16,185,129,0.08)] transition hover:border-emerald-300 hover:bg-emerald-50/30"
           >
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                 {domain.label}
               </p>
               <span
@@ -85,16 +85,16 @@ export default function SaDomainHealth({ domains = [], onOpen }) {
                 {domain.score != null ? ` ${domain.score}%` : ""}
               </span>
             </div>
-            <p className="mt-2 text-lg font-black tabular-nums text-slate-950">{domain.metric}</p>
-            <p className="mt-1 line-clamp-2 text-[10px] text-slate-500">{domain.detail}</p>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <p className="mt-2 text-lg font-semibold tabular-nums text-[#0f3d2e]">{domain.metric}</p>
+            <p className="mt-1 line-clamp-2 text-[10px] text-[#5c7d6d]">{domain.detail}</p>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-50">
               <div
                 className={`h-full rounded-full ${
                   domain.tone === "rose"
                     ? "bg-rose-500"
                     : domain.tone === "amber"
                       ? "bg-amber-500"
-                      : "bg-emerald-500"
+                      : "bg-[#27AE60]"
                 }`}
                 style={{ width: `${Math.max(4, Number(domain.score) || 0)}%` }}
               />

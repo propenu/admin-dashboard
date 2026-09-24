@@ -89,7 +89,7 @@ export const createUserLocationDetails = async (formData) => {
   {/* User Services */}
 //////////////////////////////
 //All Users — paginated Users board uses longer timeout (prod-safe)
-export const getAllUsers = (params) => {
+export const getAllUsers = (params, config = {}) => {
   const platformOnly =
     params?.platformOnly === 1 ||
     params?.platformOnly === "1" ||
@@ -99,7 +99,46 @@ export const getAllUsers = (params) => {
     params,
     // Users board is lean+paginated; allow up to 30s on slow prod links
     timeout: platformOnly || params?.page != null || params?.limit != null ? 30000 : 15000,
+    ...config,
   });
+};
+
+/** Count-only snapshot for dashboards — never downloads the user collection. */
+export const getUserCountSnapshot = async (params = {}, config = {}) => {
+  const response = await getAllUsers(
+    {
+      page: 1,
+      limit: 1,
+      platformOnly: 1,
+      ...params,
+    },
+    config,
+  );
+  const body = response?.data || {};
+  return {
+    total: Number(body.meta?.total ?? 0) || 0,
+    stats: body.stats || {},
+    roleCounts: body.roleCounts || {},
+  };
+};
+
+/** One aggregation for Super Admin dashboard user KPIs. */
+export const getDashboardUserCounts = async (params = {}, config = {}) => {
+  const response = await apiClient.get(`${SERVICES.USER}/auth/dashboard-counts`, {
+    params,
+    timeout: 20000,
+    ...config,
+  });
+  return response?.data?.data || response?.data || {};
+};
+
+/** Sidebar badges — IST-today counts only, never the user collection. */
+export const getSidebarUserCounts = async (config = {}) => {
+  const response = await apiClient.get(`${SERVICES.USER}/auth/sidebar-counts`, {
+    timeout: 20000,
+    ...config,
+  });
+  return response?.data?.data || response?.data || {};
 };
 
 /** Super Admin — deletedaccounts tombstones (Users page). */
@@ -384,13 +423,22 @@ export const deleteWhatsAppNotificationByName = (name) => {
 }
 
 export const sentWhatsAppNotification = (formData) => {
-  return apiClient.post(`${SERVICES.USER}/whatsapp/send-whatsapp`, formData);
+  return apiClient.post(`${SERVICES.USER}/whatsapp/send-whatsapp`, formData, {
+    timeout: 180000,
+    validateStatus: (status) =>
+      (status >= 200 && status < 300) || status === 202,
+  });
 }
 
 export const sentBulkWhatsAppNotification = (formData) => {
   return apiClient.post(
     `${SERVICES.USER}/whatsapp/send-csv-bulk-whatsapp`,
     formData,
+    {
+      timeout: 180000,
+      validateStatus: (status) =>
+        (status >= 200 && status < 300) || status === 202,
+    },
   );
 };
 

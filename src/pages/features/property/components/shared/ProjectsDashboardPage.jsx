@@ -38,6 +38,7 @@ import {
   getPromotionTracking,
   promotionLifecycleClass,
 } from "./promotionTracking";
+import { saInset, saSurface, saSurfaceHover } from "../../../../Dashboards/superAdminDashboard/dashboardSurface";
 import { todayIso } from "../../../../Dashboards/shared/dashboardDateRange";
 import {
   salesmanagerApproveAProject,
@@ -410,7 +411,7 @@ function titleCaseWords(value) {
 function MiniBar({ value, max, color = "bg-[#27AE60]", height = "h-2" }) {
   const w = max ? Math.min(100, Math.round((value / max) * 100)) : 0;
   return (
-    <div className={`${height} bg-slate-100 rounded-full overflow-hidden`}>
+    <div className={`${height} bg-emerald-50 rounded-full overflow-hidden`}>
       <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{ width: `${w}%` }} />
     </div>
   );
@@ -470,19 +471,19 @@ function FilterMenu({
   return (
     <div className={`relative z-20 ${className}`} ref={rootRef}>
       {label ? (
-        <p className="mb-1 text-[11px] font-bold text-slate-600">{label}</p>
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-700">{label}</p>
       ) : null}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`flex h-9 w-full items-center justify-between gap-1 border bg-white px-2 text-left text-xs font-semibold outline-none transition focus:border-emerald-500 ${
+        className={`flex h-9 w-full items-center justify-between gap-1 border bg-white px-2 text-left text-xs font-semibold outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25 ${
           open
-            ? "rounded-t-lg rounded-b-none border-slate-200 border-b-transparent"
-            : "rounded-lg"
+            ? "rounded-t-xl rounded-b-none border-emerald-100 border-b-transparent"
+            : "rounded-xl"
         } ${
           isActive
             ? "border-emerald-300 text-emerald-800 ring-1 ring-emerald-100"
-            : "border-slate-200 text-slate-700"
+            : "border-emerald-100 text-[#0f3d2e]"
         } ${triggerClassName}`}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -492,7 +493,7 @@ function FilterMenu({
         </span>
         <ChevronDown
           size={14}
-          className={`shrink-0 text-slate-400 transition-transform ${
+          className={`shrink-0 text-[#5c7d6d] transition-transform ${
             open ? "rotate-180" : ""
           }`}
         />
@@ -501,7 +502,7 @@ function FilterMenu({
       {open ? (
         <div
           ref={menuRef}
-          className="absolute left-0 right-0 top-full z-50 w-full overflow-y-auto rounded-b-lg border border-t-0 border-slate-200 bg-white shadow-2xl"
+          className="absolute left-0 right-0 top-full z-50 w-full overflow-y-auto rounded-b-xl border border-t-0 border-emerald-100 bg-white shadow-[0_12px_28px_rgba(16,185,129,0.14)]"
           style={{ maxHeight: menuMaxHeight }}
           role="listbox"
         >
@@ -510,7 +511,7 @@ function FilterMenu({
               return (
                 <p
                   key={`g-${opt.label}-${idx}`}
-                  className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-wide text-slate-400"
+                  className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-emerald-600"
                 >
                   {opt.label}
                 </p>
@@ -530,8 +531,8 @@ function FilterMenu({
                 }}
                 className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
                   selectedOpt
-                    ? "bg-emerald-600 text-white"
-                    : "text-slate-700 hover:bg-slate-50"
+                    ? "bg-[#27AE60] text-white"
+                    : "text-[#0f3d2e] hover:bg-emerald-50"
                 }`}
               >
                 <span className="min-w-0 flex-1 truncate">{opt.label}</span>
@@ -540,7 +541,7 @@ function FilterMenu({
                     className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${
                       selectedOpt
                         ? "bg-white/25 text-white"
-                        : "bg-slate-200 text-slate-700"
+                        : "bg-emerald-100 text-emerald-700"
                     }`}
                   >
                     {count}
@@ -623,13 +624,13 @@ function BuilderSearchFilter({
   return (
     <div className={`relative z-20 ${className}`} ref={rootRef}>
       {label ? (
-        <p className="mb-1 text-[11px] font-bold text-slate-600">{label}</p>
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-700">{label}</p>
       ) : null}
       <div
         className={`flex h-9 w-full items-stretch overflow-hidden border bg-white transition ${
           open
-            ? "rounded-t-lg rounded-b-none border-slate-200 border-b-transparent"
-            : "rounded-lg border-slate-200"
+            ? "rounded-t-xl rounded-b-none border-emerald-100 border-b-transparent"
+            : "rounded-xl border-emerald-100"
         } ${
           isActive ? "ring-1 ring-emerald-100 border-emerald-300" : ""
         }`}
@@ -637,7 +638,7 @@ function BuilderSearchFilter({
         <div className="relative min-w-0 flex-1">
           <Search
             size={13}
-            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[#5c7d6d]"
           />
           <input
             type="text"
@@ -649,7 +650,7 @@ function BuilderSearchFilter({
               setOpen(true);
             }}
             placeholder={selected?.label || "Search builders…"}
-            className="h-full w-full bg-transparent py-0 pl-7 pr-6 text-xs font-semibold text-slate-700 outline-none placeholder:text-slate-400"
+            className="h-full w-full bg-transparent py-0 pl-7 pr-6 text-xs font-semibold text-[#0f3d2e] outline-none placeholder:text-[#5c7d6d]"
             aria-autocomplete="list"
             aria-expanded={open}
             aria-haspopup="listbox"
@@ -661,7 +662,7 @@ function BuilderSearchFilter({
                 onSearchChange?.("");
                 setOpen(true);
               }}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#5c7d6d] hover:text-[#0f3d2e]"
               aria-label="Clear builder search"
             >
               <X size={11} />
@@ -671,7 +672,7 @@ function BuilderSearchFilter({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="flex w-9 shrink-0 items-center justify-center border-l border-slate-200 text-slate-400 hover:bg-slate-50"
+          className="flex w-9 shrink-0 items-center justify-center border-l border-emerald-100 text-[#5c7d6d] hover:bg-emerald-50"
           aria-label="Toggle builder list"
         >
           <ChevronDown
@@ -684,7 +685,7 @@ function BuilderSearchFilter({
       {open ? (
         <div
           ref={menuRef}
-          className="absolute left-0 right-0 top-full z-50 overflow-y-auto rounded-b-lg border border-t-0 border-slate-200 bg-white shadow-2xl"
+          className="absolute left-0 right-0 top-full z-50 overflow-y-auto rounded-b-xl border border-t-0 border-emerald-100 bg-white shadow-[0_12px_28px_rgba(16,185,129,0.14)]"
           style={{ maxHeight: menuMaxHeight }}
           role="listbox"
         >
@@ -694,7 +695,7 @@ function BuilderSearchFilter({
             );
             if (query && matches.length === 0) {
               return (
-                <p className="px-3 py-3 text-xs font-medium text-slate-400">
+                <p className="px-3 py-3 text-xs font-medium text-[#5c7d6d]">
                   No builders match “{query}”
                 </p>
               );
@@ -704,7 +705,7 @@ function BuilderSearchFilter({
                 return (
                   <p
                     key={`g-${opt.label}-${idx}`}
-                    className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-wide text-slate-400"
+                    className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wide text-emerald-600"
                   >
                     {opt.label}
                   </p>
@@ -721,8 +722,8 @@ function BuilderSearchFilter({
                   onClick={() => pick(opt.value)}
                   className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
                     selectedOpt
-                      ? "bg-emerald-600 text-white"
-                      : "text-slate-700 hover:bg-slate-50"
+                      ? "bg-[#27AE60] text-white"
+                      : "text-[#0f3d2e] hover:bg-emerald-50"
                   }`}
                 >
                   <span className="min-w-0 flex-1 truncate">{opt.label}</span>
@@ -930,7 +931,7 @@ function InlineLocationSelector({
    const isStateOpen = openStates[state];
 
     return (
-      <div key={state} className="border-b  border-slate-50">
+      <div key={state} className="border-b border-emerald-50">
         <div className="flex items-center">
           <button
             
@@ -944,28 +945,28 @@ function InlineLocationSelector({
               )
             }
             className={`flex-1 flex items-center gap-2 pl-7 pr-2 py-2 text-xs transition
-              ${isActive("state", { state }) ? "bg-[#27AE60]/10 text-[#27AE60] font-semibold" : "text-slate-600 hover:bg-green-50"}`}
+              ${isActive("state", { state }) ? "bg-emerald-50 font-semibold text-emerald-700" : "text-[#0f3d2e] hover:bg-emerald-50"}`}
           >
             <MapPin className="w-3 h-3 flex-shrink-0 opacity-40" />
             <span className="flex-1 text-left">{state}</span>
-            <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">
+            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700">
               {stateCount}
             </span>
           </button>
           {cities.length > 0 && (
             <button
               onClick={() => toggle(setOpenStates, state)}
-              className="px-2 py-2 hover:bg-slate-100 transition"
+              className="px-2 py-2 transition hover:bg-emerald-50"
             >
               <ChevronRight
-                className={`w-3 h-3 text-slate-400 transition-transform ${isStateOpen ? "rotate-90" : ""}`}
+                className={`h-3 w-3 text-[#5c7d6d] transition-transform ${isStateOpen ? "rotate-90" : ""}`}
               />
             </button>
           )}
         </div>
 
         {isStateOpen && cities.length > 0 && (
-          <div className="bg-slate-50/70 border-t border-slate-100 px-3 py-2 space-y-2">
+          <div className="space-y-2 border-t border-emerald-50 bg-emerald-50/40 px-3 py-2">
             <SelectDropdown
               label="City"
               
@@ -1088,11 +1089,11 @@ function InlineLocationSelector({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition min-w-[180px]
+        className={`flex min-w-[180px] items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition
           ${
             selectedLocation
-              ? "bg-[#27AE60]/10 border-[#27AE60]/40 text-[#27AE60]"
-              : "bg-white border-slate-200 text-slate-600 hover:border-[#27AE60]/50"
+              ? "border-emerald-300 bg-emerald-50 text-emerald-700 shadow-[0_4px_12px_rgba(16,185,129,0.10)]"
+              : "border-emerald-100 bg-white text-[#0f3d2e] shadow-[0_4px_12px_rgba(16,185,129,0.08)] hover:border-emerald-300"
           }`}
       >
         <Navigation className="w-4 h-4 flex-shrink-0" />
@@ -1133,23 +1134,23 @@ function InlineLocationSelector({
               width: menuPos.width,
               zIndex: 9999,
             }}
-            className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_16px_40px_rgba(16,185,129,0.16)]"
           >
           {/* Search */}
-          <div className="border-b border-slate-100 bg-slate-50 p-3">
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/10">
-              <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+          <div className="border-b border-emerald-50 bg-[#f7fbf8] p-3">
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-white px-3 py-2 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/25">
+              <Search className="w-3.5 h-3.5 shrink-0 text-[#5c7d6d]" />
               <input
                 type="text"
                 placeholder="Search zone, state, city…"
                 value={analyticsSearch}
                 onChange={(e) => setAnalyticsSearch(e.target.value)}
-                className="flex-1 bg-transparent text-xs outline-none text-slate-700 placeholder:text-slate-400"
+                className="flex-1 bg-transparent text-xs outline-none text-[#0f3d2e] placeholder:text-[#5c7d6d]"
                 autoFocus
               />
               {analyticsSearch && (
                 <button type="button" onClick={() => setAnalyticsSearch("")}>
-                  <X className="w-3 h-3 text-slate-400 hover:text-red-500" />
+                  <X className="h-3 w-3 text-[#5c7d6d] hover:text-red-500" />
                 </button>
               )}
             </div>
@@ -1162,12 +1163,12 @@ function InlineLocationSelector({
               onLocationChange(null);
               setOpen(false);
             }}
-            className={`w-full  flex items-center gap-2 px-3 py-2.5 text-xs font-semibold transition border-b border-slate-100
-              ${!selectedLocation ? "bg-[#27AE60]/10 text-[#27AE60]" : "text-slate-600 hover:bg-slate-50"}`}
+            className={`flex w-full items-center gap-2 border-b border-emerald-50 px-3 py-2.5 text-xs font-semibold transition
+              ${!selectedLocation ? "bg-emerald-50 text-emerald-700" : "text-[#0f3d2e] hover:bg-emerald-50"}`}
           >
             <Globe className="w-3.5 h-3.5" />
             All India
-            <span className="ml-auto text-[10px] bg-[#27AE60] text-white px-1.5 py-0.5 rounded-full">
+            <span className="ml-auto rounded-full bg-[#27AE60] px-1.5 py-0.5 text-[10px] text-white">
               {masterAnalytics?.overview?.totalProjects || 0}
             </span>
           </button>
@@ -1190,11 +1191,11 @@ function InlineLocationSelector({
                   <button
                     type="button"
                     onClick={() => toggle(setOpenZones, zone.zone)}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider hover:bg-slate-100 transition"
+                    className="flex w-full items-center gap-2 border-b border-emerald-50 bg-emerald-50/50 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-emerald-700 transition hover:bg-emerald-50"
                   >
-                    <Navigation className="w-3 h-3 text-[#27AE60]" />
+                    <Navigation className="h-3 w-3 text-emerald-600" />
                     <span className="flex-1 text-left">{zone.zone}</span>
-                    <span className="text-[10px] bg-slate-200/80 text-slate-600 px-1.5 py-0.5 rounded-full normal-case tracking-normal font-semibold">
+                    <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-emerald-700">
                       {zoneCount}
                     </span>
                     {isZoneOpen ? (
@@ -1225,19 +1226,19 @@ function KPICard({ label, display, onClick, isActive }) {
   return (
     <div
       onClick={onClick}
-      className={`group flex min-h-[52px] min-w-0 w-full flex-col items-start justify-center gap-1 rounded-lg border bg-white px-3 py-2 shadow-sm transition-colors duration-200
-        ${onClick ? "cursor-pointer hover:border-emerald-300 hover:shadow-md" : "border-slate-200"}
-        ${isActive ? "border-emerald-500 ring-2 ring-emerald-500/15 shadow-md" : "border-slate-200"}`}
+      className={`group flex min-h-[52px] w-full min-w-0 flex-col items-start justify-center gap-1 rounded-xl px-3 py-2
+        ${onClick ? `cursor-pointer ${saSurfaceHover}` : saSurface}
+        ${isActive ? "border-[#27AE60] bg-[#27AE60] text-white shadow-[0_8px_18px_-6px_rgba(37,211,102,0.55)]" : saSurface}`}
     >
       <div>
         <p
-          className="whitespace-nowrap text-[10px] font-semibold leading-none text-slate-500"
+          className={`whitespace-nowrap text-[10px] font-semibold leading-none ${isActive ? "text-white" : "text-[#5c7d6d]"}`}
           title={label}
         >
           {label}
         </p>
       </div>
-      <p className="text-base font-bold leading-none tracking-tight text-slate-900">
+      <p className={`text-base font-bold leading-none tracking-tight ${isActive ? "text-white" : "text-[#0f3d2e]"}`}>
           {display}
       </p>
     </div>
@@ -1386,11 +1387,11 @@ function AnalyticsPromotionRow({ ov, total: _total, activePromotionFilter, onPro
             onClick={() =>
               onPromotionFilter(isActive ? "all" : c.key)
             }
-            className={`flex min-h-[52px] min-w-0 w-full cursor-pointer flex-col items-start justify-center gap-1 rounded-lg border bg-white px-3 py-2 shadow-sm transition-colors duration-200 hover:border-emerald-300 hover:shadow-md
-              ${isActive ? "border-emerald-500 ring-2 ring-emerald-500/15 shadow-md" : "border-slate-200"}`}
+            className={`flex min-h-[52px] w-full min-w-0 cursor-pointer flex-col items-start justify-center gap-1 rounded-xl px-3 py-2 ${saSurfaceHover}
+              ${isActive ? "border-[#27AE60] bg-[#27AE60] text-white shadow-[0_8px_18px_-6px_rgba(37,211,102,0.55)]" : saSurface}`}
           >
-            <p className="whitespace-nowrap text-[10px] font-semibold leading-none text-slate-500">{c.label}</p>
-            <p className="text-base font-bold leading-none text-slate-900">
+            <p className={`whitespace-nowrap text-[10px] font-semibold leading-none ${isActive ? "text-white" : "text-[#5c7d6d]"}`}>{c.label}</p>
+            <p className={`text-base font-bold leading-none ${isActive ? "text-white" : "text-[#0f3d2e]"}`}>
               {c.value}
             </p>
           </div>
@@ -1404,19 +1405,19 @@ function AnalyticsCategoryBlock({ categoryWise, total: _total }) {
   const filtered = (categoryWise || []).filter((c) => c._id && c._id !== "unknown");
   if (!filtered.length) return null;
   return (
-    <div className="custom-scrollbar h-[210px] overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-3 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-4">
-      <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
-        <Layers className="w-3.5 h-3.5 text-[#27AE60]" />
+    <div className={`custom-scrollbar h-[210px] overflow-y-auto rounded-2xl p-3 sm:p-4 ${saSurface}`}>
+      <p className="mb-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+        <Layers className="h-3.5 w-3.5 text-emerald-600" />
         By Category
       </p>
       <div className="space-y-3">
         {filtered.map((cat) => (
           <div key={cat._id}>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-[#5c7d6d]">
                 <span className="capitalize">{cat._id}</span>
               </span>
-              <span className="text-sm font-bold text-slate-800">
+              <span className="text-sm font-semibold text-[#0f3d2e]">
                 {cat.total}
                 
               </span>
@@ -1440,20 +1441,20 @@ function AnalyticsPropertyTypeBlock({ propertyTypeWise }) {
   if (!rows.length) return null;
   const maxVal = rows[0]?.total || 1;
   return (
-    <div className="custom-scrollbar h-[210px] overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-3 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-4">
-      <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
-        <Home className="w-3.5 h-3.5 text-[#27AE60]" />
+    <div className={`custom-scrollbar h-[210px] overflow-y-auto rounded-2xl p-3 sm:p-4 ${saSurface}`}>
+      <p className="mb-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+        <Home className="h-3.5 w-3.5 text-emerald-600" />
         Property Types
       </p>
       <div className="space-y-2">
         {rows.map((pt, i) => (
           <div key={pt._id} className="flex items-center gap-3">
-            <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${TYPE_COLORS[i % TYPE_COLORS.length]}`} />
-            <span className="text-xs text-slate-600 capitalize flex-1 truncate">{pt._id}</span>
-            <div className="flex-1 max-w-[100px]">
+            <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${TYPE_COLORS[i % TYPE_COLORS.length]}`} />
+            <span className="min-w-0 flex-1 truncate text-xs capitalize text-[#5c7d6d]">{pt._id}</span>
+            <div className="max-w-[100px] flex-1">
               <MiniBar value={pt.total} max={maxVal} color={TYPE_COLORS[i % TYPE_COLORS.length]} height="h-2" />
             </div>
-            <span className="text-xs font-bold text-slate-700 w-5 text-right flex-shrink-0">{pt.total}</span>
+            <span className="w-5 shrink-0 text-right text-xs font-semibold text-[#0f3d2e]">{pt.total}</span>
           </div>
         ))}
       </div>
@@ -1476,7 +1477,7 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel: _locat
 
   if (!rows?.length) {
     return (
-      <div className="bg-white rounded-2xl p-6 text-center text-slate-400">
+      <div className={`rounded-2xl p-6 text-center text-[#5c7d6d] ${saSurface}`}>
         No {label} data available
       </div>
     );
@@ -1485,30 +1486,30 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel: _locat
   const isSingleRow = rows.length === 1;
 
   return (
-    <div className="custom-scrollbar h-[210px] overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-3 shadow-[0_5px_18px_rgba(22,163,74,0.10)] sm:p-4">
+    <div className={`custom-scrollbar h-[210px] overflow-y-auto rounded-2xl p-3 sm:p-4 ${saSurface}`}>
       
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-          <MapPin className="w-3.5 h-3.5 text-[#27AE60]" />
+        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+          <MapPin className="h-3.5 w-3.5 text-emerald-600" />
           By {label}
         </p>
       </div>
 
       <div className="mb-3">
-        <div className="flex items-center gap-2 border border-[#27AE60] rounded-xl px-3 py-2 bg-slate-50">
-          <Search className="w-4 h-4 text-slate-400" />
+        <div className={`flex items-center gap-2 rounded-xl px-3 py-2 focus-within:border-[#27AE60] focus-within:ring-2 focus-within:ring-[#27AE60]/25 ${saInset}`}>
+          <Search className="h-4 w-4 text-[#5c7d6d]" />
 
           <input
             type="text"
             placeholder={`Search ${label}...`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-transparent outline-none  text-sm  text-[#000000] placeholder:text-[#000000]/50"
+            className="flex-1 bg-transparent text-sm text-[#0f3d2e] outline-none placeholder:text-[#5c7d6d]"
           />
 
           {search && (
             <button onClick={() => setSearch("")}>
-              <X className="w-4 h-4 text-slate-400 hover:text-red-500" />
+              <X className="h-4 w-4 text-[#5c7d6d] hover:text-red-500" />
             </button>
           )}
         </div>
@@ -1518,13 +1519,13 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel: _locat
           {rows.map((row) => (
             <div
               key={row._id}
-              className="bg-[#27AE60]/5 rounded-xl p-3 border border-[#27AE60]/10"
+              className={`rounded-xl bg-[#f4fbf7] p-3 ${saInset}`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-[#27AE60]">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-semibold text-emerald-700">
                   {row._id}
                 </span>
-                <span className="text-sm font-bold text-slate-800">
+                <span className="text-sm font-semibold text-[#0f3d2e]">
                   {row.total} projects
                 </span>
               </div>
@@ -1570,7 +1571,7 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel: _locat
                       <p className={`text-base font-bold ${tile.color}`}>
                         {tile.value}
                       </p>
-                      <p className="text-[10px] text-slate-500">{tile.label}</p>
+                      <p className="text-[10px] text-[#5c7d6d]">{tile.label}</p>
                     </div>
                   ))}
               </div>
@@ -1580,7 +1581,7 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel: _locat
       ) : (
         <div className="space-y-3">
           {filteredRows.length === 0 ? (
-            <div className="text-center text-slate-400 py-5">
+            <div className="py-5 text-center text-[#5c7d6d]">
               No {label} found
             </div>
           ) : (
@@ -1589,10 +1590,10 @@ function AnalyticsLocationBlock({ analytics, locationType, locationLabel: _locat
               .map((row) => (
                 <div key={row._id}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-slate-700 truncate max-w-[160px]">
+                    <span className="max-w-[160px] truncate text-xs font-semibold text-[#5c7d6d]">
                       {row._id}
                     </span>
-                    <span className="text-xs font-bold text-slate-800 ml-2 flex-shrink-0">
+                    <span className="ml-2 shrink-0 text-xs font-semibold text-[#0f3d2e]">
                       {row?.total ?? 0}
                     </span>
                   </div>
@@ -1647,14 +1648,14 @@ function AnalyticsDashboard({
     return (
       <div className="flex items-center justify-center py-10 gap-3">
         <LoadingSpinner size="md" />
-        <span className="text-sm text-slate-500">Updating analytics…</span>
+        <span className="text-sm text-[#5c7d6d]">Updating analytics…</span>
       </div>
     );
   }
 
   if (!analytics?.overview) {
     return (
-      <div className="text-center py-8 text-slate-400">
+      <div className="py-8 text-center text-[#5c7d6d]">
         <BarChart3 className="w-10 h-10 mx-auto mb-2 opacity-20" />
         <p className="text-sm">No analytics data available</p>
       </div>
@@ -2944,13 +2945,8 @@ export default function ProjectsDashboardPage() {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div
-      className="mx-auto w-full max-w-[1600px] space-y-2 rounded-3xl px-1 pb-8 sm:px-2"
-      style={{
-        backgroundColor: "#effcf5",
-        backgroundImage:
-          "linear-gradient(rgba(39, 174, 96, 0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(39, 174, 96, 0.11) 1px, transparent 1px)",
-        backgroundSize: "24px 24px",
-      }}
+      className="mx-auto w-full max-w-[1600px] space-y-3 rounded-3xl px-1 pb-8 text-[#0f3d2e] sm:px-2"
+      style={{ backgroundColor: "#f7fbf8" }}
     >
       {/* ── MODALS ──────────────────────────────────────────────────────── */}
       <ConfirmModal
@@ -3025,7 +3021,7 @@ export default function ProjectsDashboardPage() {
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────────── */}
       <section className="flex items-center justify-between gap-4 px-4 py-2 sm:px-6">
-        <h1 className="text-2xl font-bold tracking-tight text-[#27AE60] sm:text-3xl">Projects</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-[#0f3d2e] sm:text-3xl">Projects</h1>
         <div className="relative flex items-center gap-3">
           <InlineLocationSelector
             properties={allProperties}
@@ -3041,7 +3037,7 @@ export default function ProjectsDashboardPage() {
             <button
               type="button"
               onClick={() => setShowAnalytics((visible) => !visible)}
-              className="hidden shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 transition hover:border-emerald-400 hover:text-emerald-700 lg:inline-flex"
+              className="hidden shrink-0 rounded-full border border-emerald-100 bg-white px-3 py-2.5 text-xs font-semibold text-[#0f3d2e] shadow-[0_4px_12px_rgba(16,185,129,0.08)] transition hover:bg-emerald-50 lg:inline-flex"
               aria-pressed={showAnalytics}
             >
               {showAnalytics ? "Hide analytics" : "Show analytics"}
@@ -3051,7 +3047,7 @@ export default function ProjectsDashboardPage() {
             <button
               type="button"
               onClick={() => navigate("/create-featured-project")}
-              className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200 sm:px-5"
+              className="flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#27AE60] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_6px_14px_rgba(18,161,80,0.24)] transition hover:bg-[#1e8f4d] focus:outline-none focus:ring-4 focus:ring-emerald-200 sm:px-5"
             >
               <Plus className="h-4 w-4" />
               Create Project
@@ -3199,7 +3195,7 @@ export default function ProjectsDashboardPage() {
                 openPendingApprovalsView();
               }
             }}
-            className={`flex cursor-pointer items-center gap-4 rounded-2xl border bg-white p-4 shadow-sm transition-all hover:shadow-md
+            className={`flex cursor-pointer items-center gap-4 rounded-2xl border bg-white p-4 shadow-[0_8px_24px_rgba(16,185,129,0.08)] transition-all hover:border-emerald-200
               ${
                 isPendingApprovalsView
                   ? "border-amber-300 ring-2 ring-amber-400"
@@ -3212,10 +3208,10 @@ export default function ProjectsDashboardPage() {
               <Clock className="h-6 w-6 text-amber-500" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-2xl font-bold text-slate-800">
+              <p className="text-2xl font-bold text-[#0f3d2e]">
                 {actionablePendingProjects.length}
               </p>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-[#5c7d6d]">
                 {isRegionalManager
                   ? "New onboarding projects waiting for your approval"
                   : "Pending project approvals"}
@@ -3234,7 +3230,7 @@ export default function ProjectsDashboardPage() {
           </div>
 
           {isPendingApprovalsView && actionablePendingProjects.length > 0 && (
-            <div className="w-full rounded-2xl border border-amber-200 bg-white p-3 shadow-sm sm:p-4">
+            <div className="w-full rounded-2xl border border-amber-200 bg-white p-3 shadow-[0_8px_24px_rgba(16,185,129,0.08)] sm:p-4">
               <p className="mb-3 text-xs font-bold uppercase tracking-wide text-amber-700">
                 Approve queue — goes live on approve
               </p>
@@ -3252,13 +3248,13 @@ export default function ProjectsDashboardPage() {
                   return (
                     <div
                       key={project._id}
-                      className="flex w-full flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4"
+                      className="flex w-full flex-col gap-3 rounded-xl border border-emerald-100 bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-slate-800">
+                        <p className="truncate text-sm font-semibold text-[#0f3d2e]">
                           {project.title || "Untitled project"}
                         </p>
-                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                        <p className="mt-0.5 truncate text-[11px] text-[#5c7d6d]">
                           Created by {creatorName} · {String(creatorRole).replace(/_/g, " ")}
                           {project.city ? ` · ${project.city}` : ""}
                         </p>
@@ -3314,10 +3310,10 @@ export default function ProjectsDashboardPage() {
       )}
 
       {/* ── PROJECT LIST FILTERS ─────────────────────────────────────────── */}
-      <div className="relative z-10 space-y-2 overflow-visible rounded-xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-3">
+      <div className={`relative z-10 space-y-2 overflow-visible rounded-2xl p-3 sm:p-3 ${saSurface}`}>
         {/* Search bar (right, fills remaining space) */}
-        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 focus-within:border-[#27AE60]/50 focus-within:bg-white transition">
-          <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
+        <div className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-2 transition focus-within:border-[#27AE60] focus-within:ring-2 focus-within:ring-[#27AE60]/25 ${saInset}`}>
+          <Search className="h-4 w-4 shrink-0 text-[#5c7d6d]" />
           <input
             type="text"
             placeholder="Search projects by title, city, posted by, approved by, ID…"
@@ -3325,14 +3321,14 @@ export default function ProjectsDashboardPage() {
             //onChange={(e) => setSearchTerm(e.target.value)}
             value={projectSearch}
             onChange={(e) => setProjectSearch(e.target.value)}
-            className="flex-1 bg-transparent text-sm outline-none text-slate-700 placeholder:text-slate-400 min-w-0"
+            className="min-w-0 flex-1 bg-transparent text-sm text-[#0f3d2e] outline-none placeholder:text-[#5c7d6d]"
           />
           {projectSearch && (
             <button
               onClick={() => setProjectSearch("")}
-              className="flex-shrink-0"
+              className="shrink-0"
             >
-              <X className="w-4 h-4 text-slate-400 hover:text-red-500 transition" />
+              <X className="h-4 w-4 text-[#5c7d6d] transition hover:text-red-500" />
             </button>
           )}
         </div>
@@ -3368,7 +3364,7 @@ export default function ProjectsDashboardPage() {
 
           <div className="relative z-20 w-[12.5rem] shrink-0">
             <div className="mb-1 flex items-center gap-1.5">
-              <p className="text-[11px] font-bold text-slate-600">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-700">
                 Promotion Tracking
               </p>
             </div>
@@ -3377,14 +3373,14 @@ export default function ProjectsDashboardPage() {
               <button
                 type="button"
                 onClick={() => setTrackingMenuOpen((o) => !o)}
-                className={`flex h-9 w-full items-center justify-between gap-1 border bg-white px-2 text-left text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 ${
+                className={`flex h-9 w-full items-center justify-between gap-1 border bg-white px-2 text-left text-xs font-semibold text-[#0f3d2e] outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25 ${
                   trackingMenuOpen
-                    ? "rounded-t-lg rounded-b-none border-b-transparent"
-                    : "rounded-lg"
+                    ? "rounded-t-xl rounded-b-none border-b-transparent"
+                    : "rounded-xl"
                 } ${
                   expiringSoon3DayCount > 0
                     ? "border-red-300 ring-1 ring-red-100"
-                    : "border-slate-200"
+                    : "border-emerald-100"
                 }`}
                 aria-haspopup="listbox"
                 aria-expanded={trackingMenuOpen}
@@ -3394,7 +3390,7 @@ export default function ProjectsDashboardPage() {
                 </span>
                 <ChevronDown
                   size={14}
-                  className={`shrink-0 text-slate-400 transition-transform ${
+                  className={`shrink-0 text-[#5c7d6d] transition-transform ${
                     trackingMenuOpen ? "rotate-180" : ""
                   }`}
                 />
@@ -3423,7 +3419,7 @@ export default function ProjectsDashboardPage() {
               {trackingMenuOpen ? (
                 <div
                   ref={trackingMenuRef}
-                  className="absolute left-0 right-0 top-full z-50 max-h-56 overflow-y-auto rounded-b-lg border border-t-0 border-slate-200 bg-white shadow-2xl"
+                  className="absolute left-0 right-0 top-full z-50 max-h-56 overflow-y-auto rounded-b-xl border border-t-0 border-emerald-100 bg-white shadow-[0_12px_28px_rgba(16,185,129,0.14)]"
                   role="listbox"
                 >
                   {TRACKING_FILTERS.map((item) => {
@@ -3456,11 +3452,11 @@ export default function ProjectsDashboardPage() {
                         }}
                         className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
                           selected
-                            ? "bg-emerald-600 text-white"
+                            ? "bg-[#27AE60] text-white"
                             : item.value === "expiringSoon" &&
                                 expiringSoon3DayCount > 0
                               ? "bg-red-50 text-red-700 hover:bg-red-100"
-                              : "text-slate-700 hover:bg-slate-50"
+                              : "text-[#0f3d2e] hover:bg-emerald-50"
                         }`}
                       >
                         <span className="truncate">{item.label}</span>
@@ -3471,7 +3467,7 @@ export default function ProjectsDashboardPage() {
                                 ? "bg-white/25 text-white"
                                 : item.value === "expiringSoon"
                                   ? "bg-red-600 text-white"
-                                  : "bg-slate-200 text-slate-700"
+                                  : "bg-emerald-100 text-emerald-700"
                             }`}
                           >
                             {item.value === "expiringSoon"
@@ -3503,9 +3499,9 @@ export default function ProjectsDashboardPage() {
             type="button"
             onClick={clearListFilters}
             disabled={activeFiltersCount === 0}
-            className={`mb-0 flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition ${
+            className={`mb-0 flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition ${
               activeFiltersCount > 0
-                ? "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                ? "border-emerald-100 bg-white text-[#0f3d2e] hover:bg-emerald-50"
                 : "pointer-events-none border-transparent bg-transparent text-transparent"
             }`}
           >
@@ -3520,41 +3516,41 @@ export default function ProjectsDashboardPage() {
         </div>
 
         <details
-          className="rounded-xl border border-slate-200 bg-slate-50/80"
+          className="rounded-xl border border-emerald-100 bg-emerald-50/40"
           open={Boolean(createdFrom || createdTo)}
         >
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-semibold text-slate-700 marker:content-none">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-xs font-semibold text-[#0f3d2e] marker:content-none">
             <span className="inline-flex items-center gap-2">
               <Clock className="h-3.5 w-3.5 text-emerald-600" />
               Date range
             </span>
-            <ChevronDown className="h-4 w-4 text-slate-400 transition-transform" />
+            <ChevronDown className="h-4 w-4 text-[#5c7d6d] transition-transform" />
           </summary>
-          <div className="border-t border-slate-200 p-2.5">
+          <div className="border-t border-emerald-100 p-2.5">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0 flex-1">
-              <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-600">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                 Custom date range
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="block min-w-0">
-                  <span className="mb-1 block text-[11px] font-medium text-slate-500">From</span>
+                  <span className="mb-1 block text-[11px] font-medium text-[#5c7d6d]">From</span>
                   <input
                     type="date"
                     value={createdFrom}
                     max={createdTo || undefined}
                     onChange={(event) => setCreatedFrom(event.target.value)}
-                    className="h-9 w-full min-w-[11.5rem] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500"
+                    className="h-9 w-full min-w-[11.5rem] rounded-xl border border-emerald-100 bg-white px-3 text-sm text-[#0f3d2e] outline-none focus:border-emerald-500"
                   />
                 </label>
                 <label className="block min-w-0">
-                  <span className="mb-1 block text-[11px] font-medium text-slate-500">To</span>
+                  <span className="mb-1 block text-[11px] font-medium text-[#5c7d6d]">To</span>
                   <input
                     type="date"
                     value={createdTo}
                     min={createdFrom || undefined}
                     onChange={(event) => setCreatedTo(event.target.value)}
-                    className="h-9 w-full min-w-[11.5rem] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500"
+                    className="h-9 w-full min-w-[11.5rem] rounded-xl border border-emerald-100 bg-white px-3 text-sm text-[#0f3d2e] outline-none focus:border-emerald-500"
                   />
                 </label>
               </div>
@@ -3563,10 +3559,10 @@ export default function ProjectsDashboardPage() {
               <button
                 type="button"
                 onClick={() => (isTodayRange ? clearDateRange() : applyTodayRange())}
-                className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+                className={`rounded-full border px-2.5 py-1.5 text-xs font-semibold transition ${
                   isTodayRange
-                    ? "border-emerald-600 bg-emerald-600 text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-emerald-400"
+                    ? "border-[#27AE60] bg-[#27AE60] text-white"
+                    : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300"
                 }`}
               >
                 Today projects
@@ -3575,17 +3571,17 @@ export default function ProjectsDashboardPage() {
                 type="button"
                 onClick={clearDateRange}
                 disabled={!createdFrom && !createdTo}
-                className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+                className={`rounded-full border px-2.5 py-1.5 text-xs font-semibold transition ${
                   createdFrom || createdTo
-                    ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
-                    : "cursor-not-allowed border-slate-100 bg-white text-slate-300"
+                    ? "border-emerald-100 bg-white text-[#0f3d2e] hover:bg-emerald-50"
+                    : "cursor-not-allowed border-emerald-50 bg-white text-emerald-200"
                 }`}
               >
                 Clear dates
               </button>
             </div>
           </div>
-          <p className="mt-1.5 min-h-[16px] text-[11px] text-slate-500">
+          <p className="mt-1.5 min-h-[16px] text-[11px] text-[#5c7d6d]">
             {createdFrom || createdTo
               ? `${isTodayRange ? "Today" : "Selected"}: ${createdFrom || "—"} → ${createdTo || "—"}`
               : "Pick From / To, or use Today projects."}
@@ -3596,14 +3592,14 @@ export default function ProjectsDashboardPage() {
         {/* Property type sub-filter */}
         {categoryFilter !== "all" && PROPERTY_TYPES[categoryFilter] && (
           <div>
-            <p className="text-xs font-bold text-slate-600 mb-2">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-700">
               Property Type
             </p>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setPropertyTypeFilter("all")}
-                className={`px-3 py-2 rounded-xl border text-xs font-semibold transition
-                  ${propertyTypeFilter === "all" ? "bg-[#27AE60] text-white border-[#27AE60]" : "bg-white text-slate-600 border-slate-200 hover:border-[#27AE60]"}`}
+                className={`rounded-full border px-3 py-2 text-xs font-semibold transition
+                  ${propertyTypeFilter === "all" ? "border-[#27AE60] bg-[#27AE60] text-white" : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300"}`}
               >
                 All
               </button>
@@ -3611,8 +3607,8 @@ export default function ProjectsDashboardPage() {
                 <button
                   key={pt.value}
                   onClick={() => setPropertyTypeFilter(pt.value)}
-                  className={`px-3 py-2 rounded-xl border text-xs font-semibold transition
-                    ${propertyTypeFilter === pt.value ? "bg-[#27AE60] text-white border-[#27AE60]" : "bg-white text-slate-600 border-slate-200 hover:border-[#27AE60]"}`}
+                  className={`rounded-full border px-3 py-2 text-xs font-semibold transition
+                    ${propertyTypeFilter === pt.value ? "border-[#27AE60] bg-[#27AE60] text-white" : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300"}`}
                 >
                   {pt.label}
                 </button>
@@ -3683,7 +3679,7 @@ export default function ProjectsDashboardPage() {
               </span>
             )}
             {(createdFrom || createdTo) && (
-              <span className="inline-flex items-center gap-1.5 text-xs bg-slate-50 border border-slate-200 text-slate-700 rounded-full px-2.5 py-1 font-medium">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-[#0f3d2e]">
                 {isTodayRange
                   ? "Today"
                   : `${createdFrom || "…"} → ${createdTo || "…"}`}
@@ -3697,27 +3693,27 @@ export default function ProjectsDashboardPage() {
       </div>
 
       {/* ── RESULTS (full-width aligned with filters) ───────────────────── */}
-      <div className="w-full space-y-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_6px_20px_rgba(22,163,74,0.10)] sm:p-5">
+      <div className="w-full space-y-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_8px_24px_rgba(16,185,129,0.08)] sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-lg font-bold text-slate-800">
+          <h2 className="text-lg font-semibold text-[#0f3d2e]">
             Projects
-            <span className="ml-2 text-sm font-semibold text-slate-400 tabular-nums">
+            <span className="ml-2 text-sm font-semibold tabular-nums text-[#5c7d6d]">
               ({Number(displayedCount) || visibleProperties.length})
             </span>
             {boardHook.isFetching && !isInitialListLoading ? (
-              <span className="ml-2 text-xs font-medium text-slate-400">
+              <span className="ml-2 text-xs font-medium text-[#5c7d6d]">
                 Updating…
               </span>
             ) : null}
             {projectTitleSearchLoading && projectTitleSearch.length >= 2 ? (
-              <span className="ml-2 text-xs font-medium text-slate-400">
+              <span className="ml-2 text-xs font-medium text-[#5c7d6d]">
                 Searching catalogue…
               </span>
             ) : null}
           </h2>
 
           <div className="flex w-full items-center gap-2 sm:w-auto">
-            <ArrowUpDown className="h-4 w-4 shrink-0 text-slate-500" />
+            <ArrowUpDown className="h-4 w-4 shrink-0 text-emerald-600" />
             <FilterMenu
               className="min-w-0 flex-1 sm:min-w-[200px] sm:flex-none"
               value={sortBy}
@@ -3735,17 +3731,17 @@ export default function ProjectsDashboardPage() {
           <LoadingSpinner size="lg" />
         </div>
       ) : visibleProperties.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 py-16 text-center text-slate-500">
+        <div className="rounded-2xl border border-dashed border-emerald-100 bg-emerald-50/40 py-16 text-center text-[#5c7d6d]">
           <BarChart3 className="mx-auto mb-3 h-12 w-12 opacity-20" />
-          <p className="text-base font-medium">No projects found</p>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="text-base font-medium text-[#0f3d2e]">No projects found</p>
+          <p className="mt-1 text-sm text-[#5c7d6d]">
             Try adjusting your filters or search term
           </p>
           {(activeFiltersCount > 0 || selectedLocation || analyticsSearch) && (
             <button
               type="button"
               onClick={clearAll}
-              className="mt-3 text-sm text-[#27AE60] underline underline-offset-2"
+              className="mt-3 text-sm text-emerald-700 underline underline-offset-2"
             >
               Clear all filters
             </button>
@@ -3779,21 +3775,21 @@ export default function ProjectsDashboardPage() {
       {/* ── PROJECT PAGINATION ───────────────────────────────────────────── */}
       {visibleProperties.length > 0 &&
         (loadedPageCount > 1 || canGoNext || safePage > 1) && (
-        <div className="flex flex-col items-center justify-center gap-3 border-t border-slate-100 pt-4 sm:flex-row">
+        <div className="flex flex-col items-center justify-center gap-3 border-t border-emerald-50 pt-4 sm:flex-row">
           <button
             type="button"
             onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
             disabled={safePage === 1}
-            className="min-w-[110px] rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-w-[110px] rounded-full border border-emerald-100 bg-white px-4 py-2.5 text-sm font-semibold text-[#0f3d2e] shadow-[0_4px_12px_rgba(16,185,129,0.08)] transition hover:border-emerald-300 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Previous
           </button>
 
           <div className="min-w-[120px] text-center">
-            <p className="text-sm font-semibold text-slate-700">
+            <p className="text-sm font-semibold text-[#0f3d2e]">
               Page {safePage} of {loadedPageCount}
             </p>
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="mt-0.5 text-xs text-[#5c7d6d]">
               {paginationStart + 1}–
               {Math.min(
                 paginationStart + PROJECTS_PER_PAGE,
@@ -3808,7 +3804,7 @@ export default function ProjectsDashboardPage() {
             type="button"
             onClick={handleNextPage}
             disabled={!canGoNext}
-            className="flex min-w-[110px] items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="flex min-w-[110px] items-center justify-center gap-2 rounded-full bg-[#27AE60] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_6px_14px_rgba(18,161,80,0.24)] transition hover:bg-[#1e8f4d] disabled:cursor-not-allowed disabled:bg-emerald-100 disabled:text-emerald-400 disabled:shadow-none"
           >
             {waitingForNextPage ? (
               <RefreshCw className="h-4 w-4 animate-spin" />

@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Filter, Loader2, MapPin, RotateCcw, Search, Users, X } from "lucide-react";
 import { apiClient } from "../../api/apiClient";
 import { rangeFromPreset, todayIso } from "../Dashboards/shared/dashboardDateRange";
 import AnimatedPills from "../../components/common/AnimatedPills";
 import LeadDetailDrawer from "./LeadDetailDrawer";
+import { saInset, saSurface, saSurfaceHover } from "../Dashboards/superAdminDashboard/dashboardSurface";
+
+const lmInput =
+  "h-10 w-full min-w-0 rounded-xl border border-[#b7e4c7] bg-white px-3 text-xs font-medium text-[#0f3d2e] outline-none transition focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/15";
+const lmIconTile = "border-[#b7e4c7] bg-[#e8f8ee] text-[#128C45]";
+const lmPill =
+  "inline-flex items-center justify-center rounded-full border border-emerald-100 bg-white text-[#0f3d2e] shadow-[0_4px_12px_rgba(16,185,129,0.08)] hover:bg-emerald-50";
 
 const categories = ["all", "featured", "residential", "commercial", "land", "agricultural"];
 const statuses = ["", "new_lead", "interested", "not_interested", "follow_up", "site_visit", "sale"];
@@ -126,15 +133,17 @@ const filtersFromSearchParams = (searchParams) => {
     from,
     to,
     page: Math.max(1, Number(searchParams.get("page")) || 1),
-    limit: Math.min(100, Math.max(1, Number(searchParams.get("limit")) || 50)),
+    limit: 12,
   };
 };
+
+const PAGE_SIZE = 12;
 
 const Select = ({ value, onChange, children, className = "" }) => (
   <select
     value={value}
     onChange={(event) => onChange(event.target.value)}
-    className={`h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 ${className}`}
+    className={`${lmInput} ${className}`}
   >
     {children}
   </select>
@@ -142,7 +151,7 @@ const Select = ({ value, onChange, children, className = "" }) => (
 
 const Field = ({ label, children, className = "" }) => (
   <label className={`flex min-w-0 flex-col gap-1 ${className}`}>
-    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
+    <span className="text-[10px] font-bold uppercase tracking-wider text-[#5c7d6d]">{label}</span>
     {children}
   </label>
 );
@@ -186,7 +195,7 @@ export default function LeadManagement() {
   useEffect(() => {
     const next = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
-      if (value === "" || value === "all" || (key === "page" && Number(value) === 1) || (key === "limit" && Number(value) === 50)) return;
+      if (value === "" || value === "all" || (key === "page" && Number(value) === 1) || key === "limit") return;
       next.set(key, String(value));
     });
     const nextQuery = next.toString();
@@ -194,35 +203,54 @@ export default function LeadManagement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only push URL when filters change
   }, [filters, setSearchParams]);
 
+  const summaryRef = useRef(emptyData.summary);
+  const facetsRef = useRef(emptyData.facets);
+
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
     const load = async () => {
       setLoading(true);
       setError("");
       try {
         const params = Object.fromEntries(
-          Object.entries(filters).filter(([, value]) => value !== "" && value !== "all"),
+          Object.entries({ ...filters, limit: PAGE_SIZE }).filter(([, value]) => value !== "" && value !== "all"),
         );
-        const response = await apiClient.get("/api/properties/leads/admin/overview", { params });
-        if (!active) return;
+        if (Number(filters.page) > 1) {
+          params.includeSummary = 0;
+          params.includeFacets = 0;
+        }
+        const response = await apiClient.get("/api/properties/leads/admin/overview", {
+          params,
+          signal: controller.signal,
+        });
         const payload = response.data?.data || emptyData;
-        setData(payload);
+        if (Number(filters.page) === 1 && payload.summary) {
+          summaryRef.current = payload.summary;
+        }
+        if (Number(filters.page) === 1 && payload.facets) {
+          facetsRef.current = payload.facets;
+        }
+        setData({
+          ...payload,
+          summary: Number(filters.page) === 1 ? payload.summary || summaryRef.current : summaryRef.current,
+          facets: Number(filters.page) === 1 ? payload.facets || facetsRef.current : facetsRef.current,
+          pagination: payload.pagination || emptyData.pagination,
+        });
         setProjectCatalog((current) => [
           ...new Map([...current, ...(payload.projects || [])].map((project) => [String(project._id), project])).values(),
         ]);
       } catch (requestError) {
-        if (active) setError(requestError?.response?.data?.message || requestError.message || "Unable to load leads");
+        if (requestError?.code === "ERR_CANCELED" || requestError?.name === "CanceledError") return;
+        setError(requestError?.response?.data?.message || requestError.message || "Unable to load leads");
       } finally {
-        if (active) {
+        if (!controller.signal.aborted) {
           setLoading(false);
           setHasLoaded(true);
         }
       }
     };
     load();
-    return () => {
-      active = false;
-    };
+    return () => controller.abort();
   }, [filters]);
 
   const update = (key, value) =>
@@ -297,7 +325,7 @@ export default function LeadManagement() {
       from: "",
       to: "",
       page: 1,
-      limit: 50,
+      limit: PAGE_SIZE,
     });
   };
 
@@ -391,20 +419,20 @@ export default function LeadManagement() {
         key={lead._id}
         type="button"
         onClick={() => setSelectedLead(lead)}
-        className={`w-full rounded-2xl border border-slate-200/80 bg-white p-3.5 text-left shadow-sm transition active:scale-[0.985] ${rowTone[statusKey] || ""}`}
+        className={`w-full rounded-2xl p-3.5 text-left transition active:scale-[0.985] ${saSurface} ${saSurfaceHover} ${rowTone[statusKey] || ""}`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
-              <p className="truncate text-[15px] font-bold text-slate-900">{lead.name}</p>
+              <p className="truncate text-[15px] font-bold text-[#0f3d2e]">{lead.name}</p>
               {lead.duplicateCount > 0 ? (
                 <span className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">
                   +{lead.duplicateCount}
                 </span>
               ) : null}
             </div>
-            <p className="mt-1 text-[13px] font-medium text-slate-600">{lead.phone || "-"}</p>
-            {lead.email ? <p className="mt-0.5 truncate text-[11px] text-slate-400">{lead.email}</p> : null}
+            <p className="mt-1 text-[13px] font-medium text-[#5c7d6d]">{lead.phone || "-"}</p>
+            {lead.email ? <p className="mt-0.5 truncate text-[11px] text-[#5c7d6d]">{lead.email}</p> : null}
           </div>
           <span
             className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${statusTone[statusKey] || "bg-slate-100 text-slate-600"}`}
@@ -412,18 +440,18 @@ export default function LeadManagement() {
             {label(lead.status)}
           </span>
         </div>
-        <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2">
-          <p className="truncate text-[13px] font-semibold text-emerald-700">{lead.project.title}</p>
-          <p className="mt-0.5 truncate text-[11px] text-slate-500">
+        <div className={`mt-3 rounded-xl px-3 py-2 ${saInset}`}>
+          <p className="truncate text-[13px] font-semibold text-[#27AE60]">{lead.project.title}</p>
+          <p className="mt-0.5 truncate text-[11px] text-[#5c7d6d]">
             {lead.project.code || "No code"} - {locationText}
           </p>
         </div>
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${display.className}`}>{display.text}</span>
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+          <span className="rounded-full bg-[#e8f8ee] px-2 py-0.5 text-[10px] font-semibold text-[#5c7d6d]">
             {lead.origin?.label || label(lead.source)}
           </span>
-          <span className="ml-auto text-[11px] font-semibold text-slate-400">
+          <span className="ml-auto text-[11px] font-semibold text-[#5c7d6d]">
             {new Date(lead.lastTouchAt || lead.createdAt).toLocaleDateString("en-IN", {
               day: "2-digit",
               month: "short",
@@ -435,13 +463,13 @@ export default function LeadManagement() {
   };
 
   return (
-    <div className="min-h-full bg-[#F8FAFC]">
+    <div className="min-h-full text-[#0f3d2e]">
       {/* Mobile app layout (< lg) */}
       <div className="mx-auto w-full max-w-lg space-y-4 px-3 pb-10 pt-2 sm:max-w-2xl lg:hidden">
         <header>
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-600">Sales intelligence</p>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Lead management</h1>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#27AE60]">Sales intelligence</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#0f3d2e]">Lead management</h1>
+          <p className="mt-1 text-xs leading-relaxed text-[#5c7d6d]">
             Unique enquiries only - tap a card for details
           </p>
         </header>
@@ -452,22 +480,24 @@ export default function LeadManagement() {
               key={key}
               type="button"
               onClick={() => applyCardFilter(key)}
-              className={`rounded-2xl border bg-white p-3.5 text-left shadow-sm transition active:scale-[0.98] ${
-                active ? "border-emerald-400 ring-2 ring-emerald-100" : "border-slate-100"
+              className={`rounded-2xl p-3.5 text-left transition active:scale-[0.98] ${
+                active
+                  ? "border border-[#27AE60] bg-[#27AE60] text-white shadow-[0_8px_18px_-6px_rgba(39,174,96,0.55)]"
+                  : `${saSurface} ${saSurfaceHover}`
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{title}</p>
-                <span className={`shrink-0 rounded-xl p-2 text-white ${color}`}>
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${active ? "text-white/80" : "text-[#5c7d6d]"}`}>{title}</p>
+                <span className={`shrink-0 rounded-lg border p-2 ${active ? "border-white/25 bg-white/15 text-white" : lmIconTile}`}>
                   <Icon className="h-4 w-4" />
                 </span>
               </div>
               {value === null ? (
-                <div className="mt-2 h-7 w-14 animate-pulse rounded bg-slate-100" />
+                <div className={`mt-2 h-7 w-14 animate-pulse rounded ${active ? "bg-white/20" : "bg-emerald-50"}`} />
               ) : (
-                <p className="mt-2 text-[1.75rem] font-black leading-none tabular-nums text-slate-900">{value}</p>
+                <p className={`mt-2 text-[1.75rem] font-black leading-none tabular-nums ${active ? "text-white" : "text-[#0f3d2e]"}`}>{value}</p>
               )}
-              <p className="mt-2 line-clamp-2 text-[11px] leading-snug text-slate-400">{note}</p>
+              <p className={`mt-2 line-clamp-2 text-[11px] leading-snug ${active ? "text-white/75" : "text-[#5c7d6d]"}`}>{note}</p>
             </button>
           ))}
         </section>
@@ -486,12 +516,12 @@ export default function LeadManagement() {
             <button
               type="button"
               onClick={() => setFiltersOpen((open) => !open)}
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700"
+              className={`${lmPill} h-9 shrink-0 gap-1.5 px-3 text-xs font-bold`}
             >
               <Filter className="h-3.5 w-3.5" />
               Filters
               {activeCount > 0 ? (
-                <span className="grid h-4 min-w-4 place-items-center rounded-full bg-emerald-500 px-1 text-[9px] text-white">
+                <span className="grid h-4 min-w-4 place-items-center rounded-full bg-[#27AE60] px-1 text-[9px] text-white">
                   {activeCount}
                 </span>
               ) : null}
@@ -499,7 +529,7 @@ export default function LeadManagement() {
             <button
               type="button"
               onClick={reset}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500"
+              className={`${lmPill} grid h-9 w-9 shrink-0 place-items-center`}
               title="Reset"
             >
               <RotateCcw className="h-4 w-4" />
@@ -511,7 +541,7 @@ export default function LeadManagement() {
             </span>
           ) : null}
           {filtersOpen ? (
-            <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
+            <div className={`space-y-3 rounded-2xl p-3 ${saSurface}`}>
               <Field label="Lead type">
                 <Select value={filters.category} onChange={(v) => update("category", v)}>
                   {categories.map((v) => (
@@ -570,8 +600,8 @@ export default function LeadManagement() {
         <section className="space-y-3">
           <div className="flex items-end justify-between gap-2">
             <div>
-              <h2 className="text-base font-bold text-slate-900">Lead directory</h2>
-              <p className="text-[11px] text-slate-400">
+              <h2 className="text-base font-semibold text-[#0f3d2e]">Lead directory</h2>
+              <p className="text-[11px] text-[#5c7d6d]">
                 {data.pagination.total} unique
                 {data.summary.duplicatesHidden ? ` - ${data.summary.duplicatesHidden} hidden` : ""}
               </p>
@@ -580,37 +610,26 @@ export default function LeadManagement() {
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5c7d6d]" />
             <input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Search name, phone, email..."
-              className="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-9 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              className="h-11 w-full rounded-2xl border border-[#b7e4c7] bg-white pl-9 pr-9 text-sm text-[#0f3d2e] outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/15"
             />
             {searchInput ? (
-              <button type="button" onClick={() => setSearchInput("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <button type="button" onClick={() => setSearchInput("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5c7d6d]">
                 <X className="h-4 w-4" />
               </button>
             ) : null}
           </div>
 
           <div className="flex items-center gap-2">
-            <select
-              value={filters.limit}
-              onChange={(event) => update("limit", Number(event.target.value))}
-              className="h-10 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-600"
-            >
-              {[25, 50, 75, 100].map((size) => (
-                <option key={size} value={size}>
-                  {size} / page
-                </option>
-              ))}
-            </select>
             <button
               type="button"
               disabled={loading || exporting}
               onClick={() => downloadLeads("csv")}
-              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 disabled:opacity-50"
+              className={`${lmPill} h-10 flex-1 gap-1.5 text-xs font-bold disabled:opacity-50`}
             >
               {exporting === "csv" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               CSV
@@ -619,7 +638,7 @@ export default function LeadManagement() {
               type="button"
               disabled={loading || exporting}
               onClick={() => downloadLeads("xlsx")}
-              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 text-xs font-bold text-white disabled:opacity-50"
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#27AE60] text-xs font-bold text-white shadow-[0_8px_18px_-6px_rgba(39,174,96,0.55)] disabled:opacity-50"
             >
               {exporting === "xlsx" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5" />}
               Excel
@@ -628,17 +647,23 @@ export default function LeadManagement() {
 
           {error ? (
             <div className="rounded-2xl bg-rose-50 p-6 text-center text-sm text-rose-600">{error}</div>
+          ) : loading && !data.leads.length ? (
+            <div className="space-y-2.5">
+              {Array.from({ length: Math.min(filters.limit, 6) }).map((_, index) => (
+                <div key={`lead-skel-m-${index}`} className="h-28 animate-pulse rounded-2xl border border-[#d8efe2] bg-white" />
+              ))}
+            </div>
           ) : !loading && !data.leads.length ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
-              <Users className="mx-auto mb-2 h-8 w-8 text-slate-300" />
-              <p className="text-sm font-semibold text-slate-600">No leads found</p>
+            <div className={`rounded-2xl border border-dashed border-[#b7e4c7] bg-white p-10 text-center ${saInset}`}>
+              <Users className="mx-auto mb-2 h-8 w-8 text-[#8fd0a8]" />
+              <p className="text-sm font-semibold text-[#0f3d2e]">No leads found</p>
             </div>
           ) : (
-            <div className="space-y-2.5">{data.leads.map(renderLeadMobileCard)}</div>
+            <div className={`space-y-2.5 ${loading ? "opacity-70" : ""}`}>{data.leads.map(renderLeadMobileCard)}</div>
           )}
 
           <div className="flex items-center justify-between gap-2 pt-1">
-            <p className="text-[11px] font-medium text-slate-400">
+            <p className="text-[11px] font-medium text-[#5c7d6d]">
               Page {data.pagination.page} of {Math.max(1, data.pagination.pages)} - {data.pagination.total} leads
             </p>
             <div className="flex gap-2">
@@ -646,7 +671,7 @@ export default function LeadManagement() {
                 type="button"
                 disabled={filters.page <= 1}
                 onClick={() => update("page", filters.page - 1)}
-                className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 disabled:opacity-30"
+                className={`${lmPill} grid h-9 w-9 place-items-center disabled:opacity-30`}
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -654,7 +679,7 @@ export default function LeadManagement() {
                 type="button"
                 disabled={filters.page >= data.pagination.pages}
                 onClick={() => update("page", filters.page + 1)}
-                className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 disabled:opacity-30"
+                className={`${lmPill} grid h-9 w-9 place-items-center disabled:opacity-30`}
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -667,9 +692,9 @@ export default function LeadManagement() {
       <div className="mx-auto hidden max-w-[1600px] space-y-5 lg:block">
         <header>
           <div>
-            <p className="mb-1 text-[10px] font-bold uppercase tracking-[.22em] text-emerald-600">Sales intelligence</p>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Lead management</h1>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#27AE60]">Sales intelligence</p>
+            <h1 className="text-lg font-semibold tracking-tight text-[#0f3d2e] sm:text-xl">Lead management</h1>
+            <p className="mt-1 text-xs text-[#5c7d6d]">
               Unique enquiries only (duplicates collapsed) - click a row for project details and lead origin.
             </p>
           </div>
@@ -681,21 +706,25 @@ export default function LeadManagement() {
               key={key}
               type="button"
               onClick={() => applyCardFilter(key)}
-              className={`rounded-xl border bg-white px-3 py-2.5 text-left shadow-sm transition hover:border-emerald-300 ${active ? "border-emerald-400 ring-2 ring-emerald-100" : "border-slate-100"}`}
+              className={`rounded-xl px-3 py-2.5 text-left transition ${
+                active
+                  ? "border border-[#27AE60] bg-[#27AE60] text-white shadow-[0_8px_18px_-6px_rgba(39,174,96,0.55)]"
+                  : `${saSurface} ${saSurfaceHover}`
+              }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 sm:text-[10px]">{title}</p>
+                  <p className={`text-[9px] font-semibold uppercase tracking-wider sm:text-[10px] ${active ? "text-white/80" : "text-[#5c7d6d]"}`}>{title}</p>
                   {value === null ? (
-                    <div className="mt-2 h-5 w-12 animate-pulse rounded bg-slate-100" />
+                    <div className={`mt-2 h-5 w-12 animate-pulse rounded ${active ? "bg-white/20" : "bg-emerald-50"}`} />
                   ) : (
-                    <p className="mt-1 text-lg font-bold leading-6 text-slate-900 sm:text-xl">{value}</p>
+                    <p className={`mt-1 text-lg font-bold leading-6 sm:text-xl ${active ? "text-white" : "text-[#0f3d2e]"}`}>{value}</p>
                   )}
-                  <p className="mt-0.5 truncate text-[9px] text-slate-400" title={note}>
+                  <p className={`mt-0.5 truncate text-[9px] ${active ? "text-white/75" : "text-[#5c7d6d]"}`} title={note}>
                     {note}
                   </p>
                 </div>
-                <span className={`rounded-lg p-2 text-white ${color}`}>
+                <span className={`rounded-lg border p-2 ${active ? "border-white/25 bg-white/15 text-white" : lmIconTile}`}>
                   <Icon className="h-3.5 w-3.5" />
                 </span>
               </div>
@@ -703,8 +732,8 @@ export default function LeadManagement() {
           ))}
         </section>
 
-        <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
+        <section className={`rounded-2xl p-4 ${saSurface}`}>
+          <div className="flex flex-wrap items-center gap-2 border-b border-emerald-50 pb-3">
             <AnimatedPills
               items={DATE_PRESETS_COMPACT}
               value={datePreset === "custom" ? "" : datePreset}
@@ -723,7 +752,7 @@ export default function LeadManagement() {
                   Clear all filters
                 </button>
               )}
-              <button type="button" onClick={reset} className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200" title="Reset">
+              <button type="button" onClick={reset} className={`${lmPill} grid h-9 w-9 place-items-center`} title="Reset">
                 <RotateCcw className="h-4 w-4" />
               </button>
             </div>
@@ -746,27 +775,27 @@ export default function LeadManagement() {
                   <button
                     type="button"
                     onClick={() => setProjectPickerOpen((open) => !open)}
-                    className="flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 text-left text-xs font-medium text-slate-700 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    className="flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-[#b7e4c7] bg-white px-3 text-left text-xs font-medium text-[#0f3d2e] outline-none transition focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/15"
                   >
                     <span className="truncate">{selectedProjectIds.length ? `${selectedProjectIds.length} selected` : "All projects / properties"}</span>
-                    <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition ${projectPickerOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`h-4 w-4 shrink-0 text-[#5c7d6d] transition ${projectPickerOpen ? "rotate-180" : ""}`} />
                   </button>
                   {projectPickerOpen && (
-                    <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-[280px] max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:min-w-[360px]">
-                      <div className="border-b border-slate-100 p-3">
+                    <div className={`absolute left-0 top-full z-50 mt-2 w-full min-w-[280px] max-w-full overflow-hidden rounded-2xl bg-white sm:min-w-[360px] ${saSurface}`}>
+                      <div className="border-b border-emerald-50 p-3">
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5c7d6d]" />
                           <input
                             autoFocus
                             value={projectSearch}
                             onChange={(event) => setProjectSearch(event.target.value)}
                             placeholder="Search projects or properties..."
-                            className="h-10 w-full rounded-xl border border-slate-200 pl-9 pr-3 text-xs outline-none focus:border-emerald-400"
+                            className="h-10 w-full rounded-xl border border-[#b7e4c7] pl-9 pr-3 text-xs text-[#0f3d2e] outline-none focus:border-[#27AE60]"
                           />
                         </div>
                       </div>
-                      <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-                        <span className="text-[10px] font-semibold text-slate-400">{selectedProjectIds.length} selected</span>
+                      <div className="flex items-center justify-between border-b border-emerald-50 px-3 py-2">
+                        <span className="text-[10px] font-semibold text-[#5c7d6d]">{selectedProjectIds.length} selected</span>
                         {selectedProjectIds.length > 0 && (
                           <button type="button" onClick={() => update("projectId", "")} className="text-[10px] font-bold text-rose-500">
                             Clear all
@@ -782,14 +811,14 @@ export default function LeadManagement() {
                                 type="button"
                                 key={project._id}
                                 onClick={() => toggleProject(String(project._id))}
-                                className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition ${checked ? "bg-emerald-50" : "hover:bg-slate-50"}`}
+                                className={`flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition ${checked ? "bg-[#e8f8ee]" : "hover:bg-[#f7fbf8]"}`}
                               >
-                                <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${checked ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300"}`}>
+                                <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${checked ? "border-[#27AE60] bg-[#27AE60] text-white" : "border-[#b7e4c7]"}`}>
                                   {checked && <Check className="h-3 w-3" />}
                                 </span>
                                 <span className="min-w-0">
-                                  <span className="block truncate text-xs font-semibold text-slate-700">{project.title}</span>
-                                  <span className="block truncate text-[9px] text-slate-400">
+                                  <span className="block truncate text-xs font-semibold text-[#0f3d2e]">{project.title}</span>
+                                  <span className="block truncate text-[9px] text-[#5c7d6d]">
                                     {label(project.category)} - {[project.locality, project.city].filter(Boolean).join(", ") || project.code || "Location unavailable"}
                                   </span>
                                 </span>
@@ -797,11 +826,11 @@ export default function LeadManagement() {
                             );
                           })
                         ) : (
-                          <p className="px-3 py-8 text-center text-xs text-slate-400">No matching projects or properties</p>
+                          <p className="px-3 py-8 text-center text-xs text-[#5c7d6d]">No matching projects or properties</p>
                         )}
                       </div>
-                      <div className="border-t border-slate-100 p-2">
-                        <button type="button" onClick={() => setProjectPickerOpen(false)} className="h-9 w-full rounded-xl bg-emerald-500 text-xs font-bold text-white hover:bg-emerald-600">
+                      <div className="border-t border-emerald-50 p-2">
+                        <button type="button" onClick={() => setProjectPickerOpen(false)} className="h-9 w-full rounded-full bg-[#27AE60] text-xs font-bold text-white hover:bg-[#1e9a4f]">
                           Apply selection
                         </button>
                       </div>
@@ -862,7 +891,7 @@ export default function LeadManagement() {
                   value={filters.from}
                   max={filters.to || undefined}
                   onChange={(e) => update("from", e.target.value)}
-                  className="h-10 w-full min-w-0 rounded-xl border border-slate-200 px-3 text-xs text-slate-600 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  className="h-10 w-full min-w-0 rounded-xl border border-[#b7e4c7] px-3 text-xs text-[#0f3d2e] outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/15"
                 />
               </Field>
               <Field label="To">
@@ -871,19 +900,19 @@ export default function LeadManagement() {
                   value={filters.to}
                   min={filters.from || undefined}
                   onChange={(e) => update("to", e.target.value)}
-                  className="h-10 w-full min-w-0 rounded-xl border border-slate-200 px-3 text-xs text-slate-600 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  className="h-10 w-full min-w-0 rounded-xl border border-[#b7e4c7] px-3 text-xs text-[#0f3d2e] outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/15"
                 />
               </Field>
             </div>
           </div>
 
           {selectedProjectIds.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
-              <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Selected</span>
+            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-emerald-50 pt-3">
+              <span className="mr-1 text-[10px] font-bold uppercase tracking-wider text-[#5c7d6d]">Selected</span>
               {selectedProjectIds.map((id) => {
                 const project = projectCatalog.find((item) => String(item._id) === id);
                 return (
-                  <span key={id} className="flex max-w-[240px] items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
+                  <span key={id} className="flex max-w-[240px] items-center gap-1 rounded-full border border-[#b7e4c7] bg-[#e8f8ee] px-2.5 py-1 text-[10px] font-semibold text-[#128C45]">
                     <span className="truncate">{project?.title || id}</span>
                     <button type="button" onClick={() => toggleProject(id)} className="rounded-full hover:bg-emerald-100">
                       <X className="h-3 w-3" />
@@ -898,12 +927,12 @@ export default function LeadManagement() {
           )}
         </section>
 
-        <section className="flex h-[min(72vh,760px)] min-h-[420px] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <div className="shrink-0 border-b border-slate-100 px-4 py-3">
+        <section className={`flex h-[min(72vh,760px)] min-h-[420px] flex-col overflow-hidden rounded-2xl ${saSurface}`}>
+          <div className="shrink-0 border-b border-emerald-50 px-4 py-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
               <div className="shrink-0 lg:w-48">
-                <h2 className="text-sm font-bold text-slate-800">Lead directory</h2>
-                <p className="text-[10px] text-slate-400">
+                <h2 className="text-sm font-semibold text-[#0f3d2e]">Lead directory</h2>
+                <p className="text-[10px] text-[#5c7d6d]">
                   {data.pagination.total} unique leads
                   {data.summary.duplicatesHidden
                     ? ` - ${data.summary.duplicatesHidden} duplicate submissions hidden`
@@ -914,36 +943,24 @@ export default function LeadManagement() {
                 </p>
               </div>
               <div className="relative min-w-0 flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5c7d6d]" />
                 <input
                   value={searchInput}
                   onChange={(event) => setSearchInput(event.target.value)}
                   placeholder="Search name, phone, email, project or location"
-                  className="h-9 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-9 text-xs outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  className="h-9 w-full rounded-xl border border-[#b7e4c7] bg-white pl-9 pr-9 text-xs text-[#0f3d2e] outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/15"
                 />
                 {searchInput && (
-                  <button type="button" onClick={() => setSearchInput("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <button type="button" onClick={() => setSearchInput("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5c7d6d]">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <select
-                  value={filters.limit}
-                  onChange={(event) => update("limit", Number(event.target.value))}
-                  className="h-9 rounded-xl border border-slate-200 bg-white px-2 text-[10px] font-bold text-slate-600 outline-none focus:border-emerald-400"
-                  title="Rows per page"
-                >
-                  {[25, 50, 75, 100].map((size) => (
-                    <option key={size} value={size}>
-                      {size} / page
-                    </option>
-                  ))}
-                </select>
-                <button type="button" disabled={loading || exporting} onClick={() => downloadLeads("csv")} className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-[10px] font-bold text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-50">
+                <button type="button" disabled={loading || exporting} onClick={() => downloadLeads("csv")} className={`${lmPill} h-9 gap-2 px-3 text-[10px] font-bold disabled:opacity-50`}>
                   {exporting === "csv" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} CSV
                 </button>
-                <button type="button" disabled={loading || exporting} onClick={() => downloadLeads("xlsx")} className="flex h-9 items-center gap-2 rounded-xl bg-emerald-500 px-3 text-[10px] font-bold text-white transition hover:bg-emerald-600 disabled:opacity-50">
+                <button type="button" disabled={loading || exporting} onClick={() => downloadLeads("xlsx")} className="flex h-9 items-center gap-2 rounded-full bg-[#27AE60] px-3 text-[10px] font-bold text-white shadow-[0_8px_18px_-6px_rgba(39,174,96,0.55)] transition hover:bg-[#1e9a4f] disabled:opacity-50">
                   {exporting === "xlsx" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5" />} Excel
                 </button>
                 {loading && <Loader2 className="h-4 w-4 animate-spin text-emerald-500" />}
@@ -953,6 +970,12 @@ export default function LeadManagement() {
 
           {error ? (
             <div className="p-12 text-center text-sm text-rose-600">{error}</div>
+          ) : loading && !data.leads.length ? (
+            <div className="space-y-2 p-4">
+              {Array.from({ length: Math.min(filters.limit, 6) }).map((_, index) => (
+                <div key={`lead-skel-${index}`} className="h-12 animate-pulse rounded-xl bg-slate-100" />
+              ))}
+            </div>
           ) : !loading && !data.leads.length ? (
             <div className="p-16 text-center">
               <Users className="mx-auto mb-3 h-8 w-8 text-slate-300" />
@@ -972,16 +995,16 @@ export default function LeadManagement() {
                   <col className="w-[10%]" />
                   <col className="w-[7%]" />
                 </colgroup>
-                <thead className="sticky top-0 z-10 bg-slate-50 text-[9px] uppercase tracking-wider text-slate-400 shadow-sm">
+                <thead className="sticky top-0 z-10 bg-[#f7fbf8] text-[9px] uppercase tracking-wider text-[#5c7d6d] shadow-sm">
                   <tr>
                     {["Lead", "Contact", "Project / property", "Location", "Category", "Where from", "Status", "Last touch"].map((h) => (
-                      <th key={h} className="truncate bg-slate-50 px-2.5 py-3 font-bold sm:px-3">
+                      <th key={h} className="truncate bg-[#f7fbf8] px-2.5 py-3 font-bold text-[#5c7d6d] sm:px-3">
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#d8f0e2]">
                   {data.leads.map((lead) => {
                     const statusKey = String(lead.status || "new_lead");
                     const locationText =
@@ -992,11 +1015,11 @@ export default function LeadManagement() {
                       <tr
                         key={lead._id}
                         onClick={() => setSelectedLead(lead)}
-                        className={`cursor-pointer transition ${rowTone[statusKey] || "hover:bg-slate-50"}`}
+                        className={`cursor-pointer transition ${rowTone[statusKey] || "hover:bg-[#f7fbf8]"}`}
                       >
                         <td className="px-2.5 py-2.5 sm:px-3">
                           <div className="flex min-w-0 items-center gap-1.5">
-                            <p className="truncate text-xs font-semibold text-slate-800" title={lead.name}>
+                            <p className="truncate text-xs font-semibold text-[#0f3d2e]" title={lead.name}>
                               {lead.name}
                             </p>
                             {lead.duplicateCount > 0 ? (
@@ -1005,19 +1028,19 @@ export default function LeadManagement() {
                               </span>
                             ) : null}
                           </div>
-                          <p className="mt-0.5 truncate text-[10px] text-slate-400" title={lead.message || lead.purchaseTimeline || ""}>
+                          <p className="mt-0.5 truncate text-[10px] text-[#5c7d6d]" title={lead.message || lead.purchaseTimeline || ""}>
                             {lead.message || lead.purchaseTimeline || "No note"}
                           </p>
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
-                          <p className="truncate text-xs text-slate-700" title={lead.phone}>{lead.phone}</p>
-                          <p className="truncate text-[10px] text-slate-400" title={lead.email || ""}>{lead.email || "-"}</p>
+                          <p className="truncate text-xs text-[#0f3d2e]" title={lead.phone}>{lead.phone}</p>
+                          <p className="truncate text-[10px] text-[#5c7d6d]" title={lead.email || ""}>{lead.email || "-"}</p>
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
-                          <p className="truncate text-xs font-semibold text-emerald-700" title={lead.project.title}>{lead.project.title}</p>
-                          <p className="truncate text-[10px] text-slate-400" title={lead.project.code || ""}>{lead.project.code || "No code"}</p>
+                          <p className="truncate text-xs font-semibold text-[#27AE60]" title={lead.project.title}>{lead.project.title}</p>
+                          <p className="truncate text-[10px] text-[#5c7d6d]" title={lead.project.code || ""}>{lead.project.code || "No code"}</p>
                         </td>
-                        <td className="px-2.5 py-2.5 text-[10px] text-slate-600 sm:px-3">
+                        <td className="px-2.5 py-2.5 text-[10px] text-[#5c7d6d] sm:px-3">
                           <p className="truncate" title={locationText}>{locationText}</p>
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
@@ -1031,10 +1054,10 @@ export default function LeadManagement() {
                           })()}
                         </td>
                         <td className="px-2.5 py-2.5 sm:px-3">
-                          <p className="truncate text-[10px] font-semibold text-slate-700" title={lead.origin?.label || label(lead.source)}>
+                          <p className="truncate text-[10px] font-semibold text-[#0f3d2e]" title={lead.origin?.label || label(lead.source)}>
                             {lead.origin?.label || label(lead.source)}
                           </p>
-                          <p className="mt-0.5 truncate text-[9px] text-slate-400" title={lead.origin?.entryPoint || label(lead.source)}>
+                          <p className="mt-0.5 truncate text-[9px] text-[#5c7d6d]" title={lead.origin?.entryPoint || label(lead.source)}>
                             {lead.origin?.entryPoint || label(lead.source)}
                           </p>
                         </td>
@@ -1043,7 +1066,7 @@ export default function LeadManagement() {
                             {label(lead.status)}
                           </span>
                         </td>
-                        <td className="px-2.5 py-2.5 text-[10px] text-slate-500 sm:px-3">
+                        <td className="px-2.5 py-2.5 text-[10px] text-[#5c7d6d] sm:px-3">
                           <p className="truncate" title={new Date(lead.lastTouchAt || lead.createdAt).toLocaleString("en-IN")}>
                             {new Date(lead.lastTouchAt || lead.createdAt).toLocaleDateString("en-IN", {
                               day: "2-digit",
@@ -1059,15 +1082,15 @@ export default function LeadManagement() {
             </div>
           )}
 
-          <footer className="flex shrink-0 items-center justify-between border-t border-slate-100 px-4 py-3">
-            <p className="text-[10px] text-slate-400">
+          <footer className="flex shrink-0 items-center justify-between border-t border-emerald-50 px-4 py-3">
+            <p className="text-[10px] text-[#5c7d6d]">
               Showing {data.pagination.total ? (data.pagination.page - 1) * filters.limit + 1 : 0}-{Math.min(data.pagination.page * filters.limit, data.pagination.total)} of {data.pagination.total} unique leads - Page {data.pagination.page} of {Math.max(1, data.pagination.pages)}
             </p>
             <div className="flex gap-2">
-              <button type="button" disabled={filters.page <= 1} onClick={() => update("page", filters.page - 1)} className="rounded-lg border border-slate-200 p-2 text-slate-500 disabled:opacity-30">
+              <button type="button" disabled={filters.page <= 1} onClick={() => update("page", filters.page - 1)} className={`${lmPill} p-2 disabled:opacity-30`}>
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <button type="button" disabled={filters.page >= data.pagination.pages} onClick={() => update("page", filters.page + 1)} className="rounded-lg border border-slate-200 p-2 text-slate-500 disabled:opacity-30">
+              <button type="button" disabled={filters.page >= data.pagination.pages} onClick={() => update("page", filters.page + 1)} className={`${lmPill} p-2 disabled:opacity-30`}>
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>

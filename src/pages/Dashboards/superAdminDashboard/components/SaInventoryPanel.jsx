@@ -1,11 +1,12 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { saInset, saSurface, saSurfaceHover } from "../dashboardSurface";
 
 const Tip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const row = payload[0]?.payload || {};
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] shadow-md">
-      <p className="font-semibold text-slate-700">{row.label}</p>
+    <div className="rounded-xl border border-emerald-100 bg-white px-2.5 py-1.5 text-[11px] shadow-[0_8px_24px_rgba(16,185,129,0.12)]">
+      <p className="font-semibold text-[#0f3d2e]">{row.label}</p>
       <p style={{ color: row.fill }}>{row.value}</p>
     </div>
   );
@@ -13,9 +14,9 @@ const Tip = ({ active, payload }) => {
 
 function StatChip({ label, value }) {
   return (
-    <div className="rounded-lg border border-slate-100 bg-white px-2 py-1.5">
-      <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-0.5 text-sm font-black tabular-nums text-slate-900">{value}</p>
+    <div className={`rounded-lg px-2 py-1.5 ${saInset}`}>
+      <p className="text-[9px] font-semibold uppercase tracking-wide text-emerald-600">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold tabular-nums text-[#0f3d2e]">{value}</p>
     </div>
   );
 }
@@ -31,21 +32,21 @@ function InventoryBlock({
   accent = "emerald",
 }) {
   const accentMap = {
-    emerald: "border-emerald-200 bg-emerald-50/60 hover:border-emerald-400 hover:bg-emerald-50",
-    blue: "border-blue-200 bg-blue-50/60 hover:border-blue-400 hover:bg-blue-50",
+    emerald: `${saInset} bg-[#f4fbf7] ${saSurfaceHover}`,
+    blue: `${saInset} ${saSurfaceHover} hover:bg-[#f4fbf7]`,
   };
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      className={`rounded-xl border p-2.5 text-left transition ${accentMap[accent] || accentMap.emerald}`}
+      className={`rounded-xl p-2.5 text-left ${accentMap[accent] || accentMap.emerald}`}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{title}</p>
-        <p className="text-lg font-black tabular-nums leading-none text-slate-950">{total}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">{title}</p>
+        <p className="text-lg font-semibold tabular-nums leading-none text-[#0f3d2e]">{total}</p>
       </div>
-      <p className="mt-0.5 text-[10px] text-slate-500">
+      <p className="mt-0.5 text-[10px] text-[#5c7d6d]">
         In selected date range · click to open
         {views != null ? ` · ${views} views` : ""}
       </p>
@@ -66,11 +67,11 @@ function StatusDonut({ title, data = [], onOpen, emptyLabel }) {
     <button
       type="button"
       onClick={onOpen}
-      className="rounded-xl border border-slate-100 bg-slate-50/50 p-2 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40"
+      className={`rounded-xl p-2 text-left ${saInset} ${saSurfaceHover} hover:bg-[#f4fbf7]`}
     >
       <div className="mb-1 flex items-center justify-between gap-2">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{title}</p>
-        <p className="text-[10px] font-black tabular-nums text-slate-700">{total}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">{title}</p>
+        <p className="text-[10px] font-semibold tabular-nums text-[#0f3d2e]">{total}</p>
       </div>
       {hasData ? (
         <ResponsiveContainer width="100%" height={110}>
@@ -91,9 +92,9 @@ function StatusDonut({ title, data = [], onOpen, emptyLabel }) {
           </PieChart>
         </ResponsiveContainer>
       ) : (
-        <p className="py-8 text-center text-[11px] text-slate-400">{emptyLabel}</p>
+        <p className="py-8 text-center text-[11px] text-[#5c7d6d]">{emptyLabel}</p>
       )}
-      <div className="flex flex-wrap justify-center gap-x-2.5 gap-y-1 text-[10px] font-semibold text-slate-500">
+      <div className="flex flex-wrap justify-center gap-x-2.5 gap-y-1 text-[10px] font-semibold text-[#5c7d6d]">
         {data.map((d) => (
           <span key={d.key} className="inline-flex items-center gap-1">
             <span className="h-2 w-2 rounded-full" style={{ background: d.fill }} />
@@ -111,6 +112,7 @@ export default function SaInventoryPanel({
   summary,
   onOpenProperties,
   onOpenProjects,
+  isLoading = false,
 }) {
   const projects = summary?.projectCounts || {};
   const props = summary?.propertyCounts || {};
@@ -118,11 +120,15 @@ export default function SaInventoryPanel({
   const propertyTotal = props.total || 0;
 
   return (
-    <article className="flex h-full min-h-0 flex-col overflow-hidden rounded-[14px] border border-slate-200 bg-white shadow-sm">
-      <header className="flex items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5">
+    <article
+      className={`flex h-full min-h-0 flex-col overflow-hidden rounded-2xl ${saSurface}`}
+      aria-busy={isLoading || undefined}
+    >
+      <header className="flex items-center justify-between gap-2 border-b border-emerald-50 px-3.5 py-2.5">
         <div>
-          <h3 className="text-xs font-bold text-slate-900">Inventory & demand</h3>
-          <p className="text-[10px] text-slate-500">
+          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">Inventory</p>
+          <h3 className="text-xs font-semibold text-[#0f3d2e]">Inventory & demand</h3>
+          <p className="text-[10px] text-[#5c7d6d]">
             {propertyTotal} properties · {projectTotal} projects · {summary?.listingViews || 0} views
           </p>
         </div>
@@ -130,14 +136,14 @@ export default function SaInventoryPanel({
           <button
             type="button"
             onClick={onOpenProjects}
-            className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-100"
+            className="rounded-full border border-emerald-100 bg-white px-2 py-1 text-[10px] font-semibold text-[#0f3d2e] hover:bg-emerald-50"
           >
             Projects ({projectTotal})
           </button>
           <button
             type="button"
             onClick={onOpenProperties}
-            className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100"
+            className="rounded-full border border-emerald-100 bg-white px-2 py-1 text-[10px] font-semibold text-[#0f3d2e] hover:bg-emerald-50"
           >
             Properties ({propertyTotal})
           </button>
@@ -167,18 +173,27 @@ export default function SaInventoryPanel({
       </div>
 
       <div className="grid flex-1 gap-2 px-3 pb-3 sm:grid-cols-2">
-        <StatusDonut
-          title="Properties status"
-          data={propertyStatus}
-          onOpen={onOpenProperties}
-          emptyLabel="No property stats for this date range."
-        />
-        <StatusDonut
-          title="Projects status"
-          data={projectStatus}
-          onOpen={onOpenProjects}
-          emptyLabel="No project stats for this date range."
-        />
+        {isLoading && !propertyTotal && !projectTotal ? (
+          <>
+            <div className="h-40 animate-pulse rounded-xl bg-emerald-50/60" aria-label="Loading properties" />
+            <div className="h-40 animate-pulse rounded-xl bg-emerald-50/60" aria-label="Loading projects" />
+          </>
+        ) : (
+          <>
+            <StatusDonut
+              title="Properties status"
+              data={propertyStatus}
+              onOpen={onOpenProperties}
+              emptyLabel="No property stats for this date range."
+            />
+            <StatusDonut
+              title="Projects status"
+              data={projectStatus}
+              onOpen={onOpenProjects}
+              emptyLabel="No project stats for this date range."
+            />
+          </>
+        )}
       </div>
     </article>
   );

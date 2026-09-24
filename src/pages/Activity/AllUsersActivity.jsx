@@ -28,6 +28,7 @@ import {
   normalizeActivityRow,
   outcomeBadgeClass,
 } from "./utils/activityFormatters";
+import { saSurface, saSurfaceHover } from "../Dashboards/superAdminDashboard/dashboardSurface";
 
 const TIME_PILLS = [
   { key: "today", label: "Today" },
@@ -38,8 +39,8 @@ const TIME_PILLS = [
 ];
 
 const MetricSkeleton = () => (
-  <div className="flex h-[52px] animate-pulse flex-col items-center justify-center rounded-lg border border-[#e5eee8] bg-white px-1 py-1.5 shadow-sm sm:h-[56px]">
-    <div className="mb-0.5 h-4 w-4 rounded-full bg-[#EAF8F0]" />
+  <div className={`flex h-[52px] animate-pulse flex-col items-center justify-center rounded-xl px-1 py-1.5 sm:h-[56px] ${saSurface}`}>
+    <div className="mb-0.5 h-4 w-4 rounded-full bg-[#e8f8ee]" />
     <div className="h-2.5 w-5 rounded bg-slate-100" />
     <div className="mt-0.5 h-1.5 w-8 rounded bg-slate-100" />
   </div>
@@ -189,7 +190,7 @@ export default function AllUsersActivity() {
 
   const livePill =
     liveState === "live"
-      ? "border-[#12A150]/25 bg-[#EAF8F0] text-[#0B7A3A]"
+      ? "border-[#27AE60]/25 bg-[#e8f8ee] text-[#128C45]"
       : liveState === "reconnecting"
         ? "border-amber-200 bg-amber-50 text-amber-700"
         : "border-slate-200 bg-slate-50 text-slate-500";
@@ -214,12 +215,12 @@ export default function AllUsersActivity() {
   };
 
   return (
-    <div className="w-full max-w-full pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] text-[#101820] lg:pb-8">
+    <div className="w-full max-w-full pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] text-[#0f3d2e] lg:pb-8">
       <header className="mb-3 px-0 sm:mb-4">
-        <h1 className="text-[24px] font-bold leading-tight tracking-tight text-[#101820] sm:text-[28px]">
+        <h1 className="text-lg font-semibold leading-tight tracking-tight text-[#0f3d2e] sm:text-xl">
           All Users Activity
         </h1>
-        <p className="mt-1 text-[13px] text-slate-500 sm:mt-1.5 sm:text-[14px]">
+        <p className="mt-1 text-[13px] text-[#5c7d6d] sm:mt-1.5">
           See what users do, when they do it, and what they get
         </p>
       </header>
@@ -243,7 +244,7 @@ export default function AllUsersActivity() {
             <span
               className={`h-2 w-2 rounded-full ${
                 liveState === "live"
-                  ? "animate-pulse bg-[#12A150]"
+                  ? "animate-pulse bg-[#27AE60]"
                   : liveState === "reconnecting"
                     ? "bg-amber-500"
                     : "bg-slate-400"
@@ -255,7 +256,7 @@ export default function AllUsersActivity() {
             type="button"
             onClick={() => load({ soft: true })}
             aria-label="Refresh activity"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#d9ebe0] bg-white text-[#12A150]"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-emerald-100 bg-white text-[#0f3d2e] shadow-[0_4px_12px_rgba(16,185,129,0.08)] hover:bg-emerald-50"
           >
             {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           </button>
@@ -267,14 +268,14 @@ export default function AllUsersActivity() {
               type="date"
               value={customFrom}
               onChange={(e) => setCustomFrom(e.target.value)}
-              className="h-10 min-w-0 flex-1 rounded-xl border border-[#d9ebe0] bg-white px-3 text-[13px] font-semibold"
+              className="h-10 min-w-0 flex-1 rounded-xl border border-[#b7e4c7] bg-white px-3 text-[13px] font-semibold"
             />
             <input
               type="date"
               value={customTo}
               min={customFrom || undefined}
               onChange={(e) => setCustomTo(e.target.value)}
-              className="h-10 min-w-0 flex-1 rounded-xl border border-[#d9ebe0] bg-white px-3 text-[13px] font-semibold"
+              className="h-10 min-w-0 flex-1 rounded-xl border border-[#b7e4c7] bg-white px-3 text-[13px] font-semibold"
             />
           </div>
         ) : null}
@@ -303,7 +304,7 @@ export default function AllUsersActivity() {
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search user or property"
             aria-label="Search user or property"
-            className="h-11 w-full rounded-2xl border border-[#d9ebe0] bg-white pl-9 pr-3 text-[14px] text-[#101820] placeholder:text-slate-400 focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10"
+            className="h-11 w-full rounded-2xl border border-[#b7e4c7] bg-white pl-9 pr-3 text-[14px] text-[#0f3d2e] placeholder:text-slate-400 focus:border-[#27AE60] focus:outline-none focus:ring-4 focus:ring-[#27AE60]/10"
           />
         </div>
       </div>
@@ -338,7 +339,7 @@ export default function AllUsersActivity() {
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="h-10 rounded-xl border border-[#d9ebe0] bg-white px-3 text-[13px] font-semibold text-[#101820] focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10"
+                className="h-10 rounded-xl border border-[#b7e4c7] bg-white px-3 text-[13px] font-semibold text-[#0f3d2e] focus:border-[#27AE60] focus:outline-none focus:ring-4 focus:ring-[#27AE60]/10"
               />
               <label className="sr-only" htmlFor="activity-to">
                 To date
@@ -349,7 +350,7 @@ export default function AllUsersActivity() {
                 value={customTo}
                 min={customFrom || undefined}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="h-10 rounded-xl border border-[#d9ebe0] bg-white px-3 text-[13px] font-semibold text-[#101820] focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10"
+                className="h-10 rounded-xl border border-[#b7e4c7] bg-white px-3 text-[13px] font-semibold text-[#0f3d2e] focus:border-[#27AE60] focus:outline-none focus:ring-4 focus:ring-[#27AE60]/10"
               />
             </div>
           ) : null}
@@ -370,7 +371,7 @@ export default function AllUsersActivity() {
             <span
               className={`h-2 w-2 rounded-full ${
                 liveState === "live"
-                  ? "animate-pulse bg-[#12A150]"
+                  ? "animate-pulse bg-[#27AE60]"
                   : liveState === "reconnecting"
                     ? "bg-amber-500"
                     : "bg-slate-400"
@@ -383,7 +384,7 @@ export default function AllUsersActivity() {
             type="button"
             onClick={() => load({ soft: true })}
             aria-label="Refresh activity"
-            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-[#d9ebe0] bg-white px-3 text-[12px] font-semibold text-[#12A150] hover:bg-[#EAF8F0] focus:outline-none focus:ring-2 focus:ring-[#12A150]/30"
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-emerald-100 bg-white px-3 text-[12px] font-semibold text-[#0f3d2e] shadow-[0_4px_12px_rgba(16,185,129,0.08)] hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30"
           >
             {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Refresh
@@ -397,7 +398,7 @@ export default function AllUsersActivity() {
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search user or property"
             aria-label="Search user or property"
-            className="h-10 w-full rounded-xl border border-[#d9ebe0] bg-white pl-9 pr-3 text-[13px] text-[#101820] placeholder:text-slate-400 focus:border-[#12A150] focus:outline-none focus:ring-4 focus:ring-[#12A150]/10"
+            className="h-10 w-full rounded-xl border border-[#b7e4c7] bg-white pl-9 pr-3 text-[13px] text-[#0f3d2e] placeholder:text-slate-400 focus:border-[#27AE60] focus:outline-none focus:ring-4 focus:ring-[#27AE60]/10"
           />
         </div>
       </div>
@@ -411,19 +412,27 @@ export default function AllUsersActivity() {
                 key={card.key}
                 type="button"
                 onClick={() => setAction(card.filter)}
-                className={`flex h-[52px] w-full flex-col items-center justify-center rounded-lg border border-[#e5eee8] bg-white px-1 py-1 text-center shadow-sm transition hover:border-[#12A150]/35 hover:shadow focus:outline-none focus:ring-2 focus:ring-[#12A150]/25 active:scale-[0.98] sm:h-[56px] sm:px-1.5 ${
+                className={`flex h-[52px] w-full flex-col items-center justify-center rounded-xl px-1 py-1 text-center transition active:scale-[0.98] focus:outline-none sm:h-[56px] sm:px-1.5 ${
                   action === card.filter && card.filter !== "all"
-                    ? "border-[#12A150] ring-2 ring-[#12A150]/15"
-                    : ""
+                    ? "border border-[#27AE60] bg-[#27AE60] text-white shadow-[0_8px_18px_-6px_rgba(39,174,96,0.55)]"
+                    : `${saSurface} ${saSurfaceHover}`
                 }`}
               >
-                <span className="mb-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#EAF8F0] text-[#12A150] sm:h-5 sm:w-5">
+                <span className={`mb-0.5 flex h-4 w-4 items-center justify-center rounded-full sm:h-5 sm:w-5 ${
+                  action === card.filter && card.filter !== "all"
+                    ? "bg-white/15 text-white"
+                    : "bg-[#e8f8ee] text-[#27AE60]"
+                }`}>
                   <card.icon className="h-2.5 w-2.5 sm:h-3 sm:w-3" strokeWidth={2.25} />
                 </span>
-                <span className="text-[13px] font-black leading-none tabular-nums text-[#101820] sm:text-[15px]">
+                <span className={`text-[13px] font-black leading-none tabular-nums sm:text-[15px] ${
+                  action === card.filter && card.filter !== "all" ? "text-white" : "text-[#0f3d2e]"
+                }`}>
                   {card.value}
                 </span>
-                <span className="mt-0.5 truncate px-0.5 text-[8px] font-semibold leading-tight text-slate-500 sm:text-[10px]">
+                <span className={`mt-0.5 truncate px-0.5 text-[8px] font-semibold leading-tight sm:text-[10px] ${
+                  action === card.filter && card.filter !== "all" ? "text-white/80" : "text-[#5c7d6d]"
+                }`}>
                   {card.label}
                 </span>
               </button>
@@ -433,16 +442,16 @@ export default function AllUsersActivity() {
       {/* Left: Live activity · Right: side panels — full width */}
       <div className="flex w-full flex-col items-stretch gap-4 lg:flex-row lg:items-start">
         <section
-          className={`min-w-0 flex-1 overflow-hidden rounded-2xl border border-[#e5eee8] bg-white shadow-sm motion-safe:animate-[tlFadeUp_280ms_ease-out] ${
+          className={`min-w-0 flex-1 overflow-hidden rounded-2xl motion-safe:animate-[tlFadeUp_280ms_ease-out] ${saSurface} ${
             mobileSection !== "live" ? "hidden lg:block" : ""
           }`}
         >          <div className="flex items-center justify-between gap-3 border-b border-[#eef2f0] px-5 py-4">
-            <h2 className="text-[16px] font-bold text-[#101820]">Live activity</h2>
+            <h2 className="text-[16px] font-semibold text-[#0f3d2e]">Live activity</h2>
             {newCount > 0 ? (
               <button
                 type="button"
                 onClick={applyFreshData}
-                className="rounded-full border border-[#12A150]/25 bg-[#EAF8F0] px-3 py-1 text-[11px] font-bold text-[#0B7A3A]"
+                className="rounded-full border border-[#27AE60]/25 bg-[#e8f8ee] px-3 py-1 text-[11px] font-bold text-[#128C45]"
               >
                 New activity available
               </button>
@@ -459,7 +468,7 @@ export default function AllUsersActivity() {
               <button
                 type="button"
                 onClick={() => load()}
-                className="mt-3 rounded-xl bg-[#12A150] px-4 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#12A150]/30"
+                className="mt-3 rounded-xl bg-[#27AE60] px-4 py-2 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30"
               >
                 Retry
               </button>
@@ -480,22 +489,22 @@ export default function AllUsersActivity() {
             </div>
           ) : rows.length === 0 ? (
             <div className="px-5 py-16 text-center">
-              <p className="text-sm font-semibold text-slate-600">No activity found</p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="text-sm font-semibold text-[#0f3d2e]">No activity found</p>
+              <p className="mt-1 text-xs text-[#5c7d6d]">
                 No user activity matches the selected filters.
               </p>
               <div className="mt-3 flex items-center justify-center gap-3">
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="text-xs font-semibold text-[#12A150]"
+                  className="text-xs font-semibold text-[#27AE60]"
                 >
                   Clear filters
                 </button>
                 <button
                   type="button"
                   onClick={() => load()}
-                  className="text-xs font-semibold text-slate-500"
+                  className="text-xs font-semibold text-[#5c7d6d]"
                 >
                   Refresh
                 </button>
@@ -516,16 +525,16 @@ export default function AllUsersActivity() {
                   </colgroup>
                   <thead className="sticky top-0 z-10 bg-white">
                     <tr className="border-b border-[#e8eee9]">
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#5c7d6d]">
                         Who
                       </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#5c7d6d]">
                         Latest action
                       </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#5c7d6d]">
                         When
                       </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500">
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#5c7d6d]">
                         Got
                       </th>
                     </tr>
@@ -543,7 +552,7 @@ export default function AllUsersActivity() {
                             setSelected(row);
                           }
                         }}
-                        className={`h-14 cursor-pointer border-b border-[#eef2f0] transition hover:bg-[#F4FBF7] focus:bg-[#F4FBF7] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#12A150]/25 ${
+                        className={`h-14 cursor-pointer border-b border-[#eef2f0] transition hover:bg-[#F4FBF7] focus:bg-[#F4FBF7] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#27AE60]/25 ${
                           idx % 5 === 0 ? "bg-[#FAFDFB]" : "bg-white"
                         }`}
                       >
@@ -556,13 +565,13 @@ export default function AllUsersActivity() {
                                 className="h-8 w-8 shrink-0 rounded-full object-cover"
                               />
                             ) : (
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EAF8F0] text-[10px] font-bold text-[#12A150]">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e8f8ee] text-[10px] font-bold text-[#27AE60]">
                                 {initialsFromName(row.userName)}
                               </div>
                             )}
                             <div className="min-w-0 flex-1 overflow-hidden">
                               <p
-                                className="truncate text-[13px] font-semibold leading-tight text-[#101820]"
+                                className="truncate text-[13px] font-semibold leading-tight text-[#0f3d2e]"
                                 title={row.email || row.userId}
                               >
                                 {row.userName}
@@ -589,13 +598,13 @@ export default function AllUsersActivity() {
                         </td>
                         <td className="overflow-hidden px-4 py-2.5 align-middle">
                           <p
-                            className="truncate text-[13px] font-medium leading-tight text-[#101820]"
+                            className="truncate text-[13px] font-medium leading-tight text-[#0f3d2e]"
                             title={row.what}
                           >
                             {row.whatPreview || row.what}
                           </p>
                           {row.actionCount > 1 ? (
-                            <p className="mt-0.5 truncate text-[11px] font-semibold text-[#12A150]">
+                            <p className="mt-0.5 truncate text-[11px] font-semibold text-[#27AE60]">
                               +{row.actionCount - 1} more action{row.actionCount - 1 === 1 ? "" : "s"}
                             </p>
                           ) : null}
@@ -635,25 +644,25 @@ export default function AllUsersActivity() {
                     key={row.id}
                     type="button"
                     onClick={() => setSelected(row)}
-                    className="w-full rounded-2xl border border-[#e7f2eb] bg-white p-3.5 text-left shadow-sm transition active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-[#12A150]/25"
+                    className="w-full rounded-2xl border border-[#e7f2eb] bg-white p-3.5 text-left shadow-sm transition active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-[#27AE60]/25"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2.5">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EAF8F0] text-[12px] font-bold text-[#12A150]">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e8f8ee] text-[12px] font-bold text-[#27AE60]">
                           {initialsFromName(row.userName)}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate text-[15px] font-bold text-[#101820]">{row.userName}</p>
+                          <p className="truncate text-[15px] font-bold text-[#0f3d2e]">{row.userName}</p>
                           <p className="text-[12px] text-slate-500">{row.role}</p>
                         </div>
                       </div>
                       <span className="shrink-0 text-[11px] font-semibold text-slate-400">{row.whenLabel}</span>
                     </div>
-                    <p className="mt-2.5 text-[13px] font-medium leading-snug text-[#101820]" title={row.what}>
+                    <p className="mt-2.5 text-[13px] font-medium leading-snug text-[#0f3d2e]" title={row.what}>
                       {row.whatPreview || row.what}
                     </p>
                     {row.actionCount > 1 ? (
-                      <p className="mt-1 text-[12px] font-bold text-[#12A150]">
+                      <p className="mt-1 text-[12px] font-bold text-[#27AE60]">
                         +{row.actionCount - 1} more actions
                       </p>
                     ) : null}
@@ -670,24 +679,24 @@ export default function AllUsersActivity() {
 
           <div className="flex flex-col gap-3 border-t border-[#eef2f0] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <p className="hidden items-center gap-1.5 text-[12px] text-slate-500 sm:inline-flex">
-              <Info className="h-3.5 w-3.5 text-[#12A150]" />
+              <Info className="h-3.5 w-3.5 text-[#27AE60]" />
               Tip: click a user to see all actions with separate times
             </p>
 
             {pagination.total > 0 ? (
               <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
                 <span className="text-xs text-slate-500">
-                  <span className="font-semibold text-[#101820]">
+                  <span className="font-semibold text-[#0f3d2e]">
                     {pagination.rangeStart}–{pagination.rangeEnd}
                   </span>
                   {" / "}
-                  <span className="font-semibold text-[#101820]">{pagination.total}</span>
+                  <span className="font-semibold text-[#0f3d2e]">{pagination.total}</span>
                 </span>
                 <select
                   value={pageSize}
                   onChange={(e) => setPageSize(Number(e.target.value))}
                   aria-label="Rows per page"
-                  className="rounded-lg border border-[#d9ebe0] bg-white px-2 py-1.5 text-xs font-semibold"
+                  className="rounded-lg border border-[#b7e4c7] bg-white px-2 py-1.5 text-xs font-semibold"
                 >
                   {[10, 20, 50, 100].map((size) => (
                     <option key={size} value={size}>
@@ -699,18 +708,18 @@ export default function AllUsersActivity() {
                   type="button"
                   disabled={pagination.page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="rounded-xl border border-[#d9ebe0] px-3 py-1.5 text-xs font-semibold text-[#12A150] disabled:opacity-40"
+                  className="rounded-xl border border-[#b7e4c7] px-3 py-1.5 text-xs font-semibold text-[#27AE60] disabled:opacity-40"
                 >
                   Prev
                 </button>
-                <span className="min-w-[4.5rem] rounded-xl border border-[#d9ebe0] bg-[#F7FBF8] px-2.5 py-1.5 text-center text-xs font-bold tabular-nums">
+                <span className="min-w-[4.5rem] rounded-xl border border-[#b7e4c7] bg-[#F7FBF8] px-2.5 py-1.5 text-center text-xs font-bold tabular-nums">
                   {pagination.page}/{pagination.totalPages}
                 </span>
                 <button
                   type="button"
                   disabled={pagination.page >= pagination.totalPages}
                   onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                  className="inline-flex items-center gap-1 rounded-xl border border-[#d9ebe0] px-3 py-1.5 text-xs font-semibold text-[#12A150] disabled:opacity-40"
+                  className="inline-flex items-center gap-1 rounded-xl border border-[#b7e4c7] px-3 py-1.5 text-xs font-semibold text-[#27AE60] disabled:opacity-40"
                 >
                   Next
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -726,13 +735,13 @@ export default function AllUsersActivity() {
           }`}
         >
           <div
-            className={`rounded-2xl border border-[#e5eee8] bg-white p-4 shadow-sm lg:rounded-xl ${
+            className={`rounded-2xl p-4 lg:rounded-xl ${saSurface} ${
               mobileSection !== "results" ? "hidden lg:block" : ""
             }`}
           >
             <div className="mb-3 flex items-center gap-2">
-              <Activity className="h-4 w-4 text-[#12A150]" />
-              <h3 className="text-[13px] font-bold text-[#101820]">Today’s results</h3>
+              <Activity className="h-4 w-4 text-[#27AE60]" />
+              <h3 className="text-[13px] font-semibold text-[#0f3d2e]">Today’s results</h3>
             </div>
             {loading && !data ? (
               <div className="animate-pulse space-y-3 py-1">
@@ -754,13 +763,13 @@ export default function AllUsersActivity() {
                       setMobileSection("live");
                     }}
                     className={`rounded-xl border border-[#eef2f0] bg-[#F7FBF8] p-3 text-left transition active:scale-[0.98] focus:outline-none lg:flex lg:w-full lg:items-center lg:justify-between lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:py-2.5 ${
-                      action === row.filter ? "border-[#12A150] ring-2 ring-[#12A150]/15 lg:ring-0" : ""
+                      action === row.filter ? "border-[#27AE60] ring-2 ring-[#27AE60]/15 lg:ring-0" : ""
                     }`}
                   >
-                    <span className="block text-[12px] font-semibold text-slate-500 lg:text-[13px] lg:font-medium lg:text-slate-600">
+                    <span className="block text-[12px] font-semibold text-[#5c7d6d] lg:text-[13px] lg:font-medium">
                       {row.label}
                     </span>
-                    <span className="mt-1 block text-[22px] font-black tabular-nums text-[#12A150] lg:mt-0 lg:text-[13px] lg:font-bold">
+                    <span className="mt-1 block text-[22px] font-black tabular-nums text-[#27AE60] lg:mt-0 lg:text-[13px] lg:font-bold">
                       {row.value}
                     </span>
                   </button>
@@ -770,13 +779,13 @@ export default function AllUsersActivity() {
           </div>
 
           <div
-            className={`rounded-2xl border border-[#e5eee8] bg-white p-4 shadow-sm lg:rounded-xl ${
+            className={`rounded-2xl p-4 lg:rounded-xl ${saSurface} ${
               mobileSection !== "attention" ? "hidden lg:block" : ""
             }`}
           >
             <div className="mb-3 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-[#12A150]" />
-              <h3 className="text-[13px] font-bold text-[#101820]">Needs attention</h3>
+              <AlertTriangle className="h-4 w-4 text-[#27AE60]" />
+              <h3 className="text-[13px] font-semibold text-[#0f3d2e]">Needs attention</h3>
             </div>
             {needsAttention.length ? (
               <ul className="space-y-2.5">
@@ -784,7 +793,7 @@ export default function AllUsersActivity() {
                   <li key={idx} className="flex items-start gap-2 rounded-xl bg-[#F7FBF8] p-3 text-[13px] text-slate-600 lg:bg-transparent lg:p-0">
                     <span
                       className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
-                        item.tone === "amber" ? "bg-amber-500" : "bg-[#12A150]"
+                        item.tone === "amber" ? "bg-amber-500" : "bg-[#27AE60]"
                       }`}
                     />
                     {item.text}
@@ -793,20 +802,20 @@ export default function AllUsersActivity() {
               </ul>
             ) : (
               <p className="inline-flex items-center gap-2 rounded-xl bg-[#F7FBF8] p-3 text-[13px] text-slate-500 lg:bg-transparent lg:p-0">
-                <CheckCircle2 className="h-4 w-4 text-[#12A150]" />
+                <CheckCircle2 className="h-4 w-4 text-[#27AE60]" />
                 All clear for now
               </p>
             )}
           </div>
 
           <div
-            className={`rounded-2xl border border-[#e5eee8] bg-white p-4 shadow-sm lg:rounded-xl ${
+            className={`rounded-2xl p-4 lg:rounded-xl ${saSurface} ${
               mobileSection !== "top" ? "hidden lg:block" : ""
             }`}
           >
             <div className="mb-3 flex items-center gap-2">
-              <UserRound className="h-4 w-4 text-[#12A150]" />
-              <h3 className="text-[13px] font-bold text-[#101820]">Top active</h3>
+              <UserRound className="h-4 w-4 text-[#27AE60]" />
+              <h3 className="text-[13px] font-semibold text-[#0f3d2e]">Top active</h3>
             </div>
             <div className="space-y-2.5 lg:space-y-3">
               {topActive.length ? (
@@ -822,20 +831,20 @@ export default function AllUsersActivity() {
                       setQuery(term);
                       setMobileSection("live");
                     }}
-                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-[#eef2f0] bg-[#F7FBF8] p-3 text-left focus:outline-none focus:ring-2 focus:ring-[#12A150]/25 lg:rounded-lg lg:border-0 lg:bg-transparent lg:p-0"
+                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-[#eef2f0] bg-[#F7FBF8] p-3 text-left focus:outline-none focus:ring-2 focus:ring-[#27AE60]/25 lg:rounded-lg lg:border-0 lg:bg-transparent lg:p-0"
                   >
                     <span className="flex min-w-0 items-center gap-2.5">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EAF8F0] text-[10px] font-bold text-[#12A150] lg:h-8 lg:w-8">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e8f8ee] text-[10px] font-bold text-[#27AE60] lg:h-8 lg:w-8">
                         {initialsFromName(user.name)}
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-[13px] font-semibold text-[#101820]">
+                        <span className="block truncate text-[13px] font-semibold text-[#0f3d2e]">
                           {user.name}
                         </span>
                         <span className="text-[11px] text-slate-500">{user.role}</span>
                       </span>
                     </span>
-                    <span className="shrink-0 text-[15px] font-black tabular-nums text-[#12A150] lg:text-[13px] lg:font-bold">
+                    <span className="shrink-0 text-[15px] font-black tabular-nums text-[#27AE60] lg:text-[13px] lg:font-bold">
                       {user.count}
                     </span>
                   </button>

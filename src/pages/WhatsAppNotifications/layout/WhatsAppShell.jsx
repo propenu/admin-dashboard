@@ -100,7 +100,7 @@ export default function WhatsAppShell({
                 {active ? (
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute -inset-[3px] rounded-[18px] bg-[#25D366]/35 blur-md motion-safe:animate-[waNavGlow_3.2s_ease-in-out_infinite]"
+                    className="pointer-events-none absolute -inset-[3px] rounded-[18px] bg-[#27AE60]/35 blur-md motion-safe:animate-[waNavGlow_3.2s_ease-in-out_infinite]"
                   />
                 ) : null}
                 <button
@@ -108,7 +108,7 @@ export default function WhatsAppShell({
                   onClick={() => onSectionChange?.(item.id)}
                   className={`relative z-[1] w-full rounded-2xl px-3 py-2.5 text-left ${
                     active
-                      ? "bg-[#25D366] shadow-[0_8px_18px_rgba(37,211,102,0.28)]"
+                      ? "bg-[#27AE60] shadow-[0_8px_18px_rgba(37,211,102,0.28)]"
                       : "border border-transparent transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-100 hover:bg-emerald-50/80 hover:shadow-[0_8px_18px_rgba(16,185,129,0.14)]"
                   }`}
                 >
@@ -171,7 +171,7 @@ export default function WhatsAppShell({
                 {section === item.id ? (
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute -inset-1 rounded-full bg-[#25D366]/35 blur-md motion-safe:animate-[waNavGlow_3.2s_ease-in-out_infinite]"
+                    className="pointer-events-none absolute -inset-1 rounded-full bg-[#27AE60]/35 blur-md motion-safe:animate-[waNavGlow_3.2s_ease-in-out_infinite]"
                   />
                 ) : null}
                 <button
@@ -179,7 +179,7 @@ export default function WhatsAppShell({
                   onClick={() => onSectionChange?.(item.id)}
                   className={`relative z-[1] rounded-full px-3 py-1.5 text-xs font-bold whitespace-nowrap ${
                     section === item.id
-                      ? "bg-[#25D366] text-white shadow-[0_8px_18px_rgba(37,211,102,0.28)]"
+                      ? "bg-[#27AE60] text-white shadow-[0_8px_18px_rgba(37,211,102,0.28)]"
                       : "bg-emerald-50 text-[#0f3d2e]"
                   }`}
                 >

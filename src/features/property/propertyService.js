@@ -186,8 +186,8 @@ export const verifyAgentPropertyVerification = (category, id, payload) => {
 
 
 // Roles Analytics
-export const getSuperAdimnAnalytics = () => {
-  return apiClient.get(`${SERVICES.PROPERTY}/analytics/superadmin`);
+export const getSuperAdimnAnalytics = (config = {}) => {
+  return apiClient.get(`${SERVICES.PROPERTY}/analytics/superadmin`, config);
 };
 
 export const getAdminAnalytics = () => {
@@ -255,7 +255,7 @@ export const salesmanagerRejectAProject = (id, body = {}) =>
 
 
 
-export const getAllProjectsAnalytics = (params = {}) => {
+export const getAllProjectsAnalytics = (params = {}, config = {}) => {
   const query = new URLSearchParams();
   if (params.state) query.set("state", params.state);
   if (params.city) query.set("city", params.city);
@@ -266,11 +266,12 @@ export const getAllProjectsAnalytics = (params = {}) => {
   const qs = query.toString();
   return apiClient.get(
     `${SERVICES.PROPERTY}/analytics/project${qs ? `?${qs}` : ""}`,
+    config,
   );
 };
 
 
-export const getAllPropertiesAnalytics = (params = {}) => {
+export const getAllPropertiesAnalytics = (params = {}, config = {}) => {
   const query = new URLSearchParams();
   if (params.state) query.set("state", params.state);
   if (params.city) query.set("city", params.city);
@@ -281,6 +282,30 @@ export const getAllPropertiesAnalytics = (params = {}) => {
   const qs = query.toString();
   return apiClient.get(
     `${SERVICES.PROPERTY}/analytics/properties${qs ? `?${qs}` : ""}`,
+    config,
+  );
+};
+
+const LISTING_DEFAULTS_TO_OMIT = new Set([
+  "all",
+  "newest",
+]);
+
+export const getAdminPropertyListings = (params = {}, config = {}) => {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    if (key === "limit" || key === "pageSize") return;
+    if (LISTING_DEFAULTS_TO_OMIT.has(String(value)) && key !== "page") {
+      return;
+    }
+    query.set(key, String(value));
+  });
+  query.set("limit", "12");
+  const qs = query.toString();
+  return apiClient.get(
+    `${SERVICES.PROPERTY}/analytics/properties/listings${qs ? `?${qs}` : ""}`,
+    config,
   );
 };
 
@@ -391,6 +416,20 @@ export const getBlogs = async (filters = {}) => {
       totalPages: 1,
     },
   };
+};
+
+/** Single paginated blog page — use this for counts/dashboards, not getBlogs(). */
+export const getBlogsPage = async (filters = {}, config = {}) => {
+  const qs = buildBlogQuery({
+    page: 1,
+    limit: 1,
+    ...filters,
+  });
+  const res = await apiClient.get(
+    `${SERVICES.PROPERTY}/blogs${qs ? `?${qs}` : ""}`,
+    config,
+  );
+  return unwrapBlogListPayload(res?.data);
 };
 
 export const getBlogById = (id) => {

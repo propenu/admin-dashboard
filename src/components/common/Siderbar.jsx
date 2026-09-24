@@ -72,7 +72,7 @@ const TransferCredentials = lazy(() => import("./TransferCredentials"));
 ───────────────────────────────────────────────────────────────────── */
 const S = {
   /* sidebar widths */
-  expandedW:  "240px",   // was 256px
+  expandedW:  "208px",   // was 240px
   collapsedW: "56px",    // was 68px
 
   /* icon sizes */
@@ -314,12 +314,8 @@ const SubChildren = ({ items, navigate, isActiveRoute }) => (
           <div className={`absolute ${S.subGuideLeft} top-[15px] w-2.5 h-px bg-green-200`} />
           <button
             onClick={() => navigate(sub.path)}
-            className={`relative ${S.subML} ${S.subW} flex items-center gap-1.5 ${S.subPx} ${S.subPy} ${S.subRadius} ${S.subText} ${S.subFont} transition-all duration-150`}
-            style={
-              active
-                ? { background: "#27AE60", color: "white", boxShadow: "0 1px 6px rgba(39,174,96,0.25)" }
-                : { color: "#64748b" }
-            }
+            className={`relative ${S.subML} ${S.subW} flex items-center gap-1.5 ${S.subPx} ${S.subPy} ${S.subRadius} ${S.subText} ${S.subFont} transition-all duration-150 ${active ? "sb-pick" : ""}`}
+            style={active ? { color: "white" } : { color: "#64748b" }}
             onMouseEnter={e => { if (!active) { e.currentTarget.style.background = "#f0fdf4"; e.currentTarget.style.color = "#27AE60"; } }}
             onMouseLeave={e => { if (!active) { e.currentTarget.style.background = ""; e.currentTarget.style.color = "#64748b"; } }}
           >
@@ -1609,6 +1605,60 @@ export default function Sidebar({
         .sb-scroll::-webkit-scrollbar-track { background: transparent; }
         .sb-scroll::-webkit-scrollbar-thumb { background: #bbf7d0; border-radius: 10px; }
         .sb-scroll::-webkit-scrollbar-thumb:hover { background: #27AE60; }
+
+        @property --sb-angle {
+          syntax: "<angle>";
+          inherits: false;
+          initial-value: 0deg;
+        }
+        @keyframes sbSpin {
+          to { --sb-angle: 360deg; }
+        }
+        @keyframes sbPickGlow {
+          0%, 100% { box-shadow: 0 3px 12px rgba(39,174,96,0.28); }
+          50% { box-shadow: 0 7px 20px rgba(39,174,96,0.50); }
+        }
+        @keyframes sbBar {
+          0%, 100% { opacity: 0.55; height: 46%; }
+          50% { opacity: 1; height: 72%; }
+        }
+        .sb-card {
+          background: #f4fdf8 !important;
+          color: #27AE60 !important;
+          border: 1px solid #9fe0b8;
+          box-shadow: 0 2px 8px rgba(39,174,96,0.10);
+        }
+        .sb-pick {
+          isolation: isolate;
+          color: #ffffff !important;
+          border: 2px solid transparent;
+          background:
+            linear-gradient(180deg, #2ecc71 0%, #27AE60 48%, #1c934b 100%) padding-box,
+            conic-gradient(from var(--sb-angle), #c8f8d8, #27AE60, #ffffff, #3dcc73, #c8f8d8) border-box !important;
+          animation: sbSpin 2.2s linear infinite, sbPickGlow 2s ease-in-out infinite;
+        }
+        .sb-pick::before {
+          content: "";
+          position: absolute;
+          left: 3px;
+          top: 50%;
+          width: 3px;
+          height: 58%;
+          border-radius: 99px;
+          background: #ffffff;
+          box-shadow: 0 0 8px rgba(255,255,255,0.85);
+          transform: translateY(-50%);
+          pointer-events: none;
+          z-index: 1;
+          animation: sbBar 1.5s ease-in-out infinite;
+        }
+        .sb-pick > * {
+          position: relative;
+          z-index: 2;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .sb-pick, .sb-pick::before { animation: none; }
+        }
       `}</style>
 
       {/* Mobile backdrop */}
@@ -1623,7 +1673,7 @@ export default function Sidebar({
       {/* ═══════════════════════════════════════
           ASIDE — compact sizing
           collapsed:  56px wide, icon only
-          expanded:  240px wide, icon + text
+          expanded:  208px wide, icon + text
       ═══════════════════════════════════════ */}
       <aside
         ref={asideRef}
@@ -1642,13 +1692,11 @@ export default function Sidebar({
           boxShadow:   "2px 0 10px rgba(39,174,96,0.06)",
         }}
       >
-        {/* Green top accent line */}
         <div
-          className="flex-shrink-0 h-[2px] w-full"
+          className="h-[2px] w-full flex-shrink-0"
           style={{ background: "linear-gradient(90deg, #27AE60, #4ade80, #27AE60)" }}
         />
 
-        {/* ── Navigation ── */}
         <nav className={`sb-scroll flex-1 ${S.navPy} ${S.navPx} overflow-y-auto overflow-x-hidden ${S.space}`}>
 
           {userPending && !user ? (
@@ -1656,7 +1704,7 @@ export default function Sidebar({
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-8 animate-pulse rounded-md bg-slate-100/90"
+                  className="h-8 animate-pulse rounded-xl bg-emerald-50"
                 />
               ))}
             </div>
@@ -1673,12 +1721,8 @@ export default function Sidebar({
                     <button
                       ref={bindActiveIconRef(parentActive)}
                       onClick={() => toggleMenu(item.key)}
-                      className={`relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-colors duration-150`}
-                      style={
-                        parentActive
-                          ? { background: "#f0fdf4", color: "#27AE60" }
-                          : { color: "#64748b" }
-                      }
+                      className={`relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-colors duration-150 ${parentActive ? "sb-card" : ""}`}
+                      style={parentActive ? { color: "#27AE60" } : { color: "#64748b" }}
                       onMouseEnter={(e) => {
                         if (!parentActive) e.currentTarget.style.background = "#f8fffe";
                       }}
@@ -1686,13 +1730,12 @@ export default function Sidebar({
                         if (!parentActive) e.currentTarget.style.background = "";
                       }}
                     >
-                      {/* Left accent */}
-                      {parentActive && (
+                      {parentActive ? (
                         <span
                           className="absolute left-0 top-1/2 h-5 w-[2.5px] -translate-y-1/2 rounded-r-full"
                           style={{ background: "#27AE60" }}
                         />
-                      )}
+                      ) : null}
 
                       <NavIcon src={item.icon} active={parentActive} isParent />
                       {showText && (
@@ -1737,12 +1780,14 @@ export default function Sidebar({
 
                               <button
                                 onClick={() => handleChildClick(child)}
-                                className={`relative ${S.childML} ${S.childW} flex items-center justify-between ${S.childPx} ${S.childPy} ${S.childRadius} ${S.childText} ${S.childFont} transition-all duration-150`}
+                                className={`relative ${S.childML} ${S.childW} flex items-center justify-between ${S.childPx} ${S.childPy} ${S.childRadius} ${S.childText} ${S.childFont} transition-all duration-150 ${
+                                  childSelf ? "sb-pick" : childHasActive ? "sb-card" : ""
+                                }`}
                                 style={
                                   childSelf
-                                    ? { background: "#27AE60", color: "white", boxShadow: "0 1px 8px rgba(39,174,96,0.25)" }
+                                    ? { color: "white" }
                                     : childHasActive
-                                    ? { background: "#f0fdf4", color: "#27AE60", border: "1px solid #bbf7d0" }
+                                    ? { color: "#27AE60" }
                                     : { color: "#64748b" }
                                 }
                                 onMouseEnter={e => {
@@ -1807,16 +1852,8 @@ export default function Sidebar({
                 <button
                   ref={bindActiveIconRef(leafActive)}
                   onClick={() => navigateMenuPath(item.path)}
-                  className={`relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-colors duration-150`}
-                  style={
-                    leafActive
-                      ? {
-                          background: "#27AE60",
-                          color: "white",
-                          boxShadow: "0 2px 8px rgba(39,174,96,0.28)",
-                        }
-                      : { color: "#64748b" }
-                  }
+                  className={`relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-colors duration-150 ${leafActive ? "sb-pick" : ""}`}
+                  style={leafActive ? { color: "white" } : { color: "#64748b" }}
                   onMouseEnter={(e) => {
                     if (!leafActive) {
                       e.currentTarget.style.background = "#f0fdf4";
@@ -1862,7 +1899,7 @@ export default function Sidebar({
                 <UserCircle className={`${S.avatarIcon} text-white`} />
                 {/* Online dot */}
                 <span
-                  className="absolute -bottom-[2px] -right-[2px] w-[8px] h-[8px] rounded-full"
+                  className="absolute -bottom-[2px] -right-[2px] h-[8px] w-[8px] rounded-full"
                   style={{ background: "#22c55e", border: "2px solid white" }}
                 />
               </div>

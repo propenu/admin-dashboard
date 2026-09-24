@@ -684,7 +684,7 @@ export function TemplateComposerModal({
       <div className="flex h-[min(820px,88vh)] w-full max-w-[960px] flex-col overflow-hidden rounded-[28px] bg-[#f7fbf8] shadow-[0_24px_80px_rgba(16,185,129,0.16)]">
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-emerald-100 bg-white px-6 py-4">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#25D366] text-white shadow-[0_8px_18px_rgba(37,211,102,0.35)]">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#27AE60] text-white shadow-[0_8px_18px_rgba(37,211,102,0.35)]">
               <MessageCircle size={20} />
             </div>
             <div className="min-w-0 pt-0.5">
@@ -712,7 +712,7 @@ export function TemplateComposerModal({
         >
           <section className="mb-4 flex items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-lime-50 px-4 py-3.5 shadow-[0_8px_24px_rgba(16,185,129,0.10)]">
             <div className="flex min-w-0 items-start gap-3">
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white shadow-[0_6px_16px_rgba(37,211,102,0.35)]">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#27AE60] text-white shadow-[0_6px_16px_rgba(37,211,102,0.35)]">
                 <MessageCircle size={16} />
               </div>
               <div className="min-w-0">
@@ -729,7 +729,7 @@ export function TemplateComposerModal({
             <button
               type="button"
               onClick={applySample}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-[#12A150] px-3 text-[12px] font-semibold text-white shadow-[0_6px_16px_rgba(18,161,80,0.28)] hover:bg-[#0e8a43]"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-[#27AE60] px-3 text-[12px] font-semibold text-white shadow-[0_6px_16px_rgba(18,161,80,0.28)] hover:bg-[#1e8f4d]"
             >
               <Sparkles size={13} />
               Sample
@@ -984,7 +984,7 @@ export function TemplateComposerModal({
                           <button
                             type="button"
                             disabled={form.buttons.length >= 10}
-                            className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-full bg-[#12A150] px-3.5 text-[13px] font-semibold text-white shadow-[0_6px_16px_rgba(18,161,80,0.28)] hover:bg-[#0e8a43] disabled:opacity-50"
+                            className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-full bg-[#27AE60] px-3.5 text-[13px] font-semibold text-white shadow-[0_6px_16px_rgba(18,161,80,0.28)] hover:bg-[#1e8f4d] disabled:opacity-50"
                           >
                             <Plus size={15} />
                             Add button
@@ -1541,7 +1541,7 @@ export function TemplateComposerModal({
             type="button"
             disabled={!canSubmit || submitting}
             onClick={handleSubmit}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#12A150] px-5 text-[14px] font-semibold text-white shadow-[0_8px_20px_rgba(18,161,80,0.28)] transition hover:bg-[#0e8a43] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#27AE60] px-5 text-[14px] font-semibold text-white shadow-[0_8px_20px_rgba(18,161,80,0.28)] transition hover:bg-[#1e8f4d] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
           >
             {submitting ? (
               <Loader2 size={16} className="animate-spin" />

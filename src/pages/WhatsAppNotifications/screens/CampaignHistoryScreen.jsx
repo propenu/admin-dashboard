@@ -205,7 +205,7 @@ export default function CampaignHistoryScreen({
                 }}
                 className={`h-8 rounded-full px-2.5 text-[11px] font-semibold ${
                   range === id
-                    ? "bg-[#25D366] text-white shadow-[0_6px_14px_rgba(37,211,102,0.28)]"
+                    ? "bg-[#27AE60] text-white shadow-[0_6px_14px_rgba(37,211,102,0.28)]"
                     : "text-[#0f3d2e] hover:bg-emerald-50"
                 }`}
               >
@@ -241,7 +241,7 @@ export default function CampaignHistoryScreen({
       <div className="min-w-0 overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
         {loading ? (
           <div className="flex justify-center py-14">
-            <Loader2 size={18} className="animate-spin text-[#25D366]" />
+            <Loader2 size={18} className="animate-spin text-[#27AE60]" />
           </div>
         ) : pageRows.length === 0 ? (
           <p className="py-14 text-center text-sm text-[#5c7d6d]">

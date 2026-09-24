@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { getAllProjectsAnalytics, getAllPropertiesAnalytics } from "../features/property/propertyService";
 import { getTicketDashboardOverview } from "../features/ticket/ticket_system";
-import { getAllUsers, getUserDetails } from "../features/user/userService";
+import { getSidebarUserCounts, getUserDetails } from "../features/user/userService";
 import { apiClient } from "../api/apiClient";
 import {
   SIDEBAR_ACK_EVENT,
@@ -11,13 +11,10 @@ import {
   emptySidebarCounts,
   getSidebarUserKey,
   inventoryOnboardingCount,
-  isCreatedToday,
-  isOnboardingStatus,
   markSidebarPathSeen,
   overviewToStatusBucket,
   publishSidebarCounts,
   readSidebarSeen,
-  roleBucket,
   statusBucketFromRows,
   todayKey,
   unreadFromSnapshot,
@@ -40,19 +37,6 @@ const emptyAccountBucket = () => ({
   login: 0,
   onboarding: 0,
 });
-
-const sumAccountBuckets = (...buckets) =>
-  buckets.reduce(
-    (acc, bucket) => ({
-      total: acc.total + Number(bucket?.total || 0),
-      active: acc.active + Number(bucket?.active || 0),
-      pending: acc.pending + Number(bucket?.pending || 0),
-      inactive: acc.inactive + Number(bucket?.inactive || 0),
-      login: acc.login + Number(bucket?.login || 0),
-      onboarding: acc.onboarding + Number(bucket?.onboarding || 0),
-    }),
-    emptyAccountBucket(),
-  );
 
 const REFRESH_MS = 45_000;
 
@@ -98,14 +82,6 @@ const canView = (permissions, module) => {
 const hasAnyView = (permissions, modules) => modules.some((m) => canView(permissions, m));
 
 const unpackAnalytics = (response) => response?.data?.data || response?.data || {};
-
-const unpackUsers = (response) => {
-  const payload = response?.data;
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.users)) return payload.users;
-  if (Array.isArray(payload?.data)) return payload.data;
-  return [];
-};
 
 const unpackMe = (response) => response?.data?.user || response?.data || null;
 
@@ -195,31 +171,6 @@ const pathForLocation = (pathname = "") => {
   return null;
 };
 
-/** Fill today's create/login bucket from a user list. */
-const countCreatedToday = (users = []) => {
-  const bucket = emptyAccountBucket();
-  (Array.isArray(users) ? users : []).forEach((u) => {
-    if (!isCreatedToday(u?.createdAt)) return;
-    const onboarding = isOnboardingStatus(u.accountStatus);
-    bucket.total += 1;
-    if (u.isActive === false || String(u.accountStatus || "").toLowerCase() === "inactive") {
-      bucket.inactive += 1;
-    } else if (onboarding) {
-      bucket.pending += 1;
-      bucket.onboarding += 1;
-    } else {
-      bucket.active += 1;
-    }
-    if (isCreatedToday(u.lastLoginAt)) bucket.login += 1;
-  });
-  return bucket;
-};
-
-const assigneeIdOf = (row) => {
-  const raw = row?.followUpAssignedTo;
-  return String(raw?._id || raw || "").trim();
-};
-
 async function collectRawSnapshots(user) {
   const permissions = user?.permissions || [];
   const isSuper = normalizeRole(user?.roleName || user?.role) === "super_admin";
@@ -304,7 +255,14 @@ async function collectRawSnapshots(user) {
     tasks.push(
       apiClient
         .get("/api/properties/leads/admin/overview", {
-          params: { page: 1, limit: 100, from: today, to: today, ...locationScope },
+          params: {
+            page: 1,
+            limit: 1,
+            summaryOnly: 1,
+            from: today,
+            to: today,
+            ...locationScope,
+          },
         })
         .then((res) => {
           const summary = res?.data?.data?.summary || res?.data?.summary || {};
@@ -348,88 +306,35 @@ async function collectRawSnapshots(user) {
     );
   }
 
-  // Propenu.com marketplace accounts (user / agent / builder / builder_staff) → Users sidebar
-  // Also used for Client Progress Queue onboarding counts (projects ignored).
-  const needMarketplaceUsers =
+  const needUserCounts =
     allow("user") ||
     allow("builder") ||
     allow("builder_staff") ||
     allow("agent") ||
+    allow("team") ||
     isSuper ||
     needFollowUpBadge;
-  if (needMarketplaceUsers) {
+  if (needUserCounts) {
     tasks.push(
-      getAllUsers()
-        .then((res) => {
-          const users = unpackUsers(res);
-          const buckets = {
-            owners: emptyAccountBucket(),
-            builders: emptyAccountBucket(),
-            agents: emptyAccountBucket(),
-            builderStaff: emptyAccountBucket(),
-          };
-          let onboardingInQueue = 0;
-
-          users.forEach((u) => {
-            const roleLabel =
-              u.roleName ||
-              (typeof u.role === "string" ? u.role : u.role?.name) ||
-              "";
-            const bucket = roleBucket(roleLabel);
-            const onboarding = isOnboardingStatus(u.accountStatus);
-
-            // Client Progress Queue: open onboarding cases (CCE = assigned only).
-            const assignedToMe = Boolean(meId && assigneeIdOf(u) === meId);
-            if (isCce && assignedToMe) {
-              const uid = getUserId(u);
-              if (uid) assignedCreatorIds.push(uid);
-            }
-            if (bucket && onboarding) {
-              if (!isCce || assignedToMe) {
-                onboardingInQueue += 1;
-              }
-            }
-
-            // Marketplace roles only — staff never inflate Users badges
-            if (!bucket || !buckets[bucket]) return;
-            if (!isCreatedToday(u.createdAt)) return;
-
-            const target = buckets[bucket];
-            target.total += 1;
-            if (u.isActive === false || String(u.accountStatus || "").toLowerCase() === "inactive") {
-              target.inactive += 1;
-            } else if (onboarding) {
-              target.pending += 1;
-              target.onboarding += 1;
-            } else {
-              target.active += 1;
-            }
-            if (isCreatedToday(u.lastLoginAt)) target.login += 1;
+      getSidebarUserCounts()
+        .then((data) => {
+          const asBucket = (value) => ({
+            ...emptyAccountBucket(),
+            ...(value && typeof value === "object" ? value : {}),
           });
-
-          followUpOnboardingUsers = onboardingInQueue;
-          raw.owners = buckets.owners;
-          raw.builders = buckets.builders;
-          raw.agents = buckets.agents;
-          raw.builderStaff = buckets.builderStaff;
-          raw.users = sumAccountBuckets(
-            buckets.owners,
-            buckets.builders,
-            buckets.agents,
-            buckets.builderStaff,
-          );
-        })
-        .catch(() => {}),
-    );
-  }
-
-  // Admin-dashboard credential creates (staff) → Team Directory sidebar (separate)
-  const needStaffUsers = isSuper || allow("team") || allow("user");
-  if (needStaffUsers) {
-    tasks.push(
-      getAllUsers({ scope: "team_directory" })
-        .then((res) => {
-          raw.teamDirectory = countCreatedToday(unpackUsers(res));
+          raw.owners = asBucket(data.owners);
+          raw.builders = asBucket(data.builders);
+          raw.agents = asBucket(data.agents);
+          raw.builderStaff = asBucket(data.builderStaff);
+          raw.users = asBucket(data.users);
+          raw.teamDirectory = asBucket(data.teamDirectory);
+          followUpOnboardingUsers = Number(data.followUp?.onboarding || 0);
+          const creatorIds = Array.isArray(data.followUp?.assignedCreatorIds)
+            ? data.followUp.assignedCreatorIds
+            : [];
+          creatorIds.forEach((id) => {
+            if (id) assignedCreatorIds.push(String(id));
+          });
         })
         .catch(() => {}),
     );

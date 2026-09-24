@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { Activity, ExternalLink, MousePointerClick, Eye, Plus } from "lucide-react";
+import { saInset, saSurface } from "../dashboardSurface";
 
 const fmt = (v) => Number(v || 0).toLocaleString("en-IN");
 
@@ -45,12 +46,12 @@ const formatEngagementEventLabel = (row = {}) => {
 const Tip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] shadow-lg">
-      <p className="mb-1 font-bold text-slate-800">{label}</p>
+    <div className="rounded-xl border border-emerald-100 bg-white px-3 py-2 text-[11px] shadow-[0_8px_24px_rgba(16,185,129,0.12)]">
+      <p className="mb-1 font-semibold text-[#0f3d2e]">{label}</p>
       {payload.map((row) => (
         <p key={row.dataKey} className="flex items-center justify-between gap-4 font-semibold">
           <span style={{ color: row.color }}>{row.name}</span>
-          <span className="tabular-nums text-slate-900">{fmt(row.value)}</span>
+          <span className="tabular-nums text-[#0f3d2e]">{fmt(row.value)}</span>
         </p>
       ))}
     </div>
@@ -68,6 +69,7 @@ export default function SaEngagementPanel({
   rangeLabel = "",
   isLoading = false,
   isError = false,
+  onRetry,
   onOpenActivity,
 }) {
   const [mode, setMode] = useState("all");
@@ -92,6 +94,7 @@ export default function SaEngagementPanel({
   }, [daily, granularity]);
 
   const maxMix = Math.max(...actionMix.map((r) => r.value), 1);
+  const mixTotal = actionMix.reduce((sum, row) => sum + (Number(row.value) || 0), 0);
   const hasData = summary.clicks > 0 || summary.views > 0;
 
   const allViews = Number(summary.views) || 0;
@@ -104,7 +107,7 @@ export default function SaEngagementPanel({
       label: "All views",
       value: allViews,
       icon: Eye,
-      tone: "text-blue-700 bg-blue-50",
+      tone: "text-emerald-700 bg-emerald-50",
     },
     {
       key: "clicks",
@@ -118,35 +121,38 @@ export default function SaEngagementPanel({
       label: "Total",
       value: bothTotal,
       icon: Plus,
-      tone: "text-slate-700 bg-slate-100",
+      tone: "text-[#0f3d2e] bg-emerald-50",
     },
   ];
 
   return (
-    <article className="overflow-hidden rounded-[14px] border border-slate-200 bg-white shadow-sm">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-3.5 py-2.5">
+    <article className={`overflow-hidden rounded-2xl ${saSurface}`}>
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-50 px-3.5 py-2.5">
         <div className="min-w-0">
-          <h3 className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+            Engagement
+          </p>
+          <h3 className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold text-[#0f3d2e]">
             <Activity className="h-3.5 w-3.5 text-emerald-600" />
             Website & app engagement
           </h3>
-          <p className="text-[10px] text-slate-500">
-            <span className="font-semibold text-slate-700">{rangeLabel || "Period"}</span>
-            <span className="text-slate-300"> · </span>
+          <p className="text-[10px] text-[#5c7d6d]">
+            <span className="font-semibold text-[#0f3d2e]">{rangeLabel || "Period"}</span>
+            <span className="text-emerald-200"> · </span>
             {granularity === "hour" ? "Hourly" : "Daily"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <div className="inline-flex max-w-full overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-0.5" style={{ scrollbarWidth: "none" }}>
+          <div className="inline-flex max-w-full overflow-x-auto rounded-full border border-emerald-100 bg-emerald-50/40 p-0.5" style={{ scrollbarWidth: "none" }}>
             {METRIC_MODES.map((item) => (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => setMode(item.key)}
-                className={`shrink-0 rounded-md px-2.5 py-1.5 text-[10px] font-bold transition sm:px-2 sm:py-1 ${
+                className={`shrink-0 rounded-full px-2.5 py-1.5 text-[10px] font-bold transition sm:px-2 sm:py-1 ${
                   mode === item.key
-                    ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "bg-[#27AE60] text-white shadow-[0_4px_10px_rgba(37,211,102,0.25)]"
+                    : "text-[#5c7d6d] hover:text-[#0f3d2e]"
                 }`}
               >
                 {item.label}
@@ -156,7 +162,7 @@ export default function SaEngagementPanel({
           <button
             type="button"
             onClick={onOpenActivity}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
+            className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-white px-2 py-1 text-[10px] font-bold text-[#0f3d2e] shadow-[0_4px_10px_rgba(16,185,129,0.08)] hover:bg-emerald-50"
           >
             Full activity
             <ExternalLink className="h-3 w-3" />
@@ -164,22 +170,22 @@ export default function SaEngagementPanel({
         </div>
       </header>
 
-      <div className="flex flex-wrap gap-1.5 border-b border-slate-100 px-3 py-2">
+      <div className="flex flex-wrap gap-1.5 border-b border-emerald-50 px-3 py-2">
         {kpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
             <div
               key={kpi.key}
-              className="inline-flex min-w-[108px] flex-1 items-center gap-1.5 rounded-lg border border-slate-100 bg-slate-50/80 px-2 py-1 sm:max-w-[160px] sm:flex-none"
+              className={`inline-flex min-w-[108px] flex-1 items-center gap-1.5 rounded-xl px-2 py-1 sm:max-w-[160px] sm:flex-none ${saInset}`}
             >
               <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md ${kpi.tone}`}>
                 <Icon className="h-3 w-3" />
               </span>
               <div className="min-w-0 leading-tight">
-                <p className="truncate text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                <p className="truncate text-[9px] font-semibold uppercase tracking-wide text-emerald-600">
                   {kpi.label}
                 </p>
-                <p className="text-sm font-black tabular-nums text-slate-900">{fmt(kpi.value)}</p>
+                <p className="text-sm font-semibold tabular-nums text-[#0f3d2e]">{fmt(kpi.value)}</p>
               </div>
             </div>
           );
@@ -189,44 +195,55 @@ export default function SaEngagementPanel({
       <div className="grid items-stretch gap-3 p-3 lg:grid-cols-12">
         <div className="flex flex-col lg:col-span-8">
           {isLoading ? (
-            <div className="flex h-[220px] items-center justify-center text-xs text-slate-400 sm:h-[320px] lg:h-[420px]">
-              Loading engagement…
-            </div>
+            <div
+              className="h-[220px] animate-pulse rounded-xl bg-emerald-50/50"
+              aria-busy="true"
+              aria-label="Loading engagement"
+            />
           ) : isError ? (
-            <div className="flex h-[220px] flex-col items-center justify-center gap-1 text-center text-xs text-slate-400 sm:h-[320px] lg:h-[420px]">
-              <p className="font-semibold text-slate-500">Engagement unavailable</p>
+            <div className="flex h-[220px] flex-col items-center justify-center gap-2 text-center text-xs text-[#5c7d6d]">
+              <p className="font-semibold text-[#0f3d2e]">Unable to load engagement data</p>
               <p>Requires Super Admin activity access (user:view).</p>
+              {onRetry ? (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="rounded-full border border-emerald-100 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 shadow-[0_4px_10px_rgba(16,185,129,0.08)] hover:bg-emerald-50"
+                >
+                  Retry
+                </button>
+              ) : null}
             </div>
           ) : !hasData ? (
-            <div className="flex h-[220px] flex-col items-center justify-center gap-1 text-center text-xs text-slate-400 sm:h-[320px] lg:h-[420px]">
-              <p className="font-semibold text-slate-500">No clicks or actions in this period</p>
-              <p>Try another date range or check All Users Activity.</p>
+            <div className="flex h-[220px] flex-col items-center justify-center gap-1 text-center text-xs text-[#5c7d6d]">
+              <p className="font-semibold text-[#0f3d2e]">No views or clicks yet</p>
+              <p>No activity available for this period.</p>
             </div>
           ) : (
-            <div className="h-[220px] w-full sm:h-[320px] lg:h-[420px]">
+            <div className="h-[220px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 12, right: 8, left: -8, bottom: 8 }}>
                 <defs>
                   <linearGradient id="saViewsFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.28} />
-                    <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.02} />
+                    <stop offset="0%" stopColor="#27AE60" stopOpacity={0.28} />
+                    <stop offset="100%" stopColor="#27AE60" stopOpacity={0.02} />
                   </linearGradient>
                   <linearGradient id="saClicksFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#34D399" stopOpacity={0.32} />
-                    <stop offset="100%" stopColor="#34D399" stopOpacity={0.02} />
+                    <stop offset="0%" stopColor="#27AE60" stopOpacity={0.32} />
+                    <stop offset="100%" stopColor="#27AE60" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#C8F3D9" vertical={false} />
                 <XAxis
                   dataKey="label"
-                  tick={{ fontSize: 10, fill: "#64748B" }}
+                  tick={{ fontSize: 10, fill: "#5c7d6d" }}
                   axisLine={false}
                   tickLine={false}
                   interval="preserveStartEnd"
                   minTickGap={14}
                 />
                 <YAxis
-                  tick={{ fontSize: 10, fill: "#64748B" }}
+                  tick={{ fontSize: 10, fill: "#5c7d6d" }}
                   axisLine={false}
                   tickLine={false}
                   allowDecimals={false}
@@ -242,7 +259,7 @@ export default function SaEngagementPanel({
                     type="monotone"
                     dataKey="views"
                     name="All views"
-                    stroke="#3B82F6"
+                    stroke="#27AE60"
                     fill="url(#saViewsFill)"
                     strokeWidth={2}
                     dot={false}
@@ -255,7 +272,7 @@ export default function SaEngagementPanel({
                       type="monotone"
                       dataKey="clicks"
                       name="All clicks"
-                      stroke="#059669"
+                      stroke="#27AE60"
                       fill="url(#saClicksFill)"
                       strokeWidth={2}
                       dot={false}
@@ -266,7 +283,7 @@ export default function SaEngagementPanel({
                       type="monotone"
                       dataKey="clicks"
                       name="All clicks"
-                      stroke="#059669"
+                      stroke="#27AE60"
                       strokeWidth={2.5}
                       dot={false}
                       activeDot={{ r: 4 }}
@@ -279,8 +296,8 @@ export default function SaEngagementPanel({
         </div>
 
         <div className="flex h-full flex-col space-y-3 lg:col-span-4">
-          <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className={`rounded-xl bg-[#f4fbf7] p-3 ${saInset}`}>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
               Action mix
             </p>
             {actionMix.length ? (
@@ -288,12 +305,17 @@ export default function SaEngagementPanel({
                 {actionMix.slice(0, 6).map((row) => (
                   <div key={row.key}>
                     <div className="mb-0.5 flex items-center justify-between gap-2 text-[11px]">
-                      <span className="font-semibold capitalize text-slate-600">{row.label}</span>
-                      <span className="font-bold tabular-nums text-slate-800">{fmt(row.value)}</span>
+                      <span className="font-semibold capitalize text-[#5c7d6d]">{row.label}</span>
+                      <span className="font-semibold tabular-nums text-[#0f3d2e]">
+                        {fmt(row.value)}
+                        {mixTotal > 0
+                          ? ` · ${((Number(row.value) / mixTotal) * 100).toFixed(1)}%`
+                          : ""}
+                      </span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-white">
                       <div
-                        className="h-full rounded-full bg-emerald-500"
+                        className="h-full rounded-full bg-[#27AE60]"
                         style={{ width: `${Math.max(4, (row.value / maxMix) * 100)}%` }}
                       />
                     </div>
@@ -301,12 +323,12 @@ export default function SaEngagementPanel({
                 ))}
               </div>
             ) : (
-              <p className="py-4 text-center text-[11px] text-slate-400">No action mix yet</p>
+              <p className="py-4 text-center text-[11px] text-[#5c7d6d]">No action mix yet</p>
             )}
           </div>
 
-          <div className="rounded-xl border border-slate-100 p-3">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className={`rounded-xl p-3 ${saInset}`}>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
               Top events
             </p>
             {topEvents.length ? (
@@ -316,18 +338,18 @@ export default function SaEngagementPanel({
                     key={row.key}
                     className="flex items-center justify-between gap-2 text-[11px]"
                   >
-                    <span className="min-w-0 truncate font-semibold capitalize text-slate-600">
-                      <span className="mr-1.5 text-slate-300">{index + 1}.</span>
+                    <span className="min-w-0 truncate font-semibold capitalize text-[#5c7d6d]">
+                      <span className="mr-1.5 text-emerald-300">{index + 1}.</span>
                       {formatEngagementEventLabel(row)}
                     </span>
-                    <span className="shrink-0 font-bold tabular-nums text-slate-900">
+                    <span className="shrink-0 font-semibold tabular-nums text-[#0f3d2e]">
                       {fmt(row.value)}
                     </span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="py-4 text-center text-[11px] text-slate-400">No events in period</p>
+              <p className="py-4 text-center text-[11px] text-[#5c7d6d]">No events in period</p>
             )}
           </div>
         </div>

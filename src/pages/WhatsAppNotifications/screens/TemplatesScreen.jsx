@@ -85,7 +85,7 @@ export default function TemplatesScreen({
           <button
             type="button"
             onClick={onCreate}
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-[#25D366] px-4 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(37,211,102,0.28)] hover:bg-[#1EAF54]"
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-[#27AE60] px-4 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(37,211,102,0.28)] hover:bg-[#1EAF54]"
           >
             <Plus size={16} /> Create Template
           </button>
@@ -101,7 +101,7 @@ export default function TemplatesScreen({
               onClick={() => setCategory(tab.id)}
               className={`rounded-full px-3 py-1.5 text-xs font-bold ${
                 category === tab.id
-                  ? "bg-[#25D366] text-white shadow-[0_8px_16px_rgba(37,211,102,0.28)]"
+                  ? "bg-[#27AE60] text-white shadow-[0_8px_16px_rgba(37,211,102,0.28)]"
                   : "border border-emerald-100 bg-white text-[#0f3d2e] shadow-[0_4px_12px_rgba(16,185,129,0.08)]"
               }`}
             >
@@ -137,7 +137,7 @@ export default function TemplatesScreen({
 
       {loading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-[#25D366]" size={24} />
+          <Loader2 className="animate-spin text-[#27AE60]" size={24} />
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-emerald-100 bg-white py-16 text-center text-sm text-[#5c7d6d] shadow-[0_8px_24px_rgba(16,185,129,0.06)]">

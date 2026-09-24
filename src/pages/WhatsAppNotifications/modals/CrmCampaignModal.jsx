@@ -442,6 +442,19 @@ export function CrmCampaignModal({
     (String(previewForm?.header?.mediaHandle || "").startsWith("http")
       ? previewForm.header.mediaHandle
       : "");
+  const campaignHeaderUrl = String(
+    selectedUpload?.url || headerUrl || "",
+  ).trim();
+  // Prefer upload/paste; else Meta create-time sample (example.header_handle CDN URL).
+  const resolvedHeaderImageUrl =
+    (campaignHeaderUrl.startsWith("http") ? campaignHeaderUrl : "") ||
+    (String(templateSampleImage || "").startsWith("http")
+      ? String(templateSampleImage)
+      : "");
+  const usingTemplateMedia =
+    Boolean(resolvedHeaderImageUrl) &&
+    !campaignHeaderUrl.startsWith("http") &&
+    String(templateSampleImage || "").startsWith("http");
   const effectivePreview =
     selectedUpload?.url ||
     selectedUpload?.preview ||
@@ -556,12 +569,25 @@ export function CrmCampaignModal({
       return;
     }
 
+    const headerFormat = String(
+      previewForm?.header?.format || "",
+    ).toUpperCase();
+    if (
+      ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerFormat) &&
+      !resolvedHeaderImageUrl.startsWith("http")
+    ) {
+      toast.error(
+        `This template needs a public ${headerFormat} URL. Meta sample is missing — upload or paste a campaign media URL.`,
+      );
+      return;
+    }
+
     const payload = {
       templateName: selectedTemplate.name,
       module: "all",
       roleName: undefined,
       dynamicHeaderImageField: null,
-      headerImageUrl: headerUrl.trim() || "",
+      headerImageUrl: resolvedHeaderImageUrl,
       audienceFilters: {
         fieldRules: [],
         dateRules: [],
@@ -588,16 +614,26 @@ export function CrmCampaignModal({
       setSending(true);
       // Backend currently supports templateName (+ optional city/state/roleId).
       // Extra CRM fields are sent for forward compatibility.
-      await sentWhatsAppNotification(payload);
+      const res = await sentWhatsAppNotification(payload);
+      const body = res?.data ?? res;
       toast.success(
-        sendMode === "schedule"
-          ? "WhatsApp campaign scheduled"
-          : "WhatsApp campaign queued",
+        body?.message ||
+          (sendMode === "schedule"
+            ? "WhatsApp campaign scheduled — queuing in background"
+            : "Campaign accepted — messages are queuing in the background"),
       );
       onClose?.();
     } catch (err) {
+      const apiMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message;
+      const networkHint =
+        !err?.response
+          ? " Cannot reach API (CORS/network) or request timed out. Restart gateway + user-service + Redis/worker."
+          : "";
       toast.error(
-        err?.response?.data?.message || err?.message || "Campaign failed",
+        `${apiMsg || "Campaign failed"}${networkHint}`,
       );
     } finally {
       setSending(false);
@@ -612,7 +648,7 @@ export function CrmCampaignModal({
       <div className="flex h-[min(820px,88vh)] w-full max-w-[980px] flex-col overflow-hidden rounded-t-[28px] bg-[#f7fbf8] shadow-[0_24px_80px_rgba(16,185,129,0.16)] md:rounded-[28px]">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-emerald-100 bg-white px-5 py-4">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#25D366] text-white shadow-[0_8px_18px_rgba(37,211,102,0.35)]">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#27AE60] text-white shadow-[0_8px_18px_rgba(37,211,102,0.35)]">
               <MessageCircle size={20} />
             </div>
             <div className="min-w-0">
@@ -716,9 +752,15 @@ export function CrmCampaignModal({
                 placeholder="Paste public image URL (S3 / CDN)…"
                 className="h-10 w-full rounded-xl border border-emerald-100 px-3 text-xs outline-none focus:border-emerald-400"
               />
-              {headerUrl ? (
+              {campaignHeaderUrl.startsWith("http") ? (
                 <p className="truncate text-[11px] text-emerald-700">
-                  Public URL ready for Meta: {headerUrl}
+                  Public URL ready for Meta: {campaignHeaderUrl}
+                </p>
+              ) : usingTemplateMedia ? (
+                <p className="text-[11px] text-emerald-700">
+                  Using template create-time media from Meta. Server will
+                  convert it to a WhatsApp media id before send (scontent URLs
+                  cannot be used as link). Upload only to replace it.
                 </p>
               ) : (
                 <p className="text-[11px] text-slate-400">
@@ -734,15 +776,20 @@ export function CrmCampaignModal({
                     className="max-h-44 w-full object-contain bg-white"
                   />
                   <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-white">
-                    <Check size={12} /> Selected for campaign
+                    <Check size={12} />{" "}
+                    {usingTemplateMedia
+                      ? "Template media (Meta)"
+                      : "Selected for campaign"}
                   </div>
-                  <button
-                    type="button"
-                    onClick={clearSelectedImage}
-                    className="absolute bottom-2 right-2 rounded-lg border border-emerald-100 bg-white px-2.5 py-1 text-xs font-bold text-slate-600"
-                  >
-                    Clear
-                  </button>
+                  {!usingTemplateMedia ? (
+                    <button
+                      type="button"
+                      onClick={clearSelectedImage}
+                      className="absolute bottom-2 right-2 rounded-lg border border-emerald-100 bg-white px-2.5 py-1 text-xs font-bold text-slate-600"
+                    >
+                      Clear
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -1183,7 +1230,7 @@ export function CrmCampaignModal({
               type="button"
               onClick={handleSubmit}
               disabled={sending || !selectedTemplate}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#12A150] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(18,161,80,0.24)] hover:bg-[#0e8a43] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#27AE60] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(18,161,80,0.24)] hover:bg-[#1e8f4d] disabled:opacity-50"
             >
               {sending ? (
                 <>

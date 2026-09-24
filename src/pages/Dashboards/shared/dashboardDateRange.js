@@ -1,5 +1,7 @@
 /** Shared date-range helpers for all role dashboards. */
 
+export const DASHBOARD_TIMEZONE = "Asia/Kolkata";
+
 export const DATE_PRESETS = [
   { key: "today", label: "Today" },
   { key: "7d", label: "7 days" },
@@ -17,28 +19,50 @@ export const FOLLOW_UP_DATE_PRESETS = [
   { key: "custom", label: "Custom" },
 ];
 
-const isoDay = (d) => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+const isoDay = (d, timeZone = DASHBOARD_TIMEZONE) =>
+  d.toLocaleDateString("en-CA", { timeZone });
 
 export const todayIso = () => isoDay(new Date());
 
+/** Normalized filter model used by dashboard APIs. */
+export const toDashboardDateModel = (range = {}, preset = "30d") => ({
+  startDate: range.from || "",
+  endDate: range.to || "",
+  timezone: DASHBOARD_TIMEZONE,
+  preset,
+  from: range.from || "",
+  to: range.to || "",
+  days: range.days ?? null,
+  label: range.label || "",
+});
+
+const isIsoDay = (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""));
+
+const addDaysIso = (iso, delta) => {
+  const base = isIsoDay(iso) ? iso : todayIso();
+  const utc = new Date(`${base}T00:00:00.000Z`);
+  utc.setUTCDate(utc.getUTCDate() + Number(delta || 0));
+  return utc.toISOString().slice(0, 10);
+};
+
+const daySpan = (from, to) => {
+  if (!isIsoDay(from) || !isIsoDay(to)) return 1;
+  const a = new Date(`${from}T00:00:00.000Z`).getTime();
+  const b = new Date(`${to}T00:00:00.000Z`).getTime();
+  return Math.max(1, Math.round(Math.abs(b - a) / 86400000) + 1);
+};
+
 /**
  * Resolve a preset (or custom bounds) into { from, to, days, label }.
+ * Calendar days are Asia/Kolkata so they match backend IST bounds.
  * @param {string} preset
  * @param {{ from?: string, to?: string }} [custom]
  */
 export const rangeFromPreset = (preset = "30d", custom = {}) => {
-  const to = new Date();
-  to.setHours(23, 59, 59, 999);
-  const from = new Date(to);
-  from.setHours(0, 0, 0, 0);
+  const toDay = todayIso();
 
   if (preset === "today") {
-    return { from: isoDay(from), to: isoDay(to), days: 1, label: "Today" };
+    return { from: toDay, to: toDay, days: 1, label: "Today" };
   }
 
   if (preset === "all") {
@@ -46,32 +70,24 @@ export const rangeFromPreset = (preset = "30d", custom = {}) => {
   }
 
   if (preset === "custom") {
-    const customFrom = custom.from || isoDay(from);
-    const customTo = custom.to || isoDay(to);
-    const start = new Date(`${customFrom}T00:00:00`);
-    const end = new Date(`${customTo}T23:59:59`);
-    const safeStart = Number.isNaN(start.getTime()) ? from : start;
-    const safeEnd = Number.isNaN(end.getTime()) ? to : end;
-    const orderedFrom = safeStart <= safeEnd ? safeStart : safeEnd;
-    const orderedTo = safeStart <= safeEnd ? safeEnd : safeStart;
-    const days = Math.max(
-      1,
-      Math.round((orderedTo.getTime() - orderedFrom.getTime()) / 86400000) + 1,
-    );
+    const rawFrom = isIsoDay(custom.from) ? custom.from : toDay;
+    const rawTo = isIsoDay(custom.to) ? custom.to : toDay;
+    const from = rawFrom <= rawTo ? rawFrom : rawTo;
+    const to = rawFrom <= rawTo ? rawTo : rawFrom;
     return {
-      from: isoDay(orderedFrom),
-      to: isoDay(orderedTo),
-      days,
-      label: `${isoDay(orderedFrom)} → ${isoDay(orderedTo)}`,
+      from,
+      to,
+      days: daySpan(from, to),
+      label: `${from} → ${to}`,
     };
   }
 
   const days =
     preset === "7d" ? 7 : preset === "90d" || preset === "quarter" ? 90 : preset === "12mo" ? 365 : 30;
-  from.setDate(from.getDate() - (days - 1));
+  const from = addDaysIso(toDay, -(days - 1));
   return {
-    from: isoDay(from),
-    to: isoDay(to),
+    from,
+    to: toDay,
     days,
     label: days === 365 ? "Last 12 months" : `Last ${days} days`,
   };
@@ -80,8 +96,14 @@ export const rangeFromPreset = (preset = "30d", custom = {}) => {
 /** Filter API params — omit empty from/to for "all time". */
 export const filtersFromRange = (range = {}) => {
   const params = {};
-  if (range.from) params.from = range.from;
-  if (range.to) params.to = range.to;
+  if (range.from) {
+    params.from = range.from;
+    params.startDate = range.from;
+  }
+  if (range.to) {
+    params.to = range.to;
+    params.endDate = range.to;
+  }
   return params;
 };
 
@@ -92,11 +114,11 @@ export const inDateRange = (value, range = {}) => {
   if (Number.isNaN(date.getTime())) return false;
   const t = date.getTime();
   if (range.from) {
-    const from = new Date(`${range.from}T00:00:00`).getTime();
+    const from = new Date(`${range.from}T00:00:00.000+05:30`).getTime();
     if (Number.isFinite(from) && t < from) return false;
   }
   if (range.to) {
-    const to = new Date(`${range.to}T23:59:59.999`).getTime();
+    const to = new Date(`${range.to}T23:59:59.999+05:30`).getTime();
     if (Number.isFinite(to) && t > to) return false;
   }
   return true;

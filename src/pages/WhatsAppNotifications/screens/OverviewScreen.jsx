@@ -335,7 +335,7 @@ export default function OverviewScreen({
             Send an approved template
           </p>
           <p className="mt-1 text-[12px] text-slate-500">
-            Send approved WhatsApp templates from CRM records or CSV contacts.
+            Send approved WhatsApp templates from Propenu users or CSV contacts.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3">
             <button
@@ -345,7 +345,7 @@ export default function OverviewScreen({
             >
               <MessageSquare size={18} className="text-emerald-600" />
               <p className="mt-2 text-[13px] font-semibold text-slate-900">
-                CRM Records
+                Propenu users
               </p>
               <p className="text-[11px] text-slate-500">Use module fields</p>
             </button>
@@ -466,7 +466,7 @@ export default function OverviewScreen({
 
           <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#12A150] text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#27AE60] text-white">
                 <CheckCircle2 size={14} />
               </span>
               <p className="text-sm font-semibold text-slate-900">
@@ -486,7 +486,7 @@ export default function OverviewScreen({
             <button
               type="button"
               onClick={onRefresh}
-              className="mt-4 w-full rounded-full bg-[#12A150] px-3 py-2.5 text-[13px] font-semibold text-white shadow-[0_8px_20px_rgba(18,161,80,0.24)] hover:bg-[#0e8a43]"
+              className="mt-4 w-full rounded-full bg-[#27AE60] px-3 py-2.5 text-[13px] font-semibold text-white shadow-[0_8px_20px_rgba(18,161,80,0.24)] hover:bg-[#1e8f4d]"
             >
               Refresh billing data
             </button>

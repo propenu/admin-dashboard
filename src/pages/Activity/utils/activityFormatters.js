@@ -96,7 +96,7 @@ export const outcomeBadgeClass = (type) => {
     case "brochure":
     case "view":
     case "search":
-      return "border-[#12A150]/30 bg-[#EAF8F0] text-[#0B7A3A]";
+      return "border-[#27AE60]/30 bg-[#e8f8ee] text-[#128C45]";
     case "browse":
       return "border-slate-200 bg-slate-50 text-slate-500";
     default:

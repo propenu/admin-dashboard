@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
+  Ban,
   CalendarDays,
   Check,
+  Copy,
   Image as ImageIcon,
+  ImageOff,
   Loader2,
   MessageCircle,
   MoreVertical,
+  PhoneOff,
   Search,
   Send,
   Trash2,
   Upload,
+  UserMinus,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,6 +27,10 @@ import {
 import { componentsToForm } from "../utils/formMapper";
 import { applyVars, countVars } from "../utils/helper";
 import { WhatsAppTemplatePreview } from "../preview/WhatsAppTemplatePreview";
+import {
+  analyzeContactRows,
+  VALIDATION_CATEGORY_META,
+} from "../utils/contactFileValidation";
 
 const CONTACT_ACCEPT =
   ".csv,.xlsx,.xls,.xlsm,.tsv,.txt,.ods,text/csv,text/plain,text/tab-separated-values,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.oasis.opendocument.spreadsheet";
@@ -186,6 +196,7 @@ export function CsvCampaignModal({
   const [scheduleAt, setScheduleAt] = useState(toLocalDateTimeValue());
   const [sending, setSending] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [reviewCategory, setReviewCategory] = useState("invalid_numbers");
 
   const selectedUpload = uploadedImages.find((i) => i.id === selectedImageId);
   const templateSampleImage =
@@ -193,6 +204,19 @@ export function CsvCampaignModal({
     (String(previewForm?.header?.mediaHandle || "").startsWith("http")
       ? previewForm.header.mediaHandle
       : "");
+  const campaignHeaderUrl = String(
+    selectedUpload?.url || headerUrl || "",
+  ).trim();
+  // Prefer upload/paste; else Meta create-time sample (header_handle CDN URL).
+  const resolvedHeaderImageUrl =
+    (campaignHeaderUrl.startsWith("http") ? campaignHeaderUrl : "") ||
+    (String(templateSampleImage || "").startsWith("http")
+      ? String(templateSampleImage)
+      : "");
+  const usingTemplateMedia =
+    Boolean(resolvedHeaderImageUrl) &&
+    !campaignHeaderUrl.startsWith("http") &&
+    String(templateSampleImage || "").startsWith("http");
 
   const effectivePreview =
     selectedUpload?.url ||
@@ -273,6 +297,50 @@ export function CsvCampaignModal({
     fieldMapping,
     previewForm?.body?.examples,
   ]);
+
+  const needsHeaderImage = Boolean(
+    previewForm?.header?.enabled &&
+      ["IMAGE", "VIDEO", "DOCUMENT"].includes(
+        String(previewForm?.header?.format || "").toUpperCase(),
+      ),
+  );
+
+  const recipientCheck = useMemo(() => {
+    if (!filePreview?.rows?.length || !phoneField) {
+      return null;
+    }
+    return analyzeContactRows({
+      rows: filePreview.rows,
+      headers: fileHeaders,
+      phoneField,
+      fieldMapping,
+      templateVarCount,
+      needsHeaderImage,
+      hasHeaderImage: resolvedHeaderImageUrl.startsWith("http"),
+    });
+  }, [
+    filePreview?.rows,
+    fileHeaders,
+    phoneField,
+    fieldMapping,
+    templateVarCount,
+    needsHeaderImage,
+    resolvedHeaderImageUrl,
+  ]);
+
+  useEffect(() => {
+    if (!recipientCheck) return;
+    const order = [
+      "invalid_numbers",
+      "missing_numbers",
+      "duplicates",
+      "opted_out",
+      "missing_values",
+      "missing_images",
+    ];
+    const firstWithRows = order.find((key) => recipientCheck.counts[key] > 0);
+    if (firstWithRows) setReviewCategory(firstWithRows);
+  }, [recipientCheck?.totalRows, phoneField, csvFile?.name]);
 
   const bodyPreview = previewForm
     ? applyVars(previewForm.body.text, mappedExamples)
@@ -422,39 +490,67 @@ export function CsvCampaignModal({
       return;
     }
 
-    const needsHeaderImage =
+    const needsHeaderImageSubmit =
       previewForm?.header?.enabled &&
       previewForm.header.format !== "TEXT" &&
       Boolean(previewForm.header.format);
 
-    const publicHeaderUrl = headerUrl.trim();
-    if (needsHeaderImage && !publicHeaderUrl) {
+    if (
+      needsHeaderImageSubmit &&
+      !resolvedHeaderImageUrl.startsWith("http")
+    ) {
       toast.error(
-        "This template needs a public header image URL (S3 / CDN). Local uploads are preview-only.",
+        "This template needs a public header image. Meta sample is missing — upload or paste an S3/CDN URL.",
       );
       return;
+    }
+
+    if (!recipientCheck) {
+      toast.error("Upload a contact file and select the phone column first");
+      return;
+    }
+
+    if (recipientCheck.readyCount === 0) {
+      toast.error(
+        `No contacts ready to send. Check Recipient check: ${recipientCheck.excludedCount} excluded (invalid / missing / duplicate / opted out).`,
+      );
+      return;
+    }
+
+    if (recipientCheck.excludedCount > 0) {
+      toast.message(
+        `Sending ${recipientCheck.readyCount} ready contact(s). ${recipientCheck.excludedCount} row(s) excluded automatically.`,
+      );
     }
 
     try {
       setSending(true);
       const fd = new FormData();
+      const readyRows = recipientCheck.ready.map((item) => item.row);
       const sendFile = filePreview?.headers?.length
-        ? rowsToCsvFile(filePreview.headers, filePreview.rows, csvFile.name)
+        ? rowsToCsvFile(filePreview.headers, readyRows, csvFile.name)
         : csvFile;
       fd.append("file", sendFile);
       fd.append("templateName", selectedTemplate.name);
       fd.append("sendMode", sendMode);
       fd.append("phoneField", phoneField);
+      fd.append(
+        "validationSummary",
+        JSON.stringify({
+          totalRows: recipientCheck.totalRows,
+          readyCount: recipientCheck.readyCount,
+          excludedCount: recipientCheck.excludedCount,
+          counts: recipientCheck.counts,
+        }),
+      );
       if (templateVarCount > 0) {
         fd.append("fieldMapping", JSON.stringify(fieldMapping));
       }
       if (sendMode === "schedule") {
         fd.append("scheduleAt", new Date(scheduleAt).toISOString());
       }
-      // Meta requires a public URL — never send a local file as a second multipart
-      // field (upload.single used to 500 with "Unexpected field").
-      if (publicHeaderUrl) {
-        fd.append("headerImageUrl", publicHeaderUrl);
+      if (resolvedHeaderImageUrl) {
+        fd.append("headerImageUrl", resolvedHeaderImageUrl);
       }
 
       const res = await sentBulkWhatsAppNotification(fd);
@@ -462,8 +558,8 @@ export function CsvCampaignModal({
       toast.success(
         data?.message ||
           (sendMode === "schedule"
-            ? "Bulk WhatsApp campaign scheduled"
-            : "Bulk WhatsApp campaign started"),
+            ? "Bulk WhatsApp campaign scheduled — queuing in background"
+            : `Campaign accepted for ${recipientCheck.readyCount} contact(s)`),
       );
       onClose?.();
     } catch (err) {
@@ -485,7 +581,7 @@ export function CsvCampaignModal({
       <div className="flex h-[min(820px,88vh)] w-full max-w-[980px] flex-col overflow-hidden rounded-t-[28px] bg-[#f7fbf8] shadow-[0_24px_80px_rgba(16,185,129,0.16)] md:rounded-[28px]">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-emerald-100 bg-white px-5 py-4">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#25D366] text-white shadow-[0_8px_18px_rgba(37,211,102,0.35)]">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#27AE60] text-white shadow-[0_8px_18px_rgba(37,211,102,0.35)]">
               <MessageCircle size={20} />
             </div>
             <div className="min-w-0">
@@ -598,9 +694,14 @@ export function CsvCampaignModal({
                 placeholder="Paste public image URL (S3 / CDN)…"
                 className="h-10 w-full rounded-xl border border-emerald-100 px-3 text-xs outline-none focus:border-emerald-400"
               />
-              {headerUrl ? (
+              {campaignHeaderUrl.startsWith("http") ? (
                 <p className="truncate text-[11px] text-emerald-700">
-                  Public URL ready for Meta: {headerUrl}
+                  Public URL ready for Meta: {campaignHeaderUrl}
+                </p>
+              ) : usingTemplateMedia ? (
+                <p className="text-[11px] text-emerald-700">
+                  Using template create-time media from Meta. Server converts it
+                  before send. Upload only to replace it.
                 </p>
               ) : (
                 <p className="text-[11px] text-slate-400">
@@ -616,15 +717,20 @@ export function CsvCampaignModal({
                     className="max-h-44 w-full object-contain bg-white"
                   />
                   <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[11px] font-bold text-white">
-                    <Check size={12} /> Selected for campaign
+                    <Check size={12} />{" "}
+                    {usingTemplateMedia
+                      ? "Template media (Meta)"
+                      : "Selected for campaign"}
                   </div>
-                  <button
-                    type="button"
-                    onClick={clearSelectedImage}
-                    className="absolute bottom-2 right-2 rounded-lg border border-emerald-100 bg-white px-2.5 py-1 text-xs font-bold text-slate-600"
-                  >
-                    Clear
-                  </button>
+                  {!usingTemplateMedia ? (
+                    <button
+                      type="button"
+                      onClick={clearSelectedImage}
+                      className="absolute bottom-2 right-2 rounded-lg border border-emerald-100 bg-white px-2.5 py-1 text-xs font-bold text-slate-600"
+                    >
+                      Clear
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -818,6 +924,143 @@ export function CsvCampaignModal({
                 </div>
               ) : null}
 
+              {recipientCheck ? (
+                <div className="space-y-3 rounded-xl border border-emerald-100 bg-white p-3">
+                  <div>
+                    <p className="text-xs font-extrabold text-[#0f3d2e]">
+                      Recipient check
+                    </p>
+                    <p className="text-[11px] text-[#5c7d6d]">
+                      Automatic filtering before send — invalid or opted-out
+                      rows are excluded from the campaign.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">
+                        Ready to send
+                      </p>
+                      <p className="text-lg font-extrabold text-emerald-900">
+                        {recipientCheck.readyCount}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-rose-700">
+                        Excluded
+                      </p>
+                      <p className="text-lg font-extrabold text-rose-900">
+                        {recipientCheck.excludedCount}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Checked {recipientCheck.totalRows} uploaded row
+                    {recipientCheck.totalRows === 1 ? "" : "s"}.
+                  </p>
+
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#5c7d6d]">
+                    Why contacts were excluded
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {[
+                      ["duplicates", Copy],
+                      ["invalid_numbers", PhoneOff],
+                      ["missing_numbers", UserMinus],
+                      ["opted_out", Ban],
+                      ["missing_values", AlertTriangle],
+                      ["missing_images", ImageOff],
+                    ].map(([key, Icon]) => {
+                      const count = Number(recipientCheck.counts[key] || 0);
+                      const active = reviewCategory === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setReviewCategory(key)}
+                          className={`rounded-xl border px-2.5 py-2 text-left transition ${
+                            active
+                              ? "border-emerald-400 bg-emerald-50 shadow-sm"
+                              : "border-emerald-100 bg-slate-50/80 hover:border-emerald-200"
+                          }`}
+                        >
+                          <div className="mb-1 flex items-center gap-1.5">
+                            <Icon
+                              size={14}
+                              className={
+                                count > 0 ? "text-rose-500" : "text-slate-400"
+                              }
+                            />
+                            <span className="text-[10px] font-bold text-slate-700">
+                              {VALIDATION_CATEGORY_META[key].label}
+                            </span>
+                          </div>
+                          <p
+                            className={`text-base font-extrabold ${
+                              count > 0 ? "text-rose-700" : "text-slate-500"
+                            }`}
+                          >
+                            {count}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="rounded-xl border border-emerald-100 bg-slate-50/80 p-2.5">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <p className="text-xs font-bold text-slate-800">
+                        {VALIDATION_CATEGORY_META[reviewCategory]?.label ||
+                          "Details"}
+                      </p>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                        {recipientCheck.counts[reviewCategory] || 0} rows
+                      </span>
+                    </div>
+                    <p className="mb-2 text-[11px] text-[#5c7d6d]">
+                      {VALIDATION_CATEGORY_META[reviewCategory]?.description}
+                    </p>
+                    {(recipientCheck.categories[reviewCategory] || []).length ? (
+                      <div className="max-h-36 overflow-auto rounded-lg border border-emerald-100 bg-white">
+                        <table className="w-full text-left text-[11px]">
+                          <thead className="sticky top-0 bg-slate-50">
+                            <tr>
+                              <th className="px-2 py-1.5 font-semibold text-slate-500">
+                                Excel row
+                              </th>
+                              <th className="px-2 py-1.5 font-semibold text-slate-500">
+                                Detected value
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(recipientCheck.categories[reviewCategory] || [])
+                              .slice(0, 50)
+                              .map((item, idx) => (
+                                <tr
+                                  key={`${item.excelRow}-${idx}`}
+                                  className="border-t border-slate-100"
+                                >
+                                  <td className="px-2 py-1.5 font-semibold text-slate-700">
+                                    {item.excelRow ?? "—"}
+                                  </td>
+                                  <td className="max-w-[180px] truncate px-2 py-1.5 text-slate-600">
+                                    {item.detectedValue}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-emerald-700">
+                        No rows in this category.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
               {filePreview?.headers?.length ? (
                 <div className="overflow-hidden rounded-xl border border-emerald-100">
                   <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2">
@@ -926,12 +1169,15 @@ export function CsvCampaignModal({
                 !selectedTemplate ||
                 !csvFile ||
                 !phoneField ||
+                (recipientCheck
+                  ? recipientCheck.readyCount === 0 || !recipientCheck.canSend
+                  : true) ||
                 (templateVarCount > 0 &&
                   Array.from({ length: templateVarCount }, (_, i) =>
                     fieldMapping[String(i + 1)],
                   ).some((v) => !v))
               }
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#12A150] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(18,161,80,0.24)] hover:bg-[#0e8a43] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#27AE60] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(18,161,80,0.24)] hover:bg-[#1e8f4d] disabled:opacity-50"
             >
               {sending ? (
                 <>
@@ -942,8 +1188,8 @@ export function CsvCampaignModal({
                 <>
                   <Send size={16} />
                   {sendMode === "schedule"
-                    ? "Schedule WhatsApp Bulk Campaign"
-                    : "Send WhatsApp Bulk Campaign"}
+                    ? `Schedule ${recipientCheck?.readyCount || 0} contacts`
+                    : `Send to ${recipientCheck?.readyCount || 0} ready contacts`}
                 </>
               )}
             </button>

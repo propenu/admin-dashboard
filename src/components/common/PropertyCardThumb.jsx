@@ -24,9 +24,9 @@ export function getPropertyCoverUrl(property) {
  * Image always fills the frame with object-fit:cover (no empty gaps).
  */
 const VARIANT_BOX = {
-  list: "relative h-[120px] w-[128px] shrink-0 overflow-hidden bg-slate-100",
+  list: "relative h-[120px] w-[128px] shrink-0 overflow-hidden bg-emerald-50",
   dashboard:
-    "relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-slate-100 sm:aspect-auto sm:h-auto sm:min-h-[168px] sm:w-[172px] sm:self-stretch",
+    "relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-emerald-50 sm:aspect-auto sm:h-auto sm:min-h-[168px] sm:w-[172px] sm:self-stretch",
 };
 
 const IMG_FILL = {
@@ -71,9 +71,9 @@ export default function PropertyCardThumb({
           onError={() => setFailed(true)}
         />
       ) : (
-        <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-1 bg-slate-100 px-1.5 text-center">
-          <ImageOff className="h-5 w-5 text-slate-400" strokeWidth={1.75} />
-          <span className="text-[8px] font-bold uppercase tracking-wide text-slate-500">
+        <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-1 bg-emerald-50 px-1.5 text-center">
+          <ImageOff className="h-5 w-5 text-emerald-400" strokeWidth={1.75} />
+          <span className="text-[8px] font-bold uppercase tracking-wide text-[#5c7d6d]">
             No images
           </span>
         </div>

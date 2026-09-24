@@ -22,7 +22,7 @@ import { useAuthUserProfile } from "../../hooks/useAuthUser";
 
 
 
-const SIDEBAR_EXPANDED = 240;
+const SIDEBAR_EXPANDED = 208;
 
 const SIDEBAR_COLLAPSED = 56;
 

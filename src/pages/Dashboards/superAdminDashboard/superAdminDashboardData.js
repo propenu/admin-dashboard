@@ -20,9 +20,8 @@ const pct = (part, whole) => {
 };
 
 const startOfTodayMs = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  return new Date(`${day}T00:00:00.000+05:30`).getTime();
 };
 
 const rangeBoundsMs = (range = {}) => {
@@ -308,6 +307,7 @@ export function mapSuperAdminData({
   ticketOverview = {},
   blogsPayload = {},
   usersPayload = [],
+  userCounts = null,
   range = {},
   preset = "today",
 }) {
@@ -382,70 +382,97 @@ export function mapSuperAdminData({
   );
   const qualifyRate = pct(qualifiedLeads, totalLeads);
 
-  const openTickets = asNumber(ticketOverview.open ?? ticketOverview.openTickets);
+  const openTickets = asNumber(
+    ticketOverview.openNow ?? ticketOverview.open ?? ticketOverview.openTickets,
+  );
   const totalTickets = asNumber(ticketOverview.totals ?? ticketOverview.total);
-  const overdueTickets = asNumber(ticketOverview.overdue);
-  const unassignedTickets = asNumber(ticketOverview.unassigned);
-  const ticketByStatus = Array.isArray(ticketOverview.byStatus) ? ticketOverview.byStatus : [];
+  const overdueTickets = asNumber(ticketOverview.overdueNow ?? ticketOverview.overdue);
+  const unassignedTickets = asNumber(
+    ticketOverview.unassignedNow ?? ticketOverview.unassigned,
+  );
+  const ticketByStatus = Array.isArray(ticketOverview.byStatusNow)
+    ? ticketOverview.byStatusNow
+    : Array.isArray(ticketOverview.byStatus)
+      ? ticketOverview.byStatus
+      : [];
 
-  const blogsAll = unpackList(blogsPayload);
-  const blogs = blogsAll.filter((b) => inRange(b.createdAt || b.publishedAt || b.updatedAt, range));
-  const publishedBlogs = blogs.filter((b) => b.published).length;
-  const draftBlogs = blogs.filter((b) => !b.published).length;
-  const blogViews = blogs.reduce((sum, b) => sum + asNumber(b.views), 0);
+  const publishedBlogs = asNumber(blogsPayload.published ?? blogsPayload.publishedBlogs);
+  const draftBlogs = asNumber(blogsPayload.drafts ?? blogsPayload.draftBlogs);
+  const blogViews = asNumber(blogsPayload.views);
+  const blogsCount = publishedBlogs + draftBlogs;
 
-  const usersAll = unpackList(usersPayload);
+  const counts = userCounts && typeof userCounts === "object"
+    ? userCounts
+    : null;
+  const usersAll = counts ? [] : unpackList(usersPayload);
   const platformUsersAll = usersAll.filter((u) =>
     Boolean(normalizePlatformRole(u.roleName || u.role)),
   );
   const users = platformUsersAll.filter((u) => inRange(u.createdAt, range));
 
   const roleMap = Object.fromEntries(PLATFORM_USER_ROLES.map((role) => [role.key, 0]));
-  users.forEach((u) => {
-    const key = normalizePlatformRole(u.roleName || u.role);
-    if (key) roleMap[key] += 1;
-  });
-  // Fixed list only: Users, Builders, Builder Staff, Agents (even when count is 0).
+  if (counts?.roles) {
+    PLATFORM_USER_ROLES.forEach((role) => {
+      roleMap[role.key] = asNumber(counts.roles[role.key]);
+    });
+  } else {
+    users.forEach((u) => {
+      const key = normalizePlatformRole(u.roleName || u.role);
+      if (key) roleMap[key] += 1;
+    });
+  }
   const roleRows = PLATFORM_USER_ROLES.map((role) => ({
     key: role.key,
     label: role.label,
     count: asNumber(roleMap[role.key]),
   }));
 
-  const onboardingList = platformUsersAll.filter((u) =>
-    ["location_pending", "kyc_pending", "pending", "incomplete"].includes(accountStatusOf(u)),
-  );
-  const onboardingUsers = onboardingList.filter((u) => inRange(u.createdAt, range)).length;
+  const onboardingUsers = counts
+    ? asNumber(counts.onboarding)
+    : platformUsersAll.filter((u) =>
+        ["location_pending", "kyc_pending", "pending", "incomplete"].includes(
+          accountStatusOf(u),
+        ) && inRange(u.createdAt, range),
+      ).length;
 
-  const usersToday = platformUsersAll.filter((u) => {
-    const t = safeDate(u.createdAt)?.getTime();
-    return t && t >= startOfTodayMs();
-  }).length;
-  const usersInPeriod = users.length;
+  const usersToday = counts
+    ? asNumber(counts.todayTotal)
+    : platformUsersAll.filter((u) => {
+        const t = safeDate(u.createdAt)?.getTime();
+        return t && t >= startOfTodayMs();
+      }).length;
+  const usersInPeriod = counts ? asNumber(counts.periodTotal) : users.length;
 
-  const createdTodayList = platformUsersAll.filter((u) => {
-    const t = safeDate(u.createdAt)?.getTime();
-    return t && t >= startOfTodayMs();
-  });
-  const loginTodayList = platformUsersAll.filter(isLoginToday);
-  const stuckLocationList = platformUsersAll.filter(
-    (u) => accountStatusOf(u) === "location_pending" && inRange(u.createdAt, range),
-  );
-  const stuckKycList = platformUsersAll.filter(
-    (u) => accountStatusOf(u) === "kyc_pending" && inRange(u.createdAt, range),
-  );
-  const kycRejectedList = platformUsersAll.filter(
-    (u) => accountStatusOf(u) === "kyc_rejected" && inRange(u.createdAt, range),
-  );
-  const activeSuccessList = platformUsersAll.filter(
-    (u) => accountStatusOf(u) === "active" && inRange(u.createdAt, range),
-  );
-  const ownersPeriod = users.filter((u) => normalizePlatformRole(u.roleName || u.role) === "user");
-  const agentsPeriod = users.filter((u) => normalizePlatformRole(u.roleName || u.role) === "agent");
-  const buildersPeriod = users.filter((u) => normalizePlatformRole(u.roleName || u.role) === "builder");
-  const builderStaffPeriod = users.filter(
-    (u) => normalizePlatformRole(u.roleName || u.role) === "builder_staff",
-  );
+  const createdTodayCount = usersToday;
+  const loginTodayCount = counts
+    ? asNumber(counts.loginToday)
+    : platformUsersAll.filter(isLoginToday).length;
+  const stuckLocationCount = counts
+    ? asNumber(counts.locPending)
+    : platformUsersAll.filter(
+        (u) => accountStatusOf(u) === "location_pending" && inRange(u.createdAt, range),
+      ).length;
+  const stuckKycCount = counts
+    ? asNumber(counts.kycPending)
+    : platformUsersAll.filter(
+        (u) => accountStatusOf(u) === "kyc_pending" && inRange(u.createdAt, range),
+      ).length;
+  const kycRejectedCount = counts
+    ? asNumber(counts.kycRejected)
+    : platformUsersAll.filter(
+        (u) => accountStatusOf(u) === "kyc_rejected" && inRange(u.createdAt, range),
+      ).length;
+  const activeSuccessCount = counts
+    ? asNumber(counts.active)
+    : platformUsersAll.filter(
+        (u) => accountStatusOf(u) === "active" && inRange(u.createdAt, range),
+      ).length;
+  const ownersPeriodCount = counts ? asNumber(counts.roles?.user) : users.filter((u) => normalizePlatformRole(u.roleName || u.role) === "user").length;
+  const agentsPeriodCount = counts ? asNumber(counts.roles?.agent) : users.filter((u) => normalizePlatformRole(u.roleName || u.role) === "agent").length;
+  const buildersPeriodCount = counts ? asNumber(counts.roles?.builder) : users.filter((u) => normalizePlatformRole(u.roleName || u.role) === "builder").length;
+  const builderStaffPeriodCount = counts
+    ? asNumber(counts.roles?.builder_staff)
+    : users.filter((u) => normalizePlatformRole(u.roleName || u.role) === "builder_staff").length;
 
   const followUpTracks = [
     {
@@ -455,7 +482,7 @@ export function mapSuperAdminData({
         {
           key: "created_today",
           label: "Created today",
-          count: createdTodayList.length,
+          count: createdTodayCount,
           tone: "emerald",
           stage: "Account created",
           href: followUpTrackHref("created_today", {
@@ -480,7 +507,7 @@ export function mapSuperAdminData({
         {
           key: "login_today",
           label: "Login today",
-          count: loginTodayList.length,
+          count: loginTodayCount,
           tone: "blue",
           stage: "Logged in today",
           href: followUpTrackHref("login_today", fuRange),
@@ -489,7 +516,7 @@ export function mapSuperAdminData({
         {
           key: "active_success",
           label: "Active success",
-          count: activeSuccessList.length,
+          count: activeSuccessCount,
           tone: "emerald",
           stage: "Active account",
           href: followUpTrackHref("active_success", fuRange),
@@ -498,7 +525,7 @@ export function mapSuperAdminData({
         {
           key: "stuck_location",
           label: "Stuck · location",
-          count: stuckLocationList.length,
+          count: stuckLocationCount,
           tone: "amber",
           stage: "Location pending",
           href: followUpTrackHref("stuck_location", fuRange),
@@ -507,7 +534,7 @@ export function mapSuperAdminData({
         {
           key: "stuck_kyc",
           label: "Stuck · KYC",
-          count: stuckKycList.length,
+          count: stuckKycCount,
           tone: "amber",
           stage: "KYC pending",
           href: followUpTrackHref("stuck_kyc", fuRange),
@@ -516,7 +543,7 @@ export function mapSuperAdminData({
         {
           key: "kyc_rejected",
           label: "KYC rejected",
-          count: kycRejectedList.length,
+          count: kycRejectedCount,
           tone: "rose",
           stage: "KYC rejected",
           href: followUpTrackHref("kyc_rejected", fuRange),
@@ -540,7 +567,7 @@ export function mapSuperAdminData({
         {
           key: "owners",
           label: "Owners",
-          count: ownersPeriod.length,
+          count: ownersPeriodCount,
           tone: "emerald",
           stage: "Owner / user",
           href: followUpTrackHref("owners", fuRange),
@@ -552,7 +579,7 @@ export function mapSuperAdminData({
         {
           key: "agents",
           label: "Agents",
-          count: agentsPeriod.length,
+          count: agentsPeriodCount,
           tone: "blue",
           stage: "Agent signup",
           href: followUpTrackHref("agents", fuRange),
@@ -564,7 +591,7 @@ export function mapSuperAdminData({
         {
           key: "builders",
           label: "Builders",
-          count: buildersPeriod.length,
+          count: buildersPeriodCount,
           tone: "amber",
           stage: "Builder signup",
           href: followUpTrackHref("builders", fuRange),
@@ -576,7 +603,7 @@ export function mapSuperAdminData({
         {
           key: "builder_staff",
           label: "Builder staff",
-          count: builderStaffPeriod.length,
+          count: builderStaffPeriodCount,
           tone: "violet",
           stage: "Builder staff",
           href: followUpTrackHref("builder_staff", fuRange),
@@ -714,8 +741,8 @@ export function mapSuperAdminData({
       ? Math.max(0, Math.round(100 - (overdueTickets / Math.max(totalTickets, 1)) * 100))
       : 100;
   const acquisitionHealth = qualifyRate;
-  const contentHealth = blogs.length
-    ? Math.round((publishedBlogs / blogs.length) * 100)
+  const contentHealth = blogsCount
+    ? Math.round((publishedBlogs / blogsCount) * 100)
     : null;
 
   // Selected date range (Today / Last 7 days / custom dates) — shown instead of "window".
@@ -786,8 +813,8 @@ export function mapSuperAdminData({
     {
       key: "people",
       label: "People",
-      score: platformUsersAll.length
-        ? Math.round(100 - (onboardingUsers / platformUsersAll.length) * 40)
+      score: usersInPeriod
+        ? Math.round(100 - (onboardingUsers / usersInPeriod) * 40)
         : null,
       metric: String(usersInPeriod),
       detail: `${usersInPeriod} joined · ${onboardingUsers} onboarding · ${periodLabel}`,
@@ -800,8 +827,8 @@ export function mapSuperAdminData({
               : `/users?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`
             : "/users?joined=today",
       ...healthScore(
-        platformUsersAll.length
-          ? Math.round(100 - (onboardingUsers / platformUsersAll.length) * 40)
+        usersInPeriod
+          ? Math.round(100 - (onboardingUsers / usersInPeriod) * 40)
           : null,
       ),
     },
@@ -903,7 +930,7 @@ export function mapSuperAdminData({
       key: "tickets",
       label: "Open tickets",
       value: openTickets,
-      hint: `${overdueTickets} overdue · ${periodLabel}`,
+      hint: `${overdueTickets} overdue · currently open`,
       tone: "rose",
       href: "/tickets",
     },
@@ -911,7 +938,7 @@ export function mapSuperAdminData({
       key: "subs",
       label: "Active subs",
       value: activeSubs,
-      hint: `Started · ${periodLabel} · ${failedPayCount} failed pays`,
+      hint: `Currently active · ${failedPayCount} failed pays · ${periodLabel}`,
       tone: "violet",
       href: "/active-subscriptions",
     },
@@ -933,7 +960,7 @@ export function mapSuperAdminData({
       activeSubs,
       failedPayCount,
       paymentSuccess,
-      platformUsers: platformUsers || platformUsersAll.length,
+      platformUsers: platformUsers || usersInPeriod,
       platformAgents,
       platformManagers,
       usersInPeriod,

@@ -38,8 +38,8 @@ export default function SaMobileSectionTabs({ active, onChange }) {
                 onClick={() => onChange?.(tab.key)}
                 className={`relative flex min-h-[3.4rem] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-bold transition duration-200 sm:min-h-[3.6rem] sm:text-[11px] ${
                   isActive
-                    ? "bg-gradient-to-b from-emerald-500 to-emerald-700 text-white shadow-lg shadow-emerald-500/40 sa-tab-pop"
-                    : "text-slate-500 active:scale-95 active:bg-emerald-50 active:text-emerald-700"
+                    ? "bg-[#27AE60] text-white shadow-[0_6px_14px_rgba(37,211,102,0.28)] sa-tab-pop"
+                    : "text-[#5c7d6d] active:scale-95 active:bg-emerald-50 active:text-emerald-700"
                 }`}
               >
                 {isActive ? (

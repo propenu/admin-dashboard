@@ -7,9 +7,8 @@ import {
   useMemo,
   useRef,
   useState,
-  useDeferredValue,
 } from "react";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -47,15 +46,14 @@ import {
   Zap,
 } from "lucide-react";
 
-import LoadingSpinner from "../../components/common/LoadingSpinner";
 import PropertyCardThumb from "../../components/common/PropertyCardThumb";
+import { saInset, saSurface, saSurfaceHover } from "../Dashboards/superAdminDashboard/dashboardSurface";
 import PropertyPromoteModal, {
   propertyPromoTypeMeta,
 } from "../../components/property/PropertyPromoteModal";
 import ConfirmModal from "../features/property/components/shared/ConfirmModal";
 import {
   getPromotionTracking,
-  matchesPropertyPromotionFilters,
   promotionLifecycleClass,
   promotionLifecycleCopy,
   titlePromotionType,
@@ -67,28 +65,16 @@ import {
 } from "../../services/Common/propertyPromotionService";
 import { setActiveCategory } from "../../store/Ui/uiSlice";
 import { navigateToPropertyEdit } from "../../utils/openPropertyEdit";
-import { listingSearchTokens } from "../../utils/listingSearchTokens";
 import { useCurrentUser } from "../../store/properties/useCurrentUser";
 import {
+  getAdminPropertyListings,
   getAllPropertiesAnalytics,
   propertiesAnalytics,
 } from "../../features/property/propertyService";
-import {
-  deleteResidential,
-  fetchResidential,
-} from "../../services/ResidentialServices/ResidentialServices";
-import {
-  deleteCommercial,
-  fetchCommercial,
-} from "../../services/CommercialServices/CommercialServices";
-import {
-  deleteAgricultural,
-  fetchAgricultural,
-} from "../../services/AgricuturalServices/AgricuturalServices";
-import {
-  deleteLand,
-  fetchLand,
-} from "../../services/LandServices/LandServices";
+import { deleteResidential } from "../../services/ResidentialServices/ResidentialServices";
+import { deleteCommercial } from "../../services/CommercialServices/CommercialServices";
+import { deleteAgricultural } from "../../services/AgricuturalServices/AgricuturalServices";
+import { deleteLand } from "../../services/LandServices/LandServices";
 import {
   getPropertyCreatorTag,
   isAgentCreatedProperty,
@@ -98,12 +84,12 @@ import { todayIso } from "../Dashboards/shared/dashboardDateRange";
 
 const CATEGORIES = [
   { value: "all", label: "All properties" },
-  { value: "residential", label: "Residential", fetcher: fetchResidential },
-  { value: "commercial", label: "Commercial", fetcher: fetchCommercial },
-  { value: "agricultural", label: "Agricultural", fetcher: fetchAgricultural },
-  { value: "land", label: "Land", fetcher: fetchLand },
+  { value: "residential", label: "Residential" },
+  { value: "commercial", label: "Commercial" },
+  { value: "agricultural", label: "Agricultural" },
+  { value: "land", label: "Land" },
 ];
-const PROPERTY_CATEGORIES = CATEGORIES.filter((item) => item.fetcher);
+const PROPERTY_CATEGORIES = CATEGORIES.filter((item) => item.value !== "all");
 
 /** Scalable listing-type sub-filters (Sale / Rent). Add values here as needed. */
 const LISTING_TYPE_FILTERS = [
@@ -120,26 +106,6 @@ const normalizeListingType = (value) =>
 
 const getPropertyListingType = (property) =>
   normalizeListingType(property?.listingType || property?.lookingTo || "sale");
-
-const matchesListingTypeFilter = (property, listingTypeFilter) => {
-  if (!listingTypeFilter || listingTypeFilter === "all") return true;
-  const filter = LISTING_TYPE_FILTERS.find(
-    (item) => item.value === listingTypeFilter,
-  );
-  if (!filter?.match?.length) return true;
-  const propertyType = getPropertyListingType(property);
-  return filter.match.some(
-    (token) => normalizeListingType(token) === propertyType,
-  );
-};
-
-const normalizeSearchText = (value) =>
-  String(value || "")
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
 
 const STATUSES = [
   { value: "all", label: "All status" },
@@ -167,12 +133,12 @@ const PROMOTION_TRACKING_FILTERS = [
 
 const promoFilterChipClass = (tone, active) => {
   if (!active) {
-    return "border-slate-200 bg-white text-slate-600 hover:border-slate-300";
+    return "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300";
   }
-  if (tone === "amber") return "border-amber-400 bg-amber-400 text-amber-950 shadow-sm";
-  if (tone === "sky") return "border-sky-500 bg-sky-500 text-white shadow-sm";
-  if (tone === "violet") return "border-violet-500 bg-violet-500 text-white shadow-sm";
-  return "border-slate-800 bg-slate-800 text-white shadow-sm";
+  if (tone === "amber") return "border-amber-400 bg-amber-400 text-amber-950 shadow-[0_4px_10px_rgba(245,158,11,0.25)]";
+  if (tone === "sky") return "border-emerald-400 bg-[#27AE60] text-white shadow-[0_4px_10px_rgba(39,174,96,0.25)]";
+  if (tone === "violet") return "border-emerald-600 bg-[#27AE60] text-white shadow-[0_4px_10px_rgba(18,161,80,0.24)]";
+  return "border-[#27AE60] bg-[#27AE60] text-white shadow-[0_4px_10px_rgba(39,174,96,0.25)]";
 };
 
 const normalizeStatusParam = (value = "") => {
@@ -181,17 +147,7 @@ const normalizeStatusParam = (value = "") => {
   return key || "all";
 };
 
-const inCreatedRange = (value, from, to) => {
-  if (!from && !to) return true;
-  if (!value) return false;
-  const createdAt = new Date(value);
-  if (Number.isNaN(createdAt.getTime())) return false;
-  if (from && createdAt < new Date(`${from}T00:00:00`)) return false;
-  if (to && createdAt > new Date(`${to}T23:59:59.999`)) return false;
-  return true;
-};
-
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 12;
 
 const DELETE_PROPERTY = {
   residential: deleteResidential,
@@ -241,7 +197,7 @@ function MetricCard({ label, value, sub, icon: Icon, tone = "emerald", active, o
     emerald: "from-emerald-500 to-green-600 text-white",
     amber: "from-amber-400 to-orange-500 text-white",
     sky: "from-sky-500 to-blue-600 text-white",
-    slate: "from-slate-700 to-slate-900 text-white",
+    slate: "from-emerald-600 to-emerald-800 text-white",
   }[tone];
   const ringColor = {
     emerald: "#27AE60",
@@ -255,22 +211,22 @@ function MetricCard({ label, value, sub, icon: Icon, tone = "emerald", active, o
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+      className={`rounded-2xl p-3 text-left hover:-translate-y-0.5 ${saSurfaceHover} ${
         active
-          ? "border-emerald-300 bg-emerald-50"
-          : "border-slate-200 bg-white hover:border-emerald-200"
+          ? "border-[#27AE60] bg-[#e8f8ee] shadow-[0_8px_18px_-6px_rgba(39,174,96,0.45)]"
+          : saSurface
       }`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
-          <p className="mt-1 text-xl font-medium text-slate-900">{fmtNum(value)}</p>
-          {sub && <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{sub}</p>}
+          <p className="truncate text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-600">{label}</p>
+          <p className="mt-1 text-xl font-semibold text-[#0f3d2e]">{fmtNum(value)}</p>
+          {sub && <p className="mt-0.5 truncate text-[11px] font-medium text-[#5c7d6d]">{sub}</p>}
         </div>
         <div
           className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full"
           style={{
-            background: `conic-gradient(${ringColor} ${safePercent * 3.6}deg, #eef2f7 0deg)`,
+            background: `conic-gradient(${ringColor} ${safePercent * 3.6}deg, #e8f5ee 0deg)`,
           }}
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white">
@@ -292,19 +248,19 @@ function BreakdownRow({ row, total, color = "bg-emerald-500", onClick, selected 
       type="button"
       onClick={onClick}
       className={`w-full rounded-xl p-2.5 text-left transition ${
-        selected ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-slate-50"
+        selected ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-emerald-50/60"
       }`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium text-slate-800">{titleCase(row._id)}</p>
-          <p className="truncate text-[10.5px] text-slate-400">
+          <p className="truncate text-[13px] font-semibold text-[#0f3d2e]">{titleCase(row._id)}</p>
+          <p className="truncate text-[10.5px] text-[#5c7d6d]">
             Active {row.active || 0} • Pending {row.pending || 0} • Draft {row.draft || 0}
           </p>
         </div>
-        <span className="text-sm font-medium text-slate-900">{fmtNum(row.total)}</span>
+        <span className="text-sm font-semibold text-[#0f3d2e]">{fmtNum(row.total)}</span>
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-50">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${width}%` }} />
       </div>
     </button>
@@ -313,14 +269,14 @@ function BreakdownRow({ row, total, color = "bg-emerald-500", onClick, selected 
 
 function Panel({ title, sub, icon: Icon, children, action, className = "" }) {
   return (
-    <section className={`min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 ${className}`}>
+    <section className={`min-w-0 max-w-full overflow-hidden rounded-2xl p-3 sm:p-4 ${saSurface} ${className}`}>
       <div className="mb-3 flex min-w-0 flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
         <div className="min-w-0 max-w-full">
           <div className="flex items-center gap-2">
             {Icon && <Icon className="h-4 w-4 text-emerald-600" />}
-            <h2 className="text-[13px] font-medium uppercase tracking-wide text-slate-800">{title}</h2>
+            <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h2>
           </div>
-          {sub && <p className="mt-0.5 break-words text-[11px] text-slate-400">{sub}</p>}
+          {sub && <p className="mt-0.5 break-words text-[11px] text-[#5c7d6d]">{sub}</p>}
         </div>
         {action}
       </div>
@@ -338,19 +294,19 @@ function StatusDonut({ overview, total }) {
   const draftDeg = draft * 3.6;
 
   return (
-    <div className="mb-3 flex items-center gap-3 rounded-2xl bg-slate-50 p-3">
+    <div className="mb-3 flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
       <div
         className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full"
         style={{
-          background: `conic-gradient(#27AE60 0deg ${activeDeg}deg, #F59E0B ${activeDeg}deg ${activeDeg + pendingDeg}deg, #64748B ${activeDeg + pendingDeg}deg ${activeDeg + pendingDeg + draftDeg}deg, #E2E8F0 ${activeDeg + pendingDeg + draftDeg}deg 360deg)`,
+          background: `conic-gradient(#27AE60 0deg ${activeDeg}deg, #F59E0B ${activeDeg}deg ${activeDeg + pendingDeg}deg, #5c7d6d ${activeDeg + pendingDeg}deg ${activeDeg + pendingDeg + draftDeg}deg, #e8f5ee ${activeDeg + pendingDeg + draftDeg}deg 360deg)`,
         }}
       >
         <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full bg-white">
-          <span className="text-sm font-medium text-slate-900">{fmtNum(total)}</span>
-          <span className="text-[9px] font-medium text-slate-400">Total</span>
+          <span className="text-sm font-semibold text-[#0f3d2e]">{fmtNum(total)}</span>
+          <span className="text-[9px] font-medium text-[#5c7d6d]">Total</span>
         </div>
       </div>
-      <div className="grid flex-1 gap-1 text-[11px] font-medium text-slate-600">
+      <div className="grid flex-1 gap-1 text-[11px] font-medium text-[#5c7d6d]">
         <span className="flex items-center justify-between gap-2">
           <span><i className="mr-1.5 inline-block h-2 w-2 rounded-full bg-emerald-500" />Active</span>
           <b>{active}%</b>
@@ -360,7 +316,7 @@ function StatusDonut({ overview, total }) {
           <b>{pending}%</b>
         </span>
         <span className="flex items-center justify-between gap-2">
-          <span><i className="mr-1.5 inline-block h-2 w-2 rounded-full bg-slate-500" />Draft</span>
+          <span><i className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#5c7d6d]" />Draft</span>
           <b>{draft}%</b>
         </span>
       </div>
@@ -411,22 +367,6 @@ function useDebounce(value, delay = 350) {
   }, [value, delay]);
 
   return debounced;
-}
-
-const FIRST_PAGE_LIMIT = 40;
-
-async function fetchCategoryFirstPage(fetcher) {
-  const first = await fetcher({ page: 1, limit: FIRST_PAGE_LIMIT });
-  const items = first?.items || [];
-  const limit = first?.meta?.limit || FIRST_PAGE_LIMIT;
-  const total = Number(first?.meta?.total ?? items.length) || 0;
-  const pages = Math.max(1, Math.ceil(total / Math.max(limit, 1)) || 1);
-  return { items, pages, limit };
-}
-
-function categoryItems(data) {
-  if (Array.isArray(data)) return data;
-  return data?.items || [];
 }
 
 const formatPrice = (price) => {
@@ -577,17 +517,17 @@ function PropertyCard({
           animation: "propertyRowIn 360ms ease both",
           animationDelay: `${Math.min(index * 35, 280)}ms`,
         }}
-        className="group flex h-full min-h-0 w-full min-w-0 max-w-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md sm:min-h-[188px] sm:flex-row sm:items-stretch"
+        className={`group flex h-full min-h-0 w-full min-w-0 max-w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left hover:-translate-y-0.5 sm:min-h-[188px] sm:flex-row sm:items-stretch ${saSurface} ${saSurfaceHover}`}
       >
       <PropertyCardThumb
         property={property}
         variant="dashboard"
       >
         <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
-          <span className="rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-slate-700 shadow-sm">
+          <span className="rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#0f3d2e] shadow-[0_4px_10px_rgba(16,185,129,0.12)]">
             {category}
           </span>
-          <span className="rounded-full bg-slate-800/90 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white shadow-sm">
+          <span className="rounded-full bg-[#27AE60]/90 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white shadow-[0_4px_10px_rgba(18,161,80,0.22)]">
             {getPropertyListingType(property) === "rent" ||
             getPropertyListingType(property) === "lease" ||
             getPropertyListingType(property) === "rental"
@@ -607,7 +547,7 @@ function PropertyCard({
           </span>
         </div>
         {creatorTag && (
-          <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-slate-800/90 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white">
+          <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-[#0f3d2e]/88 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white">
             <ShieldCheck className="h-2.5 w-2.5 text-emerald-400" /> {creatorTag}
           </span>
         )}
@@ -622,24 +562,24 @@ function PropertyCard({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3 sm:p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-[13px] font-medium text-slate-800 group-hover:text-emerald-700 sm:text-sm">
+            <h3 className="truncate text-[13px] font-semibold text-[#0f3d2e] group-hover:text-emerald-700 sm:text-sm">
               {property?.title || "Unnamed property"}
             </h3>
             {/* Always reserve one line so cards align with/without building name */}
             <p
-              className={`mt-1 flex h-4 items-center gap-1 truncate text-[11px] font-medium text-slate-600 ${
+              className={`mt-1 flex h-4 items-center gap-1 truncate text-[11px] font-medium text-[#5c7d6d] ${
                 propertyName?.trim() ? "" : "invisible"
               }`}
             >
               <Building2 className="h-3 w-3 shrink-0 text-emerald-600" />
               <span className="truncate">{propertyName?.trim() || "—"}</span>
             </p>
-            <p className="mt-1 flex h-4 items-center gap-1 truncate text-[11px] text-slate-500">
+            <p className="mt-1 flex h-4 items-center gap-1 truncate text-[11px] text-[#5c7d6d]">
               <MapPin className="h-3 w-3 shrink-0 text-emerald-600" />
               {location || "Location unavailable"}
             </p>
           </div>
-          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-emerald-600" />
+          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-600" />
         </div>
 
         <p className="mt-2 text-sm font-medium text-emerald-700">
@@ -661,7 +601,7 @@ function PropertyCard({
           ) : null}
         </div>
 
-        <div className="mt-2 grid gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[10px] text-slate-500 sm:grid-cols-2">
+        <div className="mt-2 grid gap-x-3 gap-y-1 border-t border-emerald-50 pt-2 text-[10px] text-[#5c7d6d] sm:grid-cols-2">
           <span className="flex min-w-0 items-center gap-1.5">
             <UserRound className="h-3 w-3 shrink-0" />
             <span className="truncate">{creator}</span>
@@ -670,11 +610,11 @@ function PropertyCard({
             <Clock3 className="h-3 w-3 shrink-0" />
             <span className="truncate">{formatPostedAt(property?.createdAt)}</span>
           </span>
-          <span className="truncate font-mono text-[9.5px] text-slate-400 sm:col-span-2">
+          <span className="truncate font-mono text-[9.5px] text-[#5c7d6d] sm:col-span-2">
             ID: {property?._id || "Unavailable"}
             {property?.propertyCode ? (
-              <span className="ml-2 inline-flex items-center gap-1 border-l border-slate-200 pl-2 text-slate-500">
-                <span className="font-sans text-[9px] font-semibold text-slate-400">
+              <span className="ml-2 inline-flex items-center gap-1 border-l border-emerald-100 pl-2 text-[#5c7d6d]">
+                <span className="font-sans text-[9px] font-semibold text-emerald-600">
                   Property Code
                 </span>
                 <span className="font-semibold text-emerald-700">
@@ -703,7 +643,7 @@ function PropertyCard({
               event.stopPropagation();
               setOpenLeads(true);
             }}
-            className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-100 sm:py-1"
+            className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-100 sm:py-1"
           >
             <BarChart3 className="h-3 w-3" />
             Leads{openLeads ? (leadsLoading ? " ..." : ` ${totalLeads}`) : ""}
@@ -714,7 +654,7 @@ function PropertyCard({
               event.stopPropagation();
               onOpen();
             }}
-            className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-slate-200 px-2.5 py-2 text-[10px] font-medium text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 sm:py-1"
+            className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-emerald-100 px-2.5 py-2 text-[10px] font-medium text-[#0f3d2e] transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 sm:py-1"
           >
             View <ChevronRight className="h-3 w-3" />
           </button>
@@ -727,7 +667,7 @@ function PropertyCard({
                     event.stopPropagation();
                     onEdit();
                   }}
-                  className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-emerald-200 bg-white px-2.5 py-2 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-50 sm:py-1"
+                  className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-emerald-100 bg-white px-2.5 py-2 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-50 sm:py-1"
                 >
                   Edit
                 </button>
@@ -736,11 +676,11 @@ function PropertyCard({
                 <span className="relative inline-flex min-w-0">
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 rounded-lg bg-emerald-400/70 animate-ping"
+                    className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-emerald-400/70"
                   />
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute -inset-0.5 rounded-lg bg-emerald-500/25 animate-pulse"
+                    className="pointer-events-none absolute -inset-0.5 animate-pulse rounded-full bg-emerald-500/25"
                   />
                   <button
                     type="button"
@@ -749,7 +689,7 @@ function PropertyCard({
                       onReview();
                     }}
                     title="Action needed — approve or review this listing"
-                    className="relative z-10 inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-semibold text-white shadow-md shadow-emerald-600/40 ring-2 ring-emerald-300/80 transition hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/50 sm:py-1"
+                    className="relative z-10 inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full bg-[#27AE60] px-2.5 py-2 text-[10px] font-semibold text-white shadow-[0_4px_10px_rgba(18,161,80,0.28)] ring-2 ring-emerald-300/80 transition hover:bg-[#1e8f4d] sm:py-1"
                   >
                     {Number(property?.completion?.percent) === 70 ||
                     isAgentCreatedProperty(property)
@@ -767,7 +707,7 @@ function PropertyCard({
                 event.stopPropagation();
                 onEdit();
               }}
-              className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg bg-emerald-600 px-2.5 py-2 text-[10px] font-medium text-white transition hover:bg-emerald-700 sm:py-1"
+              className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full bg-[#27AE60] px-2.5 py-2 text-[10px] font-medium text-white transition hover:bg-[#1e8f4d] sm:py-1"
             >
               Edit
             </button>
@@ -778,7 +718,7 @@ function PropertyCard({
               event.stopPropagation();
               onDelete();
             }}
-            className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-2 text-[10px] font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 sm:ml-auto sm:py-1"
+            className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-rose-200 bg-rose-50 px-2.5 py-2 text-[10px] font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 sm:ml-auto sm:py-1"
           >
             <Trash2 className="h-3 w-3" />
             Delete
@@ -792,7 +732,7 @@ function PropertyCard({
                   event.stopPropagation();
                   onPromote?.(property);
                 }}
-                className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 px-2.5 py-2 text-[10px] font-bold text-amber-800 transition hover:from-amber-100 hover:to-yellow-100 disabled:opacity-50 sm:py-1"
+                className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-bold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50 sm:py-1"
               >
                 <Sparkles className="h-3 w-3" />
                 Promote
@@ -806,7 +746,7 @@ function PropertyCard({
                       event.stopPropagation();
                       onRenew?.(property);
                     }}
-                    className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-2 text-[10px] font-bold text-sky-800 transition hover:bg-sky-100 disabled:opacity-50 sm:py-1"
+                    className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-[10px] font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50 sm:py-1"
                   >
                     <RefreshCw className="h-3 w-3" />
                     Renew
@@ -818,7 +758,7 @@ function PropertyCard({
                       event.stopPropagation();
                       onExpire?.(property);
                     }}
-                    className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-lg border border-violet-300 bg-violet-50 px-2.5 py-2 text-[10px] font-bold text-violet-800 transition hover:bg-violet-100 disabled:opacity-50 sm:py-1"
+                    className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-emerald-200 bg-white px-2.5 py-2 text-[10px] font-bold text-[#0f3d2e] transition hover:bg-emerald-50 disabled:opacity-50 sm:py-1"
                   >
                     Expire
                   </button>
@@ -839,18 +779,18 @@ function PropertyCard({
           }}
         >
           <div
-            className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+            className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-emerald-100 bg-[#f7fbf8] shadow-[0_24px_80px_rgba(16,185,129,0.16)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3 border-b border-slate-100 p-3 sm:gap-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3 border-b border-emerald-50 p-3 sm:gap-4 sm:p-5">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                   Property leads
                 </p>
-                <h3 className="mt-1 text-xl font-medium text-slate-900">
+                <h3 className="mt-1 text-xl font-semibold text-[#0f3d2e]">
                   {property?.title || "Unnamed property"}
                 </h3>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-[#5c7d6d]">
                   Total Leads: {totalLeads}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -858,7 +798,7 @@ function PropertyCard({
                     type="button"
                     disabled={!leads.length}
                     onClick={() => exportLeads("csv")}
-                    className="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Download className="h-4 w-4" /> CSV
                   </button>
@@ -866,7 +806,7 @@ function PropertyCard({
                     type="button"
                     disabled={!leads.length}
                     onClick={() => exportLeads("excel")}
-                    className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-2 text-xs font-medium text-[#0f3d2e] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Download className="h-4 w-4" /> Excel
                   </button>
@@ -875,7 +815,7 @@ function PropertyCard({
               <button
                 type="button"
                 onClick={() => setOpenLeads(false)}
-                className="rounded-xl bg-slate-100 p-2 text-slate-500 transition hover:bg-slate-200"
+                className="rounded-full border border-emerald-100 bg-white p-2 text-[#5c7d6d] transition hover:bg-emerald-50"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -883,16 +823,16 @@ function PropertyCard({
 
             <div className="max-h-[70vh] overflow-auto p-3 sm:max-h-[60vh] sm:p-5">
               {leadsLoading ? (
-                <div className="py-10 text-center text-slate-400">Loading leads...</div>
+                <div className="py-10 text-center text-[#5c7d6d]">Loading leads...</div>
               ) : leads.length === 0 ? (
-                <div className="py-10 text-center text-slate-400">No leads found</div>
+                <div className="py-10 text-center text-[#5c7d6d]">No leads found</div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                <div className="overflow-x-auto rounded-2xl border border-emerald-100">
                   <table className="w-full min-w-[780px]">
                     <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50">
+                      <tr className="border-b border-emerald-50 bg-emerald-50/50">
                         {["#", "Lead Profile", "Contact", "Status", "Remarks", "Approval", "Created", "Actions"].map((head) => (
-                          <th key={head} className="px-4 py-3 text-left text-xs font-medium uppercase text-slate-400">
+                          <th key={head} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.06em] text-emerald-600">
                             {head}
                           </th>
                         ))}
@@ -900,15 +840,15 @@ function PropertyCard({
                     </thead>
                     <tbody>
                       {leads.map((lead, index) => (
-                        <tr key={lead._id || index} className="border-b border-slate-100 hover:bg-slate-50">
-                          <td className="px-4 py-4 text-sm text-slate-400">{index + 1}</td>
+                        <tr key={lead._id || index} className="border-b border-emerald-50 hover:bg-emerald-50/40">
+                          <td className="px-4 py-4 text-sm text-[#5c7d6d]">{index + 1}</td>
                           <td className="px-4 py-4">
-                            <p className="text-sm font-medium text-slate-800">{lead.name || "Unknown"}</p>
-                            <p className="mt-1 text-xs text-slate-400">ID: {lead._id?.slice(-6) || "N/A"}</p>
+                            <p className="text-sm font-semibold text-[#0f3d2e]">{lead.name || "Unknown"}</p>
+                            <p className="mt-1 text-xs text-[#5c7d6d]">ID: {lead._id?.slice(-6) || "N/A"}</p>
                           </td>
                           <td className="px-4 py-4">
                             {lead.phone && (
-                              <a href={`tel:${lead.phone}`} className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-emerald-700">
+                              <a href={`tel:${lead.phone}`} className="flex items-center gap-2 text-sm font-medium text-[#0f3d2e] hover:text-emerald-700">
                                 <Phone className="h-4 w-4 text-emerald-600" /> {lead.phone}
                               </a>
                             )}
@@ -924,8 +864,8 @@ function PropertyCard({
                             </span>
                           </td>
                           <td className="max-w-[220px] px-4 py-4">
-                            <div className="flex items-start gap-1.5 text-xs text-slate-600">
-                              <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                            <div className="flex items-start gap-1.5 text-xs text-[#5c7d6d]">
+                              <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                               <span className="line-clamp-2">{lead.remarks || "No remarks"}</span>
                             </div>
                           </td>
@@ -940,7 +880,7 @@ function PropertyCard({
                               </span>
                             )}
                           </td>
-                          <td className="whitespace-nowrap px-4 py-4 text-xs text-slate-500">
+                          <td className="whitespace-nowrap px-4 py-4 text-xs text-[#5c7d6d]">
                             {lead.createdAt ? formatPostedAt(lead.createdAt) : "N/A"}
                           </td>
                           <td className="px-4 py-4">
@@ -1005,10 +945,7 @@ export default function PropertiesDashboard() {
   const [search, setSearch] = useState(
     () => searchParams.get("search") || "",
   );
-  // URL sync only — does not trigger API refetch
   const debouncedSearch = useDebounce(search, 400);
-  // Instant local filter while typing (no network)
-  const deferredSearch = useDeferredValue(search);
   const [promotionType, setPromotionType] = useState(
     () => searchParams.get("promotion") || "all",
   );
@@ -1033,7 +970,6 @@ export default function PropertiesDashboard() {
   });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const hasMounted = useRef(false);
 
   const isTodayRange =
     Boolean(createdFrom) &&
@@ -1100,9 +1036,10 @@ export default function PropertiesDashboard() {
 
   const analyticsQuery = useQuery({
     queryKey: ["properties-analytics", locationFilters, createdFrom, createdTo],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const res = await getAllPropertiesAnalytics(
         buildAnalyticsParams(locationFilters, { from: createdFrom, to: createdTo }),
+        { signal },
       );
       return res.data?.data || res.data;
     },
@@ -1110,272 +1047,183 @@ export default function PropertiesDashboard() {
     refetchOnWindowFocus: false,
   });
 
-  const categoryQueries = useQueries({
-    queries: PROPERTY_CATEGORIES.map((item) => ({
-      // Do NOT put search in the query key — that re-fetched every category
-      // on each keystroke. Load once, filter client-side (instant).
-      queryKey: ["properties-dashboard", item.value],
-      queryFn: () => fetchCategoryFirstPage(item.fetcher),
-      staleTime: 5 * 60_000,
-      gcTime: 15 * 60_000,
-      refetchOnWindowFocus: false,
-    })),
-  });
-  const residentialData = categoryQueries[0]?.data;
-  const commercialData = categoryQueries[1]?.data;
-  const agriculturalData = categoryQueries[2]?.data;
-  const landData = categoryQueries[3]?.data;
-  const [extraProperties, setExtraProperties] = useState({});
-  const [catalogFilling, setCatalogFilling] = useState(false);
-
-  const allProperties = useMemo(() => {
-    const packs = [
-      ["residential", residentialData, extraProperties.residential],
-      ["commercial", commercialData, extraProperties.commercial],
-      ["agricultural", agriculturalData, extraProperties.agricultural],
-      ["land", landData, extraProperties.land],
-    ];
-    return packs.flatMap(([category, data, extra]) => {
-      const seen = new Set();
-      return [...categoryItems(data), ...(extra || [])]
-        .filter((property) => {
-          if (!property?._id || seen.has(property._id)) return false;
-          seen.add(property._id);
-          return true;
-        })
-        .map((property) =>
-          property._category === category
-            ? property
-            : { ...property, _category: category },
-        );
-    });
-  }, [
-    agriculturalData,
-    commercialData,
-    extraProperties,
-    landData,
-    residentialData,
-  ]);
-
-  // Precompute searchable text once per loaded row — typing stays O(n) string checks only.
-  const propertySearchIndex = useMemo(
-    () =>
-      allProperties.map((property) => ({
-        property,
-        haystack: normalizeSearchText(
-          listingSearchTokens(property).join(" "),
-        ),
-      })),
-    [allProperties],
+  const listingScope = useMemo(
+    () => ({
+      category,
+      listingType,
+      status,
+      state: locationFilters.state,
+      city: locationFilters.city,
+      locality: locationFilters.locality,
+      q: debouncedSearch.trim(),
+      promotionType,
+      tracking: trackingFilter,
+      sort,
+      createdFrom,
+      createdTo,
+      limit: PAGE_SIZE,
+    }),
+    [
+      category,
+      createdFrom,
+      createdTo,
+      debouncedSearch,
+      listingType,
+      locationFilters,
+      promotionType,
+      sort,
+      status,
+      trackingFilter,
+    ],
   );
+  const listingScopeKey = JSON.stringify(listingScope);
+  const listingScopeKeyRef = useRef(listingScopeKey);
+  const listingMetaRef = useRef({
+    total: 0,
+    pages: 1,
+    facets: {},
+    hasCount: false,
+    scopeKey: listingScopeKey,
+  });
+  const scopeChanged = listingScopeKeyRef.current !== listingScopeKey;
+  if (scopeChanged && listingMetaRef.current.scopeKey !== listingScopeKey) {
+    listingMetaRef.current = {
+      total: 0,
+      pages: 1,
+      facets: {},
+      hasCount: false,
+      scopeKey: listingScopeKey,
+    };
+  }
+  const listingPage = scopeChanged ? 1 : page;
+  const listingFilters = useMemo(
+    () => ({
+      ...listingScope,
+      page: listingPage,
+      includeFacets: listingPage === 1 ? 1 : 0,
+      includeCount: listingPage === 1 || !listingMetaRef.current.hasCount ? 1 : 0,
+    }),
+    [listingPage, listingScope],
+  );
+
+  const listingsQuery = useQuery({
+    queryKey: ["properties-dashboard-listings", listingFilters],
+    queryFn: async ({ signal }) => {
+      const res = await getAdminPropertyListings(listingFilters, { signal });
+      return res.data || {};
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
 
   const analytics = analyticsQuery.data || {};
   const overview = analytics.overview || {};
-  const analyticsTotal = overview.totalProperties || allProperties.length || 0;
+  const analyticsTotal = Number(overview.totalProperties || 0);
+  const listItems = Array.isArray(listingsQuery.data?.items)
+    ? listingsQuery.data.items
+    : Array.isArray(listingsQuery.data?.data)
+      ? listingsQuery.data.data
+      : [];
+  const listMeta = listingsQuery.data?.meta || listingsQuery.data?.pagination || {};
+  const listCounted = listMeta.counted !== false && listMeta.total != null;
+  if (
+    listingsQuery.data?.facets?.promotionType &&
+    !listingsQuery.isPlaceholderData
+  ) {
+    listingMetaRef.current.facets = listingsQuery.data.facets;
+  }
+  if (listCounted && !listingsQuery.isPlaceholderData) {
+    const countedTotal = Number(listMeta.total || 0);
+    listingMetaRef.current.total = countedTotal;
+    listingMetaRef.current.pages = Math.max(
+      1,
+      Number(listMeta.pages || listMeta.totalPages) ||
+        Math.ceil(countedTotal / PAGE_SIZE) ||
+        1,
+    );
+    listingMetaRef.current.hasCount = true;
+  }
+  const listTotal = listingMetaRef.current.hasCount
+    ? listingMetaRef.current.total
+    : 0;
+  const totalPages = listingMetaRef.current.hasCount
+    ? Math.max(
+        1,
+        listingMetaRef.current.pages || Math.ceil(listTotal / PAGE_SIZE) || 1,
+      )
+    : Math.max(1, listingPage);
+  const safePage = Math.max(1, listingPage);
+  const hasNextPage = listingMetaRef.current.hasCount
+    ? safePage < totalPages
+    : Boolean(listMeta.hasNextPage) || listItems.length >= PAGE_SIZE;
+  const pagerLast = listingMetaRef.current.hasCount
+    ? totalPages
+    : Math.max(safePage, hasNextPage ? safePage + 1 : safePage);
+  const pageNumbers = Array.from({ length: pagerLast }, (_, index) => index + 1).filter(
+    (pageNumber) =>
+      pageNumber === 1 ||
+      pageNumber === pagerLast ||
+      Math.abs(pageNumber - safePage) <= 1,
+  );
+  const paginatedProperties = listItems.slice(0, PAGE_SIZE);
+  const visibleCount = listTotal;
+  const listFacets =
+    listingPage === 1 && listingsQuery.data?.facets?.promotionType
+      ? listingsQuery.data.facets
+      : listingMetaRef.current.facets || {};
+  const promotionTypeCounts = {
+    all: 0,
+    prime: 0,
+    featured: 0,
+    sponsored: 0,
+    normal: 0,
+    ...(listFacets.promotionType || {}),
+  };
+  const trackingFilterCounts = {
+    all: 0,
+    promoted: 0,
+    active: 0,
+    expiringSoon: 0,
+    expired: 0,
+    ...(listFacets.tracking || {}),
+  };
+
   const activeLocationLabel =
     locationFilters.locality ||
     locationFilters.city ||
     locationFilters.state ||
     "All India";
   const locationSearchTerm = locationSearch.trim().toLowerCase();
-  const relatedLocationMatches = useMemo(() => {
-    const matches = {
-      states: new Set(),
-      cities: new Set(),
-      localities: new Set(),
-    };
-
-    if (!locationSearchTerm) return matches;
-
-    allProperties.forEach((property) => {
-      const state = String(property?.state || "").trim();
-      const city = String(property?.city || "").trim();
-      const locality = String(property?.locality || "").trim();
-      const searchable = [state, city, locality]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      if (!searchable.includes(locationSearchTerm)) return;
-
-      if (state) matches.states.add(state.toLowerCase());
-      if (city) matches.cities.add(city.toLowerCase());
-      if (locality) matches.localities.add(locality.toLowerCase());
-    });
-
-    return matches;
-  }, [allProperties, locationSearchTerm]);
-  const matchesLocationSearch = (row, type) => {
+  const matchesLocationSearch = (row) => {
     if (!locationSearchTerm) return true;
-    const name = String(row?._id || "").toLowerCase();
-    if (name.includes(locationSearchTerm)) return true;
-    return relatedLocationMatches[type].has(name);
+    return String(row?._id || "").toLowerCase().includes(locationSearchTerm);
   };
   const stateRows = useMemo(
-    () =>
-      cleanRows(analytics.stateWise).filter((row) =>
-        matchesLocationSearch(row, "states"),
-      ),
-    [analytics.stateWise, locationSearchTerm, relatedLocationMatches],
+    () => cleanRows(analytics.stateWise).filter(matchesLocationSearch),
+    [analytics.stateWise, locationSearchTerm],
   );
   const cityRows = useMemo(
-    () =>
-      cleanRows(analytics.cityWise).filter((row) =>
-        matchesLocationSearch(row, "cities"),
-      ),
-    [analytics.cityWise, locationSearchTerm, relatedLocationMatches],
+    () => cleanRows(analytics.cityWise).filter(matchesLocationSearch),
+    [analytics.cityWise, locationSearchTerm],
   );
   const localityRows = useMemo(
-    () =>
-      cleanRows(analytics.localityWise).filter((row) =>
-        matchesLocationSearch(row, "localities"),
-      ),
-    [analytics.localityWise, locationSearchTerm, relatedLocationMatches],
+    () => cleanRows(analytics.localityWise).filter(matchesLocationSearch),
+    [analytics.localityWise, locationSearchTerm],
   );
 
-  const baseFilteredProperties = useMemo(() => {
-    const term = normalizeSearchText(deferredSearch);
-    const tokens = term ? term.split(" ").filter(Boolean) : [];
-    return propertySearchIndex
-      .filter(({ property }) => category === "all" || property._category === category)
-      .filter(({ property }) => matchesListingTypeFilter(property, listingType))
-      .filter(({ property }) => status === "all" || getStatus(property) === status)
-      .filter(({ property }) => !locationFilters.state || property?.state?.trim() === locationFilters.state)
-      .filter(({ property }) => !locationFilters.city || property?.city?.trim() === locationFilters.city)
-      .filter(({ property }) => !locationFilters.locality || property?.locality?.trim() === locationFilters.locality)
-      .filter(({ property }) => inCreatedRange(property?.createdAt, createdFrom, createdTo))
-      .filter(({ haystack }) => !tokens.length || tokens.every((token) => haystack.includes(token)))
-      .map(({ property }) => property);
-  }, [
-    propertySearchIndex,
-    category,
-    createdFrom,
-    createdTo,
-    deferredSearch,
-    listingType,
-    locationFilters,
-    status,
-  ]);
-
-  const promotionTypeCounts = useMemo(() => {
-    const counts = Object.fromEntries(
-      PROMOTION_TYPE_FILTERS.map((item) => [item.value, 0]),
-    );
-    baseFilteredProperties.forEach((property) => {
-      if (!matchesPropertyPromotionFilters(property, "all", trackingFilter)) return;
-      counts.all += 1;
-      const key = getPromotionTracking(property).currentType;
-      if (Object.prototype.hasOwnProperty.call(counts, key)) counts[key] += 1;
-    });
-    return counts;
-  }, [baseFilteredProperties, trackingFilter]);
-
-  const trackingFilterCounts = useMemo(() => {
-    const counts = Object.fromEntries(
-      PROMOTION_TRACKING_FILTERS.map((item) => [item.value, 0]),
-    );
-    baseFilteredProperties.forEach((property) => {
-      if (!matchesPropertyPromotionFilters(property, promotionType, "all")) return;
-      counts.all += 1;
-      PROMOTION_TRACKING_FILTERS.forEach((item) => {
-        if (item.value === "all") return;
-        if (matchesPropertyPromotionFilters(property, promotionType, item.value)) {
-          counts[item.value] += 1;
-        }
-      });
-    });
-    return counts;
-  }, [baseFilteredProperties, promotionType]);
-
-  const visibleProperties = useMemo(() => {
-    return baseFilteredProperties
-      .filter((property) =>
-        matchesPropertyPromotionFilters(property, promotionType, trackingFilter),
-      )
-      .sort((a, b) => {
-        const first = new Date(a?.createdAt || 0).getTime();
-        const second = new Date(b?.createdAt || 0).getTime();
-        const promoA = Number(a?.promotion?.priority || 0);
-        const promoB = Number(b?.promotion?.priority || 0);
-        if (promoB !== promoA) return promoB - promoA;
-        return sort === "newest" ? second - first : first - second;
-      });
-  }, [baseFilteredProperties, promotionType, sort, trackingFilter]);
-
-  const loading = categoryQueries.some((query) => query.isLoading);
-  const isInitialListLoading = loading && allProperties.length === 0;
-  const failed = categoryQueries.filter((query) => query.isError).length;
-  const catalogStamp = categoryQueries
-    .map((query) => query.dataUpdatedAt || 0)
-    .join("|");
-  const totalPages = Math.max(1, Math.ceil(visibleProperties.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1).filter(
-    (pageNumber) =>
-      pageNumber === 1 ||
-      pageNumber === totalPages ||
-      Math.abs(pageNumber - safePage) <= 1,
-  );
-  const paginatedProperties = visibleProperties.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
-  );
+  const isInitialListLoading = listingsQuery.isLoading && listItems.length === 0;
+  const isListRefreshing = listingsQuery.isFetching && listItems.length > 0;
+  const listFailed = listingsQuery.isError;
 
   useEffect(() => {
-    if (isInitialListLoading) return undefined;
-    let stopped = false;
-    const timer = window.setTimeout(async () => {
-      setCatalogFilling(true);
-      try {
-        for (const item of PROPERTY_CATEGORIES) {
-          if (stopped) return;
-          const cached = queryClient.getQueryData([
-            "properties-dashboard",
-            item.value,
-          ]);
-          const pages = Array.isArray(cached) ? 1 : cached?.pages || 1;
-          const limit = Array.isArray(cached) ? FIRST_PAGE_LIMIT : cached?.limit || FIRST_PAGE_LIMIT;
-          if (pages <= 1) continue;
-          const collected = [];
-          for (let pageNumber = 2; pageNumber <= pages && pageNumber <= 40; pageNumber += 1) {
-            if (stopped) return;
-            let items = [];
-            try {
-              const next = await item.fetcher({ page: pageNumber, limit });
-              items = next?.items || [];
-            } catch {
-              break;
-            }
-            if (!items.length) break;
-            collected.push(...items);
-            if (!stopped) {
-              setExtraProperties((prev) => ({
-                ...prev,
-                [item.value]: collected.slice(),
-              }));
-            }
-            if (items.length < limit) break;
-          }
-        }
-      } finally {
-        if (!stopped) setCatalogFilling(false);
-      }
-    }, 400);
-    return () => {
-      stopped = true;
-      window.clearTimeout(timer);
-    };
-  }, [catalogStamp, isInitialListLoading, queryClient]);
+    if (!scopeChanged) return;
+    listingScopeKeyRef.current = listingScopeKey;
+    if (page !== 1) setPage(1);
+  }, [listingScopeKey, page, scopeChanged]);
 
   useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      return;
-    }
-    setPage(1);
-  }, [category, listingType, status, search, locationFilters, sort, createdFrom, createdTo, promotionType, trackingFilter]);
-
-  useEffect(() => {
+    if (!listingMetaRef.current.hasCount) return;
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
   const activeFilterCount = [
@@ -1441,7 +1289,10 @@ export default function PropertiesDashboard() {
   }, [dispatch, navigate]);
 
   const invalidatePropertyLists = () =>
-    queryClient.invalidateQueries({ queryKey: ["properties-dashboard"] });
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["properties-dashboard-listings"] }),
+      queryClient.invalidateQueries({ queryKey: ["properties-analytics"] }),
+    ]);
 
   const openPromote = useCallback((property) => setPromoteTarget(property), []);
 
@@ -1484,7 +1335,7 @@ export default function PropertiesDashboard() {
     try {
       await renewPropertyListing(property._category, property._id, { days: 10 });
       toast.success("Promotion renewed (+10 days)");
-      await queryClient.invalidateQueries({ queryKey: ["properties-dashboard"] });
+      await invalidatePropertyLists();
     } catch (err) {
       toast.error(
         err?.response?.data?.message ||
@@ -1503,7 +1354,7 @@ export default function PropertiesDashboard() {
     try {
       await expirePropertyListing(property._category, property._id);
       toast.success("Promotion expired → Normal");
-      await queryClient.invalidateQueries({ queryKey: ["properties-dashboard"] });
+      await invalidatePropertyLists();
     } catch (err) {
       toast.error(err?.response?.data?.message || "Expire failed");
     } finally {
@@ -1546,10 +1397,7 @@ export default function PropertiesDashboard() {
       await deleteRequest(deleteTarget._id);
       toast.success("Property deleted successfully");
       setDeleteTarget(null);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["properties-dashboard"] }),
-        queryClient.invalidateQueries({ queryKey: ["properties-analytics"] }),
-      ]);
+      await invalidatePropertyLists();
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "Failed to delete property",
@@ -1560,7 +1408,7 @@ export default function PropertiesDashboard() {
   };
 
   return (
-    <main className="min-h-full w-full min-w-0 max-w-full overflow-x-hidden bg-slate-50 p-2 sm:p-4">
+    <main className="min-h-full w-full min-w-0 max-w-full overflow-x-hidden bg-[#f7fbf8] p-2 text-[#0f3d2e] sm:p-4">
       <ConfirmModal
         open={!!deleteTarget}
         title="Delete Property"
@@ -1600,16 +1448,16 @@ export default function PropertiesDashboard() {
         `}
       </style>
       <section className="mx-auto w-full min-w-0 max-w-7xl">
-        <header className="flex min-w-0 max-w-full flex-col gap-4 rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-4 lg:flex-row lg:items-center lg:justify-between">
+        <header className={`flex min-w-0 max-w-full flex-col gap-4 rounded-2xl p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between ${saSurface}`}>
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-emerald-700">
               <Building2 className="h-4 w-4" /> Property workspace
             </div>
             {/* <h1 className="mt-1 text-xl font-medium text-slate-900 sm:text-2xl">All properties, one place</h1> */}
-            <h1 className="mt-1 text-xl font-medium text-slate-900 sm:text-2xl">
+            <h1 className="mt-1 text-xl font-semibold text-[#0f3d2e] sm:text-2xl">
               Properties
             </h1>
-            <p className="mt-0.5 break-words text-sm text-slate-500">
+            <p className="mt-0.5 break-words text-sm text-[#5c7d6d]">
               Browse every category by location, status, poster, and posting
               time.
             </p>
@@ -1619,13 +1467,13 @@ export default function PropertiesDashboard() {
               <button
                 type="button"
                 onClick={() => setCreateOpen((open) => !open)}
-                className="inline-flex h-full w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 sm:px-4"
+                className="inline-flex h-full w-full items-center justify-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-2.5 text-xs font-semibold text-[#0f3d2e] shadow-[0_4px_12px_rgba(16,185,129,0.08)] transition hover:bg-emerald-50 sm:px-4"
               >
                 <Plus className="h-4 w-4" /> Create property
               </button>
               {createOpen && (
-                <div className="absolute left-0 z-20 mt-2 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-emerald-100 bg-white p-2 shadow-xl lg:left-auto lg:right-0">
-                  <p className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                <div className="absolute left-0 z-20 mt-2 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-emerald-100 bg-white p-2 shadow-[0_16px_40px_rgba(16,185,129,0.16)] lg:left-auto lg:right-0">
+                  <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-600">
                     Select category
                   </p>
                   {PROPERTY_CATEGORIES.map((item) => (
@@ -1633,7 +1481,7 @@ export default function PropertiesDashboard() {
                       key={item.value}
                       type="button"
                       onClick={() => startCreateProperty(item.value)}
-                      className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-700"
+                      className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-[#0f3d2e] transition hover:bg-emerald-50 hover:text-emerald-700"
                     >
                       {item.label}
                       <ChevronRight className="h-4 w-4" />
@@ -1645,7 +1493,7 @@ export default function PropertiesDashboard() {
             <button
               type="button"
               onClick={() => navigate("/agent-project")}
-              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-700 sm:px-4"
+              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-full bg-[#27AE60] px-3 py-2.5 text-xs font-semibold text-white shadow-[0_6px_14px_rgba(18,161,80,0.24)] transition hover:bg-[#1e8f4d] sm:px-4"
             >
               <ShieldCheck className="h-4 w-4" /> Create agent project
             </button>
@@ -1659,7 +1507,7 @@ export default function PropertiesDashboard() {
           className="mt-5"
           action={
             <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium">
-              <span className="rounded-full bg-emerald-600 px-3 py-1 text-white">
+              <span className="rounded-full bg-[#27AE60] px-3 py-1 text-white">
                 {activeLocationLabel}
               </span>
               {(locationFilters.state ||
@@ -1671,7 +1519,7 @@ export default function PropertiesDashboard() {
                     setLocationSearch("");
                     setLocationFilters({ state: "", city: "", locality: "" });
                   }}
-                  className="rounded-full bg-slate-100 px-3 py-1 text-slate-600 transition hover:bg-slate-200"
+                  className="rounded-full border border-emerald-100 bg-white px-3 py-1 text-[#0f3d2e] transition hover:bg-emerald-50"
                 >
                   Reset location
                 </button>
@@ -1687,22 +1535,32 @@ export default function PropertiesDashboard() {
                 value={locationSearch}
                 onChange={(event) => setLocationSearch(event.target.value)}
                 placeholder="Search state, city or locality"
-                className="h-10 w-full rounded-xl border border-emerald-100 bg-white pl-9 pr-9 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                className="h-10 w-full rounded-xl border border-emerald-100 bg-white pl-9 pr-9 text-sm text-[#0f3d2e] outline-none transition placeholder:text-[#5c7d6d] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25"
               />
               {locationSearch && (
                 <button
                   type="button"
                   onClick={() => setLocationSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5c7d6d] transition hover:text-[#0f3d2e]"
                   aria-label="Clear location search"
                 >
                   <X className="h-4 w-4" />
                 </button>
               )}
             </label>
-            <p className="text-[11px] text-slate-500">
-              Showing {stateRows.length} states, {cityRows.length} cities,{" "}
-              {localityRows.length} localities
+            <p className="text-[11px] text-[#5c7d6d]">
+              {analyticsQuery.isError
+                ? "Unable to load location counts"
+                : `Showing ${stateRows.length} states, ${cityRows.length} cities, ${localityRows.length} localities`}
+              {analyticsQuery.isError && (
+                <button
+                  type="button"
+                  onClick={() => analyticsQuery.refetch()}
+                  className="ml-2 font-medium text-emerald-700 underline"
+                >
+                  Retry
+                </button>
+              )}
             </p>
           </div>
 
@@ -1713,34 +1571,34 @@ export default function PropertiesDashboard() {
                 setLocationSearch("");
                 setLocationFilters({ state: "", city: "", locality: "" });
               }}
-              className={`h-fit rounded-2xl border p-3 text-left transition ${
+              className={`h-fit rounded-2xl p-3 text-left ${saSurfaceHover} ${
                 !locationFilters.state
-                  ? "border-emerald-300 bg-emerald-50 shadow-sm"
-                  : "border-slate-200 bg-white hover:border-emerald-200"
+                  ? "border-[#27AE60] bg-[#e8f8ee] shadow-[0_8px_18px_-6px_rgba(39,174,96,0.45)]"
+                  : saSurface
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#27AE60] text-white">
                   <Globe className="h-4 w-4" />
                 </span>
-                <span className="text-xl font-medium text-slate-900">
+                <span className="text-xl font-semibold text-[#0f3d2e]">
                   {fmtNum(analyticsTotal)}
                 </span>
               </div>
-              <p className="mt-2 text-[13px] font-medium text-slate-900">
+              <p className="mt-2 text-[13px] font-semibold text-[#0f3d2e]">
                 All India
               </p>
-              <p className="mt-0.5 text-[11px] text-slate-500">
+              <p className="mt-0.5 text-[11px] text-[#5c7d6d]">
                 National CRM view
               </p>
             </button>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-2.5">
+            <div className={`rounded-2xl p-2.5 ${saInset}`}>
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-600">
                   1. Select State
                 </p>
-                <span className="text-[10px] font-medium text-slate-400">
+                <span className="text-[10px] font-medium text-[#5c7d6d]">
                   {stateRows.length}
                 </span>
               </div>
@@ -1755,7 +1613,7 @@ export default function PropertiesDashboard() {
                   />
                 ))}
                 {stateRows.length === 0 && (
-                  <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-400">
+                  <p className="rounded-xl bg-emerald-50/50 p-4 text-center text-sm text-[#5c7d6d]">
                     {locationSearch
                       ? "No matching state found"
                       : "No state data found"}
@@ -1764,12 +1622,12 @@ export default function PropertiesDashboard() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-2.5">
+            <div className={`rounded-2xl p-2.5 ${saInset}`}>
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-600">
                   2. Select City
                 </p>
-                <span className="text-[10px] font-medium text-slate-400">
+                <span className="text-[10px] font-medium text-[#5c7d6d]">
                   {cityRows.length}
                 </span>
               </div>
@@ -1784,7 +1642,7 @@ export default function PropertiesDashboard() {
                   />
                 ))}
                 {cityRows.length === 0 && (
-                  <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-400">
+                  <p className="rounded-xl bg-emerald-50/50 p-4 text-center text-sm text-[#5c7d6d]">
                     {locationSearch
                       ? "No matching city found"
                       : "Select a state to narrow cities"}
@@ -1793,12 +1651,12 @@ export default function PropertiesDashboard() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-2.5">
+            <div className={`rounded-2xl p-2.5 ${saInset}`}>
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-600">
                   3. Select Locality
                 </p>
-                <span className="text-[10px] font-medium text-slate-400">
+                <span className="text-[10px] font-medium text-[#5c7d6d]">
                   {localityRows.length}
                 </span>
               </div>
@@ -1813,7 +1671,7 @@ export default function PropertiesDashboard() {
                   />
                 ))}
                 {localityRows.length === 0 && (
-                  <p className="rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-400">
+                  <p className="rounded-xl bg-emerald-50/50 p-4 text-center text-sm text-[#5c7d6d]">
                     {locationSearch
                       ? "No matching locality found"
                       : "Select a city to narrow localities"}
@@ -1824,7 +1682,7 @@ export default function PropertiesDashboard() {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
-            <span className="font-medium text-slate-400">Current scope:</span>
+            <span className="font-medium text-[#5c7d6d]">Current scope:</span>
             <button
               type="button"
               onClick={() => {
@@ -1833,8 +1691,8 @@ export default function PropertiesDashboard() {
               }}
               className={`rounded-full px-3 py-1 font-medium ${
                 !locationFilters.state
-                  ? "bg-emerald-600 text-white"
-                  : "bg-slate-100 text-slate-600"
+                  ? "bg-[#27AE60] text-white"
+                  : "border border-emerald-100 bg-white text-[#0f3d2e]"
               }`}
             >
               India
@@ -1879,7 +1737,7 @@ export default function PropertiesDashboard() {
         <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           <MetricCard
             label="Total Properties"
-            value={overview.totalProperties ?? allProperties.length}
+            value={overview.totalProperties ?? 0}
             sub={`${activeLocationLabel} inventory`}
             icon={Building2}
             tone="emerald"
@@ -1937,11 +1795,11 @@ export default function PropertiesDashboard() {
             }
           >
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-slate-50 p-3">
-                <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
+                <p className="flex items-center gap-2 text-xs font-semibold text-[#5c7d6d]">
                   <Eye className="h-4 w-4 text-emerald-600" /> Views
                 </p>
-                <p className="mt-1 text-xl font-medium text-slate-900">
+                <p className="mt-1 text-xl font-semibold text-[#0f3d2e]">
                   {fmtNum(overview.totalViews)}
                 </p>
                 <MiniLineChart
@@ -1953,12 +1811,12 @@ export default function PropertiesDashboard() {
                   ]}
                 />
               </div>
-              <div className="rounded-2xl bg-slate-50 p-3">
-                <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
+                <p className="flex items-center gap-2 text-xs font-semibold text-[#5c7d6d]">
                   <MousePointerClick className="h-4 w-4 text-emerald-600" />{" "}
                   Clicks
                 </p>
-                <p className="mt-1 text-xl font-medium text-slate-900">
+                <p className="mt-1 text-xl font-semibold text-[#0f3d2e]">
                   {fmtNum(overview.totalClicks)}
                 </p>
                 <MiniLineChart
@@ -1968,15 +1826,15 @@ export default function PropertiesDashboard() {
                     overview.pendingProperties,
                     overview.totalClicks,
                   ]}
-                  color="#0EA5E9"
+                  color="#27AE60"
                 />
               </div>
-              <div className="rounded-2xl bg-slate-50 p-3">
-                <p className="flex items-center gap-2 text-xs font-medium text-slate-500">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
+                <p className="flex items-center gap-2 text-xs font-semibold text-[#5c7d6d]">
                   <MessageSquare className="h-4 w-4 text-emerald-600" />{" "}
                   Inquiries
                 </p>
-                <p className="mt-1 text-xl font-medium text-slate-900">
+                <p className="mt-1 text-xl font-semibold text-[#0f3d2e]">
                   {fmtNum(overview.totalInquiries)}
                 </p>
                 <MiniLineChart
@@ -1991,8 +1849,8 @@ export default function PropertiesDashboard() {
               </div>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-slate-100 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <div className={`rounded-2xl p-4 ${saInset}`}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                   Listing Type
                 </p>
                 <div className="mt-3 space-y-2">
@@ -2005,14 +1863,14 @@ export default function PropertiesDashboard() {
                     />
                   ))}
                   {cleanRows(analytics.listingTypeWise).length === 0 && (
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-[#5c7d6d]">
                       No listing data yet
                     </p>
                   )}
                 </div>
               </div>
-              <div className="rounded-2xl border border-slate-100 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <div className={`rounded-2xl p-4 ${saInset}`}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                   Promotion Mix
                 </p>
                 <div className="mt-3 space-y-2">
@@ -2025,7 +1883,7 @@ export default function PropertiesDashboard() {
                     />
                   ))}
                   {cleanRows(analytics.promotionWise).length === 0 && (
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-[#5c7d6d]">
                       No promotion data yet
                     </p>
                   )}
@@ -2052,7 +1910,7 @@ export default function PropertiesDashboard() {
                       : row._id === "pending"
                         ? "bg-amber-500"
                         : row._id === "draft"
-                          ? "bg-slate-500"
+                          ? "bg-[#5c7d6d]"
                           : "bg-rose-500"
                   }
                   selected={status === row._id}
@@ -2111,18 +1969,18 @@ export default function PropertiesDashboard() {
                     key={`${row.category}-${row._id}`}
                     type="button"
                     onClick={() => setCategory(row.category || "all")}
-                    className="w-full rounded-2xl border border-slate-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40"
+                    className={`w-full rounded-2xl p-3 text-left hover:bg-[#f4fbf7] ${saInset} ${saSurfaceHover}`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-medium text-slate-800">
+                        <p className="text-sm font-semibold text-[#0f3d2e]">
                           {titleCase(row._id)}
                         </p>
                         <p className="text-[11px] font-medium capitalize text-emerald-700">
                           {row.category || "Unknown category"}
                         </p>
                       </div>
-                      <span className="text-lg font-medium text-slate-900">
+                      <span className="text-lg font-semibold text-[#0f3d2e]">
                         {fmtNum(row.total)}
                       </span>
                     </div>
@@ -2133,7 +1991,7 @@ export default function PropertiesDashboard() {
                       <span className="rounded-lg bg-amber-50 py-1 text-amber-700">
                         P {row.pending || 0}
                       </span>
-                      <span className="rounded-lg bg-slate-100 py-1 text-slate-600">
+                      <span className="rounded-lg bg-emerald-50 py-1 text-[#5c7d6d]">
                         D {row.draft || 0}
                       </span>
                     </div>
@@ -2143,14 +2001,14 @@ export default function PropertiesDashboard() {
           </Panel>
         </div>
 
-        <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className={`mt-3 rounded-2xl p-3 sm:p-4 ${saSurface}`}>
           <div className="mb-3 flex min-h-[40px] items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-slate-800">
+              <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.06em] text-[#0f3d2e]">
                 <Filter className="h-4 w-4 shrink-0 text-emerald-600" /> Filter property
                 cards
               </p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-[#5c7d6d]">
                 Cards below follow location, category, sale/rent, status, date, search and sort.
               </p>
             </div>
@@ -2160,8 +2018,8 @@ export default function PropertiesDashboard() {
               disabled={activeFilterCount === 0}
               className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                 activeFilterCount > 0
-                  ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  : "invisible bg-slate-100 text-slate-400"
+                  ? "border border-emerald-100 bg-white text-[#0f3d2e] hover:bg-emerald-50"
+                  : "invisible border border-emerald-50 bg-white text-[#5c7d6d]"
               }`}
             >
               Clear all filters
@@ -2177,8 +2035,8 @@ export default function PropertiesDashboard() {
                   onClick={() => setCategory(item.value)}
                   className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
                     category === item.value
-                      ? "border-emerald-600 bg-emerald-600 text-white"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                      ? "border-[#27AE60] bg-[#27AE60] text-white"
+                      : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300 hover:text-emerald-700"
                   }`}
                 >
                   {item.label}
@@ -2188,7 +2046,7 @@ export default function PropertiesDashboard() {
 
             {/* Sub-filter: Sale / Rent — works with every category (scalable config) */}
             <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
-              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-emerald-600">
                 Listing
               </span>
               <div className="flex gap-1.5">
@@ -2199,8 +2057,8 @@ export default function PropertiesDashboard() {
                     onClick={() => setListingType(item.value)}
                     className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition ${
                       listingType === item.value
-                        ? "border-slate-800 bg-slate-800 text-white"
-                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-400 hover:bg-white"
+                        ? "border-[#27AE60] bg-[#27AE60] text-white"
+                        : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300 hover:bg-emerald-50"
                     }`}
                   >
                     {item.label}
@@ -2212,18 +2070,18 @@ export default function PropertiesDashboard() {
 
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_160px]">
             <label className="relative min-w-0">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5c7d6d]" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search title, location, posted by, approved by, ID…"
-                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-9 text-sm outline-none transition focus:border-emerald-400 focus:bg-white"
+                className="h-11 w-full rounded-xl border border-emerald-100 bg-white pl-10 pr-9 text-sm text-[#0f3d2e] outline-none transition placeholder:text-[#5c7d6d] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25"
               />
               {search ? (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5c7d6d]"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -2232,7 +2090,7 @@ export default function PropertiesDashboard() {
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-400"
+              className="h-11 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm text-[#0f3d2e] outline-none focus:border-emerald-500"
             >
               {STATUSES.map((item) => (
                 <option key={item.value} value={item.value}>
@@ -2243,7 +2101,7 @@ export default function PropertiesDashboard() {
             <select
               value={sort}
               onChange={(event) => setSort(event.target.value)}
-              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-400"
+              className="h-11 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm text-[#0f3d2e] outline-none focus:border-emerald-500"
             >
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
@@ -2294,8 +2152,8 @@ export default function PropertiesDashboard() {
                   }}
                   className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
                     trackingFilter === item.value
-                      ? "border-emerald-600 bg-emerald-600 text-white shadow-sm"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300"
+                      ? "border-[#27AE60] bg-[#27AE60] text-white shadow-[0_4px_10px_rgba(39,174,96,0.25)]"
+                      : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300"
                   }`}
                 >
                   {item.label}
@@ -2307,16 +2165,16 @@ export default function PropertiesDashboard() {
             </div>
           </div>
 
-          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+          <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div className="min-w-0 flex-1">
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                   <CalendarClock className="h-3.5 w-3.5 text-emerald-600" />
                   Custom date range
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block min-w-0">
-                    <span className="mb-1 block text-[11px] font-medium text-slate-500">
+                    <span className="mb-1 block text-[11px] font-medium text-[#5c7d6d]">
                       From
                     </span>
                     <input
@@ -2324,11 +2182,11 @@ export default function PropertiesDashboard() {
                       value={createdFrom}
                       max={createdTo || undefined}
                       onChange={(event) => setCreatedFrom(event.target.value)}
-                      className="h-11 w-full min-w-[11.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+                      className="h-11 w-full min-w-[11.5rem] rounded-xl border border-emerald-100 bg-white px-3 text-sm text-[#0f3d2e] outline-none focus:border-emerald-500"
                     />
                   </label>
                   <label className="block min-w-0">
-                    <span className="mb-1 block text-[11px] font-medium text-slate-500">
+                    <span className="mb-1 block text-[11px] font-medium text-[#5c7d6d]">
                       To
                     </span>
                     <input
@@ -2336,7 +2194,7 @@ export default function PropertiesDashboard() {
                       value={createdTo}
                       min={createdFrom || undefined}
                       onChange={(event) => setCreatedTo(event.target.value)}
-                      className="h-11 w-full min-w-[11.5rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-400"
+                      className="h-11 w-full min-w-[11.5rem] rounded-xl border border-emerald-100 bg-white px-3 text-sm text-[#0f3d2e] outline-none focus:border-emerald-500"
                     />
                   </label>
                 </div>
@@ -2347,8 +2205,8 @@ export default function PropertiesDashboard() {
                   onClick={() => (isTodayRange ? clearDateRange() : applyTodayRange())}
                   className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
                     isTodayRange
-                      ? "border-emerald-600 bg-emerald-600 text-white"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+                      ? "border-[#27AE60] bg-[#27AE60] text-white"
+                      : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300 hover:text-emerald-700"
                   }`}
                 >
                   Today properties
@@ -2359,26 +2217,26 @@ export default function PropertiesDashboard() {
                   disabled={!createdFrom && !createdTo}
                   className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
                     createdFrom || createdTo
-                      ? "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
-                      : "cursor-not-allowed border-slate-100 bg-white text-slate-300"
+                      ? "border-emerald-100 bg-white text-[#0f3d2e] hover:bg-emerald-50"
+                      : "cursor-not-allowed border-emerald-50 bg-white text-emerald-200"
                   }`}
                 >
                   Clear dates
                 </button>
               </div>
             </div>
-            <p className="mt-2 min-h-[18px] text-xs text-slate-500">
+            <p className="mt-2 min-h-[18px] text-xs text-[#5c7d6d]">
               {createdFrom || createdTo
                 ? `${isTodayRange ? "Today" : "Selected"}: ${createdFrom || "—"} → ${createdTo || "—"}`
                 : "Pick From / To, or use Today properties."}
             </p>
           </div>
 
-          <div className="mt-3 flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-3 flex flex-col gap-2 text-xs text-[#5c7d6d] sm:flex-row sm:items-center sm:justify-between">
             <span className="inline-flex flex-wrap items-center gap-1.5">
-              <Filter className="h-4 w-4 shrink-0" /> {visibleProperties.length} cards
-              shown below • {activeFilterCount} filters active
-              {catalogFilling ? " • loading remaining listings" : ""}
+              <Filter className="h-4 w-4 shrink-0" /> {visibleCount} cards
+              match current filters • {activeFilterCount} filters active
+              {isListRefreshing ? " • refreshing" : ""}
               {(promotionType !== "all" || trackingFilter !== "all") && (
                 <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800">
                   {promotionType === "all"
@@ -2395,23 +2253,61 @@ export default function PropertiesDashboard() {
               <CalendarClock className="h-4 w-4 shrink-0" /> Analytics source:
               `/analytics/properties`
             </span>
-            {failed > 0 && (
+            {listFailed && (
               <span className="font-medium text-amber-700">
-                {failed} category could not be loaded
+                Unable to load property cards
               </span>
             )}
           </div>
         </div>
 
-        {isInitialListLoading ? (
-          <div className="flex min-h-72 items-center justify-center">
-            <LoadingSpinner />
+        {listFailed && !paginatedProperties.length ? (
+          <div
+            id="property-cards-grid"
+            className="mt-4 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-rose-200 bg-white text-center"
+          >
+            <MapPin className="h-9 w-9 text-rose-300" />
+            <p className="mt-3 font-semibold text-[#0f3d2e]">Unable to load properties</p>
+            <p className="mt-1 max-w-sm text-sm text-[#5c7d6d]">
+              The card list failed. Analytics above are unchanged.
+            </p>
+            <button
+              type="button"
+              onClick={() => listingsQuery.refetch()}
+              className="mt-4 rounded-full bg-[#27AE60] px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_14px_rgba(18,161,80,0.24)]"
+            >
+              Retry
+            </button>
           </div>
-        ) : visibleProperties.length ? (
+        ) : isInitialListLoading ? (
+          <div
+            id="property-cards-grid"
+            className="mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3"
+          >
+            {Array.from({ length: Math.min(PAGE_SIZE, 6) }).map((_, index) => (
+              <div
+                key={`property-skel-${index}`}
+                className="h-48 animate-pulse rounded-2xl border border-emerald-100 bg-white"
+              >
+                <div className="flex h-full gap-3 p-3">
+                  <div className="w-40 shrink-0 rounded-xl bg-emerald-50" />
+                  <div className="flex flex-1 flex-col justify-between py-1">
+                    <div className="h-4 w-2/3 rounded bg-emerald-50" />
+                    <div className="h-3 w-1/2 rounded bg-emerald-50" />
+                    <div className="h-3 w-1/3 rounded bg-emerald-50" />
+                    <div className="h-8 w-full rounded bg-emerald-50" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : paginatedProperties.length ? (
           <>
             <div
               id="property-cards-grid"
-              className="mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3"
+              className={`mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 ${
+                isListRefreshing ? "opacity-70" : ""
+              }`}
             >
               {paginatedProperties.map((property, index) => (
                 <PropertyGridCard
@@ -2431,43 +2327,56 @@ export default function PropertiesDashboard() {
                 />
               ))}
             </div>
-            {visibleProperties.length > PAGE_SIZE && (
-            <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-sm sm:flex-row sm:items-center sm:justify-between">
-              <span className="font-medium text-slate-500">
-                Showing {(safePage - 1) * PAGE_SIZE + 1}-
-                {Math.min(safePage * PAGE_SIZE, visibleProperties.length)} of{" "}
-                {visibleProperties.length}
+            {(visibleCount > 0 || safePage > 1 || listItems.length > 0) && (
+            <div className={`mt-4 flex flex-col gap-3 rounded-2xl p-3 text-xs sm:flex-row sm:items-center sm:justify-between ${saSurface}`}>
+              <span className="font-medium text-[#5c7d6d]">
+                {listingMetaRef.current.hasCount
+                  ? `Showing ${visibleCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}-${Math.min(safePage * PAGE_SIZE, visibleCount)} of ${visibleCount}`
+                  : `Page ${safePage}`}
               </span>
               <div className="flex max-w-full items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
                 <button
                   type="button"
                   disabled={safePage === 1}
                   onClick={() => setPage(Math.max(1, safePage - 1))}
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-full border border-emerald-100 px-3 py-1.5 font-medium text-[#0f3d2e] transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Previous
                 </button>
-                {pageNumbers.map((pageNumber, index) => (
-                  <button
-                    key={`${pageNumber}-${index}`}
-                    type="button"
-                    onClick={() => setPage(pageNumber)}
-                    className={`h-8 min-w-8 rounded-lg px-2 font-medium transition ${
-                      safePage === pageNumber
-                        ? "bg-emerald-600 text-white"
-                        : "border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
-                    }`}
-                  >
-                    {pageNumber}
-                  </button>
-                ))}
+                {pageNumbers.flatMap((pageNumber, index) => {
+                  const prev = pageNumbers[index - 1];
+                  const gap = prev && pageNumber - prev > 1;
+                  return [
+                    gap ? (
+                      <span key={`gap-${pageNumber}`} className="px-1 text-[#5c7d6d]">
+                        …
+                      </span>
+                    ) : null,
+                    <button
+                      key={`${pageNumber}-${index}`}
+                      type="button"
+                      onClick={() => setPage(pageNumber)}
+                      className={`h-8 min-w-8 rounded-lg px-2 font-medium transition ${
+                        safePage === pageNumber
+                          ? "bg-[#27AE60] text-white"
+                          : "border border-emerald-100 text-[#0f3d2e] hover:border-emerald-300 hover:text-emerald-700"
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>,
+                  ];
+                })}
                 <button
                   type="button"
-                  disabled={safePage === totalPages}
+                  disabled={!hasNextPage}
                   onClick={() =>
-                    setPage(Math.min(totalPages, safePage + 1))
+                    setPage(
+                      listingMetaRef.current.hasCount
+                        ? Math.min(totalPages, safePage + 1)
+                        : safePage + 1,
+                    )
                   }
-                  className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium text-slate-600 transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-full border border-emerald-100 px-3 py-1.5 font-medium text-[#0f3d2e] transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Next
                 </button>
@@ -2478,13 +2387,13 @@ export default function PropertiesDashboard() {
         ) : (
           <div
             id="property-cards-grid"
-            className="mt-4 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-center"
+            className="mt-4 flex min-h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-emerald-100 bg-white text-center"
           >
-            <MapPin className="h-9 w-9 text-slate-300" />
-            <p className="mt-3 font-medium text-slate-700">
+            <MapPin className="h-9 w-9 text-emerald-200" />
+            <p className="mt-3 font-semibold text-[#0f3d2e]">
               No matching properties
             </p>
-            <p className="mt-1 max-w-sm text-sm text-slate-400">
+            <p className="mt-1 max-w-sm text-sm text-[#5c7d6d]">
               {promotionType !== "all" || trackingFilter !== "all"
                 ? `No cards for ${
                     promotionType === "all"

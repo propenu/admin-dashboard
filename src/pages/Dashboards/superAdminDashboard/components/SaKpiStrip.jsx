@@ -7,6 +7,7 @@ import {
   Users,
   UserRoundSearch,
 } from "lucide-react";
+import { saSurface, saSurfaceHover } from "../dashboardSurface";
 
 const ICONS = {
   revenue: IndianRupee,
@@ -18,13 +19,7 @@ const ICONS = {
   subs: CreditCard,
 };
 
-const toneIcon = {
-  emerald: "bg-emerald-50 text-emerald-700 border-emerald-100",
-  blue: "bg-sky-50 text-sky-700 border-sky-100",
-  amber: "bg-amber-50 text-amber-700 border-amber-100",
-  rose: "bg-rose-50 text-rose-700 border-rose-100",
-  violet: "bg-violet-50 text-violet-700 border-violet-100",
-};
+const iconTone = "border-[#b7e4c7] bg-[#e8f8ee] text-[#128C45]";
 
 function KpiCard({ kpi, active, onClick, size = "mobile" }) {
   const Icon = ICONS[kpi.key] || Users;
@@ -41,8 +36,8 @@ function KpiCard({ kpi, active, onClick, size = "mobile" }) {
           : "min-h-[3.25rem] gap-2 rounded-xl border px-2.5 py-2"
       } ${
         active
-          ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
-          : "border-slate-200 bg-white hover:border-emerald-300"
+          ? "border-[#27AE60] bg-[#27AE60] text-white shadow-[0_8px_18px_-6px_rgba(37,211,102,0.55)]"
+          : `${saSurface} ${saSurfaceHover}`
       }`}
     >
       <div
@@ -51,7 +46,7 @@ function KpiCard({ kpi, active, onClick, size = "mobile" }) {
         } ${
           active
             ? "border-white/25 bg-white/15 text-white"
-            : toneIcon[kpi.tone] || toneIcon.emerald
+            : iconTone
         }`}
       >
         <Icon className={isMobile ? "h-3.5 w-3.5" : "h-4 w-4"} strokeWidth={2.2} />
@@ -60,14 +55,14 @@ function KpiCard({ kpi, active, onClick, size = "mobile" }) {
         <p
           className={`truncate font-medium ${
             isMobile ? "text-[9px]" : "text-[10px]"
-          } ${active ? "text-emerald-50" : "text-slate-500"}`}
+          } ${active ? "text-white" : "text-[#5c7d6d]"}`}
         >
           {kpi.label}
         </p>
         <p
           className={`mt-0.5 truncate font-bold tabular-nums ${
             isMobile ? "text-[13px]" : "text-sm"
-          } ${active ? "text-white" : "text-slate-900"}`}
+          } ${active ? "text-white" : "text-[#0f3d2e]"}`}
         >
           {kpi.value}
         </p>
@@ -81,45 +76,49 @@ function KpiCard({ kpi, active, onClick, size = "mobile" }) {
  * desktop → one row of 7 (large screens)
  * compact → 2 / 3 / 4 cols (phone + tablet)
  */
+function KpiSkeleton({ size = "mobile" }) {
+  return (
+    <div
+      className={`w-full animate-pulse rounded-xl border border-[#b7e4c7] bg-[#e8f8ee]/70 ${
+        size === "mobile" ? "min-h-[2.85rem]" : "min-h-[3.25rem]"
+      }`}
+      aria-busy="true"
+      aria-label="Loading metric"
+    />
+  );
+}
+
 export default function SaKpiStrip({
   kpis = [],
   onMetricClick,
   activeKey,
   layout = "compact",
+  loadingMap = {},
 }) {
   const isDesktop = layout === "desktop";
+  const cards = kpis.length
+    ? kpis
+    : ["revenue", "users", "listings", "projects", "leads", "tickets", "subs"].map(
+        (key) => ({ key, label: "", value: "", tone: "emerald" }),
+      );
 
-  if (!kpis.length) {
-    return (
-      <div
-        className={`grid gap-1.5 ${
-          isDesktop
-            ? "grid-cols-7 gap-2"
-            : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
-        }`}
-      >
-        {Array.from({ length: 7 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-11 animate-pulse rounded-xl border border-slate-100 bg-slate-50 sm:h-12"
-          />
-        ))}
-      </div>
+  const renderCard = (kpi, size) =>
+    loadingMap[kpi.key] || !kpi.label ? (
+      <KpiSkeleton key={kpi.key} size={size} />
+    ) : (
+      <KpiCard
+        key={kpi.key}
+        kpi={kpi}
+        size={size}
+        active={activeKey === kpi.key}
+        onClick={() => onMetricClick?.(kpi)}
+      />
     );
-  }
 
   if (isDesktop) {
     return (
       <div className="grid grid-cols-7 gap-2">
-        {kpis.map((kpi) => (
-          <KpiCard
-            key={kpi.key}
-            kpi={kpi}
-            size="desktop"
-            active={activeKey === kpi.key}
-            onClick={() => onMetricClick?.(kpi)}
-          />
-        ))}
+        {cards.map((kpi) => renderCard(kpi, "desktop"))}
       </div>
     );
   }
@@ -127,27 +126,11 @@ export default function SaKpiStrip({
   return (
     <>
       <div className="grid grid-cols-2 gap-1.5 sm:hidden">
-        {kpis.map((kpi) => (
-          <KpiCard
-            key={kpi.key}
-            kpi={kpi}
-            size="mobile"
-            active={activeKey === kpi.key}
-            onClick={() => onMetricClick?.(kpi)}
-          />
-        ))}
+        {cards.map((kpi) => renderCard(kpi, "mobile"))}
       </div>
 
       <div className="hidden gap-2 sm:grid sm:grid-cols-3 md:grid-cols-4">
-        {kpis.map((kpi) => (
-          <KpiCard
-            key={kpi.key}
-            kpi={kpi}
-            size="desktop"
-            active={activeKey === kpi.key}
-            onClick={() => onMetricClick?.(kpi)}
-          />
-        ))}
+        {cards.map((kpi) => renderCard(kpi, "desktop"))}
       </div>
     </>
   );

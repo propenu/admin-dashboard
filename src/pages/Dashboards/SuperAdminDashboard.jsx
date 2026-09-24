@@ -15,6 +15,7 @@ import SaMobileSectionTabs, {
   TABS,
 } from "./superAdminDashboard/components/SaMobileSectionTabs";
 import { formatINR } from "./superAdminDashboard/superAdminDashboardData";
+import { saSurface } from "./superAdminDashboard/dashboardSurface";
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
@@ -93,31 +94,13 @@ export default function SuperAdminDashboard() {
     contentTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [mobileTab, isCompact]);
 
-  if (dashboard.isLoading) {
-    return (
-      <div className={`space-y-3 ${isCompact ? "pb-24" : "pb-6"}`}>
-        <div className="h-20 animate-pulse rounded-2xl bg-emerald-50" />
-        <div
-          className={`grid gap-2 ${
-            isDesktop
-              ? "grid-cols-7"
-              : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4"
-          }`}
-        >
-          {Array.from({ length: 7 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-2xl bg-emerald-50" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   const engagementBlock = (
     <SaEngagementPanel
       engagement={dashboard.engagement}
       rangeLabel={dashboard.rangeLabel}
       isLoading={dashboard.engagementLoading}
       isError={dashboard.engagementError && !dashboard.engagement}
+      onRetry={() => dashboard.retrySection?.("engagement")}
       onOpenActivity={() => go("/all-users-activity")}
     />
   );
@@ -127,6 +110,7 @@ export default function SuperAdminDashboard() {
       paymentDonut={dashboard.paymentDonut}
       planRows={dashboard.planRows}
       summary={dashboard.summary}
+      isLoading={dashboard.sectionLoading?.finance}
       onOpenPayments={() => go("/payments-list")}
       onOpenPlans={() => go("/revenue-by-plan")}
     />
@@ -137,6 +121,7 @@ export default function SuperAdminDashboard() {
       propertyStatus={dashboard.propertyStatus}
       projectStatus={dashboard.projectStatus}
       summary={dashboard.summary}
+      isLoading={dashboard.sectionLoading?.inventory}
       onOpenProperties={openProperties}
       onOpenProjects={openProjects}
     />
@@ -162,7 +147,7 @@ export default function SuperAdminDashboard() {
 
   return (
     <div
-      className={`mx-auto max-w-[1680px] space-y-3 text-slate-900 ${
+      className={`mx-auto max-w-[1680px] space-y-3 text-[#0f3d2e] ${
         isCompact
           ? "pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]"
           : "pb-6"
@@ -192,8 +177,49 @@ export default function SuperAdminDashboard() {
         }}
       />
 
+      {dashboard.sectionError?.summary ||
+      dashboard.sectionError?.users ||
+      dashboard.sectionError?.inventory ||
+      dashboard.sectionError?.leads ||
+      dashboard.sectionError?.tickets ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+          <p>
+            {dashboard.sectionError.summary
+              ? "Some finance totals could not be refreshed."
+              : dashboard.sectionError.users
+                ? "User counts could not be refreshed."
+                : dashboard.sectionError.inventory
+                  ? "Listing or project totals could not be refreshed."
+                  : dashboard.sectionError.leads
+                    ? "Lead totals could not be refreshed."
+                    : "Ticket totals could not be refreshed."}
+            {" "}Showing last good values where available.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              dashboard.retrySection(
+                dashboard.sectionError.summary
+                  ? "finance"
+                  : dashboard.sectionError.users
+                    ? "users"
+                    : dashboard.sectionError.inventory
+                      ? "inventory"
+                      : dashboard.sectionError.leads
+                        ? "leads"
+                        : "tickets",
+              )
+            }
+            className="rounded-lg border border-amber-300 bg-white px-2 py-1 font-semibold text-amber-800 hover:bg-amber-100"
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
       <SaKpiStrip
         kpis={dashboard.kpis}
+        loadingMap={dashboard.kpiLoading}
         activeKey={activeKpi}
         layout={isDesktop ? "desktop" : "compact"}
         onMetricClick={(kpi) => {
@@ -205,15 +231,16 @@ export default function SuperAdminDashboard() {
       {isCompact ? (
         <>
           <div ref={contentTopRef} style={{ scrollMarginTop: "4.75rem" }}>
-            <section className="sa-panel-enter overflow-hidden rounded-2xl border border-emerald-200/90 bg-gradient-to-b from-emerald-50/90 via-white to-lime-50/40 shadow-[0_12px_40px_rgba(16,185,129,0.14)] ring-1 ring-emerald-100">
-              <header className="relative overflow-hidden border-b border-emerald-100 bg-gradient-to-r from-emerald-600 via-emerald-500 to-lime-500 px-3.5 py-3 text-white sm:px-4">
-                <span className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/15 blur-2xl sa-orb" />
-                <span className="pointer-events-none absolute -bottom-10 left-10 h-20 w-20 rounded-full bg-lime-200/30 blur-2xl sa-orb-delay" />
-                <p className="relative text-sm font-black tracking-tight sm:text-base">
+            <section className={`sa-panel-enter overflow-hidden rounded-2xl ${saSurface}`}>
+              <header className="border-b border-emerald-50 bg-[#f7fbf8] px-3.5 py-3 sm:px-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                   {activeTabMeta.label}
                 </p>
-                <p className="relative mt-0.5 text-[10px] font-medium text-emerald-50 sm:text-[11px]">
-                  {activeTabMeta.hint} · use tabs below to switch
+                <p className="mt-0.5 text-sm font-semibold tracking-tight text-[#0f3d2e] sm:text-base">
+                  {activeTabMeta.hint}
+                </p>
+                <p className="mt-0.5 text-[10px] font-medium text-[#5c7d6d] sm:text-[11px]">
+                  Use the tabs below to switch sections
                 </p>
               </header>
 

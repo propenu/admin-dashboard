@@ -12,26 +12,27 @@ const withRange = (params = {}) => {
 };
 
 // ===== Dashboard Summary =====
-export const getAccountsSummary = async (params = {}) =>
-  apiClient.get(`${SERVICES.PAYMENT}/accounts/summary${withRange(params)}`);
+export const getAccountsSummary = async (params = {}, config = {}) =>
+  apiClient.get(`${SERVICES.PAYMENT}/accounts/summary${withRange(params)}`, config);
 
 // ===== Payments List (Paid / Failed) =====
-export const getPaymentsList = async (status, params = {}) =>
+export const getPaymentsList = async (status, params = {}, config = {}) =>
   apiClient.get(
     `${SERVICES.PAYMENT}/accounts/payments${withRange({
       status,
       ...params,
     })}`,
+    config,
   );
 
 // ===== Active Subscriptions =====
-export const getActiveSubscriptions = async (params = {}) =>
-  apiClient.get(`${SERVICES.PAYMENT}/accounts/subscriptions${withRange(params)}`);
+export const getActiveSubscriptions = async (params = {}, config = {}) =>
+  apiClient.get(`${SERVICES.PAYMENT}/accounts/subscriptions${withRange(params)}`, config);
 
 // ===== Subscription History =====
 export const getSubscriptionHistory = async () =>
   apiClient.get(`${SERVICES.PAYMENT}/accounts/subscription-history`);
 
 // ===== Revenue By Plan =====
-export const getRevenueByPlan = async (params = {}) =>
-  apiClient.get(`${SERVICES.PAYMENT}/accounts/revenue/by-plan${withRange(params)}`);
+export const getRevenueByPlan = async (params = {}, config = {}) =>
+  apiClient.get(`${SERVICES.PAYMENT}/accounts/revenue/by-plan${withRange(params)}`, config);
