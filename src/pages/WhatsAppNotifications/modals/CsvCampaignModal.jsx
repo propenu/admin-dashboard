@@ -99,31 +99,66 @@ function guessPhoneHeader(headers = []) {
 
 /**
  * Auto-map {{1}}, {{2}}, … to file columns (skip phone).
- * Prefers Name for {{1}}, City for {{2}}, etc.
+ * Prefers columns that actually have data in the uploaded rows.
  */
-function guessVarMapping(headers = [], varCount = 0, phoneHeader = "") {
+function columnFillScore(headers, rows, header) {
+  if (!header || !rows?.length) return 0;
+  let filled = 0;
+  for (const row of rows) {
+    const key = Object.keys(row).find(
+      (k) => k.trim().toLowerCase() === header.trim().toLowerCase(),
+    );
+    if (key && String(row[key] ?? "").trim()) filled += 1;
+  }
+  return filled / rows.length;
+}
+
+function guessVarMapping(headers = [], varCount = 0, phoneHeader = "", rows = []) {
   const mapping = {};
   if (!varCount) return mapping;
   const phoneLc = String(phoneHeader || "").trim().toLowerCase();
   const usable = headers
     .map((h) => String(h || "").trim())
-    .filter((h) => h && h.toLowerCase() !== phoneLc);
+    .filter((h) => h && h.toLowerCase() !== phoneLc)
+    // Skip status/role-ish columns for early vars unless nothing else exists
+    .filter((h) => !/^(no|s\.?\s*no|sl\.?\s*no|#|id)$/i.test(h));
 
   const preferFor = [
     /^(name|full.?name|first.?name|customer|client)$/i,
-    /^(city|location|place|area)$/i,
+    /^(city|location|place|area|locality)$/i,
     /^(state|region)$/i,
-    /^(locality|area|zone)$/i,
-    /^(company|business|org)$/i,
+    /^(email|mail)$/i,
+    /^(role|company|business|org)$/i,
   ];
 
   const used = new Set();
   for (let i = 1; i <= varCount; i++) {
     const prefer = preferFor[i - 1];
-    let pick = prefer
-      ? usable.find((h) => !used.has(h) && prefer.test(h))
-      : null;
-    if (!pick) pick = usable.find((h) => !used.has(h));
+    let candidates = usable.filter((h) => !used.has(h));
+    // Prefer preferred name match with data
+    let pick = null;
+    if (prefer) {
+      const preferred = candidates.filter((h) => prefer.test(h));
+      preferred.sort(
+        (a, b) =>
+          columnFillScore(headers, rows, b) - columnFillScore(headers, rows, a),
+      );
+      pick = preferred.find((h) => columnFillScore(headers, rows, h) > 0) || null;
+    }
+    // Else any unused column that has data
+    if (!pick) {
+      candidates = candidates
+        .slice()
+        .sort(
+          (a, b) =>
+            columnFillScore(headers, rows, b) -
+            columnFillScore(headers, rows, a),
+        );
+      pick =
+        candidates.find((h) => columnFillScore(headers, rows, h) > 0) ||
+        candidates[0] ||
+        null;
+    }
     if (pick) {
       mapping[String(i)] = pick;
       used.add(pick);
@@ -250,6 +285,7 @@ export function CsvCampaignModal({
       setFieldMapping({});
       return;
     }
+    const rows = filePreview?.rows || [];
     setFieldMapping((prev) => {
       const next = { ...prev };
       let changed = false;
@@ -261,17 +297,35 @@ export function CsvCampaignModal({
         }
       });
       const phone = phoneField || guessPhoneHeader(fileHeaders);
-      const guessed = guessVarMapping(fileHeaders, templateVarCount, phone);
+      const guessed = guessVarMapping(
+        fileHeaders,
+        templateVarCount,
+        phone,
+        rows,
+      );
       for (let i = 1; i <= templateVarCount; i++) {
         const k = String(i);
-        if (!next[k] || !fileHeaders.includes(next[k])) {
-          next[k] = guessed[k] || "";
-          changed = true;
+        const current = next[k];
+        const currentOk =
+          current &&
+          fileHeaders.includes(current) &&
+          columnFillScore(fileHeaders, rows, current) > 0;
+        if (!currentOk) {
+          const better = guessed[k] || "";
+          if (better !== current) {
+            next[k] = better;
+            changed = true;
+          }
         }
       }
       return changed ? next : prev;
     });
-  }, [fileHeaders.join("|"), templateVarCount, phoneField]);
+  }, [
+    fileHeaders.join("|"),
+    templateVarCount,
+    phoneField,
+    filePreview?.rows?.length,
+  ]);
 
   const mappedExamples = useMemo(() => {
     if (!templateVarCount) return previewForm?.body?.examples || [];
@@ -931,8 +985,8 @@ export function CsvCampaignModal({
                       Recipient check
                     </p>
                     <p className="text-[11px] text-[#5c7d6d]">
-                      Automatic filtering before send — invalid or opted-out
-                      rows are excluded from the campaign.
+                      Phone, duplicates, and opt-outs are excluded. Empty
+                      template fields are warnings only — send still works.
                     </p>
                   </div>
 
@@ -960,19 +1014,21 @@ export function CsvCampaignModal({
                   </p>
 
                   <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#5c7d6d]">
-                    Why contacts were excluded
+                    Issues found
                   </p>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {[
-                      ["duplicates", Copy],
-                      ["invalid_numbers", PhoneOff],
-                      ["missing_numbers", UserMinus],
-                      ["opted_out", Ban],
-                      ["missing_values", AlertTriangle],
-                      ["missing_images", ImageOff],
-                    ].map(([key, Icon]) => {
+                      ["duplicates", Copy, false],
+                      ["invalid_numbers", PhoneOff, false],
+                      ["missing_numbers", UserMinus, false],
+                      ["opted_out", Ban, false],
+                      ["missing_values", AlertTriangle, true],
+                      ["missing_images", ImageOff, false],
+                    ].map(([key, Icon, soft]) => {
                       const count = Number(recipientCheck.counts[key] || 0);
                       const active = reviewCategory === key;
+                      const warnColor = soft ? "text-amber-600" : "text-rose-500";
+                      const warnNum = soft ? "text-amber-700" : "text-rose-700";
                       return (
                         <button
                           key={key}
@@ -980,7 +1036,9 @@ export function CsvCampaignModal({
                           onClick={() => setReviewCategory(key)}
                           className={`rounded-xl border px-2.5 py-2 text-left transition ${
                             active
-                              ? "border-emerald-400 bg-emerald-50 shadow-sm"
+                              ? soft
+                                ? "border-amber-400 bg-amber-50 shadow-sm"
+                                : "border-emerald-400 bg-emerald-50 shadow-sm"
                               : "border-emerald-100 bg-slate-50/80 hover:border-emerald-200"
                           }`}
                         >
@@ -988,7 +1046,7 @@ export function CsvCampaignModal({
                             <Icon
                               size={14}
                               className={
-                                count > 0 ? "text-rose-500" : "text-slate-400"
+                                count > 0 ? warnColor : "text-slate-400"
                               }
                             />
                             <span className="text-[10px] font-bold text-slate-700">
@@ -997,7 +1055,7 @@ export function CsvCampaignModal({
                           </div>
                           <p
                             className={`text-base font-extrabold ${
-                              count > 0 ? "text-rose-700" : "text-slate-500"
+                              count > 0 ? warnNum : "text-slate-500"
                             }`}
                           >
                             {count}

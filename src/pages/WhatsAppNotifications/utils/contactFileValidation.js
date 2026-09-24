@@ -1,6 +1,7 @@
 /**
  * Contact file validation for WhatsApp CSV / Excel campaigns.
- * Normalizes phones, flags invalid/missing/duplicate/opt-out/missing-mapped values.
+ * Phone / opt-out / duplicates exclude rows.
+ * Empty template vars are warnings only (backend fills "Customer").
  */
 
 export function digitsOnly(value) {
@@ -11,11 +12,8 @@ export function digitsOnly(value) {
 export function normalizePhoneDigits(raw) {
   let digits = digitsOnly(raw);
   if (!digits) return "";
-  // Strip leading 00 international prefix
   if (digits.startsWith("00")) digits = digits.slice(2);
-  // Indian 10-digit → 91…
   if (digits.length === 10) return `91${digits}`;
-  // 0XXXXXXXXXX (11 digits starting with 0)
   if (digits.length === 11 && digits.startsWith("0")) {
     return `91${digits.slice(1)}`;
   }
@@ -23,7 +21,7 @@ export function normalizePhoneDigits(raw) {
 }
 
 /**
- * Valid WhatsApp recipient number for Propenu (India-first, allow E.164-ish).
+ * Valid WhatsApp recipient number for Propenu (India-first).
  * Returns { ok, reason?, normalized? }
  */
 export function validatePhoneNumber(raw) {
@@ -37,7 +35,11 @@ export function validatePhoneNumber(raw) {
     return { ok: false, reason: "invalid_number" };
   }
 
-  if (/^0+$/.test(digits) || /^1{10,}$/.test(digits) || /^1234567890$/.test(digits)) {
+  if (
+    /^0+$/.test(digits) ||
+    /^1{10,}$/.test(digits) ||
+    /^1234567890$/.test(digits)
+  ) {
     return { ok: false, reason: "invalid_number" };
   }
 
@@ -47,7 +49,6 @@ export function validatePhoneNumber(raw) {
     return { ok: false, reason: "invalid_number" };
   }
 
-  // Indian mobile: 91 + 10 digits starting 6–9
   if (normalized.startsWith("91") && normalized.length === 12) {
     const local = normalized.slice(2);
     if (!/^[6-9]\d{9}$/.test(local)) {
@@ -55,7 +56,6 @@ export function validatePhoneNumber(raw) {
     }
   }
 
-  // Bare 10-digit should already be normalized; if somehow still 10:
   if (normalized.length === 10 && !/^[6-9]\d{9}$/.test(normalized)) {
     return { ok: false, reason: "invalid_number" };
   }
@@ -91,27 +91,56 @@ function findOptOutHeader(headers = []) {
         String(h || "").trim(),
       ),
     ) ||
-    headers.find((h) => /opt.?out|unsubscribe/i.test(String(h || ""))) ||
+    headers.find((h) =>
+      /^(opt[_-]?out|opted[_-]?out|unsubscribe)$/i.test(String(h || "").trim()),
+    ) ||
     ""
   );
 }
 
+/** Exact status/consent columns only — not "Account Status" / "Role". */
 function findStatusHeader(headers = []) {
   return (
-    headers.find((h) => /^(status|whatsapp[_-]?status|consent)$/i.test(String(h || "").trim())) ||
-    ""
+    headers.find((h) =>
+      /^(status|whatsapp[_-]?status|consent|opt[_-]?in)$/i.test(
+        String(h || "").trim(),
+      ),
+    ) || ""
   );
+}
+
+function resolveRowValue(row, header) {
+  if (!header) return "";
+  if (Object.prototype.hasOwnProperty.call(row, header)) {
+    return String(row[header] ?? "").trim();
+  }
+  const key = Object.keys(row).find(
+    (k) => k.trim().toLowerCase() === String(header).trim().toLowerCase(),
+  );
+  return key ? String(row[key] ?? "").trim() : "";
+}
+
+function emptyMappedFields(row, fieldMapping, templateVarCount, headers) {
+  const empty = [];
+  if (templateVarCount <= 0) return empty;
+  const headerSet = new Set(
+    (headers || []).map((h) => String(h || "").trim().toLowerCase()),
+  );
+  for (let i = 1; i <= templateVarCount; i++) {
+    const col = fieldMapping[String(i)];
+    if (!col) continue;
+    if (!headerSet.has(String(col).trim().toLowerCase())) {
+      empty.push(`{{${i}}} → "${col}" (column not in file)`);
+      continue;
+    }
+    const val = resolveRowValue(row, col);
+    if (!val) empty.push(`{{${i}}} → ${col} (empty)`);
+  }
+  return empty;
 }
 
 /**
  * @param {object} opts
- * @param {Record<string,string>[]} opts.rows
- * @param {string[]} opts.headers
- * @param {string} opts.phoneField
- * @param {Record<string,string>} opts.fieldMapping  {{1}} → column
- * @param {number} opts.templateVarCount
- * @param {boolean} opts.needsHeaderImage
- * @param {boolean} opts.hasHeaderImage
  */
 export function analyzeContactRows({
   rows = [],
@@ -135,67 +164,79 @@ export function analyzeContactRows({
     missing_images: [],
   };
 
-  const seen = new Map(); // normalized → first excel row
+  const seen = new Map();
   const ready = [];
   const excluded = [];
 
   rows.forEach((row, index) => {
-    const excelRow = index + 2; // header is row 1
+    const excelRow = index + 2;
     const phoneRaw = phoneHeader
-      ? String(row[phoneHeader] ?? "").trim()
+      ? resolveRowValue(row, phoneHeader)
       : "";
 
-    const issues = [];
+    /** Hard excludes only */
+    const hardIssues = [];
+    /** Soft warnings — do not block send (backend uses "Customer") */
+    const softIssues = [];
+    let detectedValue = phoneRaw || "(empty)";
 
-    // Opt-out column
-    if (optOutHeader && isTruthyOptOut(row[optOutHeader])) {
-      issues.push("opted_out");
+    if (optOutHeader && isTruthyOptOut(resolveRowValue(row, optOutHeader))) {
+      hardIssues.push("opted_out");
+      detectedValue = resolveRowValue(row, optOutHeader) || phoneRaw;
     }
     if (
       statusHeader &&
-      /opt.?out|unsub|stop|block/i.test(String(row[statusHeader] ?? ""))
+      /opt.?out|unsub|stop|block/i.test(resolveRowValue(row, statusHeader))
     ) {
-      issues.push("opted_out");
+      hardIssues.push("opted_out");
+      detectedValue = resolveRowValue(row, statusHeader) || phoneRaw;
     }
 
     const phoneCheck = validatePhoneNumber(phoneRaw);
     if (!phoneCheck.ok) {
-      issues.push(phoneCheck.reason || "invalid_number");
+      hardIssues.push(phoneCheck.reason || "invalid_number");
+      detectedValue = phoneRaw || "(empty)";
     } else {
       const key = phoneCheck.normalized;
       if (seen.has(key)) {
-        issues.push("duplicates");
+        hardIssues.push("duplicates");
+        detectedValue = phoneCheck.normalized;
       } else {
         seen.set(key, excelRow);
       }
     }
 
-    // Missing mapped template variables
-    if (templateVarCount > 0) {
-      for (let i = 1; i <= templateVarCount; i++) {
-        const col = fieldMapping[String(i)];
-        if (!col) continue;
-        const val = String(row[col] ?? "").trim();
-        if (!val) {
-          issues.push("missing_values");
-          break;
-        }
-      }
+    const empties = emptyMappedFields(
+      row,
+      fieldMapping,
+      templateVarCount,
+      headers,
+    );
+    if (empties.length) {
+      softIssues.push("missing_values");
+      // Show which template field is empty — not the phone number
+      detectedValue = empties.join("; ");
     }
 
-    const uniqueIssues = [...new Set(issues)];
+    const hardUnique = [...new Set(hardIssues)];
+    const softUnique = [...new Set(softIssues)];
+
     const entry = {
       excelRow,
       phoneRaw,
-      detectedValue: phoneRaw || "(empty)",
+      detectedValue,
       normalized: phoneCheck.normalized || "",
-      issues: uniqueIssues,
+      issues: [...hardUnique, ...softUnique],
       row,
     };
 
-    if (uniqueIssues.length) {
+    softUnique.forEach((code) => {
+      if (categories[code]) categories[code].push(entry);
+    });
+
+    if (hardUnique.length) {
       excluded.push(entry);
-      uniqueIssues.forEach((code) => {
+      hardUnique.forEach((code) => {
         if (categories[code]) categories[code].push(entry);
       });
     } else {
@@ -203,12 +244,11 @@ export function analyzeContactRows({
     }
   });
 
-  // Campaign-level: IMAGE header required but no media
   if (needsHeaderImage && !hasHeaderImage) {
     categories.missing_images.push({
       excelRow: null,
       phoneRaw: "",
-      detectedValue: "Campaign header image",
+      detectedValue: "Campaign header image required",
       issues: ["missing_images"],
       row: null,
     });
@@ -232,8 +272,7 @@ export function analyzeContactRows({
     categories,
     counts,
     canSend:
-      ready.length > 0 &&
-      !(needsHeaderImage && !hasHeaderImage),
+      ready.length > 0 && !(needsHeaderImage && !hasHeaderImage),
   };
 }
 
@@ -252,11 +291,13 @@ export const VALIDATION_CATEGORY_META = {
   },
   opted_out: {
     label: "Opted out",
-    description: "Recipient has stopped marketing messages (opt-out column/status).",
+    description:
+      "Recipient has stopped marketing messages (opt-out column only).",
   },
   missing_values: {
     label: "Missing values",
-    description: "A mapped template field ({{n}}) is empty for this row.",
+    description:
+      "A mapped {{n}} column is empty — send still works (filled as Customer). Remap the column if needed.",
   },
   missing_images: {
     label: "Missing images",
