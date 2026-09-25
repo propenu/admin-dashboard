@@ -1,10 +1,11 @@
 // frontend/admin-dashboard/src/pages/users/AllUserInDetails/EachUserCompoents/RoleUsers.jsx
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   editBuilderProfile,
   editUserProfile,
   getUserSearch,
+  unpackUserSearch,
   requestOtpBuilderPhoneNumber,
   verifyBuilderPhoneNumberOTP,
   requestOtpUserPhoneNumber,
@@ -38,6 +39,8 @@ import {
   Power,
   RotateCcw,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   deleteAccessUser,
@@ -1613,25 +1616,43 @@ const Select = ({
 );
 
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
-const FilterBar = ({ users, filters, setFilters, cfg, lockedState = "" }) => {
-  const states = useMemo(
-    () => [...new Set(users.map((u) => u.state).filter(Boolean))].sort(),
-    [users],
-  );
+const FilterBar = ({
+  users,
+  filters,
+  setFilters,
+  cfg,
+  lockedState = "",
+  locationFacets = {},
+}) => {
+  const states = useMemo(() => {
+    const fromApi = Array.isArray(locationFacets.states)
+      ? locationFacets.states.filter(Boolean)
+      : [];
+    if (fromApi.length) return [...fromApi].sort();
+    return [...new Set(users.map((u) => u.state).filter(Boolean))].sort();
+  }, [locationFacets.states, users]);
   const cities = useMemo(() => {
+    const fromApi = Array.isArray(locationFacets.cities)
+      ? locationFacets.cities.filter(Boolean)
+      : [];
+    if (fromApi.length) return [...fromApi].sort();
     const base = users.filter(
       (u) => !filters.state || u.state === filters.state,
     );
     return [...new Set(base.map((u) => u.city).filter(Boolean))].sort();
-  }, [users, filters.state]);
+  }, [locationFacets.cities, users, filters.state]);
   const localities = useMemo(() => {
+    const fromApi = Array.isArray(locationFacets.localities)
+      ? locationFacets.localities.filter(Boolean)
+      : [];
+    if (fromApi.length) return [...fromApi].sort();
     const base = users.filter(
       (u) =>
         (!filters.state || u.state === filters.state) &&
         (!filters.city || u.city === filters.city),
     );
     return [...new Set(base.map((u) => u.locality).filter(Boolean))].sort();
-  }, [users, filters.state, filters.city]);
+  }, [locationFacets.localities, users, filters.state, filters.city]);
 
   const activeCount = [
     filters.search,
@@ -1779,6 +1800,26 @@ const FilterBar = ({ users, filters, setFilters, cfg, lockedState = "" }) => {
   );
 };
 
+const DIRECTORY_PAGE_SIZE = 12;
+
+function directoryPageItems(current, totalPages) {
+  const pages = Math.max(1, Number(totalPages) || 1);
+  const active = Math.min(Math.max(1, Number(current) || 1), pages);
+  if (pages <= 7) {
+    return Array.from({ length: pages }, (_, index) => index + 1);
+  }
+  const items = [1];
+  const start = Math.max(2, active - 1);
+  const end = Math.min(pages - 1, active + 1);
+  if (start > 2) items.push("ellipsis-start");
+  for (let pageNumber = start; pageNumber <= end; pageNumber += 1) {
+    items.push(pageNumber);
+  }
+  if (end < pages - 1) items.push("ellipsis-end");
+  items.push(pages);
+  return items;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 const RoleUsers = ({ role = "sales_manager" }) => {
   const navigate = useNavigate();
@@ -1800,6 +1841,26 @@ const RoleUsers = ({ role = "sales_manager" }) => {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [paging, setPaging] = useState(false);
+  const [page, setPage] = useState(1);
+  const [listMeta, setListMeta] = useState({
+    total: 0,
+    pages: 1,
+    page: 1,
+    limit: DIRECTORY_PAGE_SIZE,
+    rangeStart: 0,
+    rangeEnd: 0,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
+  const [locationFacets, setLocationFacets] = useState({
+    states: [],
+    cities: [],
+    localities: [],
+  });
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [reloadAt, setReloadAt] = useState(0);
+  const didLoadRef = useRef(false);
   const [viewingUser, setViewingUser] = useState(null);
   const [editingProfile, setEditingProfile] = useState(null);
   const [lockedState, setLockedState] = useState("");
@@ -1890,6 +1951,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
       );
       setDeleteTarget(null);
       toast.success(result?.message || "User permanently deleted");
+      setReloadAt(Date.now());
     } catch (err) {
       toast.error(err?.response?.data?.message || "User deletion failed");
     } finally {
@@ -1905,26 +1967,94 @@ const RoleUsers = ({ role = "sales_manager" }) => {
   }, [urlDay]);
 
   useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDebouncedSearch(filters.search.trim()),
+      350,
+    );
+    return () => window.clearTimeout(timer);
+  }, [filters.search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    role,
+    debouncedSearch,
+    filters.state,
+    filters.city,
+    filters.locality,
+    filters.pincode,
+    filters.joinedDate,
+    urlDay,
+    createdFrom,
+    createdTo,
+  ]);
+
+  useEffect(() => {
     const fetchUsers = async () => {
-      setLoading(true);
+      if (!didLoadRef.current) setLoading(true);
+      else setPaging(true);
       try {
-        const params = { role };
-        const from = urlDay || createdFrom;
-        const to = urlDay || createdTo;
+        const params = {
+          role,
+          page,
+          limit: DIRECTORY_PAGE_SIZE,
+        };
+        const from = filters.joinedDate || urlDay || createdFrom;
+        const to = filters.joinedDate || urlDay || createdTo;
         if (from) params.createdFrom = from;
         if (to) params.createdTo = to;
+        if (debouncedSearch) params.q = debouncedSearch;
+        if (filters.state) params.state = filters.state;
+        if (filters.city) params.city = filters.city;
+        if (filters.locality) params.locality = filters.locality;
+        if (filters.pincode) params.pincode = filters.pincode;
         const response = await getUserSearch(params);
-        setUsers(response?.data?.results || []);
+        const unpacked = unpackUserSearch(response?.data);
+        setUsers(unpacked.results);
+        setListMeta(unpacked.meta);
+        const serverPages = Math.max(1, Number(unpacked.meta?.pages) || 1);
+        if (page > serverPages) setPage(serverPages);
+        setLocationFacets({
+          states: unpacked.facets?.states || [],
+          cities: unpacked.facets?.cities || [],
+          localities: unpacked.facets?.localities || [],
+        });
       } catch (err) {
         console.error(`Failed to fetch ${role}:`, err);
         setUsers([]);
+        setListMeta({
+          total: 0,
+          pages: 1,
+          page: 1,
+          limit: DIRECTORY_PAGE_SIZE,
+          rangeStart: 0,
+          rangeEnd: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        });
+        setLocationFacets({ states: [], cities: [], localities: [] });
       } finally {
+        didLoadRef.current = true;
         setLoading(false);
+        setPaging(false);
       }
     };
 
     fetchUsers();
-  }, [role, urlDay, createdFrom, createdTo]);
+  }, [
+    role,
+    page,
+    debouncedSearch,
+    filters.state,
+    filters.city,
+    filters.locality,
+    filters.pincode,
+    filters.joinedDate,
+    urlDay,
+    createdFrom,
+    createdTo,
+    reloadAt,
+  ]);
   const handleWorkInProgress = (id) => navigate(`/dashboard/users/${id}`);
 
   const handleProfileUpdated = (id, payload) => {
@@ -1935,26 +2065,6 @@ const RoleUsers = ({ role = "sales_manager" }) => {
       }),
     );
   };
-
-  const filtered = useMemo(() => {
-    const q = filters.search.toLowerCase();
-    return users.filter((u) => {
-      const createdDate = toDateInputValue(u.createdAt);
-      const searchable = `${getSearchableUserText(u)} ${createdDate}`;
-
-      if (q && !searchable.includes(q))
-        return false;
-      if (lockedState && u.state !== lockedState) return false;
-      if (filters.state && u.state !== filters.state) return false;
-      if (filters.city && u.city !== filters.city) return false;
-      if (filters.locality && u.locality !== filters.locality) return false;
-      if (filters.pincode && !u.pincode?.includes(filters.pincode))
-        return false;
-      if (filters.joinedDate && createdDate !== filters.joinedDate)
-        return false;
-      return true;
-    });
-  }, [users, filters, lockedState]);
 
   // Page background tint per role
   const pageBg =
@@ -1967,6 +2077,20 @@ const RoleUsers = ({ role = "sales_manager" }) => {
       accounts: "bg-[#faf8ff]",
       customer_care: "bg-[#f0fbff]",
     }[role] || "bg-[#f5fcf8]";
+
+  const totalPages = Math.max(
+    1,
+    Number(listMeta.pages) ||
+      Math.ceil(Number(listMeta.total || 0) / DIRECTORY_PAGE_SIZE) ||
+      1,
+  );
+
+  const goToPage = (nextPage) => {
+    const safe = Math.min(totalPages, Math.max(1, Number(nextPage) || 1));
+    if (safe === page) return;
+    setPage(safe);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <>
@@ -2027,13 +2151,15 @@ const RoleUsers = ({ role = "sales_manager" }) => {
               </h1>
             </div>
           </div>
-          {!loading && users.length > 0 && (
+          {!loading && (
             <div className="flex flex-col items-end">
               <span
                 className="text-[36px] font-extrabold leading-none"
                 style={{ color: cfg.accent }}
               >
-                {users.length.toString().padStart(2, "0")}
+                {Number(listMeta.total || 0)
+                  .toString()
+                  .padStart(2, "0")}
               </span>
               <span className="text-[10px] text-gray-400 tracking-[2px] uppercase font-medium">
                 Total
@@ -2054,7 +2180,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
         />
 
         {/* Filter bar */}
-        {!loading && users.length > 0 && (
+        {!loading && (
           <div className="mb-6">
             <FilterBar
               users={users}
@@ -2062,6 +2188,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
               setFilters={setFilters}
               cfg={cfg}
               lockedState={lockedState}
+              locationFacets={locationFacets}
             />
           </div>
         )}
@@ -2088,7 +2215,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
               Loading {cfg.label}s…
             </p>
           </div>
-        ) : users.length === 0 ? (
+        ) : listMeta.total === 0 && users.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-28 gap-4">
             <div
               className="w-16 h-16 rounded-2xl bg-white border shadow-sm flex items-center justify-center"
@@ -2100,7 +2227,7 @@ const RoleUsers = ({ role = "sales_manager" }) => {
               No {cfg.label}s Found
             </p>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : users.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
             <div className="w-14 h-14 rounded-2xl bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-300">
               <Search size={24} />
@@ -2128,11 +2255,15 @@ const RoleUsers = ({ role = "sales_manager" }) => {
         ) : (
           <>
             <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mb-4">
-              Showing {filtered.length} of {users.length}{" "}
+              Showing {listMeta.rangeStart}–{listMeta.rangeEnd} of {listMeta.total}{" "}
               {cfg.label.toLowerCase()}s
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filtered.map((user, idx) => (
+            <div
+              className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 ${
+                paging ? "pointer-events-none opacity-50" : ""
+              }`}
+            >
+              {users.map((user, idx) => (
                 <UserCard
                   key={user._id || user.userId}
                   user={user}
@@ -2153,6 +2284,58 @@ const RoleUsers = ({ role = "sales_manager" }) => {
                 />
               ))}
             </div>
+            {listMeta.total > 0 && (
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  disabled={paging || page <= 1}
+                  onClick={() => goToPage(page - 1)}
+                  className="inline-flex h-9 items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft size={14} />
+                  Previous
+                </button>
+                {directoryPageItems(page, totalPages).map((item) =>
+                  typeof item === "string" ? (
+                    <span
+                      key={item}
+                      className="px-1 text-xs font-bold text-gray-400"
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      disabled={paging}
+                      onClick={() => goToPage(item)}
+                      className={`h-9 min-w-[36px] rounded-xl border px-2 text-xs font-extrabold transition-colors disabled:cursor-not-allowed ${
+                        item === page
+                          ? "border-transparent text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                      }`}
+                      style={
+                        item === page
+                          ? { background: cfg.accent }
+                          : undefined
+                      }
+                    >
+                      {item}
+                    </button>
+                  ),
+                )}
+                <button
+                  type="button"
+                  disabled={paging || page >= totalPages}
+                  onClick={() => goToPage(page + 1)}
+                  className="inline-flex h-9 items-center gap-1 rounded-xl px-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ background: cfg.accent }}
+                >
+                  Next
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

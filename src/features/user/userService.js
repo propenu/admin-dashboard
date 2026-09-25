@@ -214,26 +214,39 @@ export const getUserSearch = (queryOrParams, extraParams = {}) => {
 
 /** Normalize /auth/search payload → { results, meta } */
 export const unpackUserSearch = (payload) => {
-  const body = payload?.data ?? payload;
-  const results = Array.isArray(body?.results)
-    ? body.results
-    : Array.isArray(body?.data)
-      ? body.data
-      : Array.isArray(body)
-        ? body
+  const root = payload?.data && !Array.isArray(payload.data) && payload.data.meta
+    ? payload.data
+    : payload?.results || payload?.meta
+      ? payload
+      : payload?.data ?? payload;
+  const results = Array.isArray(root?.results)
+    ? root.results
+    : Array.isArray(root?.data)
+      ? root.data
+      : Array.isArray(root)
+        ? root
         : [];
-  const meta = {
-    total: Number(body?.meta?.total ?? body?.count ?? results.length) || 0,
-    page: Math.max(1, Number(body?.meta?.page) || 1),
-    limit: Math.max(1, Number(body?.meta?.limit) || 20),
-    pages: Math.max(1, Number(body?.meta?.pages) || 1),
-    hasMore: Boolean(
-      body?.meta?.hasMore ??
-        (Number(body?.meta?.page || 1) * Number(body?.meta?.limit || 20) <
-          Number(body?.meta?.total || 0)),
-    ),
+  const meta = root?.meta || {};
+  const limit = Math.max(1, Number(meta.limit) || 12);
+  const page = Math.max(1, Number(meta.page) || 1);
+  const total = Number(meta.total ?? root?.count ?? results.length) || 0;
+  const pages = Math.max(1, Number(meta.pages) || Math.ceil(total / limit) || 1);
+  return {
+    results,
+    meta: {
+      total,
+      page,
+      limit,
+      pages,
+      hasMore: Boolean(meta.hasMore ?? page < pages),
+      hasNextPage: Boolean(meta.hasNextPage ?? page < pages),
+      hasPreviousPage: Boolean(meta.hasPreviousPage ?? page > 1),
+      rangeStart: Number(meta.rangeStart) || (total === 0 ? 0 : (page - 1) * limit + 1),
+      rangeEnd: Number(meta.rangeEnd) || Math.min(page * limit, total),
+    },
+    facets: root?.facets || payload?.facets || {},
+    count: results.length,
   };
-  return { results, meta, count: results.length };
 };
 
 //User Details

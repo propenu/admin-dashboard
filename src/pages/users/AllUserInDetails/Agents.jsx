@@ -1,8 +1,9 @@
 // frontend/admin-dashboard/src/pages/users/AllUserInDetails/EachUserCompoents/Agents.jsx
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   getUserSearch,
+  unpackUserSearch,
   editAgentVerificationStatus,
   editAgent,
   postRegisteredAgent,
@@ -11,7 +12,7 @@ import {
   Mail, Phone, Shield, UsersIcon, ChevronDown, X,
   CheckCircle, Clock, XCircle, Loader2, MapPin, Building2,
   Star, Briefcase, Award, Languages, Search, Filter, SlidersHorizontal,
-  Hash, CalendarDays, TrendingUp, Home, ChevronRight, Eye, User,
+  Hash, CalendarDays, TrendingUp, Home, ChevronRight, ChevronLeft, Eye, User,
   FileText, Globe, Image, LinkIcon, BadgeCheck,
   AlertTriangle,
   LucideCalendarDays,
@@ -1525,19 +1526,54 @@ const AgentCard = ({
 };
 
 // ─── Filter Bar ────────────────────────────────────────────────────────────
-const FilterBar = ({ agents, filters, setFilters }) => {
-  const states = useMemo(() => [...new Set(agents.map((a) => a.state).filter(Boolean))].sort(), [agents]);
+const FilterBar = ({ agents, filters, setFilters, locationFacets = {} }) => {
+  const states = useMemo(() => {
+    const fromApi = Array.isArray(locationFacets.states)
+      ? locationFacets.states.filter(Boolean)
+      : [];
+    if (fromApi.length) return [...fromApi].sort();
+    return [...new Set(agents.map((a) => a.state).filter(Boolean))].sort();
+  }, [locationFacets.states, agents]);
   const cities = useMemo(() => {
+    const fromApi = Array.isArray(locationFacets.cities)
+      ? locationFacets.cities.filter(Boolean)
+      : [];
+    if (fromApi.length) return [...fromApi].sort();
     const base = agents.filter((a) => !filters.state || a.state === filters.state);
     return [...new Set(base.map((a) => a.city).filter(Boolean))].sort();
-  }, [agents, filters.state]);
+  }, [locationFacets.cities, agents, filters.state]);
   const localities = useMemo(() => {
-    const base = agents.filter((a) => (!filters.state || a.state === filters.state) && (!filters.city || a.city === filters.city));
+    const fromApi = Array.isArray(locationFacets.localities)
+      ? locationFacets.localities.filter(Boolean)
+      : [];
+    if (fromApi.length) return [...fromApi].sort();
+    const base = agents.filter(
+      (a) =>
+        (!filters.state || a.state === filters.state) &&
+        (!filters.city || a.city === filters.city),
+    );
     return [...new Set(base.map((a) => a.locality).filter(Boolean))].sort();
-  }, [agents, filters.state, filters.city]);
+  }, [locationFacets.localities, agents, filters.state, filters.city]);
 
-  const activeCount = [filters.search, filters.state, filters.city, filters.locality, filters.pincode, filters.status].filter(Boolean).length;
-  const clear = () => setFilters({ search: "", state: "", city: "", locality: "", pincode: "", status: "" });
+  const activeCount = [
+    filters.search,
+    filters.state,
+    filters.city,
+    filters.locality,
+    filters.pincode,
+    filters.status,
+    filters.joinedDate,
+  ].filter(Boolean).length;
+  const clear = () =>
+    setFilters({
+      search: "",
+      state: "",
+      city: "",
+      locality: "",
+      pincode: "",
+      status: "",
+      joinedDate: "",
+    });
 
 
   
@@ -1687,6 +1723,49 @@ const Select = ({ icon, placeholder, value, onChange, options, disabled }) => (
 
 
 
+const AGENT_PAGE_SIZE = 12;
+
+function directoryPageItems(current, totalPages) {
+  const pages = Math.max(1, Number(totalPages) || 1);
+  const active = Math.min(Math.max(1, Number(current) || 1), pages);
+  if (pages <= 7) {
+    return Array.from({ length: pages }, (_, index) => index + 1);
+  }
+  const items = [1];
+  const start = Math.max(2, active - 1);
+  const end = Math.min(pages - 1, active + 1);
+  if (start > 2) items.push("ellipsis-start");
+  for (let pageNumber = start; pageNumber <= end; pageNumber += 1) {
+    items.push(pageNumber);
+  }
+  if (end < pages - 1) items.push("ellipsis-end");
+  items.push(pages);
+  return items;
+}
+
+function joinedDateRange(value, urlDay, createdFrom, createdTo) {
+  if (urlDay) return { from: urlDay, to: urlDay };
+  if (createdFrom || createdTo) {
+    return { from: createdFrom || createdTo, to: createdTo || createdFrom };
+  }
+  if (!value) return {};
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return { from: value, to: value };
+  const today = todayIstIso();
+  const days = {
+    today: 0,
+    week: 7,
+    month: 30,
+    "3months": 90,
+    "6months": 180,
+    year: 365,
+  }[value];
+  if (days == null) return {};
+  if (days === 0) return { from: today, to: today };
+  const start = new Date(`${today}T00:00:00+05:30`);
+  start.setDate(start.getDate() - days);
+  return { from: toIstIso(start), to: today };
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────
 const AllAgents = () => {
   const [searchParams] = useSearchParams();
@@ -1701,6 +1780,27 @@ const AllAgents = () => {
 
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [paging, setPaging] = useState(false);
+  const [page, setPage] = useState(1);
+  const [listMeta, setListMeta] = useState({
+    total: 0,
+    pages: 1,
+    page: 1,
+    limit: AGENT_PAGE_SIZE,
+    rangeStart: 0,
+    rangeEnd: 0,
+  });
+  const [locationFacets, setLocationFacets] = useState({
+    states: [],
+    cities: [],
+    localities: [],
+  });
+  const [statusCounts, setStatusCounts] = useState({
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+  });
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [editingAgent, setEditingAgent] = useState(null);
   const [viewingAgent, setViewingAgent] = useState(null);
   const [editingProfileAgent, setEditingProfileAgent] = useState(null);
@@ -1709,6 +1809,8 @@ const AllAgents = () => {
   const [statusBusyId, setStatusBusyId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [reloadAt, setReloadAt] = useState(0);
+  const didLoadRef = useRef(false);
   const [filters, setFilters] = useState({
     search: "",
     state: "",
@@ -1734,13 +1836,109 @@ const AllAgents = () => {
   useEffect(() => {
     setFilters((current) => ({
       ...current,
-      joinedDate: urlDay || "",
+      joinedDate: urlDay || current.joinedDate,
     }));
   }, [urlDay]);
 
   useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDebouncedSearch(filters.search.trim()),
+      350,
+    );
+    return () => window.clearTimeout(timer);
+  }, [filters.search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    debouncedSearch,
+    filters.state,
+    filters.city,
+    filters.locality,
+    filters.pincode,
+    filters.status,
+    filters.joinedDate,
+    urlDay,
+    createdFrom,
+    createdTo,
+  ]);
+
+  const fetchAgents = useCallback(async () => {
+    if (!didLoadRef.current) setLoading(true);
+    else setPaging(true);
+    try {
+      const params = {
+        role: "agent",
+        page,
+        limit: AGENT_PAGE_SIZE,
+      };
+      const range = joinedDateRange(
+        filters.joinedDate,
+        urlDay,
+        createdFrom,
+        createdTo,
+      );
+      if (range.from) params.createdFrom = range.from;
+      if (range.to) params.createdTo = range.to;
+      if (debouncedSearch) params.q = debouncedSearch;
+      if (filters.state) params.state = filters.state;
+      if (filters.city) params.city = filters.city;
+      if (filters.locality) params.locality = filters.locality;
+      if (filters.pincode) params.pincode = filters.pincode;
+      if (filters.status) params.status = filters.status;
+      const response = await getUserSearch(params);
+      const unpacked = unpackUserSearch(response?.data);
+      setAgents(unpacked.results);
+      setListMeta(unpacked.meta);
+      const serverPages = Math.max(1, Number(unpacked.meta?.pages) || 1);
+      if (page > serverPages) setPage(serverPages);
+      setLocationFacets({
+        states: unpacked.facets?.states || [],
+        cities: unpacked.facets?.cities || [],
+        localities: unpacked.facets?.localities || [],
+      });
+      const rawCounts = unpacked.facets?.statusCounts || {};
+      setStatusCounts({
+        approved: Number(rawCounts.approved || 0),
+        pending: Number(rawCounts.pending || 0),
+        rejected: Number(rawCounts.rejected || 0),
+      });
+    } catch (err) {
+      console.error("Failed to fetch agents:", err);
+      setAgents([]);
+      setListMeta({
+        total: 0,
+        pages: 1,
+        page: 1,
+        limit: AGENT_PAGE_SIZE,
+        rangeStart: 0,
+        rangeEnd: 0,
+      });
+      setLocationFacets({ states: [], cities: [], localities: [] });
+      setStatusCounts({ approved: 0, pending: 0, rejected: 0 });
+    } finally {
+      didLoadRef.current = true;
+      setLoading(false);
+      setPaging(false);
+    }
+  }, [
+    page,
+    debouncedSearch,
+    filters.state,
+    filters.city,
+    filters.locality,
+    filters.pincode,
+    filters.status,
+    filters.joinedDate,
+    urlDay,
+    createdFrom,
+    createdTo,
+    reloadAt,
+  ]);
+
+  useEffect(() => {
     fetchAgents();
-  }, [urlDay, createdFrom, createdTo]);
+  }, [fetchAgents]);
 
   const changeAgentActive = async (agent, isActive) => {
     const id = agent?._id || agent?.agentId;
@@ -1784,103 +1982,39 @@ const AllAgents = () => {
       );
       setDeleteTarget(null);
       toast.success(result?.message || "Agent permanently deleted");
+      setReloadAt(Date.now());
     } catch (err) {
       toast.error(err?.response?.data?.message || "Agent deletion failed");
     } finally {
       setDeleteLoading(false);
     }
   };
-  const fetchAgents = async () => {
-    try {
-      setLoading(true);
-      const params = { role: "agent" };
-      const from = urlDay || createdFrom;
-      const to = urlDay || createdTo;
-      if (from) params.createdFrom = from;
-      if (to) params.createdTo = to;
-      const response = await getUserSearch(params);
-      setAgents(response?.data?.results || []);
-    } catch (err) {
-      console.error("Failed to fetch agents:", err);
-      setAgents([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleStatusSaved = (agentId, newStatus) => {
     setAgents((prev) =>
       prev.map((a) => a.agentId === agentId ? { ...a, verificationStatus: newStatus } : a)
     );
+    setReloadAt(Date.now());
   };
 
-  const filtered = useMemo(() => {
-    const q = filters.search.toLowerCase();
-    return agents.filter((a) => {
-      if (q && !`${a.name} ${a.email} ${a.phone}`.toLowerCase().includes(q)) return false;
-     // if (filters.status && a.verificationStatus?.toLowerCase() !== filters.status) return false;
-     if (
-       filters.status &&
-       !(
-         (filters.status === "pending" &&
-           (a.verificationStatus === null ||
-             a.verificationStatus?.toLowerCase() === "pending")) ||
-         a.verificationStatus?.toLowerCase() === filters.status
-       )
-     ) {
-       return false;
-     }
-      if (filters.state && a.state !== filters.state) return false;
-      if (filters.city && a.city !== filters.city) return false;
-      if (filters.locality && a.locality !== filters.locality) return false;
-      if (filters.pincode && !a.pincode?.includes(filters.pincode)) return false;
-      if (filters.joinedDate) {
-        const createdDay = toIstIso(a.createdAt);
-        // Exact calendar day from sidebar / Today filter (YYYY-MM-DD, IST)
-        if (/^\d{4}-\d{2}-\d{2}$/.test(filters.joinedDate)) {
-          if (createdDay !== filters.joinedDate) return false;
-        } else {
-          const diffDays = istCalendarDiffDays(a.createdAt);
-          if (
-            (filters.joinedDate === "today" && diffDays !== 0) ||
-            (filters.joinedDate === "week" && diffDays > 7) ||
-            (filters.joinedDate === "month" && diffDays > 30) ||
-            (filters.joinedDate === "3months" && diffDays > 90) ||
-            (filters.joinedDate === "6months" && diffDays > 180) ||
-            (filters.joinedDate === "year" && diffDays > 365)
-          ) {
-            return false;
-          }
-        }
-      }
+  const counts = {
+    approved: statusCounts.approved,
+    pending: statusCounts.pending,
+    rejected: statusCounts.rejected,
+  };
 
-      return true;
-    });
-  }, [agents, filters]);
-
-  // const counts = useMemo(() => ({
-  //   approved: agents.filter((a) => a.verificationStatus?.toLowerCase() === "approved").length,
-  //   pending:  agents.filter((a) => a.verificationStatus?.toLowerCase() === "pending").length,
-  //   rejected: agents.filter((a) => a.verificationStatus?.toLowerCase() === "rejected").length,
-  // }), [agents]);
-  const counts = useMemo(
-    () => ({
-      approved: agents.filter(
-        (a) => a.verificationStatus?.toLowerCase() === "approved",
-      ).length,
-
-      pending: agents.filter(
-        (a) =>
-          a.verificationStatus === null ||
-          a.verificationStatus?.toLowerCase() === "pending",
-      ).length,
-
-      rejected: agents.filter(
-        (a) => a.verificationStatus?.toLowerCase() === "rejected",
-      ).length,
-    }),
-    [agents],
+  const totalPages = Math.max(
+    1,
+    Number(listMeta.pages) ||
+      Math.ceil(Number(listMeta.total || 0) / AGENT_PAGE_SIZE) ||
+      1,
   );
+
+  const goToPage = (nextPage) => {
+    const safe = Math.min(totalPages, Math.max(1, Number(nextPage) || 1));
+    if (safe === page) return;
+    setPage(safe);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <>
@@ -1929,9 +2063,9 @@ const AllAgents = () => {
               <h1 className="text-[#27AE60] text-[22px] leading-none tracking-tight">All Agents</h1>
             </div>
           </div>
-          {!loading && agents.length > 0 && (
+          {!loading && (
             <div className="flex flex-col items-end">
-              <span className="text-[36px] font-extrabold text-[#27AE60] leading-none">{agents.length.toString().padStart(2, "0")}</span>
+              <span className="text-[36px] font-extrabold text-[#27AE60] leading-none">{Number(listMeta.total || 0).toString().padStart(2, "0")}</span>
               <span className="text-[10px] text-gray-400 tracking-[2px] uppercase font-medium">Total</span>
             </div>
           )}
@@ -1939,7 +2073,7 @@ const AllAgents = () => {
         <p className="text-[#000000] text-[13px] ml-[58px] mb-4">Manage and view all active agents</p>
 
         {/* Status summary pills */}
-        {!loading && agents.length > 0 && (
+        {!loading && (
           <div className="flex flex-wrap gap-2 ml-[58px] mb-5">
             {Object.entries(counts).map(([key, count]) => {
               const cfg = STATUS_CONFIG[key];
@@ -1965,9 +2099,14 @@ const AllAgents = () => {
         <div className="h-px bg-gradient-to-r from-[#27AE60]/25 via-[#27AE60]/8 to-transparent mb-5" />
 
         {/* Filter bar */}
-        {!loading && agents.length > 0 && (
+        {!loading && (
           <div className="mb-6">
-            <FilterBar agents={agents} filters={filters} setFilters={setFilters} />
+            <FilterBar
+              agents={agents}
+              filters={filters}
+              setFilters={setFilters}
+              locationFacets={locationFacets}
+            />
           </div>
         )}
 
@@ -1982,21 +2121,21 @@ const AllAgents = () => {
             </div>
             <p className="text-[#27AE60]/50 text-[11px] tracking-[3px] uppercase font-semibold">Loading Agents…</p>
           </div>
-        ) : agents.length === 0 ? (
+        ) : listMeta.total === 0 && agents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-28 gap-4">
             <div className="w-16 h-16 rounded-2xl bg-white border border-[#27AE60]/15 shadow-sm flex items-center justify-center text-[#27AE60]">
               <UsersIcon size={28} />
             </div>
             <p className="text-gray-400 text-sm tracking-[2px] uppercase font-medium">No Agents Found</p>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : agents.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
             <div className="w-14 h-14 rounded-2xl bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-300">
               <Search size={24} />
             </div>
             <p className="text-gray-400 text-sm font-semibold">No agents match your filters</p>
             <button
-              onClick={() => setFilters({ search: "", state: "", city: "", locality: "", pincode: "", status: "" })}
+              onClick={() => setFilters({ search: "", state: "", city: "", locality: "", pincode: "", status: "", joinedDate: "" })}
               className="px-4 py-2 rounded-xl bg-[#27AE60] text-white text-xs font-bold shadow-[0_4px_12px_rgba(39,174,96,0.3)] hover:bg-[#219653] transition-all"
             >
               Clear Filters
@@ -2005,10 +2144,10 @@ const AllAgents = () => {
         ) : (
           <>
             <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest mb-4">
-              Showing {filtered.length} of {agents.length} agents
+              Showing {listMeta.rangeStart}–{listMeta.rangeEnd} of {listMeta.total} agents
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filtered.map((agent, idx) => (
+            <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 ${paging ? "pointer-events-none opacity-50" : ""}`}>
+              {agents.map((agent, idx) => (
                 <AgentCard
                   key={agent._id || agent.agentId}
                   agent={agent}
@@ -2027,6 +2166,49 @@ const AllAgents = () => {
                 />
               ))}
             </div>
+            {listMeta.total > 0 && (
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  disabled={paging || page <= 1}
+                  onClick={() => goToPage(page - 1)}
+                  className="inline-flex h-9 items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft size={14} />
+                  Previous
+                </button>
+                {directoryPageItems(page, totalPages).map((item) =>
+                  typeof item === "string" ? (
+                    <span key={item} className="px-1 text-xs font-bold text-gray-400">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      type="button"
+                      disabled={paging}
+                      onClick={() => goToPage(item)}
+                      className={`h-9 min-w-[36px] rounded-xl border px-2 text-xs font-extrabold transition-colors disabled:cursor-not-allowed ${
+                        item === page
+                          ? "border-transparent bg-[#27AE60] text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ),
+                )}
+                <button
+                  type="button"
+                  disabled={paging || page >= totalPages}
+                  onClick={() => goToPage(page + 1)}
+                  className="inline-flex h-9 items-center gap-1 rounded-xl bg-[#27AE60] px-3 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
