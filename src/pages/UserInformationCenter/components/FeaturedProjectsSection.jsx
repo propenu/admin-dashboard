@@ -234,12 +234,21 @@ const FeaturedContent = ({ userId }) => {
   const [page, setPage] = useState(1);
   const [userPickedType, setUserPickedType] = useState(false);
 
-  const { data, isLoading } = useUserFeaturedProjects(userId, type, page);
+  const { data, isLoading, isFetching } = useUserFeaturedProjects(
+    userId,
+    type,
+    page,
+    12,
+  );
 
-  // The service combines every backend page and scopes records by createdBy
-  // before this UI-level pagination is applied.
-  const projects = data?.items || data?.data || [];
+  const projects = data?.items || [];
   const totalPages = data?.meta?.totalPages || data?.meta?.pages || 1;
+  const total = Number(data?.meta?.total) || 0;
+  const pageSize = Number(data?.meta?.limit) || 12;
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, total);
+  const canPrev = Boolean(data?.meta?.hasPreviousPage);
+  const canNext = Boolean(data?.meta?.hasNextPage);
 
   const counts = useUserFeaturedProjectCounts(userId);
 
@@ -336,16 +345,16 @@ const FeaturedContent = ({ userId }) => {
       >
         <button
           onClick={() => setPage(page - 1)}
-          disabled={page === 1}
+          disabled={!canPrev || isFetching}
           style={{
             padding: "8px 16px",
             borderRadius: "10px",
             border: "1px solid #e5e7eb",
-            background: page === 1 ? "#f3f4f6" : "#fff",
-            color: page === 1 ? "#9ca3af" : "#374151",
+            background: !canPrev ? "#f3f4f6" : "#fff",
+            color: !canPrev ? "#9ca3af" : "#374151",
             fontSize: "13px",
             fontWeight: "700",
-            cursor: page === 1 ? "not-allowed" : "pointer",
+            cursor: !canPrev ? "not-allowed" : "pointer",
           }}
         >
           ← Previous
@@ -353,34 +362,36 @@ const FeaturedContent = ({ userId }) => {
 
         <div
           style={{
-            minWidth: "80px",
+            minWidth: "120px",
             padding: "8px 14px",
             borderRadius: "10px",
             background: "#f8fafc",
             border: "1px solid #e2e8f0",
             textAlign: "center",
-            fontSize: "13px",
+            fontSize: "12px",
             fontWeight: "800",
             color: "#475569",
           }}
         >
-          {page} / {totalPages}
+          {total ? `${rangeStart}–${rangeEnd} of ${total}` : "0 projects"}
+          <div style={{ fontWeight: 600, fontSize: 10, color: "#94a3b8" }}>
+            Page {page} / {totalPages}
+          </div>
         </div>
 
         <button
           onClick={() => setPage((prev) => prev + 1)}
-          disabled={page === totalPages}
+          disabled={!canNext || isFetching}
           style={{
             padding: "8px 16px",
             borderRadius: "10px",
             border: "1px solid #e5e7eb",
-            background: page === totalPages ? "#f3f4f6" : "#27AE60",
-            color: page === totalPages ? "#9ca3af" : "#fff",
+            background: !canNext ? "#f3f4f6" : "#27AE60",
+            color: !canNext ? "#9ca3af" : "#fff",
             fontSize: "13px",
             fontWeight: "700",
-            cursor: page === totalPages ? "not-allowed" : "pointer",
-            boxShadow:
-              page === totalPages ? "none" : "0 4px 12px rgba(39,174,96,.25)",
+            cursor: !canNext ? "not-allowed" : "pointer",
+            boxShadow: !canNext ? "none" : "0 4px 12px rgba(39,174,96,.25)",
           }}
         >
           Next →
@@ -391,7 +402,7 @@ const FeaturedContent = ({ userId }) => {
 };
 
 const FeaturedProjectsSection = ({ userId, flat }) => {
-  const { data } = useUserFeaturedProjects(userId, "featured");
+  const { data } = useUserFeaturedProjects(userId, "featured", 1, 1);
 
   if (flat) return <FeaturedContent userId={userId} />;
 

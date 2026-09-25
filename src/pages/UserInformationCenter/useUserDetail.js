@@ -1,5 +1,5 @@
 // src/features/users/useUserDetail.js
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   getUserById,
   getUserPayments,
@@ -7,64 +7,65 @@ import {
   getUserSubscriptionHistory,
   getUserFeaturedProjects,
   getUserProperties,
+  USER_DETAIL_PAGE_SIZE,
 } from "../../features/user/userDetailService";
 
-const paginateUserRecords = (payload, page, limit) => {
-  const items = payload?.items || [];
-  const total = items.length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const safePage = Math.min(Math.max(1, page), totalPages);
-  const start = (safePage - 1) * limit;
-
+const unpackList = (payload, page, limit) => {
+  const body = payload?.data || payload || {};
+  const items = Array.isArray(body.items)
+    ? body.items
+    : Array.isArray(body.data)
+      ? body.data
+      : [];
+  const meta = body.meta || {};
+  const total = Number(meta.total) || 0;
+  const pages = Math.max(
+    1,
+    Number(meta.pages ?? meta.totalPages) ||
+      Math.max(1, Math.ceil(total / (Number(meta.limit) || limit)) || 1),
+  );
+  const current = Number(meta.page) || page;
   return {
-    items: items.slice(start, start + limit),
+    items,
     meta: {
-      ...(payload?.meta || {}),
       total,
-      page: safePage,
-      limit,
-      pages: totalPages,
-      totalPages,
+      page: current,
+      limit: Number(meta.limit) || limit,
+      pages,
+      totalPages: pages,
+      hasNextPage: Boolean(meta.hasNextPage ?? current < pages),
+      hasPreviousPage: Boolean(meta.hasPreviousPage ?? current > 1),
     },
   };
 };
 
-// ── User Profile ──────────────────────────────────────────────────────────────
 export const useUserById = (userId) =>
   useQuery({
     queryKey: ["user", userId],
     queryFn: async () => {
       const res = await getUserById(userId);
-      const data = res.data?.data || res.data;
-
-      // ✅ FIX: filter by id
+      const payload = res.data;
+      const data = payload?.data ?? payload;
       if (Array.isArray(data)) {
-        return data.find((u) => u._id === userId);
+        return (
+          data.find((u) => String(u._id) === String(userId)) || data[0] || null
+        );
       }
-
-      return data;
+      return data?.user || data || null;
     },
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
   });
 
-// ── User Payments ─────────────────────────────────────────────────────────────
-
 export const useUserPayments = (userId, status = "paid") =>
   useQuery({
     queryKey: ["user-payments", userId, status],
-
     queryFn: async () => {
       const res = await getUserPayments(userId, status);
-
       const raw = res.data?.data || res.data?.items || res.data || [];
-
       const payments = Array.isArray(raw) ? raw : [];
-
-      // ✅ FILTER CURRENT USER ONLY
       return payments.filter((p) => {
         const paymentUserId = p.userId?._id || p.userId;
-
         return (
           paymentUserId &&
           String(paymentUserId) === String(userId) &&
@@ -72,145 +73,72 @@ export const useUserPayments = (userId, status = "paid") =>
         );
       });
     },
-
     enabled: !!userId,
     staleTime: 2 * 60 * 1000,
   });
 
-
-
-// ── User Subscriptions ────────────────────────────────────────────────────────
 export const useUserSubscriptions = (userId) =>
   useQuery({
     queryKey: ["user-subscriptions", userId],
-
     queryFn: async () => {
       const res = await getUserSubscriptions(userId);
-
       const raw = res.data?.data || res.data || [];
-
       const subscriptions = Array.isArray(raw) ? raw : [];
-
-      // ✅ FILTER CURRENT USER ONLY
       return subscriptions.filter((s) => {
         const subscriptionUserId = s.userId?._id || s.userId;
-
         return (
-          subscriptionUserId &&
-          String(subscriptionUserId) === String(userId)
+          subscriptionUserId && String(subscriptionUserId) === String(userId)
         );
       });
     },
-
     enabled: !!userId,
     staleTime: 2 * 60 * 1000,
   });
 
-
-// ── Subscription History ──────────────────────────────────────────────────────
 export const useUserSubscriptionHistory = (userId) =>
   useQuery({
     queryKey: ["user-subscription-history", userId],
-
     queryFn: async () => {
       const res = await getUserSubscriptionHistory(userId);
-
       const raw = res.data?.data || res.data || [];
-
       const history = Array.isArray(raw) ? raw : [];
-
-      // ✅ FILTER CURRENT USER ONLY
       return history.filter((h) => {
         const historyUserId = h.userId?._id || h.userId;
-
-        return (
-          historyUserId &&
-          String(historyUserId) === String(userId)
-        );
+        return historyUserId && String(historyUserId) === String(userId);
       });
     },
-
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
   });
-
-
 
 export const useUserFeaturedProjects = (
   userId,
   type = "featured",
   page = 1,
-  limit = 20,
+  limit = USER_DETAIL_PAGE_SIZE,
 ) =>
   useQuery({
-    // Page and card limit are presentation concerns. Keeping them out of the
-    // key lets counts, tabs, and pagination share one complete cached result.
-    queryKey: ["user-featured-projects", userId, type],
-
+    queryKey: ["user-featured-projects", userId, type, page, limit],
     queryFn: async () => {
-      const res = await getUserFeaturedProjects(userId, type, 1, 100);
-      return res.data;
+      const res = await getUserFeaturedProjects(userId, type, page, limit);
+      return unpackList(res.data, page, limit);
     },
-    select: (payload) => paginateUserRecords(payload, page, limit),
-    enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
+    enabled: Boolean(userId && (Array.isArray(userId) ? userId.length : true)),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 
-// ── Featured Project Counts ─────────────────────────────────────────
-// export const useUserFeaturedProjectCounts = (userId) => {
-  
-//   const featured = useUserFeaturedProjects(userId, "featured");
-//   const prime = useUserFeaturedProjects(userId, "prime");
-//   const normal = useUserFeaturedProjects(userId, "normal");
-//   const sponsored = useUserFeaturedProjects(userId, "sponsored");
-
-
-//   const getCount = (data) => {
-//     const items = Array.isArray(data)
-//       ? data
-//       : Array.isArray(data?.items)
-//         ? data.items
-//         : Array.isArray(data?.data)
-//           ? data.data
-//           : [];
-
-//     return items.filter((p) => String(p.createdBy?._id || p.createdBy) === String(userId))
-// .length;
-//   };
-
-//   return {
-//     featured: getCount(featured.data),
-//     prime: getCount(prime.data),
-//     normal: getCount(normal.data),
-//     sponsored: getCount(sponsored.data),
-
-//     isLoading:
-//       featured.isLoading ||
-//       prime.isLoading ||
-//       normal.isLoading ||
-//       sponsored.isLoading,
-//   };
-// };
-
 export const useUserFeaturedProjectCounts = (userId) => {
-  const featured = useUserFeaturedProjects(userId, "featured");
-  const prime = useUserFeaturedProjects(userId, "prime");
-  const normal = useUserFeaturedProjects(userId, "normal");
-  const sponsored = useUserFeaturedProjects(userId, "sponsored");
-
-  // Use meta.total from the same filtered payload that renders cards
-  // (promotionCounts is not set by the client-scoped fetch).
-  const totalOf = (query) =>
-    Number(query.data?.meta?.total) ||
-    (Array.isArray(query.data?.items) ? query.data.items.length : 0) ||
-    0;
-
+  const featured = useUserFeaturedProjects(userId, "featured", 1, 1);
+  const prime = useUserFeaturedProjects(userId, "prime", 1, 1);
+  const normal = useUserFeaturedProjects(userId, "normal", 1, 1);
+  const sponsored = useUserFeaturedProjects(userId, "sponsored", 1, 1);
+  const totalOf = (query) => Number(query.data?.meta?.total) || 0;
   return {
     featured: totalOf(featured),
     prime: totalOf(prime),
     normal: totalOf(normal),
     sponsored: totalOf(sponsored),
-
     isLoading:
       featured.isLoading ||
       prime.isLoading ||
@@ -219,88 +147,33 @@ export const useUserFeaturedProjectCounts = (userId) => {
   };
 };
 
-// ── Properties (all categories) ──────────────────────────────────────────────
-// export const useUserProperties = (userId, category = "residential") =>
-//   useQuery({
-//     queryKey: ["user-properties", userId, category],
-//     queryFn: () =>
-//       getUserProperties(userId, category).then(
-//         (r) => r.data?.items || r.data?.data || r.data || [],
-//       ),
-//     enabled: !!userId,
-//     staleTime: 5 * 60 * 1000,
-//   });
-
-
 export const useUserProperties = (
   userId,
   category = "residential",
   page = 1,
-  limit = 20,
+  limit = USER_DETAIL_PAGE_SIZE,
 ) =>
   useQuery({
-    queryKey: ["user-properties", userId, category],
-
+    queryKey: ["user-properties", userId, category, page, limit],
     queryFn: async () => {
-      const res = await getUserProperties(userId, category, 1, 100);
-      return res.data;
+      const res = await getUserProperties(userId, category, page, limit);
+      return unpackList(res.data, page, limit);
     },
-    select: (payload) => paginateUserRecords(payload, page, limit),
-
-    enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
+    enabled: Boolean(userId && (Array.isArray(userId) ? userId.length : true)),
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 
-
-  // ── Property Counts (All Categories) ─────────────────────────────────────────
-// export const useUserPropertyCounts = (userId) => {
-//   const residential = useUserProperties(userId, "residential");
-//   const commercial = useUserProperties(userId, "commercial");
-//   const land = useUserProperties(userId, "land");
-//   const agricultural = useUserProperties(userId, "agricultural");
-
-  
-//   const getCount = (data) => {
-//     const items = Array.isArray(data)
-//       ? data
-//       : Array.isArray(data?.items)
-//         ? data.items
-//         : Array.isArray(data?.data)
-//           ? data.data
-//           : [];
-
-//     return items.filter((p) => String(p.createdBy?._id || p.createdBy) === String(userId))
-//       .length;
-//   };
-
-//   return {
-//     residential: getCount(residential.data),
-//     commercial: getCount(commercial.data),
-//     land: getCount(land.data),
-//     agricultural: getCount(agricultural.data),
-
-//     isLoading:
-//       residential.isLoading ||
-//       commercial.isLoading ||
-//       land.isLoading ||
-//       agricultural.isLoading,
-//   };
-// }; 
-
-
-// ── Property Counts (All Categories) ─────────────────────────────────────────
 export const useUserPropertyCounts = (userId) => {
-  const residential = useUserProperties(userId, "residential");
-  const commercial = useUserProperties(userId, "commercial");
-  const land = useUserProperties(userId, "land");
-  const agricultural = useUserProperties(userId, "agricultural");
-
+  const residential = useUserProperties(userId, "residential", 1, 1);
+  const commercial = useUserProperties(userId, "commercial", 1, 1);
+  const land = useUserProperties(userId, "land", 1, 1);
+  const agricultural = useUserProperties(userId, "agricultural", 1, 1);
   return {
-    residential: residential.data?.meta?.total ?? 0,
-    commercial: commercial.data?.meta?.total ?? 0,
-    land: land.data?.meta?.total ?? 0,
-    agricultural: agricultural.data?.meta?.total ?? 0,
-
+    residential: Number(residential.data?.meta?.total) || 0,
+    commercial: Number(commercial.data?.meta?.total) || 0,
+    land: Number(land.data?.meta?.total) || 0,
+    agricultural: Number(agricultural.data?.meta?.total) || 0,
     isLoading:
       residential.isLoading ||
       commercial.isLoading ||

@@ -269,12 +269,21 @@ const UserProfileCard = ({ user, loading }) => {
           <InfoItem
             icon={MapPin}
             label="Location"
-            value={[user.city, user.state].filter(Boolean).join(", ")}
+            value={
+              [user.locality, user.city, user.state, user.pincode]
+                .filter(Boolean)
+                .join(", ") || "—"
+            }
           />
           <InfoItem
             icon={Shield}
             label="KYC Status"
-            value={user.kyc?.status?.replace(/_/g, " ")}
+            value={String(
+              user.kyc?.status ||
+                user.kycStatus ||
+                (user.accountStatus === "kyc_pending" ? "pending" : "") ||
+                "",
+            ).replace(/_/g, " ") || "—"}
             color={kycColor}
           />
           {user.locality && (

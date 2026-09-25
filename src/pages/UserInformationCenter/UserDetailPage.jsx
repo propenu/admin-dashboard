@@ -645,7 +645,8 @@ const UserDetailPage = () => {
                   color: C.muted,
                 }}
               >
-                {user.city || "—"}, {user.state || ""}
+                {[user.locality, user.city, user.state].filter(Boolean).join(", ") ||
+                  "Location unavailable"}
               </p>
               {/* <Badge
                 status={
