@@ -149,7 +149,15 @@ const formatExactRoleName = (raw) => {
   const value = String(raw || "").trim();
   if (!value || isObjectIdString(value)) return "";
   const key = roleKey(value);
-  if (key === "owner" || key === "owners" || key === "listing" || key === "featured") {
+  if (
+    key === "owner" ||
+    key === "owners" ||
+    key === "listing" ||
+    key === "featured" ||
+    key === "normal" ||
+    key === "prime" ||
+    key === "sponsored"
+  ) {
     return "";
   }
   return value
@@ -159,6 +167,13 @@ const formatExactRoleName = (raw) => {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-/** Card badge: exact createdBy role name (User, Sales Agent) — never "Owner". */
+/** Card badge: exact createdBy role (Agent, User). Falls back to listingSource. */
 export const getCreatedByRoleLabel = (property) =>
-  formatExactRoleName(createdByExactRoleRaw(property));
+  formatExactRoleName(createdByExactRoleRaw(property)) ||
+  formatExactRoleName(
+    firstText(
+      property?.listingSource,
+      property?.postedBy?.roleName,
+      property?.postedBy?.role,
+    ),
+  );
