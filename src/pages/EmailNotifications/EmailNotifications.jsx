@@ -1220,6 +1220,14 @@ const EmailNotifications = () => {
     fetchLogs();
   }, []);
 
+  useEffect(() => {
+    if (!running?.campaignId) return undefined;
+    const timer = setInterval(() => {
+      fetchLogs();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [running?.campaignId]);
+
   const openEdit = async (item) => {
     setViewItem(null);
     try {

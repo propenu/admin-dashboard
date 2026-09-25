@@ -24,7 +24,7 @@ import {
   sentBulkWhatsAppNotification,
   uploadWhatsAppCampaignImage,
 } from "../../../features/user/userService";
-import { componentsToForm } from "../utils/formMapper";
+import { componentsToForm, resolveHeaderMediaPreview, templateHasHeaderMediaSample } from "../utils/formMapper";
 import { applyVars, countVars } from "../utils/helper";
 import { WhatsAppTemplatePreview } from "../preview/WhatsAppTemplatePreview";
 import {
@@ -32,6 +32,10 @@ import {
   VALIDATION_CATEGORY_META,
 } from "../utils/contactFileValidation";
 
+function safeCount(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
 const CONTACT_ACCEPT =
   ".csv,.xlsx,.xls,.xlsm,.tsv,.txt,.ods,text/csv,text/plain,text/tab-separated-values,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.oasis.opendocument.spreadsheet";
 
@@ -192,6 +196,7 @@ export function CsvCampaignModal({
   templates = [],
   initialTemplate = null,
   onClose,
+  onCampaignStarted,
 }) {
   const approved = useMemo(
     () => (templates || []).filter((t) => t.status === "APPROVED"),
@@ -236,6 +241,7 @@ export function CsvCampaignModal({
   const selectedUpload = uploadedImages.find((i) => i.id === selectedImageId);
   const templateSampleImage =
     previewForm?.header?.mediaPreview ||
+    resolveHeaderMediaPreview(selectedTemplate) ||
     (String(previewForm?.header?.mediaHandle || "").startsWith("http")
       ? previewForm.header.mediaHandle
       : "");
@@ -249,9 +255,10 @@ export function CsvCampaignModal({
       ? String(templateSampleImage)
       : "");
   const usingTemplateMedia =
-    Boolean(resolvedHeaderImageUrl) &&
-    !campaignHeaderUrl.startsWith("http") &&
-    String(templateSampleImage || "").startsWith("http");
+    Boolean(
+      resolvedHeaderImageUrl ||
+        templateHasHeaderMediaSample(selectedTemplate),
+    ) && !campaignHeaderUrl.startsWith("http");
 
   const effectivePreview =
     selectedUpload?.url ||
@@ -261,6 +268,9 @@ export function CsvCampaignModal({
     templateSampleImage ||
     "";
 
+  const hasTemplateHeaderMedia =
+    resolvedHeaderImageUrl.startsWith("http") ||
+    templateHasHeaderMediaSample(selectedTemplate);
   const templateVarCount = useMemo(
     () => countVars(previewForm?.body?.text || ""),
     [previewForm?.body?.text],
@@ -370,7 +380,7 @@ export function CsvCampaignModal({
       fieldMapping,
       templateVarCount,
       needsHeaderImage,
-      hasHeaderImage: resolvedHeaderImageUrl.startsWith("http"),
+      hasHeaderImage: hasTemplateHeaderMedia,
     });
   }, [
     filePreview?.rows,
@@ -379,9 +389,8 @@ export function CsvCampaignModal({
     fieldMapping,
     templateVarCount,
     needsHeaderImage,
-    resolvedHeaderImageUrl,
+    hasTemplateHeaderMedia,
   ]);
-
   useEffect(() => {
     if (!recipientCheck) return;
     const order = [
@@ -551,14 +560,13 @@ export function CsvCampaignModal({
 
     if (
       needsHeaderImageSubmit &&
-      !resolvedHeaderImageUrl.startsWith("http")
+      !hasTemplateHeaderMedia
     ) {
       toast.error(
-        "This template needs a public header image. Meta sample is missing — upload or paste an S3/CDN URL.",
+        "This template needs a header image. Upload or paste an S3/CDN URL, or use a template that already has media.",
       );
       return;
     }
-
     if (!recipientCheck) {
       toast.error("Upload a contact file and select the phone column first");
       return;
@@ -609,6 +617,22 @@ export function CsvCampaignModal({
 
       const res = await sentBulkWhatsAppNotification(fd);
       const data = res?.data;
+      if (data?.campaignId) {
+        const ready = recipientCheck.readyCount || data.estimatedRecipients || 0;
+        onCampaignStarted?.({
+          campaignId: data.campaignId,
+          name: data.templateName || selectedTemplate.name,
+          source: "csv",
+          createdAt: new Date().toISOString(),
+          estimatedRecipients: ready,
+          total: ready,
+          sent: 0,
+          failed: 0,
+          pending: ready,
+          processed: 0,
+          progressPercent: 0,
+        });
+      }
       toast.success(
         data?.message ||
           (sendMode === "schedule"
@@ -1025,7 +1049,7 @@ export function CsvCampaignModal({
                       ["missing_values", AlertTriangle, true],
                       ["missing_images", ImageOff, false],
                     ].map(([key, Icon, soft]) => {
-                      const count = Number(recipientCheck.counts[key] || 0);
+                      const count = safeCount(recipientCheck.counts?.[key]);
                       const active = reviewCategory === key;
                       const warnColor = soft ? "text-amber-600" : "text-rose-500";
                       const warnNum = soft ? "text-amber-700" : "text-rose-700";
@@ -1072,10 +1096,9 @@ export function CsvCampaignModal({
                           "Details"}
                       </p>
                       <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500">
-                        {recipientCheck.counts[reviewCategory] || 0} rows
+                        {safeCount(recipientCheck.counts?.[reviewCategory])} rows
                       </span>
-                    </div>
-                    <p className="mb-2 text-[11px] text-[#5c7d6d]">
+                    </div>                    <p className="mb-2 text-[11px] text-[#5c7d6d]">
                       {VALIDATION_CATEGORY_META[reviewCategory]?.description}
                     </p>
                     {(recipientCheck.categories[reviewCategory] || []).length ? (

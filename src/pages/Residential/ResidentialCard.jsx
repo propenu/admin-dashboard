@@ -7,6 +7,8 @@ import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import {
+  getCreatedByDisplayName,
+  getCreatedByPhone,
   getPropertyCreatorTag,
   isAgentCreatedProperty,
 } from "../../utils/propertyCreatorRole";
@@ -289,14 +291,11 @@ export default function ResidentialCard({ property, userRole }) {
           <div className="flex items-center gap-1 text-[9px] text-slate-500 mb-1.5">
             <span className="font-semibold text-slate-600">By:</span>
             <span className="text-[#27AE60] font-semibold truncate">
-              {property?.createdBy?.name
-                ?.split(" ")
-                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                .join(" ") || "Unknown"}
+              {getCreatedByDisplayName(property) || "Unknown"}
             </span>
-            {property?.createdBy?.phone && (
+            {getCreatedByPhone(property) && (
               <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 truncate">
-                {property.createdBy.phone}
+                {getCreatedByPhone(property)}
               </span>
             )}
           </div>

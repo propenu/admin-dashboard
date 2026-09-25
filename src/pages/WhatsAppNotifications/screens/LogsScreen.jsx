@@ -96,13 +96,33 @@ export default function LogsScreen({ logs = [], stats, loading, onRefresh }) {
     });
   }, [logs, search, status]);
 
-  const counters = {
-    total: Number(stats?.total || logs.length || 0),
-    delivered: Number(stats?.success || stats?.delivered || 0),
-    success: Number(stats?.success || 0),
-    failed: Number(stats?.failed || 0),
-    warning: Number(stats?.pending || stats?.warning || 0),
-  };
+  /** Live counts from API stats; fall back to scanning loaded logs. */
+  const counters = useMemo(() => {
+    const fromLogs = { total: 0, success: 0, failed: 0, pending: 0 };
+    for (const log of logs || []) {
+      fromLogs.total += 1;
+      const st = String(log.status || "").toLowerCase();
+      if (st === "success") fromLogs.success += 1;
+      else if (st === "failed" || st === "error") fromLogs.failed += 1;
+      else fromLogs.pending += 1;
+    }
+
+    const total =
+      stats?.total != null ? Number(stats.total) || 0 : fromLogs.total;
+    const success =
+      stats?.success != null ? Number(stats.success) || 0 : fromLogs.success;
+    const failed =
+      stats?.failed != null ? Number(stats.failed) || 0 : fromLogs.failed;
+    const pending =
+      stats?.pending != null ? Number(stats.pending) || 0 : fromLogs.pending;
+
+    return {
+      total,
+      success,
+      failed,
+      pending,
+    };
+  }, [logs, stats]);
 
   const handleRefresh = async () => {
     try {
@@ -173,13 +193,12 @@ export default function LogsScreen({ logs = [], stats, loading, onRefresh }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
             ["TOTAL", counters.total, "bg-slate-500"],
-            ["DELIVERED", counters.delivered, "bg-emerald-500"],
-            ["SUCCESS", counters.success, "bg-teal-500"],
+            ["SUCCESS", counters.success, "bg-emerald-500"],
             ["FAILED", counters.failed, "bg-rose-500"],
-            ["WARNING", counters.warning, "bg-amber-500"],
+            ["PENDING", counters.pending, "bg-amber-500"],
           ].map(([label, value, dot]) => (
             <div
               key={label}
@@ -192,12 +211,11 @@ export default function LogsScreen({ logs = [], stats, loading, onRefresh }) {
                 </p>
               </div>
               <p className="mt-1 text-[1.35rem] font-semibold tabular-nums leading-none text-[#0f3d2e]">
-                {value}
+                {Number.isFinite(Number(value)) ? Number(value) : 0}
               </p>
             </div>
           ))}
         </div>
-
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative min-w-0 flex-1">
             <Search
@@ -220,10 +238,6 @@ export default function LogsScreen({ logs = [], stats, loading, onRefresh }) {
             <option value="success">Success</option>
             <option value="failed">Failed</option>
             <option value="pending">Pending</option>
-            <option value="sent">Sent</option>
-            <option value="delivered">Delivered</option>
-            <option value="read">Read</option>
-            <option value="warning">Warning</option>
           </select>
         </div>
 

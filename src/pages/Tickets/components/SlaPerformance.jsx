@@ -41,7 +41,7 @@ function SlaItem({ title, minutes, value, targetMinutes, targetLabel, emptyText 
   const strokeDashoffset = circumference - (percent / 100) * circumference;
 
   return (
-    <div className="flex min-h-[150px] items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:bg-white hover:shadow-[0_18px_36px_rgba(39,174,96,0.1)]">
+    <div className="flex min-h-[150px] items-center gap-4 rounded-2xl border border-[#b7e4c7] bg-[#f7fbf8] p-4">
       <div className="relative grid h-24 w-24 shrink-0 place-items-center">
         <svg className="-rotate-90" width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
           <circle
@@ -49,7 +49,7 @@ function SlaItem({ title, minutes, value, targetMinutes, targetLabel, emptyText 
             cy="48"
             r={radius}
             fill="none"
-            stroke="#e5e7eb"
+            stroke="#d8f0e2"
             strokeWidth="10"
           />
           <circle
@@ -66,17 +66,17 @@ function SlaItem({ title, minutes, value, targetMinutes, targetLabel, emptyText 
           />
         </svg>
         <div className="absolute text-center">
-          <p className="text-[18px] font-black leading-none text-slate-950">
+          <p className="text-[18px] font-black leading-none text-[#0f3d2e]">
             {hasData ? `${percent}%` : "-"}
           </p>
-          <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[#5c7d6d]">
             SLA
           </p>
         </div>
       </div>
 
       <div className="min-w-0">
-        <p className="text-[13px] font-black leading-tight text-slate-900">{title}</p>
+        <p className="text-[13px] font-black leading-tight text-[#0f3d2e]">{title}</p>
         <p className="mt-2 break-words text-[26px] font-black leading-none text-[#27AE60]">
           {value}
         </p>
@@ -85,16 +85,16 @@ function SlaItem({ title, minutes, value, targetMinutes, targetLabel, emptyText 
             className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${
               isOverTarget
                 ? "border-orange-200 bg-orange-50 text-orange-700"
-                : "border-emerald-200 bg-emerald-50 text-[#219653]"
+                : "border-[#b7e4c7] bg-[#e8f8ee] text-[#27AE60]"
             }`}
           >
             {isOverTarget ? "Over target" : "Within target"}
           </span>
-          <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-500">
+          <span className="rounded-full border border-[#b7e4c7] bg-white px-2.5 py-1 text-[11px] font-bold text-[#5c7d6d]">
             {targetLabel}
           </span>
         </div>
-        <p className="mt-2 text-[12px] font-medium text-slate-500">
+        <p className="mt-2 text-[12px] font-medium text-[#5c7d6d]">
           {hasData ? "Lower time is better for SLA health." : emptyText}
         </p>
       </div>

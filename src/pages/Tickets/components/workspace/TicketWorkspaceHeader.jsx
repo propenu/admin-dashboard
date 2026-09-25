@@ -1,6 +1,6 @@
 import { BarChart3, Bell, Inbox, Plus, RefreshCw, Settings2 } from "lucide-react";
 import { formatLabel } from "../../utils/ticketFormatters";
-import { ghostButton, primaryButton } from "../ticketUi";
+import { ghostButton, primaryButton, ticketSurface } from "../ticketUi";
 
 const tabs = [
   { key: "overview", label: "Overview", icon: BarChart3 },
@@ -26,23 +26,23 @@ export default function TicketWorkspaceHeader({
   onOpenNotifications,
 }) {
   return (
-    <header className="mb-1 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.08)] lg:flex-row lg:items-center lg:justify-between">
+    <header className={`mb-1 flex flex-col gap-3 p-3 lg:flex-row lg:items-center lg:justify-between ${ticketSurface}`}>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-[20px] font-black tracking-tight text-slate-950 sm:text-[22px]">{title}</h1>
+          <h1 className="text-[20px] font-black tracking-tight text-[#0f3d2e] sm:text-[22px]">{title}</h1>
           {roleName && (
-            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[12px] font-bold capitalize text-[#219653]">
+            <span className="rounded-full border border-[#b7e4c7] bg-[#f7fbf8] px-3 py-1 text-[12px] font-bold capitalize text-[#27AE60]">
               {formatLabel(roleName)}
             </span>
           )}
         </div>
-        <p className="mt-0.5 max-w-xl text-[11px] font-medium leading-4 text-slate-400 sm:block">
+        <p className="mt-0.5 max-w-xl text-[11px] font-medium leading-4 text-[#5c7d6d] sm:block">
           {subtitle}
         </p>
       </div>
 
       <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 lg:w-auto lg:justify-end">
-        <div className="flex shrink-0 rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-inner">
+        <div className="flex shrink-0 rounded-full border border-[#b7e4c7] bg-[#f7fbf8] p-1">
           {availableTabs.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
@@ -51,8 +51,10 @@ export default function TicketWorkspaceHeader({
                 key={tab.key}
                 type="button"
                 onClick={() => onTabChange(tab.key)}
-                className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[12px] font-bold transition ${
-                  active ? "bg-white text-[#219653] shadow-sm" : "text-slate-500 hover:bg-white/70 hover:text-slate-900"
+                className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[12px] font-bold transition ${
+                  active
+                    ? "bg-[#27AE60] text-white shadow-[0_6px_14px_-6px_rgba(39,174,96,0.7)]"
+                    : "text-[#5c7d6d] hover:bg-white hover:text-[#0f3d2e]"
                 }`}
               >
                 {Icon && <Icon className="h-3.5 w-3.5" />}

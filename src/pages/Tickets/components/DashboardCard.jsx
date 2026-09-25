@@ -6,10 +6,10 @@ export default function DashboardCard({ title, subtitle, children, className = "
       {(title || subtitle) && (
         <div className="mb-3">
           {title && (
-            <h2 className="text-[13px] font-bold leading-tight text-slate-950">{title}</h2>
+            <h2 className="text-[13px] font-bold leading-tight text-[#0f3d2e]">{title}</h2>
           )}
           {subtitle && (
-            <p className="mt-0.5 text-[11px] font-medium text-slate-500">{subtitle}</p>
+            <p className="mt-0.5 text-[11px] font-medium text-[#5c7d6d]">{subtitle}</p>
           )}
         </div>
       )}

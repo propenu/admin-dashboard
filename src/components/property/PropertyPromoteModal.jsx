@@ -16,7 +16,7 @@ export const PROPERTY_PROMO_TYPES = [
     label: "Prime",
     desc: "Top slot — maximum reach across property feeds.",
     color: "border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-800",
-    chip: "bg-amber-400 text-amber-950",
+    chip: "bg-[#f59e0b] text-white",
     icon: Crown,
   },
   {
@@ -24,7 +24,7 @@ export const PROPERTY_PROMO_TYPES = [
     label: "Top Selling",
     desc: "Highlighted in top selling property sections.",
     color: "border-sky-400 bg-gradient-to-r from-sky-50 to-blue-50 text-sky-800",
-    chip: "bg-sky-500 text-white",
+    chip: "bg-[#0284c7] text-white",
     icon: Sparkles,
   },
   {
@@ -32,15 +32,15 @@ export const PROPERTY_PROMO_TYPES = [
     label: "Sponsored",
     desc: "Marked as sponsored / paid placement.",
     color: "border-violet-400 bg-gradient-to-r from-violet-50 to-fuchsia-50 text-violet-800",
-    chip: "bg-violet-500 text-white",
+    chip: "bg-[#7c3aed] text-white",
     icon: Megaphone,
   },
   {
     value: "normal",
     label: "Normal",
     desc: "Standard organic listing (no boost).",
-    color: "border-slate-300 bg-slate-50 text-slate-600",
-    chip: "bg-slate-400 text-white",
+    color: "border-[#27AE60] bg-[#d1fae5] text-[#0f3d2e]",
+    chip: "bg-[#0f3d2e] text-white",
     icon: CircleDot,
   },
 ];

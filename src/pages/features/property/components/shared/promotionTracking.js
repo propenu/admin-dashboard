@@ -197,10 +197,10 @@ export const promotionLifecycleCopy = (tracking) => {
 };
 
 export const promotionLifecycleClass = (lifecycle) => {
-  if (lifecycle === "expired") return "bg-red-50 text-red-700 border-red-200";
-  if (lifecycle === "critical") return "bg-orange-50 text-orange-700 border-orange-200";
-  if (lifecycle === "expiringSoon") return "bg-amber-50 text-amber-700 border-amber-200";
-  if (lifecycle === "scheduled") return "bg-blue-50 text-blue-700 border-blue-200";
-  if (lifecycle === "active") return "bg-green-50 text-green-700 border-green-200";
-  return "bg-slate-50 text-slate-600 border-slate-200";
+  if (lifecycle === "expired") return "bg-[#e11d48] text-white border-[#be123c]";
+  if (lifecycle === "critical") return "bg-[#f97316] text-white border-[#ea580c]";
+  if (lifecycle === "expiringSoon") return "bg-[#f59e0b] text-white border-[#d97706]";
+  if (lifecycle === "scheduled") return "bg-[#0284c7] text-white border-[#0369a1]";
+  if (lifecycle === "active") return "bg-[#27AE60] text-white border-[#1e8f4d]";
+  return "bg-[#d1fae5] text-[#0f3d2e] border-[#27AE60]";
 };

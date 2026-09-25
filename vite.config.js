@@ -18,7 +18,11 @@ export default defineConfig({
           (dep) =>
             !dep.includes("country-state-city") &&
             !dep.includes("xlsx") &&
-            !dep.includes("tiptap"),
+            !dep.includes("tiptap") &&
+            !dep.includes("charts") &&
+            !dep.includes("maps") &&
+            !dep.includes("pdf") &&
+            !dep.includes("motion"),
         );
       },
     },

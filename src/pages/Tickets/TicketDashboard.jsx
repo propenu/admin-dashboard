@@ -280,7 +280,7 @@ export default function TicketDashboard() {
   }
 
   return (
-    <div className="relative space-y-3 bg-gradient-to-br from-[#f8fffb] via-white to-[#f7fbff] pb-6 text-slate-900">
+    <div className="relative space-y-3 bg-[#f7fbf8] pb-6 text-[#0f3d2e]">
       <TicketWorkspaceHeader
         activeTab={visibleActiveTab}
         onTabChange={setActiveTab}
@@ -382,10 +382,10 @@ function TicketNotificationsPage({
 }) {
   return (
     <section className={`overflow-hidden ${ticketSurface}`}>
-      <div className="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-[#e6f4eb] bg-[#f7fbf8] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-[20px] font-black text-slate-950">Ticket Notifications</h2>
-          <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">
+          <h2 className="text-[20px] font-black text-[#0f3d2e]">Ticket Notifications</h2>
+          <p className="mt-1 text-[12px] font-medium leading-5 text-[#5c7d6d]">
             {mode === "desk"
               ? exclusiveAssignee
                 ? "Tickets on your CCE desk (assigned, created, or reassigned by you)."
@@ -393,14 +393,14 @@ function TicketNotificationsPage({
               : "Your personal tickets (assigned / created / requester). New ones show as New until opened."}
           </p>
         </div>
-        <span className="w-fit rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-[12px] font-bold text-[#219653] shadow-sm">
+        <span className="w-fit rounded-full border border-[#b7e4c7] bg-white px-3 py-1.5 text-[12px] font-bold text-[#27AE60]">
           {tickets.length} total
         </span>
       </div>
 
       <div className="grid gap-3 p-4">
         {tickets.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-[12px] font-semibold text-slate-500">
+          <div className="rounded-2xl border border-dashed border-[#b7e4c7] bg-[#f7fbf8] px-4 py-10 text-center text-[12px] font-semibold text-[#5c7d6d]">
             No ticket notifications found.
           </div>
         ) : (
@@ -415,13 +415,13 @@ function TicketNotificationsPage({
                 onClick={() => onOpenTicket(ticketId)}
                 className={`flex w-full flex-col gap-3 rounded-2xl border p-4 text-left transition sm:flex-row sm:items-start sm:justify-between ${
                   isNew
-                    ? "border-emerald-200 bg-emerald-50/70 shadow-[0_18px_35px_rgba(39,174,96,0.12)]"
-                    : `border-slate-200 bg-white ${ticketSurfaceHover}`
+                    ? "border-[#27AE60] bg-[#e8f8ee] shadow-[0_10px_24px_-10px_rgba(39,174,96,0.38)]"
+                    : `border-[#b7e4c7] bg-white ${ticketSurfaceHover}`
                 }`}
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-[14px] font-bold text-slate-950">
+                    <p className="truncate text-[14px] font-bold text-[#0f3d2e]">
                       {ticket.title || "Untitled ticket"}
                     </p>
                     {isNew && (
@@ -430,16 +430,16 @@ function TicketNotificationsPage({
                       </span>
                     )}
                     {badge && (
-                      <span className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                      <span className="rounded-full border border-[#b7e4c7] bg-white px-2 py-0.5 text-[10px] font-bold text-[#27AE60]">
                         {badge}
                       </span>
                     )}
                   </div>
-                  <p className="mt-1.5 text-[12px] font-semibold text-slate-500">
+                  <p className="mt-1.5 text-[12px] font-semibold text-[#5c7d6d]">
                     {ticket.requester?.name || "Requester"} - {formatLabel(ticket.department)}
                   </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-medium text-slate-500">
-                    <span className="rounded-full bg-white px-2 py-1 text-[#219653]">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-medium text-[#5c7d6d]">
+                    <span className="rounded-full bg-white px-2 py-1 text-[#27AE60]">
                       {formatLabel(ticket.status)}
                     </span>
                     <span className="rounded-full bg-white px-2 py-1">
@@ -453,7 +453,7 @@ function TicketNotificationsPage({
                     <span>Created {formatDateTime(ticket.createdAt)}</span>
                   </div>
                 </div>
-                <span className="shrink-0 text-[12px] font-bold text-slate-400">
+                <span className="shrink-0 text-[12px] font-bold text-[#5c7d6d]">
                   {formatRelativeTime(ticket.createdAt || ticket.updatedAt)}
                 </span>
               </button>
@@ -487,6 +487,9 @@ function OverviewTab({
         presets={TICKET_DATE_PRESETS}
         label="Ticket period"
         trailing="Live counts · click any KPI or chart to open the matching queue"
+        className={ticketSurface}
+        activeClassName="rounded-full bg-[#27AE60] text-white shadow-[0_6px_14px_-6px_rgba(39,174,96,0.7)]"
+        idleClassName="rounded-full bg-[#f7fbf8] text-[#5c7d6d] hover:bg-white hover:text-[#0f3d2e]"
       />
 
       <TicketMetricGrid

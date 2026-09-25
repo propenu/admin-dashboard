@@ -68,11 +68,10 @@ function isTruthyOptOut(value) {
     .trim()
     .toLowerCase();
   if (!v) return false;
+  // Do NOT treat "y", bare "1", AccountStatus=active, PhoneVerified, Role, etc.
   return [
-    "1",
     "true",
     "yes",
-    "y",
     "opted out",
     "opt-out",
     "optout",
@@ -84,25 +83,14 @@ function isTruthyOptOut(value) {
   ].includes(v);
 }
 
+/**
+ * Only explicit opt-out columns.
+ * Never AccountStatus / PhoneVerified / Role / Phone / Status.
+ */
 function findOptOutHeader(headers = []) {
   return (
     headers.find((h) =>
-      /^(opt[_-]?out|opted[_-]?out|unsubscribe|whatsapp[_-]?opt[_-]?out|marketing[_-]?opt[_-]?out)$/i.test(
-        String(h || "").trim(),
-      ),
-    ) ||
-    headers.find((h) =>
-      /^(opt[_-]?out|opted[_-]?out|unsubscribe)$/i.test(String(h || "").trim()),
-    ) ||
-    ""
-  );
-}
-
-/** Exact status/consent columns only — not "Account Status" / "Role". */
-function findStatusHeader(headers = []) {
-  return (
-    headers.find((h) =>
-      /^(status|whatsapp[_-]?status|consent|opt[_-]?in)$/i.test(
+      /^(opt[_-]?out|opted[_-]?out|unsubscribe|whatsapp[_-]?opt[_-]?out|marketing[_-]?opt[_-]?out|sms[_-]?opt[_-]?out)$/i.test(
         String(h || "").trim(),
       ),
     ) || ""
@@ -139,6 +127,11 @@ function emptyMappedFields(row, fieldMapping, templateVarCount, headers) {
   return empty;
 }
 
+function safeInt(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
 /**
  * @param {object} opts
  */
@@ -153,7 +146,6 @@ export function analyzeContactRows({
 }) {
   const phoneHeader = String(phoneField || "").trim();
   const optOutHeader = findOptOutHeader(headers);
-  const statusHeader = findStatusHeader(headers);
 
   const categories = {
     duplicates: [],
@@ -170,9 +162,7 @@ export function analyzeContactRows({
 
   rows.forEach((row, index) => {
     const excelRow = index + 2;
-    const phoneRaw = phoneHeader
-      ? resolveRowValue(row, phoneHeader)
-      : "";
+    const phoneRaw = phoneHeader ? resolveRowValue(row, phoneHeader) : "";
 
     /** Hard excludes only */
     const hardIssues = [];
@@ -180,16 +170,12 @@ export function analyzeContactRows({
     const softIssues = [];
     let detectedValue = phoneRaw || "(empty)";
 
-    if (optOutHeader && isTruthyOptOut(resolveRowValue(row, optOutHeader))) {
-      hardIssues.push("opted_out");
-      detectedValue = resolveRowValue(row, optOutHeader) || phoneRaw;
-    }
-    if (
-      statusHeader &&
-      /opt.?out|unsub|stop|block/i.test(resolveRowValue(row, statusHeader))
-    ) {
-      hardIssues.push("opted_out");
-      detectedValue = resolveRowValue(row, statusHeader) || phoneRaw;
+    if (optOutHeader) {
+      const optVal = resolveRowValue(row, optOutHeader);
+      if (isTruthyOptOut(optVal)) {
+        hardIssues.push("opted_out");
+        detectedValue = `${optOutHeader}=${optVal}`;
+      }
     }
 
     const phoneCheck = validatePhoneNumber(phoneRaw);
@@ -214,7 +200,6 @@ export function analyzeContactRows({
     );
     if (empties.length) {
       softIssues.push("missing_values");
-      // Show which template field is empty — not the phone number
       detectedValue = empties.join("; ");
     }
 
@@ -244,7 +229,9 @@ export function analyzeContactRows({
     }
   });
 
-  if (needsHeaderImage && !hasHeaderImage) {
+  const missingImageCount =
+    needsHeaderImage && !hasHeaderImage ? 1 : 0;
+  if (missingImageCount) {
     categories.missing_images.push({
       excelRow: null,
       phoneRaw: "",
@@ -255,12 +242,12 @@ export function analyzeContactRows({
   }
 
   const counts = {
-    duplicates: categories.duplicates.length,
-    invalid_numbers: categories.invalid_numbers.length,
-    missing_numbers: categories.missing_numbers.length,
-    opted_out: categories.opted_out.length,
-    missing_values: categories.missing_values.length,
-    missing_images: categories.missing_images.length,
+    duplicates: safeInt(categories.duplicates.length),
+    invalid_numbers: safeInt(categories.invalid_numbers.length),
+    missing_numbers: safeInt(categories.missing_numbers.length),
+    opted_out: safeInt(categories.opted_out.length),
+    missing_values: safeInt(categories.missing_values.length),
+    missing_images: safeInt(missingImageCount),
   };
 
   return {
@@ -292,7 +279,7 @@ export const VALIDATION_CATEGORY_META = {
   opted_out: {
     label: "Opted out",
     description:
-      "Recipient has stopped marketing messages (opt-out column only).",
+      "Only when an Opt-out / Unsubscribe column is true. Account Status and Phone Verified are ignored.",
   },
   missing_values: {
     label: "Missing values",

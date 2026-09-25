@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { MessageSquare } from "lucide-react";
 import { toast } from "sonner";
@@ -6,6 +6,9 @@ import { toast } from "sonner";
 import {
   geAlltWhatsappLogs,
   getWhatsAppNotificationAnalytics,
+  getWhatsAppCampaignsAnalytics,
+  getWhatsAppRunningCampaign,
+  getWhatsAppCampaignStats,
   getWhatsAppNotificationByName,
   retryFailedWhatsAppCampaign,
 } from "../../features/user/userService";
@@ -60,6 +63,10 @@ const WhatsAppNotifications = () => {
 
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState(null);
+  const [campaigns, setCampaigns] = useState(null);
+  const [runningCampaign, setRunningCampaign] = useState(null);
+  const [watchCampaignId, setWatchCampaignId] = useState("");
+  const watchCampaignRef = useRef("");
   const [loadingLogs, setLoadingLogs] = useState(false);
 
   const {
@@ -80,12 +87,35 @@ const WhatsAppNotifications = () => {
   const fetchLogs = async () => {
     try {
       setLoadingLogs(true);
-      const [logsRes, statsRes] = await Promise.all([
-        geAlltWhatsappLogs(),
+      const [logsRes, statsRes, campaignsRes, runningRes] =
+        await Promise.allSettled([
+        geAlltWhatsappLogs({ limit: 500 }),
         getWhatsAppNotificationAnalytics(),
+        getWhatsAppCampaignsAnalytics(),
+        getWhatsAppRunningCampaign(),
       ]);
-      setLogs(logsRes?.data?.data || logsRes?.data || []);
-      setStats(statsRes?.data?.data || statsRes?.data || null);
+
+      if (logsRes.status === "fulfilled") {
+        const body = logsRes.value?.data?.data || logsRes.value?.data || [];
+        setLogs(Array.isArray(body) ? body : []);
+      }
+      if (statsRes.status === "fulfilled") {
+        setStats(
+          statsRes.value?.data?.data || statsRes.value?.data || null,
+        );
+      }
+      if (campaignsRes.status === "fulfilled") {
+        const campPayload =
+          campaignsRes.value?.data?.data || campaignsRes.value?.data || [];
+        setCampaigns(Array.isArray(campPayload) ? campPayload : []);
+      } else {
+        setCampaigns(null);
+      }
+      if (runningRes.status === "fulfilled" && !watchCampaignRef.current) {
+        const running =
+          runningRes.value?.data?.data ?? runningRes.value?.data ?? null;
+        setRunningCampaign(running?.campaignId ? running : null);
+      }
     } catch (error) {
       console.error("Error fetching logs and stats:", error);
     } finally {
@@ -96,6 +126,54 @@ const WhatsAppNotifications = () => {
   useEffect(() => {
     fetchLogs();
   }, []);
+
+  useEffect(() => {
+    if (watchCampaignId) return undefined;
+    if (!runningCampaign?.campaignId || Number(runningCampaign.pending) <= 0) {
+      return undefined;
+    }
+    const timer = setInterval(() => {
+      fetchLogs();
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [watchCampaignId, runningCampaign?.campaignId, runningCampaign?.pending]);
+
+  useEffect(() => {
+    if (!watchCampaignId) return undefined;
+    let stopped = false;
+
+    const pull = async () => {
+      try {
+        const res = await getWhatsAppCampaignStats(watchCampaignId);
+        const body = res?.data?.data || res?.data;
+        if (stopped || !body?.campaignId) return;
+        const run = body.run || {};
+        setRunningCampaign({
+          campaignId: body.campaignId,
+          name: body.name || run.templateName,
+          source: body.source || run.source,
+          createdAt: body.createdAt || run.createdAt,
+          status: body.status,
+          total: body.total,
+          sent: body.sent ?? body.success ?? body.successCount,
+          failed: body.failed,
+          pending: body.pending,
+          processed: body.processed,
+          progress: body.progress,
+          progressPercent: body.progressPercent,
+        });
+      } catch {
+        /* keep last snapshot */
+      }
+    };
+
+    pull();
+    const timer = setInterval(pull, 2000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [watchCampaignId]);
 
   const openView = async (item) => {
     try {
@@ -276,6 +354,12 @@ const WhatsAppNotifications = () => {
       {showCrmCampaign ? (
         <CrmCampaignModal
           templates={approvedTemplates}
+          onCampaignStarted={(info) => {
+            watchCampaignRef.current = info.campaignId;
+            setWatchCampaignId(info.campaignId);
+            setRunningCampaign(info);
+            setSection("overview");
+          }}
           onClose={() => {
             setShowCrmCampaign(false);
             fetchLogs();
@@ -286,6 +370,12 @@ const WhatsAppNotifications = () => {
       {showCsvCampaign ? (
         <CsvCampaignModal
           templates={approvedTemplates}
+          onCampaignStarted={(info) => {
+            watchCampaignRef.current = info.campaignId;
+            setWatchCampaignId(info.campaignId);
+            setRunningCampaign(info);
+            setSection("overview");
+          }}
           onClose={() => {
             setShowCsvCampaign(false);
             fetchLogs();
@@ -330,6 +420,7 @@ const WhatsAppNotifications = () => {
           logs={logs}
           templates={templates}
           loading={loadingLogs}
+          runningCampaign={runningCampaign}
           onRefresh={fetchLogs}
           onOpenCrmCampaign={() => handleCampaignClick("template")}
           onOpenCsvCampaign={() => handleCampaignClick("csv")}
@@ -357,6 +448,7 @@ const WhatsAppNotifications = () => {
       {section === "campaigns" ? (
         <CampaignHistoryScreen
           logs={logs}
+          campaigns={campaigns}
           loading={loadingLogs}
           retryingId={retryingId}
           onRetry={handleRetry}

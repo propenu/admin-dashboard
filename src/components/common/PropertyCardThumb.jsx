@@ -26,7 +26,7 @@ export function getPropertyCoverUrl(property) {
 const VARIANT_BOX = {
   list: "relative h-[120px] w-[128px] shrink-0 overflow-hidden bg-emerald-50",
   dashboard:
-    "relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-emerald-50 sm:aspect-auto sm:h-auto sm:min-h-[168px] sm:w-[172px] sm:self-stretch",
+    "relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-emerald-50 sm:aspect-auto sm:h-auto sm:min-h-[248px] sm:w-[160px] sm:self-stretch",
 };
 
 const IMG_FILL = {

@@ -184,8 +184,8 @@ export const getUserFeaturedProjects = (
   limit = 20,
 ) => {
   const query = new URLSearchParams({
-    page: "1",
-    limit: String(Math.max(limit, 100)),
+    page: String(Math.max(1, Number(page) || 1)),
+    limit: String(Math.min(12, Math.max(1, Number(limit) || 12))),
   });
   if (type) query.set("type", type);
   return getAllForUser(PROPERTY_BASE, query, userIds, { isProject: true });
@@ -196,11 +196,11 @@ export const getUserProperties = (
   userIds,
   category = "residential",
   page = 1,
-  limit = 20,
+  limit = 12,
 ) => {
   const query = new URLSearchParams({
-    page: "1",
-    limit: String(Math.max(limit, 100)),
+    page: String(Math.max(1, Number(page) || 1)),
+    limit: String(Math.min(12, Math.max(1, Number(limit) || 12))),
   });
   return getAllForUser(`${SERVICES.PROPERTY}/${category}`, query, userIds);
 };

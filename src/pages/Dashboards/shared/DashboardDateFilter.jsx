@@ -17,10 +17,11 @@ export default function DashboardDateFilter({
   activeClassName = "bg-emerald-600 text-white shadow-sm",
   idleClassName = "bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700",
   label = "Date range",
+  className = "",
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-[14px] border border-slate-200 bg-white p-2 shadow-sm">
-      <span className="inline-flex items-center gap-1 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+    <div className={`flex flex-wrap items-center gap-2 p-2 ${className || "rounded-2xl border border-slate-200 bg-white shadow-sm"}`}>
+      <span className="inline-flex items-center gap-1 px-2 text-[10px] font-bold uppercase tracking-wider text-[#5c7d6d]">
         <Filter className="h-3.5 w-3.5" />
         {label}
       </span>
@@ -76,7 +77,7 @@ export default function DashboardDateFilter({
       )}
 
       {trailing ? (
-        <span className="ml-auto inline-flex items-center text-[10px] text-slate-400">
+        <span className="ml-auto inline-flex items-center text-[10px] text-[#5c7d6d]">
           {trailing}
         </span>
       ) : null}

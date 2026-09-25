@@ -76,7 +76,8 @@ import { deleteCommercial } from "../../services/CommercialServices/CommercialSe
 import { deleteAgricultural } from "../../services/AgricuturalServices/AgricuturalServices";
 import { deleteLand } from "../../services/LandServices/LandServices";
 import {
-  getPropertyCreatorTag,
+  getCreatedByDisplayName,
+  getCreatedByRoleLabel,
   isAgentCreatedProperty,
 } from "../../utils/propertyCreatorRole";
 import { canReviewPropertyListing, canEditPendingProperty } from "../../utils/propertyAccessControl";
@@ -379,6 +380,26 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
+const BADGE_BASE =
+  "inline-flex h-5 max-w-full items-center gap-0.5 overflow-hidden whitespace-nowrap rounded-full border border-[#c0c4cc] px-2 text-[9px] font-bold uppercase tracking-wide shadow-[0_2px_8px_rgba(192,192,192,0.55)]";
+
+const CARD_CHROME =
+  "border border-[#c0c4cc] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_10px_22px_-8px_rgba(192,192,192,0.7)] transition hover:border-[#a8adb6] hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_14px_26px_-8px_rgba(192,192,192,0.8)]";
+
+const CATEGORY_BADGE = {
+  residential: "bg-[#27AE60] text-white",
+  commercial: "bg-[#1e8f4d] text-white",
+  agricultural: "bg-[#0f3d2e] text-white",
+  land: "bg-[#16a34a] text-white",
+};
+
+const STATUS_BADGE = {
+  active: "bg-[#27AE60] text-white",
+  rejected: "bg-[#e11d48] text-white",
+  pending: "bg-[#f59e0b] text-white",
+  draft: "bg-[#f59e0b] text-white",
+};
+
 const formatPostedAt = (value) => {
   if (!value) return "Posting time unavailable";
   const date = new Date(value);
@@ -444,8 +465,8 @@ function PropertyCard({
 }) {
   const [openLeads, setOpenLeads] = useState(false);
   const status = getStatus(property);
-  const creatorTag = getPropertyCreatorTag(property);
-  const creator = property?.createdBy?.name || property?.postedBy?.name || "Unknown user";
+  const creatorRole = getCreatedByRoleLabel(property);
+  const creator = getCreatedByDisplayName(property) || "Unknown user";
   const propertyName =
     category === "residential" || category === "commercial"
       ? property?.buildingName
@@ -517,17 +538,29 @@ function PropertyCard({
           animation: "propertyRowIn 360ms ease both",
           animationDelay: `${Math.min(index * 35, 280)}ms`,
         }}
-        className={`group flex h-full min-h-0 w-full min-w-0 max-w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left hover:-translate-y-0.5 sm:min-h-[188px] sm:flex-row sm:items-stretch ${saSurface} ${saSurfaceHover}`}
+        className={`group flex h-full w-full min-w-0 max-w-full cursor-pointer flex-col overflow-hidden rounded-2xl text-left sm:flex-row sm:items-stretch ${CARD_CHROME}`}
       >
       <PropertyCardThumb
         property={property}
         variant="dashboard"
       >
-        <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
-          <span className="rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#0f3d2e] shadow-[0_4px_10px_rgba(16,185,129,0.12)]">
+        <div className="absolute left-1.5 top-1.5 z-[3] flex max-w-[calc(100%-12px)] flex-wrap gap-1">
+          <span
+            className={`${BADGE_BASE} ${
+              CATEGORY_BADGE[category] || "bg-[#0f3d2e] text-white"
+            }`}
+          >
             {category}
           </span>
-          <span className="rounded-full bg-[#27AE60]/90 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white shadow-[0_4px_10px_rgba(18,161,80,0.22)]">
+          <span
+            className={`${BADGE_BASE} ${
+              getPropertyListingType(property) === "rent" ||
+              getPropertyListingType(property) === "lease" ||
+              getPropertyListingType(property) === "rental"
+                ? "bg-[#0f3d2e] text-white"
+                : "bg-[#27AE60] text-white"
+            }`}
+          >
             {getPropertyListingType(property) === "rent" ||
             getPropertyListingType(property) === "lease" ||
             getPropertyListingType(property) === "rental"
@@ -535,48 +568,53 @@ function PropertyCard({
               : "Sale"}
           </span>
           <span
-            className={`rounded-full px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide shadow-sm ${
-              status === "active"
-                ? "bg-emerald-100 text-emerald-700"
-                : status === "rejected"
-                  ? "bg-rose-100 text-rose-700"
-                  : "bg-amber-100 text-amber-700"
+            className={`${BADGE_BASE} ${
+              STATUS_BADGE[status] || "bg-[#f59e0b] text-white"
             }`}
           >
             {status}
           </span>
         </div>
-        {creatorTag && (
-          <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-[#0f3d2e]/88 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white">
-            <ShieldCheck className="h-2.5 w-2.5 text-emerald-400" /> {creatorTag}
+        <div className="absolute inset-x-2 bottom-2 z-[3] flex items-center justify-between gap-1">
+          {creatorRole ? (
+            <span
+              title={creatorRole}
+              className={`${BADGE_BASE} min-w-0 max-w-[58%] text-white ${
+                /agent/i.test(creatorRole) ? "bg-[#0f3d2e]" : "bg-[#27AE60]"
+              }`}
+            >
+              <ShieldCheck className="h-2.5 w-2.5 shrink-0 text-white" />
+              <span className="truncate">{creatorRole}</span>
+            </span>
+          ) : (
+            <span />
+          )}
+          <span
+            className={`${BADGE_BASE} max-w-[42%] shrink-0 ${promoMeta.chip}`}
+          >
+            <PromoIcon className="h-2.5 w-2.5 shrink-0" />
+            <span className="truncate">{titlePromotionType(promoType)}</span>
           </span>
-        )}
-        <span
-          className={`absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide shadow-sm ${promoMeta.chip}`}
-        >
-          <PromoIcon className="h-2.5 w-2.5" />
-          {titlePromotionType(promoType)}
-        </span>
+        </div>
       </PropertyCardThumb>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3 sm:p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-[13px] font-semibold text-[#0f3d2e] group-hover:text-emerald-700 sm:text-sm">
+            <h3 className="line-clamp-2 min-h-[2.4em] text-[13px] font-semibold leading-snug text-[#0f3d2e] group-hover:text-emerald-700 sm:text-sm">
               {property?.title || "Unnamed property"}
             </h3>
-            {/* Always reserve one line so cards align with/without building name */}
             <p
-              className={`mt-1 flex h-4 items-center gap-1 truncate text-[11px] font-medium text-[#5c7d6d] ${
+              className={`mt-1 flex h-4 items-center gap-1 text-[11px] font-medium text-[#5c7d6d] ${
                 propertyName?.trim() ? "" : "invisible"
               }`}
             >
               <Building2 className="h-3 w-3 shrink-0 text-emerald-600" />
               <span className="truncate">{propertyName?.trim() || "—"}</span>
             </p>
-            <p className="mt-1 flex h-4 items-center gap-1 truncate text-[11px] text-[#5c7d6d]">
+            <p className="mt-1 flex h-4 items-center gap-1 text-[11px] text-[#5c7d6d]">
               <MapPin className="h-3 w-3 shrink-0 text-emerald-600" />
-              {location || "Location unavailable"}
+              <span className="truncate">{location || "Location unavailable"}</span>
             </p>
           </div>
           <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-600" />
@@ -595,7 +633,7 @@ function PropertyCard({
           <Zap className="h-3 w-3 shrink-0" />
           <span>{promotionLifecycleCopy(tracking)}</span>
           {isBoosted && tracking.daysLeft != null ? (
-            <span className="ml-auto rounded-full bg-white/70 px-1.5 py-0.5 text-[9px] font-bold tabular-nums">
+            <span className="ml-auto rounded-full bg-white px-1.5 py-0.5 text-[9px] font-bold tabular-nums text-[#0f3d2e]">
               {tracking.daysLeft}d
             </span>
           ) : null}
@@ -604,7 +642,9 @@ function PropertyCard({
         <div className="mt-2 grid gap-x-3 gap-y-1 border-t border-emerald-50 pt-2 text-[10px] text-[#5c7d6d] sm:grid-cols-2">
           <span className="flex min-w-0 items-center gap-1.5">
             <UserRound className="h-3 w-3 shrink-0" />
-            <span className="truncate">{creator}</span>
+            <span className="truncate" title={creator}>
+              {creator}
+            </span>
           </span>
           <span className="flex min-w-0 items-center gap-1.5">
             <Clock3 className="h-3 w-3 shrink-0" />
@@ -623,12 +663,9 @@ function PropertyCard({
               </span>
             ) : null}
           </span>
-          {/* Reserve line height whether pending or not — keeps action rows aligned */}
           <span
-            className={`flex h-4 min-w-0 items-center gap-1.5 truncate text-[10px] font-medium sm:col-span-2 ${
-              status === "pending"
-                ? "text-amber-700"
-                : "invisible text-transparent"
+            className={`flex h-4 min-w-0 items-center gap-1.5 text-[10px] font-medium sm:col-span-2 ${
+              status === "pending" ? "text-amber-700" : "invisible"
             }`}
           >
             <ShieldCheck className="h-3 w-3 shrink-0" />
@@ -1113,8 +1150,9 @@ export default function PropertiesDashboard() {
       return res.data || {};
     },
     placeholderData: keepPreviousData,
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const analytics = analyticsQuery.data || {};

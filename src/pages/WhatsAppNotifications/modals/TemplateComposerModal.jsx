@@ -406,8 +406,20 @@ export function TemplateComposerModal({
       if (previewUrl && localPreview.startsWith("blob:")) {
         URL.revokeObjectURL(localPreview);
       }
-      toast.success(`${format} sample uploaded for Meta review`);
-    } catch (err) {
+      // Keep create-time S3 preview for campaign modal (Meta handle is not an image URL).
+      if (previewUrl) {
+        try {
+          const key = "propenu.wa.templateMediaPreview.v1";
+          const name = String(form.name || "").trim();
+          const map = JSON.parse(localStorage.getItem(key) || "{}");
+          if (name) map[name] = previewUrl;
+          map.__last = previewUrl;
+          localStorage.setItem(key, JSON.stringify(map));
+        } catch {
+          /* ignore */
+        }
+      }
+      toast.success(`${format} sample uploaded for Meta review`);    } catch (err) {
       toast.error(
         err?.response?.data?.message || err?.message || "Media upload failed",
         { duration: 8000 },
@@ -651,6 +663,17 @@ export function TemplateComposerModal({
         const v = form.body.examples[i];
         return v && String(v).trim() ? v : `Sample ${i + 1}`;
       });
+      const previewHttp = String(form.header.mediaPreview || "").trim();
+      if (previewHttp.startsWith("http") && form.name?.trim()) {
+        try {
+          const key = "propenu.wa.templateMediaPreview.v1";
+          const map = JSON.parse(localStorage.getItem(key) || "{}");
+          map[String(form.name).trim()] = previewHttp;
+          localStorage.setItem(key, JSON.stringify(map));
+        } catch {
+          /* ignore */
+        }
+      }
       onSubmit?.(
         buildPayload({
           ...form,

@@ -1,7 +1,7 @@
 // propenuadmindashborad/src/pages/UpsertProperties/components/UpsertIndetailsProject/PropertyIndetails.jsx
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GalleryLightbox from "../../../../components/common/GalleryLightbox";
 import { updateResidentialDocumentStatus } from "../../../../services/ResidentialServices/ResidentialServices";
 import { updateCommercialDocumentStatus } from "../../../../services/CommercialServices/CommercialServices";
@@ -681,21 +681,19 @@ function AuditPersonCard({ type, person, when, extra, labelOverride }) {
   );
 }
 
-/** Created By header on property details: Agent details vs Owner details. */
-const getPropertyCreatedByLabel = (person, property) => {
-  const tag = property
-    ? String(getPropertyCreatorTag(property) || "").toLowerCase()
-    : "";
-  if (tag.includes("agent")) return "Agent details";
-
+/** Created By header: exact createdBy role (Agent details, User details). */
+const getPropertyCreatedByLabel = (person) => {
   const role = String(
-    person?.roleName || person?.role || person?.roleId?.name || "",
+    person?.roleName || person?.role || person?.roleId?.label || person?.roleId?.name || "",
   )
     .trim()
+    .replace(/[_-]+/g, " ");
+  if (!role) return "Created by";
+  const titled = role
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_");
-  if (role.includes("agent")) return "Agent details";
-  return "Owner details";
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+  return `${titled} details`;
 };
 
 function CreatedByCard({ person, property }) {
@@ -704,7 +702,7 @@ function CreatedByCard({ person, property }) {
     <AuditPersonCard
       type="created"
       person={person}
-      labelOverride={getPropertyCreatedByLabel(person, property)}
+      labelOverride={getPropertyCreatedByLabel(person)}
       when={person?.createdAt || person?.postedAt || person?.updatedAt}
     />
   );
@@ -1962,6 +1960,7 @@ export default function IndetailsProperty({
   category: propCategory,
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeImage, setActiveImage] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const pageTopRef = useRef(null);
@@ -2264,6 +2263,12 @@ export default function IndetailsProperty({
                           ? "Re-verified — property is live again"
                           : "Property verified successfully and published live",
                       );
+                      queryClient.invalidateQueries({
+                        queryKey: ["properties-dashboard-listings"],
+                      });
+                      queryClient.invalidateQueries({
+                        queryKey: ["property", category, property._id],
+                      });
                       navigate(`/properties`);
                     } catch (err) {
                       toast.error(

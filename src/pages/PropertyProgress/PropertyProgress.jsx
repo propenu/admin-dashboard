@@ -19,6 +19,14 @@ import {
   fetchAgriculturalPropertyProgressThunk,
   fetchLandPropertyProgressThunk,
 } from "../../store/PropertyProgress/propertyProgressThunck";
+import { saSurface } from "../Dashboards/superAdminDashboard/dashboardSurface";
+
+const ppControl =
+  "h-10 rounded-full border border-[#b7e4c7] bg-[#f7fbf8] px-3.5 text-sm font-medium text-[#0f3d2e] outline-none transition focus:border-[#27AE60] focus:bg-white focus:ring-2 focus:ring-[#27AE60]/15";
+const ppPill =
+  "inline-flex items-center gap-1.5 rounded-full border border-[#b7e4c7] bg-[#f7fbf8] px-3 py-1.5 text-xs font-semibold text-[#0f3d2e]";
+const ppTag =
+  "inline-flex items-center gap-1.5 rounded-full border border-[#b7e4c7] bg-[#f7fbf8] px-3 py-1.5 text-xs font-semibold text-[#27AE60]";
 
 const PropertyProgressDashboard = () => {
   const dispatch = useDispatch();
@@ -134,34 +142,33 @@ const PropertyProgressDashboard = () => {
     sortBy !== "newest";
 
   return (
-    <div className="p-6 bg-gradient-to-br from-gray-50 to-green-50/30 min-h-screen font-sans">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div className="min-h-full bg-[#f7fbf8] p-4 font-sans text-[#0f3d2e] sm:p-6">
+      <div className="mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-[#27AE60] mb-1">
+          <h1 className="mb-1 text-2xl font-bold tracking-tight text-[#0f3d2e]">
             All Properties
           </h1>
-          <p className="text-sm text-[#000000] ">
+          <p className="text-sm text-[#5c7d6d]">
             Manage and track your property listings
           </p>
         </div>
-        <div className="flex bg-white border-2 border-gray-100 rounded-lg p-1 shadow-sm">
+        <div className={`inline-flex items-center gap-0.5 rounded-full p-1 ${saSurface}`}>
           <button
             onClick={() => setViewMode("grid")}
-            className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`flex items-center rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
               viewMode === "grid"
-                ? "bg-[#27AE60] text-white shadow-md"
-                : "text-gray-600 hover:bg-gray-50"
+                ? "bg-[#27AE60] text-white shadow-[0_6px_14px_-6px_rgba(39,174,96,0.7)]"
+                : "text-[#5c7d6d] hover:bg-[#f7fbf8] hover:text-[#0f3d2e]"
             }`}
           >
             <LayoutGrid size={16} className={`mr-2 ${viewMode === "grid" ? "text-white" : "text-[#27AE60]"}`} /> Grid
           </button>
           <button
             onClick={() => setViewMode("table")}
-            className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all ${
+            className={`flex items-center rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
               viewMode === "table"
-                ? "bg-[#27AE60] text-white shadow-md"
-                : "text-gray-600 hover:bg-gray-50"
+                ? "bg-[#27AE60] text-white shadow-[0_6px_14px_-6px_rgba(39,174,96,0.7)]"
+                : "text-[#5c7d6d] hover:bg-[#f7fbf8] hover:text-[#0f3d2e]"
             }`}
           >
             <List size={16} className={`mr-2 ${viewMode === "table" ? "text-white" : "text-[#27AE60]"}`} /> Table
@@ -169,24 +176,23 @@ const PropertyProgressDashboard = () => {
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 shadow-sm">
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="relative flex-1 min-w-[280px]">
+      <div className={`mb-4 rounded-2xl p-3.5 ${saSurface}`}>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative min-w-[240px] flex-1">
             <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#27AE60]"
+              size={16}
             />
             <input
               type="text"
               placeholder="Search by title, location, or user..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg pl-10 pr-10 py-2.5 bg-gray-50 outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] focus:bg-white text-sm transition-all"
+              className={`${ppControl} w-full pl-9 pr-9`}
             />
             {searchQuery && (
               <X
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-[#5c7d6d] hover:text-[#0f3d2e]"
                 size={16}
                 onClick={() => setSearchQuery("")}
               />
@@ -195,7 +201,7 @@ const PropertyProgressDashboard = () => {
           <select
             value={activeCategory}
             onChange={(e) => setActiveCategory(e.target.value)}
-            className="border border-gray-200 rounded-lg px-4 py-2.5 bg-gray-50 text-sm text-gray-700 font-medium outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] cursor-pointer transition-all"
+            className={`${ppControl} cursor-pointer`}
           >
             <option value="residential">🏠 Residential</option>
             <option value="commercial">🏢 Commercial</option>
@@ -205,7 +211,7 @@ const PropertyProgressDashboard = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-200 rounded-lg px-4 py-2.5 bg-gray-50 text-sm text-gray-700 font-medium outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] cursor-pointer transition-all"
+            className={`${ppControl} cursor-pointer`}
           >
             <option value="all">All Status</option>
             <option value="draft">Draft</option>
@@ -216,7 +222,7 @@ const PropertyProgressDashboard = () => {
           <select
             value={completionFilter}
             onChange={(e) => setCompletionFilter(e.target.value)}
-            className="border border-gray-200 rounded-lg px-4 py-2.5 bg-gray-50 text-sm text-gray-700 font-medium outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] cursor-pointer transition-all"
+            className={`${ppControl} cursor-pointer`}
           >
             <option value="all">All Completion</option>
             <option value="0-25">0-25%</option>
@@ -227,7 +233,7 @@ const PropertyProgressDashboard = () => {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="border border-gray-200 rounded-lg px-4 py-2.5 bg-gray-50 text-sm text-gray-700 font-medium outline-none focus:ring-2 focus:ring-[#27AE60]/20 focus:border-[#27AE60] cursor-pointer transition-all"
+            className={`${ppControl} cursor-pointer`}
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
@@ -238,16 +244,15 @@ const PropertyProgressDashboard = () => {
         </div>
       </div>
 
-      {/* Active Filters & Results Count */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div className="flex items-center gap-2 text-sm text-gray-600 font-medium bg-white px-4 py-2.5 rounded-lg border border-gray-200 shadow-sm">
-          <LayoutGrid size={16} className="text-[#27AE60]" />
-          <span>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className={ppPill}>
+          <LayoutGrid size={14} className="text-[#27AE60]" />
+          <span className="text-[#5c7d6d]">
             Showing{" "}
-            <span className="font-bold text-gray-800">
+            <span className="font-bold text-[#0f3d2e]">
               {filteredItems.length}
             </span>{" "}
-            of <span className="font-bold text-gray-800">{totalItems}</span>{" "}
+            of <span className="font-bold text-[#0f3d2e]">{totalItems}</span>{" "}
             properties
           </span>
         </div>
@@ -255,49 +260,48 @@ const PropertyProgressDashboard = () => {
         {hasActiveFilters && (
           <button
             onClick={clearAllFilters}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-lg border border-red-200 hover:bg-red-100 transition-all text-sm font-medium"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#f0c2c2] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#c0392b] transition hover:bg-[#fff5f5]"
           >
-            <X size={16} />
+            <X size={14} />
             Clear All Filters
           </button>
         )}
       </div>
 
-      {/* Active Filter Tags */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="mb-4 flex flex-wrap gap-2">
           {searchQuery && (
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#27AE60]/10 text-[#27AE60] rounded-lg text-sm font-medium border border-[#27AE60]/20">
+            <span className={ppTag}>
               Search: "{searchQuery}"
               <X
-                size={14}
-                className="cursor-pointer hover:text-[#27AE60]/70"
+                size={12}
+                className="cursor-pointer hover:text-[#0f3d2e]"
                 onClick={() => setSearchQuery("")}
               />
             </span>
           )}
           {statusFilter !== "all" && (
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium border border-blue-200">
+            <span className={ppTag}>
               Status: {statusFilter}
               <X
-                size={14}
-                className="cursor-pointer hover:text-blue-600/70"
+                size={12}
+                className="cursor-pointer hover:text-[#0f3d2e]"
                 onClick={() => setStatusFilter("all")}
               />
             </span>
           )}
           {completionFilter !== "all" && (
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-sm font-medium border border-purple-200">
+            <span className={ppTag}>
               Completion: {completionFilter}%
               <X
-                size={14}
-                className="cursor-pointer hover:text-purple-600/70"
+                size={12}
+                className="cursor-pointer hover:text-[#0f3d2e]"
                 onClick={() => setCompletionFilter("all")}
               />
             </span>
           )}
           {sortBy !== "newest" && (
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-sm font-medium border border-orange-200">
+            <span className={ppTag}>
               Sort:{" "}
               {sortBy === "mostViewed"
                 ? "Most Viewed"
@@ -307,8 +311,8 @@ const PropertyProgressDashboard = () => {
                     ? "Completion %"
                     : "Title A-Z"}
               <X
-                size={14}
-                className="cursor-pointer hover:text-orange-600/70"
+                size={12}
+                className="cursor-pointer hover:text-[#0f3d2e]"
                 onClick={() => setSortBy("newest")}
               />
             </span>
@@ -316,25 +320,23 @@ const PropertyProgressDashboard = () => {
         </div>
       )}
 
-      {/* Content Area */}
       {currentData.loading ? (
-        <div className="text-center py-20">
-          <div className="inline-block w-12 h-12 border-4 border-gray-200 border-t-[#27AE60] rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-500 font-medium">Loading properties...</p>
+        <div className={`py-16 text-center ${saSurface} rounded-2xl`}>
+          <div className="mb-4 inline-block h-11 w-11 animate-spin rounded-full border-4 border-[#d8f0e2] border-t-[#27AE60]"></div>
+          <p className="font-medium text-[#5c7d6d]">Loading properties...</p>
         </div>
       ) : filteredItems.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-xl border-2 border-gray-200">
-          <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-xl font-bold text-gray-800 mb-2">
+        <div className={`rounded-2xl py-16 text-center ${saSurface}`}>
+          <h3 className="mb-2 text-lg font-bold text-[#0f3d2e]">
             No Properties Found
           </h3>
-          <p className="text-gray-500 mb-4">
+          <p className="mb-4 text-sm text-[#5c7d6d]">
             Try adjusting your filters or search query
           </p>
           {hasActiveFilters && (
             <button
               onClick={clearAllFilters}
-              className="px-6 py-2.5 bg-[#27AE60] text-white rounded-lg hover:bg-[#229954] transition-all font-medium"
+              className="rounded-full bg-[#27AE60] px-5 py-2 text-sm font-semibold text-white shadow-[0_6px_14px_-6px_rgba(39,174,96,0.7)] transition hover:bg-[#229954]"
             >
               Clear All Filters
             </button>

@@ -37,7 +37,7 @@ export default function TicketQueue({
 
   return (
     <section className={`flex h-full min-h-0 flex-col overflow-hidden ${ticketSurface}`}>
-      <div className="grid gap-2 border-b border-slate-100 p-3">
+      <div className="grid gap-2 border-b border-[#e6f4eb] p-3">
         {Array.isArray(personalScopes) && personalScopes.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {personalScopes.map((scope) => {
@@ -49,10 +49,10 @@ export default function TicketQueue({
                   title={scope.hint}
                   onClick={() => setScope(scope.key)}
                   aria-pressed={active}
-                  className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition ${
+                  className={`rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition ${
                     active
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                      : "border-slate-200 bg-white text-slate-500 hover:border-emerald-300 hover:text-slate-800"
+                      ? "border-[#27AE60] bg-[#27AE60] text-white shadow-[0_6px_14px_-6px_rgba(39,174,96,0.7)]"
+                      : "border-[#b7e4c7] bg-[#f7fbf8] text-[#5c7d6d] hover:border-[#27AE60] hover:text-[#0f3d2e]"
                   }`}
                 >
                   {scope.label}

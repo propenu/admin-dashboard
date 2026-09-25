@@ -1,9 +1,14 @@
 import { apiClient } from "../../api/apiClient";
 
 export const getAllUsersActivity = async (params = {}, config = {}) => {
+  const next = { ...params };
+  if (String(next.groupBy || "user") !== "event") {
+    delete next.pageSize;
+    next.limit = 12;
+  }
   const response = await apiClient.get(
     "/api/properties/interactions/all-users-activity",
-    { params, ...config },
+    { params: next, ...config },
   );
   return response.data?.data ?? response.data;
 };

@@ -13,7 +13,7 @@ export default function DepartmentBreakdown({ overview, onOpenQueue }) {
     <DashboardCard title="Tickets by Department">
       <div className="space-y-2.5">
         {overview.byDepartment.length === 0 ? (
-          <p className="rounded-xl bg-slate-50 p-4 text-[12px] font-medium text-slate-500">No department data</p>
+          <p className="rounded-xl bg-[#f7fbf8] p-4 text-[12px] font-medium text-[#5c7d6d]">No department data</p>
         ) : (
           overview.byDepartment.map((item) => {
             const percent = Math.round((item.count / total) * 100);
@@ -22,9 +22,9 @@ export default function DepartmentBreakdown({ overview, onOpenQueue }) {
                 key={item._id || "unassigned"}
                 type="button"
                 onClick={() => onOpenQueue?.({ department: item._id })}
-                className="grid w-full grid-cols-[110px_1fr_62px] items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-emerald-50"
+                className="grid w-full grid-cols-[110px_1fr_62px] items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-[#f7fbf8]"
               >
-                <span className="truncate text-[12px] font-semibold text-slate-700">
+                <span className="truncate text-[12px] font-semibold text-[#0f3d2e]">
                   {formatLabel(item._id)}
                 </span>
                 <div className={progressTrack}>
@@ -33,7 +33,7 @@ export default function DepartmentBreakdown({ overview, onOpenQueue }) {
                     style={{ width: `${(item.count / max) * 100}%` }}
                   />
                 </div>
-                <span className="text-right text-[12px] font-black text-slate-900">
+                <span className="text-right text-[12px] font-black text-[#0f3d2e]">
                   {item.count} ({percent}%)
                 </span>
               </button>

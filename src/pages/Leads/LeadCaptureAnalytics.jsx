@@ -46,11 +46,15 @@ import {
 import { apiClient } from "../../api/apiClient";
 import { getAllUsers } from "../../features/user/userService";
 import {
+  getUserById,
   getUserFeaturedProjects,
   getUserProperties,
 } from "../../features/user/userDetailService";
+import { saSurface } from "../Dashboards/superAdminDashboard/dashboardSurface";
 
 const roles = ["user", "builder", "builder_staff", "agent"];
+const USER_PAGE_SIZE = 12;
+const EVENT_PAGE_SIZE = 12;
 const ROLE_LABELS = {
   all: "All roles",
   user: "User",
@@ -254,14 +258,7 @@ const normalizeJourney = (person, payload = {}) => {
           .includes(needle),
       ),
     ).length;
-  const meaningful = count(
-    "view",
-    "shortlist",
-    "contact",
-    "whatsapp",
-    "lead",
-    "visit",
-  );
+  const totalEvents = Number(summary.totalEvents ?? rawEvents.length);
   const engagedMs = rawEvents.reduce(
     (total, event) =>
       total +
@@ -285,15 +282,16 @@ const normalizeJourney = (person, payload = {}) => {
       2 * 60 * 1000,
     journeyScore: Math.min(
       100,
-      Math.round(35 + sessions * 4 + meaningful * 1.5),
+      Math.round(35 + sessions * 4 + Math.min(totalEvents, 40) * 1.5),
     ),
     buyingIntent: Math.min(
       100,
       Math.round(
         30 +
-          count("view") * 2 +
-          count("shortlist") * 8 +
-          count("contact", "whatsapp", "lead", "visit") * 10,
+          Number(summary.propertiesViewed ?? count("view")) * 2 +
+          Number(summary.shortlisted ?? count("shortlist")) * 8 +
+          Number(summary.leads ?? count("contact", "whatsapp", "lead")) * 10 +
+          Number(summary.siteVisits ?? count("visit")) * 10,
       ),
     ),
     sessions,
@@ -305,10 +303,20 @@ const normalizeJourney = (person, payload = {}) => {
       summary.propertiesViewed ?? count("property_view"),
     ),
     projectsViewed: Number(summary.projectsViewed ?? count("project_view")),
-    shortlisted: count("shortlist", "favorite", "saved"),
-    leads: count("lead", "contact", "enquiry", "whatsapp"),
-    siteVisits: count("site_visit", "visit_book"),
+    shortlisted: Number(
+      summary.shortlisted ?? count("shortlist", "favorite", "saved"),
+    ),
+    leads: Number(summary.leads ?? count("lead", "contact", "enquiry", "whatsapp")),
+    siteVisits: Number(summary.siteVisits ?? count("site_visit", "visit_book")),
     events,
+    eventPagination: payload.pagination || {
+      page: 1,
+      pageSize: EVENT_PAGE_SIZE,
+      total: Number(summary.totalEvents ?? events.length),
+      totalPages: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    },
     currentContext: payload.currentContext || {},
     person,
   };
@@ -331,10 +339,10 @@ function Avatar({ user, size = "h-10 w-10" }) {
 }
 function Chip({ children, tone = "green" }) {
   const tones = {
-    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    green: "border-[#b7e4c7] bg-[#e8f8ee] text-[#128C45]",
     orange: "border-orange-200 bg-orange-50 text-orange-700",
-    blue: "border-blue-200 bg-blue-50 text-blue-700",
-    slate: "border-slate-200 bg-slate-50 text-slate-600",
+    blue: "border-[#b7e4c7] bg-[#e8f8ee] text-[#128C45]",
+    slate: "border-[#b7e4c7] bg-[#f7fbf8] text-[#5c7d6d]",
   };
   return (
     <span
@@ -348,7 +356,7 @@ function Chip({ children, tone = "green" }) {
 function RoleBadge({ role, className = "" }) {
   return (
     <span
-      className={`inline-flex h-6 min-w-[7.5rem] items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-bold uppercase tracking-wide text-emerald-700 ${className}`}
+      className={`inline-flex h-6 min-w-[7.5rem] items-center justify-center rounded-full border border-[#b7e4c7] bg-[#e8f8ee] px-2.5 text-[11px] font-bold uppercase tracking-wide text-[#128C45] ${className}`}
     >
       {roleLabel(role)}
     </span>
@@ -356,14 +364,14 @@ function RoleBadge({ role, className = "" }) {
 }
 function Panel({ title: heading, subtitle, children, action, className = "" }) {
   return (
-    <section className={`uj-panel ${className}`}>
-      <header className="flex min-h-12 items-center justify-between gap-3 border-b border-slate-100 px-3.5 py-2.5">
+    <section className={`uj-panel overflow-hidden rounded-2xl ${saSurface} ${className}`}>
+      <header className="flex min-h-12 items-center justify-between gap-3 border-b border-emerald-50 bg-[#f7fbf8] px-3.5 py-2.5">
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-bold tracking-tight text-slate-800">
+          <h2 className="truncate text-sm font-semibold tracking-tight text-[#0f3d2e]">
             {heading}
           </h2>
           {subtitle && (
-            <p className="mt-0.5 truncate text-xs text-slate-400">{subtitle}</p>
+            <p className="mt-0.5 truncate text-xs text-[#5c7d6d]">{subtitle}</p>
           )}
         </div>
         {action}
@@ -374,14 +382,14 @@ function Panel({ title: heading, subtitle, children, action, className = "" }) {
 }
 function Metric({ icon, label, value, suffix, change, tone = "green" }) {
   const colors = {
-    green: "text-emerald-600",
-    blue: "text-blue-600",
-    orange: "text-orange-600",
-    violet: "text-violet-600",
+    green: "text-[#27AE60]",
+    blue: "text-[#27AE60]",
+    orange: "text-[#27AE60]",
+    violet: "text-[#27AE60]",
   };
   return (
-    <div className="uj-metric flex min-w-0 flex-col justify-center border-r border-slate-100 px-2.5 py-3 last:border-r-0 sm:px-3">
-      <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-slate-500">
+    <div className="uj-metric flex min-w-0 flex-col justify-center border-r border-[#d8f0e2] px-2.5 py-3 last:border-r-0 sm:px-3">
+      <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[#5c7d6d]">
         {createElement(icon, {
           size: 13,
           className: `shrink-0 ${colors[tone]}`,
@@ -389,16 +397,16 @@ function Metric({ icon, label, value, suffix, change, tone = "green" }) {
         <span className="truncate">{label}</span>
       </div>
       <div className="mt-1.5 flex min-w-0 items-baseline gap-1">
-        <strong className="truncate text-lg font-black leading-none text-slate-900 sm:text-xl">
+        <strong className="truncate text-lg font-black leading-none text-[#0f3d2e] sm:text-xl">
           {value}
         </strong>
         {suffix != null && suffix !== "" && (
-          <span className="shrink-0 text-[11px] font-semibold text-slate-500">
+          <span className="shrink-0 text-[11px] font-semibold text-[#5c7d6d]">
             {suffix}
           </span>
         )}
         {change && (
-          <span className="ml-auto shrink-0 text-[10px] font-bold text-emerald-600">
+          <span className="ml-auto shrink-0 text-[10px] font-bold text-[#27AE60]">
             ↗ {change}
           </span>
         )}
@@ -1533,6 +1541,13 @@ export default function LeadCaptureAnalytics() {
     [live, setLive] = useState(true),
     [toast, setToast] = useState(""),
     [journeyError, setJourneyError] = useState("");
+  const [eventPage, setEventPage] = useState(1);
+  const [userPage, setUserPage] = useState(1);
+  const [userMeta, setUserMeta] = useState({
+    total: 0,
+    pages: 1,
+    page: 1,
+  });
   const [userListings, setUserListings] = useState([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [listingFilter, setListingFilter] = useState("all");
@@ -1541,55 +1556,99 @@ export default function LeadCaptureAnalytics() {
     [selectedId, users],
   );
   const loadUsers = useCallback(async () => {
-    setLoading(true);
     try {
-      const result = await getAllUsers();
+      const result = await getAllUsers({
+        page: userPage,
+        limit: USER_PAGE_SIZE,
+        platformOnly: 1,
+        q: query.trim() || undefined,
+        role: roleFilter !== "all" ? roleFilter : undefined,
+      });
       const payload = result?.data;
       const list = (
-        Array.isArray(payload) ? payload : payload?.users || []
-      ).filter((item) => roles.includes(item.roleName));
-      setUsers(list);
-      setSelectedId((current) => {
-        if (deepLinkUserId && list.some((item) => item._id === deepLinkUserId)) {
-          return deepLinkUserId;
+        Array.isArray(payload) ? payload : payload?.users || payload?.data || []
+      ).filter((item) =>
+        roles.includes(String(item.roleName || item.role || "").toLowerCase()),
+      );
+      let merged = list;
+      if (deepLinkUserId && !list.some((item) => item._id === deepLinkUserId)) {
+        try {
+          const linked = await getUserById(deepLinkUserId);
+          const row =
+            linked?.data?.user ||
+            linked?.data?.data ||
+            linked?.data ||
+            null;
+          const person = row && !Array.isArray(row) ? row : null;
+          if (person?._id) merged = [person, ...list];
+        } catch {
+          /* keep page results */
         }
-        return current || list[0]?._id || "";
+      }
+      setUsers((prev) => {
+        const keep =
+          prev.find((item) => item._id === selectedId) ||
+          prev.find((item) => item._id === deepLinkUserId);
+        if (keep && !merged.some((item) => item._id === keep._id)) {
+          return [keep, ...merged];
+        }
+        return merged;
+      });
+      setUserMeta({
+        total: Number(payload?.meta?.total ?? merged.length) || 0,
+        pages: Math.max(1, Number(payload?.meta?.pages) || 1),
+        page: Math.max(1, Number(payload?.meta?.page) || userPage),
+      });
+      setSelectedId((current) => {
+        if (deepLinkUserId) return current || deepLinkUserId;
+        return current || merged[0]?._id || "";
       });
     } finally {
       setLoading(false);
     }
-  }, [deepLinkUserId]);
+  }, [deepLinkUserId, query, roleFilter, userPage, selectedId]);
   const loadJourney = useCallback(
-    async (person) => {
+    async (person, { silent = false } = {}) => {
       if (!person) return;
-      setRefreshing(true);
+      if (!silent) setRefreshing(true);
       setJourneyError("");
       try {
         const response = await apiClient.get(
           `/api/properties/interactions/user-journey/${person._id}`,
-          { params: { days: range, _t: Date.now() } },
+          {
+            params: {
+              days: range,
+              page: eventPage,
+              limit: EVENT_PAGE_SIZE,
+            },
+          },
         );
         setJourney(normalizeJourney(person, response?.data?.data));
       } catch (error) {
-        setJourney(normalizeJourney(person));
+        setJourney(normalizeJourney(person, { events: [], summary: {}, pagination: { page: 1, pageSize: EVENT_PAGE_SIZE, total: 0, totalPages: 1 } }));
         setJourneyError(
           error?.response?.data?.message ||
             "Live journey data could not be loaded.",
         );
       } finally {
-        setRefreshing(false);
+        if (!silent) setRefreshing(false);
       }
     },
-    [range],
+    [range, eventPage],
   );
   useEffect(() => {
-    // Initial synchronization with the existing admin user API.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadUsers();
-  }, [loadUsers]);
+    const timer = window.setTimeout(() => {
+      loadUsers();
+    }, query.trim() ? 350 : 0);
+    return () => window.clearTimeout(timer);
+  }, [loadUsers, query]);
   useEffect(() => {
-    // Synchronize the selected user's activity stream.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEventPage(1);
+  }, [selectedId, range]);
+  useEffect(() => {
+    setUserPage(1);
+  }, [query, roleFilter]);
+  useEffect(() => {
     if (user) loadJourney(user);
   }, [user, loadJourney]);
   useEffect(() => {
@@ -1598,11 +1657,11 @@ export default function LeadCaptureAnalytics() {
     const userIds = [user._id, user.userId, user.builderId].filter(Boolean);
     setListingsLoading(true);
     Promise.all([
-      getUserProperties(userIds, "residential", 1, 100),
-      getUserProperties(userIds, "commercial", 1, 100),
-      getUserProperties(userIds, "land", 1, 100),
-      getUserProperties(userIds, "agricultural", 1, 100),
-      getUserFeaturedProjects(userIds, "", 1, 100),
+      getUserProperties(userIds, "residential", 1, USER_PAGE_SIZE),
+      getUserProperties(userIds, "commercial", 1, USER_PAGE_SIZE),
+      getUserProperties(userIds, "land", 1, USER_PAGE_SIZE),
+      getUserProperties(userIds, "agricultural", 1, USER_PAGE_SIZE),
+      getUserFeaturedProjects(userIds, "", 1, USER_PAGE_SIZE),
     ])
       .then((responses) => {
         if (!active) return;
@@ -1621,9 +1680,14 @@ export default function LeadCaptureAnalytics() {
   }, [user]);
   useEffect(() => {
     if (!live || !user) return undefined;
-    const timer = window.setInterval(() => loadJourney(user), 10000);
+    const tick = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (eventPage > 1) return;
+      loadJourney(user, { silent: true });
+    };
+    const timer = window.setInterval(tick, 30000);
     return () => window.clearInterval(timer);
-  }, [live, loadJourney, user]);
+  }, [live, loadJourney, user, eventPage]);
   useEffect(() => {
     if (!toast) return undefined;
     const timer = window.setTimeout(() => setToast(""), 2600);
@@ -1637,29 +1701,7 @@ export default function LeadCaptureAnalytics() {
     window.addEventListener("keydown", closePicker);
     return () => window.removeEventListener("keydown", closePicker);
   }, [pickerOpen]);
-  const filteredUsers = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    return users
-      .filter(
-        (item) =>
-          (roleFilter === "all" || item.roleName === roleFilter) &&
-          (!q ||
-            [
-              item.name,
-              item.email,
-              item.phone,
-              item.city,
-              item.state,
-              item.locality,
-              item.address,
-            ].some((value) =>
-              String(value || "")
-                .toLowerCase()
-                .includes(q),
-            )),
-      )
-      .slice(0, 20);
-  }, [query, roleFilter, users]);
+  const filteredUsers = users;
   const events = useMemo(
     () =>
       (journey?.events || []).filter(
@@ -1891,31 +1933,60 @@ export default function LeadCaptureAnalytics() {
   if (loading)
     return (
       <div className="grid min-h-[70vh] place-items-center">
-        <LoaderCircle className="animate-spin text-emerald-600" size={34} />
+        <LoaderCircle className="animate-spin text-[#27AE60]" size={34} />
       </div>
     );
   if (!user)
     return (
-      <div className="rounded-xl border bg-white p-10 text-center">
-        <Users className="mx-auto text-slate-300" />
-        <h1 className="mt-3 font-black">No trackable users found</h1>
+      <div className={`rounded-2xl p-10 text-center ${saSurface}`}>
+        <Users className="mx-auto text-[#8fd0a8]" />
+        <h1 className="mt-3 font-semibold text-[#0f3d2e]">No trackable users found</h1>
       </div>
     );
   const notify = setToast;
   return (
-    <div className="uj-page relative text-slate-900">
+    <div className="uj-page relative text-[#0f3d2e]">
+      <style>{`
+        .uj-control, .uj-action {
+          display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+          height: 2rem; padding: 0 0.8rem; border-radius: 999px;
+          border: 1px solid #b7e4c7; background: #fff; color: #0f3d2e;
+          font-size: 11px; font-weight: 700; white-space: nowrap;
+          box-shadow: 0 4px 12px rgba(16,185,129,0.08);
+        }
+        .uj-control:hover, .uj-action:hover { background: #e8f8ee; border-color: #27AE60; }
+        .uj-action-primary {
+          display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+          height: 2rem; padding: 0 0.85rem; border-radius: 999px; border: 0;
+          background: #27AE60; color: #fff; font-size: 11px; font-weight: 700;
+          box-shadow: 0 8px 18px -6px rgba(39,174,96,0.55);
+        }
+        .uj-icon-button {
+          display: grid; place-items: center; height: 2rem; width: 2rem; border-radius: 999px;
+          border: 1px solid #b7e4c7; background: #fff; color: #0f3d2e;
+          box-shadow: 0 4px 12px rgba(16,185,129,0.08);
+        }
+        .uj-icon-button:hover { background: #e8f8ee; border-color: #27AE60; }
+        .uj-toast {
+          position: fixed; right: 1.25rem; top: 5.25rem; z-index: 40;
+          display: inline-flex; align-items: center; gap: 0.4rem;
+          border-radius: 999px; border: 1px solid #8fd0a8; background: #fff;
+          padding: 0.45rem 0.8rem; font-size: 12px; font-weight: 700; color: #0f3d2e;
+          box-shadow: 0 10px 24px -10px rgba(39,174,96,0.38);
+        }
+      `}</style>
       {toast && (
         <div className="uj-toast">
           <Check size={14} />
           {toast}
         </div>
       )}
-      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-3">
+      <header className="flex flex-wrap items-end justify-between gap-3 pb-1">
         <div className="min-w-0">
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">
+          <h1 className="text-lg font-semibold tracking-tight text-[#0f3d2e] sm:text-xl">
             User Journey Intelligence
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-[#5c7d6d]">
             Behavior, intent, friction and conversion tracing · First-party
             consented data
           </p>
@@ -1923,7 +1994,10 @@ export default function LeadCaptureAnalytics() {
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={range}
-            onChange={(e) => setRange(e.target.value)}
+            onChange={(e) => {
+              setRange(e.target.value);
+              setEventPage(1);
+            }}
             className="uj-control"
           >
             <option value="7">Last 7 days</option>
@@ -1933,10 +2007,10 @@ export default function LeadCaptureAnalytics() {
           <button
             type="button"
             onClick={() => setLive((value) => !value)}
-            className={`uj-control gap-2 ${live ? "text-emerald-700" : "text-slate-500"}`}
+            className={`uj-control gap-2 ${live ? "text-[#128C45]" : "text-[#5c7d6d]"}`}
           >
             <span
-              className={`h-2 w-2 rounded-full ${live ? "animate-pulse bg-emerald-500" : "bg-slate-300"}`}
+              className={`h-2 w-2 rounded-full ${live ? "animate-pulse bg-[#27AE60]" : "bg-[#b7e4c7]"}`}
             />
             {live ? "Live" : "Paused"}
             <ChevronDown size={12} />
@@ -1959,19 +2033,20 @@ export default function LeadCaptureAnalytics() {
           </button>
         </div>
       </header>
-      <section className="mt-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <section className={`mt-3 rounded-2xl p-3 sm:p-4 ${saSurface}`}>
         <div className="grid items-center gap-3 xl:grid-cols-[minmax(430px,1fr)_auto]">
           <div
             className={`relative ${pickerOpen ? "uj-user-picker-open" : ""}`}
           >
-            <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50/60 p-1 focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-100">
+            <div className="flex h-11 items-center rounded-xl border border-[#b7e4c7] bg-[#f7fbf8] p-1 focus-within:border-[#27AE60] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#27AE60]/15">
               <select
                 value={roleFilter}
                 onChange={(e) => {
                   setRoleFilter(e.target.value);
+                  setUserPage(1);
                   setPickerOpen(true);
                 }}
-                className="h-9 w-36 border-0 border-r border-slate-200 bg-transparent px-2.5 text-xs font-semibold text-slate-700 outline-none"
+                className="h-9 w-36 border-0 border-r border-[#d8f0e2] bg-transparent px-2.5 text-xs font-semibold text-[#0f3d2e] outline-none"
               >
                 <option value="all">{ROLE_LABELS.all}</option>
                 {roles.map((role) => (
@@ -1980,25 +2055,26 @@ export default function LeadCaptureAnalytics() {
                   </option>
                 ))}
               </select>
-              <Search className="ml-3 shrink-0 text-slate-400" size={15} />
+              <Search className="ml-3 shrink-0 text-[#5c7d6d]" size={15} />
               <input
                 value={query}
                 onFocus={() => setPickerOpen(true)}
                 onChange={(e) => {
                   setQuery(e.target.value);
+                  setUserPage(1);
                   setPickerOpen(true);
                 }}
                 placeholder="Search name, phone, email, city, state or locality"
-                className="h-9 min-w-0 flex-1 bg-transparent px-2.5 text-sm outline-none placeholder:text-slate-400"
+                className="h-9 min-w-0 flex-1 bg-transparent px-2.5 text-sm text-[#0f3d2e] outline-none placeholder:text-[#5c7d6d]"
               />
-              <span className="mr-2 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                {filteredUsers.length} found
+              <span className="mr-2 rounded-full border border-[#b7e4c7] bg-[#e8f8ee] px-2.5 py-1 text-[11px] font-bold text-[#128C45]">
+                {userMeta.total} found
               </span>
             </div>
             {pickerOpen && (
-              <div className="uj-picker-list absolute z-40 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
-                  <span className="text-xs font-bold uppercase tracking-[0.06em] text-slate-500">
+              <div className={`uj-picker-list absolute z-40 mt-2 w-full overflow-hidden rounded-2xl bg-white ${saSurface}`}>
+                <div className="flex items-center justify-between border-b border-emerald-50 px-3.5 py-2.5">
+                  <span className="text-xs font-bold uppercase tracking-[0.06em] text-[#5c7d6d]">
                     Select tracked account
                   </span>
                   <button
@@ -2023,21 +2099,22 @@ export default function LeadCaptureAnalytics() {
                           type="button"
                           onClick={() => {
                             setSelectedId(item._id);
+                            setEventPage(1);
                             setQuery("");
                             setPickerOpen(false);
                           }}
                           className={`group grid w-full grid-cols-[auto_minmax(0,1fr)_9.5rem] items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
                             selected
-                              ? "border border-emerald-200 bg-emerald-50 shadow-sm ring-1 ring-emerald-100"
-                              : "border border-transparent hover:border-emerald-100 hover:bg-emerald-50/70"
+                              ? "border border-[#27AE60] bg-[#e8f8ee] shadow-sm"
+                              : "border border-transparent hover:border-[#b7e4c7] hover:bg-[#f7fbf8]"
                           }`}
                         >
                           <Avatar user={item} size="h-10 w-10" />
                           <span className="min-w-0">
-                            <strong className="block truncate text-sm font-bold text-slate-900">
+                            <strong className="block truncate text-sm font-bold text-[#0f3d2e]">
                               {item.name || "Unnamed account"}
                             </strong>
-                            <small className="mt-0.5 block truncate text-xs text-slate-500">
+                            <small className="mt-0.5 block truncate text-xs text-[#5c7d6d]">
                               {item.email || maskPhone(item.phone) || "No contact"}
                             </small>
                           </span>
@@ -2065,6 +2142,33 @@ export default function LeadCaptureAnalytics() {
                     </div>
                   )}
                 </div>
+                {userMeta.pages > 1 && (
+                  <div className="flex items-center justify-between border-t border-emerald-50 px-3 py-2 text-[11px] font-semibold text-[#5c7d6d]">
+                    <span>
+                      Page {userMeta.page} of {userMeta.pages}
+                    </span>
+                    <span className="flex gap-1">
+                      <button
+                        type="button"
+                        disabled={userMeta.page <= 1}
+                        onClick={() => setUserPage((page) => Math.max(1, page - 1))}
+                        className="uj-control h-7 disabled:opacity-40"
+                      >
+                        Prev
+                      </button>
+                      <button
+                        type="button"
+                        disabled={userMeta.page >= userMeta.pages}
+                        onClick={() =>
+                          setUserPage((page) => Math.min(userMeta.pages, page + 1))
+                        }
+                        className="uj-control h-7 disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2103,13 +2207,13 @@ export default function LeadCaptureAnalytics() {
             </button>
           </div>
         </div>
-        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2.5 border-t border-slate-100 pt-3">
+        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2.5 border-t border-emerald-50 pt-3">
           <Avatar user={user} size="h-11 w-11" />
           <div className="mr-1 min-w-[180px] max-w-xs">
-            <strong className="block truncate text-base font-bold text-slate-900">
+            <strong className="block truncate text-base font-bold text-[#0f3d2e]">
               {user.name || "Registered user"}
             </strong>
-            <span className="mt-0.5 block truncate text-xs text-slate-500">
+            <span className="mt-0.5 block truncate text-xs text-[#5c7d6d]">
               {maskPhone(user.phone)} ·{" "}
               {[user.locality, user.city, user.state]
                 .filter(Boolean)
@@ -2154,7 +2258,7 @@ export default function LeadCaptureAnalytics() {
           becomes live automatically when the tracking endpoint is connected.
         </div>
       )}
-      <section className="uj-metric-strip mt-3 grid grid-cols-9 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <section className={`uj-metric-strip mt-3 grid grid-cols-9 overflow-hidden rounded-2xl ${saSurface}`}>
         <Metric
           icon={Gauge}
           label="Journey Score"
@@ -2272,8 +2376,8 @@ export default function LeadCaptureAnalytics() {
             </Panel>
             <Panel
               title="Event Stream"
-              subtitle="Live page, click and form activity"
-              action={<ListFilter size={13} className="text-slate-400" />}
+              subtitle="12 actions per page · newest first"
+              action={<ListFilter size={13} className="text-[#5c7d6d]" />}
             >
               <div className="border-b p-2">
                 <label className="relative">
@@ -2301,7 +2405,8 @@ export default function LeadCaptureAnalytics() {
                     </tr>
                   </thead>
                   <tbody>
-                    {events.map((row, index) => (
+                    {events.length ? (
+                      events.map((row, index) => (
                       <tr key={`${row[0]}-${row[1]}-${row[2]}-${row[3]}-${index}`}>
                         <td>{row[0]}</td>
                         <td
@@ -2320,9 +2425,41 @@ export default function LeadCaptureAnalytics() {
                         <td>{row[3]}</td>
                         <td>{row[4]}</td>
                       </tr>
-                    ))}
+                    ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-[#5c7d6d]">
+                          No actions in this window
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
+              </div>
+              <div className="flex items-center justify-between border-t border-emerald-50 px-3 py-2 text-[11px] font-semibold text-[#5c7d6d]">
+                <span>
+                  {journey?.eventPagination?.total
+                    ? `${journey.eventPagination.rangeStart || (eventPage - 1) * EVENT_PAGE_SIZE + 1}–${journey.eventPagination.rangeEnd || Math.min(eventPage * EVENT_PAGE_SIZE, journey.eventPagination.total)} of ${journey.eventPagination.total}`
+                    : "0 actions"}
+                </span>
+                <span className="flex gap-1">
+                  <button
+                    type="button"
+                    disabled={!journey?.eventPagination?.hasPreviousPage}
+                    onClick={() => setEventPage((page) => Math.max(1, page - 1))}
+                    className="uj-control h-7 disabled:opacity-40"
+                  >
+                    Prev
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!journey?.eventPagination?.hasNextPage}
+                    onClick={() => setEventPage((page) => page + 1)}
+                    className="uj-control h-7 disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </span>
               </div>
             </Panel>
             <Panel
@@ -2587,7 +2724,7 @@ export default function LeadCaptureAnalytics() {
         </div>
         <DynamicInsightRail journey={journey} user={user} notify={notify} />
       </section>
-      <footer className="mt-3 flex flex-wrap items-center justify-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-2.5 text-xs text-emerald-800">
+      <footer className={`mt-3 flex flex-wrap items-center justify-center gap-3 rounded-2xl px-4 py-2.5 text-xs text-[#128C45] ${saSurface}`}>
         <ShieldCheck size={15} />
         <b>Consent active</b>
         <span>· PII masked</span>
@@ -2595,7 +2732,7 @@ export default function LeadCaptureAnalytics() {
         <span>· Audit logged</span>
         <span>· Retention 90 days</span>
         <span className="ml-auto flex items-center gap-1.5 font-semibold">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+          <span className="h-2 w-2 animate-pulse rounded-full bg-[#27AE60]" />
           Live
         </span>
       </footer>

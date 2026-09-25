@@ -37,7 +37,8 @@ const CampaignRow = ({ campaign, onRetry, retrying }) => {
   };
 
   const d = detail || campaign;
-  const pct = d.total ? Math.round((d.success / d.total) * 100) : 0;
+  const processed = Number(d.processed ?? (Number(d.success || 0) + Number(d.failed || 0)));
+  const pct = d.total ? Math.round((processed / d.total) * 100) : 0;
 
   return (
     <div className="border  border-[#27AE60] rounded-2xl overflow-hidden bg-white hover:shadow-sm transition-all">

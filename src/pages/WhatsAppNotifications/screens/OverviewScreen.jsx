@@ -8,7 +8,6 @@ import {
   FileText,
   IndianRupee,
   MessageSquare,
-  Radio,
   XCircle,
 } from "lucide-react";
 
@@ -43,6 +42,111 @@ function normalizeCategory(raw = "") {
   if (key.includes("SERV")) return "SERVICE";
   if (key.includes("MARK")) return "MARKETING";
   return "MARKETING";
+}
+
+function LiveQueueCard({ running, loading }) {
+  const sent = Number(running?.sent ?? running?.success ?? 0) || 0;
+  const failed = Number(running?.failed || 0) || 0;
+  const pending = Number(running?.pending || 0) || 0;
+  const total = Number(running?.total || 0) || sent + failed + pending;
+  const processed = Number(running?.processed ?? sent + failed) || 0;
+  const percent =
+    Number.isFinite(Number(running?.progressPercent))
+      ? Number(running.progressPercent)
+      : total
+        ? Math.round((processed / total) * 100)
+        : 0;
+  const when = running?.createdAt
+    ? new Date(running.createdAt).toLocaleString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : "";
+
+  return (
+    <div className="rounded-2xl border border-emerald-100 bg-white px-5 py-5 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+            Live queue
+          </p>
+          <p className="mt-1 text-[15px] font-semibold text-slate-900">
+            {running?.campaignId
+              ? Number(running.pending) > 0
+                ? "Sending now"
+                : "Latest send"
+              : "No campaign running"}
+          </p>
+        </div>
+        {running?.campaignId ? (
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+            {percent}%
+          </span>
+        ) : null}
+      </div>
+      {running?.campaignId ? (
+        <>
+          <p className="mt-2 truncate text-[12px] text-slate-500" title={running.campaignId}>
+            Campaign ID: {running.campaignId}
+          </p>
+          <p className="text-[11px] text-slate-400">
+            {running.source === "crm"
+              ? "Propenu users"
+              : running.source === "csv"
+                ? "CSV / Excel"
+                : "Campaign"}
+            {running.name ? ` · ${running.name}` : ""}
+            {when ? ` · ${when}` : ""}
+          </p>
+          <div className="mt-4 flex items-center justify-between text-[12px] font-semibold text-slate-600">
+            <span>Delivery progress</span>
+            <span className="tabular-nums text-slate-800">
+              {processed} / {total}
+            </span>
+          </div>
+          <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full bg-emerald-500"
+              style={{ width: total ? `${(sent / total) * 100}%` : 0 }}
+            />
+            <div
+              className="h-full bg-rose-400"
+              style={{ width: total ? `${(failed / total) * 100}%` : 0 }}
+            />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {[
+              ["Sent", sent, "text-emerald-700"],
+              ["Failed", failed, "text-rose-600"],
+              ["Pending", pending, "text-amber-600"],
+            ].map(([label, value, tone]) => (
+              <div
+                key={label}
+                className="rounded-xl border border-slate-100 bg-slate-50 px-2 py-2 text-center"
+              >
+                <p className={`text-lg font-extrabold tabular-nums ${tone}`}>
+                  {value}
+                </p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 text-[13px] text-slate-500">
+          {loading
+            ? "Loading…"
+            : "Sent, failed, and pending stay in sync while a campaign is sending."}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function StatCard({ label, value, hint, tone, icon: Icon }) {
@@ -129,6 +233,7 @@ export default function OverviewScreen({
   logs = [],
   templates = [],
   loading,
+  runningCampaign = null,
   onOpenCrmCampaign,
   onOpenCsvCampaign,
   onRefresh,
@@ -306,26 +411,7 @@ export default function OverviewScreen({
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="flex min-h-[168px] items-center gap-4 rounded-2xl border border-emerald-100 bg-white px-5 py-5 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-            <Radio size={20} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-600">
-              01 · Campaign status
-            </p>
-            <p className="mt-1 text-[15px] font-semibold text-slate-900">
-              Pending campaign
-            </p>
-            <p className="mt-1 text-[13px] text-slate-500">
-              {loading
-                ? "Loading…"
-                : computed.pending > 0
-                  ? `${computed.pending.toLocaleString("en-IN")} WhatsApp messages still pending.`
-                  : "No WhatsApp campaign has pending messages."}
-            </p>
-          </div>
-        </div>
+        <LiveQueueCard running={runningCampaign} loading={loading} />
 
         <div className="rounded-2xl border border-emerald-100 bg-white px-5 py-4 shadow-[0_8px_24px_rgba(16,185,129,0.08)]">
           <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-600">

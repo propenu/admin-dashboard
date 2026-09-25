@@ -22,11 +22,11 @@ export default function TicketTrendsPanel({
       subtitle={`${rangeLabel} · ${total.toLocaleString("en-IN")} created`}
     >
       {isLoading ? (
-        <div className="grid h-40 place-items-center text-[12px] font-semibold text-slate-400">
+        <div className="grid h-40 place-items-center text-[12px] font-semibold text-[#5c7d6d]">
           Loading daily counts...
         </div>
       ) : trends.length === 0 ? (
-        <div className="grid h-40 place-items-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[12px] font-semibold text-slate-400">
+        <div className="grid h-40 place-items-center rounded-xl border border-dashed border-[#b7e4c7] bg-[#f7fbf8] text-[12px] font-semibold text-[#5c7d6d]">
           No tickets created in this date range
         </div>
       ) : (
@@ -48,29 +48,29 @@ export default function TicketTrendsPanel({
                     })
                   }
                   className={`flex min-w-[28px] flex-1 flex-col items-center gap-1 rounded-md px-0.5 transition ${
-                    clickable ? "hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200" : "cursor-default"
+                    clickable ? "hover:bg-[#f7fbf8] focus:outline-none focus:ring-2 focus:ring-[#27AE60]/20" : "cursor-default"
                   }`}
                   title={`${row.day}: ${count} ticket${count === 1 ? "" : "s"}${
                     clickable ? " — open queue" : ""
                   }`}
                 >
-                  <span className="text-[10px] font-bold tabular-nums text-slate-500">
+                  <span className="text-[10px] font-bold tabular-nums text-[#5c7d6d]">
                     {count || ""}
                   </span>
-                  <div className="flex h-28 w-full items-end justify-center rounded-md bg-slate-50 px-0.5">
+                  <div className="flex h-28 w-full items-end justify-center rounded-md bg-[#f7fbf8] px-0.5">
                     <div
-                      className="w-full max-w-[22px] rounded-md bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all"
+                      className="w-full max-w-[22px] rounded-md bg-[#27AE60] transition-all"
                       style={{ height: `${height}%` }}
                     />
                   </div>
-                  <span className="text-[9px] font-semibold text-slate-400">
+                  <span className="text-[9px] font-semibold text-[#5c7d6d]">
                     {formatDay(row.day)}
                   </span>
                 </button>
               );
             })}
           </div>
-          <p className="text-[11px] font-medium text-slate-500">
+          <p className="text-[11px] font-medium text-[#5c7d6d]">
             Daily create volume (live). Click a day bar to open that day&apos;s tickets.
           </p>
         </div>

@@ -1,6 +1,7 @@
 // EditWizard.jsx — FIXED: stable debounce, no stale closures, correct upload payload
 import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import debounce from "lodash/debounce";
@@ -153,6 +154,7 @@ export default function EditWizard() {
 
   const dispatch   = useDispatch();
   const navigate   = useNavigate();
+  const queryClient = useQueryClient();
   const uiCategory = useSelector((s) => s.ui.activeCategory);
   const category =
     resolvePropertyEditCategory(uiCategory) ||
@@ -167,6 +169,15 @@ export default function EditWizard() {
   const { form: current, loading } = useSelector(
     (s) => s[activeCategory] || {},
   );
+
+  const syncListingCaches = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["properties-dashboard-listings"] });
+    if (activeCategory && propertyId) {
+      queryClient.invalidateQueries({
+        queryKey: ["property", activeCategory, propertyId],
+      });
+    }
+  }, [queryClient, activeCategory, propertyId]);
 
   const isAgentProperty = isAgentCreatedProperty(current);
   const completionPercent = Number(
@@ -340,6 +351,10 @@ export default function EditWizard() {
             : currentRef.current;
         const payload = cleanData(latestForm);
         await d(savePropertyData({ category: cat, id: pid, step: stepName, data: payload })).unwrap();
+        queryClient.invalidateQueries({ queryKey: ["properties-dashboard-listings"] });
+        if (cat && pid) {
+          queryClient.invalidateQueries({ queryKey: ["property", cat, pid] });
+        }
       } catch (err) {
         console.error("❌ Autosave failed:", err);
       }
@@ -406,12 +421,13 @@ export default function EditWizard() {
           }),
         ).unwrap();
         toast.success("Document saved successfully!");
+        syncListingCaches();
       } catch (err) {
         console.error("❌ Upload failed:", err);
         toast.error(err?.message || "Failed to save document");
       }
     },
-    [activeCategory, propertyId, dispatch],
+    [activeCategory, propertyId, dispatch, syncListingCaches],
   );
 
   // ── Verify document status toggle ────────────────────────────────────────
@@ -490,13 +506,14 @@ export default function EditWizard() {
           }),
         ).unwrap();
         toast.success("Saved to cloud!", { id: tid });
+        syncListingCaches();
         return true;
       } catch {
         toast.error("Sync failed", { id: tid });
         return false;
       }
     },
-    [activeCategory, propertyId, dispatch],
+    [activeCategory, propertyId, dispatch, syncListingCaches],
   );
 
   // ── Publish ───────────────────────────────────────────────────────────────
@@ -514,11 +531,12 @@ export default function EditWizard() {
         }),
       ).unwrap();
       toast.success("Property is Live!", { id: tid });
+      syncListingCaches();
       navigate(`/properties`);
     } catch (err) {
       toast.error(err.message || "Failed to publish", { id: tid });
     }
-  }, [activeCategory, propertyId, dispatch, navigate]);
+  }, [activeCategory, propertyId, dispatch, navigate, syncListingCaches]);
 
   // ── Debounce cleanup ─────────────────────────────────────────────────────
   useEffect(() => () => debouncedAutoSave.cancel(), [debouncedAutoSave]);

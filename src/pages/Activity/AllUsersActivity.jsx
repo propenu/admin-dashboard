@@ -30,6 +30,8 @@ import {
 } from "./utils/activityFormatters";
 import { saSurface, saSurfaceHover } from "../Dashboards/superAdminDashboard/dashboardSurface";
 
+const PAGE_SIZE = 12;
+
 const TIME_PILLS = [
   { key: "today", label: "Today" },
   { key: "yesterday", label: "Yday" },
@@ -55,7 +57,6 @@ export default function AllUsersActivity() {
   const [query, setQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -68,6 +69,12 @@ export default function AllUsersActivity() {
   const abortRef = useRef(null);
   const tableScrollRef = useRef(null);
   const firstIdRef = useRef("");
+  const summaryRef = useRef({
+    kpis: {},
+    topActive: [],
+    needsAttention: [],
+    pagination: { total: 0, totalPages: 1, hasCount: false },
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => setQuery(searchInput.trim()), 350);
@@ -76,7 +83,13 @@ export default function AllUsersActivity() {
 
   useEffect(() => {
     setPage(1);
-  }, [role, timeKey, action, query, pageSize, customFrom, customTo]);
+    summaryRef.current = {
+      kpis: {},
+      topActive: [],
+      needsAttention: [],
+      pagination: { total: 0, totalPages: 1, hasCount: false },
+    };
+  }, [role, timeKey, action, query, customFrom, customTo]);
 
   const canFetchCustom = timeKey !== "custom" || (customFrom && customTo);
 
@@ -104,8 +117,10 @@ export default function AllUsersActivity() {
           customTo,
           query,
           page,
-          limit: pageSize,
+          limit: PAGE_SIZE,
           groupBy: "user",
+          includeSummary: soft || page !== 1 ? 0 : 1,
+          includeCount: soft || page !== 1 ? 0 : 1,
         }),
         { signal: controller.signal },
       );
@@ -132,6 +147,18 @@ export default function AllUsersActivity() {
             : result,
         );
       } else {
+        if (result?.kpis) {
+          summaryRef.current.kpis = result.kpis;
+          summaryRef.current.topActive = result.topActive || [];
+          summaryRef.current.needsAttention = result.needsAttention || [];
+        }
+        if (result?.pagination?.counted !== false && result?.pagination?.total != null) {
+          summaryRef.current.pagination = {
+            total: Number(result.pagination.total || 0),
+            totalPages: Number(result.pagination.totalPages || 1),
+            hasCount: true,
+          };
+        }
         setData(result);
         firstIdRef.current = nextFirst;
         setNewCount(0);
@@ -150,28 +177,64 @@ export default function AllUsersActivity() {
 
   useEffect(() => {
     load();
-    const timer = setInterval(() => load({ soft: true }), 12_000);
+    const tick = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (page !== 1) return;
+      load({ soft: true });
+    };
+    const timer = setInterval(tick, 30_000);
+    const onVisibility = () => {
+      if (typeof document !== "undefined" && !document.hidden && page === 1) {
+        load({ soft: true });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
       if (abortRef.current) abortRef.current.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, timeKey, action, query, page, pageSize, customFrom, customTo, canFetchCustom]);
+  }, [role, timeKey, action, query, page, customFrom, customTo, canFetchCustom]);
 
   const rows = useMemo(
     () => (data?.items || []).map(normalizeActivityRow),
     [data?.items],
   );
-  const kpis = data?.kpis || {};
-  const topActive = data?.topActive || [];
-  const needsAttention = data?.needsAttention || [];
-  const pagination = data?.pagination || {
-    page: 1,
-    pageSize,
-    total: 0,
-    totalPages: 1,
-    rangeStart: 0,
-    rangeEnd: 0,
+  const kpis = data?.kpis?.actionsToday != null ? data.kpis : summaryRef.current.kpis || {};
+  const topActive = data?.topActive?.length ? data.topActive : summaryRef.current.topActive || [];
+  const needsAttention = data?.needsAttention?.length
+    ? data.needsAttention
+    : summaryRef.current.needsAttention || [];
+  const cachedPaging = summaryRef.current.pagination || {};
+  const rawPaging = data?.pagination || {};
+  const hasCount = rawPaging.counted !== false && rawPaging.total != null
+    ? true
+    : Boolean(cachedPaging.hasCount);
+  const total = hasCount
+    ? Number(rawPaging.counted !== false && rawPaging.total != null ? rawPaging.total : cachedPaging.total || 0)
+    : Number(cachedPaging.total || 0);
+  const totalPages = hasCount
+    ? Math.max(
+        1,
+        Number(
+          rawPaging.counted !== false && rawPaging.totalPages
+            ? rawPaging.totalPages
+            : cachedPaging.totalPages,
+        ) || Math.ceil(total / PAGE_SIZE) || 1,
+      )
+    : Math.max(1, page);
+  const hasNextPage = hasCount
+    ? page < totalPages
+    : Boolean(rawPaging.hasNextPage) || rows.length >= PAGE_SIZE;
+  const pagination = {
+    page,
+    pageSize: PAGE_SIZE,
+    total,
+    totalPages,
+    rangeStart: total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1,
+    rangeEnd: Math.min(page * PAGE_SIZE, total || page * PAGE_SIZE),
+    hasNextPage,
   };
 
   const results = [
@@ -683,27 +746,21 @@ export default function AllUsersActivity() {
               Tip: click a user to see all actions with separate times
             </p>
 
-            {pagination.total > 0 ? (
+            {pagination.total > 0 || page > 1 || rows.length > 0 ? (
               <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
                 <span className="text-xs text-slate-500">
-                  <span className="font-semibold text-[#0f3d2e]">
-                    {pagination.rangeStart}–{pagination.rangeEnd}
-                  </span>
-                  {" / "}
-                  <span className="font-semibold text-[#0f3d2e]">{pagination.total}</span>
+                  {hasCount ? (
+                    <>
+                      <span className="font-semibold text-[#0f3d2e]">
+                        {pagination.rangeStart}–{pagination.rangeEnd}
+                      </span>
+                      {" / "}
+                      <span className="font-semibold text-[#0f3d2e]">{pagination.total}</span>
+                    </>
+                  ) : (
+                    <span className="font-semibold text-[#0f3d2e]">Page {page}</span>
+                  )}
                 </span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  aria-label="Rows per page"
-                  className="rounded-lg border border-[#b7e4c7] bg-white px-2 py-1.5 text-xs font-semibold"
-                >
-                  {[10, 20, 50, 100].map((size) => (
-                    <option key={size} value={size}>
-                      {size}/page
-                    </option>
-                  ))}
-                </select>
                 <button
                   type="button"
                   disabled={pagination.page <= 1}
@@ -713,12 +770,14 @@ export default function AllUsersActivity() {
                   Prev
                 </button>
                 <span className="min-w-[4.5rem] rounded-xl border border-[#b7e4c7] bg-[#F7FBF8] px-2.5 py-1.5 text-center text-xs font-bold tabular-nums">
-                  {pagination.page}/{pagination.totalPages}
+                  {pagination.page}/{Math.max(1, pagination.totalPages)}
                 </span>
                 <button
                   type="button"
-                  disabled={pagination.page >= pagination.totalPages}
-                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+                  disabled={!hasNextPage}
+                  onClick={() =>
+                    setPage((p) => (hasCount ? Math.min(pagination.totalPages, p + 1) : p + 1))
+                  }
                   className="inline-flex items-center gap-1 rounded-xl border border-[#b7e4c7] px-3 py-1.5 text-xs font-semibold text-[#27AE60] disabled:opacity-40"
                 >
                   Next

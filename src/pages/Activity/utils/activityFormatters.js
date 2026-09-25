@@ -12,8 +12,8 @@ export const ROLE_FILTERS = [
 export const TIME_FILTERS = [
   { value: "today", label: "Time (Today)", range: "today" },
   { value: "yesterday", label: "Yesterday", range: "yesterday" },
-  { value: "7d", label: "Last 7 days", hours: 168 },
-  { value: "30d", label: "Last 30 days", hours: 720 },
+  { value: "7d", label: "Last 7 days", range: "7d" },
+  { value: "30d", label: "Last 30 days", range: "30d" },
   { value: "custom", label: "Custom date range", custom: true },
 ];
 
@@ -121,6 +121,8 @@ export const buildActivityQueryParams = ({
   limit,
   groupBy = "user",
   userId,
+  includeSummary,
+  includeCount,
 }) => {
   const time = TIME_FILTERS.find((item) => item.value === timeKey) || TIME_FILTERS[0];
   const params = {
@@ -131,16 +133,16 @@ export const buildActivityQueryParams = ({
     limit,
     groupBy,
     userId: userId || undefined,
+    includeSummary,
+    includeCount,
   };
 
   if (time.custom && customFrom && customTo) {
-    params.from = new Date(`${customFrom}T00:00:00`).toISOString();
-    params.to = new Date(`${customTo}T23:59:59.999`).toISOString();
+    params.from = customFrom;
+    params.to = customTo;
     params.range = "custom";
   } else if (time.range) {
     params.range = time.range;
-  } else if (time.hours) {
-    params.hours = time.hours;
   } else {
     params.range = "today";
   }

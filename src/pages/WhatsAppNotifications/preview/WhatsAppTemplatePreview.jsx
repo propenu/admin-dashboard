@@ -122,10 +122,9 @@ export function WhatsAppTemplatePreview({
                 className="aspect-[16/10] w-full object-cover"
               />
             ) : (
-              <MediaPlaceholder icon={ImageIcon} label="Image" />
+              <MediaPlaceholder icon={ImageIcon} label="Image header" />
             )
           ) : null}
-
           {showVideo ? <MediaPlaceholder icon={Video} label="Video" /> : null}
 
           {showDocument ? (

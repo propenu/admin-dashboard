@@ -16,6 +16,14 @@ function campaignAgeMs(row) {
 }
 
 function statusOf(row) {
+  if (row.runStatus === "failed") return "Failed";
+  if (
+    ["accepted", "preparing", "queuing"].includes(String(row.runStatus || ""))
+  ) {
+    if (row.pending > 0 || row.delivered === 0) {
+      return campaignAgeMs(row) < 3 * 60 * 1000 ? "Sending" : "Stuck";
+    }
+  }
   if (row.failed > 0 && row.delivered === 0 && row.pending === 0)
     return "Failed";
   if (row.pending > 0 && row.delivered === 0) {
@@ -81,12 +89,7 @@ export function buildCampaignRows(logs = []) {
     const row = map.get(campaignId);
     row.total += 1;
     const st = String(log.status || "").toLowerCase();
-    if (
-      st === "success" ||
-      st === "delivered" ||
-      st === "read" ||
-      st === "sent"
-    ) {
+    if (st === "success") {
       row.delivered += 1;
     } else if (st === "failed" || st === "error") {
       row.failed += 1;
@@ -122,6 +125,7 @@ export function buildCampaignRows(logs = []) {
  */
 export default function CampaignHistoryScreen({
   logs = [],
+  campaigns = null,
   loading,
   onRetry,
   onView,
@@ -133,7 +137,24 @@ export default function CampaignHistoryScreen({
   const pageSize = 10;
 
   const rows = useMemo(() => {
-    const all = buildCampaignRows(logs);
+    const all = Array.isArray(campaigns)
+      ? campaigns.map((c) => ({
+          campaignId: c.campaignId,
+          name: c.name || c.templateName || c.campaignId,
+          category: String(c.category || "MARKETING").toUpperCase(),
+          language: c.language || "en",
+          createdAt: c.createdAt,
+          total: Number(c.total || 0),
+          delivered: Number(c.delivered ?? c.success ?? 0),
+          failed: Number(c.failed || 0),
+          pending: Number(c.pending || 0),
+          failureReason: c.failureReason || c.error || "",
+          failedSamples: Array.isArray(c.failedSamples)
+            ? c.failedSamples
+            : [],
+          runStatus: c.runStatus || null,
+        }))
+      : buildCampaignRows(logs);
     const now = Date.now();
     const ms =
       range === "1"
@@ -150,11 +171,15 @@ export default function CampaignHistoryScreen({
       }
       if (!q) return true;
       return (
-        row.name.toLowerCase().includes(q) ||
-        row.campaignId.toLowerCase().includes(q)
+        String(row.name || "")
+          .toLowerCase()
+          .includes(q) ||
+        String(row.campaignId || "")
+          .toLowerCase()
+          .includes(q)
       );
     });
-  }, [logs, search, range]);
+  }, [logs, campaigns, search, range]);
 
   const pageRows = rows.slice(page * pageSize, page * pageSize + pageSize);
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize || 1));
@@ -344,7 +369,7 @@ export default function CampaignHistoryScreen({
                       {row.pending}
                     </td>
                     <td className={`${line} whitespace-nowrap text-center text-[11px] font-medium tabular-nums text-[#5c7d6d]`}>
-                      {row.delivered}/{row.total}
+                      {Number(row.delivered || 0) + Number(row.failed || 0)}/{row.total}
                     </td>
 
                     <td className={`${line} text-center`}>

@@ -25,15 +25,15 @@ export default function PriorityBreakdown({ overview, onOpenQueue }) {
     });
 
   const gradient =
-    segments.length > 0 ? `conic-gradient(${segments.join(", ")})` : "#eef2f7";
+    segments.length > 0 ? `conic-gradient(${segments.join(", ")})` : "#e6f4eb";
 
   return (
     <DashboardCard title="Tickets by Priority">
       <div className="grid items-center gap-4 sm:grid-cols-[96px_1fr]">
         <div className="relative mx-auto h-20 w-20 rounded-full shadow-inner" style={{ background: gradient }}>
           <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white shadow-sm">
-            <span className="text-[20px] font-black leading-none text-slate-950">{total}</span>
-            <span className="text-[10px] font-bold uppercase text-slate-400">Total</span>
+            <span className="text-[20px] font-black leading-none text-[#0f3d2e]">{total}</span>
+            <span className="text-[10px] font-bold uppercase text-[#5c7d6d]">Total</span>
           </div>
         </div>
 
@@ -45,18 +45,18 @@ export default function PriorityBreakdown({ overview, onOpenQueue }) {
                 key={item.key}
                 type="button"
                 onClick={() => onOpenQueue?.({ priority: item.key })}
-                className="flex w-full items-center justify-between gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-emerald-50"
+                className="flex w-full items-center justify-between gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-[#f7fbf8]"
               >
                 <div className="flex items-center gap-2">
                   <span
                     className="h-2.5 w-2.5 rounded-full"
                     style={{ background: colorMap[item.key] }}
                   />
-                  <span className="text-[12px] font-semibold text-slate-700">
+                  <span className="text-[12px] font-semibold text-[#0f3d2e]">
                     {formatLabel(item.key)}
                   </span>
                 </div>
-                <span className="text-[12px] font-bold text-slate-900">
+                <span className="text-[12px] font-bold text-[#0f3d2e]">
                   {item.count} ({percent}%)
                 </span>
               </button>

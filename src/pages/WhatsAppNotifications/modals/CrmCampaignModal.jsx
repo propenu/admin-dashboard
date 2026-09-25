@@ -27,7 +27,7 @@ import {
   INDIAN_STATES,
   getCitiesByState,
 } from "../../../utils/countryStateCity";
-import { componentsToForm } from "../utils/formMapper";
+import { componentsToForm, resolveHeaderMediaPreview, templateHasHeaderMediaSample } from "../utils/formMapper";
 import { applyVars } from "../utils/helper";
 import { WhatsAppTemplatePreview } from "../preview/WhatsAppTemplatePreview";
 
@@ -171,6 +171,7 @@ export function CrmCampaignModal({
   templates = [],
   initialTemplate = null,
   onClose,
+  onCampaignStarted,
 }) {
   const approved = useMemo(
     () => (templates || []).filter((t) => t.status === "APPROVED"),
@@ -439,6 +440,7 @@ export function CrmCampaignModal({
   const selectedUpload = uploadedImages.find((i) => i.id === selectedImageId);
   const templateSampleImage =
     previewForm?.header?.mediaPreview ||
+    resolveHeaderMediaPreview(selectedTemplate) ||
     (String(previewForm?.header?.mediaHandle || "").startsWith("http")
       ? previewForm.header.mediaHandle
       : "");
@@ -452,9 +454,10 @@ export function CrmCampaignModal({
       ? String(templateSampleImage)
       : "");
   const usingTemplateMedia =
-    Boolean(resolvedHeaderImageUrl) &&
-    !campaignHeaderUrl.startsWith("http") &&
-    String(templateSampleImage || "").startsWith("http");
+    Boolean(
+      resolvedHeaderImageUrl ||
+        templateHasHeaderMediaSample(selectedTemplate),
+    ) && !campaignHeaderUrl.startsWith("http");
   const effectivePreview =
     selectedUpload?.url ||
     selectedUpload?.preview ||
@@ -616,6 +619,21 @@ export function CrmCampaignModal({
       // Extra CRM fields are sent for forward compatibility.
       const res = await sentWhatsAppNotification(payload);
       const body = res?.data ?? res;
+      if (body?.campaignId) {
+        onCampaignStarted?.({
+          campaignId: body.campaignId,
+          name: body.templateName || selectedTemplate.name,
+          source: "crm",
+          createdAt: new Date().toISOString(),
+          estimatedRecipients: body.estimatedRecipients,
+          total: body.estimatedRecipients || 0,
+          sent: 0,
+          failed: 0,
+          pending: body.estimatedRecipients || 0,
+          processed: 0,
+          progressPercent: 0,
+        });
+      }
       toast.success(
         body?.message ||
           (sendMode === "schedule"

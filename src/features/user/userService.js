@@ -377,13 +377,24 @@ export const sentEmailNotification = (formData) => {
 ///////////////////////////////////////////////////////////////
 {/* Whatsapp Notification */}
 
-export const geAlltWhatsappLogs = () => {
-  return apiClient.get(`${SERVICES.USER}/whatsapp/whatsapp-logs`);
-}
+export const geAlltWhatsappLogs = (params = {}) => {
+  const qs = new URLSearchParams();
+  if (params.limit != null) qs.set("limit", String(params.limit));
+  const suffix = qs.toString() ? `?${qs}` : "";
+  return apiClient.get(`${SERVICES.USER}/whatsapp/whatsapp-logs${suffix}`);
+};
 
 export const getWhatsAppNotificationAnalytics = () => {
   return apiClient.get(`${SERVICES.USER}/whatsapp/whatsapp-logs/stats`);
-}
+};
+
+export const getWhatsAppCampaignsAnalytics = () => {
+  return apiClient.get(`${SERVICES.USER}/whatsapp/whatsapp-logs/campaigns`);
+};
+
+export const getWhatsAppRunningCampaign = () => {
+  return apiClient.get(`${SERVICES.USER}/whatsapp/whatsapp-logs/campaign-running`);
+};
 
 export const getWhatsAppCampaignStats = (campaignId) => {
   return apiClient.get(

@@ -6,76 +6,74 @@ import {
   MessageSquare,
   MousePointer2,
 } from "lucide-react";
-
+import {
+  saSurface,
+  saSurfaceHover,
+} from "../../Dashboards/superAdminDashboard/dashboardSurface";
 
 const GridView = ({ items }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
     {items.map((item) => (
       <div
         key={item._id}
-        className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden group"
+        className={`overflow-hidden rounded-2xl ${saSurface} ${saSurfaceHover}`}
       >
-        {/* MAIN CONTENT */}
         <div className="p-3">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-2">
-            <div className="flex items-center gap-2 flex-1">
-              <div className="p-2 bg-[#27AE60]/10 rounded-lg">
+          <div className="mb-2 flex items-start justify-between">
+            <div className="flex flex-1 items-center gap-2">
+              <div className="rounded-xl bg-[#e8f8ee] p-2">
                 <LayoutGrid size={16} className="text-[#27AE60]" />
               </div>
-              <h3 className="text-gray-800 text-[13px] leading-snug line-clamp-2">
+              <h3 className="line-clamp-2 text-[13px] font-semibold leading-snug text-[#0f3d2e]">
                 {item.title}
               </h3>
             </div>
             <MoreVertical
               size={16}
-              className="text-gray-400 cursor-pointer hover:text-[#27AE60]"
+              className="cursor-pointer text-[#5c7d6d] hover:text-[#27AE60]"
             />
           </div>
 
-          {/* Tags */}
-          <div className="flex gap-1.5 mb-3 flex-wrap">
-            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-[9px] uppercase rounded">
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            <span className="rounded-full border border-[#f3e0a8] bg-[#fff8e1] px-2 py-0.5 text-[9px] font-semibold uppercase text-[#8a6d12]">
               {item.status}
             </span>
 
-            <span className="px-2 py-0.5 bg-[#27AE60]/10 text-[#27AE60] text-[9px] uppercase rounded">
+            <span className="rounded-full border border-[#b7e4c7] bg-[#f7fbf8] px-2 py-0.5 text-[9px] font-semibold uppercase text-[#27AE60]">
               {item.listingType}
             </span>
 
             {item.propertyType && (
-              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[9px] uppercase rounded">
+              <span className="rounded-full border border-[#b7e4c7] bg-[#f7fbf8] px-2 py-0.5 text-[9px] font-semibold uppercase text-[#0f3d2e]">
                 {item.propertyType}
               </span>
             )}
           </div>
 
-          {/* Progress */}
           <div className="mb-3">
-            <div className="flex justify-between text-[11px] text-gray-600 mb-1">
+            <div className="mb-1 flex justify-between text-[11px] text-[#5c7d6d]">
               <span>Progress</span>
-              <span className="text-[#27AE60]">
+              <span className="font-bold text-[#27AE60]">
                 {item.completion?.percent}%
               </span>
             </div>
 
-            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#e6f4eb]">
               <div
-                className="bg-[#27AE60] h-1.5 rounded-full transition-all duration-500"
+                className="h-1.5 rounded-full bg-[#27AE60] transition-all duration-500"
                 style={{ width: `${item.completion?.percent}%` }}
               />
             </div>
 
-            <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+            <div className="mt-1 flex justify-between text-[10px] text-[#5c7d6d]">
               <span>Step {item.completion?.step}</span>
               <span className="capitalize">{item.completion?.lastSection}</span>
             </div>
           </div>
 
-          {/* Location */}
           {item.locality && (
-            <div className="flex items-start gap-2 text-[11px] text-gray-600 mb-2 bg-gray-50 p-2 rounded-md">
-              <MapPin size={14} className="text-[#27AE60] mt-0.5 shrink-0" />
+            <div className="mb-2 flex items-start gap-2 rounded-xl border border-[#b7e4c7] bg-[#f7fbf8] p-2 text-[11px] text-[#5c7d6d]">
+              <MapPin size={14} className="mt-0.5 shrink-0 text-[#27AE60]" />
               <span className="leading-snug">
                 {item.locality}, {item.city}
                 <br />
@@ -84,34 +82,32 @@ const GridView = ({ items }) => (
             </div>
           )}
 
-          {/* Area */}
           {item.carpetArea && (
-            <div className="grid grid-cols-2 gap-2 mb-2 text-[11px]">
-              <div className="bg-gray-50 p-2 rounded-md">
-                <p className="text-gray-500 uppercase text-[9px] mb-0.5">
+            <div className="mb-2 grid grid-cols-2 gap-2 text-[11px]">
+              <div className="rounded-xl border border-[#b7e4c7] bg-[#f7fbf8] p-2">
+                <p className="mb-0.5 text-[9px] uppercase text-[#5c7d6d]">
                   Carpet
                 </p>
-                <p className="text-gray-800">
+                <p className="text-[#0f3d2e]">
                   {item.carpetArea}{" "}
-                  <span className="text-gray-500 text-[10px]">sq.ft</span>
+                  <span className="text-[10px] text-[#5c7d6d]">sq.ft</span>
                 </p>
               </div>
 
-              <div className="bg-gray-50 p-2 rounded-md">
-                <p className="text-gray-500 uppercase text-[9px] mb-0.5">
+              <div className="rounded-xl border border-[#b7e4c7] bg-[#f7fbf8] p-2">
+                <p className="mb-0.5 text-[9px] uppercase text-[#5c7d6d]">
                   Built-up
                 </p>
-                <p className="text-gray-800">
+                <p className="text-[#0f3d2e]">
                   {item.builtUpArea}{" "}
-                  <span className="text-gray-500 text-[10px]">sq.ft</span>
+                  <span className="text-[10px] text-[#5c7d6d]">sq.ft</span>
                 </p>
               </div>
             </div>
           )}
         </div>
 
-        {/* FOOTER STATS */}
-        <div className="px-3 py-2 flex justify-between items-center text-[11px] text-gray-500 bg-gray-50">
+        <div className="flex items-center justify-between border-t border-[#e6f4eb] bg-[#f7fbf8] px-3 py-2 text-[11px] text-[#5c7d6d]">
           <div className="flex gap-3">
             <span className="flex items-center gap-1">
               <Eye size={12} /> {item.meta?.views || 0}
@@ -125,9 +121,8 @@ const GridView = ({ items }) => (
           </div>
         </div>
 
-        {/* AUTHOR */}
-        <div className="px-3 py-2 flex justify-between items-center text-[10px] text-gray-600 bg-gray-50">
-          <span className="flex items-center gap-1.5 capitalize">
+        <div className="flex items-center justify-between border-t border-[#e6f4eb] bg-white px-3 py-2 text-[10px] text-[#5c7d6d]">
+          <span className="flex items-center gap-1.5 capitalize text-[#0f3d2e]">
             {item.listingSource || "unknown agent"}
           </span>
           <span>{new Date(item.createdAt).toLocaleDateString("en-GB")}</span>
