@@ -285,17 +285,20 @@ const PropertyVerification = () => {
 
       {/* VIEWER AREA */}
       <main className="flex-1 flex flex-col justify-center bg-[#010409]">
-        <header className="h-20 border-b border-slate-800/60 flex items-center justify-between px-8 bg-[#0b0f1a]/50">
-          <div className="flex items-center gap-4">
-            <div className="p-2.5 bg-slate-800 rounded-xl text-blue-400 ">
+        <header className="h-20 border-b border-slate-800/60 flex items-center justify-between gap-4 px-8 bg-[#0b0f1a]/50">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
+            <div className="shrink-0 p-2.5 bg-slate-800 rounded-xl text-blue-400 ">
               {getFileType(selectedDoc?.url) === "image" ? (
                 <FileImage size={20} />
               ) : (
                 <FileText size={20} />
               )}
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-white leading-none mb-1">
+            <div className="min-w-0 flex-1">
+              <h2
+                className="truncate text-sm font-bold text-white leading-none mb-1"
+                title={selectedDoc?.title || ""}
+              >
                 {selectedDoc?.title}
               </h2>
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
@@ -304,7 +307,7 @@ const PropertyVerification = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             {canShowEdit ? (
               <button
                 type="button"
@@ -461,8 +464,8 @@ const PropertyVerification = () => {
             className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl p-6 flex flex-col"
           >
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center gap-4">
+            <div className="flex justify-between items-center gap-4 mb-6">
+              <div className="flex min-w-0 flex-1 items-center gap-4">
                 <div className="p-3 bg-white/10 rounded-2xl text-white">
                   {getFileType(selectedDoc?.url) === "image" ? (
                     <FileImage size={24} />
@@ -470,8 +473,8 @@ const PropertyVerification = () => {
                     <FileText size={24} />
                   )}
                 </div>
-                <div>
-                  <h3 className="text-white font-bold">{selectedDoc?.title}</h3>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-white font-bold" title={selectedDoc?.title || ""}>{selectedDoc?.title}</h3>
                   <p className="text-xs text-slate-500 tracking-widest uppercase">
                     {selectedDoc?.type}
                   </p>

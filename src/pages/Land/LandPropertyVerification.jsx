@@ -284,17 +284,20 @@ const PropertyVerification = () => {
 
       {/* VIEWER AREA */}
       <main className="flex-1 flex flex-col bg-[#010409] relative">
-        <header className="h-16 lg:h-20 border-b border-slate-800/60 flex items-center justify-between px-4 lg:px-8 bg-[#0b0f1a]/50">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="hidden sm:block p-2 bg-slate-800 rounded-xl text-blue-400">
+        <header className="h-16 lg:h-20 border-b border-slate-800/60 flex items-center justify-between gap-3 px-4 lg:px-8 bg-[#0b0f1a]/50">
+          <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+            <div className="hidden sm:block shrink-0 p-2 bg-slate-800 rounded-xl text-blue-400">
               {getFileType(selectedDoc?.url) === "image" ? (
                 <FileImage size={18} />
               ) : (
                 <FileText size={18} />
               )}
             </div>
-            <div className="truncate">
-              <h2 className="text-xs lg:text-sm font-bold text-white truncate">
+            <div className="min-w-0 flex-1">
+              <h2
+                className="truncate text-xs lg:text-sm font-bold text-white"
+                title={selectedDoc?.title || ""}
+              >
                 {selectedDoc?.title}
               </h2>
               <p className="text-[9px] font-black text-slate-500 uppercase">
@@ -303,7 +306,7 @@ const PropertyVerification = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {canShowEdit ? (
               <button
                 type="button"
@@ -453,8 +456,8 @@ const PropertyVerification = () => {
             className="fixed inset-0 z-[100] bg-black/95 p-4 lg:p-6 flex flex-col"
           >
             {/* Header */}
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white text-xs font-bold truncate pr-4">
+            <div className="flex justify-between items-center gap-4 mb-4">
+              <h3 className="min-w-0 flex-1 truncate text-white text-xs font-bold pr-4" title={selectedDoc?.title || ""}>
                 {selectedDoc?.title}
               </h3>
               <div className="flex gap-2">

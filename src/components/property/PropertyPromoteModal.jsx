@@ -81,11 +81,13 @@ export default function PropertyPromoteModal({
       setSelected(null);
       setDays("10");
       setSponsoredAd({});
+      return;
     }
+    setSelected("sponsored");
   }, [open]);
 
   const approved = isPromotableStatus(propertyStatus);
-  const available = PROPERTY_PROMO_TYPES.filter((t) => t.value !== currentType);
+  const available = PROPERTY_PROMO_TYPES.filter((t) => t.value === "sponsored");
   const daysNum = Number(days);
   const daysInvalid =
     selected &&

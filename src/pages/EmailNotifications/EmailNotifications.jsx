@@ -45,6 +45,8 @@ import { CampaignTab } from "./EmailNotificationComponents/CampaignTab";
 import { LogsTab } from "./EmailNotificationComponents/LogsTab.jsx";
 import { ProgressBar } from "./EmailNotificationComponents/Progressbar";
 import { SendCampaignModal } from "./modals/SendCampaignModal";
+import SearchResultEmailCard from "./EmailNotificationComponents/SearchResultEmailCard";
+import { useAuthUserProfile } from "../../hooks/useAuthUser";
 
 // ─── Geo ──────────────────────────────────────────────────
 const IN_STATES = State.getStatesOfCountry("IN");
@@ -1214,6 +1216,13 @@ const EmailNotifications = () => {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [sendItem, setSendItem] = useState(null);
+  const { roleName } = useAuthUserProfile();
+  const isSuperAdmin =
+    String(roleName || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") === "super_admin";
 
   useEffect(() => {
     fetchAll();
@@ -1553,6 +1562,7 @@ const EmailNotifications = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6">
+        {isSuperAdmin ? <SearchResultEmailCard onSent={fetchLogs} /> : null}
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           <StatCard

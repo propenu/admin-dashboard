@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Filter, Loader2, MapPin, RotateCcw, Search, Users, X } from "lucide-react";
 import { apiClient } from "../../api/apiClient";
@@ -139,6 +140,83 @@ const filtersFromSearchParams = (searchParams) => {
 
 const PAGE_SIZE = 12;
 
+function StatusMenu({ value, disabled, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState(null);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+  const current = statuses.includes(value) ? value : "new_lead";
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (event) => {
+      if (buttonRef.current?.contains(event.target) || menuRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+    const reposition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const menuHeight = 228;
+      const openUp = window.innerHeight - rect.bottom < menuHeight && rect.top > menuHeight;
+      setPlace({
+        top: openUp ? rect.top - menuHeight - 6 : rect.bottom + 6,
+        left: rect.left,
+        width: Math.max(rect.width, 156),
+      });
+    };
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    document.addEventListener("mousedown", close);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+      document.removeEventListener("mousedown", close);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        disabled={disabled}
+        title={label(current)}
+        onClick={() => setOpen((shown) => !shown)}
+        className={`inline-flex w-full items-center justify-between gap-1 rounded-full px-2.5 py-1 text-[9px] font-bold disabled:opacity-60 ${statusTone[current] || "bg-slate-100 text-slate-600"}`}
+      >
+        <span className="truncate">{label(current)}</span>
+        <ChevronDown size={12} className="shrink-0" />
+      </button>
+      {open && place
+        ? createPortal(
+            <div
+              ref={menuRef}
+              style={{ top: place.top, left: place.left, width: place.width }}
+              className="fixed z-[80] rounded-xl border border-[#d8f0e2] bg-white p-1.5 shadow-[0_12px_28px_rgba(15,61,46,0.12)]"
+            >
+              {statuses.filter(Boolean).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onChange(item);
+                  }}
+                  className={`mb-1 flex w-full items-center justify-between gap-2 rounded-full px-2.5 py-1.5 text-left text-[10px] font-bold last:mb-0 ${statusTone[item] || "bg-slate-100 text-slate-600"}`}
+                >
+                  <span className="truncate">{label(item)}</span>
+                  {item === current ? <Check size={12} className="shrink-0" /> : null}
+                </button>
+              ))}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
 const Select = ({ value, onChange, children, className = "" }) => (
   <select
     value={value}
@@ -174,6 +252,8 @@ export default function LeadManagement() {
   const [projectSearch, setProjectSearch] = useState("");
   const [exporting, setExporting] = useState("");
   const [selectedLead, setSelectedLead] = useState(null);
+  const [statusSavingId, setStatusSavingId] = useState("");
+  const [statusNotice, setStatusNotice] = useState("");
 
   useEffect(() => {
     const next = filtersFromSearchParams(searchParams);
@@ -252,6 +332,43 @@ export default function LeadManagement() {
     load();
     return () => controller.abort();
   }, [filters]);
+
+  const changeLeadStatus = async (lead, nextStatus) => {
+    const current = String(lead.status || "new_lead");
+    if (!nextStatus || nextStatus === current || statusSavingId) return;
+    const snapshot = data;
+    const summarySnapshot = summaryRef.current;
+    setStatusSavingId(lead._id);
+    setStatusNotice("");
+    setData((old) => {
+      const matchesFilter = !filters.status || filters.status === nextStatus;
+      const leads = matchesFilter
+        ? old.leads.map((row) => (row._id === lead._id ? { ...row, status: nextStatus } : row))
+        : old.leads.filter((row) => row._id !== lead._id);
+      const byStatus = { ...(old.summary?.byStatus || {}) };
+      byStatus[current] = Math.max(0, Number(byStatus[current] || 0) - 1);
+      byStatus[nextStatus] = Number(byStatus[nextStatus] || 0) + 1;
+      const summary = { ...old.summary, byStatus };
+      summaryRef.current = summary;
+      return {
+        ...old,
+        leads,
+        summary,
+        pagination: matchesFilter
+          ? old.pagination
+          : { ...old.pagination, total: Math.max(0, Number(old.pagination?.total || 0) - 1) },
+      };
+    });
+    try {
+      await apiClient.patch(`/api/properties/leads/project/${lead._id}/status`, { status: nextStatus });
+    } catch (requestError) {
+      summaryRef.current = summarySnapshot;
+      setData(snapshot);
+      setStatusNotice(requestError?.response?.data?.message || "Could not update lead status");
+    } finally {
+      setStatusSavingId("");
+    }
+  };
 
   const update = (key, value) =>
     setFilters((old) => {
@@ -937,6 +1054,7 @@ export default function LeadManagement() {
                   {data.summary.duplicatesHidden
                     ? ` - ${data.summary.duplicatesHidden} duplicate submissions hidden`
                     : ""}
+                  {statusNotice ? ` - ${statusNotice}` : ""}
                   {selectedProjectIds.length > 0
                     ? ` - from ${selectedProjectIds.length} selected items`
                     : ""}
@@ -1061,10 +1179,12 @@ export default function LeadManagement() {
                             {lead.origin?.entryPoint || label(lead.source)}
                           </p>
                         </td>
-                        <td className="px-2.5 py-2.5 sm:px-3">
-                          <span className={`inline-block max-w-full truncate rounded-full px-2 py-1 text-[9px] font-bold ${statusTone[statusKey] || "bg-slate-100 text-slate-600"}`} title={label(lead.status)}>
-                            {label(lead.status)}
-                          </span>
+                        <td className="px-2.5 py-2.5 sm:px-3" onClick={(event) => event.stopPropagation()}>
+                          <StatusMenu
+                            value={statusKey}
+                            disabled={statusSavingId === lead._id}
+                            onChange={(nextStatus) => changeLeadStatus(lead, nextStatus)}
+                          />
                         </td>
                         <td className="px-2.5 py-2.5 text-[10px] text-[#5c7d6d] sm:px-3">
                           <p className="truncate" title={new Date(lead.lastTouchAt || lead.createdAt).toLocaleString("en-IN")}>

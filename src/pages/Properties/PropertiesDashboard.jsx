@@ -983,6 +983,7 @@ export default function PropertiesDashboard() {
     () => searchParams.get("search") || "",
   );
   const debouncedSearch = useDebounce(search, 400);
+  const debouncedLocationSearch = useDebounce(locationSearch, 400);
   const [promotionType, setPromotionType] = useState(
     () => searchParams.get("promotion") || "all",
   );
@@ -1093,6 +1094,10 @@ export default function PropertiesDashboard() {
       city: locationFilters.city,
       locality: locationFilters.locality,
       q: debouncedSearch.trim(),
+      locationQ:
+        locationFilters.state || locationFilters.city || locationFilters.locality
+          ? ""
+          : debouncedLocationSearch.trim(),
       promotionType,
       tracking: trackingFilter,
       sort,
@@ -1105,6 +1110,7 @@ export default function PropertiesDashboard() {
       createdFrom,
       createdTo,
       debouncedSearch,
+      debouncedLocationSearch,
       listingType,
       locationFilters,
       promotionType,
@@ -2112,7 +2118,7 @@ export default function PropertiesDashboard() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search title, location, posted by, approved by, ID…"
+                placeholder="Search title, location, created by, posted by, phone, ID…"
                 className="h-11 w-full rounded-xl border border-emerald-100 bg-white pl-10 pr-9 text-sm text-[#0f3d2e] outline-none transition placeholder:text-[#5c7d6d] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25"
               />
               {search ? (

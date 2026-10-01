@@ -387,6 +387,18 @@ export const sentEmailNotification = (formData) => {
   return apiClient.post(`${SERVICES.USER}/email/send-email`, formData);
 }
 
+export const getSearchResultEmailSchedule = () => {
+  return apiClient.get(`${SERVICES.USER}/email/search-results/schedule`);
+};
+
+export const saveSearchResultEmailSchedule = (body) => {
+  return apiClient.put(`${SERVICES.USER}/email/search-results/schedule`, body);
+};
+
+export const sendSearchResultEmailsNow = () => {
+  return apiClient.post(`${SERVICES.USER}/email/search-results/send`, {}, { timeout: 120000 });
+};
+
 ///////////////////////////////////////////////////////////////
 {/* Whatsapp Notification */}
 

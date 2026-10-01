@@ -16,7 +16,6 @@ import {
   Calculator,
   CalendarDays,
   Check,
-  ChevronDown,
   CircleCheck,
   CircleDot,
   ClipboardList,
@@ -1525,6 +1524,8 @@ function DynamicInsightRail({ journey, user, notify }) {
   );
 }
 
+const JOURNEY_DAYS = "30";
+
 export default function LeadCaptureAnalytics() {
   const [searchParams] = useSearchParams();
   const deepLinkUserId = searchParams.get("user") || "";
@@ -1537,8 +1538,6 @@ export default function LeadCaptureAnalytics() {
     [roleFilter, setRoleFilter] = useState("all"),
     [pickerOpen, setPickerOpen] = useState(false),
     [eventQuery, setEventQuery] = useState(""),
-    [range, setRange] = useState("30"),
-    [live, setLive] = useState(true),
     [toast, setToast] = useState(""),
     [journeyError, setJourneyError] = useState("");
   const [eventPage, setEventPage] = useState(1);
@@ -1617,7 +1616,7 @@ export default function LeadCaptureAnalytics() {
           `/api/properties/interactions/user-journey/${person._id}`,
           {
             params: {
-              days: range,
+              days: JOURNEY_DAYS,
               page: eventPage,
               limit: EVENT_PAGE_SIZE,
             },
@@ -1634,7 +1633,7 @@ export default function LeadCaptureAnalytics() {
         if (!silent) setRefreshing(false);
       }
     },
-    [range, eventPage],
+    [eventPage],
   );
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -1644,7 +1643,7 @@ export default function LeadCaptureAnalytics() {
   }, [loadUsers, query]);
   useEffect(() => {
     setEventPage(1);
-  }, [selectedId, range]);
+  }, [selectedId]);
   useEffect(() => {
     setUserPage(1);
   }, [query, roleFilter]);
@@ -1678,16 +1677,6 @@ export default function LeadCaptureAnalytics() {
       active = false;
     };
   }, [user]);
-  useEffect(() => {
-    if (!live || !user) return undefined;
-    const tick = () => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      if (eventPage > 1) return;
-      loadJourney(user, { silent: true });
-    };
-    const timer = window.setInterval(tick, 30000);
-    return () => window.clearInterval(timer);
-  }, [live, loadJourney, user, eventPage]);
   useEffect(() => {
     if (!toast) return undefined;
     const timer = window.setTimeout(() => setToast(""), 2600);
@@ -1992,29 +1981,6 @@ export default function LeadCaptureAnalytics() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={range}
-            onChange={(e) => {
-              setRange(e.target.value);
-              setEventPage(1);
-            }}
-            className="uj-control"
-          >
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => setLive((value) => !value)}
-            className={`uj-control gap-2 ${live ? "text-[#128C45]" : "text-[#5c7d6d]"}`}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${live ? "animate-pulse bg-[#27AE60]" : "bg-[#b7e4c7]"}`}
-            />
-            {live ? "Live" : "Paused"}
-            <ChevronDown size={12} />
-          </button>
           <button
             type="button"
             onClick={() => window.print()}
