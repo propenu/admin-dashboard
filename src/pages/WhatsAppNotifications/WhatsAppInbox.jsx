@@ -370,6 +370,16 @@ export default function WhatsAppInbox({ embedded = false }) {
     refreshHealth();
   }, []);
 
+  // Webhook is handled on propenu.in. Poll so replies and blue ticks appear here.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      loadConversations(searchRef.current, { silent: true });
+      const waId = activeWaIdRef.current;
+      if (waId) loadMessages(waId, { silent: true });
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [loadConversations, loadMessages]);
+
   // Real-time: Meta webhook → Mongo → SSE → dashboard
   useEffect(() => {
     let closed = false;
