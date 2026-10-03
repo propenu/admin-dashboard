@@ -372,9 +372,9 @@ export default function PromoteModal({
               />
               <p className="text-[11px] text-slate-500">
                 Not limited by current leads. Example: builder has{" "}
-                {total || 100} leads → Super Admin sets 5000 → allow up to 5000
-                visible (today all existing show; future leads stay open until
-                5000).
+                {total || 100} leads → Super Admin or BDH sets 5000 → allow up
+                to 5000 visible (today all existing show; future leads stay
+                open until 5000).
               </p>
             </label>
 

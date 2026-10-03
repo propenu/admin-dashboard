@@ -25,6 +25,7 @@ import {
   canApproveProject,
   canCreateProject,
   canPermanentlyDeleteProject,
+  canSetPromotionLeadCount,
   canViewPendingProjectApprovals,
   normalizeProjectRole,
 } from "../../../../../utils/projectAccessControl";
@@ -3013,7 +3014,7 @@ export default function ProjectsDashboardPage() {
         currentVisibleLeadLimit={
           promoteTargetProject?.promotion?.visibleLeadLimit
         }
-        canSetLeadCount={isSuperAdmin || isAdmin}
+        canSetLeadCount={canSetPromotionLeadCount(currentUser)}
         isLoading={Boolean(normalHook?.promoteMutation?.isPending)}
         onConfirm={handlePromote}
         onCancel={() => setPromoteTarget(null)}

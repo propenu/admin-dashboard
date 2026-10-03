@@ -24,6 +24,7 @@ import ConfirmModal from "./ConfirmModal";
 import {usePendingProjects} from "../../hooks/usePendingProjects"
 import { useQuery } from "@tanstack/react-query";
 import { getUserInDetails } from "./userInDetails";
+import { canSetPromotionLeadCount } from "../../../../../utils/projectAccessControl";
 
 
 
@@ -387,13 +388,7 @@ export default function PropertyListPage({
           properties.find((p) => p._id === promoteTarget)?.promotion
             ?.visibleLeadLimit
         }
-        canSetLeadCount={
-          ["super_admin", "admin"].includes(
-            String(user?.user?.roleName || user?.roleName || "")
-              .trim()
-              .toLowerCase(),
-          )
-        }
+        canSetLeadCount={canSetPromotionLeadCount(user?.user || user)}
         isLoading={promoteMutation.isPending}
         onConfirm={(newType, options = {}) => {
           if (!promoteTarget || !newType) return;

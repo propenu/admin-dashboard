@@ -162,6 +162,16 @@ export const canPermanentlyDeleteProject = (user) => {
   return role === "super_admin" || role === "business_development_head";
 };
 
+/** Visible lead allowance on Promote — Super Admin, Admin, and BDH. */
+export const canSetPromotionLeadCount = (user) => {
+  const role = normalizeProjectRole(user?.roleName || user?.role);
+  return (
+    role === "super_admin" ||
+    role === "admin" ||
+    role === "business_development_head"
+  );
+};
+
 /** Direct create builder (name/email/phone, no OTP) — Super Admin + BDH (+ admin). */
 export const canDirectCreateBuilder = (user) => {
   const role = normalizeProjectRole(user?.roleName || user?.role);
