@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { updateListingFollowUpWorkStatus } from "../../../features/property/propertyService";
+import CompletionReasonDialog from "./CompletionReasonDialog";
 import {
   FOLLOW_UP_WORK_OPTIONS,
   followUpWorkLabel,
@@ -31,24 +32,25 @@ export default function ListingFollowUpWorkStatusSelect({
 }) {
   const current = normalizeFollowUpWorkStatus(value);
   const [saving, setSaving] = useState(false);
+  const [pendingComplete, setPendingComplete] = useState(false);
   const meta = FOLLOW_UP_WORK_OPTIONS.find((o) => o.value === current);
   const listingId = String(row?._id || row?.id || "");
   const entity = resolveEntity(row, isProject);
 
-  const onChange = async (event) => {
-    event.stopPropagation();
-    const next = event.target.value;
+  const saveStatus = async (next, completionReason) => {
     if (!listingId || next === current || saving) return;
     setSaving(true);
     try {
-      await updateListingFollowUpWorkStatus(entity, listingId, next);
+      await updateListingFollowUpWorkStatus(entity, listingId, next, completionReason);
       onUpdated?.(listingId, next, {
         followUpAssignedTo:
           row?.followUpAssignedTo?._id ||
           row?.followUpAssignedTo ||
           null,
+        completionReason: completionReason || null,
       });
       toast.success(`Process set to ${followUpWorkLabel(next)}`);
+      setPendingComplete(false);
     } catch (err) {
       toast.error(
         err?.response?.data?.message || err?.message || "Failed to update process",
@@ -58,7 +60,19 @@ export default function ListingFollowUpWorkStatusSelect({
     }
   };
 
+  const onChange = (event) => {
+    event.stopPropagation();
+    const next = event.target.value;
+    if (!listingId || next === current || saving) return;
+    if (next === "completed") {
+      setPendingComplete(true);
+      return;
+    }
+    saveStatus(next);
+  };
+
   return (
+    <>
     <select
       value={current}
       disabled={disabled || saving || !listingId}
@@ -75,5 +89,15 @@ export default function ListingFollowUpWorkStatusSelect({
         </option>
       ))}
     </select>
+    <CompletionReasonDialog
+      open={pendingComplete}
+      saving={saving}
+      title="How was this listing completed?"
+      onCancel={() => {
+        if (!saving) setPendingComplete(false);
+      }}
+      onConfirm={(reason) => saveStatus("completed", reason)}
+    />
+    </>
   );
 }

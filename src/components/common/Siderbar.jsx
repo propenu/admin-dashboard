@@ -45,6 +45,8 @@ import {
   ChevronRight,
   Ticket,
   Newspaper,
+  Bell,
+  Landmark,
   Briefcase,
   CalendarDays,
   Shield,
@@ -346,7 +348,7 @@ export default function Sidebar({
   const [showCreateModal,         setShowCreateModal]         = useState(false);
   const [showAssignAgentModal,    setShowAssignAgentModal]    = useState(false);
   const [showTransferCredentials, setShowTransferCredentials] = useState(false);
-  const [openMenus,  setOpenMenus]  = useState({});
+  const [openMenus, setOpenMenus] = useState({ dashboard: true });
   const [labelCard, setLabelCard] = useState(null);
   const asideRef = useRef(null);
   const activeIconRef = useRef(null);
@@ -361,9 +363,10 @@ export default function Sidebar({
 
   const isActiveRoute = (path) => {
     if (!path) return false;
-    if (location.pathname === path) return true;
+    const pathname = String(path).split("?")[0];
+    if (location.pathname === pathname) return true;
     // Nested screens under the same sidebar entry (e.g. /projects/...)
-    if (path !== "/" && location.pathname.startsWith(`${path}/`)) return true;
+    if (pathname !== "/" && location.pathname.startsWith(`${pathname}/`)) return true;
     return false;
   };
   const hasActiveDescendant = (item) => {
@@ -575,6 +578,29 @@ export default function Sidebar({
       },
     ].filter(Boolean);
 
+    const notificationChildren = [
+      canView("notification") && {
+        path: "/push-notifications",
+        label: "Push Notifications",
+        icon: pushnotification,
+      },
+      canView("whatsapp_campaign") && {
+        path: "/whatsapp-notifications?section=inbox",
+        label: "WhatsApp Notifications",
+        icon: whatsappnotifications,
+      },
+      canView("email_campaign") && {
+        path: "/email-notifications",
+        label: "Email Notifications",
+        icon: mailnotifications,
+      },
+    ].filter(Boolean);
+
+    const contentChildren = [
+      canView("blog") && { path: "/blogs", label: "Blogs", icon: Newspaper },
+      canView("site_banner") && { path: "/site-banner", label: "Banner", icon: PanelTop },
+    ].filter(Boolean);
+
     return [
       canView("dashboard") && { path: "/", label: "Dashboard", icon: DashboardIcon },
       isSalesExecutive &&
@@ -593,6 +619,14 @@ export default function Sidebar({
         path: "/follow-up-tracking",
         label: "Client Progress Queue",
         icon: ClipboardList,
+      },
+      (canView("user") ||
+        canView("dashboard") ||
+        currentRoleName.includes("customer_care") ||
+        currentRoleName.includes("support")) && {
+        path: "/home-loans",
+        label: "Home Loans",
+        icon: Landmark,
       },
       allowed.has("dashboard:view_reports") && {
         path: "/operations/reports",
@@ -631,8 +665,6 @@ export default function Sidebar({
         icon: PropertyProgressIcon,
       },
       canView("location") && { path: "/locations", label: "Locations", icon: LocationsIcon },
-      canView("blog") && { path: "/blogs", label: "Blogs", icon: Newspaper },
-      canView("site_banner") && { path: "/site-banner", label: "Banner", icon: PanelTop },
       canView("ticket") && { path: "/tickets", label: "Tickets", icon: Ticket },
       operationsChildren.length && {
         label: "Operations",
@@ -664,20 +696,17 @@ export default function Sidebar({
         key: "permission-accounts",
         children: accountsChildren,
       },
-      canView("email_campaign") && {
-        path: "/email-notifications",
-        label: "Email Campaigns",
-        icon: mailnotifications,
-      },
-      canView("whatsapp_campaign") && {
-        path: "/whatsapp-notifications?section=inbox",
-        label: "WhatsApp Campaigns",
-        icon: whatsappnotifications,
-      },
-      canView("notification") && {
-        path: "/push-notifications",
+      notificationChildren.length && {
         label: "Notifications",
-        icon: pushnotification,
+        icon: Bell,
+        key: "permission-notifications",
+        children: notificationChildren,
+      },
+      contentChildren.length && {
+        label: "Content",
+        icon: Newspaper,
+        key: "permission-content",
+        children: contentChildren,
       },
     ].filter(Boolean);
   };
@@ -686,19 +715,27 @@ export default function Sidebar({
   const getMenuByRole = (role) =>
     ({
       super_admin: [
-        { path: "/", label: "Dashboard", icon: DashboardIcon },
-
-        { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
-        { path: "/properties", label: "Properties", icon: PropertiesIcon },
-        { path: "/leads", label: "Lead Management", icon: UsersRound },
-        { path: "/all-users-activity", label: "All Users Activity", icon: Activity },
-        { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
         {
-          path: "/property-progress",
-          label: "Property Progress",
-          icon: PropertyProgressIcon,
+          label: "Dashboard",
+          icon: DashboardIcon,
+          key: "dashboard",
+          children: [
+            { path: "/", label: "Dashboard", icon: DashboardIcon },
+            { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
+            { path: "/properties", label: "Properties", icon: PropertiesIcon },
+            { path: "/leads", label: "Lead Management", icon: UsersRound },
+            { path: "/all-users-activity", label: "All Users Activity", icon: Activity },
+            { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
+            {
+              path: "/property-progress",
+              label: "Property Progress",
+              icon: PropertyProgressIcon,
+            },
+            { path: "/tickets", label: "Tickets", icon: Ticket },
+            { path: "/locations", label: "Locations", icon: LocationsIcon },
+          ],
         },
-        { path: "/tickets", label: "Tickets", icon: Ticket },
+        { path: "/home-loans", label: "Home Loans", icon: Landmark },
 
         {
           label: "Operations",
@@ -801,7 +838,6 @@ export default function Sidebar({
             },
           ],
         },
-        { path: "/locations", label: "Locations", icon: LocationsIcon },
         {
           label: "Accounts",
           icon: AccountsIcon,
@@ -835,34 +871,48 @@ export default function Sidebar({
           ],
         },
         {
-          path: "/push-notifications",
-          label: "Push Notifications",
-          icon: pushnotification,
+          label: "Notifications",
+          icon: Bell,
+          key: "notifications",
+          children: [
+            {
+              path: "/push-notifications",
+              label: "Push Notifications",
+              icon: pushnotification,
+            },
+            {
+              path: "/whatsapp-notifications?section=inbox",
+              label: "WhatsApp Notifications",
+              icon: whatsappnotifications,
+            },
+            {
+              path: "/email-notifications",
+              label: "Email Notifications",
+              icon: mailnotifications,
+            },
+            {
+              path: "/automations",
+              label: "Automations",
+              icon: aumattionnotifications,
+            },
+          ],
         },
         {
-          path: "/email-notifications",
-          label: "Email Notifications",
-          icon: mailnotifications,
-        },
-        {
-          path: "/whatsapp-notifications?section=inbox",
-          label: "WhatsApp Notifications",
-          icon: whatsappnotifications,
-        },
-        {
-          path: "/automations",
-          label: "Automations",
-          icon: aumattionnotifications,
-        },
-        {
-          path: "/blogs",
-          label: "Blogs",
+          label: "Content",
           icon: Newspaper,
-        },
-        {
-          path: "/site-banner",
-          label: "Banner",
-          icon: PanelTop,
+          key: "content",
+          children: [
+            {
+              path: "/blogs",
+              label: "Blogs",
+              icon: Newspaper,
+            },
+            {
+              path: "/site-banner",
+              label: "Banner",
+              icon: PanelTop,
+            },
+          ],
         },
       ],
       admin: [
@@ -1019,34 +1069,48 @@ export default function Sidebar({
           ],
         },
         {
-          path: "/push-notifications",
-          label: "Push Notifications",
-          icon: pushnotification,
+          label: "Notifications",
+          icon: Bell,
+          key: "notifications",
+          children: [
+            {
+              path: "/push-notifications",
+              label: "Push Notifications",
+              icon: pushnotification,
+            },
+            {
+              path: "/whatsapp-notifications?section=inbox",
+              label: "WhatsApp Notifications",
+              icon: whatsappnotifications,
+            },
+            {
+              path: "/email-notifications",
+              label: "Email Notifications",
+              icon: mailnotifications,
+            },
+            {
+              path: "/automations",
+              label: "Automations",
+              icon: aumattionnotifications,
+            },
+          ],
         },
         {
-          path: "/email-notifications",
-          label: "Email Notifications",
-          icon: mailnotifications,
-        },
-        {
-          path: "/whatsapp-notifications?section=inbox",
-          label: "WhatsApp Notifications",
-          icon: whatsappnotifications,
-        },
-        {
-          path: "/automations",
-          label: "Automations",
-          icon: aumattionnotifications,
-        },
-        {
-          path: "/blogs",
-          label: "Blogs",
+          label: "Content",
           icon: Newspaper,
-        },
-        {
-          path: "/site-banner",
-          label: "Banner",
-          icon: PanelTop,
+          key: "content",
+          children: [
+            {
+              path: "/blogs",
+              label: "Blogs",
+              icon: Newspaper,
+            },
+            {
+              path: "/site-banner",
+              label: "Banner",
+              icon: PanelTop,
+            },
+          ],
         },
       ],
       sales_manager: [
@@ -1107,6 +1171,7 @@ export default function Sidebar({
       customer_care: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
         { path: "/follow-up-tracking", label: "Client Progress Queue", icon: ClipboardList },
+        { path: "/home-loans", label: "Home Loans", icon: Landmark },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
@@ -1119,6 +1184,7 @@ export default function Sidebar({
       customer_care_executive: [
         { path: "/", label: "Dashboard", icon: DashboardIcon },
         { path: "/follow-up-tracking", label: "Client Progress Queue", icon: ClipboardList },
+        { path: "/home-loans", label: "Home Loans", icon: Landmark },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         {
@@ -1296,14 +1362,21 @@ export default function Sidebar({
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         { path: "/tickets", label: "Tickets", icon: Ticket },
         {
-          path: "/blogs",
-          label: "Blogs",
+          label: "Content",
           icon: Newspaper,
-        },
-        {
-          path: "/site-banner",
-          label: "Banner",
-          icon: PanelTop,
+          key: "content",
+          children: [
+            {
+              path: "/blogs",
+              label: "Blogs",
+              icon: Newspaper,
+            },
+            {
+              path: "/site-banner",
+              label: "Banner",
+              icon: PanelTop,
+            },
+          ],
         },
       ],
     })[role] || getPermissionMenu(user?.permissions || []);
@@ -1416,14 +1489,7 @@ export default function Sidebar({
     if (detail) {
       const primary = Number(detail.primary || 0);
       const login = Number(detail.login || 0);
-      const isAccountPath = [
-        "/users",
-        "/owners",
-        "/builders",
-        "/all-agents",
-        "/builder-staff",
-        "/propenu-team-members",
-      ].includes(path);
+      const isAccountPath = SIDEBAR_ACCOUNT_PATHS.has(path);
       const isInventoryPath = path === "/projects" || path === "/properties";
       const isPropertiesPath = path === "/properties";
       const isFollowUpPath = path === "/follow-up-tracking";

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { updateFollowUpWorkStatus } from "../../../features/user/userService";
+import CompletionReasonDialog from "./CompletionReasonDialog";
 
 export const FOLLOW_UP_WORK_OPTIONS = [
   { value: "assigned", label: "Assigned", className: "bg-amber-50 text-amber-800 border-amber-200" },
@@ -33,25 +34,37 @@ export default function FollowUpWorkStatusSelect({
 }) {
   const current = normalizeFollowUpWorkStatus(value);
   const [saving, setSaving] = useState(false);
+  const [pendingComplete, setPendingComplete] = useState(false);
   const meta = FOLLOW_UP_WORK_OPTIONS.find((o) => o.value === current);
 
-  const onChange = async (event) => {
-    event.stopPropagation();
-    const next = event.target.value;
+  const saveStatus = async (next, completionReason) => {
     if (!userId || next === current || saving) return;
     setSaving(true);
     try {
-      await updateFollowUpWorkStatus(userId, next);
-      onUpdated?.(userId, next);
+      await updateFollowUpWorkStatus(userId, next, completionReason);
+      onUpdated?.(userId, next, { completionReason: completionReason || null });
       toast.success(`Process set to ${followUpWorkLabel(next)}`);
+      setPendingComplete(false);
     } catch (err) {
-      toast.error(err?.message || err?.response?.data?.message || "Failed to update process");
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update process");
     } finally {
       setSaving(false);
     }
   };
 
+  const onChange = (event) => {
+    event.stopPropagation();
+    const next = event.target.value;
+    if (!userId || next === current || saving) return;
+    if (next === "completed") {
+      setPendingComplete(true);
+      return;
+    }
+    saveStatus(next);
+  };
+
   return (
+    <>
     <select
       value={current}
       disabled={disabled || saving || !userId}
@@ -68,5 +81,15 @@ export default function FollowUpWorkStatusSelect({
         </option>
       ))}
     </select>
+    <CompletionReasonDialog
+      open={pendingComplete}
+      saving={saving}
+      title="How was this case completed?"
+      onCancel={() => {
+        if (!saving) setPendingComplete(false);
+      }}
+      onConfirm={(reason) => saveStatus("completed", reason)}
+    />
+    </>
   );
 }

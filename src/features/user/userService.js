@@ -182,9 +182,10 @@ export const getSeClients = (salesExecutiveId) =>
   getAllUsers({ managerId: salesExecutiveId });
 
 /** CCE / Team Lead: update follow-up work process (assigned | in_progress | completed). */
-export const updateFollowUpWorkStatus = (id, followUpWorkStatus) => {
+export const updateFollowUpWorkStatus = (id, followUpWorkStatus, completionReason) => {
   return apiClient.patch(`${SERVICES.USER}/auth/${id}/follow-up-work-status`, {
     followUpWorkStatus,
+    ...(completionReason ? { completionReason } : {}),
   });
 };
 

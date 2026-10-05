@@ -325,13 +325,17 @@ export default function FollowUpInventoryWorkspace({
     [exclusiveAssigneeId, creatorAssigneeById],
   );
 
-  const handleListingWorkUpdated = useCallback((listingId, nextStatus) => {
+  const handleListingWorkUpdated = useCallback((listingId, nextStatus, extra) => {
     const id = String(listingId || "");
     if (!id) return;
+    const completionReason =
+      nextStatus === "completed" ? extra?.completionReason || null : null;
     setWorkStatusOverrides((prev) => ({ ...prev, [id]: nextStatus }));
     setRows((prev) =>
       prev.map((row) =>
-        rowId(row) === id ? { ...row, followUpWorkStatus: nextStatus } : row,
+        rowId(row) === id
+          ? { ...row, followUpWorkStatus: nextStatus, followUpCompletionReason: completionReason }
+          : row,
       ),
     );
   }, []);
@@ -1024,9 +1028,16 @@ export default function FollowUpInventoryWorkspace({
                   )}
                 </p>
               )}
+              {workStatusOfListing(selected, workStatusOverrides) === "completed" &&
+              selected.followUpCompletionReason ? (
+                <p className="mt-2 text-[11px] leading-snug text-slate-600">
+                  <span className="font-bold text-slate-500">Completed because: </span>
+                  {selected.followUpCompletionReason}
+                </p>
+              ) : null}
               <p className="mt-1.5 text-[10px] text-slate-400">
-                Auto-starts as Assigned when posted. Mark In progress or Completed after
-                you work this listing. Approval status stays separate.
+                Auto-starts as Assigned when posted. Completed needs a reason from customer
+                support. Approval status stays separate.
               </p>
             </div>
 

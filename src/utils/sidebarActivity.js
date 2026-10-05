@@ -17,6 +17,10 @@ export const SIDEBAR_ACTIVITY_PATHS = {
   builderStaff: "/builder-staff",
   /** Admin-created staff (CCE, leads, ops, etc.) — Team Directory */
   teamDirectory: "/propenu-team-members",
+  /** Sub-roles under the signed-in user's role (alias names share one count). */
+  salesManagers: "/sales-managers",
+  salesAgents: "/sales-agents",
+  relationshipManagers: "/relationship-managers",
   /** Client Progress Queue (users onboarding + property pending; projects ignored) */
   followUpTracking: "/follow-up-tracking",
 };
@@ -29,7 +33,47 @@ export const SIDEBAR_ACCOUNT_PATHS = new Set([
   SIDEBAR_ACTIVITY_PATHS.agents,
   SIDEBAR_ACTIVITY_PATHS.builderStaff,
   SIDEBAR_ACTIVITY_PATHS.teamDirectory,
+  SIDEBAR_ACTIVITY_PATHS.salesManagers,
+  SIDEBAR_ACTIVITY_PATHS.salesAgents,
+  SIDEBAR_ACTIVITY_PATHS.relationshipManagers,
 ]);
+
+/**
+ * Sidebar role pages → canonical role keys from /auth/sidebar-counts.
+ * Alias role documents are merged on the server. Extra names cover either shape.
+ * These slices are already inside Team Directory, so the hamburger total must not add them again.
+ */
+export const SIDEBAR_ROLE_COUNT_KEYS = {
+  salesManagers: ["sales_manager"],
+  salesAgents: ["sales_executive", "sales_agent", "sales_executives"],
+  relationshipManagers: ["relationship_manager", "relationship_managers"],
+};
+
+export const sumRoleCountBuckets = (rolesMap = {}, names = []) => {
+  const out = {
+    total: 0,
+    active: 0,
+    pending: 0,
+    inactive: 0,
+    login: 0,
+    onboarding: 0,
+  };
+  const used = new Set();
+  names.forEach((name) => {
+    const key = String(name || "").trim();
+    if (!key || used.has(key)) return;
+    used.add(key);
+    const bucket = rolesMap?.[key];
+    if (!bucket || typeof bucket !== "object") return;
+    out.total += Number(bucket.total || 0);
+    out.active += Number(bucket.active || 0);
+    out.pending += Number(bucket.pending || 0);
+    out.inactive += Number(bucket.inactive || 0);
+    out.login += Number(bucket.login || 0);
+    out.onboarding += Number(bucket.onboarding || 0);
+  });
+  return out;
+};
 
 const todayKey = () => {
   const d = new Date();

@@ -15,7 +15,9 @@ import {
   overviewToStatusBucket,
   publishSidebarCounts,
   readSidebarSeen,
+  SIDEBAR_ROLE_COUNT_KEYS,
   statusBucketFromRows,
+  sumRoleCountBuckets,
   todayKey,
   unreadFromSnapshot,
 } from "../utils/sidebarActivity";
@@ -167,6 +169,9 @@ const pathForLocation = (pathname = "") => {
   if (pathname.startsWith("/all-agents")) return SIDEBAR_ACTIVITY_PATHS.agents;
   if (pathname.startsWith("/users")) return SIDEBAR_ACTIVITY_PATHS.users;
   if (pathname.startsWith("/propenu-team-members")) return SIDEBAR_ACTIVITY_PATHS.teamDirectory;
+  if (pathname.startsWith("/sales-managers")) return SIDEBAR_ACTIVITY_PATHS.salesManagers;
+  if (pathname.startsWith("/sales-agents")) return SIDEBAR_ACTIVITY_PATHS.salesAgents;
+  if (pathname.startsWith("/relationship-managers")) return SIDEBAR_ACTIVITY_PATHS.relationshipManagers;
   if (pathname.startsWith("/follow-up-tracking")) return SIDEBAR_ACTIVITY_PATHS.followUpTracking;
   return null;
 };
@@ -201,6 +206,9 @@ async function collectRawSnapshots(user) {
     agents: emptyAccountBucket(),
     builderStaff: emptyAccountBucket(),
     teamDirectory: emptyAccountBucket(),
+    salesManagers: emptyAccountBucket(),
+    salesAgents: emptyAccountBucket(),
+    relationshipManagers: emptyAccountBucket(),
     followUpTracking: emptyAccountBucket(),
   };
 
@@ -328,6 +336,16 @@ async function collectRawSnapshots(user) {
           raw.builderStaff = asBucket(data.builderStaff);
           raw.users = asBucket(data.users);
           raw.teamDirectory = asBucket(data.teamDirectory);
+          const rolesMap = data.roles && typeof data.roles === "object" ? data.roles : {};
+          raw.salesManagers = sumRoleCountBuckets(
+            rolesMap,
+            SIDEBAR_ROLE_COUNT_KEYS.salesManagers,
+          );
+          raw.salesAgents = sumRoleCountBuckets(rolesMap, SIDEBAR_ROLE_COUNT_KEYS.salesAgents);
+          raw.relationshipManagers = sumRoleCountBuckets(
+            rolesMap,
+            SIDEBAR_ROLE_COUNT_KEYS.relationshipManagers,
+          );
           followUpOnboardingUsers = Number(data.followUp?.onboarding || 0);
           const creatorIds = Array.isArray(data.followUp?.assignedCreatorIds)
             ? data.followUp.assignedCreatorIds
@@ -404,6 +422,21 @@ function toPublishedCounts(raw, seenMap, caps, user) {
     SIDEBAR_ACTIVITY_PATHS.teamDirectory,
     seenMap,
   );
+  const unreadSalesManagers = unreadFromSnapshot(
+    raw.salesManagers,
+    SIDEBAR_ACTIVITY_PATHS.salesManagers,
+    seenMap,
+  );
+  const unreadSalesAgents = unreadFromSnapshot(
+    raw.salesAgents,
+    SIDEBAR_ACTIVITY_PATHS.salesAgents,
+    seenMap,
+  );
+  const unreadRelationshipManagers = unreadFromSnapshot(
+    raw.relationshipManagers,
+    SIDEBAR_ACTIVITY_PATHS.relationshipManagers,
+    seenMap,
+  );
   const unreadFollowUp = unreadFromSnapshot(
     raw.followUpTracking,
     SIDEBAR_ACTIVITY_PATHS.followUpTracking,
@@ -425,6 +458,15 @@ function toPublishedCounts(raw, seenMap, caps, user) {
     : buildBadge({ total: 0 });
   const teamDirectory = caps.teamDirectory
     ? buildBadge(unreadTeamDirectory)
+    : buildBadge({ total: 0 });
+  const salesManagers = caps.salesManagers
+    ? buildBadge(unreadSalesManagers)
+    : buildBadge({ total: 0 });
+  const salesAgents = caps.salesAgents
+    ? buildBadge(unreadSalesAgents)
+    : buildBadge({ total: 0 });
+  const relationshipManagers = caps.relationshipManagers
+    ? buildBadge(unreadRelationshipManagers)
     : buildBadge({ total: 0 });
   const followUpTracking = caps.followUpTracking
     ? buildBadge(unreadFollowUp)
@@ -465,6 +507,9 @@ function toPublishedCounts(raw, seenMap, caps, user) {
       [SIDEBAR_ACTIVITY_PATHS.agents]: agents,
       [SIDEBAR_ACTIVITY_PATHS.builderStaff]: builderStaff,
       [SIDEBAR_ACTIVITY_PATHS.teamDirectory]: teamDirectory,
+      [SIDEBAR_ACTIVITY_PATHS.salesManagers]: salesManagers,
+      [SIDEBAR_ACTIVITY_PATHS.salesAgents]: salesAgents,
+      [SIDEBAR_ACTIVITY_PATHS.relationshipManagers]: relationshipManagers,
       [SIDEBAR_ACTIVITY_PATHS.followUpTracking]: followUpTracking,
     },
     raw,
@@ -544,6 +589,9 @@ export function useSidebarActivityBadges(options = {}) {
             canView(permissions, "builder"),
           teamDirectory:
             isSuper || canView(permissions, "team") || canView(permissions, "user"),
+          salesManagers: isSuper || canView(permissions, "team"),
+          salesAgents: isSuper || canView(permissions, "team"),
+          relationshipManagers: isSuper || canView(permissions, "team"),
           // Badge only for the logged-in CCE — Team Lead / Super Admin get none.
           followUpTracking: isCustomerCareExecutiveRole(user.roleName || user.role),
         };

@@ -12,6 +12,7 @@ import PermissionRoute from "./pages/PermissionRoute";
 // Lazy Loaded Pages
 const Dashboard = lazy(() => import("./pages/Dashboards/MainDashboard"));
 const FollowUpTrackingPage = lazy(() => import("./pages/Dashboards/FollowUpTrackingPage.jsx"));
+const HomeLoansPage = lazy(() => import("./pages/Dashboards/HomeLoansPage.jsx"));
 const MarketingHeadDashboard = lazy(() =>
   import("./pages/Dashboards/MarketingHeadDashboard.jsx"),
 );
@@ -362,6 +363,23 @@ function App() {
                   element={
                     <PermissionRoute anyPermissions={["user:view", "dashboard:view", "team:view"]}>
                       <FollowUpTrackingPage />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/home-loans"
+                  element={
+                    <PermissionRoute
+                      anyPermissions={["user:view", "dashboard:view", "team:view"]}
+                      legacyRoles={[
+                        "customer_care",
+                        "customer_care_executive",
+                        "customer_care_executives",
+                        "customer_support_head",
+                        "customer_support_team_lead",
+                      ]}
+                    >
+                      <HomeLoansPage />
                     </PermissionRoute>
                   }
                 />

@@ -33,6 +33,7 @@ import {
   todayIso,
 } from "./shared/dashboardDateRange";
 import FollowUpInventoryWorkspace from "./followUpTracking/FollowUpInventoryWorkspace";
+import HomeLoanQueueWorkspace from "./followUpTracking/HomeLoanQueueWorkspace";
 import AssignedUserActivityPanel from "./followUpTracking/AssignedUserActivityPanel";
 import FollowUpWorkStatusSelect, {
   followUpWorkLabel,
@@ -275,6 +276,46 @@ const TRACK_META = {
     path: "/projects",
     status: "draft",
   },
+  home_loan_new: {
+    label: "Assigned",
+    group: "Home Loans",
+    groupId: "home_loans",
+    kind: "home_loans",
+    status: "new",
+    path: "/home-loans",
+  },
+  home_loan_contacted: {
+    label: "Contacted",
+    group: "Home Loans",
+    groupId: "home_loans",
+    kind: "home_loans",
+    status: "contacted",
+    path: "/home-loans",
+  },
+  home_loan_follow_up: {
+    label: "Follow up",
+    group: "Home Loans",
+    groupId: "home_loans",
+    kind: "home_loans",
+    status: "follow_up",
+    path: "/home-loans",
+  },
+  home_loan_converted: {
+    label: "Converted",
+    group: "Home Loans",
+    groupId: "home_loans",
+    kind: "home_loans",
+    status: "converted",
+    path: "/home-loans",
+  },
+  home_loan_closed: {
+    label: "Closed",
+    group: "Home Loans",
+    groupId: "home_loans",
+    kind: "home_loans",
+    status: "closed",
+    path: "/home-loans",
+  },
 };
 
 const TRACK_GROUPS = [
@@ -298,6 +339,11 @@ const TRACK_GROUPS = [
     label: "Projects",
     hint: "Project approval status",
   },
+  {
+    id: "home_loans",
+    label: "Home Loans",
+    hint: "Assigned customer support cases",
+  },
 ];
 
 const tracksForGroup = (groupId) =>
@@ -310,6 +356,7 @@ const DEFAULT_TRACK_BY_GROUP = {
   roles: "owners",
   properties: "property_pending",
   projects: "project_pending",
+  home_loans: "home_loan_new",
 };
 
 const unpackAnalytics = (response) => response?.data?.data || response?.data || {};
@@ -846,16 +893,20 @@ export default function FollowUpTrackingPage() {
     return assigneeIdOf(user) === meId;
   };
 
-  const handleWorkStatusUpdated = (userId, nextStatus) => {
+  const handleWorkStatusUpdated = (userId, nextStatus, extra) => {
     const id = String(userId || "");
     if (!id) return;
+    const completionReason =
+      nextStatus === "completed" ? extra?.completionReason || null : null;
     setWorkStatusOverrides((prev) => ({ ...prev, [id]: nextStatus }));
     queryClient.setQueryData(["follow-up-tracking", "queue", queueParams], (prev) => {
       if (!prev?.data) return prev;
       return {
         ...prev,
         data: prev.data.map((u) =>
-          userIdOf(u) === id ? { ...u, followUpWorkStatus: nextStatus } : u,
+          userIdOf(u) === id
+            ? { ...u, followUpWorkStatus: nextStatus, followUpCompletionReason: completionReason }
+            : u,
         ),
       };
     });
@@ -985,6 +1036,10 @@ export default function FollowUpTrackingPage() {
   };
 
   const openFullList = () => {
+    if (meta.kind === "home_loans") {
+      navigate("/home-loans");
+      return;
+    }
     if (meta.kind === "inventory") {
       navigate(inventoryPeriodHref(meta.path, range, { status: meta.status }));
       return;
@@ -1347,7 +1402,9 @@ export default function FollowUpTrackingPage() {
         </div>
       ) : null}
 
-      {meta.kind === "inventory" ? (
+      {meta.kind === "home_loans" ? (
+        <HomeLoanQueueWorkspace status={meta.status} />
+      ) : meta.kind === "inventory" ? (
         <FollowUpInventoryWorkspace
           meta={meta}
           range={range}
@@ -1649,8 +1706,15 @@ export default function FollowUpTrackingPage() {
                       {followUpWorkLabel(workStatusOf(selectedUser, workStatusOverrides))}
                     </p>
                   )}
+                  {workStatusOf(selectedUser, workStatusOverrides) === "completed" &&
+                  selectedUser.followUpCompletionReason ? (
+                    <p className="mt-2 text-[11px] leading-snug text-slate-600">
+                      <span className="font-bold text-slate-500">Completed because: </span>
+                      {selectedUser.followUpCompletionReason}
+                    </p>
+                  ) : null}
                   <p className="mt-1.5 text-[10px] text-slate-400">
-                    Auto-starts as Assigned. Mark In progress or Completed after you work the case.
+                    Auto-starts as Assigned. Completed needs a reason from customer support.
                     Journey stage stays separate.
                   </p>
                 </div>

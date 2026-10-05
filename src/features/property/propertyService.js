@@ -315,10 +315,18 @@ export const getLocationListingCounts = () =>
 
 
 /** CCE / Team Lead: update listing/project follow-up process. */
-export const updateListingFollowUpWorkStatus = (entity, id, followUpWorkStatus) => {
+export const updateListingFollowUpWorkStatus = (
+  entity,
+  id,
+  followUpWorkStatus,
+  completionReason,
+) => {
   return apiClient.patch(
     `${SERVICES.PROPERTY}/follow-up/${entity}/${id}/work-status`,
-    { followUpWorkStatus },
+    {
+      followUpWorkStatus,
+      ...(completionReason ? { completionReason } : {}),
+    },
   );
 };
 
@@ -470,3 +478,23 @@ export const shareBlog = (id, payload) => {
 };
 
 export const likesBlog = (id) => apiClient.post(`${SERVICES.PROPERTY}/blogs/${id}/like`);
+
+export const listHomeLoanApplications = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.q) query.set("q", params.q);
+  if (params.audience) query.set("audience", params.audience);
+  if (params.status) query.set("status", params.status);
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  query.set("page", String(params.page || 1));
+  query.set("limit", String(params.limit || 12));
+  return apiClient.get(
+    `${SERVICES.PROPERTY}/home-loans/admin/applications?${query.toString()}`,
+  );
+};
+
+export const updateHomeLoanApplication = (id, payload) =>
+  apiClient.patch(
+    `${SERVICES.PROPERTY}/home-loans/admin/applications/${id}`,
+    payload,
+  );
