@@ -8,56 +8,67 @@ import {
   editPropertyVerification,
 } from "../../features/property/propertyService";
 
-const BASIC_STEP_OMIT_KEYS = new Set([
-  "gallery",
-  "galleryFiles",
-  "documents",
-  "documentsFiles",
-  "verificationDocuments",
-  "verificationDocument",
-  "images",
-  "videos",
-  "files",
-  "file",
-  "updateHistory",
-  "lastUpdatedBy",
-  "approval",
-  "approvedBy",
-  "promotion",
-  "slug",
-  "meta",
-  "completion",
-  "__v",
-  "_id",
-  "id",
-  "createdAt",
-  "updatedAt",
-]);
+const BASIC_STEP_KEYS = [
+  "listingType",
+  "transactionType",
+  "propertyCategory",
+  "propertyType",
+  "propertySubType",
+  "title",
+  "landName",
+  "createdBy",
+  "relationshipManagerId",
+  "price",
+  "pricePerSqft",
+  "priceCalculationBasis",
+  "currency",
+  "isPriceNegotiable",
+  "isAgentProject",
+  "dimensions",
+  "roadWidth",
+  "roadWidthFt",
+  "roadWidthUnit",
+  "plotArea",
+  "plotAreaUnit",
+  "builtUpArea",
+  "carpetArea",
+  "totalArea",
+  "bedrooms",
+  "bathrooms",
+  "balconies",
+  "cabins",
+  "seats",
+  "facing",
+  "furnishing",
+  "furnishedStatus",
+  "constructionStatus",
+  "propertyAge",
+  "possessionDate",
+  "wallFinishStatus",
+  "projectArea",
+  "totalTowers",
+  "totalUnits",
+  "availableUnits",
+];
 
-const isInlineFileValue = (value) =>
-  typeof value === "string" &&
-  (value.startsWith("data:") || value.startsWith("blob:"));
+const idFrom = (value) => {
+  if (!value || typeof value !== "object") return value;
+  return value._id || value.userId || value.id || undefined;
+};
 
-/** Basic save matches the website: written fields only, photos stay on the gallery step. */
+/** Basic save matches the website: only the fields on that step, never photos or the full listing. */
 const buildBasicStepPayload = (form) => {
   if (!form || typeof form !== "object") return {};
 
   const payload = {};
-  Object.entries(form).forEach(([key, value]) => {
-    if (BASIC_STEP_OMIT_KEYS.has(key) || value == null) return;
-    if (typeof File !== "undefined" && value instanceof File) return;
-    if (isInlineFileValue(value)) return;
-
-    if (Array.isArray(value)) {
-      const kept = value.filter(
-        (item) =>
-          !(typeof File !== "undefined" && item instanceof File) &&
-          !isInlineFileValue(item),
-      );
-      if (kept.length > 0) payload[key] = kept;
+  BASIC_STEP_KEYS.forEach((key) => {
+    const value = form[key];
+    if (value == null || value === "") return;
+    if (key === "createdBy" || key === "relationshipManagerId") {
+      const id = idFrom(value);
+      if (id) payload[key] = id;
       return;
     }
-
     payload[key] = value;
   });
 
