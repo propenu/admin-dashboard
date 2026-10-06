@@ -8,6 +8,62 @@ import {
   editPropertyVerification,
 } from "../../features/property/propertyService";
 
+const BASIC_STEP_OMIT_KEYS = new Set([
+  "gallery",
+  "galleryFiles",
+  "documents",
+  "documentsFiles",
+  "verificationDocuments",
+  "verificationDocument",
+  "images",
+  "videos",
+  "files",
+  "file",
+  "updateHistory",
+  "lastUpdatedBy",
+  "approval",
+  "approvedBy",
+  "promotion",
+  "slug",
+  "meta",
+  "completion",
+  "__v",
+  "_id",
+  "id",
+  "createdAt",
+  "updatedAt",
+]);
+
+const isInlineFileValue = (value) =>
+  typeof value === "string" &&
+  (value.startsWith("data:") || value.startsWith("blob:"));
+
+/** Basic save matches the website: written fields only, photos stay on the gallery step. */
+const buildBasicStepPayload = (form) => {
+  if (!form || typeof form !== "object") return {};
+
+  const payload = {};
+  Object.entries(form).forEach(([key, value]) => {
+    if (BASIC_STEP_OMIT_KEYS.has(key) || value == null) return;
+    if (typeof File !== "undefined" && value instanceof File) return;
+    if (isInlineFileValue(value)) return;
+
+    if (Array.isArray(value)) {
+      const kept = value.filter(
+        (item) =>
+          !(typeof File !== "undefined" && item instanceof File) &&
+          !isInlineFileValue(item),
+      );
+      if (kept.length > 0) payload[key] = kept;
+      return;
+    }
+
+    payload[key] = value;
+  });
+
+  return payload;
+};
+
 export const savePropertyData = createAsyncThunk(
   "properties/save",
   async ({ category, id = null, step, data }, { getState, rejectWithValue }) => {
@@ -133,7 +189,11 @@ export const savePropertyData = createAsyncThunk(
       let response;
       switch (step) {
         case "basic":
-          response = await editPropertyBasic(category, id, stateForm);
+          response = await editPropertyBasic(
+            category,
+            id,
+            buildBasicStepPayload(stateForm),
+          );
           console.log("//////////////// details ///////////////////////////");
           console.log("DETAIL RESPONSE =", response.data);
           console.log("completion.step =", response?.data?.data.completion?.step);
