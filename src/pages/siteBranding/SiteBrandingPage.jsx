@@ -40,10 +40,10 @@ import {
   isLogoVideoMedia,
   locationFromBanner,
   locationSummary,
+  validateBannerFileAsync,
   validateLogoFileAsync,
-  validateWebpFile,
 } from "../../features/siteBranding/siteBrandingUtils";
-import PromotionLocationCoverage from "../features/property/components/shared/PromotionLocationCoverage";
+import BannerLocationPicker from "./BannerLocationPicker";
 import BannerRichTextField from "./BannerRichTextField";
 import BannerDeviceFrame from "./BannerDeviceFrame";
 import {
@@ -71,11 +71,12 @@ function DeviceEditor({
   const previewSrc = form.preview || existingImage || "";
   const meta = BANNER_SLOTS.find((s) => s.key === slot) || BANNER_SLOTS[0];
 
-  const pickImage = (file) => {
+  const pickImage = async (file) => {
     if (!file) return;
-    const msg = validateWebpFile(file);
+    const msg = await validateBannerFileAsync(file, slot);
     if (msg) {
       setForm((p) => ({ ...p, fileError: msg }));
+      toast.warning(msg);
       return;
     }
     setForm((p) => ({
@@ -91,15 +92,32 @@ function DeviceEditor({
       <div className="space-y-3">
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-3">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">
-            {meta.label} image · {meta.size} · WebP &lt; 1 MB
+            {meta.label} image · WebP · under 1 MB
           </p>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+              Required {meta.size}
+            </span>
+            {(meta.legacySizes || []).map((size) => (
+              <span
+                key={`${size.width}x${size.height}`}
+                className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500"
+              >
+                Also {size.width}×{size.height}
+              </span>
+            ))}
+          </div>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
             <Upload size={14} /> Choose WebP / Add image
             <input
               type="file"
               accept="image/webp,.webp"
               className="hidden"
-              onChange={(e) => pickImage(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                e.target.value = "";
+                pickImage(file);
+              }}
             />
           </label>
           {form.fileError && (
@@ -337,7 +355,7 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
     const existingImage = devices[activeSlot]?.image;
     if (!form.file && !existingImage) return setError("WebP image is required");
     if (form.file) {
-      const msg = validateWebpFile(form.file);
+      const msg = await validateBannerFileAsync(form.file, activeSlot);
       if (msg) return setError(msg);
     }
     if (form.addHeading) {
@@ -443,17 +461,17 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
             <p className="text-[11px] text-slate-500">
               Saved once for this banner — Desktop / Laptop / Tablet / Mobile all use it.
             </p>
-            <p className="mt-1 text-xs font-semibold text-emerald-700">
+            <p className="mt-1 text-sm font-semibold text-emerald-800">
               {locLoading
                 ? "Loading saved location…"
-                : locationSummary(
-                    locForm.addLocation
-                      ? {
-                          coverage: locForm.coverage || {},
-                          subLocality: locForm.subLocality || "",
-                        }
-                      : {},
-                  )}
+                : !locForm.addLocation
+                  ? "All India"
+                  : Object.keys(locForm.coverage || {}).length
+                    ? locationSummary({
+                        coverage: locForm.coverage || {},
+                        subLocality: locForm.subLocality || "",
+                      })
+                    : "No places picked yet"}
             </p>
           </div>
           <button
@@ -467,7 +485,7 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
           </button>
         </div>
 
-        <label className="mb-3 flex cursor-pointer items-center gap-3 rounded-xl border border-emerald-100 bg-white/80 px-3 py-2.5">
+        <label className="mb-3 flex cursor-pointer items-start gap-3 rounded-xl border border-emerald-100 bg-white px-4 py-3">
           <input
             type="checkbox"
             checked={Boolean(locForm.addLocation)}
@@ -479,24 +497,26 @@ function BannerWorkspace({ banner, onChanged, onDeleted }) {
                 ...(e.target.checked ? {} : { coverage: {}, subLocality: "" }),
               }))
             }
-            className="h-4 w-4 rounded border-slate-300 text-[#27AE60] focus:ring-[#27AE60]"
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#27AE60] focus:ring-[#27AE60]"
           />
-          <span className="text-sm font-semibold text-emerald-900">
-            Target specific locations (off = all India)
+          <span>
+            <span className="block text-sm font-semibold text-emerald-900">
+              Target specific locations
+            </span>
+            <span className="mt-0.5 block text-xs leading-5 text-slate-500">
+              Off means all India. On selects every state, city, and locality below. Untick any you want to leave out, then save.
+            </span>
           </span>
         </label>
 
         {locForm.addLocation && !locLoading ? (
           <div className="space-y-3">
-            <PromotionLocationCoverage
+            <BannerLocationPicker
               key={`${banner._id}-coverage-ready`}
-              enabled
               value={locForm.coverage || {}}
               onChange={(coverage) =>
                 setLocForm((p) => ({ ...p, coverage: coverage || {} }))
               }
-              title="Banner locations"
-              subtitle="Edit saved coverage: tick to add, untick to remove, then Save location (PATCH)."
             />
             <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-2.5">
               <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -637,9 +657,9 @@ function BannerDefaultsPanel({ defaults, onChanged }) {
 
   const devices = defaults?.devices || {};
 
-  const pickFile = (slot, file) => {
+  const pickFile = async (slot, file) => {
     if (!file) return;
-    const msg = validateWebpFile(file);
+    const msg = await validateBannerFileAsync(file, slot);
     if (msg) {
       toast.warning(msg);
       return;
@@ -729,7 +749,13 @@ function BannerDefaultsPanel({ defaults, onChanged }) {
                   <div>
                     <p className="text-sm font-bold text-slate-900">{slot.label}</p>
                     <p className="text-[11px] text-slate-500">
-                      {slot.size} · WebP &lt; 1 MB
+                      Required {slot.size} · WebP under 1 MB
+                    </p>
+                    <p className="text-[10px] leading-4 text-slate-400">
+                      Also{" "}
+                      {(slot.legacySizes || [])
+                        .map((size) => `${size.width}×${size.height}`)
+                        .join(" · ")}
                     </p>
                   </div>
                 </div>
@@ -765,9 +791,11 @@ function BannerDefaultsPanel({ defaults, onChanged }) {
                     type="file"
                     accept="image/webp,.webp"
                     className="hidden"
-                    onChange={(e) =>
-                      pickFile(slot.key, e.target.files?.[0] || null)
-                    }
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      e.target.value = "";
+                      pickFile(slot.key, file);
+                    }}
                   />
                 </label>
                 <button

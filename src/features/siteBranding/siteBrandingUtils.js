@@ -1,9 +1,78 @@
+/**
+ * Keep in sync with backend siteBranding.constants.ts
+ * (BANNER_SLOTS + BANNER_LEGACY_SLOT_SIZES).
+ * `width`/`height` is the required size. `legacySizes` are older creatives
+ * the API still accepts.
+ */
+export const BANNER_SIZE_TOLERANCE_PX = 4;
+export const BANNER_MAX_BYTES = 1 * 1024 * 1024;
+
 export const BANNER_SLOTS = [
-  { key: "desktop", label: "Desktop", size: "1920 × 600", ratio: "3.2:1" },
-  { key: "laptop", label: "Laptop", size: "1440 × 500", ratio: "2.88:1" },
-  { key: "tablet", label: "Tablet", size: "1536 × 768", ratio: "2:1" },
-  { key: "mobile", label: "Mobile", size: "1080 × 900", ratio: "6:5" },
+  {
+    key: "desktop",
+    label: "Desktop",
+    width: 1920,
+    height: 330,
+    size: "1920 × 330",
+    legacySizes: [
+      { width: 1920, height: 360 },
+      { width: 1920, height: 300 },
+      { width: 1920, height: 420 },
+      { width: 1920, height: 600 },
+    ],
+  },
+  {
+    key: "laptop",
+    label: "Laptop",
+    width: 1440,
+    height: 275,
+    size: "1440 × 275",
+    legacySizes: [
+      { width: 1440, height: 300 },
+      { width: 1440, height: 250 },
+      { width: 1440, height: 350 },
+      { width: 1440, height: 500 },
+    ],
+  },
+  {
+    key: "tablet",
+    label: "Tablet",
+    width: 1536,
+    height: 422,
+    size: "1536 × 422",
+    legacySizes: [
+      { width: 1536, height: 461 },
+      { width: 1536, height: 384 },
+      { width: 1536, height: 538 },
+      { width: 1536, height: 768 },
+    ],
+  },
+  {
+    key: "mobile",
+    label: "Mobile",
+    width: 1080,
+    height: 495,
+    size: "1080 × 495",
+    legacySizes: [
+      { width: 1080, height: 540 },
+      { width: 1080, height: 450 },
+      { width: 1080, height: 630 },
+      { width: 1080, height: 900 },
+    ],
+  },
 ];
+
+export function bannerSlotMeta(slot) {
+  return BANNER_SLOTS.find((item) => item.key === slot) || BANNER_SLOTS[0];
+}
+
+export function allowedBannerSizes(slot) {
+  const meta = bannerSlotMeta(slot);
+  return [
+    { width: meta.width, height: meta.height },
+    ...(meta.legacySizes || []),
+  ];
+}
 
 /** Recommended logo pixel sizes (GIF and other rasters). */
 export const LOGO_ALLOWED_PIXEL_SIZES = [
@@ -120,7 +189,7 @@ export function locationSummary(location = {}) {
           localities += Array.isArray(locs) ? locs.length : 0;
         }
       }
-      const base = `${states.length} state(s) · ${cities} city(ies) · ${localities} localit${localities === 1 ? "y" : "ies"}`;
+      const base = `${states.length} ${states.length === 1 ? "state" : "states"} · ${cities} ${cities === 1 ? "city" : "cities"} · ${localities} ${localities === 1 ? "locality" : "localities"}`;
       return location.subLocality
         ? `${base} · sub: ${location.subLocality}`
         : base;
@@ -147,10 +216,40 @@ export function validateWebpFile(file) {
   if (file.type !== "image/webp" && !name.endsWith(".webp")) {
     return "Only WebP images are allowed";
   }
-  if (file.size > 1024 * 1024) {
+  if (file.size > BANNER_MAX_BYTES) {
     return "Image must be below 1 MB";
   }
   return "";
+}
+
+function bannerSizeMatches(width, height, size) {
+  return (
+    Math.abs(width - size.width) <= BANNER_SIZE_TOLERANCE_PX &&
+    Math.abs(height - size.height) <= BANNER_SIZE_TOLERANCE_PX
+  );
+}
+
+/**
+ * Same checks as the banner API: WebP, under 1 MB, and a pixel size
+ * from the current slot (required size or an older accepted size).
+ */
+export async function validateBannerFileAsync(file, slot) {
+  const basic = validateWebpFile(file);
+  if (basic) return basic;
+  const meta = bannerSlotMeta(slot);
+  try {
+    const { width, height } = await readImageDimensions(file);
+    const ok = allowedBannerSizes(slot).some((size) =>
+      bannerSizeMatches(width, height, size),
+    );
+    if (ok) return "";
+    const accepted = allowedBannerSizes(slot)
+      .map((size) => `${size.width}×${size.height}`)
+      .join(", ");
+    return `${meta.label}: use ${accepted} px (±${BANNER_SIZE_TOLERANCE_PX}px). Got ${width}×${height}px`;
+  } catch {
+    return `${meta.label}: could not read image dimensions`;
+  }
 }
 
 /** Logo: PNG / SVG / GIF / WebP / MP4 / WebM under 4 MB. */
