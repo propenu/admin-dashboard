@@ -101,6 +101,18 @@ export const formatPromotionDate = (value, withYear = false) => {
   });
 };
 
+export const formatPromotionDateTime = (value) => {
+  const date = toDate(value);
+  if (!date) return "—";
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
 export const getPromotionHistory = (project) =>
   Array.isArray(project?.promotionHistory) ? project.promotionHistory : [];
 
@@ -182,7 +194,9 @@ export const getPromotionTracking = (project) => {
 export const promotionLifecycleCopy = (tracking) => {
   if (!tracking || tracking.currentType === "normal") return "Normal listing";
   if (tracking.lifecycle === "expired") return "Promotion expired";
-  if (tracking.lifecycle === "scheduled") return "Scheduled promotion";
+  if (tracking.lifecycle === "scheduled") {
+    return `Scheduled · ${formatPromotionDateTime(tracking.startedAt)}`;
+  }
   if (tracking.lifecycle === "critical") {
     if (tracking.daysLeft <= 0) return "Expires today";
     return `Expires in ${tracking.daysLeft} day${tracking.daysLeft === 1 ? "" : "s"}`;

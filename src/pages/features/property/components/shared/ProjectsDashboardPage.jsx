@@ -34,6 +34,7 @@ import {
   permanentlyDeleteFeaturedProject,
   getAllProjectsAnalytics,
   getFeaturedProjectsByType,
+  getProjectBoardFilterOptions,
 } from "../../../../../features/property/propertyService";
 import {
   getPromotionTracking,
@@ -74,6 +75,11 @@ const canonicalStateName = (name) => {
   if (!trimmed) return "";
   return ZONE_STATE_LOOKUP.get(trimmed.toLowerCase()) || trimmed;
 };
+
+const sameText = (left, right) =>
+  String(left || "").trim().toLowerCase() === String(right || "").trim().toLowerCase();
+
+const isObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value || "").trim());
 
 const analyticsRowKey = (row) =>
   String(row?._id ?? row?.name ?? "").trim();
@@ -146,7 +152,6 @@ const STATUS_FILTERS = [
   { value: "draft", label: "Draft" },
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
   { value: "deleted", label: "Deleted" },
 ];
 
@@ -159,7 +164,7 @@ const normalizeProjectStatusParam = (value = "") => {
     return "deleted";
   }
   if (key === "archived") return "deleted";
-  if (key === "rejected") return "rejected";
+  if (key === "rejected") return "all";
   return key || "all";
 };
 
@@ -183,9 +188,6 @@ const matchesProjectStatusFilter = (project, statusFilter) => {
   if (statusFilter === "approved") {
     return raw === "active" || raw === "approved" || approval === "approved";
   }
-  if (statusFilter === "rejected") {
-    return raw === "rejected" || approval === "rejected";
-  }
   if (statusFilter === "deleted") {
     return (
       raw === "inactive" ||
@@ -203,7 +205,6 @@ const toServerProjectStatus = (statusFilter = "all") => {
   if (key === "draft") return "draft";
   if (key === "pending") return "pending";
   if (key === "approved") return "active";
-  if (key === "rejected") return "rejected";
   if (key === "deleted") return "inactive";
   return "all";
 };
@@ -265,7 +266,6 @@ const ProjectGridCard = memo(function ProjectGridCard({
   onDelete,
   onPermanentDelete,
   onPromote,
-  onExpire,
   onReset,
   onRankUpdated,
 }) {
@@ -280,7 +280,6 @@ const ProjectGridCard = memo(function ProjectGridCard({
       }
       canPermanentDelete={canPermanentDelete}
       onPromote={() => onPromote(property._id)}
-      onExpire={() => onExpire(property._id)}
       onReset={() => onReset(property._id)}
       onRankUpdated={onRankUpdated}
       canApprove={canApprove}
@@ -442,8 +441,11 @@ function FilterMenu({
   menuMaxHeight = 240,
   /** Show emerald emphasis when a non-default value is selected */
   activeWhenNot = "all",
+  searchable = false,
+  searchPlaceholder = "Search…",
 }) {
   const [open, setOpen] = useState(false);
+  const [menuQuery, setMenuQuery] = useState("");
   const rootRef = useRef(null);
   const menuRef = useRef(null);
 
@@ -503,11 +505,30 @@ function FilterMenu({
       {open ? (
         <div
           ref={menuRef}
-          className="absolute left-0 right-0 top-full z-50 w-full overflow-y-auto rounded-b-xl border border-t-0 border-emerald-100 bg-white shadow-[0_12px_28px_rgba(16,185,129,0.14)]"
-          style={{ maxHeight: menuMaxHeight }}
+          className="absolute left-0 right-0 top-full z-50 w-full overflow-hidden rounded-b-xl border border-t-0 border-emerald-100 bg-white shadow-[0_12px_28px_rgba(16,185,129,0.14)]"
           role="listbox"
         >
-          {options.map((opt, idx) => {
+          {searchable ? (
+            <div className="border-b border-emerald-50 p-2">
+              <input
+                type="text"
+                value={menuQuery}
+                onChange={(event) => setMenuQuery(event.target.value)}
+                placeholder={searchPlaceholder}
+                className="h-8 w-full rounded-lg border border-emerald-100 px-2 text-xs font-semibold text-[#0f3d2e] outline-none focus:border-emerald-500"
+                autoFocus
+              />
+            </div>
+          ) : null}
+          <div className="overflow-y-auto" style={{ maxHeight: menuMaxHeight }}>
+          {options
+            .filter((opt) => {
+              if (!searchable || !menuQuery.trim() || opt.isGroup) return true;
+              return String(opt.label || "")
+                .toLowerCase()
+                .includes(menuQuery.trim().toLowerCase());
+            })
+            .map((opt, idx) => {
             if (opt.isGroup) {
               return (
                 <p
@@ -528,6 +549,7 @@ function FilterMenu({
                 aria-selected={selectedOpt}
                 onClick={() => {
                   onChange(opt.value);
+                  setMenuQuery("");
                   setOpen(false);
                 }}
                 className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-semibold transition ${
@@ -551,6 +573,7 @@ function FilterMenu({
               </button>
             );
           })}
+          </div>
         </div>
       ) : null}
     </div>
@@ -728,6 +751,17 @@ function BuilderSearchFilter({
                   }`}
                 >
                   <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                  {typeof opt.count === "number" ? (
+                    <span
+                      className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-black tabular-nums ${
+                        selectedOpt
+                          ? "bg-white/25 text-white"
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {opt.count}
+                    </span>
+                  ) : null}
                 </button>
               );
             });
@@ -1777,6 +1811,39 @@ export default function ProjectsDashboardPage() {
     () => searchParams.get("createdTo") || searchParams.get("to") || "",
   );
 
+  const [selectedLocation, setSelectedLocation] = useState(() => {
+    const savedLocation = searchParams.get("location");
+    if (!savedLocation) return null;
+    try {
+      return JSON.parse(savedLocation);
+    } catch {
+      return null;
+    }
+  });
+  const [categoryFilter, setCategoryFilter] = useState(
+    () => searchParams.get("category") || "all",
+  );
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState(
+    () => searchParams.get("propertyType") || "all",
+  );
+  const [creatorBuilderFilter, setCreatorBuilderFilter] = useState(
+    () => searchParams.get("createdBy") || "all",
+  );
+
+  const locationState = selectedLocation?.value?.state || "";
+  const locationCity = selectedLocation?.value?.city || "";
+  const locationLocality = selectedLocation?.value?.locality || "";
+  const serverCreatedBy = isObjectId(creatorBuilderFilter)
+    ? creatorBuilderFilter
+    : "";
+  const serverBuilderName = String(creatorBuilderFilter).startsWith("name:")
+    ? String(creatorBuilderFilter).slice(5)
+    : "";
+  const serverCategory =
+    categoryFilter !== "all" ? categoryFilter : "";
+  const serverPropertyType =
+    propertyTypeFilter !== "all" ? propertyTypeFilter : "";
+
   const serverListStatus = toServerProjectStatus(statusFilter);
   const boardPromotionType =
     promotionFilter !== "all" && promotionFilter !== "pending"
@@ -1792,6 +1859,13 @@ export default function ProjectsDashboardPage() {
     from: createdFrom,
     to: createdTo,
     status: serverListStatus,
+    state: locationState,
+    city: locationCity,
+    locality: locationLocality,
+    createdBy: serverCreatedBy,
+    builder: serverBuilderName,
+    categoryType: serverCategory,
+    propertyType: serverPropertyType,
     enabled: useUnifiedBoard,
   });
 
@@ -1801,13 +1875,20 @@ export default function ProjectsDashboardPage() {
   const sponsoredHook = boardHook;
   const normalHook = boardHook;
 
-  const lifecycleHook = useFeaturedProjects(null, {
+  const lifecycleHook = useFeaturedProjects(boardPromotionType, {
     promotionStatus: serverPromotionStatus,
     prefetchAll: false,
     pageSize: PROJECT_BOARD_FETCH_SIZE,
     from: createdFrom,
     to: createdTo,
     status: serverListStatus,
+    state: locationState,
+    city: locationCity,
+    locality: locationLocality,
+    createdBy: serverCreatedBy,
+    builder: serverBuilderName,
+    categoryType: serverCategory,
+    propertyType: serverPropertyType,
     enabled: !!serverPromotionStatus,
   });
 
@@ -1914,7 +1995,8 @@ export default function ProjectsDashboardPage() {
   // Builder role only (not builder_staff). Options = all builders; filter uses createdBy.
   const { data: allBuildersSearch } = useQuery({
     queryKey: ["project-page-builders-only"],
-    queryFn: () => getUserSearch({ role: "builder", page: 1, limit: 20 }),
+    queryFn: () =>
+      getUserSearch({ role: "builder", page: 1, limit: 20, lean: 1 }),
     enabled: Boolean(currentUser),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -2010,15 +2092,6 @@ export default function ProjectsDashboardPage() {
   // Load next pages on demand via UI pagination — no eager multi-page prefetch.
 
   // ── Unified top-bar state (location + search) — drives analytics ─────────
-  const [selectedLocation, setSelectedLocation] = useState(() => {
-    const savedLocation = searchParams.get("location");
-    if (!savedLocation) return null;
-    try {
-      return JSON.parse(savedLocation);
-    } catch {
-      return null;
-    }
-  });
   //const [searchTerm, setSearchTerm] = useState("");
   const [analyticsSearch, setAnalyticsSearch] = useState(
     () => searchParams.get("analyticsSearch") || "",
@@ -2026,17 +2099,56 @@ export default function ProjectsDashboardPage() {
   const debouncedAnalyticsSearch = useDebounce(analyticsSearch, 400);
 
   // ── Project list filter state (independent of analytics) ─────────────────
-  // promotionFilter + statusFilter are declared above (before board hooks).
-  const [categoryFilter, setCategoryFilter] = useState(
-    () => searchParams.get("category") || "all",
-  );
-  const [propertyTypeFilter, setPropertyTypeFilter] = useState(
-    () => searchParams.get("propertyType") || "all",
-  );
-  const [creatorBuilderFilter, setCreatorBuilderFilter] = useState(
-    () => searchParams.get("createdBy") || "all",
-  );
+  // promotion, status, location, category, and builder are declared above.
   const [builderSearch, setBuilderSearch] = useState("");
+
+  const { data: boardFilterData } = useQuery({
+    queryKey: [
+      "project-board-filter-options",
+      "with-promotions",
+      locationState,
+      locationCity,
+      locationLocality,
+      serverCreatedBy,
+    ],
+    queryFn: async () => {
+      try {
+        return await getProjectBoardFilterOptions({
+          state: locationState || undefined,
+          city: locationCity || undefined,
+          locality: locationLocality || undefined,
+          createdBy: serverCreatedBy || undefined,
+        });
+      } catch (err) {
+        console.warn("project-board-filter-options failed", err);
+        return { data: { data: null } };
+      }
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    placeholderData: (previous) => previous,
+  });
+
+  const boardFilters = boardFilterData?.data?.data || boardFilterData?.data || null;
+
+  const { data: builderPlaceData } = useQuery({
+    queryKey: ["project-board-builder-places", serverCreatedBy],
+    enabled: Boolean(serverCreatedBy),
+    queryFn: async () => {
+      try {
+        return await getProjectBoardFilterOptions({
+          createdBy: serverCreatedBy,
+        });
+      } catch (err) {
+        console.warn("project-board-builder-places failed", err);
+        return { data: { data: null } };
+      }
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const builderPlaces =
+    builderPlaceData?.data?.data || builderPlaceData?.data || null;
   // createdFrom / createdTo declared above (before board hooks).
 
   const isTodayRange =
@@ -2116,7 +2228,6 @@ export default function ProjectsDashboardPage() {
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState(null);
   const [permanentDeleteLoading, setPermanentDeleteLoading] = useState(false);
   const [promoteTarget,      setPromoteTarget]      = useState(null);
-  const [expireTarget,       setExpireTarget]       = useState(null);
   const [resetTarget,        setResetTarget]        = useState(null);
   const [promoteCurrentType, setPromoteCurrentType] = useState("normal");
 
@@ -2137,14 +2248,20 @@ export default function ProjectsDashboardPage() {
 
   const masterAnalytics = masterAnalyticsData?.data?.data || null;
 
-  const analyticsParams = useMemo(
-    () =>
-      buildAnalyticsParams(selectedLocation, debouncedAnalyticsSearch, {
-        from: createdFrom,
-        to: createdTo,
-      }),
-    [selectedLocation, debouncedAnalyticsSearch, createdFrom, createdTo],
-  );
+  const analyticsParams = useMemo(() => {
+    const params = buildAnalyticsParams(selectedLocation, debouncedAnalyticsSearch, {
+      from: createdFrom,
+      to: createdTo,
+    });
+    if (serverCreatedBy) params.creatorIds = serverCreatedBy;
+    return params;
+  }, [
+    selectedLocation,
+    debouncedAnalyticsSearch,
+    createdFrom,
+    createdTo,
+    serverCreatedBy,
+  ]);
 
   // Drill-downs: /projects?status=draft|onboarding|pending&createdFrom=...&createdTo=...
   useEffect(() => {
@@ -2213,6 +2330,13 @@ export default function ProjectsDashboardPage() {
       projectSearchType || "all",
       trackingFilter,
       serverPromotionStatus || "",
+      locationState,
+      locationCity,
+      locationLocality,
+      serverCreatedBy,
+      serverBuilderName,
+      serverCategory,
+      serverPropertyType,
     ],
     // Loaded pages are only a slice of the catalogue. Title search must hit
     // the database, including rows the board has not paged in yet.
@@ -2228,6 +2352,13 @@ export default function ProjectsDashboardPage() {
           promotionStatus:
             serverPromotionStatus ||
             (trackingFilter === "all" ? "all" : "active"),
+          state: locationState || undefined,
+          city: locationCity || undefined,
+          locality: locationLocality || undefined,
+          createdBy: serverCreatedBy || undefined,
+          builder: serverBuilderName || undefined,
+          categoryType: serverCategory || undefined,
+          propertyType: serverPropertyType || undefined,
         });
       } catch (err) {
         console.warn("project-title-search failed", err);
@@ -2321,22 +2452,16 @@ export default function ProjectsDashboardPage() {
 
     // Location filter — same as analytics scope
     if (selectedLocation) {
-      if (selectedLocation?.value?.state) {
-        list = list.filter(
-          (p) => p.state?.trim() === selectedLocation.value.state,
-        );
+      if (locationState) {
+        list = list.filter((p) => sameText(p.state, locationState));
       }
 
-      if (selectedLocation?.value?.city) {
-        list = list.filter(
-          (p) => p.city?.trim() === selectedLocation.value.city,
-        );
+      if (locationCity) {
+        list = list.filter((p) => sameText(p.city, locationCity));
       }
 
-      if (selectedLocation?.value?.locality) {
-        list = list.filter(
-          (p) => p.locality?.trim() === selectedLocation.value.locality,
-        );
+      if (locationLocality) {
+        list = list.filter((p) => sameText(p.locality, locationLocality));
       }
     }
 
@@ -2477,11 +2602,7 @@ export default function ProjectsDashboardPage() {
     isPendingApprovalsView ||
     Boolean(projectTitleSearch.length >= 2 && serverSearchItems) ||
     (trackingFilter !== "all" && !serverPromotionStatus) ||
-    categoryFilter !== "all" ||
-    propertyTypeFilter !== "all" ||
-    creatorBuilderFilter !== "all" ||
     builderSearch.trim().length >= 2 ||
-    Boolean(selectedLocation) ||
     Boolean(deferredProjectSearch) ||
     PRICE_SLICE_SORTS.has(sortBy);
 
@@ -2701,11 +2822,6 @@ export default function ProjectsDashboardPage() {
         if (Number.isFinite(n)) return n;
         return fromWise("active", "approved");
       }
-      if (value === "rejected") {
-        const n = Number(ov.rejectedProjects);
-        if (Number.isFinite(n)) return n;
-        return fromWise("rejected");
-      }
       if (value === "deleted") {
         const n = fromWise("inactive", "deleted", "archived");
         if (n > 0) return n;
@@ -2733,7 +2849,21 @@ export default function ProjectsDashboardPage() {
 
   const builderFilterOptions = useMemo(() => {
     const query = builderSearch.trim().toLowerCase();
-    const builders = creatorBuilderOptions.filter((builder) => {
+    const fromFacets = Array.isArray(boardFilters?.builders)
+      ? boardFilters.builders
+      : null;
+    const source = fromFacets
+      ? fromFacets.map((builder) => ({
+          id: String(builder.id),
+          name: titleCaseWords(builder.name),
+          count: Number(builder.count || 0),
+        }))
+      : creatorBuilderOptions.map((builder) => ({
+          id: builder.id,
+          name: titleCaseWords(builder.name),
+          count: undefined,
+        }));
+    const builders = source.filter((builder) => {
       if (
         creatorBuilderFilter !== "all" &&
         builder.id === creatorBuilderFilter
@@ -2741,19 +2871,193 @@ export default function ProjectsDashboardPage() {
         return true;
       }
       if (!query) return true;
-      // Case-insensitive: "madu", "MADU", "Madu" all match
       return String(builder.name || "")
         .toLowerCase()
         .includes(query);
     });
+    if (
+      creatorBuilderFilter !== "all" &&
+      !builders.some((builder) => builder.id === creatorBuilderFilter)
+    ) {
+      const known = creatorBuilderOptions.find(
+        (builder) => builder.id === creatorBuilderFilter,
+      );
+      if (known) {
+        builders.unshift({
+          id: known.id,
+          name: titleCaseWords(known.name),
+          count: undefined,
+        });
+      }
+    }
     return [
       { value: "all", label: "All Builders" },
       ...builders.map((builder) => ({
         value: builder.id,
         label: titleCaseWords(builder.name),
+        ...(typeof builder.count === "number" ? { count: builder.count } : {}),
       })),
     ];
-  }, [builderSearch, creatorBuilderFilter, creatorBuilderOptions]);
+  }, [boardFilters, builderSearch, creatorBuilderFilter, creatorBuilderOptions]);
+
+  const applyLocationScope = useCallback((next) => {
+    const state = canonicalStateName(next?.state || "");
+    const city = String(next?.city || "").trim();
+    const locality = String(next?.locality || "").trim();
+    if (!state) {
+      setSelectedLocation(null);
+      return;
+    }
+    if (locality && city) {
+      setSelectedLocation({
+        type: "locality",
+        value: { state, city, locality },
+        label: `${locality}, ${city}`,
+      });
+      return;
+    }
+    if (city) {
+      setSelectedLocation({
+        type: "city",
+        value: { state, city },
+        label: `${city}, ${state}`,
+      });
+      return;
+    }
+    setSelectedLocation({
+      type: "state",
+      value: { state },
+      label: state,
+    });
+  }, []);
+
+  const stateFilterOptions = useMemo(() => {
+    const rows = Array.isArray(boardFilters?.states) ? boardFilters.states : [];
+    return [
+      { value: "all", label: "All States" },
+      ...rows.map((row) => ({
+        value: row.name,
+        label: canonicalStateName(row.name) || row.name,
+        count: Number(row.count || 0),
+      })),
+    ];
+  }, [boardFilters]);
+
+  const cityFilterOptions = useMemo(() => {
+    const rows = Array.isArray(boardFilters?.cities) ? boardFilters.cities : [];
+    return [
+      { value: "all", label: "All Cities" },
+      ...rows.map((row) => ({
+        value: `${row.state}::${row.name}`,
+        label: locationState
+          ? row.name
+          : `${row.name}${row.state ? `, ${canonicalStateName(row.state) || row.state}` : ""}`,
+        count: Number(row.count || 0),
+      })),
+    ];
+  }, [boardFilters, locationState]);
+
+  const localityFilterOptions = useMemo(() => {
+    const rows = Array.isArray(boardFilters?.localities)
+      ? boardFilters.localities
+      : [];
+    return [
+      { value: "all", label: "All Localities" },
+      ...(locationCity
+        ? []
+        : [{ isGroup: true, label: "Choose a city to see localities" }]),
+      ...rows.map((row) => ({
+        value: `${row.state}::${row.city}::${row.name}`,
+        label: row.name,
+        count: Number(row.count || 0),
+      })),
+    ];
+  }, [boardFilters, locationCity]);
+
+  const builderPlaceChoices = useMemo(() => {
+    if (!serverCreatedBy || !builderPlaces) return [];
+    const localities = Array.isArray(builderPlaces.localities)
+      ? builderPlaces.localities
+      : [];
+    const cities = Array.isArray(builderPlaces.cities) ? builderPlaces.cities : [];
+    const covered = new Set(
+      localities.map((row) =>
+        `${String(row.state || "").trim().toLowerCase()}|${String(row.city || "").trim().toLowerCase()}`,
+      ),
+    );
+    const places = [
+      ...localities.map((row) => ({
+        state: row.state,
+        city: row.city,
+        locality: row.name,
+        count: Number(row.count || 0),
+        label: [row.name, row.city, canonicalStateName(row.state) || row.state]
+          .filter(Boolean)
+          .join(", "),
+      })),
+      ...cities
+        .filter(
+          (row) =>
+            !covered.has(
+              `${String(row.state || "").trim().toLowerCase()}|${String(row.name || "").trim().toLowerCase()}`,
+            ),
+        )
+        .map((row) => ({
+          state: row.state,
+          city: row.name,
+          locality: "",
+          count: Number(row.count || 0),
+          label: [row.name, canonicalStateName(row.state) || row.state]
+            .filter(Boolean)
+            .join(", "),
+        })),
+    ];
+    return places
+      .filter((place) => place.label)
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [builderPlaces, serverCreatedBy]);
+
+  const promotionTypeOptions = useMemo(() => {
+    const counts = boardFilters?.promotions || {};
+    const countOf = (key) => Number(counts[key] || 0);
+    return [
+      {
+        value: "all",
+        label: "All",
+        count:
+          countOf("normal") +
+          countOf("featured") +
+          countOf("prime") +
+          countOf("sponsored"),
+      },
+      { value: "normal", label: "Normal", count: countOf("normal") },
+      { value: "sponsored", label: "Sponsored", count: countOf("sponsored") },
+      { value: "featured", label: "Top Selling", count: countOf("featured") },
+      { value: "prime", label: "Prime", count: countOf("prime") },
+    ];
+  }, [boardFilters]);
+
+  const selectedBuilderLabel =
+    builderFilterOptions.find((option) => option.value === creatorBuilderFilter)
+      ?.label || "This builder";
+
+  const stateMenuValue =
+    stateFilterOptions.find((option) => sameText(option.value, locationState))
+      ?.value || (locationState ? locationState : "all");
+  const cityMenuValue =
+    cityFilterOptions.find((option) => {
+      const [state, city] = String(option.value).split("::");
+      return sameText(state, locationState) && sameText(city, locationCity);
+    })?.value || "all";
+  const localityMenuValue =
+    localityFilterOptions.find((option) => {
+      const [state, city, locality] = String(option.value).split("::");
+      return (
+        sameText(state, locationState) &&
+        sameText(city, locationCity) &&
+        sameText(locality, locationLocality)
+      );
+    })?.value || "all";
 
   const getHook = useCallback((id) => {
     const type =
@@ -2807,7 +3111,6 @@ export default function ProjectsDashboardPage() {
       setPermanentDeleteLoading(false);
     }
   }, [canPermanentDelete, permanentDeleteLoading, refreshAllProjects]);
-  const handleExpire  = useCallback((id) => getHook(id).expireMutation.mutate(id,  { onSuccess: refreshAllProjects, onSettled: () => setExpireTarget(null)  }), [getHook, refreshAllProjects]);
   const handleReset   = useCallback((id) => getHook(id).resetMutation.mutate(id,   { onSuccess: refreshAllProjects, onSettled: () => setResetTarget(null)   }), [getHook, refreshAllProjects]);
   const handlePromote = useCallback(
     (newType, options = {}) => {
@@ -2828,6 +3131,7 @@ export default function ProjectsDashboardPage() {
           visibleLeadLimit: options.visibleLeadLimit,
           days: options.days,
           sponsoredAd: options.sponsoredAd,
+          startAt: options.startAt,
         },
         {
           onSuccess: () => {
@@ -2910,14 +3214,16 @@ export default function ProjectsDashboardPage() {
     categoryFilter !== "all",
     propertyTypeFilter !== "all",
     creatorBuilderFilter !== "all",
+    Boolean(selectedLocation),
     // One chip for the date range (not separate from/to)
     Boolean(createdFrom || createdTo),
-  ].filter(Boolean).length, [promotionFilter, statusFilter, trackingFilter, categoryFilter, propertyTypeFilter, creatorBuilderFilter, createdFrom, createdTo]);
+  ].filter(Boolean).length, [promotionFilter, statusFilter, trackingFilter, categoryFilter, propertyTypeFilter, creatorBuilderFilter, createdFrom, createdTo, selectedLocation]);
 
   const clearListFilters = useCallback(() => {
     setPromotionFilter("all"); setStatusFilter("all"); setTrackingFilter("all");
     setCategoryFilter("all");  setPropertyTypeFilter("all");
     setCreatorBuilderFilter("all"); setBuilderSearch("");
+    setSelectedLocation(null);
     setCreatedFrom(""); setCreatedTo("");
   }, []);
 
@@ -2979,17 +3285,6 @@ export default function ProjectsDashboardPage() {
           if (!permanentDeleteLoading) setPermanentDeleteTarget(null);
         }}
         isLoading={permanentDeleteLoading}
-      />
-      <ConfirmModal
-        open={!!expireTarget}
-        title="Expire Property"
-        message="Mark this property as expired? It will no longer appear in active listings."
-        confirmLabel="Expire"
-        confirmClass="bg-orange-600 hover:bg-orange-700 text-white"
-        icon={<Clock className="w-5 h-5" />}
-        iconClass="text-orange-600"
-        onConfirm={() => handleExpire(expireTarget)}
-        onCancel={() => setExpireTarget(null)}
       />
       <ConfirmModal
         open={!!resetTarget}
@@ -3333,6 +3628,84 @@ export default function ProjectsDashboardPage() {
             </button>
           )}
         </div>
+        <div className="relative z-30 grid grid-cols-4 gap-2.5">
+          <FilterMenu
+            className="min-w-0"
+            label="State"
+            value={stateMenuValue}
+            options={stateFilterOptions}
+            searchable
+            searchPlaceholder="Search state…"
+            menuMaxHeight={280}
+            onChange={(next) => {
+              if (!next || next === "all") applyLocationScope(null);
+              else applyLocationScope({ state: next });
+            }}
+          />
+          <FilterMenu
+            className="min-w-0"
+            label="City"
+            value={cityMenuValue}
+            options={cityFilterOptions}
+            searchable
+            searchPlaceholder="Search city…"
+            menuMaxHeight={280}
+            onChange={(next) => {
+              if (!next || next === "all") {
+                applyLocationScope({ state: locationState });
+                return;
+              }
+              const [state, city] = String(next).split("::");
+              applyLocationScope({
+                state: state || locationState,
+                city,
+              });
+            }}
+          />
+          <FilterMenu
+            className="min-w-0"
+            label="Locality"
+            value={localityMenuValue}
+            options={localityFilterOptions}
+            searchable
+            searchPlaceholder="Search locality…"
+            menuMaxHeight={280}
+            placeholder={locationCity ? "All Localities" : "Select a city first"}
+            onChange={(next) => {
+              if (!locationCity) return;
+              if (!next || next === "all") {
+                applyLocationScope({
+                  state: locationState,
+                  city: locationCity,
+                });
+                return;
+              }
+              const [state, city, locality] = String(next).split("::");
+              applyLocationScope({
+                state: state || locationState,
+                city: city || locationCity,
+                locality,
+              });
+            }}
+          />
+          <FilterMenu
+            className="min-w-0"
+            label="Promotion"
+            value={
+              promotionFilter === "pending" ? "all" : promotionFilter
+            }
+            options={promotionTypeOptions}
+            onChange={(next) => {
+              setPromotionFilter(next || "all");
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+        <p className="text-[11px] text-[#5c7d6d]">
+          {serverCreatedBy
+            ? "This builder’s project locations are listed under the builder field. Pick one to show only those projects."
+            : "All locations to start. State narrows cities, city narrows localities, and the builder list follows the location."}
+        </p>
         {/* Compact filter row — fixed narrow widths for Category / Status / Tracking */}
         <div className="relative z-20 flex flex-wrap items-end gap-2.5 overflow-visible">
           <FilterMenu
@@ -3492,6 +3865,7 @@ export default function ProjectsDashboardPage() {
             onSearchChange={setBuilderSearch}
             onChange={(next) => {
               setCreatorBuilderFilter(next);
+              if (next !== "all") setSelectedLocation(null);
               setCurrentPage(1);
             }}
           />
@@ -3515,6 +3889,61 @@ export default function ProjectsDashboardPage() {
             ) : null}
           </button>
         </div>
+
+        {serverCreatedBy && builderPlaceChoices.length > 0 ? (
+          <div className="rounded-xl border border-emerald-100 bg-white px-3 py-2.5">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-700">
+              {selectedBuilderLabel} locations
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => applyLocationScope(null)}
+                className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                  !locationState
+                    ? "border-[#27AE60] bg-[#27AE60] text-white"
+                    : "border-emerald-100 bg-emerald-50/60 text-[#0f3d2e] hover:border-emerald-300"
+                }`}
+              >
+                All locations
+              </button>
+              {builderPlaceChoices.map((place) => {
+                const selected =
+                  sameText(locationState, place.state) &&
+                  sameText(locationCity, place.city) &&
+                  sameText(locationLocality, place.locality);
+                return (
+                  <button
+                    key={`${place.state}|${place.city}|${place.locality}`}
+                    type="button"
+                    onClick={() =>
+                      applyLocationScope({
+                        state: place.state,
+                        city: place.city,
+                        locality: place.locality,
+                      })
+                    }
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
+                      selected
+                        ? "border-[#27AE60] bg-[#27AE60] text-white"
+                        : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300"
+                    }`}
+                  >
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span className="max-w-[16rem] truncate">{place.label}</span>
+                    <span
+                      className={`rounded-full px-1.5 text-[10px] font-black ${
+                        selected ? "bg-white/25 text-white" : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {place.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <details
           className="rounded-xl border border-emerald-100 bg-emerald-50/40"
@@ -3663,6 +4092,29 @@ export default function ProjectsDashboardPage() {
                 </button>
               </span>
             )}
+            {selectedLocation ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">
+                <MapPin className="h-3 w-3" />
+                {selectedLocation.label}
+                <button type="button" onClick={() => setSelectedLocation(null)}>
+                  <X className="h-3 w-3 hover:text-red-500" />
+                </button>
+              </span>
+            ) : null}
+            {creatorBuilderFilter !== "all" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-800">
+                {builderFilterOptions.find((item) => item.value === creatorBuilderFilter)?.label || "Builder"}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatorBuilderFilter("all");
+                    setBuilderSearch("");
+                  }}
+                >
+                  <X className="h-3 w-3 hover:text-red-500" />
+                </button>
+              </span>
+            ) : null}
             {categoryFilter !== "all" && (
               <span className="inline-flex items-center gap-1.5 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-2.5 py-1 font-medium capitalize">
                 {categoryFilter}
@@ -3765,7 +4217,6 @@ export default function ProjectsDashboardPage() {
               onDelete={setDeleteTarget}
               onPermanentDelete={setPermanentDeleteTarget}
               onPromote={openPromoteModal}
-              onExpire={setExpireTarget}
               onReset={setResetTarget}
               onRankUpdated={refreshAllProjects}
             />

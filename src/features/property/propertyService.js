@@ -30,6 +30,13 @@ export const getFeaturedProjectsByType = (
     query.set("q", term);
   }
   if (params.status) query.set("status", params.status);
+  if (params.state) query.set("state", params.state);
+  if (params.city) query.set("city", params.city);
+  if (params.locality) query.set("locality", params.locality);
+  if (params.createdBy) query.set("createdBy", params.createdBy);
+  if (params.builder) query.set("builder", params.builder);
+  if (params.categoryType) query.set("categoryType", params.categoryType);
+  if (params.propertyType) query.set("propertyType", params.propertyType);
   if (params.from) query.set("from", params.from);
   if (params.to) query.set("to", params.to);
   if (params.createdFrom) query.set("createdFrom", params.createdFrom);
@@ -96,8 +103,9 @@ export const promoteProject = (id, type) =>
 export const RenevaleProject = (id) =>
   apiClient.patch(`${BASE}/${id}/renew`, { days: 10 });
 
-/** Expire a project */
-export const expireProject = (id) => apiClient.patch(`${BASE}/${id}/expire`);
+/** Cancel a live or scheduled promotion and return it to normal. */
+export const expireProject = (id, reason) =>
+  apiClient.patch(`${BASE}/${id}/expire`, { reason });
 
 /** Reset a project back to default/active */
 export const resetProject = (id) => apiClient.patch(`${BASE}/${id}/reset`);
@@ -254,6 +262,17 @@ export const salesmanagerRejectAProject = (id, body = {}) =>
   withSidebarRefresh(apiClient.patch(`${SERVICES.PROPERTY}/${id}/reject`, body));
 
 
+
+/** Cascading state / city / locality / builder options for the projects board. */
+export const getProjectBoardFilterOptions = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.state) query.set("state", params.state);
+  if (params.city) query.set("city", params.city);
+  if (params.locality) query.set("locality", params.locality);
+  if (params.createdBy) query.set("createdBy", params.createdBy);
+  const qs = query.toString();
+  return apiClient.get(`${BASE}/filter-options${qs ? `?${qs}` : ""}`);
+};
 
 export const getAllProjectsAnalytics = (params = {}, config = {}) => {
   const query = new URLSearchParams();

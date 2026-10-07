@@ -1,6 +1,6 @@
 
 // frontend/admin-dashboard/src/pages/post-property/FeaturedPoperty/FeaturedPreviewPageComponents/AboutUsEditor.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { compressImage } from "./imageCompressor";
 import TiptapEditor from "../../CreateFeaturedProjects/Components/TiptapEditor";
 import ImageLightbox from "../../../../components/ImageLightbox";
@@ -19,13 +19,23 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
     rightContent:     about.rightContent     || "",
     imageFile:        null,
     imagePreview:     about.url              || "",
+    imageSize:        null,
   });
+  const localRef = useRef(localState);
+  localRef.current = localState;
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
-    if (about.url && !localState.imageFile) {
-      setLocalState((p) => ({ ...p, imagePreview: about.url }));
-    }
+    if (!about.url || String(about.url).startsWith("blob:")) return;
+    setLocalState((p) => {
+      if (p.imagePreview === about.url && !p.imageFile) return p;
+      return {
+        ...p,
+        imagePreview: about.url,
+        imageFile: null,
+        imageSize: null,
+      };
+    });
   }, [about.url]);
 
   useEffect(() => {
@@ -41,19 +51,25 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
   if (!formData) return null;
 
   const syncAbout = (patch) => {
-    const next = { ...localState, ...patch };
-    setLocalState((p) => ({ ...p, ...patch }));
-    setLivePreviewData({
-      ...formData,
+    const next = { ...localRef.current, ...patch };
+    localRef.current = next;
+    setLocalState(next);
+    const stored = formData?.aboutSummary?.[0] || {};
+    const previewUrl = next.imagePreview || stored.url || "";
+    setLivePreviewData((current) => ({
+      ...(current || formData),
       aboutSummary: [
         {
           builderName: next.builderName,
           aboutDescription: next.aboutDescription,
           rightContent: next.rightContent,
-          url: next.imagePreview,
+          url: previewUrl,
+          key: stored.key || "",
+          filename: stored.filename || "",
+          mimetype: stored.mimetype || "",
         },
       ],
-    });
+    }));
   };
 
   const handleBuilderNameChange = (e) => {
@@ -95,22 +111,39 @@ export default function AboutUsEditor({ formData, setFormData, setLivePreviewDat
         imagePreview: previewUrl,
         imageSize: compressed.size,
       });
-    } catch {
+    } catch (error) {
+      console.error("About image select failed:", error);
       e.target.value = "";
     }
   }
 
   function saveAbout() {
+    const current = localRef.current;
+    const stored = formData?.aboutSummary?.[0] || {};
+    const storedUrl =
+      typeof stored.url === "string" && /^https?:\/\//i.test(stored.url)
+        ? stored.url
+        : "";
     onSave({
-      ...formData,
+      partial: true,
       aboutSummary: [
         {
-          builderName: localState.builderName,
-          aboutDescription: localState.aboutDescription,
-          rightContent: localState.rightContent,
+          builderName: current.builderName || "",
+          aboutDescription: current.aboutDescription || "",
+          rightContent: current.rightContent || "",
+          ...(storedUrl
+            ? {
+                url: storedUrl,
+                key: stored.key || "",
+                filename: stored.filename || "",
+                mimetype: stored.mimetype || "",
+              }
+            : {}),
         },
       ],
-      aboutImage: localState.imageFile || undefined,
+      ...(current.imageFile instanceof File
+        ? { aboutImage: current.imageFile }
+        : {}),
     });
   }
 

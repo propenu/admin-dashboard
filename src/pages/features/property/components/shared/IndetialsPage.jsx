@@ -51,6 +51,7 @@ import {
   projectExternalFileAddLeads,
   getBuilderOnboardingState,
   getFeaturedProjectById,
+  expireProject,
 } from "../../../../../features/property/propertyService";
 import { getUserSearch } from "../../../../../features/user/userService";
 import {
@@ -61,11 +62,13 @@ import GalleryLightbox from "../../../../../components/common/GalleryLightbox";
 import Fallback from "../../../../../assets/fallback.svg";
 import {
   formatPromotionDate,
+  formatPromotionDateTime,
   getPromotionTracking,
   promotionLifecycleClass,
   promotionLifecycleCopy,
   titlePromotionType,
 } from "./promotionTracking";
+import CancelPromotionDialog from "./CancelPromotionDialog";
 import BuilderAttachPanel from "./BuilderAttachPanel";
 import LocationAddressBlock from "./LocationAddressBlock";
 
@@ -2071,7 +2074,9 @@ export default function FeaturedPropertyDetails() {
     queryFn: () =>
       getUserSearch({
         role: "sales_executive,regional_manager,business_development_head,operations_head",
-        limit: 200,
+        page: 1,
+        limit: 100,
+        lean: 1,
       }),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
@@ -2991,9 +2996,49 @@ export default function FeaturedPropertyDetails() {
   );
 }
 
+function promotionActor(item) {
+  if (!item) return null;
+  const user =
+    item.changedBy && typeof item.changedBy === "object" ? item.changedBy : null;
+  const name = item.changedByName || user?.name || user?.companyName || "";
+  const email = item.changedByEmail || user?.email || "";
+  const role = item.changedByRole || user?.roleName || "";
+  if (!name && !email && !role) return null;
+  return { name, email, role };
+}
+
+function PromotionActorLine({ item }) {
+  const actor = promotionActor(item);
+  if (!actor) return null;
+  return (
+    <p className="mt-2 text-[11px] font-medium text-slate-600">
+      By {actor.name || "Staff"}
+      {actor.role ? ` · ${actor.role.replaceAll("_", " ")}` : ""}
+      {actor.email ? ` · ${actor.email}` : ""}
+    </p>
+  );
+}
+
 function PromotionTrackerPanel({ property }) {
+  const queryClient = useQueryClient();
+  const [cancelOpen, setCancelOpen] = useState(false);
   const tracking = getPromotionTracking(property);
   const history = tracking.history;
+  const currentActor = tracking.activeRecord || tracking.latestRecord;
+  const cancelPromotionMutation = useMutation({
+    mutationFn: (reason) => expireProject(property?._id, reason),
+    onSuccess: async () => {
+      toast.success("Promotion cancelled and set to normal");
+      setCancelOpen(false);
+      await queryClient.invalidateQueries({
+        queryKey: ["getFeaturedProjectById", property?._id],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["featured-projects"] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Could not cancel promotion");
+    },
+  });
   const start = tracking.startedAt ? new Date(tracking.startedAt).getTime() : null;
   const end = tracking.expiresAt ? new Date(tracking.expiresAt).getTime() : null;
   const now = Date.now();
@@ -3031,9 +3076,13 @@ function PromotionTrackerPanel({ property }) {
 
           <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
             <div className="rounded-xl bg-white p-3">
-              <p className="text-slate-400">Started</p>
+              <p className="text-slate-400">
+                {tracking.lifecycle === "scheduled" ? "Goes live" : "Started"}
+              </p>
               <p className="mt-1 font-semibold text-slate-700">
-                {formatPromotionDate(tracking.startedAt, true)}
+                {tracking.lifecycle === "scheduled"
+                  ? formatPromotionDateTime(tracking.startedAt)
+                  : formatPromotionDate(tracking.startedAt, true)}
               </p>
             </div>
             <div className="rounded-xl bg-white p-3">
@@ -3043,6 +3092,18 @@ function PromotionTrackerPanel({ property }) {
               </p>
             </div>
           </div>
+
+          <PromotionActorLine item={currentActor} />
+
+          {tracking.currentType !== "normal" && (
+            <button
+              type="button"
+              onClick={() => setCancelOpen(true)}
+              className="mt-4 rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-700"
+            >
+              Cancel promotion
+            </button>
+          )}
 
           {tracking.currentType !== "normal" && (
             <div className="mt-4">
@@ -3086,10 +3147,10 @@ function PromotionTrackerPanel({ property }) {
                     <p className="mt-1 text-xs text-slate-500">
                       {item.reason || "Promotion changed"}
                     </p>
+                    <PromotionActorLine item={item} />
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">
                       <span>Started {formatPromotionDate(item.startedAt, true)}</span>
                       <span>Expires {formatPromotionDate(item.expiresAt, true)}</span>
-                      {item.changedByRole && <span>By {item.changedByRole}</span>}
                     </div>
                   </div>
                 </div>
@@ -3098,6 +3159,14 @@ function PromotionTrackerPanel({ property }) {
           )}
         </div>
       </div>
+      <CancelPromotionDialog
+        open={cancelOpen}
+        isLoading={cancelPromotionMutation.isPending}
+        onCancel={() => {
+          if (!cancelPromotionMutation.isPending) setCancelOpen(false);
+        }}
+        onConfirm={(reason) => cancelPromotionMutation.mutate(reason)}
+      />
     </SectionCard>
   );
 }

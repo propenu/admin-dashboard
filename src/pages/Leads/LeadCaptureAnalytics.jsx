@@ -1,14 +1,13 @@
 /* eslint-disable no-unused-vars -- icon components are also rendered from data-driven tuples */
 import {
-  createElement,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Activity,
   AlertTriangle,
   ArrowRight,
   BadgeCheck,
@@ -16,12 +15,11 @@ import {
   Calculator,
   CalendarDays,
   Check,
+  ChevronDown,
   CircleCheck,
   CircleDot,
   ClipboardList,
-  Clock3,
   Download,
-  Eye,
   Gauge,
   Globe2,
   ListFilter,
@@ -30,13 +28,11 @@ import {
   MessageCircle,
   Monitor,
   MousePointer2,
-  Phone,
   RefreshCw,
   Search,
   Send,
   ShieldCheck,
   Smartphone,
-  Target,
   UserCheck,
   UserRound,
   Users,
@@ -352,15 +348,6 @@ function Chip({ children, tone = "green" }) {
   );
 }
 
-function RoleBadge({ role, className = "" }) {
-  return (
-    <span
-      className={`inline-flex h-6 min-w-[7.5rem] items-center justify-center rounded-full border border-[#b7e4c7] bg-[#e8f8ee] px-2.5 text-[11px] font-bold uppercase tracking-wide text-[#128C45] ${className}`}
-    >
-      {roleLabel(role)}
-    </span>
-  );
-}
 function Panel({ title: heading, subtitle, children, action, className = "" }) {
   return (
     <section className={`uj-panel overflow-hidden rounded-2xl ${saSurface} ${className}`}>
@@ -377,40 +364,6 @@ function Panel({ title: heading, subtitle, children, action, className = "" }) {
       </header>
       {children}
     </section>
-  );
-}
-function Metric({ icon, label, value, suffix, change, tone = "green" }) {
-  const colors = {
-    green: "text-[#27AE60]",
-    blue: "text-[#27AE60]",
-    orange: "text-[#27AE60]",
-    violet: "text-[#27AE60]",
-  };
-  return (
-    <div className="uj-metric flex min-w-0 flex-col justify-center border-r border-[#d8f0e2] px-2.5 py-3 last:border-r-0 sm:px-3">
-      <div className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[#5c7d6d]">
-        {createElement(icon, {
-          size: 13,
-          className: `shrink-0 ${colors[tone]}`,
-        })}
-        <span className="truncate">{label}</span>
-      </div>
-      <div className="mt-1.5 flex min-w-0 items-baseline gap-1">
-        <strong className="truncate text-lg font-black leading-none text-[#0f3d2e] sm:text-xl">
-          {value}
-        </strong>
-        {suffix != null && suffix !== "" && (
-          <span className="shrink-0 text-[11px] font-semibold text-[#5c7d6d]">
-            {suffix}
-          </span>
-        )}
-        {change && (
-          <span className="ml-auto shrink-0 text-[10px] font-bold text-[#27AE60]">
-            ↗ {change}
-          </span>
-        )}
-      </div>
-    </div>
   );
 }
 function preview(user) {
@@ -912,7 +865,7 @@ function ReferenceJourneyMap({ journey }) {
     "project_click",
     "property_click",
   );
-  const agent = first?.userAgent || latest?.userAgent |first?.deviceType | "" 
+  const agent = first?.userAgent || latest?.userAgent || first?.deviceType || "";
   const browser = /edg/i.test(agent)
     ? "Edge"
     : /opr|opera/i.test(agent)
@@ -953,7 +906,7 @@ function ReferenceJourneyMap({ journey }) {
       "Registered",
       time(first?.serverTimestamp),
       `${device} · ${browser}`,
-      raw.length ? "100%" : "0%",
+      raw.length ? "Done" : "Waiting",
       raw.length ? 100 : 0,
       `${raw.length} events`,
     ],
@@ -963,7 +916,7 @@ function ReferenceJourneyMap({ journey }) {
       detail(search, "No search yet"),
       time(search?.serverTimestamp),
       elapsed(search?.durationMs),
-      search ? `${searchPercent}%` : "Waiting",
+      search ? "Reached" : "Waiting",
       searchPercent,
       search ? `${100 - searchPercent}% drop-off` : "Not reached",
     ],
@@ -973,7 +926,7 @@ function ReferenceJourneyMap({ journey }) {
       detail(explore, "No listing opened"),
       time(explore?.serverTimestamp),
       elapsed(explore?.durationMs),
-      explore ? `${explorePercent}%` : "Waiting",
+      explore ? "Reached" : "Waiting",
       explorePercent,
       explore ? `${100 - explorePercent}% drop-off` : "Not reached",
     ],
@@ -1043,191 +996,160 @@ function ReferenceJourneyMap({ journey }) {
           capturedAt: latest.serverTimestamp,
         }
       : null);
-  const kpis = [
-    [
-      "Session Duration",
-      journey?.engagedMinutes
-        ? `${Math.floor(journey.engagedMinutes / 60)}h ${journey.engagedMinutes % 60}m`
-        : "0m",
-    ],
-    ["Total Events", raw.length],
-    ["Properties Viewed", listings.length],
-    ["Enquiries Started", forms],
-    ["Conversion Stage", stop ? eventLabel(stop.eventType) : "Active"],
-    ["Last Activity", time(latest?.serverTimestamp)],
-    [
-      "Friction Score",
-      `${count("otp_verification_failed", "lead_form_abandoned") * 20}%`,
-    ],
-    ["Conversion Probability", `${journey?.buyingIntent || 0}%`],
-  ];
+  const coverImage = cards.find((item) => item.image)?.image || "";
+  const stopPage = (() => {
+    const rawUrl = asText(stop?.pageUrl, "");
+    if (!rawUrl) return "Tracking is ready";
+    const path = rawUrl.split("?")[0];
+    const bits = path.split("/").filter(Boolean);
+    const last = (bits[bits.length - 1] || "Page").replace(/[-_]/g, " ");
+    const named = {
+      properties: "Property page",
+      property: "Property page",
+      projects: "Project page",
+      project: "Project page",
+    }[last.toLowerCase()];
+    if (named) return named;
+    return last.length > 22 ? `${last.slice(0, 20)}…` : last;
+  })();
+  const leadListing = cards[0];
   return (
-    <div className="uj2">
-      <div className="uj2-legend">
+    <div className="uj-path">
+      <div className="uj-path-legend">
         <span className="done">Completed</span>
         <span className="active">Exploring</span>
         <span className="risk">Friction / Drop-off</span>
         <em>All times in IST</em>
       </div>
-      <div className="uj2-flow">
-        <svg
-          className="uj2-lines"
-          viewBox="0 0 1200 220"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <path className="green stage-link" d="M55 100 H462" />
-          <path className="green" d="M462 100 C482 100 482 51 502 51 H603" />
-          <path className="blue" d="M462 100 C482 100 482 110 502 110 H603" />
-          <path className="blue" d="M462 100 C482 100 482 169 502 169 H603" />
-          <path className="green" d="M603 51 H720 C740 51 740 50 758 50 H840" />
-          <path className="blue" d="M603 110 H720 V114 H840" />
-          <path className="blue" d="M603 169 H720 V114" />
-          <path
-            className="green"
-            d="M840 50 H900 C914 50 914 50 930 50 H1016"
-          />
-          <path className="green" d="M840 114 H900 V114 H1016" />
-          <path className="green" d="M900 114 V180 H1016" />
-          <path
-            className="orange"
-            d="M1016 50 H1065 C1082 50 1082 110 1105 110 H1160"
-          />
-        </svg>
-        <div className="uj2-grid">
-          {stages.map(([name, Icon, text, meta, sub, stat, pct, value]) => (
-            <article className="uj2-stage" key={name}>
-              <h3>
-                {name}
-                <ArrowRight size={12} />
-              </h3>
-              <i>
-                <Icon size={18} />
-              </i>
-              <strong title={text}>{text}</strong>
-              <small>{meta}</small>
-              <em>{sub}</em>
-              <div className="uj2-stat">
-                <b>{stat}</b>
-                <strong>{pct}%</strong>
-                <small>{value}</small>
-              </div>
-            </article>
-          ))}
-          <section className="uj2-properties">
+      <div className="uj-path-board">
+        {stages.map(([name, Icon, text, meta, sub, stat, pct]) => (
+          <article className="uj-path-stage" key={name}>
             <h3>
-              Properties explored <ArrowRight size={12} />
+              {name}
+              <ArrowRight size={13} />
             </h3>
-            {cards.map((item, index) => (
-              <div className={`uj2-property p${index}`} key={item.id}>
-                {item.image ? (
-                  <img src={item.image} alt={item.label} />
-                ) : (
-                  <span>
-                    <Building2 size={16} />
-                  </span>
-                )}
-                <b>
-                  {item.label}
-                  <small>
-                    {item.type} · {item.promotion}
-                  </small>
-                  <em>
-                    Views: {item.views} · {elapsed(item.duration)}
-                  </em>
-                </b>
-              </div>
-            ))}
-          </section>
-          <section className="uj2-actions compare">
-            <h3>
-              Compare <ArrowRight size={12} />
-            </h3>
-            <div>
-              <CircleCheck />
-              <b>
-                Compared<small>{compared} listings</small>
-              </b>
+            <i>
+              <Icon size={16} />
+            </i>
+            <strong title={text}>{text}</strong>
+            <small>{meta}</small>
+            <em title={sub}>{sub}</em>
+            <div className="uj-path-stat">
+              <b>{stat}</b>
+              <strong>{pct}%</strong>
             </div>
-            <em>{elapsed(find("compare_added")?.durationMs)}</em>
-            <button
-              type="button"
-              className="uj2-action-button"
-              onClick={() => setSelectedDetail({
+          </article>
+        ))}
+        <section className="uj-path-visual">
+          <h3>
+            Properties explored
+            <ArrowRight size={13} />
+          </h3>
+          <div className="uj-path-property">
+            {leadListing?.image ? (
+              <img src={leadListing.image} alt="" />
+            ) : (
+              <span className="uj-path-photo" aria-hidden="true">
+                <Building2 size={18} />
+              </span>
+            )}
+            <span>
+              <b title={leadListing?.label}>{leadListing?.label || "No listing"}</b>
+              <small>
+                {leadListing?.type || "Waiting"} · {leadListing?.promotion || "Normal"}
+              </small>
+              <em>
+                {leadListing?.views || 0} views
+                {cards.length > 1 ? ` · +${cards.length - 1} more` : ""}
+              </em>
+            </span>
+          </div>
+          <button
+            type="button"
+            className="uj-path-brochure"
+            onClick={() =>
+              setSelectedDetail({
                 title: `Brochure downloads (${brochureDownloads.length})`,
                 description: brochureDownloads.length
                   ? "Files downloaded by this user in the selected period."
                   : "No brochure download has been captured for this user.",
                 items: brochureDownloads,
-              })}
-            >
-              <Download />
-              <b>
-                Brochures<small>{brochures} downloaded</small>
-              </b>
-            </button>
-            <em>{elapsed(find("brochure_downloaded")?.durationMs)}</em>
-          </section>
-          <section className="uj2-actions enquire">
-            <h3>
-              Enquire <ArrowRight size={12} />
-            </h3>
-            <div>
-              <Calculator />
-              <b>
-                Price Calc Used<small>{calculators} times</small>
-              </b>
-            </div>
-            <em>{elapsed(find("price_calculator_used")?.durationMs)}</em>
-            <div>
-              <MessageCircle />
-              <b>
-                WhatsApp Click<small>{whatsapp} clicks</small>
-              </b>
-            </div>
-            <em>{elapsed(find("whatsapp_clicked")?.durationMs)}</em>
-            <div>
-              <ClipboardList />
-              <b>
-                Form Started<small>{forms} started</small>
-              </b>
-            </div>
-          </section>
-          <section className="uj2-stop">
-            <h3>Site Visit</h3>
-            <div>
-              <b>{stop ? "STOPPED" : "WAITING"}</b>
-              <AlertTriangle />
-              <strong>
-                {stop ? eventLabel(stop.eventType) : "No activity captured"}
-              </strong>
-              <em>{asText(stop?.pageUrl, "Tracking is ready")}</em>
-              <small>{time(stop?.capturedAt)}</small>
-            </div>
-          </section>
-        </div>
-      </div>
-      <div className="uj2-kpis">
-        {kpis.map(([label, value]) => (
-          <div key={label}>
-            <small>{label}</small>
-            <b>{value}</b>
+              })
+            }
+          >
+            {coverImage ? (
+              <img src={coverImage} alt="" />
+            ) : (
+              <span className="uj-path-brochure-fallback" />
+            )}
+            <i>PDF</i>
+            <span className="uj-path-brochure-copy">
+              <b>Brochures</b>
+              <small>{brochures ? `${brochures} downloaded` : "No download yet"}</small>
+            </span>
+          </button>
+        </section>
+        <section className="uj-path-actions">
+          <h3>
+            Compare
+            <ArrowRight size={13} />
+          </h3>
+          <div className="uj-path-row">
+            <CircleCheck size={16} />
+            <span>
+              <b>Compared</b>
+              <small>{compared} listings</small>
+            </span>
           </div>
-        ))}
+          <h3>Enquire</h3>
+          <div className="uj-path-row">
+            <Calculator size={16} />
+            <span>
+              <b>Price Calc Used</b>
+              <small>{calculators} times</small>
+            </span>
+          </div>
+          <div className="uj-path-row">
+            <MessageCircle size={16} />
+            <span>
+              <b>WhatsApp Click</b>
+              <small>{whatsapp} clicks</small>
+            </span>
+          </div>
+          <div className="uj-path-row">
+            <ClipboardList size={16} />
+            <span>
+              <b>Form Started</b>
+              <small>{forms} started</small>
+            </span>
+          </div>
+        </section>
+        <section className="uj-path-stop">
+          <b>{stop ? "STOPPED" : "WAITING"}</b>
+          <AlertTriangle size={22} />
+          <strong>{stop ? eventLabel(stop.eventType) : "No activity"}</strong>
+          <em title={asText(stop?.pageUrl, "")}>{stopPage}</em>
+          <small>{time(stop?.capturedAt)}</small>
+        </section>
       </div>
       {selectedDetail && (
-        <div className="uj2-detail">
-          <button onClick={() => setSelectedDetail(null)}>×</button>
+        <div className="uj-path-detail">
+          <button type="button" onClick={() => setSelectedDetail(null)}>
+            ×
+          </button>
           <h3>{selectedDetail.title}</h3>
           <p>{selectedDetail.description}</p>
           {selectedDetail.items?.length > 0 && (
-            <div className="uj2-detail-list">
+            <div>
               {selectedDetail.items.map((item) => (
-                <div key={item.id}>
+                <span key={item.id}>
                   <Download size={13} />
-                  <span><b>{item.name}</b><small>{item.kind} · {item.file}</small></span>
+                  <b>{item.name}</b>
+                  <small>
+                    {item.kind} · {item.file}
+                  </small>
                   <time>{item.time}</time>
-                </div>
+                </span>
               ))}
             </div>
           )}
@@ -1542,6 +1464,7 @@ export default function LeadCaptureAnalytics() {
     [journeyError, setJourneyError] = useState("");
   const [eventPage, setEventPage] = useState(1);
   const [userPage, setUserPage] = useState(1);
+  const pickerRef = useRef(null);
   const [userMeta, setUserMeta] = useState({
     total: 0,
     pages: 1,
@@ -1682,15 +1605,39 @@ export default function LeadCaptureAnalytics() {
     const timer = window.setTimeout(() => setToast(""), 2600);
     return () => window.clearTimeout(timer);
   }, [toast]);
+  const closeUserPicker = useCallback(() => {
+    setPickerOpen(false);
+    setQuery("");
+    setUserPage(1);
+  }, []);
   useEffect(() => {
     if (!pickerOpen) return undefined;
-    const closePicker = (event) => {
-      if (event.key === "Escape") setPickerOpen(false);
+    const onKey = (event) => {
+      if (event.key === "Escape") closeUserPicker();
     };
-    window.addEventListener("keydown", closePicker);
-    return () => window.removeEventListener("keydown", closePicker);
-  }, [pickerOpen]);
-  const filteredUsers = users;
+    const onPointer = (event) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+        closeUserPicker();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer);
+    };
+  }, [closeUserPicker, pickerOpen]);
+  const filteredUsers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((item) =>
+      [item.name, item.email, item.phone, item.city, item.state, item.locality]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [query, users]);
   const events = useMemo(
     () =>
       (journey?.events || []).filter(
@@ -1763,7 +1710,6 @@ export default function LeadCaptureAnalytics() {
       ),
     [listingFilter, userListings],
   );
-  const minutes = journey?.engagedMinutes ?? 0;
   const rawEvents = journey?.rawEvents || [];
   const eventCount = (...types) =>
     rawEvents.filter((event) =>
@@ -1970,17 +1916,168 @@ export default function LeadCaptureAnalytics() {
           {toast}
         </div>
       )}
-      <header className="flex flex-wrap items-end justify-between gap-3 pb-1">
+      <header className="flex flex-wrap items-center justify-between gap-3 pb-1">
         <div className="min-w-0">
           <h1 className="text-lg font-semibold tracking-tight text-[#0f3d2e] sm:text-xl">
             User Journey Intelligence
           </h1>
-          <p className="mt-1 text-sm text-[#5c7d6d]">
-            Behavior, intent, friction and conversion tracing · First-party
-            consented data
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 max-w-full items-center gap-2 rounded-full border border-[#b7e4c7] bg-white py-1 pl-1 pr-2.5 shadow-[0_4px_12px_rgba(16,185,129,0.08)]">
+            <Avatar user={user} size="h-8 w-8 text-[11px]" />
+            <strong className="max-w-[140px] truncate text-sm font-bold text-[#0f3d2e]">
+              {user.name || "Registered user"}
+            </strong>
+            <span className="max-w-[220px] truncate text-[11px] font-medium text-[#5c7d6d]">
+              {maskPhone(user.phone)}
+              {" · "}
+              {[user.locality, user.city, user.state].filter(Boolean).join(", ") ||
+                "Location unavailable"}
+            </span>
+            <span className="shrink-0 rounded-full border border-[#b7e4c7] bg-[#e8f8ee] px-2 py-0.5 text-[10px] font-bold text-[#128C45]">
+              {roleLabel(user.roleName)}
+            </span>
+          </div>
+          <div className="relative" ref={pickerRef}>
+            <button
+              type="button"
+              onClick={() => {
+                if (pickerOpen) closeUserPicker();
+                else setPickerOpen(true);
+              }}
+              className="uj-action"
+              aria-expanded={pickerOpen}
+              aria-haspopup="listbox"
+            >
+              <Users size={14} />
+              Change user
+              <ChevronDown
+                size={14}
+                className={`transition ${pickerOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {pickerOpen && (
+              <div
+                className={`absolute right-0 z-40 mt-2 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl bg-white ${saSurface}`}
+              >
+                <div className="space-y-1.5 border-b border-emerald-50 p-2">
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={roleFilter}
+                      onChange={(e) => {
+                        setRoleFilter(e.target.value);
+                        setUserPage(1);
+                      }}
+                      className="h-8 w-[7.25rem] shrink-0 rounded-lg border border-[#b7e4c7] bg-[#f7fbf8] px-2 text-[11px] font-semibold text-[#0f3d2e] outline-none focus:border-[#27AE60]"
+                    >
+                      <option value="all">{ROLE_LABELS.all}</option>
+                      {roles.map((role) => (
+                        <option key={role} value={role}>
+                          {ROLE_LABELS[role]}
+                        </option>
+                      ))}
+                    </select>
+                    <label className="flex h-8 min-w-0 flex-1 items-center rounded-lg border border-[#b7e4c7] bg-[#f7fbf8] px-2 focus-within:border-[#27AE60] focus-within:bg-white">
+                      <Search className="shrink-0 text-[#5c7d6d]" size={13} />
+                      <input
+                        value={query}
+                        onChange={(e) => {
+                          setQuery(e.target.value);
+                          setUserPage(1);
+                        }}
+                        placeholder="Search name, phone, city"
+                        className="h-8 min-w-0 flex-1 bg-transparent px-1.5 text-xs text-[#0f3d2e] outline-none placeholder:text-[#5c7d6d]"
+                      />
+                    </label>
+                  </div>
+                  <p className="px-0.5 text-[10px] font-semibold text-[#5c7d6d]">
+                    {userMeta.total} found
+                  </p>
+                </div>
+                <div className="max-h-64 overflow-y-auto p-1">
+                  {filteredUsers.length ? (
+                    filteredUsers.map((item) => {
+                      const selected = item._id === user?._id;
+                      const location =
+                        [item.locality, item.city, item.state]
+                          .filter(Boolean)
+                          .join(", ") || "Location unavailable";
+                      return (
+                        <button
+                          key={item._id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedId(item._id);
+                            setEventPage(1);
+                            closeUserPicker();
+                          }}
+                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition ${
+                            selected
+                              ? "bg-[#e8f8ee]"
+                              : "hover:bg-[#f7fbf8]"
+                          }`}
+                        >
+                          <Avatar user={item} size="h-7 w-7 text-[10px]" />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-1.5">
+                              <strong className="truncate text-xs font-bold text-[#0f3d2e]">
+                                {item.name || "Unnamed account"}
+                              </strong>
+                              <span className="shrink-0 text-[10px] font-semibold text-[#128C45]">
+                                {roleLabel(item.roleName)}
+                              </span>
+                            </span>
+                            <small className="block truncate text-[10px] text-[#5c7d6d]">
+                              {maskPhone(item.phone)} · {location}
+                            </small>
+                          </span>
+                          {selected && (
+                            <Check size={13} className="shrink-0 text-[#128C45]" />
+                          )}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="px-3 py-6 text-center">
+                      <strong className="block text-xs font-bold text-slate-700">
+                        No matching account
+                      </strong>
+                      <p className="mt-1 text-[10px] text-slate-400">
+                        Try another role, name or location.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {userMeta.pages > 1 && (
+                  <div className="flex items-center justify-between border-t border-emerald-50 px-2 py-1.5 text-[10px] font-semibold text-[#5c7d6d]">
+                    <span>
+                      {userMeta.page} / {userMeta.pages}
+                    </span>
+                    <span className="flex gap-1">
+                      <button
+                        type="button"
+                        disabled={userMeta.page <= 1}
+                        onClick={() => setUserPage((page) => Math.max(1, page - 1))}
+                        className="uj-control h-6 px-2 disabled:opacity-40"
+                      >
+                        Prev
+                      </button>
+                      <button
+                        type="button"
+                        disabled={userMeta.page >= userMeta.pages}
+                        onClick={() =>
+                          setUserPage((page) => Math.min(userMeta.pages, page + 1))
+                        }
+                        className="uj-control h-6 px-2 disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => window.print()}
@@ -1999,217 +2096,6 @@ export default function LeadCaptureAnalytics() {
           </button>
         </div>
       </header>
-      <section className={`mt-3 rounded-2xl p-3 sm:p-4 ${saSurface}`}>
-        <div className="grid items-center gap-3 xl:grid-cols-[minmax(430px,1fr)_auto]">
-          <div
-            className={`relative ${pickerOpen ? "uj-user-picker-open" : ""}`}
-          >
-            <div className="flex h-11 items-center rounded-xl border border-[#b7e4c7] bg-[#f7fbf8] p-1 focus-within:border-[#27AE60] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#27AE60]/15">
-              <select
-                value={roleFilter}
-                onChange={(e) => {
-                  setRoleFilter(e.target.value);
-                  setUserPage(1);
-                  setPickerOpen(true);
-                }}
-                className="h-9 w-36 border-0 border-r border-[#d8f0e2] bg-transparent px-2.5 text-xs font-semibold text-[#0f3d2e] outline-none"
-              >
-                <option value="all">{ROLE_LABELS.all}</option>
-                {roles.map((role) => (
-                  <option key={role} value={role}>
-                    {ROLE_LABELS[role]}
-                  </option>
-                ))}
-              </select>
-              <Search className="ml-3 shrink-0 text-[#5c7d6d]" size={15} />
-              <input
-                value={query}
-                onFocus={() => setPickerOpen(true)}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setUserPage(1);
-                  setPickerOpen(true);
-                }}
-                placeholder="Search name, phone, email, city, state or locality"
-                className="h-9 min-w-0 flex-1 bg-transparent px-2.5 text-sm text-[#0f3d2e] outline-none placeholder:text-[#5c7d6d]"
-              />
-              <span className="mr-2 rounded-full border border-[#b7e4c7] bg-[#e8f8ee] px-2.5 py-1 text-[11px] font-bold text-[#128C45]">
-                {userMeta.total} found
-              </span>
-            </div>
-            {pickerOpen && (
-              <div className={`uj-picker-list absolute z-40 mt-2 w-full overflow-hidden rounded-2xl bg-white ${saSurface}`}>
-                <div className="flex items-center justify-between border-b border-emerald-50 px-3.5 py-2.5">
-                  <span className="text-xs font-bold uppercase tracking-[0.06em] text-[#5c7d6d]">
-                    Select tracked account
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPickerOpen(false)}
-                    className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-600 transition hover:bg-rose-100"
-                  >
-                    Close
-                  </button>
-                </div>
-                <div className="max-h-[min(420px,calc(100vh-200px))] overflow-y-auto p-1.5">
-                  {filteredUsers.length ? (
-                    filteredUsers.map((item) => {
-                      const selected = item._id === user?._id;
-                      const location =
-                        [item.locality, item.city, item.state]
-                          .filter(Boolean)
-                          .join(", ") || "Location unavailable";
-                      return (
-                        <button
-                          key={item._id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedId(item._id);
-                            setEventPage(1);
-                            setQuery("");
-                            setPickerOpen(false);
-                          }}
-                          className={`group grid w-full grid-cols-[auto_minmax(0,1fr)_9.5rem] items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
-                            selected
-                              ? "border border-[#27AE60] bg-[#e8f8ee] shadow-sm"
-                              : "border border-transparent hover:border-[#b7e4c7] hover:bg-[#f7fbf8]"
-                          }`}
-                        >
-                          <Avatar user={item} size="h-10 w-10" />
-                          <span className="min-w-0">
-                            <strong className="block truncate text-sm font-bold text-[#0f3d2e]">
-                              {item.name || "Unnamed account"}
-                            </strong>
-                            <small className="mt-0.5 block truncate text-xs text-[#5c7d6d]">
-                              {item.email || maskPhone(item.phone) || "No contact"}
-                            </small>
-                          </span>
-                          <span className="flex min-w-0 flex-col items-end gap-1">
-                            <RoleBadge role={item.roleName} />
-                            <small
-                              title={location}
-                              className="w-full truncate text-right text-[11px] text-slate-400"
-                            >
-                              {location}
-                            </small>
-                          </span>
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="px-4 py-10 text-center">
-                      <Search className="mx-auto text-slate-300" size={28} />
-                      <strong className="mt-3 block text-sm font-bold text-slate-700">
-                        No matching account
-                      </strong>
-                      <p className="mt-1 text-xs text-slate-400">
-                        Try another role, name, contact or location.
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {userMeta.pages > 1 && (
-                  <div className="flex items-center justify-between border-t border-emerald-50 px-3 py-2 text-[11px] font-semibold text-[#5c7d6d]">
-                    <span>
-                      Page {userMeta.page} of {userMeta.pages}
-                    </span>
-                    <span className="flex gap-1">
-                      <button
-                        type="button"
-                        disabled={userMeta.page <= 1}
-                        onClick={() => setUserPage((page) => Math.max(1, page - 1))}
-                        className="uj-control h-7 disabled:opacity-40"
-                      >
-                        Prev
-                      </button>
-                      <button
-                        type="button"
-                        disabled={userMeta.page >= userMeta.pages}
-                        onClick={() =>
-                          setUserPage((page) => Math.min(userMeta.pages, page + 1))
-                        }
-                        className="uj-control h-7 disabled:opacity-40"
-                      >
-                        Next
-                      </button>
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => notify("Contact request opened")}
-              className="uj-action-primary"
-            >
-              <Phone size={14} />
-              Contact
-            </button>
-            <button
-              type="button"
-              onClick={() => notify("User assigned to sales agent")}
-              className="uj-action"
-            >
-              <UserRound size={14} />
-              Assign agent
-            </button>
-            <button
-              type="button"
-              onClick={() => notify("Follow-up task created")}
-              className="uj-action"
-            >
-              <CircleDot size={14} />
-              Create task
-            </button>
-            <button
-              type="button"
-              onClick={() => setPickerOpen(true)}
-              className="uj-action"
-            >
-              <Users size={14} />
-              Change user
-            </button>
-          </div>
-        </div>
-        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2.5 border-t border-emerald-50 pt-3">
-          <Avatar user={user} size="h-11 w-11" />
-          <div className="mr-1 min-w-[180px] max-w-xs">
-            <strong className="block truncate text-base font-bold text-[#0f3d2e]">
-              {user.name || "Registered user"}
-            </strong>
-            <span className="mt-0.5 block truncate text-xs text-[#5c7d6d]">
-              {maskPhone(user.phone)} ·{" "}
-              {[user.locality, user.city, user.state]
-                .filter(Boolean)
-                .join(", ") || "Location unavailable"}
-            </span>
-          </div>
-          <Chip tone="blue">
-            <UserCheck size={12} />
-            {roleLabel(user.roleName)}
-          </Chip>
-          <Chip tone={journey?.online ? "green" : "slate"}>
-            <CircleDot size={11} />
-            {journey?.online
-              ? "Online now"
-              : `Last active ${journey?.summary?.lastActiveAt ? new Date(journey.summary.lastActiveAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "unavailable"}`}
-          </Chip>
-          <Chip tone="orange">
-            <Target size={11} />
-            High intent
-          </Chip>
-          <Chip>
-            <BadgeCheck size={11} />
-            Verified
-          </Chip>
-          <Chip>
-            <ShieldCheck size={11} />
-            Consent active
-          </Chip>
-        </div>
-      </section>
       {journeyError && (
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-700">
           <AlertTriangle size={14} />
@@ -2224,63 +2110,7 @@ export default function LeadCaptureAnalytics() {
           becomes live automatically when the tracking endpoint is connected.
         </div>
       )}
-      <section className={`uj-metric-strip mt-3 grid grid-cols-9 overflow-hidden rounded-2xl ${saSurface}`}>
-        <Metric
-          icon={Gauge}
-          label="Journey Score"
-          value={journey?.journeyScore ?? 0}
-          suffix="/100"
-        />
-        <Metric
-          icon={Target}
-          label="Buying Intent"
-          value={journey?.buyingIntent ?? 0}
-          suffix={
-            (journey?.buyingIntent ?? 0) >= 70
-              ? "High"
-              : (journey?.buyingIntent ?? 0) >= 40
-                ? "Medium"
-                : "Low"
-          }
-        />
-        <Metric
-          icon={Activity}
-          label="Sessions"
-          value={journey?.sessions ?? 0}
-          tone="blue"
-        />
-        <Metric
-          icon={Clock3}
-          label="Engaged Time"
-          value={`${Math.floor(minutes / 60)}h ${minutes % 60}m`}
-        />
-        <Metric
-          icon={Eye}
-          label="Listings Viewed"
-          value={
-            (journey?.propertiesViewed ?? 0) + (journey?.projectsViewed ?? 0)
-          }
-        />
-        <Metric
-          icon={BadgeCheck}
-          label="Shortlisted"
-          value={journey?.shortlisted ?? 0}
-          tone="violet"
-        />
-        <Metric icon={Users} label="Leads" value={journey?.leads ?? 0} />
-        <Metric
-          icon={CalendarDays}
-          label="Site Visits"
-          value={journey?.siteVisits ?? 0}
-        />
-        <Metric
-          icon={Building2}
-          label="Events"
-          value={journey?.rawEvents?.length ?? 0}
-          tone="orange"
-        />
-      </section>
-      <section className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <section className="uj-workspace mt-3 grid min-w-0 gap-3">
         <div className="min-w-0 space-y-2">
           <Panel
             className="uj-map-panel"

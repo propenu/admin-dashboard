@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { TrendingUp, Eye, EyeOff, AlertCircle, CalendarClock } from "lucide-react";
 import { projectAnalytics } from "../../../../../features/property/propertyService";
 import PromotionLocationCoverage from "./PromotionLocationCoverage";
 
@@ -109,6 +109,9 @@ export default function PromoteModal({
   const [leadsError, setLeadsError] = useState("");
   const [countTouched, setCountTouched] = useState(false);
   const [sponsoredAd, setSponsoredAd] = useState({});
+  const [scheduleMode, setScheduleMode] = useState("now");
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
 
   const projectIsApproved = canPromoteProject(projectStatus, approvalStatus);
 
@@ -120,6 +123,9 @@ export default function PromoteModal({
       setLeadsError("");
       setCountTouched(false);
       setSponsoredAd({});
+      setScheduleMode("now");
+      setScheduleDate("");
+      setScheduleTime("");
       return;
     }
 
@@ -203,21 +209,36 @@ export default function PromoteModal({
       parsedCount < 0 ||
       !Number.isInteger(parsedCount));
 
+  const scheduleStart = useMemo(() => {
+    if (scheduleMode !== "later" || !scheduleDate || !scheduleTime) return null;
+    const start = new Date(`${scheduleDate}T${scheduleTime}`);
+    return Number.isNaN(start.getTime()) ? null : start;
+  }, [scheduleMode, scheduleDate, scheduleTime]);
+  const scheduleInvalid =
+    selected &&
+    selected !== "normal" &&
+    scheduleMode === "later" &&
+    (!scheduleStart || scheduleStart.getTime() <= Date.now());
+
   const promoteBlockedReason = useMemo(() => {
     if (!projectIsApproved) {
       return "Project must be Active / Approved before promotion and lead visibility can be applied.";
     }
     if (!selected) return "Select a promotion type above.";
+    if (scheduleInvalid) {
+      return "Pick a future date and time for the scheduled promotion.";
+    }
     if (leadCountInvalid) {
       return "Enter a whole number ≥ 0 (can be higher than current leads).";
     }
     return "";
-  }, [projectIsApproved, selected, leadCountInvalid]);
+  }, [projectIsApproved, selected, leadCountInvalid, scheduleInvalid]);
 
   const canPromote =
     Boolean(selected) &&
     !isLoading &&
     !leadCountInvalid &&
+    !scheduleInvalid &&
     projectIsApproved;
 
   const summary = useMemo(() => {
@@ -254,6 +275,10 @@ export default function PromoteModal({
     onConfirm(selected, {
       visibleLeadLimit,
       sponsoredAd: selected === "sponsored" ? sponsoredAd : {},
+      startAt:
+        selected !== "normal" && scheduleMode === "later" && scheduleStart
+          ? scheduleStart.toISOString()
+          : undefined,
     });
   };
 
@@ -264,7 +289,7 @@ export default function PromoteModal({
           <TrendingUp className="w-5 h-5" /> Promote Project
         </h2>
         <p className="text-slate-500 text-xs mb-4">
-          1) Select listing type · 2) Locations · 3) Visible leads · 4) Promote
+          1) Select listing type · 2) Schedule · 3) Locations · 4) Visible leads · 5) Promote
         </p>
 
         {!projectIsApproved && (
@@ -302,6 +327,7 @@ export default function PromoteModal({
                 setSelected(t.value);
                 setCountTouched(false);
                 if (t.value !== "sponsored") setSponsoredAd({});
+                if (t.value === "normal") setScheduleMode("now");
               }}
               className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition text-left
                 ${selected === t.value ? t.color + " border-current" : "border-slate-200 hover:border-slate-300"}`}
@@ -314,6 +340,75 @@ export default function PromoteModal({
             </button>
           ))}
         </div>
+
+        {selected && selected !== "normal" && (
+          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
+              Promotion schedule
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setScheduleMode("now")}
+                className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                  scheduleMode === "now"
+                    ? "border-[#27AE60] bg-[#27AE60] text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Start now
+              </button>
+              <button
+                type="button"
+                onClick={() => setScheduleMode("later")}
+                className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                  scheduleMode === "later"
+                    ? "border-[#27AE60] bg-[#27AE60] text-white"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Schedule for later
+              </button>
+            </div>
+            {scheduleMode === "later" ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block space-y-1">
+                    <span className="text-xs font-semibold text-slate-700">
+                      Start date
+                    </span>
+                    <input
+                      type="date"
+                      value={scheduleDate}
+                      min={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setScheduleDate(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-[#27AE60]"
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-xs font-semibold text-slate-700">
+                      Start time
+                    </span>
+                    <input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={(e) => setScheduleTime(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-[#27AE60]"
+                    />
+                  </label>
+                </div>
+                <p className="flex items-start gap-1.5 text-[11px] text-slate-500">
+                  <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  Stays scheduled until this date and time, then goes live on its own.
+                </p>
+              </>
+            ) : (
+              <p className="text-[11px] text-slate-500">
+                Goes live as soon as you confirm. It shows under Live Promotion.
+              </p>
+            )}
+          </div>
+        )}
 
         {selected === "sponsored" && (
           <PromotionLocationCoverage
@@ -424,7 +519,13 @@ export default function PromoteModal({
               onClick={handleConfirm}
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Promoting…" : "Promote"}
+              {isLoading
+                ? scheduleMode === "later"
+                  ? "Scheduling…"
+                  : "Promoting…"
+                : scheduleMode === "later" && selected && selected !== "normal"
+                  ? "Schedule"
+                  : "Promote"}
             </button>
           </div>
         </div>

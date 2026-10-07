@@ -15,7 +15,7 @@ import {
 import { useCurrentUser } from "../../../../../store/properties/useCurrentUser";
 import { canDirectCreateBuilder } from "../../../../../utils/projectAccessControl";
 
-const SEARCH_PAGE_SIZE = 20;
+const SEARCH_PAGE_SIZE = 8;
 
 const inp =
   "w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10";
@@ -93,6 +93,7 @@ export default function BuilderAttachPanel({
         role: "builder",
         page: searchPage,
         limit: SEARCH_PAGE_SIZE,
+        lean: 1,
         ...(debouncedQ ? { q: debouncedQ } : {}),
       });
       return unpackUserSearch(res);

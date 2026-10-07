@@ -13,6 +13,7 @@ import {
   projectExternalFileAddLeads,
   salesmanagerRejectAProject,
   RenevaleProject,
+  expireProject,
 } from "../../../../../features/property/propertyService";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,8 +22,6 @@ import {
   MapPin,
   Trash2,
   TrendingUp,
-  Clock,
-  RefreshCw,
   ChevronRight,
   Star,
   IndianRupee,
@@ -38,6 +37,7 @@ import {
   Phone,
   User,
   BarChart3,
+  Ban,
   AlertTriangle,
   Mail,
   UserPlus,
@@ -48,8 +48,10 @@ import {
 import { updateProjectRank } from "../../../../../features/property/propertyService";
 import { projectAnalytics } from "../../../../../features/property/propertyService";
 import { toast } from "sonner";
+import CancelPromotionDialog from "./CancelPromotionDialog";
 import {
   formatPromotionDate,
+  formatPromotionDateTime,
   getPromotionTracking,
   promotionLifecycleClass,
   promotionLifecycleCopy,
@@ -191,7 +193,6 @@ export default memo(function PropertyCard({
   onPermanentDelete,
   canPermanentDelete = false,
   onPromote,
-  onExpire,
   onReset,
   onRankUpdated,
   canApprove = false,
@@ -208,6 +209,20 @@ export default memo(function PropertyCard({
   const [openLeads, setOpenLeads] = useState(false);
   const [leadSearch, setLeadSearch] = useState("");
   const [leadDeleteTarget, setLeadDeleteTarget] = useState(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+
+  const cancelPromotionMutation = useMutation({
+    mutationFn: (reason) => expireProject(p?._id, reason),
+    onSuccess: async () => {
+      toast.success("Promotion cancelled and set to normal");
+      setCancelOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ["featured-projects"] });
+      await queryClient.invalidateQueries({ queryKey: ["getFeaturedProjectById", p?._id] });
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Could not cancel promotion");
+    },
+  });
 
   const { data: leadsData, isLoading: leadsLoading } = useQuery({
     queryKey: ["projectLeads", p?._id],
@@ -451,7 +466,7 @@ export default memo(function PropertyCard({
 
   const tracking = getPromotionTracking(p);
   const hasPromotion = tracking.currentType !== "normal";
-  const canRenewPromotion = hasPromotion;
+  const canRenewPromotion = hasPromotion && tracking.lifecycle !== "scheduled";
   const promotionHeadline =
     tracking.previousType && tracking.previousType !== tracking.currentType
       ? `Promoted to ${titlePromotionType(tracking.currentType)}`
@@ -663,12 +678,15 @@ export default memo(function PropertyCard({
                   label="Promote"
                   onClick={onPromote}
                 />
-                <MenuItem
-                  icon={Clock}
-                  iconClass="text-orange-500"
-                  label="Expire"
-                  onClick={onExpire}
-                />
+                {hasPromotion ? (
+                  <MenuItem
+                    icon={Ban}
+                    iconClass="text-rose-600"
+                    label="Cancel promotion"
+                    labelClass="text-rose-700 hover:bg-rose-50"
+                    onClick={() => setCancelOpen(true)}
+                  />
+                ) : null}
                 {/* <MenuItem
                   icon={RefreshCw}
                   iconClass="text-[#27AE60]"
@@ -745,21 +763,38 @@ export default memo(function PropertyCard({
                 </span>
               </div>
               <div className="mt-1 flex items-center justify-between gap-2 text-slate-400">
-                <span>Started {formatPromotionDate(tracking.startedAt)}</span>
+                <span>
+                  {tracking.lifecycle === "scheduled" ? "Goes live" : "Started"}{" "}
+                  {tracking.lifecycle === "scheduled"
+                    ? formatPromotionDateTime(tracking.startedAt)
+                    : formatPromotionDate(tracking.startedAt)}
+                </span>
                 <span>Ends {formatPromotionDate(tracking.expiresAt)}</span>
               </div>
               {canRenewPromotion && (
-                <button
-                  type="button"
-                  disabled={renewLoading}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRenew();
-                  }}
-                  className="mt-1 rounded bg-[#27AE60] px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {renewLoading ? "Renewing..." : "Renew now"}
-                </button>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    disabled={renewLoading}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRenew();
+                    }}
+                    className="rounded bg-[#27AE60] px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {renewLoading ? "Renewing..." : "Renew now"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCancelOpen(true);
+                    }}
+                    className="rounded bg-rose-600 px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-rose-700"
+                  >
+                    Cancel promotion
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -1307,6 +1342,14 @@ export default memo(function PropertyCard({
           </div>
         </div>
       )}
+      <CancelPromotionDialog
+        open={cancelOpen}
+        isLoading={cancelPromotionMutation.isPending}
+        onCancel={() => {
+          if (!cancelPromotionMutation.isPending) setCancelOpen(false);
+        }}
+        onConfirm={(reason) => cancelPromotionMutation.mutate(reason)}
+      />
     </div>
   );
 });

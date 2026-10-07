@@ -339,7 +339,17 @@ export const updateFeaturedProperty = async (id, payload) => {
 
   try {
     const res = await authAxios.patch(API_ENDPOINTS.PROPERTY_DETAILS(id), fd, {
-      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120000,
+      headers: { Accept: "application/json" },
+      // Drop the instance JSON content type so the browser adds the multipart boundary.
+      transformRequest: [
+        (data, headers) => {
+          if (headers && typeof headers.set === "function") {
+            headers.set("Content-Type", false);
+          }
+          return data;
+        },
+      ],
     });
 
     

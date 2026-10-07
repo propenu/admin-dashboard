@@ -297,13 +297,20 @@ export default function FeaturedPreviewPage() {
   async function handleSave(sectionUpdate) {
     try {
       setSaving(true);
-      const payload = { ...formData, ...sectionUpdate,
-        brochure: formData.brochure || sectionUpdate.brochure,
-       };
+      const sectionUpdateSafe = sectionUpdate || {};
+      const partial = Boolean(sectionUpdateSafe.partial);
+      const sectionFields = { ...sectionUpdateSafe };
+      delete sectionFields.partial;
+      const payload = partial
+        ? sectionFields
+        : {
+            ...formData,
+            ...sectionFields,
+            brochure: formData.brochure || sectionFields.brochure,
+          };
 
-      console.log(payload);
       const result  = await updateFeaturedProperty(id, payload);
-      const updatedData = result?.data ?? result;
+      const updatedData = normalizeProjectForEdit(result?.data ?? result);
       setFormData(updatedData);
       setLivePreviewData(updatedData);
       toast.success("Saved successfully!");

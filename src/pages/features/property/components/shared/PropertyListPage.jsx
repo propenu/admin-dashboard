@@ -94,7 +94,6 @@ export default function PropertyListPage({
     isError,
     deleteMutation,
     promoteMutation,
-    expireMutation,
     resetMutation,
     totalCount,
     activeCount,
@@ -114,7 +113,6 @@ export default function PropertyListPage({
   // ── Modal states ───────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [promoteTarget, setPromoteTarget] = useState(null);
-  const [expireTarget, setExpireTarget] = useState(null);
   const [resetTarget, setResetTarget] = useState(null);
 
   // ── Status filter ──────────────────────────────────────────────────────────
@@ -335,23 +333,6 @@ export default function PropertyListPage({
         onCancel={() => setDeleteTarget(null)}
       />
 
-      {/* ── EXPIRE CONFIRM ────────────────────────────────────────────────── */}
-      <ConfirmModal
-        open={!!expireTarget}
-        title="Expire Property"
-        message="Mark this property as expired? It will no longer appear in active listings."
-        confirmLabel={expireMutation.isPending ? "Expiring…" : "Expire"}
-        confirmClass="bg-orange-600 hover:bg-orange-700 text-white"
-        icon={<Clock className="w-5 h-5" />}
-        iconClass="text-orange-600"
-        onConfirm={() =>
-          expireMutation.mutate(expireTarget, {
-            onSettled: () => setExpireTarget(null),
-          })
-        }
-        onCancel={() => setExpireTarget(null)}
-      />
-
       {/* ── RESET CONFIRM ─────────────────────────────────────────────────── */}
       <ConfirmModal
         open={!!resetTarget}
@@ -399,6 +380,7 @@ export default function PropertyListPage({
               visibleLeadLimit: options.visibleLeadLimit,
               days: options.days,
               sponsoredAd: options.sponsoredAd,
+              startAt: options.startAt,
             },
             { onSettled: () => setPromoteTarget(null) },
           );
@@ -766,7 +748,6 @@ export default function PropertyListPage({
                 type={type}
                 onDelete={() => setDeleteTarget(p._id)}
                 onPromote={() => setPromoteTarget(p._id)}
-                onExpire={() => setExpireTarget(p._id)}
                 onReset={() => setResetTarget(p._id)}
               />
             ))}

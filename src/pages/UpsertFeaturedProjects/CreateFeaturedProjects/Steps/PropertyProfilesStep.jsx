@@ -146,7 +146,12 @@ const shouldHideTowerFields =
     async function loadBuilders() {
       try {
         // Include builder + builder_staff so Operations/staff can assign project owners.
-        const res = await getUserSearch("builder,builder_staff");
+        const res = await getUserSearch({
+          role: "builder,builder_staff",
+          page: 1,
+          limit: 20,
+          lean: 1,
+        });
         const results = Array.isArray(res?.data?.results)
           ? res.data.results
           : Array.isArray(res?.results)
@@ -175,7 +180,12 @@ const shouldHideTowerFields =
   useEffect(() => {
     async function loadRelationshipManagers() {
       try {
-        const res = await getUserSearch("relationship_manager");
+        const res = await getUserSearch({
+          role: "relationship_manager",
+          page: 1,
+          limit: 20,
+          lean: 1,
+        });
         const results = Array.isArray(res?.data?.results)
           ? res.data.results
           : Array.isArray(res?.results)

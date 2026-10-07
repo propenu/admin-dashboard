@@ -19,6 +19,12 @@ const ROLES = [
 const LABEL = "block text-[10px] font-black  uppercase tracking-widest text-[#27AE60] mb-1.5";
 const ERR   = "text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1";
 
+// `typeof null === "object"`, so a missing createdBy/manager must not be treated as a user.
+const resolveSelectedId = (fieldValue) => {
+  if (!fieldValue || typeof fieldValue !== "object") return fieldValue || "";
+  return fieldValue._id || fieldValue.id || fieldValue.userId || "";
+};
+
 const CreatedBy = forwardRef(
   (
     {
@@ -95,10 +101,7 @@ const CreatedBy = forwardRef(
     }
 
     if (allUsers.length) {
-      const selectedId =
-        typeof fieldValue === "object"
-          ? fieldValue._id || fieldValue.id || fieldValue.userId
-          : fieldValue;
+      const selectedId = resolveSelectedId(fieldValue);
       const found = allUsers.find(
         (u) => (u?._id || u?.userId) === selectedId,
       );
@@ -109,7 +112,7 @@ const CreatedBy = forwardRef(
   /* ── derive unique location options (cascade) ── */
   // The endpoint is already filtered by the selected role. Do not filter the
   // response again: agent/owner search records do not always include `role`.
-  const base = allUsers;
+  const base = allUsers.filter((u) => u && typeof u === "object");
 
   
 
@@ -170,6 +173,7 @@ const CreatedBy = forwardRef(
   // };
 
   const selectUser = (user) => {
+    if (!user) return;
     const userId = user._id || user.userId;
     if (!userId) return;
 
@@ -465,16 +469,12 @@ const CreatedBy = forwardRef(
                 </li>
               ) : (
                 filteredUsers.map((user) => {
-                  const fieldValue = form?.[fieldName];
-                  const selectedId =
-                    typeof fieldValue === "object"
-                      ? fieldValue._id || fieldValue.id || fieldValue.userId
-                      : fieldValue;
+                  const selectedId = resolveSelectedId(form?.[fieldName]);
                   const isSelected =
                     selectedId === (user?._id || user?.userId);
                   return (
                     <li
-                      key={user._id || user.userId}
+                      key={user._id || user.userId || user.email}
                       onClick={() => selectUser(user)}
                       className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all
                         ${isSelected

@@ -56,6 +56,44 @@ const idFrom = (value) => {
   return value._id || value.userId || value.id || undefined;
 };
 
+// Multer rejects a single text part over its field-size cap ("Field value too long").
+const TEXT_FIELD_LIMIT = 900 * 1024;
+
+const formText = (value) => {
+  if (value == null) return null;
+  if (typeof value === "string") {
+    if (value.startsWith("data:") || value.length > TEXT_FIELD_LIMIT) return null;
+    return value;
+  }
+  if (typeof File !== "undefined" && value instanceof File) return null;
+  if (typeof Blob !== "undefined" && value instanceof Blob) return null;
+  if (Array.isArray(value) || typeof value === "object") {
+    const json = JSON.stringify(value, (_key, nested) => {
+      if (typeof nested !== "string") return nested;
+      if (
+        nested.startsWith("data:") ||
+        nested.startsWith("blob:") ||
+        nested.length > TEXT_FIELD_LIMIT
+      ) {
+        return undefined;
+      }
+      return nested;
+    });
+    if (!json || json === "{}" || json === "[]" || json.length > TEXT_FIELD_LIMIT) {
+      return null;
+    }
+    return json;
+  }
+  return String(value);
+};
+
+const httpUrl = (value) =>
+  typeof value === "string" &&
+  (value.startsWith("http://") || value.startsWith("https://")) &&
+  value.length < 4000
+    ? value
+    : undefined;
+
 /** Basic save matches the website: only the fields on that step, never photos or the full listing. */
 const buildBasicStepPayload = (form) => {
   if (!form || typeof form !== "object") return {};
@@ -107,7 +145,7 @@ export const savePropertyData = createAsyncThunk(
           return Boolean(item.preview || item.url || item.secureUrl || item.location);
         })
         .map((item, index) => ({
-          url: item.preview || item.url || item.secureUrl || item.location,
+          url: httpUrl(item.url || item.secureUrl || item.location || item.preview),
           filename: item.name || item.filename || item.key || `image-${index + 1}`,
           order: index + 1,
           key: item.key,
@@ -119,7 +157,8 @@ export const savePropertyData = createAsyncThunk(
         .map((item) => item.file)
         .filter((file) => file instanceof File);
 
-      fd.append("gallery", JSON.stringify(existingGallery));
+      const galleryJson = formText(existingGallery);
+      if (galleryJson) fd.append("gallery", galleryJson);
       newGalleryFiles.forEach((file) => { fd.append("galleryFiles", file); });
 
       /* ── DOCUMENTS ── */
@@ -158,6 +197,12 @@ export const savePropertyData = createAsyncThunk(
           "meta",
           "completion",
           "createdBy",
+          "updateHistory",
+          "approval",
+          "postedBy",
+          "lastUpdatedBy",
+          "approvedBy",
+          "relationshipManager",
         ];
 
         if (
@@ -170,6 +215,18 @@ export const savePropertyData = createAsyncThunk(
           value === undefined
         ) return;
 
+        if (key === "relationshipManagerId") {
+          const managerId = idFrom(value);
+          if (managerId) fd.append(key, String(managerId));
+          return;
+        }
+
+        if (key === "description" && typeof value === "string") {
+          const description = value.slice(0, 500);
+          if (description) fd.append(key, description);
+          return;
+        }
+
         if (typeof value === "boolean") { fd.append(key, String(value)); return; }
 
         const numericFields = [
@@ -181,13 +238,15 @@ export const savePropertyData = createAsyncThunk(
         if (numericFields.includes(key)) { fd.append(key, String(Number(value || 0))); return; }
 
         if (Array.isArray(value) || (typeof value === "object" && value !== null)) {
-          if (Array.isArray(value) ? value.length > 0 : Object.keys(value).length > 0) {
-            fd.append(key, JSON.stringify(value));
-          }
+          const json = formText(value);
+          if (json) fd.append(key, json);
           return;
         }
 
-        if (value !== "") { fd.append(key, value); }
+        if (value !== "") {
+          const text = formText(value);
+          if (text) fd.append(key, text);
+        }
       });
 
       // console.log("📤 PROPERTY PATCH:", fd);

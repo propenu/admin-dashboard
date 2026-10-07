@@ -41,6 +41,13 @@ async function runPool(jobs, concurrency = PREFETCH_CONCURRENCY) {
  *   from?: string,
  *   to?: string,
  *   status?: string,
+ *   state?: string,
+ *   city?: string,
+ *   locality?: string,
+ *   createdBy?: string,
+ *   builder?: string,
+ *   categoryType?: string,
+ *   propertyType?: string,
  *   prefetchAll?: boolean,
  *   pageSize?: number,
  *   adminBoard?: boolean,
@@ -55,6 +62,13 @@ export function useFeaturedProjects(type, options = {}) {
   const from = options.from || options.createdFrom || "";
   const to = options.to || options.createdTo || "";
   const status = options.status || "";
+  const state = options.state || "";
+  const city = options.city || "";
+  const locality = options.locality || "";
+  const createdBy = options.createdBy || "";
+  const builder = options.builder || "";
+  const categoryType = options.categoryType || "";
+  const propertyType = options.propertyType || "";
   const enabled = options.enabled ?? true;
   const prefetchAll = options.prefetchAll === true;
   const adminBoard = options.adminBoard === true;
@@ -75,6 +89,13 @@ export function useFeaturedProjects(type, options = {}) {
     from || "",
     to || "",
     status || (adminBoard ? "all" : ""),
+    state,
+    city,
+    locality,
+    createdBy,
+    builder,
+    categoryType,
+    propertyType,
     prefetchAll ? "all-pages" : "paged",
     pageSize,
     adminBoard ? "admin" : "public",
@@ -121,6 +142,13 @@ export function useFeaturedProjects(type, options = {}) {
         from: from || undefined,
         to: to || undefined,
         status: statusParam,
+        state: state || undefined,
+        city: city || undefined,
+        locality: locality || undefined,
+        createdBy: createdBy || undefined,
+        builder: builder || undefined,
+        categoryType: categoryType || undefined,
+        propertyType: propertyType || undefined,
       };
 
       const res = await getFeaturedProjectsByType(
@@ -213,7 +241,7 @@ export function useFeaturedProjects(type, options = {}) {
   });
 
   const promoteMutation = useMutation({
-    mutationFn: async ({ id, newType, visibleLeadLimit, days, sponsoredAd }) => {
+    mutationFn: async ({ id, newType, visibleLeadLimit, days, sponsoredAd, startAt }) => {
       if (!id || !newType) {
         throw new Error("Missing project id or promotion type");
       }
@@ -234,10 +262,16 @@ export function useFeaturedProjects(type, options = {}) {
       if (sponsoredAd && typeof sponsoredAd === "object") {
         promotePayload.sponsoredAd = sponsoredAd;
       }
+      if (startAt) promotePayload.startAt = startAt;
       return promoteProjectWithRank(id, promotePayload);
     },
-    onSuccess: () => {
-      toast.success("Promotion updated");
+    onSuccess: (_data, variables) => {
+      const start = variables?.startAt ? new Date(variables.startAt) : null;
+      toast.success(
+        start && start.getTime() > Date.now()
+          ? "Promotion scheduled"
+          : "Promotion updated",
+      );
       invalidate();
     },
     onError: (err) => {
