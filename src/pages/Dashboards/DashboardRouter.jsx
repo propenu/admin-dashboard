@@ -1,5 +1,7 @@
 import { lazy, Suspense } from "react";
+import { ShieldX } from "lucide-react";
 import { ContentSkeleton } from "../../components/common/RouteFallback";
+import { getParentRoleLabel } from "../../utils/reportsToHierarchy";
 
 const SuperAdminDashboard = lazy(() => import("./SuperAdminDashboard"));
 const AdminDashboard = lazy(() => import("./AdminDashboard"));
@@ -25,24 +27,42 @@ const MarketingHeadDashboard = lazy(() => import("./MarketingHeadDashboard"));
 const ContentTeamDashboard = lazy(() => import("./ContentTeamDashboard"));
 const CeoDashboard = lazy(() => import("./CeoDashboard"));
 
+const normalizeRole = (role) =>
+  String(role || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
 const canViewDashboard = (role, permissions = []) => {
   if (permissions.includes("*") || permissions.includes("dashboard:view")) {
     return true;
   }
-  const normalized = String(role || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_");
-  return normalized === "super_admin" || normalized === "admin";
+  return normalizeRole(role) === "super_admin";
+};
+
+const DashboardAccessDenied = ({ role }) => {
+  const parentLabel = getParentRoleLabel(role);
+  const ask = parentLabel || "the role above you in the hierarchy";
+
+  return (
+    <div className="grid min-h-[420px] place-items-center p-6">
+      <div className="max-w-lg rounded-3xl border border-amber-200 bg-amber-50 p-9 text-center text-amber-950 shadow-sm">
+        <ShieldX className="mx-auto mb-4 text-amber-600" size={42} />
+        <h1 className="text-2xl font-black">Dashboard is not enabled</h1>
+        <p className="mt-2 text-sm leading-6">
+          Dashboard View is turned off for your role. Please ask {ask} to turn on
+          Dashboard → View. The role directly above you in the hierarchy can grant
+          this.
+        </p>
+      </div>
+    </div>
+  );
 };
 
 const DashboardRouter = ({ role, permissions = [] }) => {
   if (!canViewDashboard(role, permissions)) {
-    return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-amber-900">
-        This role does not include dashboard access.
-      </div>
-    );
+    return <DashboardAccessDenied role={role} />;
   }
 
   let Page = AdminDashboard;

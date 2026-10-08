@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Mail, Search, UserPlus } from "lucide-react";
+import { Building2, Check, Loader2, Mail, Search, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   getUserSearch,
@@ -19,6 +19,22 @@ const SEARCH_PAGE_SIZE = 8;
 
 const inp =
   "w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10";
+
+const builderInitials = (name) => {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return "B";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+};
+
+const builderDetailLine = (person) =>
+  [person?.email, person?.phone, person?.city || person?.locality]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(" · ");
 
 const builderPerson = (createdBy) => {
   if (!createdBy) return null;
@@ -53,10 +69,13 @@ export default function BuilderAttachPanel({
   const [editing, setEditing] = useState(!hasBuilder);
   const [mode, setMode] = useState("");
   const [builderId, setBuilderId] = useState("");
+  const [pickedBuilder, setPickedBuilder] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [searchPage, setSearchPage] = useState(1);
   const [builderPages, setBuilderPages] = useState([]);
+  const builderListRef = useRef(null);
   const [emails, setEmails] = useState([""]);
   const [company, setCompany] = useState("");
   const [directForm, setDirectForm] = useState({
@@ -76,6 +95,7 @@ export default function BuilderAttachPanel({
       setDebouncedQ(searchQuery.trim());
       setSearchPage(1);
       setBuilderPages([]);
+      setActiveIndex(0);
     }, 300);
     return () => clearTimeout(t);
   }, [searchQuery]);
@@ -86,6 +106,7 @@ export default function BuilderAttachPanel({
       "builders",
       debouncedQ,
       searchPage,
+      SEARCH_PAGE_SIZE,
     ],
     enabled: editing && mode === "existing_builder",
     queryFn: async () => {
@@ -103,7 +124,9 @@ export default function BuilderAttachPanel({
   });
 
   useEffect(() => {
+    if (buildersQuery.isPlaceholderData) return;
     if (!buildersQuery.data?.results) return;
+    if (Number(buildersQuery.data?.meta?.page || 1) !== searchPage) return;
     setBuilderPages((prev) => {
       if (searchPage <= 1) return buildersQuery.data.results;
       const seen = new Set(prev.map((b) => String(b._id)));
@@ -117,7 +140,7 @@ export default function BuilderAttachPanel({
       }
       return next;
     });
-  }, [buildersQuery.data, searchPage]);
+  }, [buildersQuery.data, buildersQuery.isPlaceholderData, searchPage]);
 
   const builders = builderPages;
   const searchMeta = buildersQuery.data?.meta;
@@ -126,6 +149,8 @@ export default function BuilderAttachPanel({
   const resetForm = () => {
     setMode("");
     setBuilderId("");
+    setPickedBuilder(null);
+    setActiveIndex(0);
     setSearchQuery("");
     setDebouncedQ("");
     setSearchPage(1);
@@ -268,6 +293,62 @@ export default function BuilderAttachPanel({
   const updateDirect = (key) => (event) =>
     setDirectForm((current) => ({ ...current, [key]: event.target.value }));
 
+  const pickBuilder = (row) => {
+    if (!row?._id) return;
+    setBuilderId(String(row._id));
+    setPickedBuilder(row);
+  };
+
+  const clearPickedBuilder = () => {
+    setBuilderId("");
+    setPickedBuilder(null);
+  };
+
+  useEffect(() => {
+    if (!builderId || pickedBuilder?.name || pickedBuilder?.email) return;
+    const match = builders.find((row) => String(row._id) === String(builderId));
+    if (match) setPickedBuilder(match);
+  }, [builders, builderId, pickedBuilder]);
+
+  const listLoading =
+    buildersQuery.isFetching && (searchPage <= 1 || builders.length === 0);
+  const loadingMore =
+    buildersQuery.isFetching && searchPage > 1 && builders.length > 0;
+  const builderTotal = Number(searchMeta?.total) || 0;
+  const remainingBuilders = Math.max(0, builderTotal - builders.length);
+
+  useEffect(() => {
+    const root = builderListRef.current;
+    const row = builders[activeIndex];
+    if (!root || !row?._id) return;
+    const node = root.querySelector(
+      `[data-builder-id="${String(row._id)}"]`,
+    );
+    if (!node) return;
+    const rootRect = root.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    if (nodeRect.top < rootRect.top) {
+      root.scrollTop -= rootRect.top - nodeRect.top;
+    } else if (nodeRect.bottom > rootRect.bottom) {
+      root.scrollTop += nodeRect.bottom - rootRect.bottom;
+    }
+  }, [activeIndex, builders]);
+
+  const onBuilderSearchKeyDown = (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (!builders.length) return;
+      setActiveIndex((index) => Math.min(builders.length - 1, index + 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!builders.length) return;
+      setActiveIndex((index) => Math.max(0, index - 1));
+    } else if (event.key === "Enter" && builders[activeIndex]) {
+      event.preventDefault();
+      pickBuilder(builders[activeIndex]);
+    }
+  };
+
   return (
     <section className={`rounded-2xl border-2 ${borderClass} p-4 shadow-sm`}>
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -302,6 +383,9 @@ export default function BuilderAttachPanel({
               setEditing(true);
               setMode("existing_builder");
               if (existing?._id) setBuilderId(String(existing._id));
+              setPickedBuilder(
+                existing && (existing.name || existing.email) ? existing : null,
+              );
             }}
             className="rounded-xl border-2 border-emerald-300 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
           >
@@ -354,12 +438,19 @@ export default function BuilderAttachPanel({
             className={inp}
             value={mode}
             onChange={(e) => {
-              setMode(e.target.value);
-              setBuilderId(
-                e.target.value === "existing_builder" && existing?._id
-                  ? String(existing._id)
-                  : "",
+              const nextMode = e.target.value;
+              setMode(nextMode);
+              const keepCurrent =
+                nextMode === "existing_builder" && existing?._id
+                  ? existing
+                  : null;
+              setBuilderId(keepCurrent?._id ? String(keepCurrent._id) : "");
+              setPickedBuilder(
+                keepCurrent && (keepCurrent.name || keepCurrent.email)
+                  ? keepCurrent
+                  : null,
               );
+              setActiveIndex(0);
               setEmails([""]);
               setDirectForm({ name: "", email: "", phone: "", companyName: "" });
               setDirectFieldErrors({ name: "", email: "", phone: "" });
@@ -377,6 +468,35 @@ export default function BuilderAttachPanel({
 
           {mode === "existing_builder" ? (
             <div className="mt-4 space-y-3 border-t border-emerald-100/80 pt-4">
+              <p className="text-xs font-semibold leading-relaxed text-slate-600">
+                Search by name, email, or phone, then select one builder.
+              </p>
+
+              {pickedBuilder ? (
+                <div className="flex items-center gap-3 rounded-xl border-2 border-emerald-300 bg-white px-3 py-2.5">
+                  <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-black text-emerald-800">
+                    {builderInitials(pickedBuilder.name || pickedBuilder.email)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-slate-900">
+                      {pickedBuilder.name || "Unnamed builder"}
+                    </p>
+                    <p className="truncate text-xs font-semibold text-slate-500">
+                      {builderDetailLine(pickedBuilder) || "Selected to assign"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearPickedBuilder}
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                    aria-label="Clear selected builder"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Clear
+                  </button>
+                </div>
+              ) : null}
+
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
@@ -384,47 +504,160 @@ export default function BuilderAttachPanel({
                   placeholder="Search builder by name, email, phone…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={onBuilderSearchKeyDown}
+                  role="combobox"
+                  aria-expanded="true"
+                  aria-controls="existing-builder-list"
+                  aria-autocomplete="list"
+                  aria-activedescendant={
+                    builders[activeIndex]
+                      ? `existing-builder-option-${builders[activeIndex]._id}`
+                      : undefined
+                  }
                 />
               </div>
-              <select
-                className={inp}
-                value={builderId}
-                disabled={buildersQuery.isLoading && !builders.length}
-                onChange={(e) => setBuilderId(e.target.value)}
-              >
-                <option value="">
-                  {buildersQuery.isLoading && !builders.length
-                    ? "Loading builders…"
-                    : builders.length
-                      ? "— Select existing builder —"
-                      : "No builders found"}
-                </option>
-                {builders.map((b) => (
-                  <option key={b._id} value={String(b._id)}>
-                    {b.name || "Unnamed"}
-                    {b.city ? ` · ${b.city}` : ""}
-                    {b.email ? ` (${b.email})` : ""}
-                  </option>
-                ))}
-              </select>
-              <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-slate-500">
-                <span>
-                  {searchMeta?.total
-                    ? `Showing ${builders.length} of ${searchMeta.total}`
-                    : builders.length
-                      ? `${builders.length} builders`
-                      : ""}
-                </span>
-                {hasMoreBuilders ? (
-                  <button
-                    type="button"
-                    className="font-bold text-[#27AE60] hover:underline disabled:opacity-50"
-                    disabled={buildersQuery.isFetching}
-                    onClick={() => setSearchPage((p) => p + 1)}
-                  >
-                    {buildersQuery.isFetching ? "Loading…" : "Load more"}
-                  </button>
-                ) : null}
+
+              <div className="overflow-hidden rounded-xl border-2 border-gray-200 bg-white">
+                <div
+                  id="existing-builder-list"
+                  ref={builderListRef}
+                  role="listbox"
+                  aria-label="Existing builders"
+                  className="max-h-72 overflow-y-auto"
+                >
+                  {listLoading && !builders.length ? (
+                    <div className="space-y-2 p-3" aria-busy="true">
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div
+                          key={`builder-skel-${index}`}
+                          className="flex animate-pulse items-center gap-3"
+                        >
+                          <div className="h-9 w-9 rounded-full bg-slate-100" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-3 w-1/3 rounded bg-slate-100" />
+                            <div className="h-2.5 w-2/3 rounded bg-slate-100" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : buildersQuery.isError && !builders.length ? (
+                    <div className="px-4 py-8 text-center">
+                      <p className="text-sm font-bold text-slate-800">
+                        Couldn’t load builders
+                      </p>
+                      <button
+                        type="button"
+                        className="mt-2 text-xs font-bold text-emerald-700 hover:underline"
+                        onClick={() => buildersQuery.refetch()}
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  ) : !builders.length ? (
+                    <div className="px-4 py-8 text-center">
+                      <p className="text-sm font-bold text-slate-800">
+                        No builders found
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {debouncedQ
+                          ? `Nothing matches “${debouncedQ}”. Try a name, email, or phone.`
+                          : "No builder accounts are available to assign."}
+                      </p>
+                    </div>
+                  ) : (
+                    builders.map((builder, index) => {
+                      const id = String(builder._id);
+                      const selected = id === String(builderId || "");
+                      const active = index === activeIndex;
+                      const company = String(builder.companyName || "").trim();
+                      const showCompany =
+                        company &&
+                        company.toLowerCase() !==
+                          String(builder.name || "").trim().toLowerCase();
+                      return (
+                        <button
+                          key={id}
+                          id={`existing-builder-option-${id}`}
+                          data-builder-id={id}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onMouseEnter={() => setActiveIndex(index)}
+                          onClick={() => pickBuilder(builder)}
+                          className={`flex w-full items-center gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 ${
+                            selected
+                              ? "bg-emerald-50"
+                              : active
+                                ? "bg-slate-50"
+                                : "bg-white hover:bg-slate-50"
+                          }`}
+                        >
+                          <span
+                            className={`grid h-9 w-9 flex-shrink-0 place-items-center rounded-full text-xs font-black ${
+                              selected
+                                ? "bg-emerald-600 text-white"
+                                : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {builderInitials(builder.name || builder.email)}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-2">
+                              <span className="truncate text-sm font-bold text-slate-900">
+                                {builder.name || "Unnamed builder"}
+                              </span>
+                              {showCompany ? (
+                                <span className="truncate text-[11px] font-semibold text-slate-400">
+                                  {company}
+                                </span>
+                              ) : null}
+                            </span>
+                            <span className="mt-0.5 block truncate text-xs font-semibold text-slate-500">
+                              {builderDetailLine(builder) || "No contact details"}
+                            </span>
+                          </span>
+                          {selected ? (
+                            <Check
+                              className="h-4 w-4 flex-shrink-0 text-emerald-600"
+                              aria-hidden="true"
+                            />
+                          ) : null}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 border-t border-gray-200 bg-slate-50 px-3 py-2">
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    {listLoading && !builders.length
+                      ? "Loading builders…"
+                      : builderTotal
+                        ? `Showing ${builders.length} of ${builderTotal}`
+                        : builders.length
+                          ? `${builders.length} builders`
+                          : "0 builders"}
+                  </span>
+                  {hasMoreBuilders && builders.length ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                      disabled={buildersQuery.isFetching}
+                      onClick={() => setSearchPage((page) => page + 1)}
+                    >
+                      {loadingMore ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : null}
+                      {loadingMore
+                        ? "Loading…"
+                        : `Load more${remainingBuilders ? ` (${remainingBuilders})` : ""}`}
+                    </button>
+                  ) : builders.length ? (
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      All builders shown
+                    </span>
+                  ) : null}
+                </div>
               </div>
             </div>
           ) : null}
@@ -562,9 +795,12 @@ export default function BuilderAttachPanel({
           {mode ? (
             <button
               type="button"
-              disabled={attachMutation.isPending}
+              disabled={
+                attachMutation.isPending ||
+                (mode === "existing_builder" && !builderId)
+              }
               onClick={() => attachMutation.mutate()}
-              className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
+              className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {attachMutation.isPending
                 ? "Saving…"
@@ -572,9 +808,15 @@ export default function BuilderAttachPanel({
                   ? "Send invite"
                   : mode === "direct_create"
                     ? "Create builder & assign"
-                    : hasBuilder
-                      ? "Update Created By"
-                      : "Assign builder"}
+                    : mode === "existing_builder" && !builderId
+                      ? "Select a builder to assign"
+                      : mode === "existing_builder" && pickedBuilder?.name
+                        ? hasBuilder
+                          ? `Update to ${pickedBuilder.name}`
+                          : `Assign ${pickedBuilder.name}`
+                        : hasBuilder
+                          ? "Update Created By"
+                          : "Assign builder"}
             </button>
           ) : null}
         </>

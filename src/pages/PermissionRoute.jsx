@@ -1,5 +1,6 @@
 import { ShieldX } from "lucide-react";
 import { useAuthUserProfile } from "../hooks/useAuthUser";
+import { getParentRoleLabel } from "../utils/reportsToHierarchy";
 
 /**
  * Permission gate — session already loaded by Layout.
@@ -36,8 +37,12 @@ export default function PermissionRoute({
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
   const userPermissions = Array.isArray(permissions) ? permissions : [];
-  const bypass = normalizedRole === "super_admin" || normalizedRole === "admin";
   const required = [permission, ...anyPermissions].filter(Boolean);
+  const dashboardViewOnly =
+    required.length > 0 && required.every((item) => item === "dashboard:view");
+  const bypass =
+    normalizedRole === "super_admin" ||
+    (normalizedRole === "admin" && !dashboardViewOnly);
   const legacyOk =
     Array.isArray(legacyRoles) &&
     legacyRoles.some(
@@ -55,14 +60,29 @@ export default function PermissionRoute({
     required.some((item) => userPermissions.includes(item));
 
   if (!allowed) {
+    const parentLabel = getParentRoleLabel(normalizedRole);
+    const dashboardAsk = parentLabel || "the role above you in the hierarchy";
+
     return (
       <div className="grid min-h-[420px] place-items-center p-6">
         <div className="max-w-lg rounded-3xl border border-amber-200 bg-amber-50 p-9 text-center text-amber-950 shadow-sm">
           <ShieldX className="mx-auto mb-4 text-amber-600" size={42} />
-          <h1 className="text-2xl font-black">Access not available</h1>
+          <h1 className="text-2xl font-black">
+            {dashboardViewOnly ? "Dashboard is not enabled" : "Access not available"}
+          </h1>
           <p className="mt-2 text-sm leading-6">
-            You do not have permission for this page. Please request{" "}
-            <strong>{required.join(" or ")}</strong> from a Super Admin.
+            {dashboardViewOnly ? (
+              <>
+                Dashboard View is turned off for your role. Please ask {dashboardAsk} to
+                turn on Dashboard → View. The role directly above you in the hierarchy
+                can grant this.
+              </>
+            ) : (
+              <>
+                You do not have permission for this page. Please request{" "}
+                <strong>{required.join(" or ")}</strong> from a Super Admin.
+              </>
+            )}
           </p>
         </div>
       </div>

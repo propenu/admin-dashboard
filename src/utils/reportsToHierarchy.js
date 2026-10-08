@@ -161,6 +161,16 @@ const ROLE_LABELS = {
   technical_support_team: "Technical Support Team",
 };
 
+/** Direct role above this one. Admin sits under Super Admin. */
+export const getParentRoleLabel = (roleName = "") => {
+  const key = canonicalRoleName(roleName);
+  if (!key || key === "super_admin") return null;
+  if (key === "admin") return "Super Admin";
+  const parent = ORG_PARENT_BY_ROLE[key];
+  if (!parent) return null;
+  return cleanRoleLabel(parent);
+};
+
 export const cleanRoleLabel = (roleName = "") => {
   const key = canonicalRoleName(roleName);
   return (
