@@ -5,6 +5,11 @@ const BASE = `${SERVICES.PROPERTY}/site-branding`;
 
 export const getSiteLogo = () => apiClient.get(`${BASE}/logo`);
 
+export const getPrimeDisplayMode = () => apiClient.get(`${BASE}/prime-display`);
+
+export const updatePrimeDisplayMode = (displayMode) =>
+  apiClient.patch(`${BASE}/prime-display`, { displayMode });
+
 export const createSiteLogo = (file) => {
   const form = new FormData();
   form.append("logo", file);

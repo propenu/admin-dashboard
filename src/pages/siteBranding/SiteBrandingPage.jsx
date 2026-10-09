@@ -22,11 +22,13 @@ import {
   deleteSiteBanner,
   getSiteBanner,
   getSiteBannerDefaults,
+  getPrimeDisplayMode,
   getSiteLogo,
   listSiteBanners,
   updateSiteBannerMeta,
   upsertSiteBannerDefaultDevice,
   upsertSiteBannerDevice,
+  updatePrimeDisplayMode,
   upsertSiteLogo,
 } from "../../features/siteBranding/siteBrandingService";
 import {
@@ -848,6 +850,8 @@ export default function SiteBrandingPage() {
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [primeDisplayMode, setPrimeDisplayMode] = useState("ranked");
+  const [primeDisplaySaving, setPrimeDisplaySaving] = useState(false);
 
   const openBanner = useMemo(
     () => banners.find((b) => String(b._id) === String(openBannerId)) || null,
@@ -858,11 +862,14 @@ export default function SiteBrandingPage() {
     setLoading(true);
     setError("");
     try {
-      const [logoRes, bannerRes, defaultsRes] = await Promise.all([
+      const [logoRes, bannerRes, defaultsRes, primeDisplayRes] = await Promise.all([
         getSiteLogo(),
         listSiteBanners(),
         getSiteBannerDefaults().catch(() => null),
+        getPrimeDisplayMode().catch(() => null),
       ]);
+      const mode = primeDisplayRes?.data?.data?.displayMode;
+      setPrimeDisplayMode(mode === "shuffle" ? "shuffle" : "ranked");
       setLogo(logoRes?.data?.data || null);
       setBanners(Array.isArray(bannerRes?.data?.data) ? bannerRes.data.data : []);
       setBannerDefaults(defaultsRes?.data?.data || null);
@@ -876,6 +883,22 @@ export default function SiteBrandingPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const savePrimeDisplayMode = async (mode) => {
+    if (mode === primeDisplayMode || primeDisplaySaving) return;
+    const previous = primeDisplayMode;
+    setPrimeDisplayMode(mode);
+    setPrimeDisplaySaving(true);
+    try {
+      await updatePrimeDisplayMode(mode);
+      toast.success(mode === "shuffle" ? "Prime projects will shuffle" : "Prime projects will stay ranked");
+    } catch (err) {
+      setPrimeDisplayMode(previous);
+      toast.error(err?.response?.data?.message || "Could not save display mode");
+    } finally {
+      setPrimeDisplaySaving(false);
+    }
+  };
 
   const onLogoPick = async (file) => {
     if (!file) return;
@@ -1020,6 +1043,7 @@ export default function SiteBrandingPage() {
             {error}
           </p>
         ) : mainTab === "logo" ? (
+          <>
           <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1097,6 +1121,37 @@ export default function SiteBrandingPage() {
               </div>
             </div>
           </section>
+          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Prime Projects</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Ranked keeps the homepage in admin order. Shuffle mixes the same projects once per page load.
+                </p>
+              </div>
+              <div className="inline-flex shrink-0 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                {[
+                  { key: "ranked", label: "Ranked" },
+                  { key: "shuffle", label: "Shuffle" },
+                ].map((mode) => (
+                  <button
+                    key={mode.key}
+                    type="button"
+                    disabled={primeDisplaySaving}
+                    onClick={() => savePrimeDisplayMode(mode.key)}
+                    className={`rounded-lg px-3.5 py-2 text-xs font-bold transition disabled:opacity-60 ${
+                      primeDisplayMode === mode.key
+                        ? "bg-[#27AE60] text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+          </>
         ) : mainTab === "defaults" ? (
           <BannerDefaultsPanel
             defaults={bannerDefaults}
