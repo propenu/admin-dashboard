@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Check, Mail, Search, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -137,6 +137,7 @@ export default function BuilderAttachPanel({
       return unpackUserSearch(res);
     },
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 
   const searchMeta = buildersQuery.data?.meta;
@@ -326,10 +327,12 @@ export default function BuilderAttachPanel({
     }
   }, [buildersQuery.isSuccess, buildersQuery.isFetching, searchPage, totalPages]);
 
-  const listLoading = buildersQuery.isFetching && builders.length === 0;
-  const listRefreshing = buildersQuery.isFetching && builders.length > 0;
+  const listLoading = buildersQuery.isPending && builders.length === 0;
+  const visiblePage = buildersQuery.isPlaceholderData
+    ? Number(searchMeta?.page) || searchPage
+    : searchPage;
   const rangeStart = builders.length
-    ? (Math.min(searchPage, totalPages) - 1) * SEARCH_PAGE_SIZE + 1
+    ? (Math.min(visiblePage, totalPages) - 1) * SEARCH_PAGE_SIZE + 1
     : 0;
   const rangeEnd = builders.length ? rangeStart + builders.length - 1 : 0;
 
@@ -546,7 +549,7 @@ export default function BuilderAttachPanel({
                   aria-label="Existing builders"
                   className="max-h-72 overflow-y-auto"
                 >
-                  {listLoading && !builders.length ? (
+                  {listLoading ? (
                     <div className="space-y-2 p-3" aria-busy="true">
                       {Array.from({ length: 4 }).map((_, index) => (
                         <div
@@ -653,13 +656,11 @@ export default function BuilderAttachPanel({
                   <span className="text-[11px] font-semibold text-slate-500">
                     {listLoading
                       ? "Loading builders…"
-                      : listRefreshing
-                        ? "Updating builders…"
-                        : builders.length && builderTotal
-                          ? `Showing ${rangeStart}–${rangeEnd} of ${builderTotal}`
-                          : builderTotal
-                            ? `Showing 0 of ${builderTotal}`
-                            : "0 builders"}
+                      : builders.length && builderTotal
+                        ? `Showing ${rangeStart}–${rangeEnd} of ${builderTotal}`
+                        : builderTotal
+                          ? `Showing 0 of ${builderTotal}`
+                          : "0 builders"}
                   </span>
                   {pageNumbers.length ? (
                     <nav
@@ -679,7 +680,6 @@ export default function BuilderAttachPanel({
                               type="button"
                               aria-label={`Builder page ${page}`}
                               aria-current={active ? "page" : undefined}
-                              disabled={buildersQuery.isFetching && active}
                               onClick={() => {
                                 setSearchPage(page);
                                 setActiveIndex(0);
