@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Check, Loader2, Mail, Search, UserPlus, X } from "lucide-react";
+import { Building2, Check, Mail, Search, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   getUserSearch,
@@ -15,7 +15,22 @@ import {
 import { useCurrentUser } from "../../../../../store/properties/useCurrentUser";
 import { canDirectCreateBuilder } from "../../../../../utils/projectAccessControl";
 
-const SEARCH_PAGE_SIZE = 8;
+const SEARCH_PAGE_SIZE = 6;
+
+/** Page buttons 1, 2, 3… with a short window when there are many pages. */
+const builderPageNumbers = (current, total) => {
+  const count = Math.max(0, Number(total) || 0);
+  const page = Math.min(Math.max(1, Number(current) || 1), Math.max(count, 1));
+  if (count <= 1) return count === 1 ? [1] : [];
+  if (count <= 7) return Array.from({ length: count }, (_, index) => index + 1);
+  const start = Math.max(1, Math.min(page - 2, count - 4));
+  const end = Math.min(count, start + 4);
+  const pages = [];
+  for (let number = start; number <= end; number += 1) pages.push(number);
+  if (pages[0] !== 1) pages.unshift(1);
+  if (pages[pages.length - 1] !== count) pages.push(count);
+  return pages;
+};
 
 const inp =
   "w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:border-[#27AE60] focus:ring-4 focus:ring-[#27AE60]/10";
@@ -74,7 +89,6 @@ export default function BuilderAttachPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [searchPage, setSearchPage] = useState(1);
-  const [builderPages, setBuilderPages] = useState([]);
   const builderListRef = useRef(null);
   const [emails, setEmails] = useState([""]);
   const [company, setCompany] = useState("");
@@ -92,10 +106,13 @@ export default function BuilderAttachPanel({
 
   useEffect(() => {
     const t = setTimeout(() => {
-      setDebouncedQ(searchQuery.trim());
-      setSearchPage(1);
-      setBuilderPages([]);
-      setActiveIndex(0);
+      const next = searchQuery.trim();
+      setDebouncedQ((current) => {
+        if (current === next) return current;
+        setSearchPage(1);
+        setActiveIndex(0);
+        return next;
+      });
     }, 300);
     return () => clearTimeout(t);
   }, [searchQuery]);
@@ -119,32 +136,25 @@ export default function BuilderAttachPanel({
       });
       return unpackUserSearch(res);
     },
-    staleTime: 30_000,
-    placeholderData: (prev) => prev,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
-  useEffect(() => {
-    if (buildersQuery.isPlaceholderData) return;
-    if (!buildersQuery.data?.results) return;
-    if (Number(buildersQuery.data?.meta?.page || 1) !== searchPage) return;
-    setBuilderPages((prev) => {
-      if (searchPage <= 1) return buildersQuery.data.results;
-      const seen = new Set(prev.map((b) => String(b._id)));
-      const next = [...prev];
-      for (const row of buildersQuery.data.results) {
-        const id = String(row._id);
-        if (!seen.has(id)) {
-          seen.add(id);
-          next.push(row);
-        }
-      }
-      return next;
-    });
-  }, [buildersQuery.data, buildersQuery.isPlaceholderData, searchPage]);
-
-  const builders = builderPages;
   const searchMeta = buildersQuery.data?.meta;
-  const hasMoreBuilders = Boolean(searchMeta?.hasMore);
+  const builders = Array.isArray(buildersQuery.data?.results)
+    ? buildersQuery.data.results
+    : [];
+  const builderTotal = Number(searchMeta?.total) || 0;
+  const totalPages = Math.max(
+    1,
+    Number(searchMeta?.pages) ||
+      Math.ceil(builderTotal / SEARCH_PAGE_SIZE) ||
+      1,
+  );
+  const pageNumbers = builderPageNumbers(
+    Math.min(searchPage, totalPages),
+    builderTotal > 0 ? totalPages : 0,
+  );
 
   const resetForm = () => {
     setMode("");
@@ -154,7 +164,6 @@ export default function BuilderAttachPanel({
     setSearchQuery("");
     setDebouncedQ("");
     setSearchPage(1);
-    setBuilderPages([]);
     setEmails([""]);
     setCompany("");
     setDirectForm({ name: "", email: "", phone: "", companyName: "" });
@@ -310,12 +319,20 @@ export default function BuilderAttachPanel({
     if (match) setPickedBuilder(match);
   }, [builders, builderId, pickedBuilder]);
 
-  const listLoading =
-    buildersQuery.isFetching && (searchPage <= 1 || builders.length === 0);
-  const loadingMore =
-    buildersQuery.isFetching && searchPage > 1 && builders.length > 0;
-  const builderTotal = Number(searchMeta?.total) || 0;
-  const remainingBuilders = Math.max(0, builderTotal - builders.length);
+  useEffect(() => {
+    if (!buildersQuery.isSuccess || buildersQuery.isFetching) return;
+    if (searchPage > totalPages) {
+      setSearchPage(totalPages);
+      setActiveIndex(0);
+    }
+  }, [buildersQuery.isSuccess, buildersQuery.isFetching, searchPage, totalPages]);
+
+  const listLoading = buildersQuery.isFetching && builders.length === 0;
+  const listRefreshing = buildersQuery.isFetching && builders.length > 0;
+  const rangeStart = builders.length
+    ? (Math.min(searchPage, totalPages) - 1) * SEARCH_PAGE_SIZE + 1
+    : 0;
+  const rangeEnd = builders.length ? rangeStart + builders.length - 1 : 0;
 
   useEffect(() => {
     const root = builderListRef.current;
@@ -451,6 +468,11 @@ export default function BuilderAttachPanel({
                   : null,
               );
               setActiveIndex(0);
+              if (nextMode === "existing_builder") {
+                setSearchQuery("");
+                setDebouncedQ("");
+                setSearchPage(1);
+              }
               setEmails([""]);
               setDirectForm({ name: "", email: "", phone: "", companyName: "" });
               setDirectFieldErrors({ name: "", email: "", phone: "" });
@@ -628,34 +650,54 @@ export default function BuilderAttachPanel({
                   )}
                 </div>
 
-                <div className="flex items-center justify-between gap-3 border-t border-gray-200 bg-slate-50 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-slate-50 px-3 py-2">
                   <span className="text-[11px] font-semibold text-slate-500">
-                    {listLoading && !builders.length
+                    {listLoading
                       ? "Loading builders…"
-                      : builderTotal
-                        ? `Showing ${builders.length} of ${builderTotal}`
-                        : builders.length
-                          ? `${builders.length} builders`
-                          : "0 builders"}
+                      : listRefreshing
+                        ? "Updating builders…"
+                        : builders.length && builderTotal
+                          ? `Showing ${rangeStart}–${rangeEnd} of ${builderTotal}`
+                          : builderTotal
+                            ? `Showing 0 of ${builderTotal}`
+                            : "0 builders"}
                   </span>
-                  {hasMoreBuilders && builders.length ? (
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                      disabled={buildersQuery.isFetching}
-                      onClick={() => setSearchPage((page) => page + 1)}
+                  {pageNumbers.length ? (
+                    <nav
+                      className="flex flex-wrap items-center gap-1"
+                      aria-label="Builder pages"
                     >
-                      {loadingMore ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : null}
-                      {loadingMore
-                        ? "Loading…"
-                        : `Load more${remainingBuilders ? ` (${remainingBuilders})` : ""}`}
-                    </button>
-                  ) : builders.length ? (
-                    <span className="text-[11px] font-semibold text-slate-400">
-                      All builders shown
-                    </span>
+                      {pageNumbers.map((page, index) => {
+                        const previous = pageNumbers[index - 1];
+                        const gap = previous && page - previous > 1;
+                        const active = page === searchPage;
+                        return (
+                          <span key={`builder-page-${page}`} className="flex items-center gap-1">
+                            {gap ? (
+                              <span className="px-1 text-xs font-bold text-slate-400">…</span>
+                            ) : null}
+                            <button
+                              type="button"
+                              aria-label={`Builder page ${page}`}
+                              aria-current={active ? "page" : undefined}
+                              disabled={buildersQuery.isFetching && active}
+                              onClick={() => {
+                                setSearchPage(page);
+                                setActiveIndex(0);
+                                builderListRef.current?.scrollTo?.({ top: 0 });
+                              }}
+                              className={`grid h-8 min-w-8 place-items-center rounded-lg px-2 text-xs font-bold ${
+                                active
+                                  ? "bg-emerald-600 text-white"
+                                  : "border border-gray-200 bg-white text-slate-700 hover:bg-emerald-50"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </nav>
                   ) : null}
                 </div>
               </div>

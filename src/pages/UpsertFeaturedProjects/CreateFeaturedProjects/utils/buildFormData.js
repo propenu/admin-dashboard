@@ -117,6 +117,7 @@ export async function buildFormData(payload) {
     "metaDescription",
     "metaKeywords",
     "possessionDate",
+    "launchDate",
     "reraNumber",
     "relationshipManagerId",
     "status",

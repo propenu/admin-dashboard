@@ -89,6 +89,14 @@ export default function PropertyDetailsSection({ data }) {
       value: data.availableUnits || null,
     },
 
+    {
+      icon: "🚀",
+
+      label: "Launch",
+
+      value: data.launchDate || null,
+    },
+
     // ✅ DATE
     {
       icon: "📅",

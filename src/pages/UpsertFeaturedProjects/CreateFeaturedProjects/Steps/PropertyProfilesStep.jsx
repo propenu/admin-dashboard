@@ -700,6 +700,20 @@ const shouldHideTowerFields =
             )}
           </div>
 
+          {/* Launch Date */}
+          <div>
+            <label className={LABEL}>Launch Date</label>
+            <input
+              type="date"
+              className={inp(errors.launchDate)}
+              value={payload.launchDate || ""}
+              onChange={(e) => handleChange("launchDate", e.target.value)}
+            />
+            {errors.launchDate && (
+              <p className={ERR}>⚠ {errors.launchDate}</p>
+            )}
+          </div>
+
           {/* Possession Date */}
           <div>
             <label className={LABEL}>Possession Date *</label>

@@ -56,6 +56,7 @@ export const INITIAL_PAYLOAD = {
   isFeatured: true,
   sqftRange: { min: "", max: "" },
   possessionDate: "",
+  launchDate: "",
   totalTowers: "",
   totalFloors: "",
   projectArea: "",

@@ -432,6 +432,10 @@ export default function FeaturedPropertyDetails() {
                 />
               )}
               <MetaItem
+                label="Launch"
+                value={formatDate(property.launchDate)}
+              />
+              <MetaItem
                 label="Possession"
                 value={formatDate(property.possessionDate)}
               />

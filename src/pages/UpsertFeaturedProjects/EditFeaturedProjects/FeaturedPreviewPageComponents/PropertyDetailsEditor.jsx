@@ -176,6 +176,7 @@ export default function PropertyDetailsEditor({
       totalUnits: formData.totalUnits ?? "",
       availableUnits: formData.availableUnits ?? "",
       possessionDate: formData.possessionDate ?? "",
+      launchDate: formData.launchDate ?? "",
       reraNumber: formData.reraNumber ?? "",
       redirectUrl: formData.redirectUrl ?? "",
       propertyType: formData.propertyType ?? "",
@@ -949,6 +950,14 @@ export default function PropertyDetailsEditor({
                 placeholder="e.g. 120"
                 value={local.availableUnits ?? ""}
                 onChange={(e) => change("availableUnits", e.target.value)}
+              />
+            </FieldGroup>
+            <FieldGroup label="Launch Date">
+              <input
+                type="date"
+                className={inputCls}
+                value={local.launchDate ?? ""}
+                onChange={(e) => change("launchDate", e.target.value)}
               />
             </FieldGroup>
             <FieldGroup
