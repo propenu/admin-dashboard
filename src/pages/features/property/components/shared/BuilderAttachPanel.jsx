@@ -15,7 +15,7 @@ import {
 import { useCurrentUser } from "../../../../../store/properties/useCurrentUser";
 import { canDirectCreateBuilder } from "../../../../../utils/projectAccessControl";
 
-const SEARCH_PAGE_SIZE = 6;
+const SEARCH_PAGE_SIZE = 12;
 
 /** Page buttons 1, 2, 3… with a short window when there are many pages. */
 const builderPageNumbers = (current, total) => {
@@ -136,8 +136,7 @@ export default function BuilderAttachPanel({
       });
       return unpackUserSearch(res);
     },
-    staleTime: 0,
-    refetchOnMount: "always",
+    staleTime: 30_000,
   });
 
   const searchMeta = buildersQuery.data?.meta;
