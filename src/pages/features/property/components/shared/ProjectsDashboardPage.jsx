@@ -2362,7 +2362,7 @@ export default function ProjectsDashboardPage() {
         });
       } catch (err) {
         console.warn("project-title-search failed", err);
-        return { data: { items: [] } };
+        return null;
       }
     },
   });
@@ -2465,13 +2465,16 @@ export default function ProjectsDashboardPage() {
       }
     }
 
-    if (deferredProjectSearch) {
+    // The database search already matched title, location, builder, and
+    // creator — including deactivated projects. Filtering those rows again
+    // against the loaded page index drops hits that are not on the current page.
+    const usingServerSearch =
+      projectTitleSearch.length >= 2 && Array.isArray(serverSearchItems);
+    if (deferredProjectSearch && !usingServerSearch) {
       const q = normalizeSearchText(deferredProjectSearch);
       const tokens = q.split(" ").filter(Boolean);
       list = list.filter((p) => {
-        const haystack =
-          projectSearchIndex.get(p._id)?.search ||
-          normalizeSearchText(listingSearchTokens(p).join(" "));
+        const haystack = normalizeSearchText(listingSearchTokens(p).join(" "));
         return tokens.every((token) => haystack.includes(token));
       });
     }
