@@ -1,0 +1,1 @@
+import{an as r,at as a,au as s}from"./index-gwnHxelX.js";const o=r.create({baseURL:a,headers:{Accept:"application/json"}});o.interceptors.request.use(e=>{const t=s();return t&&(e.headers.Authorization=`Bearer ${t}`),e},e=>Promise.reject(e));export{o as p};
