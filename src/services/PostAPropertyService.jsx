@@ -234,6 +234,7 @@ export const updateFeaturedProperty = async (id, payload) => {
     "totalUnits",
     "availableUnits",
     "possessionDate",
+    "launchDate",
     "reraNumber",
     "redirectUrl",
     "banksApproved",

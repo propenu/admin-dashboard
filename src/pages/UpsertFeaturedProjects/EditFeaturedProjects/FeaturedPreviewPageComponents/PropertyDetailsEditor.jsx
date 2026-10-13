@@ -550,6 +550,8 @@ export default function PropertyDetailsEditor({
     const payload = {
       ...local,
       redirectUrl: normalizedWebsite || "",
+      launchDate: String(local.launchDate ?? "").trim(),
+      possessionDate: String(local.possessionDate ?? "").trim(),
       ...(formData.brochure && { brochure: formData.brochure }),
     };
 
@@ -954,8 +956,8 @@ export default function PropertyDetailsEditor({
             </FieldGroup>
             <FieldGroup label="Launch Date">
               <input
-                type="date"
                 className={inputCls}
+                placeholder="e.g. Dec 2026"
                 value={local.launchDate ?? ""}
                 onChange={(e) => change("launchDate", e.target.value)}
               />
