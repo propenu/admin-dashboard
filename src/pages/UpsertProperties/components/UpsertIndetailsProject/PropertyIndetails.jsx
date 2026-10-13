@@ -60,7 +60,7 @@ import {
   X,
 } from "lucide-react";
 import { propertiesAnalytics } from "../../../../features/property/propertyService";
-import { getPropertyById } from "../../../../features/property/propertyService";
+import { getPropertyById, getDeletedPropertyListing } from "../../../../features/property/propertyService";
 import LoadingSpinner from "../../../../components/common/LoadingSpinner";
 import Fallback from "../../../../assets/fallback.svg";
 import LocationAddressBlock from "../../../features/property/components/shared/LocationAddressBlock";
@@ -437,15 +437,28 @@ function BoolBadge({ label, value }) {
   );
 }
 
-function StatusBadge({ status }) {
-  const isActive = status === "active";
+function StatusBadge({ status, permanentlyDeleted }) {
+  const isActive = status === "active" && !permanentlyDeleted;
+  const label = permanentlyDeleted
+    ? "Deleted"
+    : status === "deactivated"
+      ? "Deactivated"
+      : isActive
+        ? "Active"
+        : "Inactive";
   return (
     <span
       className={`text-[11px] font-bold px-2.5 py-1 rounded-full shadow ${
-        isActive ? "bg-[#27AE60] text-white" : "bg-red-500 text-white"
+        permanentlyDeleted
+          ? "bg-red-600 text-white"
+          : status === "deactivated"
+            ? "bg-amber-600 text-white"
+            : isActive
+              ? "bg-[#27AE60] text-white"
+              : "bg-red-500 text-white"
       }`}
     >
-      {isActive ? "Active" : "Inactive"}
+      {label}
     </span>
   );
 }
@@ -562,6 +575,20 @@ const AUDIT_CARD_STYLES = {
     headerBg: "bg-emerald-50",
     headerText: "text-emerald-700",
     iconBg: "bg-emerald-50",
+  },
+  deactivated: {
+    label: "Deactivated By",
+    icon: Clock,
+    headerBg: "bg-amber-50",
+    headerText: "text-amber-700",
+    iconBg: "bg-amber-50",
+  },
+  deleted: {
+    label: "Deleted By",
+    icon: XCircle,
+    headerBg: "bg-red-50",
+    headerText: "text-red-700",
+    iconBg: "bg-red-50",
   },
 };
 
@@ -754,14 +781,75 @@ function LastUpdatedByCard({ person, postedBy, updateCount }) {
   );
 }
 
-function ApprovedByCard({ person, when }) {
+function ApprovedByCard({ person, when, deactivatedPerson, deactivatedAt, deletedPerson, deletedAt }) {
+  const showDeactivated = Boolean(deactivatedPerson);
+  const showDeleted = Boolean(deletedPerson);
+  if (!showDeactivated && !showDeleted) {
+    return (
+      <AuditPersonCard
+        type="approved"
+        person={person}
+        when={when}
+        extra="Went live"
+      />
+    );
+  }
+
+  const approvedStyle = AUDIT_CARD_STYLES.approved;
+  const deactivatedStyle = AUDIT_CARD_STYLES.deactivated;
+  const deletedStyle = AUDIT_CARD_STYLES.deleted;
+  const HeaderIcon = approvedStyle.icon || ShieldCheck;
+
   return (
-    <AuditPersonCard
-      type="approved"
-      person={person}
-      when={when}
-      extra="Went live"
-    />
+    <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden min-w-0 h-full">
+      <div
+        className={`flex items-center gap-1.5 px-3 py-1.5 border-b border-slate-100 ${approvedStyle.headerBg}`}
+      >
+        <HeaderIcon className={`w-3 h-3 shrink-0 ${approvedStyle.headerText}`} />
+        <span
+          className={`text-[9px] font-bold uppercase tracking-widest ${approvedStyle.headerText}`}
+        >
+          {approvedStyle.label}
+        </span>
+      </div>
+      <div className="px-3 py-2.5 flex flex-col gap-3 min-w-0">
+        <AuditPersonBlock
+          person={person}
+          when={when}
+          extra="Went live"
+          sectionLabel="Approved By"
+          sectionLabelClass="text-emerald-700"
+          iconBg={approvedStyle.iconBg}
+          headerText={approvedStyle.headerText}
+        />
+        {showDeactivated ? (
+          <>
+            <div className="border-t border-dashed border-slate-200" />
+            <AuditPersonBlock
+              person={deactivatedPerson}
+              when={deactivatedAt}
+              sectionLabel="Deactivated By"
+              sectionLabelClass="text-amber-700"
+              iconBg={deactivatedStyle.iconBg}
+              headerText={deactivatedStyle.headerText}
+            />
+          </>
+        ) : null}
+        {showDeleted ? (
+          <>
+            <div className="border-t border-dashed border-slate-200" />
+            <AuditPersonBlock
+              person={deletedPerson}
+              when={deletedAt}
+              sectionLabel="Deleted By"
+              sectionLabelClass="text-red-700"
+              iconBg={deletedStyle.iconBg}
+              headerText={deletedStyle.headerText}
+            />
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -1986,8 +2074,8 @@ export default function IndetailsProperty({
 
   const {
     data: propertyResponse,
-    isLoading,
-    isError,
+    isLoading: liveLoading,
+    isError: liveError,
     error: analyticsError,
   } = useQuery({
     queryKey: ["property", category, id],
@@ -1997,6 +2085,22 @@ export default function IndetailsProperty({
     },
     enabled: !!category && !!id,
     staleTime: 30_000,
+    retry: false,
+  });
+
+  const {
+    data: deletedResponse,
+    isLoading: deletedLoading,
+    isError: deletedError,
+  } = useQuery({
+    queryKey: ["deleted-property-listing", category, id],
+    queryFn: async () => {
+      const res = await getDeletedPropertyListing(category, id);
+      return res.data;
+    },
+    enabled: !!category && !!id && liveError && !propertyResponse?.data,
+    staleTime: 0,
+    retry: false,
   });
 
   const { data: meResponse, isLoading: meLoading } = useQuery({
@@ -2007,11 +2111,14 @@ export default function IndetailsProperty({
   const currentUser =
     meResponse?.data?.user || meResponse?.data || meResponse?.user || null;
 
-  const property = propertyResponse?.data;
+  const property = propertyResponse?.data || deletedResponse?.property;
+  const isLoading = liveLoading || (liveError && deletedLoading && !property);
+  const isError = liveError && deletedError && !property;
   const analyticsData = propertyResponse?.data?.analytics;
   // Wait for current user before deciding Approve UI — avoids top banner popping in and shifting layout
   const showApproveActions = Boolean(
     property &&
+      !property.permanentlyDeleted &&
       !meLoading &&
       isPropertyAwaitingApproval(property) &&
       canApproveProperty(currentUser, property),
@@ -2078,6 +2185,28 @@ export default function IndetailsProperty({
     land: "Land",
     agricultural: "Agricultural",
   };
+
+  const actorPerson = (actor) => {
+    if (!actor || typeof actor !== "object") return null;
+    const user = actor.userId && typeof actor.userId === "object" ? actor.userId : null;
+    const person = {
+      name: actor.name || user?.name || "",
+      email: actor.email || user?.email || "",
+      phone: user?.phone || actor.phone || "",
+      roleName: actor.roleName || user?.roleName || "",
+      _id: user?._id || actor.userId || actor._id,
+    };
+    if (!person.name && !person.email && !person._id) return null;
+    return person;
+  };
+  const deactivatedPerson =
+    property.permanentlyDeleted || property.status === "deactivated"
+      ? actorPerson(property.deactivationActor) ||
+        normalizeAuditPerson(property.deactivatedBy, property.deactivatedAt)
+      : null;
+  const deletedPerson = property.permanentlyDeleted
+    ? actorPerson(property.permanentlyDeletedBy)
+    : null;
 
   return (
     <div ref={pageTopRef} className="space-y-5 pb-12 scroll-mt-20">
@@ -2146,7 +2275,10 @@ export default function IndetailsProperty({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
               <div className="absolute top-3 left-3 flex gap-2 flex-wrap pointer-events-none">
-                <StatusBadge status={property.status} />
+                <StatusBadge
+                  status={property.status}
+                  permanentlyDeleted={property.permanentlyDeleted}
+                />
                 <CategoryBadge category={category} />
               </div>
               {/* Completion bar */}
@@ -2511,7 +2643,7 @@ export default function IndetailsProperty({
       </SectionCard>
 
       {/* ── Owner/Agent details | Last Updated (+ Posted By) | Approved By ── */}
-      {(createdBy || postedBy || lastUpdatedBy || approvedByPerson) && (
+      {(createdBy || postedBy || lastUpdatedBy || approvedByPerson || deactivatedPerson || deletedPerson) && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-stretch">
           <CreatedByCard person={createdBy} property={property} />
           <LastUpdatedByCard
@@ -2519,7 +2651,14 @@ export default function IndetailsProperty({
             postedBy={postedBy}
             updateCount={updateCount}
           />
-          <ApprovedByCard person={approvedByPerson} when={approvedAtValue} />
+          <ApprovedByCard
+            person={approvedByPerson}
+            when={approvedAtValue}
+            deactivatedPerson={deactivatedPerson}
+            deactivatedAt={property.deactivatedAt}
+            deletedPerson={deletedPerson}
+            deletedAt={property.permanentlyDeletedAt}
+          />
         </div>
       )}
 

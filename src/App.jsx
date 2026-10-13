@@ -49,6 +49,12 @@ const SponsoredProjectsPage = lazy(() => import("./pages/features/property/pages
 const ProjectsDashboardPage = lazy(() =>
   import("./pages/features/property/components/shared/ProjectsDashboardPage")
 );
+const DeletedProjectsPage = lazy(() =>
+  import("./pages/features/property/components/shared/DeletedProjectsPage")
+);
+const DeletedPropertiesPage = lazy(() =>
+  import("./pages/Properties/DeletedPropertiesPage")
+);
 
 const PropertiesDashboard = lazy(() =>
   import("./pages/Properties/PropertiesDashboard")
@@ -391,7 +397,9 @@ function App() {
                 <Route path="/sponsored" element={<SponsoredProjectsPage />} />
                 <Route path="/normal" element={<NormalProjectsPage />} />
 
+                <Route path="/projects/deleted" element={<DeletedProjectsPage />} />
                 <Route path="/projects" element={<PermissionRoute permission="project:view"><ProjectsDashboardPage /></PermissionRoute>} />
+                <Route path="/properties/deleted" element={<DeletedPropertiesPage />} />
                 <Route path="/properties" element={<PermissionRoute anyPermissions={["residential:view", "commercial:view", "land:view", "agricultural:view"]}><PropertiesDashboard /></PermissionRoute>} />
 
                 {/* Featured Property */}

@@ -1,6 +1,7 @@
 // D:\propenu\frontend\admin-dashboard\src\pages\post-property\FeaturedPoperty\FeaturedPreviewPage.jsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import {
@@ -30,6 +31,10 @@ import LoadingSpinner from "../../../components/common/LoadingSpinner";
 import PropertyDetailsEditor from "./FeaturedPreviewPageComponents/PropertyDetailsEditor";
 import PropertyDetailsSection from "./FeaturedPreviewPageComponents/PropertyDetailsSection";
 import BuilderAttachPanel from "../../features/property/components/shared/BuilderAttachPanel";
+import ConfirmModal from "../../features/property/components/shared/ConfirmModal";
+import { returnActiveProjectToDraft } from "../../../features/property/propertyService";
+import { useCurrentUser } from "../../../store/properties/useCurrentUser";
+import { canDirectCreateBuilder } from "../../../utils/projectAccessControl";
 import { ArrowLeft, Video } from "lucide-react";
 
 /** Website + admin payloads can differ; normalize so every edit section has safe shapes. */
@@ -255,10 +260,29 @@ function SectionWrapper({
 /* ─────────────────────────────────────────────
    Main Page
 ───────────────────────────────────────────── */
+function formatMovedAt(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function FeaturedPreviewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const { data: userPayload } = useCurrentUser();
+  const currentUser = userPayload?.user || userPayload;
+  const canMoveActiveToDraft = canDirectCreateBuilder(currentUser);
+  const [draftConfirmOpen, setDraftConfirmOpen] = useState(false);
+  const [draftMoveLoading, setDraftMoveLoading] = useState(false);
   const [formData, setFormData]               = useState(null);
   const [livePreviewData, setLivePreviewData] = useState(null);
   const [saving, setSaving]                   = useState(false);
@@ -396,8 +420,49 @@ export default function FeaturedPreviewPage() {
     navigate("/projects");
   };
 
+  const moveActiveProjectToDraft = async () => {
+    if (!id || draftMoveLoading) return;
+    try {
+      setDraftMoveLoading(true);
+      await returnActiveProjectToDraft(id);
+      toast.success("Project is draft. Builder removed. Send the email invite.");
+      setDraftConfirmOpen(false);
+      await reloadProject();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["getFeaturedProjectById", id] }),
+        queryClient.invalidateQueries({ queryKey: ["builderOnboarding", id] }),
+      ]);
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.error ||
+          error?.message ||
+          "Could not move this project to draft",
+      );
+    } finally {
+      setDraftMoveLoading(false);
+    }
+  };
+
+  const builderKey = formData?.createdBy?._id || formData?.createdBy || "none";
+  const showMoveToDraft =
+    formData?.status === "active" && canMoveActiveToDraft;
+  const movedByName = formData?.returnedToDraftBy?.name;
+
   return (
     <div className="min-h-screen bg-gray-50/60">
+      <ConfirmModal
+        open={draftConfirmOpen}
+        title="Move to draft"
+        message="This keeps the project details and removes the builder. Status becomes Draft, so you can send a new builder email invite."
+        confirmLabel={draftMoveLoading ? "Moving..." : "Move to draft"}
+        confirmClass="bg-amber-600 hover:bg-amber-700 text-white"
+        iconClass="text-amber-700"
+        onConfirm={moveActiveProjectToDraft}
+        onCancel={() => {
+          if (!draftMoveLoading) setDraftConfirmOpen(false);
+        }}
+        isLoading={draftMoveLoading}
+      />
       {/* Small page back — same style as other detail pages */}
       <div className="mx-3 mb-2 sm:mx-6">
         <button
@@ -525,8 +590,34 @@ export default function FeaturedPreviewPage() {
 
       {/* ── PAGE CONTENT ── */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-5 sm:py-8 space-y-10 sm:space-y-12">
+        {showMoveToDraft ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm font-semibold text-amber-900">
+              This project is active. Move it to draft to remove the builder and send a new email invite. Project details stay.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDraftConfirmOpen(true)}
+              className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-bold text-amber-800 transition hover:bg-amber-100"
+            >
+              Move to draft
+            </button>
+          </div>
+        ) : null}
+
+        {formData?.status === "draft" && movedByName ? (
+          <p className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+            Moved to draft by {movedByName}
+            {formData.returnedToDraftAt
+              ? ` on ${formatMovedAt(formData.returnedToDraftAt)}`
+              : ""}
+            . Project details are unchanged. Send the builder email invite below.
+          </p>
+        ) : null}
+
         {id ? (
           <BuilderAttachPanel
+            key={`${id}-${formData?.status || "unknown"}-${builderKey}`}
             projectId={id}
             currentBuilder={formData?.createdBy}
             onAttached={reloadProject}

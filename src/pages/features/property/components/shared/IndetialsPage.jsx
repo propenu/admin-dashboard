@@ -50,6 +50,7 @@ import {
   projectAnalytics,
   projectExternalFileAddLeads,
   getBuilderOnboardingState,
+  getDeletedProject,
   getFeaturedProjectById,
   expireProject,
 } from "../../../../../features/property/propertyService";
@@ -69,7 +70,6 @@ import {
   titlePromotionType,
 } from "./promotionTracking";
 import CancelPromotionDialog from "./CancelPromotionDialog";
-import BuilderAttachPanel from "./BuilderAttachPanel";
 import LocationAddressBlock from "./LocationAddressBlock";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -106,17 +106,6 @@ const formatDate = (iso) =>
         day: "2-digit",
         month: "short",
         year: "numeric",
-      })
-    : "—";
-
-const formatDateTime = (iso) =>
-  iso
-    ? new Date(iso).toLocaleString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
       })
     : "—";
 
@@ -545,7 +534,7 @@ const APPROVAL_STEP_STYLES = {
   },
 };
 
-function ApprovalHierarchyBar({ hierarchy }) {
+function ApprovalHierarchyBar({ hierarchy, deactivation, deletedPerson }) {
   if (!hierarchy?.applies || !Array.isArray(hierarchy.steps)) return null;
 
   const statusLabel =
@@ -609,12 +598,55 @@ function ApprovalHierarchyBar({ hierarchy }) {
                   {who ? roleHint : step.note}
                 </p>
               </div>
-              {index < hierarchy.steps.length - 1 ? (
+              {index < hierarchy.steps.length - 1 || deactivation || deletedPerson ? (
                 <div className="hidden items-center text-slate-300 sm:flex">→</div>
               ) : null}
             </div>
           );
         })}
+        {deactivation ? (
+          <div className="flex min-w-0 flex-1 items-stretch gap-1.5">
+            <div className="min-w-0 flex-1 rounded-md border border-amber-100 bg-amber-50 px-2 py-1.5">
+              <div className="mb-1 flex items-center justify-between gap-1">
+                <p className="truncate text-[9px] font-bold text-amber-700">Deactivated</p>
+                <span className="shrink-0 rounded bg-amber-500 px-1 py-0.5 text-[8px] font-bold text-white">
+                  Deactivated
+                </span>
+              </div>
+              <p className="truncate text-[11px] font-semibold text-slate-800">
+                {deactivation.name || "Unknown"}
+              </p>
+              <p className="truncate text-[8px] text-slate-500">
+                {deactivation.roleName ? formatRoleName(deactivation.roleName) : "Deactivated this project"}
+                {deactivation.at
+                  ? ` · ${formatDate(deactivation.at)} · ${formatTime(deactivation.at)}`
+                  : ""}
+              </p>
+            </div>
+            {deletedPerson ? (
+              <div className="hidden items-center text-slate-300 sm:flex">→</div>
+            ) : null}
+          </div>
+        ) : null}
+        {deletedPerson ? (
+          <div className="min-w-0 flex-1 rounded-md border border-red-100 bg-red-50 px-2 py-1.5">
+            <div className="mb-1 flex items-center justify-between gap-1">
+              <p className="truncate text-[9px] font-bold text-red-700">Deleted</p>
+              <span className="shrink-0 rounded bg-red-600 px-1 py-0.5 text-[8px] font-bold text-white">
+                Deleted
+              </span>
+            </div>
+            <p className="truncate text-[11px] font-semibold text-slate-800">
+              {deletedPerson.name || "Unknown"}
+            </p>
+            <p className="truncate text-[8px] text-slate-500">
+              {deletedPerson.roleName ? formatRoleName(deletedPerson.roleName) : "Deleted this project"}
+              {deletedPerson.at
+                ? ` · ${formatDate(deletedPerson.at)} · ${formatTime(deletedPerson.at)}`
+                : ""}
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -1182,6 +1214,15 @@ function PersonCard({
       dotBg: "bg-emerald-50",
       dotText: "text-emerald-600",
     },
+    deactivated: {
+      label: "Deactivated By",
+      icon: Trash2,
+      headerBg: "bg-red-50",
+      headerText: "text-red-700",
+      badgeCls: "bg-red-50 text-red-700 border-red-100",
+      dotBg: "bg-red-50",
+      dotText: "text-red-600",
+    },
   };
 
   const c = config[type];
@@ -1194,19 +1235,24 @@ function PersonCard({
   const name = empty
     ? type === "approved"
       ? "Not approved"
-      : "—"
+      : type === "deactivated"
+        ? "Not recorded"
+        : "—"
     : person?.name || "—";
   const email = empty
     ? type === "approved"
       ? "No approver yet"
-      : "—"
+      : type === "deactivated"
+        ? "Deactivation person was not saved"
+        : "—"
     : person?.email || "—";
   const phone = empty ? null : person?.phone;
   const showPhoneField =
     type === "created" ||
     type === "posted" ||
     type === "approved" ||
-    type === "updated";
+    type === "updated" ||
+    type === "deactivated";
   const idTail = empty
     ? ""
     : (person?._id || person?.userId || "")?.toString?.()?.slice(-4);
@@ -1345,6 +1391,17 @@ function PersonCard({
             </p>
             <p className="text-[10px] font-semibold text-slate-700 truncate">
               {phone || "—"}
+            </p>
+          </div>
+        ) : null}
+
+        {type === "deactivated" ? (
+          <div className="bg-red-50 rounded-md px-2 py-1 border border-red-100 min-w-0">
+            <p className="text-[8px] text-red-600 font-semibold uppercase tracking-wider">
+              How
+            </p>
+            <p className="text-[10px] font-semibold text-slate-700">
+              Deactivated — project set inactive
             </p>
           </div>
         ) : null}
@@ -1495,6 +1552,16 @@ function UpdateHistoryTimeline({ history, updateCount }) {
                     <p className="text-[9px] text-slate-400 mt-0.5 capitalize">
                       {formatRoleName(h.roleName)}
                     </p>
+                    {h.action === "deleted" || h.action === "deactivated" ? (
+                      <p className="text-[8px] font-bold text-red-600 mt-0.5">
+                        Deactivated
+                      </p>
+                    ) : null}
+                    {h.action === "returned_to_draft" ? (
+                      <p className="text-[8px] font-bold text-amber-700 mt-0.5">
+                        Moved to draft
+                      </p>
+                    ) : null}
                     <p className="text-[9px] text-slate-400 mt-1 font-mono">
                       {formatDate(h.updatedAt)}
                     </p>
@@ -2040,9 +2107,20 @@ export default function FeaturedPropertyDetails() {
     queryKey: ["getFeaturedProjectById", id],
     queryFn: () => getFeaturedProjectById(id),
     enabled: !!id,
+    retry: false,
   });
 
-  const property = listData?.data?.data || null;
+  const liveProperty = listData?.data?.data || null;
+  const { data: archivedData, isLoading: archiveLoading } = useQuery({
+    queryKey: ["deleted-project-details", id],
+    queryFn: () => getDeletedProject(id),
+    enabled: !!id && !listLoading && !liveProperty,
+    retry: false,
+  });
+
+  const property =
+    liveProperty || archivedData?.data?.project || null;
+  const permanentlyDeleted = Boolean(property?.permanentlyDeleted);
 
   const {
     data: analyticsData,
@@ -2057,7 +2135,6 @@ export default function FeaturedPropertyDetails() {
   const {
     data: onboardingRes,
     isLoading: onboardingLoading,
-    refetch: refetchOnboarding,
   } = useQuery({
     queryKey: ["builderOnboarding", id],
     queryFn: () => getBuilderOnboardingState(id),
@@ -2107,7 +2184,7 @@ export default function FeaturedPropertyDetails() {
       .filter((user) => user.name && user.roleName);
   })();
 
-  if (listLoading || analyticsLoading) {
+  if (listLoading || archiveLoading || analyticsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <LoadingSpinner size="lg" />
@@ -2151,7 +2228,15 @@ export default function FeaturedPropertyDetails() {
     typeof property.priceFrom === "number" ? formatPrice(property.priceFrom) : "N/A";
   const priceTo =
     typeof property.priceTo === "number" ? formatPrice(property.priceTo) : "N/A";
-  const status = property.status === "active" ? "Active" : "Inactive";
+  const status = permanentlyDeleted
+    ? "Deleted"
+    : property.status === "active"
+      ? "Active"
+      : property.status === "draft"
+        ? "Draft"
+        : property.status === "inactive"
+          ? "Deactivated"
+          : "Inactive";
   const promotionType = property.promotion?.type || "normal";
   const updateHistory = Array.isArray(property.updateHistory)
     ? property.updateHistory
@@ -2237,6 +2322,31 @@ export default function FeaturedPropertyDetails() {
     property.approvedBy?.user || property.approvedBy,
     property.approvedBy?.roleName,
   );
+
+  const deletedBy = flattenAuditPerson(
+    property.deletedBy?.user || property.deletedBy,
+    property.deletedBy?.roleName,
+  );
+  const permanentlyDeletedBy = flattenAuditPerson(
+    property.permanentlyDeletedBy?.user || property.permanentlyDeletedBy,
+    property.permanentlyDeletedBy?.roleName,
+  );
+  const isDeactivated =
+    permanentlyDeleted || String(property.status || "").toLowerCase() === "inactive";
+  const deactivation = isDeactivated
+    ? {
+        name: deletedBy?.name || "",
+        roleName: deletedBy?.roleName || "",
+        at: property.deletedAt || null,
+      }
+    : null;
+  const deletedPerson = permanentlyDeleted
+    ? {
+        name: permanentlyDeletedBy?.name || deletedBy?.name || "",
+        roleName: permanentlyDeletedBy?.roleName || deletedBy?.roleName || "",
+        at: property.permanentlyDeletedAt || property.deletedAt || null,
+      }
+    : null;
 
   const approvalHierarchy = buildProjectApprovalHierarchy({
     postedBy,
@@ -2346,7 +2456,9 @@ export default function FeaturedPropertyDetails() {
                   className={`text-[11px] font-bold px-2.5 py-1 rounded-full shadow ${
                     status === "Active"
                       ? "bg-[#27AE60] text-white"
-                      : "bg-red-500 text-white"
+                      : status === "Draft"
+                        ? "bg-amber-500 text-white"
+                        : "bg-red-500 text-white"
                   }`}
                 >
                   {status}
@@ -2503,6 +2615,7 @@ export default function FeaturedPropertyDetails() {
                 </div>
               )}
             <div className="flex gap-3 mt-auto pt-1">
+              {permanentlyDeleted ? null : (
               <button
                 onClick={() =>
                   navigate(`/post-property/${property._id}`, {
@@ -2513,6 +2626,7 @@ export default function FeaturedPropertyDetails() {
               >
                 Edit Project
               </button>
+              )}
               {property.brochure?.url && (
                 <a
                   href={property.brochure.url}
@@ -2529,23 +2643,6 @@ export default function FeaturedPropertyDetails() {
         </div>
       </SectionCard>
 
-      {/* Add / change builder (Created By) */}
-      {id ? (
-        <BuilderAttachPanel
-          projectId={id}
-          currentBuilder={property?.createdBy}
-          onAttached={() => {
-            queryClient.invalidateQueries({
-              queryKey: ["getFeaturedProjectById", id],
-            });
-            queryClient.invalidateQueries({
-              queryKey: ["builderOnboarding", id],
-            });
-            refetchOnboarding();
-          }}
-        />
-      ) : null}
-
       {/* Builder invite email: Sent / Opened / Clicked tracking */}
       <BuilderInviteTrackingCard
         onboardingData={onboardingData}
@@ -2553,7 +2650,11 @@ export default function FeaturedPropertyDetails() {
       />
 
       {/* ── PEOPLE ROW: Builder details | Last Updated By (+ Posted By) | Approved By ── */}
-      <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-2.5 items-stretch">
+      <div
+        className={`w-full grid grid-cols-1 gap-2.5 items-stretch ${
+          isDeactivated ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3"
+        }`}
+      >
         {createdBy && hasBuilderAttached ? (
           <PersonCard
             type="created"
@@ -2597,9 +2698,21 @@ export default function FeaturedPropertyDetails() {
           }
           role={approvedBy?.roleName || null}
         />
+        {isDeactivated ? (
+          <PersonCard
+            type="deactivated"
+            person={deletedBy}
+            timestamp={property.deletedAt || null}
+            role={deletedBy?.roleName || null}
+          />
+        ) : null}
       </div>
 
-      <ApprovalHierarchyBar hierarchy={approvalHierarchy} />
+      <ApprovalHierarchyBar
+        hierarchy={approvalHierarchy}
+        deactivation={deactivation}
+        deletedPerson={deletedPerson}
+      />
 
       <GalleryLightbox
         open={galleryOpen}

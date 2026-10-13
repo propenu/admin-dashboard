@@ -71,10 +71,14 @@ import {
   getAllPropertiesAnalytics,
   propertiesAnalytics,
 } from "../../features/property/propertyService";
-import { deleteResidential } from "../../services/ResidentialServices/ResidentialServices";
-import { deleteCommercial } from "../../services/CommercialServices/CommercialServices";
-import { deleteAgricultural } from "../../services/AgricuturalServices/AgricuturalServices";
-import { deleteLand } from "../../services/LandServices/LandServices";
+import {
+  deactivateListing,
+  permanentlyDeleteListing,
+} from "../../features/property/propertyService";
+import {
+  canPermanentlyDeleteProject,
+  normalizeProjectRole,
+} from "../../utils/projectAccessControl";
 import {
   getCreatedByDisplayName,
   getCreatedByRoleLabel,
@@ -114,6 +118,7 @@ const STATUSES = [
   { value: "pending", label: "Pending" },
   { value: "draft", label: "Draft" },
   { value: "rejected", label: "Rejected" },
+  { value: "deactivated", label: "Deactivated" },
 ];
 
 const PROMOTION_TYPE_FILTERS = [
@@ -149,13 +154,6 @@ const normalizeStatusParam = (value = "") => {
 };
 
 const PAGE_SIZE = 12;
-
-const DELETE_PROPERTY = {
-  residential: deleteResidential,
-  commercial: deleteCommercial,
-  agricultural: deleteAgricultural,
-  land: deleteLand,
-};
 
 const VERIFICATION_ROUTES = {
   residential: (id) => `/residential-property-verification/${id}`,
@@ -398,6 +396,7 @@ const STATUS_BADGE = {
   rejected: "bg-[#e11d48] text-white",
   pending: "bg-[#f59e0b] text-white",
   draft: "bg-[#f59e0b] text-white",
+  deactivated: "bg-amber-700 text-white",
 };
 
 const formatPostedAt = (value) => {
@@ -425,6 +424,8 @@ const PropertyGridCard = memo(function PropertyGridCard({
   onEdit,
   onReview,
   onDelete,
+  onPermanentDelete,
+  canPermanentDelete,
   onPromote,
   onRenew,
   onExpire,
@@ -441,6 +442,9 @@ const PropertyGridCard = memo(function PropertyGridCard({
       onEdit={() => onEdit(property)}
       onReview={() => onReview(property)}
       onDelete={() => onDelete(property)}
+      onPermanentDelete={
+        canPermanentDelete ? () => onPermanentDelete(property) : undefined
+      }
       onPromote={onPromote}
       onRenew={onRenew}
       onExpire={onExpire}
@@ -457,6 +461,7 @@ function PropertyCard({
   onEdit,
   onReview,
   onDelete,
+  onPermanentDelete,
   onPromote,
   onRenew,
   onExpire,
@@ -572,7 +577,7 @@ function PropertyCard({
               STATUS_BADGE[status] || "bg-[#f59e0b] text-white"
             }`}
           >
-            {status}
+            {status === "deactivated" ? "Deactivated" : status}
           </span>
         </div>
         <div className="absolute inset-x-2 bottom-2 z-[3] flex items-center justify-between gap-1">
@@ -749,17 +754,37 @@ function PropertyCard({
               Edit
             </button>
           )}
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDelete();
-            }}
-            className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-rose-200 bg-rose-50 px-2.5 py-2 text-[10px] font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 sm:ml-auto sm:py-1"
-          >
-            <Trash2 className="h-3 w-3" />
-            Delete
-          </button>
+          {status === "deactivated" ? (
+            onPermanentDelete ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPermanentDelete();
+                }}
+                className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-rose-200 bg-rose-50 px-2.5 py-2 text-[10px] font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 sm:ml-auto sm:py-1"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete forever
+              </button>
+            ) : null
+          ) : (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete();
+              }}
+              className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-medium text-amber-800 transition hover:border-amber-300 hover:bg-amber-100 sm:ml-auto sm:py-1"
+            >
+              Deactivate
+            </button>
+          )}
+          {status === "deactivated" && property?.deactivationActor?.name ? (
+            <p className="basis-full text-[10px] font-medium text-amber-800">
+              Deactivated by {property.deactivationActor.name}
+            </p>
+          ) : null}
           {canPromoteListing ? (
             <>
               <button
@@ -1008,6 +1033,8 @@ export default function PropertiesDashboard() {
   });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState(null);
+  const [permanentDeleteLoading, setPermanentDeleteLoading] = useState(false);
 
   const isTodayRange =
     Boolean(createdFrom) &&
@@ -1407,6 +1434,9 @@ export default function PropertiesDashboard() {
   }, [queryClient]);
 
   const currentUser = userData?.user || userData || null;
+  const canPermanentDelete = canPermanentlyDeleteProject(currentUser);
+  const isSuperAdmin =
+    normalizeProjectRole(currentUser?.roleName || currentUser?.role) === "super_admin";
 
   const canReviewProperty = (property) => {
     if (!canReviewPropertyListing(currentUser, property)) return false;
@@ -1429,25 +1459,55 @@ export default function PropertiesDashboard() {
 
   const deleteProperty = async () => {
     if (!deleteTarget?._id || deleteLoading) return;
-
-    const deleteRequest = DELETE_PROPERTY[deleteTarget._category];
-    if (!deleteRequest) {
+    if (!deleteTarget._category) {
       toast.error("Property category is not supported");
       return;
     }
 
     try {
       setDeleteLoading(true);
-      await deleteRequest(deleteTarget._id);
-      toast.success("Property deleted successfully");
+      await deactivateListing(deleteTarget._category, deleteTarget._id);
+      toast.success("Property deactivated");
       setDeleteTarget(null);
       await invalidatePropertyLists();
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "Failed to delete property",
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          "Failed to deactivate property",
       );
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const permanentlyDeleteProperty = async () => {
+    if (!permanentDeleteTarget?._id || permanentDeleteLoading || !canPermanentDelete) return;
+    if (!permanentDeleteTarget._category) {
+      toast.error("Property category is not supported");
+      return;
+    }
+
+    try {
+      setPermanentDeleteLoading(true);
+      await permanentlyDeleteListing(
+        permanentDeleteTarget._category,
+        permanentDeleteTarget._id,
+      );
+      toast.success("Property deleted permanently");
+      setPermanentDeleteTarget(null);
+      await Promise.all([
+        invalidatePropertyLists(),
+        queryClient.invalidateQueries({ queryKey: ["deleted-properties"] }),
+      ]);
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          "Failed to delete property",
+      );
+    } finally {
+      setPermanentDeleteLoading(false);
     }
   };
 
@@ -1455,9 +1515,9 @@ export default function PropertiesDashboard() {
     <main className="min-h-full w-full min-w-0 max-w-full overflow-x-hidden bg-[#f7fbf8] p-2 text-[#0f3d2e] sm:p-4">
       <ConfirmModal
         open={!!deleteTarget}
-        title="Delete Property"
-        message={`Delete "${deleteTarget?.title || "this property"}"? This action cannot be undone.`}
-        confirmLabel={deleteLoading ? "Deleting..." : "Delete"}
+        title="Deactivate Property"
+        message="This will deactivate the property. You can find it under Status → Deactivated, with who deactivated it and when."
+        confirmLabel={deleteLoading ? "Deactivating..." : "Deactivate"}
         confirmClass="bg-red-600 hover:bg-red-700 text-white"
         icon={<Trash2 className="h-5 w-5" />}
         iconClass="text-red-600"
@@ -1466,6 +1526,20 @@ export default function PropertiesDashboard() {
           if (!deleteLoading) setDeleteTarget(null);
         }}
         isLoading={deleteLoading}
+      />
+      <ConfirmModal
+        open={!!permanentDeleteTarget}
+        title="Delete Property Forever"
+        message="This removes the property from the live list and saves a full copy on Deleted properties. Only use this after it is already Deactivated."
+        confirmLabel={permanentDeleteLoading ? "Deleting forever..." : "Delete forever"}
+        confirmClass="bg-red-600 hover:bg-red-700 text-white"
+        icon={<Trash2 className="h-5 w-5" />}
+        iconClass="text-red-600"
+        onConfirm={permanentlyDeleteProperty}
+        onCancel={() => {
+          if (!permanentDeleteLoading) setPermanentDeleteTarget(null);
+        }}
+        isLoading={permanentDeleteLoading}
       />
       <PropertyPromoteModal
         open={!!promoteTarget}
@@ -2243,6 +2317,7 @@ export default function PropertiesDashboard() {
                   </label>
                 </div>
               </div>
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
               <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <button
                   type="button"
@@ -2267,6 +2342,16 @@ export default function PropertiesDashboard() {
                 >
                   Clear dates
                 </button>
+              </div>
+              {isSuperAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => navigate("/properties/deleted")}
+                  className="text-[11px] font-semibold text-red-700 underline-offset-2 hover:underline"
+                >
+                  Deleted properties
+                </button>
+              ) : null}
               </div>
             </div>
             <p className="mt-2 min-h-[18px] text-xs text-[#5c7d6d]">
@@ -2365,6 +2450,8 @@ export default function PropertiesDashboard() {
                   onEdit={editProperty}
                   onReview={reviewProperty}
                   onDelete={setDeleteTarget}
+                  onPermanentDelete={setPermanentDeleteTarget}
+                  canPermanentDelete={canPermanentDelete}
                   onPromote={openPromote}
                   onRenew={handleRenewPromotion}
                   onExpire={handleExpirePromotion}

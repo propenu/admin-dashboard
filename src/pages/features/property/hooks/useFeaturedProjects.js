@@ -215,6 +215,7 @@ export function useFeaturedProjects(type, options = {}) {
       queryClient.invalidateQueries({ queryKey: ["pending-projects"] }),
       queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] }),
       queryClient.invalidateQueries({ queryKey: ["project-analytics"] }),
+      queryClient.invalidateQueries({ queryKey: ["deleted-projects"] }),
     ]);
 
   const sortedProperties = [...properties].sort((a, b) => {

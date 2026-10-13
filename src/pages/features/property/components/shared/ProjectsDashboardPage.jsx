@@ -4,7 +4,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Search, X, ChevronDown, ChevronRight, MapPin, Building2, Plus, Clock,
@@ -152,7 +152,7 @@ const STATUS_FILTERS = [
   { value: "draft", label: "Draft" },
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
-  { value: "deleted", label: "Deleted" },
+  { value: "deleted", label: "Deactivated" },
 ];
 
 const normalizeProjectStatusParam = (value = "") => {
@@ -1750,6 +1750,7 @@ function AnalyticsDashboard({
 
 export default function ProjectsDashboardPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // ── User / Role ──────────────────────────────────────────────────────────
@@ -3083,6 +3084,7 @@ export default function ProjectsDashboardPage() {
       await deleteFeaturedProject(id);
       toast.success("Project deactivated successfully");
       setDeleteTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ["deleted-projects"] });
       await refreshAllProjects();
     } catch (error) {
       toast.error(
@@ -3093,7 +3095,7 @@ export default function ProjectsDashboardPage() {
     } finally {
       setDeleteLoading(false);
     }
-  }, [deleteLoading, refreshAllProjects]);
+  }, [deleteLoading, queryClient, refreshAllProjects]);
 
   const handlePermanentDelete = useCallback(async (id) => {
     if (!id || permanentDeleteLoading || !canPermanentDelete) return;
@@ -3103,6 +3105,7 @@ export default function ProjectsDashboardPage() {
       await permanentlyDeleteFeaturedProject(id);
       toast.success("Project permanently deleted");
       setPermanentDeleteTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ["deleted-projects"] });
       await refreshAllProjects();
     } catch (error) {
       toast.error(
@@ -3113,7 +3116,7 @@ export default function ProjectsDashboardPage() {
     } finally {
       setPermanentDeleteLoading(false);
     }
-  }, [canPermanentDelete, permanentDeleteLoading, refreshAllProjects]);
+  }, [canPermanentDelete, permanentDeleteLoading, queryClient, refreshAllProjects]);
   const handleReset   = useCallback((id) => getHook(id).resetMutation.mutate(id,   { onSuccess: refreshAllProjects, onSettled: () => setResetTarget(null)   }), [getHook, refreshAllProjects]);
   const handlePromote = useCallback(
     (newType, options = {}) => {
@@ -3262,7 +3265,7 @@ export default function ProjectsDashboardPage() {
       <ConfirmModal
         open={!!deleteTarget}
         title="Deactivate Project"
-        message="This will deactivate the project (soft delete). You can find it under Status → Deleted, with who deactivated it and when."
+        message="This will deactivate the project (soft delete). You can find it under Status → Deactivated, with who deactivated it and when."
         confirmLabel={deleteLoading ? "Deactivating..." : "Deactivate"}
         confirmClass="bg-red-600 hover:bg-red-700 text-white"
         icon={<Trash2 className="w-5 h-5" />}
@@ -3276,7 +3279,7 @@ export default function ProjectsDashboardPage() {
       <ConfirmModal
         open={!!permanentDeleteTarget}
         title="Permanently Delete Project"
-        message="This removes the project from the database forever (and related media). This cannot be undone. Only use after it is already in Deleted."
+        message="This removes the project from the database forever (and related media). This cannot be undone. Only use after it is already in Deactivated."
         confirmLabel={
           permanentDeleteLoading ? "Deleting forever..." : "Delete forever"
         }
@@ -3988,7 +3991,8 @@ export default function ProjectsDashboardPage() {
                 </label>
               </div>
             </div>
-            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => (isTodayRange ? clearDateRange() : applyTodayRange())}
@@ -4012,6 +4016,16 @@ export default function ProjectsDashboardPage() {
               >
                 Clear dates
               </button>
+              </div>
+              {isSuperAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => navigate("/projects/deleted")}
+                  className="text-[11px] font-semibold text-red-700 underline-offset-2 hover:underline"
+                >
+                  Deleted projects
+                </button>
+              ) : null}
             </div>
           </div>
           <p className="mt-1.5 min-h-[16px] text-[11px] text-[#5c7d6d]">

@@ -73,6 +73,10 @@ export const assignExistingBuilderToProject = (projectId, builderId) =>
 export const sendBuilderInviteEmail = (projectId, payload) =>
   apiClient.post(`${BASE}/${projectId}/builder/invite`, payload);
 
+/** Active project → draft, builder cleared, rest of the project kept. */
+export const returnActiveProjectToDraft = (projectId) =>
+  apiClient.post(`${BASE}/${projectId}/builder/return-to-draft`);
+
 export const requestBuilderDirectOtp = (projectId, payload) =>
   apiClient.post(`${BASE}/${projectId}/builder/direct-otp/request`, payload);
 
@@ -125,6 +129,47 @@ export const deleteFeaturedProject = (id) => apiClient.delete(`${BASE}/${id}`);
 /** Hard delete — Super Admin / BDH only; project must already be deactivated. */
 export const permanentlyDeleteFeaturedProject = (id) =>
   apiClient.delete(`${BASE}/${id}/permanent`);
+
+/** Super Admin archive of deactivated / permanently removed projects. */
+export const getDeletedProjects = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.q) query.set("q", params.q);
+  if (params.category) query.set("category", params.category);
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  query.set("page", String(params.page || 1));
+  query.set("limit", String(params.limit || 12));
+  return apiClient.get(`${BASE}/deleted?${query.toString()}`);
+};
+
+export const getDeletedProject = (id) => apiClient.get(`${BASE}/deleted/${id}`);
+
+export const purgeDeletedProject = (id) => apiClient.delete(`${BASE}/deleted/${id}`);
+
+const DELETED_LISTINGS = `${SERVICES.PROPERTY}/deleted-listings`;
+
+export const deactivateListing = (category, id) =>
+  apiClient.post(`${SERVICES.PROPERTY}/${category}/${id}/deactive`);
+
+export const permanentlyDeleteListing = (category, id) =>
+  apiClient.delete(`${SERVICES.PROPERTY}/${category}/${id}/permanent`);
+
+export const getDeletedProperties = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.q) query.set("q", params.q);
+  if (params.category) query.set("category", params.category);
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  query.set("page", String(params.page || 1));
+  query.set("limit", String(params.limit || 12));
+  return apiClient.get(`${DELETED_LISTINGS}?${query.toString()}`);
+};
+
+export const getDeletedPropertyListing = (category, id) =>
+  apiClient.get(`${DELETED_LISTINGS}/by-property/${category}/${id}`);
+
+export const purgeDeletedProperty = (id) =>
+  apiClient.delete(`${DELETED_LISTINGS}/${id}`);
 
 export const deleteFeaturedProjectGalleryImage = (id, index) =>
   apiClient.delete(`${BASE}/${id}/gallery/${index}`);
