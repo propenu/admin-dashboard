@@ -56,6 +56,7 @@ function formatShortPrice(value) {
 }
 
 const LAND_FACING_OPTIONS = [
+  "Plot",
   "East Facing",
   "West Facing",
   "North Facing",
@@ -143,9 +144,7 @@ export default function BHKEditor({
     const newProject = {
       bhk: nextNumber,
 
-      label:formData?.categoryType === "land"
-    ? `East Facing Plot`
-    : `${nextNumber} BHK`,
+      label: formData?.categoryType === "land" ? "Plot" : `${nextNumber} BHK`,
 
       units: [
         {
@@ -442,7 +441,13 @@ export default function BHKEditor({
               </option>
 
               {(formData?.categoryType === "land"
-                ? LAND_FACING_OPTIONS
+                ? [
+                    ...LAND_FACING_OPTIONS,
+                    ...(project?.label &&
+                    !LAND_FACING_OPTIONS.includes(project.label)
+                      ? [project.label]
+                      : []),
+                  ]
                 : RESIDENTIAL_OPTIONS
               ).map((item) => (
                 <option key={item} value={item}>
