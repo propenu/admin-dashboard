@@ -181,3 +181,16 @@ export const canDirectCreateBuilder = (user) => {
     role === "business_development_head"
   );
 };
+
+/** Move an active project back to draft — Super Admin and hierarchy heads. */
+export const canMoveActiveProjectToDraft = (user) => {
+  const role = normalizeProjectRole(user?.roleName || user?.role);
+  return (
+    role === "super_admin" ||
+    role === "admin" ||
+    role === "business_development_head" ||
+    role === "customer_support_head" ||
+    role === "marketing_head" ||
+    role === "regional_manager"
+  );
+};

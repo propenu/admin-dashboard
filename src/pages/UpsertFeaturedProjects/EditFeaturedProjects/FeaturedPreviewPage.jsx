@@ -34,7 +34,7 @@ import BuilderAttachPanel from "../../features/property/components/shared/Builde
 import ConfirmModal from "../../features/property/components/shared/ConfirmModal";
 import { returnActiveProjectToDraft } from "../../../features/property/propertyService";
 import { useCurrentUser } from "../../../store/properties/useCurrentUser";
-import { canDirectCreateBuilder } from "../../../utils/projectAccessControl";
+import { canMoveActiveProjectToDraft } from "../../../utils/projectAccessControl";
 import { ArrowLeft, Video } from "lucide-react";
 
 /** Website + admin payloads can differ; normalize so every edit section has safe shapes. */
@@ -280,7 +280,7 @@ export default function FeaturedPreviewPage() {
   const queryClient = useQueryClient();
   const { data: userPayload } = useCurrentUser();
   const currentUser = userPayload?.user || userPayload;
-  const canMoveActiveToDraft = canDirectCreateBuilder(currentUser);
+  const canMoveActiveToDraft = canMoveActiveProjectToDraft(currentUser);
   const [draftConfirmOpen, setDraftConfirmOpen] = useState(false);
   const [draftMoveLoading, setDraftMoveLoading] = useState(false);
   const [formData, setFormData]               = useState(null);
