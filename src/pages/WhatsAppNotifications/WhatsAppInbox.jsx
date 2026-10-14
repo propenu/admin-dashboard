@@ -313,6 +313,7 @@ export default function WhatsAppInbox({ embedded = false }) {
       const res = await getWhatsAppInboxConversations({
         q,
         limit: 80,
+        includeCampaignLogs: 0,
       });
       const list = res?.data?.data || res?.data || [];
       const next = Array.isArray(list) ? list : [];
