@@ -91,6 +91,19 @@ const INBOX_ASSIGNER_ROLES = new Set([
   "business_development_head",
 ]);
 
+const ASSISTANT_CONTROL_ROLES = new Set([
+  ...INBOX_ASSIGNER_ROLES,
+  "customer_care",
+  "customer_care_executive",
+  "customer_care_executives",
+  "relationship_manager",
+  "relationship_managers",
+  "customer_support_team_lead",
+  "customer_support_team_leads",
+  "team_lead",
+  "team_leads",
+]);
+
 const FALLBACK_ROLE_COLOR = {
   bg: "#F8FAFC",
   text: "#334155",
@@ -105,10 +118,26 @@ const normalizeRole = (role = "") =>
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 
+const currentRole = (user) =>
+  normalizeRole(user?.roleName || user?.role || user?.roleId?.name);
+
 const canAssignInboxAgent = (user) =>
-  INBOX_ASSIGNER_ROLES.has(
-    normalizeRole(user?.roleName || user?.role || user?.roleId?.name),
-  );
+  INBOX_ASSIGNER_ROLES.has(currentRole(user));
+
+const INBOX_BRANCH_LEAD_ROLES = new Set([
+  "customer_support_team_lead",
+  "customer_support_team_leads",
+  "team_lead",
+  "team_leads",
+  "relationship_manager",
+  "relationship_managers",
+]);
+
+const canControlInboxAssistant = (user) =>
+  ASSISTANT_CONTROL_ROLES.has(currentRole(user));
+
+const isInboxBranchLead = (user) =>
+  INBOX_BRANCH_LEAD_ROLES.has(currentRole(user));
 
 const getCurrentUserId = (user) =>
   String(user?.id || user?._id || user?.userId || user?.sub || "").trim();
@@ -229,6 +258,8 @@ export default function WhatsAppInbox({ embedded = false }) {
   const currentUser = currentUserPayload?.user || currentUserPayload;
   const meId = getCurrentUserId(currentUser);
   const canAssign = canAssignInboxAgent(currentUser);
+  const canControlAssistant = canControlInboxAssistant(currentUser);
+  const seesTeamChats = isInboxBranchLead(currentUser);
   const seesAllChats = canAssign;
 
   const [conversations, setConversations] = useState([]);
@@ -820,7 +851,9 @@ export default function WhatsAppInbox({ embedded = false }) {
         >
           {inboxScope === "all"
             ? "All chats · heads view"
-            : "My assigned chats only"}
+            : seesTeamChats
+              ? "My team chats"
+              : "My assigned chats only"}
         </span>
       </div>
 
@@ -886,7 +919,9 @@ export default function WhatsAppInbox({ embedded = false }) {
           )}
           {inboxScope === "assigned" ? (
             <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide px-1">
-              Only chats assigned to you
+              {seesTeamChats
+                ? "Chats assigned to you and your team"
+                : "Only chats assigned to you"}
             </p>
           ) : null}
         </div>
@@ -985,6 +1020,7 @@ export default function WhatsAppInbox({ embedded = false }) {
                   {active?.assignedAgentName
                     ? ` · ${active.assignedAgentName}`
                     : ""}
+                  {active?.botPaused ? " · Assistant quiet" : ""}
                 </p>
               </div>
               <select
@@ -1242,6 +1278,40 @@ export default function WhatsAppInbox({ embedded = false }) {
                 <Expand size={14} />
               </button>
             </div>
+
+            {canControlAssistant ? (
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
+                  Assistant
+                </p>
+                <p className="text-xs text-gray-500 mb-2">
+                  {active?.botPaused
+                    ? "The assistant is quiet for this visitor. Turn it on when your team is finished."
+                    : "The assistant is replying to this visitor."}
+                </p>
+                <button
+                  type="button"
+                  disabled={updatingMeta}
+                  onClick={() =>
+                    patchConversation(activeWaId, {
+                      botPaused: !Boolean(active?.botPaused),
+                    })
+                  }
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl border-2 px-3 py-3 text-sm font-bold transition disabled:opacity-60 ${
+                    active?.botPaused
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  {active?.botPaused ? (
+                    <Play size={16} />
+                  ) : (
+                    <Clock3 size={16} />
+                  )}
+                  {active?.botPaused ? "Turn assistant on" : "Turn assistant off"}
+                </button>
+              </div>
+            ) : null}
 
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">
