@@ -2,12 +2,11 @@
 import { useNavigate } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapPin, Search, Trash2 } from "lucide-react";
-import { getUserInDetails } from "./userInDetails";
 import {
   getDeletedProjects,
   purgeDeletedProject,
 } from "../../../../../features/property/propertyService";
-import { normalizeProjectRole } from "../../../../../utils/projectAccessControl";
+import { useDeletedAccess } from "../../../../../features/property/useDeletedAccess";
 import { saInset, saSurface, saSurfaceHover } from "../../../../Dashboards/superAdminDashboard/dashboardSurface";
 
 const PAGE_SIZE = 12;
@@ -62,25 +61,13 @@ const priceLabel = (from, to) => {
   return start || end || "Price not set";
 };
 
-const useSuperAdmin = () => {
-  const { data, isLoading } = useQuery({
-    queryKey: ["current-user"],
-    queryFn: getUserInDetails,
-    staleTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
-  });
-  const user = data?.user || data || null;
-  const roleName = normalizeProjectRole(user?.roleName || user?.role);
-  return { isSuperAdmin: roleName === "super_admin", isLoading, user };
-};
-
 function AccessDenied() {
   return (
     <div className="mx-auto grid min-h-[420px] w-full max-w-lg place-items-center px-4">
       <div className={`rounded-3xl p-8 text-center ${saSurface}`}>
         <h1 className="text-xl font-semibold text-[#0f3d2e]">Deleted projects</h1>
         <p className="mt-2 text-sm text-[#5c7d6d]">
-          Only Super Admin can open the deleted projects list.
+          You do not have access to deleted projects. Ask your head or Super Admin to turn it on.
         </p>
       </div>
     </div>
@@ -137,21 +124,23 @@ function DeletedProjectCard({ item, onOpen, onPurge, purging }) {
         <p className="text-[11px] text-[#5c7d6d]">{formatWhen(item.deletedAt)}</p>
       </div>
       </button>
-      <div className="px-3 pb-3">
-        <button
-          type="button"
-          onClick={() => onPurge(item)}
-          disabled={purging}
-          className="w-full rounded-full bg-red-600 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-        >
-          {purging ? "Removing..." : "Permanently remove this project"}
-        </button>
-      </div>
+      {onPurge ? (
+        <div className="px-3 pb-3">
+          <button
+            type="button"
+            onClick={() => onPurge(item)}
+            disabled={purging}
+            className="w-full rounded-full bg-red-600 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+          >
+            {purging ? "Removing..." : "Permanently remove this project"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function DeletedProjectList() {
+function DeletedProjectList({ canPurge }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [purgeError, setPurgeError] = useState("");
@@ -229,6 +218,11 @@ function DeletedProjectList() {
               {isFetching && !showSkeleton ? (
                 <span className="ml-2 text-xs font-medium text-emerald-600">Updating...</span>
               ) : null}
+              {!canPurge ? (
+                <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  View only
+                </span>
+              ) : null}
             </h1>
           </div>
         </div>
@@ -303,10 +297,14 @@ function DeletedProjectList() {
               item={item}
               onOpen={(id) => navigate(`/featured-project/${id}`)}
               purging={purgeMutation.isPending && purgeMutation.variables === item._id}
-              onPurge={(project) => {
-                setPurgeError("");
-                purgeMutation.mutate(project._id);
-              }}
+              onPurge={
+                canPurge
+                  ? (project) => {
+                      setPurgeError("");
+                      purgeMutation.mutate(project._id);
+                    }
+                  : null
+              }
             />
           ))}
         </div>
@@ -354,7 +352,7 @@ function DeletedProjectList() {
 }
 
 export default function DeletedProjectsPage() {
-  const { isSuperAdmin, isLoading } = useSuperAdmin();
+  const { projects, canPurge, isLoading } = useDeletedAccess();
 
   if (isLoading) {
     return (
@@ -363,7 +361,7 @@ export default function DeletedProjectsPage() {
       </div>
     );
   }
-  if (!isSuperAdmin) return <AccessDenied />;
-  return <DeletedProjectList />;
+  if (!projects.view) return <AccessDenied />;
+  return <DeletedProjectList canPurge={canPurge} />;
 }
 

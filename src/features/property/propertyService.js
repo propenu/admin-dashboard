@@ -189,6 +189,33 @@ export const getDeletedPropertyListing = (category, id) =>
 export const purgeDeletedProperty = (id) =>
   apiClient.delete(`${DELETED_LISTINGS}/${id}`);
 
+export const getDeletedAccess = () => apiClient.get(`${DELETED_LISTINGS}/access`);
+
+export const updateDeletedAccess = (area, enabled) =>
+  apiClient.patch(`${DELETED_LISTINGS}/access`, { area, enabled });
+
+export const createAccessRequest = (area, reason) =>
+  apiClient.post(`${DELETED_LISTINGS}/access/requests`, { area, reason });
+
+export const listAccessRequests = ({ box = "mine", page = 1, areas = [] } = {}) =>
+  apiClient.get(`${DELETED_LISTINGS}/access/requests`, {
+    params: { box, page, areas: areas.join(",") || undefined },
+  });
+
+export const getAccessRequestByTicket = (ticketId) =>
+  apiClient.get(`${DELETED_LISTINGS}/access/requests/by-ticket/${ticketId}`);
+
+export const approveAccessRequest = (id) =>
+  apiClient.post(`${DELETED_LISTINGS}/access/requests/${id}/approve`, {});
+
+export const rejectAccessRequest = (id, note) =>
+  apiClient.post(`${DELETED_LISTINGS}/access/requests/${id}/reject`, { note });
+
+export const getDeletedAccessHistory = (page = 1, areas = []) =>
+  apiClient.get(`${DELETED_LISTINGS}/access/history`, {
+    params: { page, areas: areas.join(",") || undefined },
+  });
+
 export const deleteFeaturedProjectGalleryImage = (id, index) =>
   apiClient.delete(`${BASE}/${id}/gallery/${index}`);
 

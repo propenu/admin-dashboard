@@ -1,6 +1,7 @@
 import { Activity, CalendarClock, Eye, Loader2, MessageSquare, Paperclip, Search, Send, UserRound, UserRoundCheck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import LocationFilterBar from "../../../../components/common/LocationFilterBar";
+import AccessRequestTicketBox from "../../../../components/access/AccessRequestTicketBox";
 import { getTicketAssigneeRoleOptions, searchTicketAssignees } from "../../../../features/ticket/ticket_system";
 import { TICKET_PRIORITIES, TICKET_STATUSES, priorityTone, statusTone } from "../../constants/ticketOptions";
 import { formatDateTime, formatDueDate, formatLabel } from "../../utils/ticketFormatters";
@@ -255,6 +256,8 @@ export default function TicketDetailPanel({
         </div>
         <p className="mt-3 text-[13px] font-medium leading-6 text-slate-600">{ticket.description}</p>
       </div>
+
+      {ticket.metadata?.module === "access_request" ? <AccessRequestTicketBox ticketId={ticket._id} /> : null}
 
       <div className="grid gap-3 border-b border-slate-100 p-4 lg:grid-cols-2">
         <Info icon={UserRound} label="Requester" value={ticket.requester?.name || "-"} sub={ticket.requester?.email || ticket.requester?.phone} />

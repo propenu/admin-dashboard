@@ -22,6 +22,8 @@ export const TICKET_CATEGORY_OPTIONS = [
   { label: "Leads", value: "leads" },
   { label: "Payment", value: "payment" },
   { label: "Technical", value: "technical" },
+  { label: "Access Request", value: "access_request" },
+  { label: "Project Approval", value: "project_approval" },
 ];
 
 export const TICKET_ASSIGNABLE_ROLES = [

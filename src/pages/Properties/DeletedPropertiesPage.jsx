@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapPin, Search, Trash2 } from "lucide-react";
-import { getUserInDetails } from "../features/property/components/shared/userInDetails";
 import {
   getDeletedProperties,
   purgeDeletedProperty,
 } from "../../features/property/propertyService";
-import { normalizeProjectRole } from "../../utils/projectAccessControl";
+import { useDeletedAccess } from "../../features/property/useDeletedAccess";
 import { saInset, saSurface, saSurfaceHover } from "../Dashboards/superAdminDashboard/dashboardSurface";
 
 const PAGE_SIZE = 12;
@@ -55,25 +54,13 @@ const formatPrice = (value) => {
   return `\u20B9${amount.toLocaleString("en-IN")}`;
 };
 
-const useSuperAdmin = () => {
-  const { data, isLoading } = useQuery({
-    queryKey: ["current-user"],
-    queryFn: getUserInDetails,
-    staleTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
-  });
-  const user = data?.user || data || null;
-  const roleName = normalizeProjectRole(user?.roleName || user?.role);
-  return { isSuperAdmin: roleName === "super_admin", isLoading, user };
-};
-
 function AccessDenied() {
   return (
     <div className="mx-auto grid min-h-[420px] w-full max-w-lg place-items-center px-4">
       <div className={`rounded-3xl p-8 text-center ${saSurface}`}>
         <h1 className="text-xl font-semibold text-[#0f3d2e]">Deleted properties</h1>
         <p className="mt-2 text-sm text-[#5c7d6d]">
-          Only Super Admin can open the deleted properties list.
+          You do not have access to deleted properties. Ask your head or Super Admin to turn it on.
         </p>
       </div>
     </div>
@@ -139,21 +126,23 @@ function DeletedPropertyCard({ item, onOpen, onPurge, purging }) {
           <p className="text-[11px] text-[#5c7d6d]">{formatWhen(item.deletedAt)}</p>
         </div>
       </button>
-      <div className="px-3 pb-3">
-        <button
-          type="button"
-          onClick={() => onPurge(item)}
-          disabled={purging}
-          className="w-full rounded-full bg-red-600 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-        >
-          {purging ? "Removing..." : "Permanently remove this property"}
-        </button>
-      </div>
+      {onPurge ? (
+        <div className="px-3 pb-3">
+          <button
+            type="button"
+            onClick={() => onPurge(item)}
+            disabled={purging}
+            className="w-full rounded-full bg-red-600 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+          >
+            {purging ? "Removing..." : "Permanently remove this property"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function DeletedPropertyList() {
+function DeletedPropertyList({ canPurge }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [purgeError, setPurgeError] = useState("");
@@ -230,6 +219,11 @@ function DeletedPropertyList() {
             {isFetching && !showSkeleton ? (
               <span className="ml-2 text-xs font-medium text-emerald-600">Updating...</span>
             ) : null}
+            {!canPurge ? (
+              <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                View only
+              </span>
+            ) : null}
           </h1>
         </div>
         <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_180px_140px_140px]">
@@ -305,10 +299,14 @@ function DeletedPropertyList() {
                 navigate(`/property/${property.category}/${property.propertyId}`)
               }
               purging={purgeMutation.isPending && purgeMutation.variables === item._id}
-              onPurge={(property) => {
-                setPurgeError("");
-                purgeMutation.mutate(property._id);
-              }}
+              onPurge={
+                canPurge
+                  ? (property) => {
+                      setPurgeError("");
+                      purgeMutation.mutate(property._id);
+                    }
+                  : null
+              }
             />
           ))}
         </div>
@@ -356,7 +354,7 @@ function DeletedPropertyList() {
 }
 
 export default function DeletedPropertiesPage() {
-  const { isSuperAdmin, isLoading } = useSuperAdmin();
+  const { properties, canPurge, isLoading } = useDeletedAccess();
 
   if (isLoading) {
     return (
@@ -365,6 +363,6 @@ export default function DeletedPropertiesPage() {
       </div>
     );
   }
-  if (!isSuperAdmin) return <AccessDenied />;
-  return <DeletedPropertyList />;
+  if (!properties.view) return <AccessDenied />;
+  return <DeletedPropertyList canPurge={canPurge} />;
 }

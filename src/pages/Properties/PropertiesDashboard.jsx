@@ -52,6 +52,7 @@ import PropertyPromoteModal, {
   propertyPromoTypeMeta,
 } from "../../components/property/PropertyPromoteModal";
 import ConfirmModal from "../features/property/components/shared/ConfirmModal";
+import DeletedMenu from "./DeletedMenu";
 import {
   getPromotionTracking,
   promotionLifecycleClass,
@@ -75,10 +76,7 @@ import {
   deactivateListing,
   permanentlyDeleteListing,
 } from "../../features/property/propertyService";
-import {
-  canPermanentlyDeleteProject,
-  normalizeProjectRole,
-} from "../../utils/projectAccessControl";
+import { canPermanentlyDeleteProject } from "../../utils/projectAccessControl";
 import {
   getCreatedByDisplayName,
   getCreatedByRoleLabel,
@@ -1472,9 +1470,6 @@ export default function PropertiesDashboard() {
 
   const currentUser = userData?.user || userData || null;
   const canPermanentDelete = canPermanentlyDeleteProject(currentUser);
-  const isSuperAdmin =
-    normalizeProjectRole(currentUser?.roleName || currentUser?.role) === "super_admin";
-
   const canReviewProperty = (property) => {
     if (!canReviewPropertyListing(currentUser, property)) return false;
     // Agent path (70%): open details for Approve → Live
@@ -2407,24 +2402,7 @@ export default function PropertiesDashboard() {
               )}
             </span>
             <span className="inline-flex flex-wrap items-center justify-end gap-2">
-              {isSuperAdmin ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/properties/deleted")}
-                    className="inline-flex h-10 items-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
-                  >
-                    Deleted properties
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/properties/deleted-leads")}
-                    className="inline-flex h-10 items-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
-                  >
-                    Deleted property leads
-                  </button>
-                </>
-              ) : null}
+              <DeletedMenu group="properties" />
               <span className="inline-flex items-center gap-1.5">
                 <CalendarClock className="h-4 w-4 shrink-0" /> Analytics source:
                 `/analytics/properties`

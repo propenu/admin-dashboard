@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Filter, Loader2, MapPin, RotateCcw, Search, Users, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Download, Eye, EyeOff, FileSpreadsheet, Filter, Loader2, MapPin, RotateCcw, Search, Send, Users, X } from "lucide-react";
 import { apiClient } from "../../api/apiClient";
 import { rangeFromPreset, todayIso } from "../Dashboards/shared/dashboardDateRange";
 import AnimatedPills from "../../components/common/AnimatedPills";
 import LeadDetailDrawer from "./LeadDetailDrawer";
+import LeadContactVisibilityPanel from "./LeadContactVisibilityPanel";
+import { useAccessLiveUpdates } from "../../features/property/accessLive";
+import { useMyPendingAccessAreas } from "../../features/property/useAccessRequests";
+import RequestAccessModal from "../../components/access/RequestAccessModal";
 import { saInset, saSurface, saSurfaceHover } from "../Dashboards/superAdminDashboard/dashboardSurface";
 
 const lmInput =
@@ -254,6 +258,10 @@ export default function LeadManagement() {
   const [selectedLead, setSelectedLead] = useState(null);
   const [statusSavingId, setStatusSavingId] = useState("");
   const [statusNotice, setStatusNotice] = useState("");
+  const [contactSetting, setContactSetting] = useState(null);
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactPanelOpen, setContactPanelOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const next = filtersFromSearchParams(searchParams);
@@ -331,7 +339,82 @@ export default function LeadManagement() {
     };
     load();
     return () => controller.abort();
-  }, [filters]);
+  }, [filters, reloadKey]);
+
+  const [contactVersion, setContactVersion] = useState(0);
+  const [contactRequestOpen, setContactRequestOpen] = useState(false);
+  const myPendingAccessAreas = useMyPendingAccessAreas(
+    Boolean(contactSetting) && contactSetting?.level !== "super_admin",
+  );
+
+  useEffect(() => {
+    let active = true;
+    apiClient
+      .get("/api/properties/leads/admin/contact-visibility")
+      .then((response) => {
+        if (active) setContactSetting(response.data?.data || null);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [contactVersion]);
+
+  useAccessLiveUpdates((change) => {
+    if (change?.area !== "leadContacts") return;
+    setContactVersion((value) => value + 1);
+    setReloadKey((value) => value + 1);
+  });
+
+  const toggleContactVisibility = async (enabled) => {
+    setContactSaving(true);
+    try {
+      const response = await apiClient.patch("/api/properties/leads/admin/contact-visibility", { enabled });
+      setContactSetting(response.data?.data || null);
+      setReloadKey((value) => value + 1);
+    } catch (requestError) {
+      setStatusNotice(requestError?.response?.data?.message || "Could not change contact visibility");
+    } finally {
+      setContactSaving(false);
+    }
+  };
+
+  const canOpenContactPanel = Boolean(contactSetting?.canManage);
+  const canRequestContacts =
+    Boolean(contactSetting) &&
+    contactSetting.level !== "super_admin" &&
+    !contactSetting.canSeeContacts;
+  const contactRequestPending = myPendingAccessAreas.has("leadContacts");
+  const contactVisibilityButton = canOpenContactPanel ? (
+    <button
+      type="button"
+      onClick={() => setContactPanelOpen(true)}
+      className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[10px] font-bold transition ${
+        contactSetting.enabled
+          ? "border-emerald-200 bg-emerald-50 text-[#128C45] hover:bg-emerald-100"
+          : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+      }`}
+    >
+      {contactSetting.enabled ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+      {contactSetting.level === "super_admin"
+        ? contactSetting.enabled
+          ? "Heads see contacts"
+          : "Contacts masked"
+        : contactSetting.enabled
+          ? "Team sees contacts"
+          : "Team contacts masked"}
+    </button>
+  ) : canRequestContacts ? (
+    <button
+      type="button"
+      disabled={contactRequestPending}
+      onClick={() => setContactRequestOpen(true)}
+      className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3 text-[10px] font-bold text-[#128C45] transition hover:bg-emerald-50 disabled:border-amber-200 disabled:bg-amber-50 disabled:text-amber-700"
+    >
+      {contactRequestPending ? <Clock className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+      {contactRequestPending ? "Contact request pending" : "Request full contacts"}
+    </button>
+  ) : null;
 
   const changeLeadStatus = async (lead, nextStatus) => {
     const current = String(lead.status || "new_lead");
@@ -742,6 +825,7 @@ export default function LeadManagement() {
           </div>
 
           <div className="flex items-center gap-2">
+            {contactVisibilityButton}
             <button
               type="button"
               disabled={loading || exporting}
@@ -1075,6 +1159,7 @@ export default function LeadManagement() {
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                {contactVisibilityButton}
                 <button type="button" disabled={loading || exporting} onClick={() => downloadLeads("csv")} className={`${lmPill} h-9 gap-2 px-3 text-[10px] font-bold disabled:opacity-50`}>
                   {exporting === "csv" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} CSV
                 </button>
@@ -1222,6 +1307,21 @@ export default function LeadManagement() {
         <LeadDetailDrawer
           lead={selectedLead}
           onClose={() => setSelectedLead(null)}
+        />
+      ) : null}
+      {contactRequestOpen ? (
+        <RequestAccessModal
+          area="leadContacts"
+          approverLabel={contactSetting?.level === "head" ? "Super Admin" : "your head"}
+          onClose={() => setContactRequestOpen(false)}
+        />
+      ) : null}
+      {contactPanelOpen && canOpenContactPanel ? (
+        <LeadContactVisibilityPanel
+          setting={contactSetting}
+          saving={contactSaving}
+          onToggle={toggleContactVisibility}
+          onClose={() => setContactPanelOpen(false)}
         />
       ) : null}
     </div>

@@ -2,13 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Phone, Search, Trash2, User } from "lucide-react";
-import { getUserInDetails } from "./userInDetails";
 import {
   getDeletedLeads,
   purgeAllDeletedLeads,
   purgeDeletedLead,
 } from "../../../../../features/property/propertyService";
-import { normalizeProjectRole } from "../../../../../utils/projectAccessControl";
+import { useDeletedAccess } from "../../../../../features/property/useDeletedAccess";
 import { saInset, saSurface } from "../../../../Dashboards/superAdminDashboard/dashboardSurface";
 
 const PAGE_SIZE = 12;
@@ -48,18 +47,6 @@ const personLine = (person) => {
   return [person.name || "Unknown", role].filter(Boolean).join(" · ");
 };
 
-const useSuperAdmin = () => {
-  const { data, isLoading } = useQuery({
-    queryKey: ["current-user"],
-    queryFn: getUserInDetails,
-    staleTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
-  });
-  const user = data?.user || data || null;
-  const roleName = normalizeProjectRole(user?.roleName || user?.role);
-  return { isSuperAdmin: roleName === "super_admin", isLoading };
-};
-
 function AccessDenied() {
   const { pathname } = useLocation();
   const title = pathname.includes("/properties/")
@@ -70,7 +57,7 @@ function AccessDenied() {
       <div className={`rounded-3xl p-8 text-center ${saSurface}`}>
         <h1 className="text-xl font-semibold text-[#0f3d2e]">{title}</h1>
         <p className="mt-2 text-sm text-[#5c7d6d]">
-          Only Super Admin can open the deleted leads list.
+          You do not have access to these deleted leads. Ask your head or Super Admin to turn it on.
         </p>
       </div>
     </div>
@@ -114,22 +101,24 @@ function DeletedLeadRow({ item, onDelete, isDeleting }) {
           {item.deletionType === "bulk" ? "Delete all" : "One lead"}
         </span>
       </td>
-      <td className="px-3 py-2.5 text-center">
-        <button
-          type="button"
-          onClick={() => onDelete(item)}
-          disabled={isDeleting}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 bg-white text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-          title="Permanently delete"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </td>
+      {onDelete ? (
+        <td className="px-3 py-2.5 text-center">
+          <button
+            type="button"
+            onClick={() => onDelete(item)}
+            disabled={isDeleting}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 bg-white text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            title="Permanently delete"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </td>
+      ) : null}
     </tr>
   );
 }
 
-function DeletedLeadList() {
+function DeletedLeadList({ canPurge }) {
   const { pathname } = useLocation();
   const isProperty = pathname.includes("/properties/");
   const scope = isProperty ? "property" : "project";
@@ -228,19 +217,26 @@ function DeletedLeadList() {
             {isFetching && !showSkeleton ? (
               <span className="ml-2 text-xs font-medium text-emerald-600">Updating...</span>
             ) : null}
+            {!canPurge ? (
+              <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                View only
+              </span>
+            ) : null}
           </h1>
-          <button
-            type="button"
-            onClick={() => {
-              setPurgeError("");
-              setPurgeTarget({ type: "all" });
-            }}
-            disabled={!total || isPurging}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Permanently delete all
-          </button>
+          {canPurge ? (
+            <button
+              type="button"
+              onClick={() => {
+                setPurgeError("");
+                setPurgeTarget({ type: "all" });
+              }}
+              disabled={!total || isPurging}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Permanently delete all
+            </button>
+          ) : null}
         </div>
         <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_180px_140px_140px]">
           <label className={`flex items-center gap-2 rounded-xl px-3 py-2 ${saInset}`}>
@@ -312,7 +308,9 @@ function DeletedLeadList() {
                   <th className="w-[16%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Deleted by</th>
                   <th className="w-[14%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Uploaded by</th>
                   <th className="w-[8%] px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400">Type</th>
-                  <th className="w-[6%] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Delete</th>
+                  {canPurge ? (
+                    <th className="w-[6%] px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">Delete</th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
@@ -321,10 +319,14 @@ function DeletedLeadList() {
                     key={item._id}
                     item={item}
                     isDeleting={isPurging}
-                    onDelete={(lead) => {
-                      setPurgeError("");
-                      setPurgeTarget({ type: "one", lead });
-                    }}
+                    onDelete={
+                      canPurge
+                        ? (lead) => {
+                            setPurgeError("");
+                            setPurgeTarget({ type: "one", lead });
+                          }
+                        : null
+                    }
                   />
                 ))}
               </tbody>
@@ -423,7 +425,9 @@ function DeletedLeadList() {
 }
 
 export default function DeletedProjectLeadsPage() {
-  const { isSuperAdmin, isLoading } = useSuperAdmin();
+  const { pathname } = useLocation();
+  const { propertyLeads, projectLeads, canPurge, isLoading } = useDeletedAccess();
+  const area = pathname.includes("/properties/") ? propertyLeads : projectLeads;
 
   if (isLoading) {
     return (
@@ -432,6 +436,6 @@ export default function DeletedProjectLeadsPage() {
       </div>
     );
   }
-  if (!isSuperAdmin) return <AccessDenied />;
-  return <DeletedLeadList />;
+  if (!area.view) return <AccessDenied />;
+  return <DeletedLeadList canPurge={canPurge} />;
 }
