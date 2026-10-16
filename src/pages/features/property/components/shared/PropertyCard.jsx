@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, memo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
@@ -124,21 +124,6 @@ const formatLeadDateTime = (value) => {
   });
 };
 
-const getLeadSearchText = (lead) =>
-  [
-    lead.name,
-    lead.phone,
-    lead.email,
-    lead.sourceCreatedAt,
-    lead.createdAt,
-    lead.purchaseTimeline,
-    lead.budgetRange,
-    lead.status,
-  ]
-    .map((value) => formatLeadText(value))
-    .join(" ")
-    .toLowerCase();
-
 // ─── Portal Menu ─────────────────────────────────────────────────────────────
 function PortalMenu({ anchorRef, open, onClose, children }) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -208,6 +193,8 @@ export default memo(function PropertyCard({
 
   const [openLeads, setOpenLeads] = useState(false);
   const [leadSearch, setLeadSearch] = useState("");
+  const [leadQuery, setLeadQuery] = useState("");
+  const [leadPage, setLeadPage] = useState(1);
   const [leadDeleteTarget, setLeadDeleteTarget] = useState(null);
   const [cancelOpen, setCancelOpen] = useState(false);
 
@@ -224,25 +211,36 @@ export default memo(function PropertyCard({
     },
   });
 
-  const { data: leadsData, isLoading: leadsLoading } = useQuery({
-    queryKey: ["projectLeads", p?._id],
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const next = leadSearch.trim();
+      setLeadQuery((current) => {
+        if (current !== next) setLeadPage(1);
+        return next;
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [leadSearch]);
+
+  const { data: leadsData, isLoading: leadsLoading, isFetching: leadsFetching } = useQuery({
+    queryKey: ["projectLeads", p?._id, leadPage, leadQuery],
     queryFn: async () => {
-      const res = await projectAnalytics(p?._id);
+      const res = await projectAnalytics(p?._id, {
+        page: leadPage,
+        limit: 20,
+        q: leadQuery || undefined,
+      });
       return res.data;
     },
     enabled: Boolean(openLeads && p?._id),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
   });
 
-  const leads = (Array.isArray(leadsData?.data) ? leadsData.data : [])
-    .slice()
-    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const leads = Array.isArray(leadsData?.data) ? leadsData.data : [];
   const totalLeads = typeof leadsData?.count === "number" ? leadsData.count : leads.length;
-  const leadSearchTerm = leadSearch.trim().toLowerCase();
-  const filteredLeads = leadSearchTerm
-    ? leads.filter((lead) => getLeadSearchText(lead).includes(leadSearchTerm))
-    : leads;
+  const leadPages = leadsData?.pages || 1;
 
   const importLeadsMutation = useMutation({
     mutationFn: (file) => {
@@ -289,6 +287,7 @@ export default memo(function PropertyCard({
     onSuccess: async () => {
       toast.success("Lead deleted");
       setLeadDeleteTarget(null);
+      if (leads.length <= 1 && leadPage > 1) setLeadPage((page) => page - 1);
       await refreshLeadQueries();
     },
     onError: (err) => {
@@ -306,6 +305,7 @@ export default memo(function PropertyCard({
           : "Project leads deleted"
       );
       setLeadDeleteTarget(null);
+      setLeadPage(1);
       await refreshLeadQueries();
     },
     onError: (err) => {
@@ -352,8 +352,13 @@ export default memo(function PropertyCard({
     },
   });
 
-  const downloadCSV = () => {
-    const rows = leads.map((lead) => ({
+  const loadAllLeads = async () => {
+    const res = await projectAnalytics(p?._id, { q: leadQuery || undefined });
+    return Array.isArray(res.data?.data) ? res.data.data : leads;
+  };
+
+  const downloadCSV = async () => {
+    const rows = (await loadAllLeads()).map((lead) => ({
       "Full Name": lead.name || "",
       "Phone Number": lead.phone || "",
       Email: lead.email || "",
@@ -367,8 +372,8 @@ export default memo(function PropertyCard({
     saveAs(new Blob([csv], { type: "text/csv;charset=utf-8;" }), `project-leads-${p?._id}.csv`);
   };
 
-  const downloadExcel = () => {
-    const rows = leads.map((lead) => ({
+  const downloadExcel = async () => {
+    const rows = (await loadAllLeads()).map((lead) => ({
       "Full Name": lead.name || "",
       "Phone Number": lead.phone || "",
       Email: lead.email || "",
@@ -995,6 +1000,7 @@ export default memo(function PropertyCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
+                  setLeadPage(1);
                   setOpenLeads(true);
                 }}
                 className="flex items-center gap-1 whitespace-nowrap rounded-lg border border-[#27AE60]/20 bg-green-50 px-2 py-1 text-[10px] font-medium text-[#27AE60] transition hover:bg-green-100"
@@ -1132,7 +1138,7 @@ export default memo(function PropertyCard({
                   <button
                     onClick={() => leadFileRef.current?.click()}
                     disabled={importLeadsMutation.isPending}
-                    className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex items-center gap-1.5 rounded-lg bg-[#27AE60] px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-[#1f8f4e] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Upload className="h-3.5 w-3.5" />
                     {importLeadsMutation.isPending ? "Importing..." : "Import leads"}
@@ -1174,7 +1180,7 @@ export default memo(function PropertyCard({
                 <div className="py-10 text-center text-slate-400">
                   Loading leads...
                 </div>
-              ) : leads.length === 0 ? (
+              ) : !leadsFetching && totalLeads === 0 && !leadQuery ? (
                 <div className="py-10 text-center text-slate-400">
                   No leads found
                 </div>
@@ -1199,7 +1205,7 @@ export default memo(function PropertyCard({
                     )}
                   </div>
 
-                  {filteredLeads.length === 0 ? (
+                  {leads.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
                       No leads match your search.
                     </div>
@@ -1220,7 +1226,7 @@ export default memo(function PropertyCard({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredLeads.map((lead, index) => (
+                      {leads.map((lead, index) => (
                         <tr
                           key={lead._id || index}
                           className="border-b border-slate-100 transition hover:bg-slate-50"
@@ -1284,6 +1290,36 @@ export default memo(function PropertyCard({
                   </table>
                   </div>
                 </div>
+                  )}
+                  {totalLeads > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                      <span>
+                        Showing {(leadPage - 1) * (leadsData?.limit || 20) + (leads.length ? 1 : 0)}
+                        –
+                        {(leadPage - 1) * (leadsData?.limit || 20) + leads.length} of {totalLeads}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={leadPage <= 1 || leadsFetching}
+                          onClick={() => setLeadPage((page) => Math.max(1, page - 1))}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 disabled:opacity-40"
+                        >
+                          Prev
+                        </button>
+                        <span className="font-semibold text-slate-800">
+                          {leadPage} / {leadPages}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={leadPage >= leadPages || leadsFetching}
+                          onClick={() => setLeadPage((page) => page + 1)}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 disabled:opacity-40"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

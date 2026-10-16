@@ -146,6 +146,24 @@ export const getDeletedProject = (id) => apiClient.get(`${BASE}/deleted/${id}`);
 
 export const purgeDeletedProject = (id) => apiClient.delete(`${BASE}/deleted/${id}`);
 
+export const getDeletedLeads = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.q) query.set("q", params.q);
+  if (params.deletionType) query.set("deletionType", params.deletionType);
+  if (params.scope) query.set("scope", params.scope);
+  if (params.from) query.set("from", params.from);
+  if (params.to) query.set("to", params.to);
+  query.set("page", String(params.page || 1));
+  query.set("limit", String(params.limit || 12));
+  return apiClient.get(`${SERVICES.PROPERTY}/leads/deleted?${query.toString()}`);
+};
+
+export const purgeDeletedLead = (id) =>
+  apiClient.delete(`${SERVICES.PROPERTY}/leads/deleted/${id}`);
+
+export const purgeAllDeletedLeads = () =>
+  apiClient.delete(`${SERVICES.PROPERTY}/leads/deleted`);
+
 const DELETED_LISTINGS = `${SERVICES.PROPERTY}/deleted-listings`;
 
 export const deactivateListing = (category, id) =>
@@ -272,8 +290,13 @@ export const getSalesAgentAnalytics = (params = {}) => {
 
 ///////
 
-export const projectAnalytics = (id) => {
-  return apiClient.get(`${SERVICES.PROPERTY}/leads/project/${id}/leads`);
+export const projectAnalytics = (id, params = {}) => {
+  const query = new URLSearchParams();
+  if (params.page) query.set("page", String(params.page));
+  if (params.limit) query.set("limit", String(params.limit));
+  if (params.q) query.set("q", params.q);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return apiClient.get(`${SERVICES.PROPERTY}/leads/project/${id}/leads${suffix}`);
 };
 
 export const deleteProjectLead = (id) => {
@@ -291,8 +314,19 @@ export const projectExternalFileAddLeads = (id, payload) => {
   );
 }
 
-export const propertiesAnalytics = (id) =>{
-  return apiClient.get(`${SERVICES.PROPERTY}/leads?projectId=${id}`);
+export const propertyExternalFileAddLeads = (category, id, payload) => {
+  return apiClient.post(
+    `${SERVICES.PROPERTY}/leads/property/${category}/${id}/leads/import`,
+    payload,
+  );
+}
+
+export const propertiesAnalytics = (id, params = {}) => {
+  const query = new URLSearchParams({ projectId: String(id) });
+  if (params.page) query.set("page", String(params.page));
+  if (params.limit) query.set("limit", String(params.limit));
+  if (params.q) query.set("q", params.q);
+  return apiClient.get(`${SERVICES.PROPERTY}/leads?${query.toString()}`);
 }
 
 // Sales Manager

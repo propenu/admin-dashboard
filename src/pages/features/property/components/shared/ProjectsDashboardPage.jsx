@@ -4017,15 +4017,6 @@ export default function ProjectsDashboardPage() {
                 Clear dates
               </button>
               </div>
-              {isSuperAdmin ? (
-                <button
-                  type="button"
-                  onClick={() => navigate("/projects/deleted")}
-                  className="text-[11px] font-semibold text-red-700 underline-offset-2 hover:underline"
-                >
-                  Deleted projects
-                </button>
-              ) : null}
             </div>
           </div>
           <p className="mt-1.5 min-h-[16px] text-[11px] text-[#5c7d6d]">
@@ -4182,7 +4173,25 @@ export default function ProjectsDashboardPage() {
             ) : null}
           </h2>
 
-          <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+            {isSuperAdmin ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate("/projects/deleted")}
+                  className="inline-flex h-10 items-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                >
+                  Deleted projects
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/projects/deleted-leads")}
+                  className="inline-flex h-10 items-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                >
+                  Deleted project leads
+                </button>
+              </>
+            ) : null}
             <ArrowUpDown className="h-4 w-4 shrink-0 text-emerald-600" />
             <FilterMenu
               className="min-w-0 flex-1 sm:min-w-[200px] sm:flex-none"

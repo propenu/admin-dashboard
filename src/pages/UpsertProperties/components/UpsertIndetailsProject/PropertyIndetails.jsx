@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   CreditCard,
   Download,
+  Upload,
   CheckCircle2,
   XCircle,
   BarChart3,
@@ -58,8 +59,9 @@ import {
   TrendingUp,
   Image as ImageIcon,
   X,
+  Trash2,
 } from "lucide-react";
-import { propertiesAnalytics } from "../../../../features/property/propertyService";
+import { deleteAllProjectLeads, deleteProjectLead, propertiesAnalytics, propertyExternalFileAddLeads } from "../../../../features/property/propertyService";
 import { getPropertyById, getDeletedPropertyListing } from "../../../../features/property/propertyService";
 import LoadingSpinner from "../../../../components/common/LoadingSpinner";
 import Fallback from "../../../../assets/fallback.svg";
@@ -995,7 +997,7 @@ function UpdateHistoryPanel({ property }) {
     </SectionCard>
   );
 }
-function LeadRow({ lead, index }) {
+function LeadRow({ lead, index, onDelete }) {
   const badge = {
     new: "bg-green-100 text-green-700",
     contacted: "bg-blue-100 text-blue-700",
@@ -1036,6 +1038,16 @@ function LeadRow({ lead, index }) {
       <td className="py-3 px-4 text-xs text-slate-400 whitespace-nowrap">
         {formatDateTime(lead.createdAt)}
       </td>
+      <td className="py-3 px-4 text-center">
+        <button
+          type="button"
+          onClick={() => onDelete?.(lead)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-100 bg-white text-red-600 transition hover:bg-red-50"
+          title="Delete lead"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
     </tr>
   );
 }
@@ -1048,9 +1060,75 @@ function LeadsSection({
   contactedLeads,
   analyticsError,
   propertyId,
+  category,
+  importBatches = [],
+  onImported,
 }) {
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [selectedImportId, setSelectedImportId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const selectedImport = importBatches.find((batch) => batch.id === selectedImportId) || null;
+  const visibleLeads = selectedImportId
+    ? leads.filter((lead) => lead.importBatchId === selectedImportId)
+    : leads;
+  const [leadPage, setLeadPage] = useState(1);
+  const leadPageSize = 20;
+  const leadPageCount = Math.max(1, Math.ceil(visibleLeads.length / leadPageSize) || 1);
+  const currentLeadPage = Math.min(leadPage, leadPageCount);
+  const pagedLeads = visibleLeads.slice(
+    (currentLeadPage - 1) * leadPageSize,
+    currentLeadPage * leadPageSize,
+  );
+
+  useEffect(() => {
+    setLeadPage(1);
+  }, [selectedImportId, propertyId]);
+
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const fileName = file.name.toLowerCase();
+    const extension = fileName.includes(".")
+      ? fileName.slice(fileName.lastIndexOf("."))
+      : "";
+    const isSpreadsheet =
+      extension === "" ||
+      extension === ".csv" ||
+      extension === ".xls" ||
+      extension === ".xlsx";
+    if (!isSpreadsheet) {
+      toast.error("Upload a CSV or Excel file.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    setUploading(true);
+    try {
+      const response = await propertyExternalFileAddLeads(
+        category,
+        propertyId,
+        formData,
+      );
+      const imported = response?.data?.imported;
+      toast.success(
+        typeof imported === "number"
+          ? `${imported} lead${imported === 1 ? "" : "s"} uploaded`
+          : "Leads uploaded",
+      );
+      await onImported?.();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to import leads");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
   const downloadCSV = () => {
-    const rows = leads.map((lead, i) => ({
+    const rows = visibleLeads.map((lead, i) => ({
       SNo: i + 1,
       Name: lead.name,
       Phone: lead.phone,
@@ -1067,7 +1145,7 @@ function LeadsSection({
   };
 
   const downloadExcel = () => {
-    const rows = leads.map((lead, i) => ({
+    const rows = visibleLeads.map((lead, i) => ({
       SNo: i + 1,
       Name: lead.name,
       Phone: lead.phone,
@@ -1097,6 +1175,21 @@ function LeadsSection({
         <span className="ml-auto text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200 px-2.5 py-1 rounded-full">
           {totalLeads} total
         </span>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={handleImportFile}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || !category || !propertyId}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#27AE60] text-white text-[11px] font-bold hover:bg-[#1f8f4e] transition disabled:opacity-60"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          {uploading ? "Uploading..." : "Upload leads"}
+        </button>
         {leads.length > 0 && (
           <div className="flex gap-2">
             <button
@@ -1113,13 +1206,22 @@ function LeadsSection({
               <Download className="w-3.5 h-3.5" />
               Excel
             </button>
+            <button
+              type="button"
+              onClick={() => setDeleteTarget({ type: "all" })}
+              disabled={!leads.length || deleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 border border-red-100 text-red-600 text-[11px] font-bold hover:bg-red-100 transition disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete all
+            </button>
           </div>
         )}
       </div>
 
       <div className="p-5">
         {/* Mini stats */}
-        <div className="flex gap-3 mb-5">
+        <div className="mb-5 flex flex-wrap gap-3">
           {[
             { label: "Total", value: totalLeads, color: "text-slate-800" },
             { label: "New", value: newLeads, color: "text-[#27AE60]" },
@@ -1130,7 +1232,7 @@ function LeadsSection({
             },
             {
               label: "Converted",
-              value: leads.filter((l) => l.status === "converted").length,
+              value: leads.filter((l) => l.status === "converted" || l.status === "closed").length,
               color: "text-purple-600",
             },
           ].map((s) => (
@@ -1144,6 +1246,54 @@ function LeadsSection({
               </p>
             </div>
           ))}
+          {importBatches.length > 0 && (
+            <div className="min-w-[240px] flex-1 rounded-xl border border-slate-100 bg-white">
+              <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+                  Uploaded leads
+                </p>
+                {selectedImport && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImportId(null)}
+                    className="text-[10px] font-bold text-[#27AE60]"
+                  >
+                    All leads
+                  </button>
+                )}
+              </div>
+              <div className="max-h-36 overflow-auto">
+                {importBatches.map((batch) => {
+                  const selected = batch.id === selectedImportId;
+                  return (
+                    <button
+                      key={batch.id}
+                      type="button"
+                      onClick={() => setSelectedImportId(selected ? null : batch.id)}
+                      className={`block w-full border-b border-slate-50 px-3 py-2 text-left last:border-b-0 ${
+                        selected ? "bg-green-50" : "hover:bg-slate-50"
+                      }`}
+                    >
+                      <p className="truncate text-xs font-bold text-slate-800">
+                        {batch.name || "Unknown"}
+                        {batch.roleName
+                          ? ` · ${String(batch.roleName).replace(/[_-]+/g, " ")}`
+                          : ""}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {batch.addedCount === 1
+                          ? "1 lead added"
+                          : `${batch.addedCount} leads added`}
+                        {" · "}
+                        {formatDateTime(batch.at)}
+                        {batch.deletedCount > 0 ? ` · ${batch.deletedCount} deleted` : ""}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {analyticsError && (
@@ -1153,7 +1303,13 @@ function LeadsSection({
           </div>
         )}
 
-        {leads.length === 0 ? (
+        {selectedImport && visibleLeads.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
+            {selectedImport.deletedCount > 0
+              ? `${selectedImport.deletedCount} leads from this upload were deleted.`
+              : "No leads from this upload are still in the list."}
+          </div>
+        ) : leads.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 gap-3 text-slate-400">
             <Users className="w-10 h-10 opacity-20" />
             <p className="text-sm font-medium">
@@ -1164,11 +1320,13 @@ function LeadsSection({
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-100">
+          <>
+          <div className="overflow-hidden rounded-xl border border-slate-100">
+            <div className="max-h-[460px] overflow-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  {["#", "Name", "Phone", "Email", "Status", "Date"].map(
+                <tr className="sticky top-0 z-10 bg-slate-50 border-b border-slate-100">
+                  {["#", "Name", "Phone", "Email", "Status", "Date", "Delete"].map(
                     (h) => (
                       <th
                         key={h}
@@ -1181,14 +1339,104 @@ function LeadsSection({
                 </tr>
               </thead>
               <tbody>
-                {leads.map((lead, i) => (
-                  <LeadRow key={lead._id || i} lead={lead} index={i} />
+                {pagedLeads.map((lead, i) => (
+                  <LeadRow
+                    key={lead._id || i}
+                    lead={lead}
+                    index={(currentLeadPage - 1) * leadPageSize + i}
+                    onDelete={setDeleteTarget}
+                  />
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+            <span>
+              Showing{" "}
+              <span className="font-bold text-slate-600">
+                {visibleLeads.length === 0
+                  ? 0
+                  : (currentLeadPage - 1) * leadPageSize + 1}
+                –
+                {Math.min(currentLeadPage * leadPageSize, visibleLeads.length)}
+              </span>{" "}
+              of <span className="font-bold text-slate-600">{visibleLeads.length}</span>
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentLeadPage <= 1}
+                onClick={() => setLeadPage(currentLeadPage - 1)}
+                className="rounded-lg border border-slate-200 px-2 py-1 font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <span className="px-2 font-semibold text-slate-600">
+                {currentLeadPage} / {leadPageCount}
+              </span>
+              <button
+                type="button"
+                disabled={currentLeadPage >= leadPageCount}
+                onClick={() => setLeadPage(currentLeadPage + 1)}
+                className="rounded-lg border border-slate-200 px-2 py-1 font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+          </>
         )}
       </div>
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <p className="text-sm font-bold text-slate-800">
+              {deleteTarget.type === "all" ? "Delete all property leads?" : "Delete this lead?"}
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              {deleteTarget.type === "all"
+                ? "This removes every lead on this property. The property itself will not be deleted."
+                : `This deletes only ${deleteTarget.name || "this lead"}. The property will not be deleted.`}
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={async () => {
+                  setDeleting(true);
+                  try {
+                    if (deleteTarget.type === "all") {
+                      await deleteAllProjectLeads(propertyId);
+                      toast.success("Property leads deleted");
+                    } else {
+                      await deleteProjectLead(deleteTarget._id);
+                      toast.success("Lead deleted");
+                    }
+                    setDeleteTarget(null);
+                    await onImported?.();
+                  } catch (err) {
+                    toast.error(err?.response?.data?.message || "Failed to delete lead");
+                  } finally {
+                    setDeleting(false);
+                  }
+                }}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 disabled:bg-red-300"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </SectionCard>
   );
 }
@@ -2114,6 +2362,15 @@ export default function IndetailsProperty({
   const property = propertyResponse?.data || deletedResponse?.property;
   const isLoading = liveLoading || (liveError && deletedLoading && !property);
   const isError = liveError && deletedError && !property;
+  const { data: propertyLeadsResponse, refetch: refetchPropertyLeads } = useQuery({
+    queryKey: ["property-leads", id],
+    queryFn: async () => {
+      const res = await propertiesAnalytics(id);
+      return res?.data;
+    },
+    enabled: !!id,
+  });
+
   const analyticsData = propertyResponse?.data?.analytics;
   // Wait for current user before deciding Approve UI — avoids top banner popping in and shifting layout
   const showApproveActions = Boolean(
@@ -2160,12 +2417,25 @@ export default function IndetailsProperty({
     if (Array.isArray(raw.leads)) return raw.leads;
     return [];
   };
-  const leads = extractLeads(analyticsData);
-  const totalLeads =
-    typeof analyticsData?.count === "number"
-      ? analyticsData.count
-      : leads.length;
-  const newLeads = leads.filter((l) => l.status === "new").length;
+  const analyticsLeads = extractLeads(analyticsData);
+  const importBatches = Array.isArray(propertyLeadsResponse?.importBatches)
+    ? propertyLeadsResponse.importBatches
+    : [];
+  const importedLeads = extractLeads(propertyLeadsResponse);
+  const leads = [...analyticsLeads];
+  const seenLeadKeys = new Set(
+    leads.map((lead) => String(lead?._id || lead?.phone || "")),
+  );
+  importedLeads.forEach((lead) => {
+    const key = String(lead?._id || lead?.phone || "");
+    if (!key || seenLeadKeys.has(key)) return;
+    seenLeadKeys.add(key);
+    leads.push(lead);
+  });
+  const totalLeads = leads.length;
+  const newLeads = leads.filter(
+    (l) => l.status === "new" || l.status === "new_lead",
+  ).length;
   const contactedLeads = leads.filter((l) => l.status === "contacted").length;
 
   // Images
@@ -2700,6 +2970,9 @@ export default function IndetailsProperty({
         contactedLeads={contactedLeads}
         analyticsError={analyticsError}
         propertyId={property._id}
+        category={category}
+        importBatches={importBatches}
+        onImported={() => refetchPropertyLeads()}
       />
 
       {/* ── RECORD META ───────────────────────────────────────────────── */}

@@ -469,6 +469,7 @@ function PropertyCard({
   index = 0,
 }) {
   const [openLeads, setOpenLeads] = useState(false);
+  const [leadPage, setLeadPage] = useState(1);
   const status = getStatus(property);
   const creatorRole = getCreatedByRoleLabel(property);
   const creator = getCreatedByDisplayName(property) || "Unknown user";
@@ -486,23 +487,26 @@ function PropertyCard({
   const canPromoteListing = status === "active";
   const isBoosted = promoType !== "normal";
 
-  const { data: leadsData, isLoading: leadsLoading } = useQuery({
-    queryKey: ["property-leads", property?._id],
+  const { data: leadsData, isLoading: leadsLoading, isFetching: leadsFetching } = useQuery({
+    queryKey: ["property-leads", property?._id, leadPage],
     queryFn: async () => {
-      const res = await propertiesAnalytics(property?._id);
+      const res = await propertiesAnalytics(property?._id, { page: leadPage, limit: 20 });
       return res.data;
     },
     enabled: Boolean(openLeads && property?._id),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
+    placeholderData: keepPreviousData,
   });
 
   const leads = Array.isArray(leadsData?.data) ? leadsData.data : [];
   const totalLeads =
     typeof leadsData?.count === "number" ? leadsData.count : leads.length;
 
-  const exportLeads = (type) => {
-    const rows = leads.map((lead, index) => ({
+  const exportLeads = async (type) => {
+    const res = await propertiesAnalytics(property?._id);
+    const source = Array.isArray(res.data?.data) ? res.data.data : leads;
+    const rows = source.map((lead, index) => ({
       SNo: index + 1,
       Name: lead.name,
       Phone: lead.phone,
@@ -683,6 +687,7 @@ function PropertyCard({
             type="button"
             onClick={(event) => {
               event.stopPropagation();
+              setLeadPage(1);
               setOpenLeads(true);
             }}
             className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[10px] font-medium text-emerald-700 transition hover:bg-emerald-100 sm:py-1"
@@ -858,7 +863,7 @@ function PropertyCard({
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    disabled={!leads.length}
+                    disabled={!totalLeads}
                     onClick={() => exportLeads("csv")}
                     className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -866,7 +871,7 @@ function PropertyCard({
                   </button>
                   <button
                     type="button"
-                    disabled={!leads.length}
+                    disabled={!totalLeads}
                     onClick={() => exportLeads("excel")}
                     className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-white px-3 py-2 text-xs font-medium text-[#0f3d2e] disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -903,7 +908,9 @@ function PropertyCard({
                     <tbody>
                       {leads.map((lead, index) => (
                         <tr key={lead._id || index} className="border-b border-emerald-50 hover:bg-emerald-50/40">
-                          <td className="px-4 py-4 text-sm text-[#5c7d6d]">{index + 1}</td>
+                          <td className="px-4 py-4 text-sm text-[#5c7d6d]">
+                            {(leadPage - 1) * (leadsData?.limit || 20) + index + 1}
+                          </td>
                           <td className="px-4 py-4">
                             <p className="text-sm font-semibold text-[#0f3d2e]">{lead.name || "Unknown"}</p>
                             <p className="mt-1 text-xs text-[#5c7d6d]">ID: {lead._id?.slice(-6) || "N/A"}</p>
@@ -968,6 +975,36 @@ function PropertyCard({
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+              {!leadsLoading && totalLeads > 0 && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[#5c7d6d]">
+                  <span>
+                    Showing {(leadPage - 1) * (leadsData?.limit || 20) + 1}
+                    –
+                    {(leadPage - 1) * (leadsData?.limit || 20) + leads.length} of {totalLeads}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={leadPage <= 1 || leadsFetching}
+                      onClick={() => setLeadPage((page) => Math.max(1, page - 1))}
+                      className="rounded-lg border border-emerald-100 bg-white px-3 py-1.5 font-semibold text-[#0f3d2e] disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <span className="font-semibold text-[#0f3d2e]">
+                      {leadPage} / {leadsData?.pages || 1}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={leadPage >= (leadsData?.pages || 1) || leadsFetching}
+                      onClick={() => setLeadPage((page) => page + 1)}
+                      className="rounded-lg border border-emerald-100 bg-white px-3 py-1.5 font-semibold text-[#0f3d2e] disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -2343,15 +2380,6 @@ export default function PropertiesDashboard() {
                   Clear dates
                 </button>
               </div>
-              {isSuperAdmin ? (
-                <button
-                  type="button"
-                  onClick={() => navigate("/properties/deleted")}
-                  className="text-[11px] font-semibold text-red-700 underline-offset-2 hover:underline"
-                >
-                  Deleted properties
-                </button>
-              ) : null}
               </div>
             </div>
             <p className="mt-2 min-h-[18px] text-xs text-[#5c7d6d]">
@@ -2378,9 +2406,29 @@ export default function PropertiesDashboard() {
                 </span>
               )}
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarClock className="h-4 w-4 shrink-0" /> Analytics source:
-              `/analytics/properties`
+            <span className="inline-flex flex-wrap items-center justify-end gap-2">
+              {isSuperAdmin ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/properties/deleted")}
+                    className="inline-flex h-10 items-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                  >
+                    Deleted properties
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/properties/deleted-leads")}
+                    className="inline-flex h-10 items-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                  >
+                    Deleted property leads
+                  </button>
+                </>
+              ) : null}
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarClock className="h-4 w-4 shrink-0" /> Analytics source:
+                `/analytics/properties`
+              </span>
             </span>
             {listFailed && (
               <span className="font-medium text-amber-700">

@@ -1,5 +1,5 @@
 // src\pages\features\property\components\shared\IndetialsPage.jsx
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -1657,19 +1657,37 @@ function LeadsSection({
   contactedLeads,
   analyticsError,
   projectId,
+  importBatches = [],
   metaViews = 0,
   metaClicks = 0,
   metaInquiries = 0,
 }) {
   const [activeTab, setActiveTab] = useState("leads");
   const [leadSearch, setLeadSearch] = useState("");
+  const [selectedImportId, setSelectedImportId] = useState(null);
   const [leadDeleteTarget, setLeadDeleteTarget] = useState(null);
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
   const leadSearchTerm = leadSearch.trim().toLowerCase();
-  const filteredLeads = leadSearchTerm
-    ? leads.filter((lead) => getLeadSearchText(lead).includes(leadSearchTerm))
+  const selectedImport = importBatches.find((batch) => batch.id === selectedImportId) || null;
+  const batchLeads = selectedImportId
+    ? leads.filter((lead) => lead.importBatchId === selectedImportId)
     : leads;
+  const filteredLeads = leadSearchTerm
+    ? batchLeads.filter((lead) => getLeadSearchText(lead).includes(leadSearchTerm))
+    : batchLeads;
+  const [leadPage, setLeadPage] = useState(1);
+  const leadPageSize = 20;
+  const leadPageCount = Math.max(1, Math.ceil(filteredLeads.length / leadPageSize) || 1);
+  const currentLeadPage = Math.min(leadPage, leadPageCount);
+  const pagedLeads = filteredLeads.slice(
+    (currentLeadPage - 1) * leadPageSize,
+    currentLeadPage * leadPageSize,
+  );
+
+  useEffect(() => {
+    setLeadPage(1);
+  }, [leadSearchTerm, selectedImportId]);
 
   const buildLeadRows = (rows) =>
     rows.map((lead) => ({
@@ -1730,6 +1748,20 @@ function LeadsSection({
   const handleImportFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const fileName = file.name.toLowerCase();
+    const extension = fileName.includes(".")
+      ? fileName.slice(fileName.lastIndexOf("."))
+      : "";
+    const isSpreadsheet =
+      extension === "" ||
+      extension === ".csv" ||
+      extension === ".xls" ||
+      extension === ".xlsx";
+    if (!isSpreadsheet) {
+      toast.error("Upload a CSV or Excel file.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     importLeadsMutation.mutate(file);
   };
 
@@ -1813,7 +1845,6 @@ function LeadsSection({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,.xls,.xlsx"
                 className="hidden"
                 onChange={handleImportFile}
               />
@@ -1822,7 +1853,7 @@ function LeadsSection({
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={importLeadsMutation.isPending || !projectId}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#27AE60] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#1f8f4e] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Upload className="h-3.5 w-3.5" />
                   {importLeadsMutation.isPending ? "Uploading..." : "Upload leads"}
@@ -1901,6 +1932,58 @@ function LeadsSection({
                   </p>
                 </div>
               ))}
+              {importBatches.length > 0 && (
+                <div className="min-w-[240px] flex-1 rounded-xl border border-slate-100 bg-white">
+                  <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+                    <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+                      Uploaded leads
+                    </p>
+                    {selectedImport && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedImportId(null)}
+                        className="text-[10px] font-bold text-[#27AE60]"
+                      >
+                        All leads
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-36 overflow-auto">
+                    {importBatches.map((batch) => {
+                      const selected = batch.id === selectedImportId;
+                      return (
+                        <button
+                          key={batch.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedImportId(selected ? null : batch.id)
+                          }
+                          className={`block w-full border-b border-slate-50 px-3 py-2 text-left last:border-b-0 ${
+                            selected ? "bg-green-50" : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <p className="truncate text-xs font-bold text-slate-800">
+                            {batch.name || "Unknown"}
+                            {batch.roleName
+                              ? ` · ${String(batch.roleName).replace(/[_-]+/g, " ")}`
+                              : ""}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            {batch.addedCount === 1
+                              ? "1 lead added"
+                              : `${batch.addedCount} leads added`}
+                            {" · "}
+                            {formatLeadDateTime(batch.at)}
+                            {batch.deletedCount > 0
+                              ? ` · ${batch.deletedCount} deleted`
+                              : ""}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {analyticsError && (
@@ -1910,7 +1993,13 @@ function LeadsSection({
               </div>
             )}
 
-            {leads.length === 0 ? (
+            {selectedImport && batchLeads.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
+                {selectedImport.deletedCount > 0
+                  ? `${selectedImport.deletedCount} leads from this upload were deleted.`
+                  : "No leads from this upload are still in the list."}
+              </div>
+            ) : leads.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-14 gap-3 text-slate-400">
                 <Users className="w-10 h-10 opacity-20" />
                 <p className="text-sm font-medium">No leads yet for this project</p>
@@ -1940,7 +2029,7 @@ function LeadsSection({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredLeads.map((lead, i) => (
+                      {pagedLeads.map((lead, i) => (
                         <LeadRow
                           key={lead._id || i}
                           lead={lead}
@@ -1954,11 +2043,39 @@ function LeadsSection({
                   </table>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between text-xs text-slate-400 px-1">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 px-1">
                   <span>
-                    Showing:{" "}
-                    <span className="font-bold text-slate-600">{filteredLeads.length}</span>
+                    Showing{" "}
+                    <span className="font-bold text-slate-600">
+                      {filteredLeads.length === 0
+                        ? 0
+                        : (currentLeadPage - 1) * leadPageSize + 1}
+                      –
+                      {Math.min(currentLeadPage * leadPageSize, filteredLeads.length)}
+                    </span>{" "}
+                    of <span className="font-bold text-slate-600">{filteredLeads.length}</span>
                   </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={currentLeadPage <= 1}
+                      onClick={() => setLeadPage(currentLeadPage - 1)}
+                      className="rounded-lg border border-slate-200 px-2 py-1 font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Prev
+                    </button>
+                    <span className="px-2 font-semibold text-slate-600">
+                      {currentLeadPage} / {leadPageCount}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={currentLeadPage >= leadPageCount}
+                      onClick={() => setLeadPage(currentLeadPage + 1)}
+                      className="rounded-lg border border-slate-200 px-2 py-1 font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
                   <div className="flex gap-4">
                     <span>
                       New:{" "}
@@ -2365,6 +2482,9 @@ export default function FeaturedPropertyDetails() {
     if (Array.isArray(raw.leads)) return raw.leads;
     return [];
   };
+  const importBatches = Array.isArray(analyticsData?.data?.importBatches)
+    ? analyticsData.data.importBatches
+    : [];
   const leads = extractLeads(analyticsData)
     .slice()
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -3098,6 +3218,7 @@ export default function FeaturedPropertyDetails() {
         contactedLeads={contactedLeads}
         analyticsError={analyticsError}
         projectId={property._id}
+        importBatches={importBatches}
         metaViews={views}
         metaClicks={property.meta?.clicks ?? 0}
         metaInquiries={property.meta?.inquiries ?? 0}
