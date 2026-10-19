@@ -118,6 +118,18 @@ export const resetProject = (id) => apiClient.patch(`${BASE}/${id}/reset`);
 export const promoteProjectWithRank = (id, data) =>
   apiClient.patch(`${BASE}/${id}/promote`, data);
 
+/** Builder plan covering the project, its package, and how its promotion is delivered. */
+export const getProjectPlanStatus = (id) =>
+  apiClient.get(`${BASE}/${id}/plan-status`).then((res) => res.data?.data || null);
+
+/** Project card mode: "auto" (plan drives it) or "manual" (Direct). */
+export const setProjectPromotionMode = (id, mode, confirmReplace = false) =>
+  apiClient.patch(`${BASE}/${id}/promotion-mode`, { mode, confirmReplace });
+
+/** One-button start from the paid plan; only locations can be chosen. */
+export const startProjectFromPlan = (id, payload = {}) =>
+  apiClient.post(`${BASE}/${id}/promote-from-plan`, payload);
+
 /** Update rank */
 export const updateProjectRank = (id, rank) =>
   apiClient.patch(`${BASE}/${id}`, { rank });

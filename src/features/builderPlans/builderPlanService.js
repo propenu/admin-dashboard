@@ -21,6 +21,14 @@ export const builderPlanService = {
   updateInvoice: (id, payload) => apiClient.patch(`${INVOICE_URL}/${id}`, payload).then((response) => response.data),
   removeInvoice: (id) => apiClient.delete(`${INVOICE_URL}/${id}`).then((response) => response.data),
   invoices: (params = {}) => apiClient.get(INVOICE_URL, { params }).then((response) => response.data),
+  /** Ask the property service to start / extend / end the plan promotion right away. */
+  syncProjectPromotion: (projectId) =>
+    projectId
+      ? apiClient
+          .post(`/api/properties/featured-project/${projectId}/plan-sync`)
+          .then((response) => response.data)
+          .catch(() => null)
+      : Promise.resolve(null),
   invoicePdf: (id, download = false) => apiClient.get(`${INVOICE_URL}/${id}/pdf`, {
     params: download ? { download: true } : {}, responseType: "blob",
   }).then((response) => response.data),

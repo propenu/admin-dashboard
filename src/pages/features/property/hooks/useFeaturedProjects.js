@@ -242,7 +242,17 @@ export function useFeaturedProjects(type, options = {}) {
   });
 
   const promoteMutation = useMutation({
-    mutationFn: async ({ id, newType, visibleLeadLimit, days, sponsoredAd, startAt }) => {
+    mutationFn: async ({
+      id,
+      newType,
+      visibleLeadLimit,
+      days,
+      sponsoredAd,
+      startAt,
+      mainCoverage,
+      sponsoredEnabled,
+      sponsoredSameAsMain,
+    }) => {
       if (!id || !newType) {
         throw new Error("Missing project id or promotion type");
       }
@@ -264,6 +274,15 @@ export function useFeaturedProjects(type, options = {}) {
         promotePayload.sponsoredAd = sponsoredAd;
       }
       if (startAt) promotePayload.startAt = startAt;
+      if (mainCoverage && typeof mainCoverage === "object") {
+        promotePayload.mainCoverage = mainCoverage;
+      }
+      if (typeof sponsoredEnabled === "boolean") {
+        promotePayload.sponsoredEnabled = sponsoredEnabled;
+      }
+      if (typeof sponsoredSameAsMain === "boolean") {
+        promotePayload.sponsoredSameAsMain = sponsoredSameAsMain;
+      }
       return promoteProjectWithRank(id, promotePayload);
     },
     onSuccess: (_data, variables) => {

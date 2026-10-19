@@ -35,6 +35,7 @@ import {
   getAllProjectsAnalytics,
   getFeaturedProjectsByType,
   getProjectBoardFilterOptions,
+  startProjectFromPlan,
 } from "../../../../../features/property/propertyService";
 import {
   getPromotionTracking,
@@ -280,10 +281,11 @@ const ProjectGridCard = memo(function ProjectGridCard({
         canPermanentDelete ? () => onPermanentDelete(property._id) : undefined
       }
       canPermanentDelete={canPermanentDelete}
-      onPromote={() => onPromote(property._id)}
+      onPromote={(options) => onPromote(property._id, options)}
       onReset={() => onReset(property._id)}
       onRankUpdated={onRankUpdated}
       canApprove={canApprove}
+      planModes
     />
     </div>
   );
@@ -2232,6 +2234,8 @@ export default function ProjectsDashboardPage() {
   const [promoteTarget,      setPromoteTarget]      = useState(null);
   const [resetTarget,        setResetTarget]        = useState(null);
   const [promoteCurrentType, setPromoteCurrentType] = useState("normal");
+  const [promotePlanStatus,  setPromotePlanStatus]  = useState(null);
+  const [planStartLoading,   setPlanStartLoading]   = useState(false);
 
   const { data: masterAnalyticsData } = useQuery({
     queryKey: ["master-project-analytics"],
@@ -3119,8 +3123,50 @@ export default function ProjectsDashboardPage() {
     }
   }, [canPermanentDelete, permanentDeleteLoading, queryClient, refreshAllProjects]);
   const handleReset   = useCallback((id) => getHook(id).resetMutation.mutate(id,   { onSuccess: refreshAllProjects, onSettled: () => setResetTarget(null)   }), [getHook, refreshAllProjects]);
+  const closePromote = useCallback(() => {
+    setPromoteTarget(null);
+    setPromotePlanStatus(null);
+  }, []);
+
+  const startFromPlan = useCallback(
+    async (coverage) => {
+      if (!promoteTarget) return;
+      const attempt = async (confirmReplace) => {
+        try {
+          const res = await startProjectFromPlan(promoteTarget, { ...coverage, confirmReplace });
+          toast.success(res?.data?.message || "Plan promotion started");
+          queryClient.invalidateQueries({ queryKey: ["project-plan-status", promoteTarget] });
+          closePromote();
+          refreshAllProjects();
+        } catch (error) {
+          const data = error?.response?.data;
+          if (!confirmReplace && error?.response?.status === 409 && data?.needsConfirm) {
+            if (window.confirm(data.message)) await attempt(true);
+            return;
+          }
+          toast.error(data?.message || "Could not start the plan promotion");
+        }
+      };
+      setPlanStartLoading(true);
+      try {
+        await attempt(false);
+      } finally {
+        setPlanStartLoading(false);
+      }
+    },
+    [promoteTarget, queryClient, closePromote, refreshAllProjects],
+  );
+
   const handlePromote = useCallback(
     (newType, options = {}) => {
+      if (promotePlanStatus?.plan) {
+        startFromPlan({
+          mainCoverage: options.mainCoverage,
+          sponsoredSameAsMain: options.sponsoredSameAsMain,
+          sponsoredAd: options.sponsoredAd,
+        });
+        return;
+      }
       if (!promoteTarget || !newType) {
         toast.error("Select a project and promotion type");
         return;
@@ -3139,20 +3185,24 @@ export default function ProjectsDashboardPage() {
           days: options.days,
           sponsoredAd: options.sponsoredAd,
           startAt: options.startAt,
+          mainCoverage: options.mainCoverage,
+          sponsoredEnabled: options.sponsoredEnabled,
+          sponsoredSameAsMain: options.sponsoredSameAsMain,
         },
         {
           onSuccess: () => {
             refreshAllProjects();
           },
-          onSettled: () => setPromoteTarget(null),
+          onSettled: closePromote,
         },
       );
     },
-    [normalHook, promoteTarget, refreshAllProjects],
+    [normalHook, promoteTarget, refreshAllProjects, promotePlanStatus, startFromPlan, closePromote],
   );
 
-  const openPromoteModal = useCallback((id) => {
+  const openPromoteModal = useCallback((id, options = {}) => {
     setPromoteCurrentType(allProperties.find((p) => p._id === id)?.promotion?.type || "normal");
+    setPromotePlanStatus(options?.mode === "plan" && options.planStatus?.plan ? options.planStatus : null);
     setPromoteTarget(id);
   }, [allProperties]);
 
@@ -3307,6 +3357,9 @@ export default function ProjectsDashboardPage() {
       <PromoteModal
         open={!!promoteTarget}
         projectId={promoteTarget}
+        projectTitle={promoteTargetProject?.title}
+        projectCity={promoteTargetProject?.city}
+        currentPromotion={promoteTargetProject?.promotion}
         projectStatus={promoteTargetProject?.status}
         approvalStatus={
           promoteTargetProject?.approvalStatus ||
@@ -3317,9 +3370,10 @@ export default function ProjectsDashboardPage() {
           promoteTargetProject?.promotion?.visibleLeadLimit
         }
         canSetLeadCount={canSetPromotionLeadCount(currentUser)}
-        isLoading={Boolean(normalHook?.promoteMutation?.isPending)}
+        planStatus={promotePlanStatus}
+        isLoading={Boolean(normalHook?.promoteMutation?.isPending) || planStartLoading}
         onConfirm={handlePromote}
-        onCancel={() => setPromoteTarget(null)}
+        onCancel={closePromote}
       />
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────────── */}

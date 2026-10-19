@@ -7,12 +7,37 @@ import {
   UserPlus, WalletCards, X, Zap,
 } from "lucide-react";
 import { builderPlanService } from "../../features/builderPlans/builderPlanService";
+import {
+  LOCATION_RULES, describePlanPackage, locationRuleLabel, normalizePlanPackage, planHasPromotion,
+  promotionStatusMeta,
+} from "../../features/builderPlans/planPackage";
 import { useLivePermissions } from "../../utils/useLivePermissions";
+import PlanPackageEditor from "./PlanPackageEditor";
+
+const EMPTY_PACKAGE = {
+  mainPlacement: "prime", sponsoredEnabled: false, locationRule: "fixed",
+  mainCoverage: {}, sponsoredSameAsMain: true, sponsoredAd: {}, visibleLeadLimit: "0", startMode: "auto",
+};
 
 const EMPTY_FORM = {
   code: "", title: "", price: "", discount: "0", description: "",
-  promotionType: "normal", durationDays: "30", isActive: true,
+  durationDays: "30", isActive: true, ...EMPTY_PACKAGE,
 };
+
+const isEmptyMap = (map) => !map || typeof map !== "object" || Object.keys(map).length === 0;
+
+const PACKAGE_KEYS = ["mainPlacement", "sponsoredEnabled", "locationRule", "mainCoverage", "sponsoredSameAsMain", "sponsoredAd", "visibleLeadLimit", "startMode"];
+
+function PackageChips({ plan, className = "" }) {
+  const pkg = normalizePlanPackage(plan);
+  if (!planHasPromotion(pkg)) return <div className={`flex flex-wrap gap-1 ${className}`}><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] text-slate-500">Listing only</span></div>;
+  return <div className={`flex flex-wrap gap-1 ${className}`}>
+    {pkg.mainPlacement === "prime" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-medium text-amber-800">🏆 Prime</span>}
+    {pkg.mainPlacement === "featured" && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[9px] font-medium text-sky-800">📈 Top Selling</span>}
+    {pkg.sponsoredEnabled && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[9px] font-medium text-violet-800">📣 Sponsored</span>}
+    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] text-emerald-700">📍 {locationRuleLabel(pkg.locationRule)}</span>
+    <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[9px] text-teal-700">👁 {pkg.visibleLeadLimit} leads</span>  </div>;
+}
 
 const money = (value) => new Intl.NumberFormat("en-IN", {
   style: "currency", currency: "INR", maximumFractionDigits: 0,
@@ -45,8 +70,15 @@ function validate(form) {
   if (Number(form.discount) < 0) errors.discount = "Discount cannot be negative";
   if (Number(form.discount) > Number(form.price)) errors.discount = "Discount cannot exceed price";
   if (!form.description.trim()) errors.description = "Description is required";
-  if (!form.promotionType.trim()) errors.promotionType = "Promotion type is required";
   if (!Number.isInteger(Number(form.durationDays)) || Number(form.durationDays) < 1) errors.durationDays = "Duration must be at least 1 day";
+  if (!Number.isInteger(Number(form.visibleLeadLimit)) || Number(form.visibleLeadLimit) < 0) errors.visibleLeadLimit = "Enter a whole number ≥ 0";
+  if (planHasPromotion(form) && !LOCATION_RULES.some((rule) => rule.value === form.locationRule)) {
+    errors.coverage = "Choose which cities this plan runs in";
+  } else if (form.locationRule === "fixed") {
+    const hasMain = form.mainPlacement !== "none";
+    if (hasMain && isEmptyMap(form.mainCoverage)) errors.coverage = form.sponsoredEnabled && form.sponsoredSameAsMain ? "Pick at least one city for the homepage spot and the ad" : "Pick at least one city for the homepage spot";
+    else if (form.sponsoredEnabled && (!hasMain || !form.sponsoredSameAsMain) && isEmptyMap(form.sponsoredAd)) errors.coverage = "Pick at least one city for the Sponsored ad";
+  }
   return errors;
 }
 
@@ -60,10 +92,16 @@ function Field({ label, error, hint, children }) {
 
 function PlanModal({ plan, mode = "create", onClose, onEdit, onCreateInvoice, onCreateReady, onSaved, canUpdate = false, canCreateInvoice = false }) {
   const readOnly = mode === "view";
-  const [form, setForm] = useState(plan ? {
-    ...plan, promotionType: String(plan.promotionType || "normal").toLowerCase(), price: String(plan.price), discount: String(plan.discount || 0),
-    durationDays: String(plan.durationDays || 30),
-  } : EMPTY_FORM);
+  const [form, setForm] = useState(() => {
+    if (!plan) return EMPTY_FORM;
+    const pkg = normalizePlanPackage(plan);
+    return {
+      ...plan, ...pkg, price: String(plan.price), discount: String(plan.discount || 0),
+      durationDays: String(plan.durationDays || 30), visibleLeadLimit: String(pkg.visibleLeadLimit),
+    };
+  });
+  const packageValue = Object.fromEntries(PACKAGE_KEYS.map((key) => [key, form[key]]));
+  const setPackage = (next) => setForm((old) => ({ ...old, ...next }));
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const inputClass = "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[13px] text-slate-800 outline-none transition focus:border-[#27AE60] focus:ring-2 focus:ring-emerald-100";
@@ -76,11 +114,20 @@ function PlanModal({ plan, mode = "create", onClose, onEdit, onCreateInvoice, on
     const nextErrors = validate(form);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
+    const hasMain = form.mainPlacement !== "none";
+    const fixed = form.locationRule === "fixed";
     const payload = {
       code: form.code.trim().toUpperCase(), title: form.title.trim(), price: Number(form.price),
       discount: Number(form.discount || 0), description: form.description.trim(),
-      promotionType: form.promotionType.trim(), durationDays: Number(form.durationDays),
-      isActive: Boolean(form.isActive),
+      promotionType: hasMain ? form.mainPlacement : form.sponsoredEnabled ? "sponsored" : "normal",
+      durationDays: Number(form.durationDays), isActive: Boolean(form.isActive),
+      mainPlacement: form.mainPlacement, sponsoredEnabled: Boolean(form.sponsoredEnabled),
+      locationRule: form.locationRule,
+      mainCoverage: fixed && hasMain ? form.mainCoverage : {},
+      sponsoredSameAsMain: Boolean(form.sponsoredSameAsMain),
+      sponsoredAd: fixed && form.sponsoredEnabled && !(hasMain && form.sponsoredSameAsMain) ? form.sponsoredAd : {},
+      visibleLeadLimit: Math.trunc(Number(form.visibleLeadLimit) || 0),
+      startMode: form.startMode,
     };
     setSaving(true);
     try {
@@ -100,9 +147,8 @@ function PlanModal({ plan, mode = "create", onClose, onEdit, onCreateInvoice, on
   };
 
   if (readOnly) {
-    const promotionLabel = form.promotionType === "featured"
-      ? "Top Selling"
-      : `${form.promotionType.charAt(0).toUpperCase()}${form.promotionType.slice(1)}`;
+    const promotionLabel = describePlanPackage(form);
+    const viewPkg = normalizePlanPackage(form);
     return <div className="fixed inset-0 z-[100] flex justify-end bg-slate-950/40 backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <section className="flex h-dvh w-[min(100vw,560px)] flex-col overflow-hidden bg-[#f8faf9] shadow-[-20px_0_60px_rgba(15,23,42,.18)] sm:rounded-l-3xl">
         <header className="shrink-0 border-b border-slate-100 bg-white px-5 py-5 sm:px-6">
@@ -111,16 +157,21 @@ function PlanModal({ plan, mode = "create", onClose, onEdit, onCreateInvoice, on
         <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
           <div className="overflow-hidden rounded-2xl bg-[#123a29] p-5 text-white shadow-lg shadow-emerald-950/10">
             <div className="flex items-start justify-between gap-3"><span className="rounded-lg bg-white/10 px-2.5 py-1 font-mono text-[9px] font-normal uppercase tracking-wider text-emerald-100">{form.code}</span><span className={`rounded-full px-2.5 py-1 text-[9px] font-normal uppercase tracking-wide ${form.isActive ? "bg-[#27AE60] text-white" : "bg-white/10 text-slate-300"}`}>{form.isActive ? "● Live" : "● Inactive"}</span></div>
-            <h3 className="mt-5 text-[22px] font-medium tracking-tight">{form.title}</h3><p className="mt-1 text-[11px] font-normal uppercase tracking-[.14em] text-emerald-300">{promotionLabel} promotion</p>
+            <h3 className="mt-5 text-[22px] font-medium tracking-tight">{form.title}</h3><p className="mt-1 text-[11px] font-normal uppercase tracking-[.14em] text-emerald-300">{promotionLabel}{planHasPromotion(viewPkg) ? " promotion" : ""}</p>
             <div className="mt-5 border-t border-white/10 pt-5"><p className="text-[9px] font-normal uppercase tracking-[.16em] text-emerald-100/60">Customer price</p><div className="mt-1 flex flex-wrap items-end gap-x-2 gap-y-1"><span className="text-[30px] font-medium leading-none">{money(finalPrice)}</span><span className="pb-0.5 text-[10px] font-normal text-emerald-100/70">for {form.durationDays} days</span></div>{Number(form.discount)>0 && <p className="mt-2 text-[10px] text-emerald-100/70"><span className="line-through">{money(form.price)}</span><span className="ml-2 rounded-md bg-white/10 px-2 py-1 font-normal text-emerald-200">Save {money(form.discount)}</span></p>}</div>
           </div>
 
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
             <p className="text-[10px] font-normal uppercase tracking-[.14em] text-slate-400">Plan information</p>
             <dl className="mt-3 divide-y divide-slate-100">
-              {[["Promotion type",promotionLabel],["Base price",money(form.price)],["Discount",money(form.discount)],["Billing duration",`${form.durationDays} days`],["Availability",form.isActive ? "Available for purchase" : "Not available"]].map(([label,value]) => <div key={label} className="flex items-center justify-between gap-4 py-3"><dt className="text-[11px] font-normal text-slate-500">{label}</dt><dd className="text-right text-[11px] font-normal text-slate-800">{value}</dd></div>)}
+              {[["Promotion package",promotionLabel],...(planHasPromotion(viewPkg) ? [["Locations",locationRuleLabel(viewPkg.locationRule)],["Visible leads",String(viewPkg.visibleLeadLimit)]] : []),["Base price",money(form.price)],["Discount",money(form.discount)],["Billing duration",`${form.durationDays} days`],["Availability",form.isActive ? "Available for purchase" : "Not available"]].map(([label,value]) => <div key={label} className="flex items-center justify-between gap-4 py-3"><dt className="text-[11px] font-normal text-slate-500">{label}</dt><dd className="text-right text-[11px] font-normal text-slate-800">{value}</dd></div>)}
             </dl>
           </div>
+
+          {viewPkg.locationRule === "fixed" && planHasPromotion(viewPkg) && <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-normal uppercase tracking-[.14em] text-slate-400">Plan locations</p>
+            {viewPkg.mainPlacement !== "none" && <p className="mt-2 text-[11px] text-slate-600"><span className="font-medium text-slate-800">{viewPkg.mainPlacement === "prime" ? "Prime" : "Top Selling"}:</span> {Object.keys(viewPkg.mainCoverage).length ? Object.entries(viewPkg.mainCoverage).map(([st, cities]) => `${st} (${Object.keys(cities).join(", ")})`).join(" · ") : "Each project's own city"}</p>}
+            {viewPkg.sponsoredEnabled && <p className="mt-1 text-[11px] text-slate-600"><span className="font-medium text-slate-800">Sponsored:</span> {viewPkg.mainPlacement !== "none" && viewPkg.sponsoredSameAsMain ? "Same as main" : Object.entries(viewPkg.sponsoredAd).map(([st, cities]) => `${st} (${Object.keys(cities).join(", ")})`).join(" · ") || "—"}</p>}
+          </div>}
 
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5"><p className="text-[10px] font-normal uppercase tracking-[.14em] text-slate-400">Description</p><p className="mt-3 whitespace-pre-wrap text-[12px] font-normal leading-6 text-slate-600">{form.description || "No description provided."}</p></div>
         </div>
@@ -130,20 +181,20 @@ function PlanModal({ plan, mode = "create", onClose, onEdit, onCreateInvoice, on
   }
 
   return <div className="fixed inset-0 z-[100] flex justify-end bg-slate-950/40 backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-    <form onSubmit={submit} className="flex h-dvh w-[min(100vw,620px)] flex-col overflow-hidden bg-white shadow-[-20px_0_60px_rgba(15,23,42,.18)] sm:rounded-l-3xl">
+    <form onSubmit={submit} className="flex h-dvh w-[min(100vw,720px)] flex-col overflow-hidden bg-white shadow-[-20px_0_60px_rgba(15,23,42,.18)] sm:rounded-l-3xl">
       <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-6 py-5">
-        <div><p className="text-[11px] font-normal uppercase tracking-[.16em] text-[#27AE60]">{readOnly ? "Subscription overview" : "Plan configuration"}</p><h2 className="mt-1 text-xl font-medium text-slate-900">{readOnly ? "View builder plan" : plan ? "Edit builder plan" : "Create builder plan"}</h2><p className="mt-1 text-xs text-slate-500">{readOnly ? "Review pricing, promotion and availability." : "Set pricing, promotion and availability."}</p></div>
+        <div><p className="text-[11px] font-normal uppercase tracking-[.16em] text-[#27AE60]">{readOnly ? "Subscription overview" : "Plan configuration"}</p><h2 className="mt-1 text-xl font-medium text-slate-900">{readOnly ? "View builder plan" : plan ? "Edit builder plan" : "Create builder plan"}</h2><p className="mt-1 text-xs text-slate-500">{readOnly ? "Review pricing, promotion and availability." : "Set pricing, the promotion package and availability."}</p></div>
         <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X size={18}/></button>
       </div>
       <div className="flex-1 space-y-5 overflow-y-auto p-6">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Plan title *" error={errors.title}><input disabled={readOnly} className={inputClass} value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Growth Builder"/></Field>
-          <Field label="Plan code *" error={errors.code} hint="Unique and used by integrations"><input disabled={readOnly} className={inputClass} value={form.code} onChange={(e) => set("code", e.target.value.toUpperCase().replace(/\s+/g, "_"))} placeholder="BUILDER_GROWTH"/></Field>
+          <Field label="Plan code *" error={errors.code} hint="Short unique ID for this plan"><input disabled={readOnly} className={inputClass} value={form.code} onChange={(e) => set("code", e.target.value.toUpperCase().replace(/\s+/g, "_"))} placeholder="BUILDER_GROWTH"/></Field>
           <Field label="Base price (₹) *" error={errors.price}><input disabled={readOnly} className={inputClass} type="number" min="0" value={form.price} onChange={(e) => set("price", e.target.value)} placeholder="14999"/></Field>
           <Field label="Flat discount (₹)" error={errors.discount}><input disabled={readOnly} className={inputClass} type="number" min="0" value={form.discount} onChange={(e) => set("discount", e.target.value)} /></Field>
-          <Field label="Promotion type *" error={errors.promotionType}><select disabled={readOnly} className={inputClass} value={form.promotionType} onChange={(e) => set("promotionType", e.target.value)}><option value="normal">Normal</option><option value="prime">Prime</option><option value="sponsored">Sponsored</option><option value="featured">Top Selling</option></select></Field>
-          <Field label="Duration (days) *" error={errors.durationDays}><input disabled={readOnly} className={inputClass} type="number" min="1" step="1" value={form.durationDays} onChange={(e) => set("durationDays", e.target.value)}/></Field>
+          <Field label="Duration (days) *" error={errors.durationDays} hint="How long the plan lasts after payment"><input disabled={readOnly} className={inputClass} type="number" min="1" step="1" value={form.durationDays} onChange={(e) => set("durationDays", e.target.value)}/></Field>
         </div>
+        <PlanPackageEditor value={packageValue} onChange={setPackage} errors={errors} disabled={readOnly}/>
         <div className="flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
           <div><p className="text-xs font-normal text-slate-800">Final customer price</p><p className="text-[11px] text-slate-500">Automatically calculated by the server</p></div>
           <p className="text-lg font-medium text-[#27AE60]">{money(finalPrice)}</p>
@@ -191,7 +242,7 @@ function AssignPlanDrawer({ plan, onClose, onAssigned }) {
     <section className="flex h-dvh w-[min(100vw,640px)] flex-col overflow-hidden bg-[#f8faf9] shadow-[-20px_0_60px_rgba(15,23,42,.18)] sm:rounded-l-3xl">
       <header className="shrink-0 border-b border-slate-100 bg-white px-6 py-5"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] uppercase tracking-[.18em] text-[#27AE60]">Assign subscription</p><h2 className="mt-1 text-xl font-medium text-slate-900">Choose builder and projects</h2><p className="mt-1 text-[11px] text-slate-500">Assign <span className="font-medium text-slate-700">{plan.title}</span> to projects owned by one builder.</p></div><button onClick={onClose} className="rounded-xl border border-slate-200 p-2.5 text-slate-400 hover:bg-slate-50"><X size={17}/></button></div></header>
       <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6">
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-[10px] uppercase tracking-wider text-emerald-700">Selected plan</p><p className="mt-1 text-[14px] font-medium text-slate-900">{plan.title}</p><p className="mt-1 text-[10px] text-slate-500">{plan.promotionType === "featured" ? "Top Selling" : plan.promotionType} · {plan.durationDays} days</p></div><p className="text-lg font-medium text-[#27AE60]">{money(plan.finalPrice)}</p></div></div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-[10px] uppercase tracking-wider text-emerald-700">Selected plan</p><p className="mt-1 text-[14px] font-medium text-slate-900">{plan.title}</p><p className="mt-1 text-[10px] text-slate-500">{describePlanPackage(plan)} · {plan.durationDays} days</p><PackageChips plan={plan} className="mt-1.5"/></div><p className="text-lg font-medium text-[#27AE60]">{money(plan.finalPrice)}</p></div></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="mb-3 flex items-center justify-between"><div><p className="text-[12px] font-medium text-slate-800">1. Find a builder</p><p className="text-[10px] text-slate-400">Search by name, company, email, phone or user code.</p></div>{selectedBuilder && <button onClick={() => {setSelectedBuilder(null);setProjects([]);setSelectedProjects([]);}} className="text-[10px] text-[#27AE60]">Change</button>}</div>
           {selectedBuilder ? <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-100 text-[#27AE60]"><Building2 size={18}/></span><div className="min-w-0"><p className="truncate text-[12px] font-medium text-slate-800">{selectedBuilder.companyName || selectedBuilder.name}</p><p className="truncate text-[10px] text-slate-500">{selectedBuilder.name} · {selectedBuilder.email || selectedBuilder.phone}</p></div></div> : <><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14}/><input value={builderQuery} onChange={(e) => setBuilderQuery(e.target.value)} placeholder="Search builders…" className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-[11px] outline-none focus:border-[#27AE60]"/></div><div className="mt-2 max-h-52 space-y-1 overflow-y-auto">{loadingBuilders ? <p className="py-5 text-center text-[11px] text-slate-400">Loading builders…</p> : visibleBuilders.length ? visibleBuilders.map((builder) => <button key={builder._id} onClick={() => chooseBuilder(builder)} className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left hover:bg-emerald-50"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500"><Building2 size={15}/></span><span className="min-w-0"><span className="block truncate text-[11px] font-medium text-slate-700">{builder.companyName || builder.name}</span><span className="block truncate text-[9px] text-slate-400">{builder.name} · {builder.email || builder.phone || builder.userCode}</span></span></button>) : <p className="py-5 text-center text-[11px] text-slate-400">No builders found</p>}</div></>}
         </div>
@@ -220,8 +271,11 @@ function CreateInvoiceDrawer({ initialPlan, plans, onClose, onCreatePlan, canCre
   const [builderLocation, setBuilderLocation] = useState({ state: "", city: "", locality: "", pincode: "" });
   const [projectSearch, setProjectSearch] = useState("");
   const [projectLocation, setProjectLocation] = useState({ state: "", city: "", locality: "", pincode: "" });
+  const [deliveryChoice, setDeliveryChoice] = useState({ planId: "", mode: "" });
   const availablePlans = plans.filter((item) => item.isActive);
   const plan = plans.find((item) => item._id === planId) || initialPlan || null;
+  const planPkg = plan ? normalizePlanPackage(plan) : null;
+  const deliveryMode = deliveryChoice.planId === plan?._id && deliveryChoice.mode ? deliveryChoice.mode : "auto";
   const selectedBuilder = builders.find((item) => item._id === builderId);
   const selectedBuilderName = selectedBuilder?.companyName || selectedBuilder?.name || "Builder";
   const amount = Number(plan?.finalPrice ?? Math.max(Number(plan?.price || 0) - Number(plan?.discount || 0), 0));
@@ -272,9 +326,17 @@ function CreateInvoiceDrawer({ initialPlan, plans, onClose, onCreatePlan, canCre
         subtotalAmount: Number(plan.price || amount), totalAmount: invoiceTotal,
         discountType: "flat", discountValue: Number(plan.discount || 0),
         discountAmount: Number(plan.discount || 0), gstRate: Number(gstRate || 0),
-        gstAmount, paidAmount: invoiceTotal, paymentMethod, paymentStatus,
+        gstAmount, paidAmount: invoiceTotal, paymentMethod, paymentStatus, deliveryMode,
       });
-      toast.success("Builder invoice created successfully"); onClose();
+      const sync = await builderPlanService.syncProjectPromotion(projectId);
+      const state = sync?.data?.state;
+      toast.success(
+        state === "running" ? "Invoice created. Plan promotion is running."
+          : state === "scheduled" ? "Invoice created. Plan promotion is scheduled."
+            : sync?.data?.message ? `Invoice created. ${sync.data.message}`
+              : "Builder invoice created successfully",
+      );
+      onClose();
     } catch (error) { toast.error(error.response?.data?.message || "Unable to create builder invoice"); }
     finally { setSaving(false); }
   };
@@ -284,7 +346,11 @@ function CreateInvoiceDrawer({ initialPlan, plans, onClose, onCreatePlan, canCre
       <header className="border-b border-slate-100 bg-white px-6 py-5"><div className="flex justify-between gap-4"><div><p className="text-[10px] uppercase tracking-[.18em] text-[#27AE60]">Create invoice</p><h2 className="mt-1 text-xl font-medium text-slate-900">Assign plan to builder project</h2><p className="mt-1 text-[11px] text-slate-500">Select the builder first, then one of that builder's projects.</p></div><button type="button" onClick={onClose} className="h-fit rounded-xl border border-slate-200 p-2.5 text-slate-400"><X size={17}/></button></div></header>
       <div className="flex-1 space-y-4 overflow-y-auto p-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="mb-2 flex items-center justify-between gap-3"><p className="text-[12px] text-slate-700">1. Subscription plan *</p>{canCreatePlan && availablePlans.length > 0 && <button type="button" onClick={onCreatePlan} className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-medium text-[#219653] hover:bg-emerald-100"><CirclePlus size={13}/>Create custom plan</button>}</div>{availablePlans.length ? <select value={planId} onChange={(e) => setPlanId(e.target.value)} className={inputClass}><option value="">Select plan</option>{availablePlans.map((item) => <option key={item._id} value={item._id}>{item.title} ({item.code})</option>)}</select> : <div className="rounded-xl bg-amber-50 p-4 text-center"><p className="text-[11px] text-amber-800">No active subscription plan is available.</p>{canCreatePlan && <button type="button" onClick={onCreatePlan} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#27AE60] px-4 py-2 text-[11px] font-medium text-white"><CirclePlus size={13}/>Create plan first</button>}</div>}</div>
-        {plan && <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><p className="text-[10px] uppercase tracking-wider text-emerald-700">Plan values · read only</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Amount", money(amount)],["Duration", `${plan.durationDays} days`],["Promotion", plan.promotionType],["Discount", money(plan.discount)]].map(([label,value]) => <div key={label}><p className="text-[9px] uppercase text-slate-400">{label}</p><p className="mt-1 text-[12px] font-medium capitalize text-slate-800">{value}</p></div>)}</div></div>}
+        {plan && <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><p className="text-[10px] uppercase tracking-wider text-emerald-700">Plan values · read only</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Amount", money(amount)],["Duration", `${plan.durationDays} days`],["Promotion", describePlanPackage(plan)],["Discount", money(plan.discount)]].map(([label,value]) => <div key={label}><p className="text-[9px] uppercase text-slate-400">{label}</p><p className="mt-1 text-[12px] font-medium text-slate-800">{value}</p></div>)}</div><PackageChips plan={plan} className="mt-3"/></div>}
+        {plan && planHasPromotion(plan) && <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[12px] font-medium text-slate-800">Promotion delivery</p><p className="mt-1 text-[10px] text-slate-400">What happens on the project once this invoice is Paid. If the project already has a running paid plan, this invoice extends it from its end date.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">{[{ value: "auto", icon: Zap, title: "Automatic", sub: "Starts when Paid and the project is approved. Renews and ends on its own." }, { value: "team", icon: Sparkles, title: "Team starts (one button)", sub: "Waits for Start from plan on the project card." }].map((option) => { const Icon = option.icon; const active = deliveryMode === option.value; return <button key={option.value} type="button" onClick={() => setDeliveryChoice({ planId: plan._id, mode: option.value })} className={`flex items-start gap-2 rounded-xl border p-3 text-left transition ${active ? "border-emerald-400 bg-emerald-50 ring-2 ring-emerald-200" : "border-slate-200 hover:border-slate-300"}`}><Icon size={15} className={`mt-0.5 shrink-0 ${active ? "text-emerald-700" : "text-slate-400"}`}/><span><span className="block text-[12px] font-semibold text-slate-800">{option.title}</span><span className="block text-[10px] leading-4 text-slate-500">{option.sub}</span></span></button>; })}</div>
+          {deliveryMode === "auto" && planPkg?.locationRule === "team_picks" && <p className="mt-2 rounded-lg bg-sky-50 px-3 py-2 text-[10px] text-sky-800">This plan lets the team pick locations, so the first start still needs Start from plan. Renewals then run on their own.</p>}
+        </div>}
         <div><p className="mb-2 text-[12px] text-slate-700">2. Builder *</p><div className="mb-2"><input value={builderSearch} onChange={(e) => setBuilderSearch(e.target.value)} placeholder="Search builder name, company, email, phone or code" className={inputClass}/></div><div className="mb-2"><LocationFilterRow items={builders} value={builderLocation} onChange={setBuilderLocation} prefix="builder"/></div><select disabled={loading} value={builderId} onChange={(e) => selectBuilder(e.target.value)} className={inputClass}><option value="">{loading ? "Loading builders…" : `Select builder (${visibleBuilders.length} found)`}</option>{visibleBuilders.map((builder) => <option key={builder._id} value={builder._id}>{builder.name || "Builder"} — {builder.companyName || "No company"} {locationText(builder) ? `— ${locationText(builder)}` : ""}</option>)}</select></div>
         <div><p className="mb-2 text-[12px] text-slate-700">3. Project *</p>{builderId && <><div className="mb-2"><input value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} placeholder="Search project name, code or location" className={inputClass}/></div><div className="mb-2"><LocationFilterRow items={projects} value={projectLocation} onChange={setProjectLocation} prefix="project"/></div></>}<select disabled={!builderId || loadingProjects} value={projectId} onChange={(e) => setProjectId(e.target.value)} className={inputClass}><option value="">{loadingProjects ? "Loading projects…" : builderId ? `Select project (${visibleProjects.length} found)` : "Select a builder first"}</option>{visibleProjects.map((project) => <option key={project._id} value={project._id}>{project.title} {project.propertyCode ? `(${project.propertyCode})` : ""} — {selectedBuilderName} {locationText(project) ? `— ${locationText(project)}` : ""}</option>)}</select><p className="mt-1 text-[10px] text-slate-400">Only projects belonging to the selected builder and matching location filters are listed.</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[12px] font-medium text-slate-800">4. Payment details</p><p className="mt-1 text-[10px] text-slate-400">Enter GST manually. GST amount and final paid amount are calculated automatically.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Field label="Method"><div className="relative"><PaymentIcon size={17} className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-[#27AE60]"/><select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={`${inputClass} pl-11`}><option value="cash">💵 Cash</option><option value="cheque">🧾 Cheque</option><option value="upi">📱 UPI</option><option value="card">💳 Card</option><option value="netbanking">🏦 Net banking</option><option value="razorpay">₹ Razorpay</option></select></div></Field><Field label="Status"><select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className={inputClass}><option value="pending">Pending</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="failed">Failed</option></select></Field><Field label="GST (%)"><input type="number" min="0" max="100" step="0.01" value={gstRate} onChange={(e) => setGstRate(e.target.value)} className={inputClass} placeholder="18"/></Field><Field label="Paid amount"><div className={`${inputClass} cursor-not-allowed bg-slate-50 font-medium text-slate-800`} aria-readonly="true">{plan ? money(invoiceTotal) : "Select a plan"}</div></Field></div>{plan && <div className="mt-3 flex flex-wrap justify-end gap-x-5 gap-y-1 border-t border-slate-100 pt-3 text-[10px] text-slate-500"><span>Plan amount: <b className="text-slate-700">{money(amount)}</b></span><span>GST: <b className="text-slate-700">{money(gstAmount)}</b></span><span>Total: <b className="text-[#219653]">{money(invoiceTotal)}</b></span></div>}</div>
@@ -368,7 +434,7 @@ function InvoiceListDrawer({ onClose }) {
           const project = invoice.propertyId || {};
           const plan = invoice.servicePlanId || {};
           return <article key={invoice._id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start"><div><div className="flex flex-wrap items-center gap-2"><span className="font-mono text-[11px] font-medium text-slate-800">{invoice.invoiceNumber}</span><span className={`rounded-full px-2.5 py-1 text-[9px] font-medium uppercase ${statusClass(invoice.paymentStatus)}`}>{invoice.paymentStatus}</span></div><p className="mt-2 text-[14px] font-medium text-slate-900">{builder.companyName || builder.name || "Builder"}</p><p className="mt-0.5 text-[10px] text-slate-400">{builder.email || builder.phone || builder.userCode || "No contact details"}</p></div><div className="sm:text-right"><p className="text-xl font-medium text-[#219653]">{money(invoice.totalAmount)}</p><p className="mt-1 flex items-center gap-1 text-[10px] text-slate-400 sm:justify-end"><CalendarDays size={11}/>{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString("en-IN") : "No date"}</p></div></div>
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start"><div><div className="flex flex-wrap items-center gap-2"><span className="font-mono text-[11px] font-medium text-slate-800">{invoice.invoiceNumber}</span><span className={`rounded-full px-2.5 py-1 text-[9px] font-medium uppercase ${statusClass(invoice.paymentStatus)}`}>{invoice.paymentStatus}</span>{planHasPromotion(invoice.planSnapshot || plan) && <span className={`rounded-full px-2.5 py-1 text-[9px] font-medium uppercase ${promotionStatusMeta(invoice.promotionStatus).tone}`}>Promotion: {promotionStatusMeta(invoice.promotionStatus).label}</span>}</div><p className="mt-2 text-[14px] font-medium text-slate-900">{builder.companyName || builder.name || "Builder"}</p><p className="mt-0.5 text-[10px] text-slate-400">{builder.email || builder.phone || builder.userCode || "No contact details"}</p></div><div className="sm:text-right"><p className="text-xl font-medium text-[#219653]">{money(invoice.totalAmount)}</p><p className="mt-1 flex items-center gap-1 text-[10px] text-slate-400 sm:justify-end"><CalendarDays size={11}/>{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString("en-IN") : "No date"}</p></div></div>
             <div className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-3 sm:grid-cols-3"><div><p className="text-[9px] uppercase tracking-wide text-slate-400">Project</p><p className="mt-1 truncate text-[11px] font-medium text-slate-700">{invoice.propertyTitle || project.title || "—"}</p></div><div><p className="text-[9px] uppercase tracking-wide text-slate-400">Plan</p><p className="mt-1 truncate text-[11px] font-medium text-slate-700">{invoice.servicePlanName || plan.title || "—"}</p></div><div><p className="text-[9px] uppercase tracking-wide text-slate-400">Payment</p><p className="mt-1 text-[11px] font-medium capitalize text-slate-700">{invoice.paymentMethod || "—"} · Paid {money(invoice.paidAmount)}</p></div></div>
             <div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => openPdf(invoice)} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-medium text-slate-600 hover:border-emerald-200 hover:text-[#219653]"><ExternalLink size={13}/>Open PDF</button><button type="button" onClick={() => downloadPdf(invoice)} className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-[10px] font-medium text-[#219653] hover:bg-emerald-100"><Download size={13}/>Download</button></div>
           </article>;
@@ -454,6 +520,7 @@ function InvoiceTablePage({ onBack, canCreate = false, canUpdate = false, canDel
         paymentStatus: editStatus,
         paymentMethod: editMethod,
       });
+      await builderPlanService.syncProjectPromotion(invoice.propertyId?._id || invoice.propertyId);
       toast.success("Invoice updated");
       setEditingId(null);
       await loadInvoices();
@@ -467,6 +534,7 @@ function InvoiceTablePage({ onBack, canCreate = false, canUpdate = false, canDel
     setDeletingId(invoice._id);
     try {
       await builderPlanService.removeInvoice(invoice._id);
+      await builderPlanService.syncProjectPromotion(invoice.propertyId?._id || invoice.propertyId);
       toast.success("Invoice deleted");
       await loadInvoices();
     } catch (e) {
@@ -479,7 +547,7 @@ function InvoiceTablePage({ onBack, canCreate = false, canUpdate = false, canDel
   return <div className="min-h-full bg-[#f6f8f7] p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-[1600px]">
     <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><button type="button" onClick={onBack} className="mb-3 flex items-center gap-1 text-[11px] text-slate-500 hover:text-[#219653]"><ChevronRight size={13} className="rotate-180"/>Back to builder plans</button><h1 className="text-2xl font-medium text-slate-900">Builder invoices</h1><p className="mt-1 text-[12px] text-slate-500">All builder billing records in table format.</p></div><div className="flex flex-col items-stretch gap-2 sm:items-end"><p className="text-[11px] text-slate-500">Showing {filtered.length} of {invoices.length}</p>{canCreate && <button type="button" onClick={onCreateInvoice} className="flex items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-2.5 text-xs font-medium text-white shadow-sm hover:bg-[#219653]"><UserPlus size={15}/>Create invoice</button>}</div></div>
     <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5"><div className="relative xl:col-span-2"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search invoice, builder, phone, project…" className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-[11px] outline-none focus:border-[#27AE60]"/></div><select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All statuses</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="partial">Partial</option><option value="failed">Failed</option></select><select value={builderFilter} onChange={(e) => setBuilderFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All builders</option>{builders.map((item) => <option key={item}>{item}</option>)}</select><button type="button" onClick={() => { setQuery(""); setStatus("all"); setBuilderFilter("all"); setProjectFilter("all"); setPlanFilter("all"); setLocationFilter({ state: "", city: "", locality: "", pincode: "" }); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px] text-slate-500 hover:bg-slate-50">Clear filters</button></div><div className="mt-2 grid gap-2 md:grid-cols-2"><select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All projects</option>{projects.map((item) => <option key={item}>{item}</option>)}</select><select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All plans</option>{plansList.map((item) => <option key={item}>{item}</option>)}</select></div><div className="mt-2"><LocationFilterRow items={invoiceLocationItems} value={locationFilter} onChange={setLocationFilter} prefix="invoice"/></div></div>
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">{loading ? <p className="py-20 text-center text-xs text-slate-400">Loading invoices…</p> : error ? <p className="py-20 text-center text-xs text-red-500">{error}</p> : <div className="overflow-x-auto"><table className="min-w-[1450px] w-full text-left"><thead className="bg-slate-50 text-[9px] uppercase tracking-wider text-slate-400"><tr>{["Invoice / Date","Builder / Bill To","Contact","Location","Project / Code","Plan / Period","Subtotal","Discount","GST","Total / Paid","Payment","Actions"].map((heading) => <th key={heading} className="px-4 py-3 font-medium">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((invoice) => { const { builder, project, plan } = details(invoice); const isEditing = editingId === invoice._id; return <tr key={invoice._id} className="align-top hover:bg-slate-50/60"><td className="px-4 py-4"><p className="font-mono text-[10px] font-medium text-slate-800">{invoice.invoiceNumber}</p><p className="mt-1 text-[9px] text-slate-400">{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString("en-IN") : "—"}</p></td><td className="px-4 py-4"><p className="text-[11px] font-medium text-slate-800">{builder.name || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{builder.companyName || "No company"}</p></td><td className="px-4 py-4"><p className="text-[10px] text-slate-700">{builder.phone || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{builder.email || "—"}</p></td><td className="max-w-48 px-4 py-4 text-[10px] leading-4 text-slate-600">{locationText(builder) || locationText(project) || "—"}</td><td className="px-4 py-4"><p className="text-[10px] font-medium text-slate-700">{invoice.propertyTitle || project.title || "—"}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{invoice.projectCode || project.propertyCode || "—"}</p></td><td className="px-4 py-4"><p className="text-[10px] font-medium text-slate-700">{invoice.servicePlanName || plan.title || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{invoice.timePeriod || "—"}</p></td><td className="px-4 py-4 text-[10px] text-slate-700">{money(invoice.subtotalAmount)}</td><td className="px-4 py-4 text-[10px] text-slate-700">{money(invoice.discountAmount)}</td><td className="px-4 py-4"><p className="text-[10px] text-slate-700">{money(invoice.gstAmount)}</p><p className="text-[9px] text-slate-400">{invoice.gstRate || 0}%</p></td><td className="px-4 py-4"><p className="text-[11px] font-medium text-[#219653]">{money(invoice.totalAmount)}</p><p className="mt-1 text-[9px] text-slate-400">Paid {money(invoice.paidAmount)}</p></td><td className="px-4 py-4">{isEditing ? <div className="space-y-1"><select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[10px]"><option value="pending">Pending</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="failed">Failed</option></select><select value={editMethod} onChange={(e) => setEditMethod(e.target.value)} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[10px]"><option value="cash">Cash</option><option value="cheque">Cheque</option><option value="upi">UPI</option><option value="card">Card</option><option value="netbanking">Net banking</option><option value="razorpay">Razorpay</option></select></div> : <><span className={`rounded-full px-2 py-1 text-[8px] font-medium uppercase ${statusClass(invoice.paymentStatus)}`}>{invoice.paymentStatus}</span><p className="mt-2 text-[9px] capitalize text-slate-500">{invoice.paymentMethod}</p></>}</td><td className="px-4 py-4"><div className="flex flex-wrap gap-1"><button type="button" onClick={() => openPdf(invoice)} title="Open PDF" className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:text-[#219653]"><ExternalLink size={13}/></button><button type="button" onClick={() => openPdf(invoice, true)} title="Download PDF" className="rounded-lg bg-emerald-50 p-2 text-[#219653]"><Download size={13}/></button>{canUpdate && !isEditing && <button type="button" onClick={() => startEdit(invoice)} title="Edit invoice" className="rounded-lg border border-emerald-200 p-2 text-[#27AE60] hover:bg-emerald-50"><Edit3 size={13}/></button>}{canUpdate && isEditing && <button type="button" disabled={savingId === invoice._id} onClick={() => saveEdit(invoice)} className="rounded-lg bg-[#27AE60] px-2 py-1.5 text-[10px] font-medium text-white disabled:opacity-50">{savingId === invoice._id ? "Saving…" : "Save"}</button>}{canUpdate && isEditing && <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-[10px] text-slate-500">Cancel</button>}{canDelete && <button type="button" disabled={deletingId === invoice._id} onClick={() => removeInvoice(invoice)} title="Delete invoice" className="rounded-lg border border-red-100 p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"><Trash2 size={13}/></button>}</div></td></tr>; })}</tbody></table>{filtered.length === 0 && <p className="py-16 text-center text-xs text-slate-400">No invoices match these filters.</p>}</div>}</div>
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">{loading ? <p className="py-20 text-center text-xs text-slate-400">Loading invoices…</p> : error ? <p className="py-20 text-center text-xs text-red-500">{error}</p> : <div className="overflow-x-auto"><table className="min-w-[1600px] w-full text-left"><thead className="bg-slate-50 text-[9px] uppercase tracking-wider text-slate-400"><tr>{["Invoice / Date","Builder / Bill To","Contact","Location","Project / Code","Plan / Period","Subtotal","Discount","GST","Total / Paid","Payment","Promotion","Actions"].map((heading) => <th key={heading} className="px-4 py-3 font-medium">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((invoice) => { const { builder, project, plan } = details(invoice); const isEditing = editingId === invoice._id; return <tr key={invoice._id} className="align-top hover:bg-slate-50/60"><td className="px-4 py-4"><p className="font-mono text-[10px] font-medium text-slate-800">{invoice.invoiceNumber}</p><p className="mt-1 text-[9px] text-slate-400">{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString("en-IN") : "—"}</p></td><td className="px-4 py-4"><p className="text-[11px] font-medium text-slate-800">{builder.name || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{builder.companyName || "No company"}</p></td><td className="px-4 py-4"><p className="text-[10px] text-slate-700">{builder.phone || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{builder.email || "—"}</p></td><td className="max-w-48 px-4 py-4 text-[10px] leading-4 text-slate-600">{locationText(builder) || locationText(project) || "—"}</td><td className="px-4 py-4"><p className="text-[10px] font-medium text-slate-700">{invoice.propertyTitle || project.title || "—"}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{invoice.projectCode || project.propertyCode || "—"}</p></td><td className="px-4 py-4"><p className="text-[10px] font-medium text-slate-700">{invoice.servicePlanName || plan.title || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{describePlanPackage(invoice.planSnapshot || plan)} · {invoice.timePeriod || "—"}</p>{invoice.startDate && <p className="mt-0.5 text-[9px] text-slate-400">{new Date(invoice.startDate).toLocaleDateString("en-IN")} → {invoice.endDate ? new Date(invoice.endDate).toLocaleDateString("en-IN") : "—"}{invoice.renewalOf ? " · renewal" : ""}</p>}</td><td className="px-4 py-4 text-[10px] text-slate-700">{money(invoice.subtotalAmount)}</td><td className="px-4 py-4 text-[10px] text-slate-700">{money(invoice.discountAmount)}</td><td className="px-4 py-4"><p className="text-[10px] text-slate-700">{money(invoice.gstAmount)}</p><p className="text-[9px] text-slate-400">{invoice.gstRate || 0}%</p></td><td className="px-4 py-4"><p className="text-[11px] font-medium text-[#219653]">{money(invoice.totalAmount)}</p><p className="mt-1 text-[9px] text-slate-400">Paid {money(invoice.paidAmount)}</p></td><td className="px-4 py-4">{isEditing ? <div className="space-y-1"><select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[10px]"><option value="pending">Pending</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="failed">Failed</option></select><select value={editMethod} onChange={(e) => setEditMethod(e.target.value)} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[10px]"><option value="cash">Cash</option><option value="cheque">Cheque</option><option value="upi">UPI</option><option value="card">Card</option><option value="netbanking">Net banking</option><option value="razorpay">Razorpay</option></select></div> : <><span className={`rounded-full px-2 py-1 text-[8px] font-medium uppercase ${statusClass(invoice.paymentStatus)}`}>{invoice.paymentStatus}</span><p className="mt-2 text-[9px] capitalize text-slate-500">{invoice.paymentMethod}</p></>}</td><td className="max-w-52 px-4 py-4">{planHasPromotion(invoice.planSnapshot || plan) ? <><span className={`rounded-full px-2 py-1 text-[8px] font-medium uppercase ${promotionStatusMeta(invoice.promotionStatus).tone}`}>{promotionStatusMeta(invoice.promotionStatus).label}</span><p className="mt-2 text-[9px] text-slate-500">{invoice.deliveryMode === "team" ? "⚡ Team start" : "🤖 Automatic"}</p>{invoice.promotionNote && <p className="mt-1 text-[9px] leading-3 text-slate-400">{invoice.promotionNote}</p>}</> : <span className="text-[9px] text-slate-400">Listing only</span>}</td><td className="px-4 py-4"><div className="flex flex-wrap gap-1"><button type="button" onClick={() => openPdf(invoice)} title="Open PDF" className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:text-[#219653]"><ExternalLink size={13}/></button><button type="button" onClick={() => openPdf(invoice, true)} title="Download PDF" className="rounded-lg bg-emerald-50 p-2 text-[#219653]"><Download size={13}/></button>{canUpdate && !isEditing && <button type="button" onClick={() => startEdit(invoice)} title="Edit invoice" className="rounded-lg border border-emerald-200 p-2 text-[#27AE60] hover:bg-emerald-50"><Edit3 size={13}/></button>}{canUpdate && isEditing && <button type="button" disabled={savingId === invoice._id} onClick={() => saveEdit(invoice)} className="rounded-lg bg-[#27AE60] px-2 py-1.5 text-[10px] font-medium text-white disabled:opacity-50">{savingId === invoice._id ? "Saving…" : "Save"}</button>}{canUpdate && isEditing && <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-[10px] text-slate-500">Cancel</button>}{canDelete && <button type="button" disabled={deletingId === invoice._id} onClick={() => removeInvoice(invoice)} title="Delete invoice" className="rounded-lg border border-red-100 p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"><Trash2 size={13}/></button>}</div></td></tr>; })}</tbody></table>{filtered.length === 0 && <p className="py-16 text-center text-xs text-slate-400">No invoices match these filters.</p>}</div>}</div>
   </div></div>;
 }
 
@@ -527,7 +595,7 @@ export default function BuilderPlans() {
   const filtered = useMemo(
     () =>
       plans.filter((plan) => {
-        const matchesQuery = `${plan.title} ${plan.code} ${plan.promotionType}`
+        const matchesQuery = `${plan.title} ${plan.code} ${describePlanPackage(plan)}`
           .toLowerCase()
           .includes(query.toLowerCase());
         return matchesQuery && (status === "all" || String(plan.isActive) === status);
@@ -830,10 +898,8 @@ export default function BuilderPlans() {
                               </div>
                               <h3 className="text-[17px] font-medium text-slate-900">{plan.title}</h3>
                               <p className="mt-1 text-[10px] font-normal uppercase tracking-[.12em] text-[#27AE60]">
-                                {String(plan.promotionType).toLowerCase() === "featured"
-                                  ? "Top Selling"
-                                  : plan.promotionType}{" "}
-                                promotion
+                                {describePlanPackage(plan)}
+                                {planHasPromotion(plan) ? " promotion" : ""}
                               </p>
                             </div>
                             <span
@@ -874,7 +940,8 @@ export default function BuilderPlans() {
                               </div>
                             )}
                           </div>
-                          <p className="mt-4 min-h-10 text-[11px] leading-5 text-slate-500">
+                          <PackageChips plan={plan} className="mt-3" />
+                          <p className="mt-3 min-h-10 text-[11px] leading-5 text-slate-500">
                             {plan.description}
                           </p>
                           {cardActions.length > 0 && (

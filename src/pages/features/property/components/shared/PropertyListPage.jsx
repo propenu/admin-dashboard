@@ -354,6 +354,9 @@ export default function PropertyListPage({
       <PromoteModal
         open={!!promoteTarget}
         projectId={promoteTarget}
+        projectTitle={properties.find((p) => p._id === promoteTarget)?.title}
+        projectCity={properties.find((p) => p._id === promoteTarget)?.city}
+        currentPromotion={properties.find((p) => p._id === promoteTarget)?.promotion}
         projectStatus={
           properties.find((p) => p._id === promoteTarget)?.status
         }
@@ -381,6 +384,9 @@ export default function PropertyListPage({
               days: options.days,
               sponsoredAd: options.sponsoredAd,
               startAt: options.startAt,
+              mainCoverage: options.mainCoverage,
+              sponsoredEnabled: options.sponsoredEnabled,
+              sponsoredSameAsMain: options.sponsoredSameAsMain,
             },
             { onSettled: () => setPromoteTarget(null) },
           );

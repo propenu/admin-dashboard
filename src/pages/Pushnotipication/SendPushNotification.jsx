@@ -350,7 +350,7 @@ const STYLES = `
 }
 `;
 
-const BODY_MAX = 180;
+const BODY_MAX = 500;
 
 /** Backend: owner + user both map to role `user` — keep Owners only (no duplicate Users chip). */
 const AUDIENCES = [
@@ -786,6 +786,7 @@ const SendPushNotification = () => {
                         name="body"
                         required
                         rows={4}
+                        maxLength={BODY_MAX}
                         value={formData.body}
                         onChange={handleChange}
                         placeholder="Write the push message users will see…"

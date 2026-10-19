@@ -14,7 +14,9 @@ import {
   salesmanagerRejectAProject,
   RenevaleProject,
   expireProject,
+  setProjectPromotionMode,
 } from "../../../../../features/property/propertyService";
+import PromotionModeMenu, { planStatusQueryKey } from "./PromotionModeMenu";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -55,8 +57,11 @@ import {
   getPromotionTracking,
   promotionLifecycleClass,
   promotionLifecycleCopy,
+  titlePromotionPlacement,
   titlePromotionType,
+  hasSponsoredAddOn,
 } from "./promotionTracking";
+import { describeCoverage } from "./promotionCoverageUtils";
 import {
   formatInviteShortDate,
   getBuilderInviteTracking,
@@ -181,6 +186,7 @@ export default memo(function PropertyCard({
   onReset,
   onRankUpdated,
   canApprove = false,
+  planModes = false,
 }) {
   const navigate   = useNavigate();
   const location   = useLocation();
@@ -398,6 +404,8 @@ export default memo(function PropertyCard({
   const [rankValue,   setRankValue]   = useState(p.rank ?? "");
   const [rankLoading, setRankLoading] = useState(false);
   const [renewLoading, setRenewLoading] = useState(false);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [modeBusy, setModeBusy] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const galleryImages = (() => {
@@ -472,10 +480,73 @@ export default memo(function PropertyCard({
   const tracking = getPromotionTracking(p);
   const hasPromotion = tracking.currentType !== "normal";
   const canRenewPromotion = hasPromotion && tracking.lifecycle !== "scheduled";
+  const placementTitle = titlePromotionPlacement(p);
+  const withSponsoredAddOn = hasSponsoredAddOn(p);
   const promotionHeadline =
     tracking.previousType && tracking.previousType !== tracking.currentType
-      ? `Promoted to ${titlePromotionType(tracking.currentType)}`
-      : `${titlePromotionType(tracking.currentType)} promotion`;
+      ? `Promoted to ${placementTitle}`
+      : `${placementTitle} promotion`;
+  const mainCoverageLabel = describeCoverage(p?.promotion?.mainCoverage, 1);
+  const sponsoredCoverageLabel = describeCoverage(p?.promotion?.sponsoredAd, 1);
+  const promotionWhere = [
+    tracking.currentType === "sponsored"
+      ? null
+      : `${titlePromotionType(tracking.currentType)}: ${mainCoverageLabel || p.city || "own city"}`,
+    withSponsoredAddOn || tracking.currentType === "sponsored"
+      ? `Sponsored: ${
+          withSponsoredAddOn && p?.promotion?.sponsoredSameAsMain
+            ? "same"
+            : sponsoredCoverageLabel || "—"
+        }`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const promotedByName =
+    p?.promotion?.promotedBy?.name || tracking.activeRecord?.changedByName || "";
+  const planLinked =
+    hasPromotion && p?.promotion?.source === "subscription" && Boolean(p?.promotion?.plan?.invoiceId);
+  const deliveryChip = planLinked
+    ? p.promotion.deliveryMode === "plan"
+      ? { text: `⚡ Plan · ${p.promotion.plan.title || "builder plan"}`, tone: "bg-sky-50 text-sky-700 border-sky-100" }
+      : { text: `🤖 Auto · ${p.promotion.plan.title || "builder plan"}`, tone: "bg-emerald-50 text-emerald-700 border-emerald-100" }
+    : hasPromotion
+      ? { text: "✋ Manual", tone: "bg-amber-50 text-amber-700 border-amber-100" }
+      : p?.promotionMode === "auto"
+        ? { text: "🤖 Auto · waiting for plan", tone: "bg-emerald-50 text-emerald-700 border-emerald-100" }
+        : null;
+
+  const refreshPlanViews = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["featured-projects"] }),
+      queryClient.invalidateQueries({ queryKey: planStatusQueryKey(p._id) }),
+    ]);
+    onRankUpdated?.();
+  };
+
+  const chooseAutomatic = async () => {
+    const attempt = async (confirmReplace) => {
+      try {
+        const res = await setProjectPromotionMode(p._id, "auto", confirmReplace);
+        toast.success(res?.data?.message || "Automatic mode on");
+        setModeMenuOpen(false);
+        await refreshPlanViews();
+      } catch (err) {
+        const data = err?.response?.data;
+        if (!confirmReplace && err?.response?.status === 409 && data?.needsConfirm) {
+          if (window.confirm(data.message)) await attempt(true);
+          return;
+        }
+        toast.error(getApiErrorMessage(err, "Could not switch to Automatic"));
+      }
+    };
+    setModeBusy(true);
+    try {
+      await attempt(false);
+    } finally {
+      setModeBusy(false);
+    }
+  };
   const promotionSubline =
     tracking.previousType && tracking.previousType !== tracking.currentType
       ? `Was ${titlePromotionType(tracking.previousType)}`
@@ -559,7 +630,11 @@ export default memo(function PropertyCard({
               TYPE_STYLES[type] || TYPE_STYLES.normal
             }`}
           >
-            {type === "normal" ? "Sale" : titlePromotionType(type)}
+            {type === "normal"
+              ? "Sale"
+              : withSponsoredAddOn
+                ? `${titlePromotionType(type)} + Sponsored`
+                : titlePromotionType(type)}
           </div>
 
           {/* Rank pill — top right so it never clashes with thumbs */}
@@ -680,8 +755,8 @@ export default memo(function PropertyCard({
                 <MenuItem
                   icon={TrendingUp}
                   iconClass="text-blue-500"
-                  label="Promote"
-                  onClick={onPromote}
+                  label={planModes ? "Promote ▾" : "Promote"}
+                  onClick={planModes ? () => setModeMenuOpen(true) : onPromote}
                 />
                 {hasPromotion ? (
                   <MenuItem
@@ -718,6 +793,24 @@ export default memo(function PropertyCard({
                   />
                 ) : null}
               </PortalMenu>
+              {planModes ? (
+                <PromotionModeMenu
+                  anchorRef={menuBtnRef}
+                  open={modeMenuOpen}
+                  onClose={() => setModeMenuOpen(false)}
+                  projectId={p._id}
+                  busy={modeBusy}
+                  onChooseAuto={chooseAutomatic}
+                  onChoosePlan={(status) => {
+                    setModeMenuOpen(false);
+                    onPromote?.({ mode: "plan", planStatus: status });
+                  }}
+                  onChooseDirect={() => {
+                    setModeMenuOpen(false);
+                    onPromote?.({ mode: "manual" });
+                  }}
+                />
+              ) : null}
             </div>
           </div>
 
@@ -776,8 +869,34 @@ export default memo(function PropertyCard({
                 </span>
                 <span>Ends {formatPromotionDate(tracking.expiresAt)}</span>
               </div>
+              {promotionWhere ? (
+                <p className="mt-0.5 flex items-center gap-1 truncate text-slate-500" title={promotionWhere}>
+                  <MapPin className="h-2.5 w-2.5 shrink-0 text-[#27AE60]" />
+                  <span className="truncate">{promotionWhere}</span>
+                </p>
+              ) : null}
+              {promotedByName || deliveryChip ? (
+                <div className="mt-0.5 flex min-w-0 items-center gap-1">
+                  {deliveryChip ? (
+                    <span className={`max-w-[60%] shrink-0 truncate rounded-full border px-1.5 py-px text-[9px] font-semibold ${deliveryChip.tone}`}>
+                      {deliveryChip.text}
+                    </span>
+                  ) : null}
+                  {promotedByName ? (
+                    <span className="truncate text-slate-400">By {promotedByName}</span>
+                  ) : null}
+                </div>
+              ) : null}
               {canRenewPromotion && (
-                <div className="mt-1 flex flex-wrap gap-1">
+                <div className="mt-1 flex flex-wrap items-center gap-1">
+                  {planLinked ? (
+                    <span
+                      className="rounded bg-emerald-50 px-2 py-0.5 text-[9px] font-medium text-emerald-700"
+                      title="Create a renewal invoice in Builder Plans; the promotion extends on its own."
+                    >
+                      Renews with a new invoice
+                    </span>
+                  ) : (
                   <button
                     type="button"
                     disabled={renewLoading}
@@ -789,6 +908,7 @@ export default memo(function PropertyCard({
                   >
                     {renewLoading ? "Renewing..." : "Renew now"}
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => {
@@ -809,7 +929,13 @@ export default memo(function PropertyCard({
                 <p className="truncate font-semibold text-slate-700">
                   Normal promotion
                 </p>
-                <p className="mt-0.5 truncate text-slate-400">Normal</p>
+                {planModes && deliveryChip ? (
+                  <span className={`mt-0.5 inline-block max-w-full truncate rounded-full border px-1.5 py-px text-[9px] font-semibold ${deliveryChip.tone}`}>
+                    {deliveryChip.text}
+                  </span>
+                ) : (
+                  <p className="mt-0.5 truncate text-slate-400">Normal</p>
+                )}
               </div>
             </div>
           )}

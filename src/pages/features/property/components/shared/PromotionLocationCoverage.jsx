@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   CheckSquare,
   MapPin,
+  Maximize2,
+  Minimize2,
   Search,
   Square,
   ChevronDown,
@@ -85,6 +88,19 @@ export default function PromotionLocationCoverage({
   const [selectedCitiesByState, setSelectedCitiesByState] = useState({});
   const [selectedLocalitiesByCity, setSelectedLocalitiesByCity] = useState({});
   const hydratedKeyRef = useRef("");
+  const [maximized, setMaximized] = useState(false);
+
+  // Esc leaves full view without closing the surrounding promote panel.
+  useEffect(() => {
+    if (!maximized) return undefined;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setMaximized(false);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [maximized]);
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -192,22 +208,107 @@ export default function PromotionLocationCoverage({
       return;
     }
 
-    const byCity = hierarchy[st] || {};
-    const allCities = Object.keys(byCity).sort((a, b) => a.localeCompare(b));
+    // Ticking a state only opens it; cities are picked one by one (or via "Select all").
     const nextStates = selectedStates.includes(st)
       ? selectedStates
       : [...selectedStates, st];
-    const nextCities = { ...selectedCitiesByState, [st]: allCities };
+    const nextCities = {
+      ...selectedCitiesByState,
+      [st]: selectedCitiesByState[st] || [],
+    };
     const nextLocs = {
       ...selectedLocalitiesByCity,
-      [st]: Object.fromEntries(
-        allCities.map((c) => [c, [...(byCity[c] || [])]]),
-      ),
+      [st]: selectedLocalitiesByCity[st] || {},
     };
     setSelectedStates(nextStates);
     setSelectedCitiesByState(nextCities);
     setSelectedLocalitiesByCity(nextLocs);
     setExpandedStates((p) => ({ ...p, [st]: true }));
+    emitChange(nextStates, nextCities, nextLocs);
+  };
+
+  const isAllIndiaSelected = useMemo(() => {
+    const states = Object.keys(hierarchy);
+    if (!states.length) return false;
+    return states.every((st) => {
+      if (!selectedStates.includes(st)) return false;
+      const cities = Object.keys(hierarchy[st] || {});
+      const pickedCities = selectedCitiesByState[st] || [];
+      return cities.every((city) => {
+        if (!pickedCities.includes(city)) return false;
+        const locs = hierarchy[st][city] || [];
+        const pickedLocs = selectedLocalitiesByCity[st]?.[city] || [];
+        return locs.every((l) => pickedLocs.some((x) => norm(x) === norm(l)));
+      });
+    });
+  }, [hierarchy, selectedStates, selectedCitiesByState, selectedLocalitiesByCity]);
+
+  const toggleAllIndia = (checked) => {
+    if (!checked) {
+      setSelectedStates([]);
+      setSelectedCitiesByState({});
+      setSelectedLocalitiesByCity({});
+      setExpandedStates({});
+      setExpandedCities({});
+      emitChange([], {}, {});
+      return;
+    }
+    const nextStates = Object.keys(hierarchy).sort((a, b) => a.localeCompare(b));
+    const nextCities = {};
+    const nextLocs = {};
+    for (const st of nextStates) {
+      const byCity = hierarchy[st] || {};
+      nextCities[st] = Object.keys(byCity).sort((a, b) => a.localeCompare(b));
+      nextLocs[st] = Object.fromEntries(
+        nextCities[st].map((c) => [c, [...(byCity[c] || [])]]),
+      );
+    }
+    setSelectedStates(nextStates);
+    setSelectedCitiesByState(nextCities);
+    setSelectedLocalitiesByCity(nextLocs);
+    emitChange(nextStates, nextCities, nextLocs);
+  };
+
+  const selectAllCities = (stateName) => {
+    const st = stateName;
+    const allCities = Object.keys(hierarchy[st] || {}).sort((a, b) =>
+      a.localeCompare(b),
+    );
+    if (!allCities.length) return;
+    const nextStates = selectedStates.includes(st)
+      ? selectedStates
+      : [...selectedStates, st];
+    const existingLocs = selectedLocalitiesByCity[st] || {};
+    const nextCities = { ...selectedCitiesByState, [st]: allCities };
+    const nextLocs = {
+      ...selectedLocalitiesByCity,
+      [st]: Object.fromEntries(allCities.map((c) => [c, existingLocs[c] || []])),
+    };
+    setSelectedStates(nextStates);
+    setSelectedCitiesByState(nextCities);
+    setSelectedLocalitiesByCity(nextLocs);
+    emitChange(nextStates, nextCities, nextLocs);
+  };
+
+  const selectAllLocalities = (stateName, cityName) => {
+    const st = stateName;
+    const city = cityName;
+    const allLocs = [...(hierarchy[st]?.[city] || [])];
+    const nextStates = selectedStates.includes(st)
+      ? selectedStates
+      : [...selectedStates, st];
+    const currentCities = selectedCitiesByState[st] || [];
+    const nextCities = {
+      ...selectedCitiesByState,
+      [st]: currentCities.includes(city) ? currentCities : [...currentCities, city],
+    };
+    const nextLocs = {
+      ...selectedLocalitiesByCity,
+      [st]: { ...(selectedLocalitiesByCity[st] || {}), [city]: allLocs },
+    };
+    setSelectedStates(nextStates);
+    setSelectedCitiesByState(nextCities);
+    setSelectedLocalitiesByCity(nextLocs);
     emitChange(nextStates, nextCities, nextLocs);
   };
 
@@ -219,8 +320,9 @@ export default function PromotionLocationCoverage({
     let nextCitiesList;
 
     if (checked) {
+      // Ticking a city only adds that city; localities are picked one by one.
       nextCitiesList = current.includes(city) ? current : [...current, city];
-      nextLocsForState[city] = [...(hierarchy[st]?.[city] || [])];
+      nextLocsForState[city] = nextLocsForState[city] || [];
       setExpandedCities((p) => ({ ...p, [`${st}||${city}`]: true }));
     } else {
       nextCitiesList = current.filter((c) => c !== city);
@@ -288,8 +390,15 @@ export default function PromotionLocationCoverage({
 
   if (!enabled) return null;
 
-  return (
-    <div className={`mb-4 space-y-3 rounded-xl border p-3 ${accentClass}`}>
+  const panel = (
+    <div
+      className={
+        maximized
+          ? `flex h-full w-full max-w-5xl flex-col space-y-3 rounded-2xl border bg-white p-4 shadow-2xl ${accentClass}`
+          : `mb-4 space-y-3 rounded-xl border p-3 ${accentClass}`
+      }
+      onClick={maximized ? (e) => e.stopPropagation() : undefined}
+    >
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-800">
@@ -315,6 +424,19 @@ export default function PromotionLocationCoverage({
             />
             Refresh
           </button>
+          <button
+            type="button"
+            onClick={() => setMaximized((m) => !m)}
+            className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition ${
+              maximized
+                ? "bg-[#27AE60] text-white hover:bg-emerald-700"
+                : "border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+            }`}
+            title={maximized ? "Back to compact view" : "Open a bigger view"}
+          >
+            {maximized ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
+            {maximized ? "Done" : "Expand"}
+          </button>
         </div>
       </div>
 
@@ -334,6 +456,25 @@ export default function PromotionLocationCoverage({
         </p>
       ) : (
         <>
+          <div
+            className={`flex items-center justify-between gap-2 rounded-xl border px-2 py-1.5 transition ${
+              isAllIndiaSelected
+                ? "border-[#27AE60] bg-emerald-50"
+                : "border-slate-200 bg-white"
+            }`}
+          >
+            <div className="min-w-0 flex-1">
+              <CheckboxRow
+                checked={isAllIndiaSelected}
+                label="All India — every state, city and locality"
+                onChange={toggleAllIndia}
+              />
+            </div>
+            <span className="shrink-0 pr-1 text-[10px] text-slate-500">
+              {isAllIndiaSelected ? "All selected" : "Or pick individually below"}
+            </span>
+          </div>
+
           <div className="relative">
             <Search
               size={14}
@@ -348,7 +489,11 @@ export default function PromotionLocationCoverage({
             />
           </div>
 
-          <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white">
+          <div
+            className={`overflow-y-auto rounded-xl border border-slate-200 bg-white ${
+              maximized ? "min-h-0 flex-1" : "max-h-56"
+            }`}
+          >
             {filteredStates.map((stateName) => {
               const stateOn = selectedStates.includes(stateName);
               const expanded = Boolean(expandedStates[stateName]);
@@ -402,6 +547,22 @@ export default function PromotionLocationCoverage({
 
                   {expanded && (
                     <div className="mb-2 ml-6 mr-2 space-y-2 rounded-lg border border-slate-100 bg-slate-50/80 p-2">
+                      {cityNames.length > 0 && (
+                        <div className="flex items-center justify-between text-[10px] text-slate-500">
+                          <span>
+                            {(selectedCitiesByState[stateName] || []).length
+                              ? "Tick the cities you need"
+                              : "No city ticked yet — search or tick below"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => selectAllCities(stateName)}
+                            className="font-semibold text-[#27AE60] hover:underline"
+                          >
+                            Select all cities
+                          </button>
+                        </div>
+                      )}
                       <div className="relative">
                         <Search
                           size={12}
@@ -420,7 +581,11 @@ export default function PromotionLocationCoverage({
                           className="h-8 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-2 text-xs outline-none focus:border-[#27AE60]"
                         />
                       </div>
-                      <div className="max-h-40 space-y-0.5 overflow-y-auto">
+                      <div
+                        className={`space-y-0.5 overflow-y-auto ${
+                          maximized ? "max-h-[45vh]" : "max-h-40"
+                        }`}
+                      >
                         {filteredCities.length === 0 ? (
                           <p className="px-2 py-1 text-[11px] text-slate-400">
                             No cities in Locations for this state
@@ -480,6 +645,24 @@ export default function PromotionLocationCoverage({
 
                                 {cityExpanded && (
                                   <div className="mb-1 ml-6 space-y-1 rounded-md border border-slate-100 bg-white p-1.5">
+                                    {allLocs.length > 0 && (
+                                      <div className="flex items-center justify-between px-1 text-[10px] text-slate-500">
+                                        <span>
+                                          {cityOn && selectedLocs.length === 0
+                                            ? "No locality ticked = whole city"
+                                            : "Tick the localities you need"}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            selectAllLocalities(stateName, cityName)
+                                          }
+                                          className="font-semibold text-[#27AE60] hover:underline"
+                                        >
+                                          Select all
+                                        </button>
+                                      </div>
+                                    )}
                                     <div className="relative">
                                       <Search
                                         size={11}
@@ -498,7 +681,13 @@ export default function PromotionLocationCoverage({
                                         className="h-7 w-full rounded-md border border-slate-200 pl-7 pr-2 text-[11px] outline-none focus:border-[#27AE60]"
                                       />
                                     </div>
-                                    <div className="max-h-28 overflow-y-auto">
+                                    <div
+                                      className={`overflow-y-auto ${
+                                        maximized
+                                          ? "grid max-h-72 grid-cols-2 gap-x-2 sm:grid-cols-3"
+                                          : "max-h-28"
+                                      }`}
+                                    >
                                       {allLocs.length === 0 ? (
                                         <p className="px-2 py-1 text-[10px] text-slate-400">
                                           No localities saved — city kept as
@@ -549,5 +738,33 @@ export default function PromotionLocationCoverage({
         appear here.
       </p>
     </div>
+  );
+
+  if (!maximized) return panel;
+
+  return (
+    <>
+      <div className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/60 px-3 py-2 text-[11px] text-emerald-800">
+        <span className="truncate">
+          {title}: editing in full view · {coverageSummary}
+        </span>
+        <button
+          type="button"
+          onClick={() => setMaximized(false)}
+          className="shrink-0 font-semibold text-[#27AE60] hover:underline"
+        >
+          Back
+        </button>
+      </div>
+      {createPortal(
+        <div
+          className="fixed inset-0 z-[200] flex items-stretch justify-center bg-slate-900/60 p-3 backdrop-blur-sm sm:p-6"
+          onClick={() => setMaximized(false)}
+        >
+          {panel}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }

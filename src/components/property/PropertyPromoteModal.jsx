@@ -7,6 +7,7 @@ import {
   CircleDot,
   AlertCircle,
   Zap,
+  X,
 } from "lucide-react";
 import PromotionLocationCoverage from "../../pages/features/property/components/shared/PromotionLocationCoverage";
 
@@ -75,6 +76,23 @@ export default function PropertyPromoteModal({
   const [selected, setSelected] = useState(null);
   const [days, setDays] = useState("10");
   const [sponsoredAd, setSponsoredAd] = useState({});
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setEntered(false);
+      return undefined;
+    }
+    const frame = requestAnimationFrame(() => setEntered(true));
+    const onKey = (e) => {
+      if (e.key === "Escape") onCancel?.();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onCancel]);
 
   useEffect(() => {
     if (!open) {
@@ -109,31 +127,52 @@ export default function PropertyPromoteModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]">
-      <div
-        className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+    <div className="fixed inset-0 z-[80] flex justify-end">
+      <button
+        type="button"
+        aria-label="Close promote panel"
+        onClick={onCancel}
+        className={`absolute inset-0 bg-slate-950/50 backdrop-blur-[2px] transition-opacity duration-300 ${
+          entered ? "opacity-100" : "opacity-0"
+        }`}
+      />
+      <aside
+        role="dialog"
+        aria-modal="true"
+        className={`relative flex h-full w-full max-w-xl flex-col overflow-hidden bg-white shadow-2xl transition-transform duration-300 ease-out ${
+          entered ? "translate-x-0" : "translate-x-full"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 px-6 py-5 text-white">
-          <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/10" />
-          <div className="pointer-events-none absolute -bottom-10 left-10 h-24 w-24 rounded-full bg-amber-300/20" />
-          <div className="relative flex items-start gap-3">
-            <span className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
-              <TrendingUp className="h-5 w-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">
-                Property promotion · {String(category || "").toUpperCase()}
-              </p>
-              <h2 className="mt-1 truncate text-lg font-black">Boost listing</h2>
-              <p className="mt-0.5 truncate text-xs text-emerald-50/90">
-                {propertyTitle || "Untitled property"}
-              </p>
+        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 px-4 py-2.5 text-white">
+          <div className="pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full bg-white/10" />
+          <div className="relative flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="rounded-md bg-white/15 p-1">
+                <TrendingUp className="h-3.5 w-3.5" />
+              </span>
+              <h2 className="shrink-0 text-sm font-bold">Boost listing</h2>
+              <span className="truncate text-xs text-emerald-50/90">
+                · {propertyTitle || "Untitled property"}
+              </span>
+              {category ? (
+                <span className="hidden shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase ring-1 ring-white/25 sm:inline">
+                  {category}
+                </span>
+              ) : null}
             </div>
+            <button
+              type="button"
+              onClick={onCancel}
+              className="shrink-0 rounded-lg bg-white/10 p-1 text-white transition hover:bg-white/20"
+              aria-label="Close"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
 
-        <div className="max-h-[80vh] space-y-4 overflow-y-auto p-5 sm:p-6">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
           {!approved && (
             <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -194,6 +233,9 @@ export default function PropertyPromoteModal({
               enabled
               value={sponsoredAd}
               onChange={setSponsoredAd}
+              title="Sponsored locations"
+              subtitle="The Sponsored ad shows to people searching in these locations. Use All India, pick individually, or Expand for a bigger view."
+              accentClass="border-violet-200 bg-gradient-to-br from-violet-50/80 via-white to-white"
             />
           ) : null}
 
@@ -215,16 +257,20 @@ export default function PropertyPromoteModal({
               </span>
             </label>
           ) : null}
+        </div>
 
-          {blockedReason ? (
-            <p className="text-right text-xs text-slate-500">{blockedReason}</p>
-          ) : null}
-
-          <div className="flex justify-end gap-2 pt-1">
+        <div className="flex items-center justify-between gap-2 border-t border-emerald-100 bg-white/95 px-4 py-2 shadow-[0_-6px_16px_-10px_rgba(15,61,46,0.25)]">
+          <p
+            className={`min-w-0 truncate text-[11px] ${blockedReason ? "text-slate-500" : "text-emerald-700"}`}
+            title={blockedReason || undefined}
+          >
+            {blockedReason || "Ready to apply."}
+          </p>
+          <div className="flex shrink-0 gap-1.5">
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
             >
               Cancel
             </button>
@@ -238,14 +284,14 @@ export default function PropertyPromoteModal({
                   sponsoredAd: selected === "sponsored" ? sponsoredAd : {},
                 });
               }}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:from-emerald-700 hover:to-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-1.5 text-xs font-bold text-white shadow transition hover:from-emerald-700 hover:to-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <TrendingUp className="h-4 w-4" />
+              <TrendingUp className="h-3.5 w-3.5" />
               {isLoading ? "Applying…" : "Apply promotion"}
             </button>
           </div>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

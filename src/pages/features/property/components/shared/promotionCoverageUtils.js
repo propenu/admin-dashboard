@@ -67,6 +67,27 @@ export function countSponsoredAdCoverage(sponsoredAd = {}) {
   return { states, cities, localities };
 }
 
+export function isCoverageEmpty(map) {
+  return !map || typeof map !== "object" || Object.keys(map).length === 0;
+}
+
+/** Human label: "Hyderabad (Gachibowli, Kondapur), Warangal (whole city) +2 more". */
+export function describeCoverage(map = {}, maxCities = 2) {
+  const parts = [];
+  for (const cityMap of Object.values(map || {})) {
+    if (!cityMap || typeof cityMap !== "object") continue;
+    for (const [city, locs] of Object.entries(cityMap)) {
+      const list = Array.isArray(locs) ? locs : [];
+      if (!list.length) parts.push(`${city} (whole city)`);
+      else if (list.length <= 2) parts.push(`${city} (${list.join(", ")})`);
+      else parts.push(`${city} (${list.length} localities)`);
+    }
+  }
+  if (!parts.length) return "";
+  const shown = parts.slice(0, maxCities).join(", ");
+  return parts.length > maxCities ? `${shown} +${parts.length - maxCities} more` : shown;
+}
+
 export function summarizeSponsoredAd(sponsoredAd = {}) {
   const { states, cities, localities } = countSponsoredAdCoverage(sponsoredAd);
   if (!states) return "No locations selected (all India if left empty)";

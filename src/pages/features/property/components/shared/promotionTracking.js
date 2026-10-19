@@ -24,6 +24,21 @@ export const titlePromotionType = (value) => {
   return type.charAt(0).toUpperCase() + type.slice(1);
 };
 
+/** True when a Prime / Top Selling promotion also runs the Sponsored add-on. */
+export const hasSponsoredAddOn = (property) => {
+  const type = normalizePromoType(property?.promotion?.type);
+  return (
+    (type === "prime" || type === "featured") &&
+    Boolean(property?.promotion?.sponsoredEnabled)
+  );
+};
+
+/** "Prime + Sponsored", "Top Selling", "Sponsored", "Normal". */
+export const titlePromotionPlacement = (property) => {
+  const base = titlePromotionType(property?.promotion?.type || "normal");
+  return hasSponsoredAddOn(property) ? `${base} + Sponsored` : base;
+};
+
 /** Current boost type from listing payload (handles displayType fallback). */
 export const resolvePromotionType = (property) => {
   const tracking = getPromotionTracking(property);
@@ -67,7 +82,13 @@ export const matchesPropertyPromotionFilters = (
   const type = resolvePromotionType(property);
   const wantedType = normalizePromoType(promotionType);
 
-  if (promotionType !== "all" && type !== wantedType) return false;
+  if (
+    promotionType !== "all" &&
+    type !== wantedType &&
+    !(wantedType === "sponsored" && hasSponsoredAddOn(property))
+  ) {
+    return false;
+  }
 
   if (trackingFilter === "all") return true;
   if (trackingFilter === "promoted") {
