@@ -167,7 +167,15 @@ export default function SuperAdminDashboard() {
         isFetching={dashboard.isFetching}
         onExport={handleExport}
         summary={dashboard.summary}
+        onOpenFieldMeetings={() => go("/field-meetings")}
         onOpenStaffFloor={() => go("/dashboard/staff-floor")}
+        onOpenClientProgress={() => {
+          const href =
+            dashboard.followUpTracks?.[0]?.items?.find(
+              (i) => i.key === "onboarding_all",
+            )?.href || "/follow-up-tracking";
+          go(href);
+        }}
       />
 
       {dashboard.sectionError?.summary ||
