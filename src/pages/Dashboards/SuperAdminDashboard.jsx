@@ -167,6 +167,7 @@ export default function SuperAdminDashboard() {
         isFetching={dashboard.isFetching}
         onExport={handleExport}
         summary={dashboard.summary}
+        onOpenFieldMeetings={() => go("/field-meetings")}
         onOpenStaffFloor={() => go("/dashboard/staff-floor")}
         onOpenClientProgress={() => {
           const href =
