@@ -1,10 +1,8 @@
 import {
-  CalendarDays,
   CalendarRange,
   Download,
   RefreshCw,
   Search,
-  Users,
   Wifi,
 } from "lucide-react";
 import { DATE_PRESETS, formatRelativeClock } from "../superAdminDashboardData";
@@ -26,8 +24,6 @@ export default function SaHeader({
   onRefresh,
   isFetching,
   onExport,
-  onOpenClientProgress,
-  onOpenFieldMeetings,
   onOpenStaffFloor,
 }) {
   return (
@@ -98,16 +94,6 @@ export default function SaHeader({
         <div className="flex w-full shrink-0 items-center gap-1.5 sm:w-auto">
           <button
             type="button"
-            onClick={onOpenFieldMeetings}
-            title="Field meetings"
-            className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-full border border-emerald-100 bg-white px-2.5 text-[11px] font-semibold leading-none text-emerald-700 shadow-[0_4px_12px_rgba(16,185,129,0.08)] hover:bg-emerald-50 sm:flex-none"
-          >
-            <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-            <span className="sm:hidden">Meetings</span>
-            <span className="hidden sm:inline">Field Meetings</span>
-          </button>
-          <button
-            type="button"
             onClick={onOpenStaffFloor}
             title="Staff online / offline (all roles)"
             className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-full border border-emerald-100 bg-white px-2.5 text-[11px] font-semibold leading-none text-emerald-700 shadow-[0_4px_12px_rgba(16,185,129,0.08)] hover:bg-emerald-50 sm:flex-none"
@@ -115,15 +101,6 @@ export default function SaHeader({
             <Wifi className="h-3.5 w-3.5 shrink-0" />
             <span className="sm:hidden">Staff</span>
             <span className="hidden sm:inline">Staff Floor</span>
-          </button>
-          <button
-            type="button"
-            onClick={onOpenClientProgress}
-            className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-full bg-[#27AE60] px-2.5 text-[11px] font-semibold leading-none text-white shadow-[0_6px_14px_rgba(18,161,80,0.24)] hover:bg-[#1e8f4d] sm:flex-none"
-          >
-            <Users className="h-3.5 w-3.5 shrink-0" />
-            <span className="sm:hidden">Queue</span>
-            <span className="hidden sm:inline">Client Progress</span>
           </button>
         </div>
       </div>
