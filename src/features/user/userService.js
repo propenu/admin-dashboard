@@ -525,7 +525,13 @@ export const getWhatsAppInboxMessageMedia = (waId, messageId) => {
     `${SERVICES.USER}/whatsapp/inbox/conversations/${encodeURIComponent(
       waId,
     )}/messages/${encodeURIComponent(messageId)}/media`,
-    { responseType: "blob" },
+    {
+      responseType: "blob",
+      timeout: 60000,
+      headers: {
+        Accept: "*/*",
+      },
+    },
   );
 };
 

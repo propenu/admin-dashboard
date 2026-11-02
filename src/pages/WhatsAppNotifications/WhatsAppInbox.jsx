@@ -160,65 +160,112 @@ const TemplateCtaButtons = ({ buttons }) => {
   );
 };
 
+const MEDIA_TYPES = new Set(["image", "document", "video", "audio", "sticker"]);
+
+const mediaTypeFromBody = (bodyRaw) => {
+  const body = String(bodyRaw || "").trim();
+  if (/^\[Image\]$/i.test(body)) return "image";
+  if (/^\[Document\]$/i.test(body)) return "document";
+  if (/^\[Video\]$/i.test(body)) return "video";
+  if (/^\[Audio\]$/i.test(body)) return "audio";
+  if (/^\[Sticker\]$/i.test(body)) return "sticker";
+  return "";
+};
+
+const isMediaPlaceholderBody = (bodyRaw) => Boolean(mediaTypeFromBody(bodyRaw));
+
 const messageMediaMeta = (msg) => {
-  const type = String(msg?.type || msg?.raw?.type || "").toLowerCase();
-  const raw = msg?.raw || {};
+  const raw = msg?.raw && typeof msg.raw === "object" ? msg.raw : {};
+  const typed = String(msg?.type || raw?.type || "").toLowerCase().trim();
+  const fromBody = mediaTypeFromBody(msg?.body);
   const block =
-    raw?.[type] ||
+    (typed && raw?.[typed]) ||
     raw?.image ||
     raw?.document ||
     raw?.video ||
     raw?.audio ||
     raw?.sticker ||
     null;
-  if (!block?.id && !["image", "document", "video", "audio", "sticker"].includes(type)) {
-    return null;
-  }
+  const resolvedType = MEDIA_TYPES.has(typed)
+    ? typed
+    : fromBody ||
+      (block?.filename ? "document" : block?.id ? "image" : "");
+  if (!resolvedType) return null;
+  const captionRaw = String(
+    block?.caption ||
+      (msg?.body && !isMediaPlaceholderBody(msg.body) ? msg.body : "") ||
+      "",
+  ).trim();
   return {
-    type: ["image", "document", "video", "audio", "sticker"].includes(type)
-      ? type
-      : block?.filename
-        ? "document"
-        : "image",
+    type: resolvedType,
+    mediaId: String(block?.id || "").trim(),
     filename: String(block?.filename || "").trim(),
-    caption: String(
-      block?.caption ||
-        (msg?.body && !String(msg.body).startsWith("[") ? msg.body : "") ||
-        "",
-    ).trim(),
+    caption: captionRaw,
     mimeType: String(block?.mime_type || "").trim(),
   };
 };
 
 const InboxMediaAttachment = ({ msg, waId }) => {
   const meta = messageMediaMeta(msg);
-  const messageId = String(msg?._id || "").trim();
+  const messageId = String(msg?._id || msg?.id || "").trim();
   const [objectUrl, setObjectUrl] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => Boolean(meta && waId && messageId));
   const [failed, setFailed] = useState(false);
+  const [errorText, setErrorText] = useState("");
 
   useEffect(() => {
     let revoked = false;
     let localUrl = "";
-    if (!meta || !waId || !messageId) return undefined;
-    if (!["image", "sticker", "video", "document", "audio"].includes(meta.type)) {
+    if (!meta || !waId || !messageId) {
+      setLoading(false);
+      return undefined;
+    }
+    if (!MEDIA_TYPES.has(meta.type)) {
+      setLoading(false);
       return undefined;
     }
     setLoading(true);
     setFailed(false);
+    setErrorText("");
+    setObjectUrl("");
     getWhatsAppInboxMessageMedia(waId, messageId)
-      .then((res) => {
+      .then(async (res) => {
         if (revoked) return;
         const blob = res?.data;
+        const contentType = String(
+          res?.headers?.["content-type"] ||
+            res?.headers?.["Content-Type"] ||
+            blob?.type ||
+            "",
+        ).toLowerCase();
         if (!(blob instanceof Blob)) {
+          setFailed(true);
+          setErrorText("Invalid media response");
+          return;
+        }
+        // JSON error accidentally returned as blob
+        if (contentType.includes("application/json")) {
+          try {
+            const text = await blob.text();
+            const parsed = JSON.parse(text);
+            setErrorText(parsed?.message || "Media unavailable");
+          } catch {
+            setErrorText("Media unavailable");
+          }
           setFailed(true);
           return;
         }
         localUrl = URL.createObjectURL(blob);
         setObjectUrl(localUrl);
       })
-      .catch(() => {
-        if (!revoked) setFailed(true);
+      .catch((err) => {
+        if (revoked) return;
+        setFailed(true);
+        setErrorText(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Media unavailable",
+        );
       })
       .finally(() => {
         if (!revoked) setLoading(false);
@@ -227,13 +274,13 @@ const InboxMediaAttachment = ({ msg, waId }) => {
       revoked = true;
       if (localUrl) URL.revokeObjectURL(localUrl);
     };
-  }, [meta?.type, waId, messageId]);
+  }, [meta?.type, meta?.mediaId, waId, messageId]);
 
   if (!meta) return null;
 
   if (loading) {
     return (
-      <div className="mb-2 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-2 text-[12px] text-slate-500">
+      <div className="mb-2 flex min-h-[72px] items-center gap-2 rounded-lg bg-black/5 px-3 py-3 text-[12px] text-slate-500">
         <Loader2 size={14} className="animate-spin" />
         Loading {meta.type}…
       </div>
@@ -242,9 +289,14 @@ const InboxMediaAttachment = ({ msg, waId }) => {
 
   if (failed && !objectUrl) {
     return (
-      <div className="mb-2 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-2 text-[12px] text-slate-500">
-        {meta.type === "document" ? <FileText size={14} /> : <ImageIcon size={14} />}
-        <span>{meta.filename || `[${meta.type}] unavailable`}</span>
+      <div className="mb-2 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-3 text-[12px] text-slate-600">
+        {meta.type === "document" ? <FileText size={16} /> : <ImageIcon size={16} />}
+        <div className="min-w-0">
+          <p className="truncate font-medium capitalize">{meta.type} attachment</p>
+          <p className="truncate text-[11px] text-slate-400">
+            {meta.filename || errorText || "Unable to load preview"}
+          </p>
+        </div>
       </div>
     );
   }
@@ -256,9 +308,14 @@ const InboxMediaAttachment = ({ msg, waId }) => {
           <img
             src={objectUrl}
             alt={meta.caption || "WhatsApp image"}
-            className="max-h-64 w-full object-cover"
+            className="max-h-72 w-full object-contain bg-black/5"
           />
-        ) : null}
+        ) : (
+          <div className="flex min-h-[72px] items-center gap-2 px-3 py-3 text-[12px] text-slate-500">
+            <ImageIcon size={16} />
+            Image
+          </div>
+        )}
         {meta.caption ? (
           <p className="px-2 py-1.5 text-[13px] text-gray-900 whitespace-pre-wrap">
             {meta.caption}
@@ -268,10 +325,17 @@ const InboxMediaAttachment = ({ msg, waId }) => {
     );
   }
 
-  if (meta.type === "video" && objectUrl) {
+  if (meta.type === "video") {
     return (
       <div className="mb-2 overflow-hidden rounded-lg bg-black/5">
-        <video src={objectUrl} controls className="max-h-64 w-full" />
+        {objectUrl ? (
+          <video src={objectUrl} controls className="max-h-72 w-full" />
+        ) : (
+          <div className="flex min-h-[72px] items-center gap-2 px-3 py-3 text-[12px] text-slate-500">
+            <Video size={16} />
+            Video
+          </div>
+        )}
         {meta.caption ? (
           <p className="px-2 py-1.5 text-[13px] text-gray-900 whitespace-pre-wrap">
             {meta.caption}
@@ -293,10 +357,10 @@ const InboxMediaAttachment = ({ msg, waId }) => {
     <a
       href={objectUrl || undefined}
       download={meta.filename || "document"}
-      className="mb-2 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-2 text-[13px] font-medium text-[#027a48] hover:bg-black/10"
+      className="mb-2 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-3 text-[13px] font-medium text-[#027a48] hover:bg-black/10"
     >
       {meta.type === "video" ? <Video size={16} /> : <FileText size={16} />}
-      <span className="truncate">{meta.filename || "Document"}</span>
+      <span className="truncate">{meta.filename || `${meta.type} file`}</span>
     </a>
   );
 };
@@ -1525,18 +1589,16 @@ export default function WhatsAppInbox({ embedded = false }) {
                           {(() => {
                             const media = messageMediaMeta(msg);
                             const body = String(msg.body || "");
+                            // Never show raw WhatsApp placeholders like [Image].
+                            if (isMediaPlaceholderBody(body)) return null;
+                            if (!body) return null;
                             if (
                               media &&
-                              (!body ||
-                                /^\[(Image|Document|Video|Audio|Sticker)\]$/i.test(
-                                  body,
-                                ) ||
-                                (media.filename && body === media.filename) ||
+                              ((media.filename && body === media.filename) ||
                                 (media.caption && body === media.caption))
                             ) {
                               return null;
                             }
-                            if (!body) return null;
                             return (
                               <p className="text-[14px] text-gray-900 whitespace-pre-wrap break-words leading-snug">
                                 {body}
