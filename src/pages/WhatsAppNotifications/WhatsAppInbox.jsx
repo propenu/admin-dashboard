@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Check,
   CheckCheck,
@@ -35,7 +36,30 @@ import {
 } from "../../features/user/userService";
 import { useCurrentUser } from "../../store/properties/useCurrentUser";
 import { InboxFailureViewModal } from "./modals/InboxFailureViewModal";
+import {
+  clearInboxComposePayload,
+  normalizeInboxWaId,
+  readInboxComposePayload,
+  waIdsMatch,
+} from "./utils/inboxCompose";
 import { toast } from "sonner";
+
+const TEMPLATE_BUTTONS_BY_NAME = {
+  propenu_registration_information: ["Complete Registration"],
+  account_created_sucessfully: ["Search Property", "Post Property"],
+  looking_to_buy_or_rent_a_property_choose_an_option_below: [
+    "Buy Property",
+    "Rent Property",
+  ],
+};
+
+const templateButtonsForMessage = (msg) => {
+  const fromRaw = Array.isArray(msg?.raw?.buttons) ? msg.raw.buttons : [];
+  const cleaned = fromRaw.map((label) => String(label || "").trim()).filter(Boolean);
+  if (cleaned.length) return cleaned.slice(0, 3);
+  const templateName = String(msg?.raw?.template || msg?.template || "").trim();
+  return TEMPLATE_BUTTONS_BY_NAME[templateName] || [];
+};
 
 /** Outbound = agent/bot (right). Inbound = customer (left). */
 const isOutboundMessage = (msg) => {
@@ -254,6 +278,7 @@ const Avatar = ({ size = "md" }) => {
 };
 
 export default function WhatsAppInbox({ embedded = false }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: currentUserPayload } = useCurrentUser();
   const currentUser = currentUserPayload?.user || currentUserPayload;
   const meId = getCurrentUserId(currentUser);
@@ -401,6 +426,120 @@ export default function WhatsAppInbox({ embedded = false }) {
     loadConversations("");
     refreshHealth();
   }, []);
+
+  /**
+   * Client Progress Queue → Inbox: open customer chat with payment message autofilled.
+   * Triggered by ?compose=1 (+ optional phone) and sessionStorage payload.
+   */
+  useEffect(() => {
+    if (searchParams.get("compose") !== "1") return;
+
+    const payload = readInboxComposePayload();
+    const phoneFromUrl = normalizeInboxWaId(
+      searchParams.get("phone") || searchParams.get("waId") || "",
+    );
+    const phone = payload?.phone || phoneFromUrl;
+    const draftText = payload?.draft || "";
+    const profileName = payload?.name || "";
+
+    // Strip compose flags from URL first so this effect does not re-enter
+    {
+      const next = new URLSearchParams(searchParams);
+      next.delete("compose");
+      next.delete("phone");
+      next.delete("waId");
+      next.set("section", "inbox");
+      setSearchParams(next, { replace: true });
+    }
+
+    if (!phone) {
+      clearInboxComposePayload();
+      return;
+    }
+
+    if (draftText) setDraft(draftText);
+    setSearch(phone);
+    setError("");
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const listRes = await getWhatsAppInboxConversations({
+          q: phone,
+          limit: 80,
+          includeCampaignLogs: 0,
+        });
+        if (cancelled) return;
+        const list = listRes?.data?.data || listRes?.data || [];
+        const conversationsList = Array.isArray(list) ? list : [];
+        setConversations(conversationsList);
+
+        let target =
+          conversationsList.find((c) => waIdsMatch(c?.waId, phone)) || null;
+
+        if (!target) {
+          const started = await startWhatsAppInboxConversation({
+            waId: phone,
+            profileName: profileName || undefined,
+          });
+          if (cancelled) return;
+          target = started?.data?.data || started?.data || null;
+          await loadConversations(phone, { silent: true });
+        }
+
+        const waId = String(target?.waId || phone).trim();
+        if (!waId || cancelled) return;
+
+        setActiveWaId(waId);
+        setActiveConversation(target || { waId, profileName });
+        if (draftText) setDraft(draftText);
+
+        if (meId) {
+          const alreadyMine =
+            String(target?.assignedAgentId || "").trim() === meId;
+          if (!alreadyMine) {
+            try {
+              const patched = await updateWhatsAppInboxConversation(waId, {
+                assignedAgentId: meId,
+              });
+              const updated = patched?.data?.data || patched?.data;
+              if (updated && !cancelled) {
+                setActiveConversation(updated);
+                setConversations((prev) => {
+                  const exists = prev.some((c) => waIdsMatch(c.waId, waId));
+                  if (!exists) return [updated, ...prev];
+                  return prev.map((c) =>
+                    waIdsMatch(c.waId, waId) ? { ...c, ...updated } : c,
+                  );
+                });
+              }
+            } catch {
+              /* heads may still reply; staff may need assignment */
+            }
+          }
+        }
+
+        if (!cancelled && draftText) {
+          toast.success("Payment message ready — review and tap Send");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          toast.error(
+            err?.response?.data?.message ||
+              err?.message ||
+              "Could not open this customer in Inbox",
+          );
+        }
+      } finally {
+        clearInboxComposePayload();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, setSearchParams, loadConversations, meId]);
 
   // Webhook is handled on propenu.in. Poll so replies and blue ticks appear here.
   useEffect(() => {
@@ -1137,6 +1276,23 @@ export default function WhatsAppInbox({ embedded = false }) {
                           <p className="text-[14px] text-gray-900 whitespace-pre-wrap break-words leading-snug">
                             {msg.body}
                           </p>
+                          {(() => {
+                            const buttons = templateButtonsForMessage(msg);
+                            if (!buttons.length) return null;
+                            return (
+                              <div className="mt-2 -mx-3 border-t border-black/5">
+                                {buttons.map((label) => (
+                                  <div
+                                    key={label}
+                                    className="flex items-center justify-center gap-1.5 border-t border-black/5 px-3 py-2 text-[13px] font-semibold text-[#027eb5]"
+                                  >
+                                    <span>{label}</span>
+                                    <span className="text-[11px] opacity-70">↗</span>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
                           <div className="flex items-center justify-end gap-1.5 mt-1">
                             <span className="text-[10px] text-gray-400">
                               {formatBubbleTime(msg.createdAt)}
