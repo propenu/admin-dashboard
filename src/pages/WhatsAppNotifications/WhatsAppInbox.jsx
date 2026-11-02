@@ -44,6 +44,9 @@ import {
 } from "./utils/inboxCompose";
 import { toast } from "sonner";
 
+/** WhatsApp-style CTA blue used for every template button in the inbox. */
+const WA_CTA_BLUE = "#027eb5";
+
 const TEMPLATE_BUTTONS_BY_NAME = {
   propenu_registration_information: ["Complete Registration"],
   account_created_sucessfully: ["Search Property", "Post Property"],
@@ -53,12 +56,63 @@ const TEMPLATE_BUTTONS_BY_NAME = {
   ],
 };
 
+const TEMPLATE_BUTTONS_BY_SOURCE = {
+  new_user_registration_template: ["Complete Registration"],
+  account_created_successfully_template: ["Search Property", "Post Property"],
+  search_property_options_template: ["Buy Property", "Rent Property"],
+};
+
+const cleanButtonLabels = (list) =>
+  (Array.isArray(list) ? list : [])
+    .map((label) => String(label || "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+
 const templateButtonsForMessage = (msg) => {
-  const fromRaw = Array.isArray(msg?.raw?.buttons) ? msg.raw.buttons : [];
-  const cleaned = fromRaw.map((label) => String(label || "").trim()).filter(Boolean);
-  if (cleaned.length) return cleaned.slice(0, 3);
+  const fromRaw = cleanButtonLabels(msg?.raw?.buttons);
+  if (fromRaw.length) return fromRaw;
+
   const templateName = String(msg?.raw?.template || msg?.template || "").trim();
-  return TEMPLATE_BUTTONS_BY_NAME[templateName] || [];
+  const byName = cleanButtonLabels(TEMPLATE_BUTTONS_BY_NAME[templateName]);
+  if (byName.length) return byName;
+
+  const source = String(msg?.raw?.source || msg?.source || "").trim();
+  const bySource = cleanButtonLabels(TEMPLATE_BUTTONS_BY_SOURCE[source]);
+  if (bySource.length) return bySource;
+
+  // Last resort: known template body copy when raw metadata is missing.
+  const body = String(msg?.body || "");
+  if (/account has been created successfully/i.test(body)) {
+    return ["Search Property", "Post Property"];
+  }
+  if (/property search request has been received/i.test(body)) {
+    return ["Buy Property", "Rent Property"];
+  }
+  if (/registration details are available/i.test(body)) {
+    return ["Complete Registration"];
+  }
+  if (String(msg?.type || "").toLowerCase() !== "template") return [];
+  return [];
+};
+
+const TemplateCtaButtons = ({ buttons }) => {
+  if (!buttons?.length) return null;
+  return (
+    <div className="mt-1.5 overflow-hidden rounded-b-xl bg-white">
+      {buttons.map((label) => (
+        <div
+          key={label}
+          className="flex items-center justify-center gap-1.5 border-t border-[#e9edef] px-3 py-[9px] text-[13px] font-medium leading-none"
+          style={{ color: WA_CTA_BLUE }}
+        >
+          <span>{label}</span>
+          <span aria-hidden className="text-[12px] opacity-80">
+            ↗
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 };
 
 /** Outbound = agent/bot (right). Inbound = customer (left). */
@@ -1240,6 +1294,9 @@ export default function WhatsAppInbox({ embedded = false }) {
                       ? "BOT"
                       : "AGENT"
                     : "CUSTOMER";
+                  const templateButtons = outbound
+                    ? templateButtonsForMessage(msg)
+                    : [];
                   return (
                     <div key={msg._id || `${msg.wamid}-${index}`}>
                       {showDay && (
@@ -1253,12 +1310,17 @@ export default function WhatsAppInbox({ embedded = false }) {
                         className={`flex mb-2 ${outbound ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-[78%] rounded-xl px-3 pt-2 pb-1.5 shadow-sm ${
+                          className={`max-w-[78%] overflow-hidden shadow-sm ${
                             outbound
-                              ? "bg-[#dcf8c6] rounded-tr-sm"
-                              : "bg-white rounded-tl-sm border border-slate-100"
+                              ? "rounded-xl rounded-tr-sm bg-[#dcf8c6]"
+                              : "rounded-xl rounded-tl-sm border border-slate-100 bg-white"
                           }`}
                         >
+                          <div
+                            className={`px-3 pt-2 pb-1.5 ${
+                              outbound ? "bg-[#dcf8c6]" : "bg-white"
+                            }`}
+                          >
                           <div className="flex items-center gap-2 mb-1">
                             <span
                               className={`text-[9px] font-black tracking-wide ${
@@ -1276,23 +1338,6 @@ export default function WhatsAppInbox({ embedded = false }) {
                           <p className="text-[14px] text-gray-900 whitespace-pre-wrap break-words leading-snug">
                             {msg.body}
                           </p>
-                          {(() => {
-                            const buttons = templateButtonsForMessage(msg);
-                            if (!buttons.length) return null;
-                            return (
-                              <div className="mt-2 -mx-3 border-t border-black/5">
-                                {buttons.map((label) => (
-                                  <div
-                                    key={label}
-                                    className="flex items-center justify-center gap-1.5 border-t border-black/5 px-3 py-2 text-[13px] font-semibold text-[#027eb5]"
-                                  >
-                                    <span>{label}</span>
-                                    <span className="text-[11px] opacity-70">↗</span>
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          })()}
                           <div className="flex items-center justify-end gap-1.5 mt-1">
                             <span className="text-[10px] text-gray-400">
                               {formatBubbleTime(msg.createdAt)}
@@ -1338,6 +1383,8 @@ export default function WhatsAppInbox({ embedded = false }) {
                               </div>
                             </div>
                           ) : null}
+                          </div>
+                          <TemplateCtaButtons buttons={templateButtons} />
                         </div>
                       </div>
                     </div>
