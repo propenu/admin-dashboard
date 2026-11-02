@@ -6,18 +6,23 @@ import {
   CheckCircle2,
   Clock3,
   Expand,
+  ExternalLink,
+  FileText,
   Filter,
+  Image as ImageIcon,
   Loader2,
   MessageCircle,
   Paperclip,
   Play,
   Plus,
   RefreshCw,
+  Reply,
   RotateCcw,
   Search,
   Send,
   Smile,
   UserRound,
+  Video,
   X,
   XCircle,
 } from "lucide-react";
@@ -25,6 +30,7 @@ import {
   getWhatsAppInboxAssignableRoles,
   getWhatsAppInboxConversations,
   getWhatsAppInboxHealth,
+  getWhatsAppInboxMessageMedia,
   getWhatsAppInboxMessages,
   markWhatsAppInboxRead,
   registerWhatsAppInboxWebhook,
@@ -44,74 +50,254 @@ import {
 } from "./utils/inboxCompose";
 import { toast } from "sonner";
 
-/** WhatsApp-style CTA blue used for every template button in the inbox. */
-const WA_CTA_BLUE = "#027eb5";
+/** Match real WhatsApp: reply = gray, visit-site/URL = dark green. */
+const WA_REPLY_COLOR = "#54656f";
+const WA_URL_COLOR = "#027a48";
 
 const TEMPLATE_BUTTONS_BY_NAME = {
-  propenu_registration_information: ["Complete Registration"],
-  account_created_sucessfully: ["Search Property", "Post Property"],
+  propenu_registration_information: [
+    { label: "Complete Registration", kind: "url" },
+  ],
+  account_created_sucessfully: [
+    { label: "Search Property", kind: "quick_reply" },
+    { label: "Post Property", kind: "quick_reply" },
+  ],
   looking_to_buy_or_rent_a_property_choose_an_option_below: [
-    "Buy Property",
-    "Rent Property",
+    { label: "Buy Property", kind: "url" },
+    { label: "Rent Property", kind: "url" },
   ],
 };
 
 const TEMPLATE_BUTTONS_BY_SOURCE = {
-  new_user_registration_template: ["Complete Registration"],
-  account_created_successfully_template: ["Search Property", "Post Property"],
-  search_property_options_template: ["Buy Property", "Rent Property"],
+  new_user_registration_template: [
+    { label: "Complete Registration", kind: "url" },
+  ],
+  account_created_successfully_template: [
+    { label: "Search Property", kind: "quick_reply" },
+    { label: "Post Property", kind: "quick_reply" },
+  ],
+  search_property_options_template: [
+    { label: "Buy Property", kind: "url" },
+    { label: "Rent Property", kind: "url" },
+  ],
 };
 
-const cleanButtonLabels = (list) =>
+const normalizeTemplateButtons = (list) =>
   (Array.isArray(list) ? list : [])
-    .map((label) => String(label || "").trim())
+    .map((item) => {
+      if (typeof item === "string") {
+        const label = String(item || "").trim();
+        if (!label) return null;
+        const lower = label.toLowerCase();
+        const kind =
+          lower.includes("buy") ||
+          lower.includes("rent") ||
+          lower.includes("registration") ||
+          lower.includes("visit") ||
+          lower.includes("site")
+            ? "url"
+            : "quick_reply";
+        return { label, kind };
+      }
+      const label = String(item?.label || "").trim();
+      if (!label) return null;
+      return {
+        label,
+        kind: item?.kind === "url" ? "url" : "quick_reply",
+      };
+    })
     .filter(Boolean)
     .slice(0, 3);
 
 const templateButtonsForMessage = (msg) => {
-  const fromRaw = cleanButtonLabels(msg?.raw?.buttons);
+  const fromRaw = normalizeTemplateButtons(msg?.raw?.buttons);
   if (fromRaw.length) return fromRaw;
 
   const templateName = String(msg?.raw?.template || msg?.template || "").trim();
-  const byName = cleanButtonLabels(TEMPLATE_BUTTONS_BY_NAME[templateName]);
+  const byName = normalizeTemplateButtons(TEMPLATE_BUTTONS_BY_NAME[templateName]);
   if (byName.length) return byName;
 
   const source = String(msg?.raw?.source || msg?.source || "").trim();
-  const bySource = cleanButtonLabels(TEMPLATE_BUTTONS_BY_SOURCE[source]);
+  const bySource = normalizeTemplateButtons(TEMPLATE_BUTTONS_BY_SOURCE[source]);
   if (bySource.length) return bySource;
 
-  // Last resort: known template body copy when raw metadata is missing.
   const body = String(msg?.body || "");
   if (/account has been created successfully/i.test(body)) {
-    return ["Search Property", "Post Property"];
+    return normalizeTemplateButtons(TEMPLATE_BUTTONS_BY_SOURCE.account_created_successfully_template);
   }
   if (/property search request has been received/i.test(body)) {
-    return ["Buy Property", "Rent Property"];
+    return normalizeTemplateButtons(TEMPLATE_BUTTONS_BY_SOURCE.search_property_options_template);
   }
   if (/registration details are available/i.test(body)) {
-    return ["Complete Registration"];
+    return normalizeTemplateButtons(TEMPLATE_BUTTONS_BY_SOURCE.new_user_registration_template);
   }
-  if (String(msg?.type || "").toLowerCase() !== "template") return [];
   return [];
 };
 
 const TemplateCtaButtons = ({ buttons }) => {
   if (!buttons?.length) return null;
   return (
-    <div className="mt-1.5 overflow-hidden rounded-b-xl bg-white">
-      {buttons.map((label) => (
-        <div
-          key={label}
-          className="flex items-center justify-center gap-1.5 border-t border-[#e9edef] px-3 py-[9px] text-[13px] font-medium leading-none"
-          style={{ color: WA_CTA_BLUE }}
-        >
-          <span>{label}</span>
-          <span aria-hidden className="text-[12px] opacity-80">
-            ↗
-          </span>
-        </div>
-      ))}
+    <div className="overflow-hidden rounded-b-xl bg-white">
+      {buttons.map((btn) => {
+        const isUrl = btn.kind === "url";
+        const color = isUrl ? WA_URL_COLOR : WA_REPLY_COLOR;
+        return (
+          <div
+            key={`${btn.kind}-${btn.label}`}
+            className="flex items-center justify-center gap-2 border-t border-[#e9edef] px-3 py-[10px] text-[14px] font-medium leading-none"
+            style={{ color }}
+          >
+            {isUrl ? (
+              <ExternalLink size={15} strokeWidth={2.2} />
+            ) : (
+              <Reply size={15} strokeWidth={2.2} className="-scale-x-100" />
+            )}
+            <span>{btn.label}</span>
+          </div>
+        );
+      })}
     </div>
+  );
+};
+
+const messageMediaMeta = (msg) => {
+  const type = String(msg?.type || msg?.raw?.type || "").toLowerCase();
+  const raw = msg?.raw || {};
+  const block =
+    raw?.[type] ||
+    raw?.image ||
+    raw?.document ||
+    raw?.video ||
+    raw?.audio ||
+    raw?.sticker ||
+    null;
+  if (!block?.id && !["image", "document", "video", "audio", "sticker"].includes(type)) {
+    return null;
+  }
+  return {
+    type: ["image", "document", "video", "audio", "sticker"].includes(type)
+      ? type
+      : block?.filename
+        ? "document"
+        : "image",
+    filename: String(block?.filename || "").trim(),
+    caption: String(
+      block?.caption ||
+        (msg?.body && !String(msg.body).startsWith("[") ? msg.body : "") ||
+        "",
+    ).trim(),
+    mimeType: String(block?.mime_type || "").trim(),
+  };
+};
+
+const InboxMediaAttachment = ({ msg, waId }) => {
+  const meta = messageMediaMeta(msg);
+  const messageId = String(msg?._id || "").trim();
+  const [objectUrl, setObjectUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let revoked = false;
+    let localUrl = "";
+    if (!meta || !waId || !messageId) return undefined;
+    if (!["image", "sticker", "video", "document", "audio"].includes(meta.type)) {
+      return undefined;
+    }
+    setLoading(true);
+    setFailed(false);
+    getWhatsAppInboxMessageMedia(waId, messageId)
+      .then((res) => {
+        if (revoked) return;
+        const blob = res?.data;
+        if (!(blob instanceof Blob)) {
+          setFailed(true);
+          return;
+        }
+        localUrl = URL.createObjectURL(blob);
+        setObjectUrl(localUrl);
+      })
+      .catch(() => {
+        if (!revoked) setFailed(true);
+      })
+      .finally(() => {
+        if (!revoked) setLoading(false);
+      });
+    return () => {
+      revoked = true;
+      if (localUrl) URL.revokeObjectURL(localUrl);
+    };
+  }, [meta?.type, waId, messageId]);
+
+  if (!meta) return null;
+
+  if (loading) {
+    return (
+      <div className="mb-2 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-2 text-[12px] text-slate-500">
+        <Loader2 size={14} className="animate-spin" />
+        Loading {meta.type}…
+      </div>
+    );
+  }
+
+  if (failed && !objectUrl) {
+    return (
+      <div className="mb-2 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-2 text-[12px] text-slate-500">
+        {meta.type === "document" ? <FileText size={14} /> : <ImageIcon size={14} />}
+        <span>{meta.filename || `[${meta.type}] unavailable`}</span>
+      </div>
+    );
+  }
+
+  if (meta.type === "image" || meta.type === "sticker") {
+    return (
+      <div className="mb-2 overflow-hidden rounded-lg bg-black/5">
+        {objectUrl ? (
+          <img
+            src={objectUrl}
+            alt={meta.caption || "WhatsApp image"}
+            className="max-h-64 w-full object-cover"
+          />
+        ) : null}
+        {meta.caption ? (
+          <p className="px-2 py-1.5 text-[13px] text-gray-900 whitespace-pre-wrap">
+            {meta.caption}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (meta.type === "video" && objectUrl) {
+    return (
+      <div className="mb-2 overflow-hidden rounded-lg bg-black/5">
+        <video src={objectUrl} controls className="max-h-64 w-full" />
+        {meta.caption ? (
+          <p className="px-2 py-1.5 text-[13px] text-gray-900 whitespace-pre-wrap">
+            {meta.caption}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (meta.type === "audio" && objectUrl) {
+    return (
+      <div className="mb-2 rounded-lg bg-black/5 px-2 py-2">
+        <audio src={objectUrl} controls className="w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={objectUrl || undefined}
+      download={meta.filename || "document"}
+      className="mb-2 flex items-center gap-2 rounded-lg bg-black/5 px-3 py-2 text-[13px] font-medium text-[#027a48] hover:bg-black/10"
+    >
+      {meta.type === "video" ? <Video size={16} /> : <FileText size={16} />}
+      <span className="truncate">{meta.filename || "Document"}</span>
+    </a>
   );
 };
 
@@ -1335,9 +1521,28 @@ export default function WhatsAppInbox({ embedded = false }) {
                               </span>
                             ) : null}
                           </div>
-                          <p className="text-[14px] text-gray-900 whitespace-pre-wrap break-words leading-snug">
-                            {msg.body}
-                          </p>
+                          <InboxMediaAttachment msg={msg} waId={activeWaId} />
+                          {(() => {
+                            const media = messageMediaMeta(msg);
+                            const body = String(msg.body || "");
+                            if (
+                              media &&
+                              (!body ||
+                                /^\[(Image|Document|Video|Audio|Sticker)\]$/i.test(
+                                  body,
+                                ) ||
+                                (media.filename && body === media.filename) ||
+                                (media.caption && body === media.caption))
+                            ) {
+                              return null;
+                            }
+                            if (!body) return null;
+                            return (
+                              <p className="text-[14px] text-gray-900 whitespace-pre-wrap break-words leading-snug">
+                                {body}
+                              </p>
+                            );
+                          })()}
                           <div className="flex items-center justify-end gap-1.5 mt-1">
                             <span className="text-[10px] text-gray-400">
                               {formatBubbleTime(msg.createdAt)}

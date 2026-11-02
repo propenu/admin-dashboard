@@ -520,6 +520,15 @@ export const getWhatsAppInboxMessages = (waId, params = {}) => {
   );
 };
 
+export const getWhatsAppInboxMessageMedia = (waId, messageId) => {
+  return apiClient.get(
+    `${SERVICES.USER}/whatsapp/inbox/conversations/${encodeURIComponent(
+      waId,
+    )}/messages/${encodeURIComponent(messageId)}/media`,
+    { responseType: "blob" },
+  );
+};
+
 export const sendWhatsAppInboxMessage = (waId, text) => {
   return apiClient.post(
     `${SERVICES.USER}/whatsapp/inbox/conversations/${encodeURIComponent(waId)}/messages`,
@@ -703,8 +712,16 @@ export const verifyUserPhoneNumberOTP = (id, formData) => {
   return apiClient.patch(`${SERVICES.USER}/auth/${id}/profile`, formData);
 };
 
-
-
+/**
+ * SuperAdmin-only: start a short-lived read-only view-as session for exact web screens.
+ * Returns a one-time exchangeCode — never the target's permanent login token.
+ */
+export const startUserImpersonation = async (userId) => {
+  const res = await apiClient.post(
+    `${SERVICES.USER}/auth/impersonate/${userId}`,
+  );
+  return res.data;
+};
 
 
 
