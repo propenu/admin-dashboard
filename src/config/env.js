@@ -26,25 +26,31 @@ const isLocalHost = (hostname) => {
 
 /**
  * Web app origin for SuperAdmin read-only view-as.
- * Local/LAN admin builds always open localhost web — never production propenu.com.
+ * - Local/LAN admin → localhost web (never propenu.com)
+ * - Production admin → propenu.com (never localhost, even if env is wrong)
  */
 export function resolveWebAppUrl() {
   const configured = stripTrailingSlash(trimEnv(import.meta.env.VITE_WEB_APP_URL));
   const browserHost =
     typeof window !== "undefined" ? window.location.hostname : "";
+  const browserIsLocal = Boolean(browserHost && isLocalHost(browserHost));
 
-  if (browserHost && isLocalHost(browserHost)) {
-    if (configured) {
-      try {
-        if (isLocalHost(new URL(configured).hostname)) return configured;
-      } catch {
-        /* ignore invalid env URL */
-      }
+  let configuredIsLocal = false;
+  if (configured) {
+    try {
+      configuredIsLocal = isLocalHost(new URL(configured).hostname);
+    } catch {
+      /* ignore invalid env URL */
     }
+  }
+
+  if (browserIsLocal) {
+    if (configured && configuredIsLocal) return configured;
     return "http://localhost:3000";
   }
 
-  if (configured) return configured;
+  // Public / production admin host — never open localhost
+  if (configured && !configuredIsLocal) return configured;
   return "https://propenu.com";
 }
 

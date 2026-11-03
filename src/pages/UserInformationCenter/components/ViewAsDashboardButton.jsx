@@ -56,6 +56,20 @@ export default function ViewAsDashboardButton({ userId, roleName }) {
   const onClick = async () => {
     if (loading) return;
     setLoading(true);
+
+    // Open synchronously inside the click handler so production browsers
+    // do not block the tab (async window.open after await is blocked).
+    const tab = window.open("about:blank", "_blank");
+    if (tab) {
+      try {
+        tab.document.title = "Opening view-as…";
+        tab.document.body.innerHTML =
+          '<p style="font-family:system-ui;padding:24px;color:#334155">Opening read-only dashboard…</p>';
+      } catch {
+        /* cross-origin / restricted about:blank — ignore */
+      }
+    }
+
     try {
       const data = await startUserImpersonation(userId);
       const code = data?.exchangeCode;
@@ -63,13 +77,31 @@ export default function ViewAsDashboardButton({ userId, roleName }) {
         throw new Error(data?.message || "No exchange code returned");
       }
 
-      // Local admin → localhost web; production admin → propenu.com (never mix)
       const webBase = resolveWebAppUrl();
       const returnUrl = encodeURIComponent(window.location.href);
       const url = `${webBase}/view-as?code=${encodeURIComponent(code)}&returnUrl=${returnUrl}`;
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast.success("Opened read-only web dashboard (expires soon)");
+
+      if (tab && !tab.closed) {
+        tab.location.href = url;
+        try {
+          tab.opener = null;
+        } catch {
+          /* ignore */
+        }
+        toast.success("Opened read-only web dashboard (expires soon)");
+      } else {
+        // Popup blocked — same-tab fallback so production still works
+        toast.message("Popup blocked — opening view-as in this tab");
+        window.location.assign(url);
+      }
     } catch (err) {
+      if (tab && !tab.closed) {
+        try {
+          tab.close();
+        } catch {
+          /* ignore */
+        }
+      }
       toast.error(
         err?.response?.data?.message ||
           err?.message ||
