@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { startUserImpersonation } from "../../../features/user/userService";
-import { ENV } from "../../../config/env";
+import { resolveWebAppUrl } from "../../../config/env";
 import { useAuthUserProfile } from "../../../hooks/useAuthUser";
 import { C } from "./shared";
 
@@ -63,10 +63,8 @@ export default function ViewAsDashboardButton({ userId, roleName }) {
         throw new Error(data?.message || "No exchange code returned");
       }
 
-      const webBase = String(ENV.WEB_APP_URL || "http://localhost:3000").replace(
-        /\/+$/,
-        "",
-      );
+      // Local admin → localhost web; production admin → propenu.com (never mix)
+      const webBase = resolveWebAppUrl();
       const returnUrl = encodeURIComponent(window.location.href);
       const url = `${webBase}/view-as?code=${encodeURIComponent(code)}&returnUrl=${returnUrl}`;
       window.open(url, "_blank", "noopener,noreferrer");
