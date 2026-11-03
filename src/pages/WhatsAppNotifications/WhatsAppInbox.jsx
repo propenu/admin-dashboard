@@ -1754,21 +1754,23 @@ export default function WhatsAppInbox({ embedded = false }) {
                     <Smile size={18} />
                   </button>
                   <input
+                    id="wa-inbox-attach-file"
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx,.xls,.xlsx,video/mp4,audio/*"
-                    className="hidden"
+                    accept="image/*,image/jpeg,image/png,image/webp,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,video/mp4,audio/*,.txt,.csv"
+                    className="sr-only"
                     onChange={handleAttachPick}
                   />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={sending}
-                    className="w-9 h-9 rounded-full text-gray-400 hover:bg-gray-50 hover:text-[#128C7E] flex items-center justify-center disabled:opacity-50"
+                  <label
+                    htmlFor="wa-inbox-attach-file"
+                    data-wa-attach="1"
                     title="Attach image or document"
+                    className={`w-9 h-9 rounded-full text-gray-400 hover:bg-gray-50 hover:text-[#128C7E] flex items-center justify-center cursor-pointer ${
+                      sending ? "pointer-events-none opacity-50" : ""
+                    }`}
                   >
                     <Paperclip size={18} />
-                  </button>
+                  </label>
                   <input
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}

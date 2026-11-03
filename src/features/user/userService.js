@@ -544,15 +544,16 @@ export const sendWhatsAppInboxMessage = (waId, text) => {
 
 export const sendWhatsAppInboxMedia = (waId, { file, caption = "" }) => {
   const form = new FormData();
-  if (file) form.append("file", file);
+  if (file) form.append("file", file, file.name || "attachment");
   if (caption) form.append("text", caption);
   return apiClient.post(
     `${SERVICES.USER}/whatsapp/inbox/conversations/${encodeURIComponent(waId)}/messages`,
     form,
     {
       timeout: 120000,
-      // Let the browser set multipart boundary.
-      headers: { "Content-Type": undefined },
+      // Do not set Content-Type — browser must add multipart boundary.
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
     },
   );
 };
