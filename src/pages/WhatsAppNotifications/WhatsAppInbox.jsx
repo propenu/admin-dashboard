@@ -67,6 +67,7 @@ const TEMPLATE_BUTTONS_BY_NAME = {
     { label: "Buy Property", kind: "url" },
     { label: "Rent Property", kind: "url" },
   ],
+  existing_agent: [{ label: "More Options", kind: "quick_reply" }],
 };
 
 const TEMPLATE_BUTTONS_BY_SOURCE = {
@@ -81,6 +82,7 @@ const TEMPLATE_BUTTONS_BY_SOURCE = {
     { label: "Buy Property", kind: "url" },
     { label: "Rent Property", kind: "url" },
   ],
+  existing_user_agent_template: [{ label: "More Options", kind: "quick_reply" }],
 };
 
 const normalizeTemplateButtons = (list) =>
@@ -131,6 +133,9 @@ const templateButtonsForMessage = (msg) => {
   }
   if (/registration details are available/i.test(body)) {
     return normalizeTemplateButtons(TEMPLATE_BUTTONS_BY_SOURCE.new_user_registration_template);
+  }
+  if (/received your message on Propenu/i.test(body)) {
+    return normalizeTemplateButtons(TEMPLATE_BUTTONS_BY_SOURCE.existing_user_agent_template);
   }
   return [];
 };
