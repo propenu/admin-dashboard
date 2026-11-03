@@ -127,9 +127,14 @@ export const expireProject = (id, reason) =>
 /** Reset a project back to default/active */
 export const resetProject = (id) => apiClient.patch(`${BASE}/${id}/reset`);
 
-/** Promote a project */
-export const promoteProjectWithRank = (id, data) =>
-  apiClient.patch(`${BASE}/${id}/promote`, data);
+/** Promote a project (Prime / featured / sponsored / normal). */
+export const promoteProjectWithRank = (id, data = {}) =>
+  apiClient.patch(`${BASE}/${id}/promote`, data, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+  });
 
 /** Builder plan covering the project, its package, and how its promotion is delivered. */
 export const getProjectPlanStatus = (id) =>

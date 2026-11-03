@@ -172,6 +172,30 @@ export const canSetPromotionLeadCount = (user) => {
   );
 };
 
+const FORCE_MANUAL_PROMOTION_ROLES = new Set([
+  "super_admin",
+  "admin",
+  "business_development_head",
+  "bdh",
+  "operations_head",
+  "regional_manager",
+  "marketing_head",
+  "customer_support_head",
+  "technical_support_head",
+]);
+
+/**
+ * Super Admin, Admin, and main heads may promote / renew / set Normal
+ * without a paid Builder Plans invoice.
+ */
+export const canForceManualPromotion = (userOrRole) => {
+  const role =
+    typeof userOrRole === "string"
+      ? normalizeProjectRole(userOrRole)
+      : normalizeProjectRole(userOrRole?.roleName || userOrRole?.role);
+  return FORCE_MANUAL_PROMOTION_ROLES.has(role);
+};
+
 /** Direct create builder (name/email/phone, no OTP) — Super Admin + BDH (+ admin). */
 export const canDirectCreateBuilder = (user) => {
   const role = normalizeProjectRole(user?.roleName || user?.role);

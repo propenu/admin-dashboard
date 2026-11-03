@@ -14,6 +14,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { getProjectPlanStatus, reuseProjectPlanInvoice } from "../../../../../features/property/propertyService";
+import { useAuthUserProfile } from "../../../../../hooks/useAuthUser";
+import { canForceManualPromotion } from "../../../../../utils/projectAccessControl";
 import { formatPromotionDate } from "./promotionTracking";
 
 const MENU_WIDTH = 300;
@@ -101,6 +103,8 @@ export default function PromotionModeMenu({
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuthUserProfile();
+  const canBypassInvoice = canForceManualPromotion(user);
 
   const reuseMutation = useMutation({
     mutationFn: (invoiceId) => reuseProjectPlanInvoice(projectId, invoiceId),
@@ -148,15 +152,25 @@ export default function PromotionModeMenu({
   const runningMode = status?.runningMode || null;
   const savedMode = status?.mode || null;
   const invoiceMissing = !isLoading && !isError && !plan;
-  const invoiceRequired = invoiceMissing ? "Invoice required before promotion." : "";
+  const invoiceRequired =
+    invoiceMissing && !canBypassInvoice ? "Invoice required before promotion." : "";
   const planMissing = !plan
-    ? "Invoice required before promotion."
+    ? canBypassInvoice
+      ? ""
+      : "Invoice required before promotion."
     : plan.mainType === "normal"
       ? `${plan.planName || "This plan"} is listing only (no promotion).`
       : "";
-  const notApproved = status && !status.approved ? "Approve the project first." : "";
+  const notApproved =
+    status && !status.approved && !canBypassInvoice
+      ? "Approve the project first."
+      : "";
   const latestInvoice = invoiceMissing ? status?.latestInvoice || null : null;
-  const invoiceBlock = latestInvoice ? INVOICE_BLOCKERS[latestInvoice.reason] || INVOICE_BLOCKERS.unavailable : null;
+  const invoiceBlock =
+    !canBypassInvoice && latestInvoice
+      ? INVOICE_BLOCKERS[latestInvoice.reason] || INVOICE_BLOCKERS.unavailable
+      : null;
+  const showPromoteOptions = Boolean(plan || isError || canBypassInvoice);
 
   return createPortal(
     <>
@@ -278,7 +292,7 @@ export default function PromotionModeMenu({
                     {invoiceBlock.action}
                   </button>
                 </div>
-              ) : invoiceMissing ? (
+              ) : invoiceMissing && !canBypassInvoice ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5">
                   <p className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900">
                     <FileText className="h-3.5 w-3.5" /> Invoice required
@@ -299,23 +313,46 @@ export default function PromotionModeMenu({
                   </button>
                 </div>
               ) : null}
-              {plan || isError ? (
+              {invoiceMissing && canBypassInvoice ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5">
+                  <p className="text-[11px] font-semibold text-emerald-900">
+                    Direct promotion allowed
+                  </p>
+                  <p className="mt-1 text-[10px] leading-4 text-emerald-800">
+                    Super Admin and main heads can promote (Prime / Top Selling / Sponsored / Normal) without a paid invoice.
+                  </p>
+                </div>
+              ) : null}
+              {showPromoteOptions ? (
                 <>
-                  <Option
-                    icon={MousePointerClick}
-                    tone="bg-emerald-100 text-emerald-700"
-                    title="Use existing plan"
-                    current={runningMode === "plan" || runningMode === "auto" || (!runningMode && savedMode === "auto")}
-                    disabledReason={isError ? "Plan status unavailable." : planMissing || notApproved}
-                    busy={busy}
-                    onClick={() => onChoosePlan?.(status)}
-                  />
+                  {plan || isError ? (
+                    <Option
+                      icon={MousePointerClick}
+                      tone="bg-emerald-100 text-emerald-700"
+                      title="Use existing plan"
+                      current={runningMode === "plan" || runningMode === "auto" || (!runningMode && savedMode === "auto")}
+                      disabledReason={isError ? "Plan status unavailable." : planMissing || notApproved}
+                      busy={busy}
+                      onClick={() => onChoosePlan?.(status)}
+                    />
+                  ) : null}
                   <Option
                     icon={Hand}
                     tone="bg-amber-100 text-amber-700"
                     title="Customize promotion"
+                    desc={
+                      canBypassInvoice
+                        ? "Set Prime, Top Selling, Sponsored, or Normal anytime — invoice not required."
+                        : undefined
+                    }
                     current={runningMode === "manual" || (!runningMode && savedMode === "manual")}
-                    disabledReason={isError ? "Invoice status unavailable." : invoiceRequired}
+                    disabledReason={
+                      canBypassInvoice
+                        ? undefined
+                        : isError
+                          ? "Invoice status unavailable."
+                          : invoiceRequired
+                    }
                     busy={busy}
                     onClick={() => onChooseDirect?.(status)}
                   />

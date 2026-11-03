@@ -16,6 +16,8 @@ import {
   X,
 } from "lucide-react";
 import { projectAnalytics } from "../../../../../features/property/propertyService";
+import { useAuthUserProfile } from "../../../../../hooks/useAuthUser";
+import { canForceManualPromotion } from "../../../../../utils/projectAccessControl";
 import PromotionLocationCoverage from "./PromotionLocationCoverage";
 import {
   cloneSponsoredAd,
@@ -265,8 +267,11 @@ export default function PromoteModal({
   const [countTouched, setCountTouched] = useState(false);
 
   const [entered, setEntered] = useState(false);
+  const { user } = useAuthUserProfile();
+  const canBypassInvoice = canForceManualPromotion(user);
 
-  const projectIsApproved = canPromoteProject(projectStatus, approvalStatus);
+  const projectIsApproved =
+    canBypassInvoice || canPromoteProject(projectStatus, approvalStatus);
   const liveType = currentPromotion?.type || currentType || "normal";
 
   useEffect(() => {
@@ -463,7 +468,7 @@ export default function PromoteModal({
     if (!projectIsApproved) {
       return "Approve the project first. Only Active / Approved projects can be promoted.";
     }
-    if (!selected) return "Choose where this project should appear.";
+    if (!selected) return "Choose where this project should appear (including Normal).";
     if (isNormal && liveType === "normal") {
       return "This project is already a normal listing.";
     }
