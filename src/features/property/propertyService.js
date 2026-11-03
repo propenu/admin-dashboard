@@ -104,8 +104,21 @@ export const editFeaturedProject = (id, formData) =>
 export const promoteProject = (id, type) =>
   apiClient.patch(`${BASE}/${id}/promote`, { type });
 
-export const RenevaleProject = (id) =>
-  apiClient.patch(`${BASE}/${id}/renew`, { days: 10 });
+/** Direct promotion renew. `days` defaults to 10; custom positive integers allowed (1–365). */
+export const RenevaleProject = (id, days = 10) => {
+  const n = Math.trunc(Number(days));
+  const renewalDays = Number.isFinite(n) && n > 0 ? Math.min(n, 365) : 10;
+  return apiClient.patch(
+    `${BASE}/${id}/renew`,
+    { days: renewalDays },
+    {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    },
+  );
+};
 
 /** Cancel a live or scheduled promotion and return it to normal. */
 export const expireProject = (id, reason) =>

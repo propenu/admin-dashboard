@@ -468,6 +468,7 @@ function PropertyCard({
 }) {
   const [openLeads, setOpenLeads] = useState(false);
   const [leadPage, setLeadPage] = useState(1);
+  const [renewDays, setRenewDays] = useState("10");
   const status = getStatus(property);
   const creatorRole = getCreatedByRoleLabel(property);
   const creator = getCreatedByDisplayName(property) || "Unknown user";
@@ -804,12 +805,32 @@ function PropertyCard({
               </button>
               {isBoosted ? (
                 <>
+                  <label
+                    className="inline-flex min-w-0 items-center gap-1 overflow-hidden rounded-full border border-emerald-100 bg-white px-2 py-2 text-[10px] font-medium text-slate-500 sm:py-1"
+                    onClick={(event) => event.stopPropagation()}
+                    title="Custom renewal days"
+                  >
+                    Days
+                    <input
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={renewDays}
+                      disabled={promoteBusy}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/^0+(?=\d)/, "");
+                        setRenewDays(raw);
+                      }}
+                      className="w-9 border-0 bg-transparent p-0 text-[10px] font-bold text-emerald-900 outline-none"
+                    />
+                  </label>
                   <button
                     type="button"
                     disabled={promoteBusy}
                     onClick={(event) => {
                       event.stopPropagation();
-                      onRenew?.(property);
+                      onRenew?.(property, renewDays);
                     }}
                     className="inline-flex min-w-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-[10px] font-bold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50 sm:py-1"
                   >
@@ -1435,12 +1456,19 @@ export default function PropertiesDashboard() {
     }
   };
 
-  const handleRenewPromotion = useCallback(async (property) => {
+  const handleRenewPromotion = useCallback(async (property, daysInput = 10) => {
     if (!property?._id || !property?._category) return;
+    const days = Math.trunc(Number(daysInput));
+    if (!Number.isFinite(days) || days < 1 || days > 365) {
+      toast.error("Enter renewal days between 1 and 365");
+      return;
+    }
     setPromoteLoading(true);
     try {
-      await renewPropertyListing(property._category, property._id, { days: 10 });
-      toast.success("Promotion renewed (+10 days)");
+      await renewPropertyListing(property._category, property._id, { days });
+      toast.success(
+        `Promotion renewed (+${days} day${days === 1 ? "" : "s"})`,
+      );
       await invalidatePropertyLists();
     } catch (err) {
       toast.error(

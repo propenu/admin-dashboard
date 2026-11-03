@@ -23,10 +23,21 @@ export const promotePropertyListing = (category, id, data = {}) => {
   return propertyApi.patch(`/${cat}/${id}/promote`, data);
 };
 
-/** PATCH /{category}/:id/renew */
-export const renewPropertyListing = (category, id, data = { days: 10 }) => {
+/** PATCH /{category}/:id/renew — direct renew with optional custom days (1–365). */
+export const renewPropertyListing = (category, id, data = {}) => {
   const cat = assertCategory(category);
-  return propertyApi.patch(`/${cat}/${id}/renew`, data);
+  const n = Math.trunc(Number(data?.days ?? 10));
+  const days = Number.isFinite(n) && n > 0 ? Math.min(n, 365) : 10;
+  return propertyApi.patch(
+    `/${cat}/${id}/renew`,
+    { ...data, days },
+    {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    },
+  );
 };
 
 /** PATCH /{category}/:id/expire */
