@@ -56,38 +56,38 @@ export default function TemplatesScreen({
   ];
 
   return (
-    <div className="w-full space-y-4 p-5 lg:p-7">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+    <div className="w-full space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-5">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <MessageSquare size={16} className="text-emerald-600" />
-            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+            <MessageSquare size={14} className="text-emerald-600 shrink-0" />
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-600">
               WhatsApp templates
             </p>
           </div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#0f3d2e]">
+          <h1 className="mt-1 text-xl sm:text-2xl font-semibold tracking-tight text-[#0f3d2e]">
             Template library
           </h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative min-w-0 flex-1 sm:flex-none">
             <Search
-              size={14}
+              size={13}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5c7d6d]"
             />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search templates..."
-              className="h-10 w-56 rounded-full border border-emerald-100 bg-white pl-9 pr-3 text-sm text-[#0f3d2e] shadow-[0_6px_16px_rgba(16,185,129,0.08)] outline-none placeholder:text-[#5c7d6d] focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20"
+              className="h-9 w-full sm:w-52 rounded-full border border-emerald-100 bg-white pl-8 pr-3 text-[13px] text-[#0f3d2e] shadow-[0_6px_16px_rgba(16,185,129,0.08)] outline-none placeholder:text-[#5c7d6d] focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20"
             />
           </div>
           <button
             type="button"
             onClick={onCreate}
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-[#27AE60] px-4 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(37,211,102,0.28)] hover:bg-[#1EAF54]"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#27AE60] px-3.5 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(37,211,102,0.28)] hover:bg-[#1EAF54] shrink-0"
           >
-            <Plus size={16} /> Create Template
+            <Plus size={14} /> Create Template
           </button>
         </div>
       </div>

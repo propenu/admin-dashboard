@@ -186,13 +186,13 @@ export default function CampaignHistoryScreen({
   const pageLabel = `${Math.min(pageCount, page + 1)} of ${pageCount}`;
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-4 p-4 lg:p-6">
-      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div className="flex w-full min-w-0 flex-col gap-3 sm:gap-4 p-3 sm:p-4 lg:p-5">
+      <div className="flex min-w-0 flex-col gap-2.5 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight text-[#0f3d2e] sm:text-2xl">
+          <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-[#0f3d2e] lg:text-2xl">
             WhatsApp Campaigns
           </h1>
-          <p className="mt-0.5 text-[13px] text-[#5c7d6d]">
+          <p className="mt-0.5 text-[12px] sm:text-[13px] text-[#5c7d6d]">
             Track delivery progress, failures, and campaign retries.
           </p>
         </div>

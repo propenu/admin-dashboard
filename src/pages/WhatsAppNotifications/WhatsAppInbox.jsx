@@ -4,6 +4,7 @@ import {
   Check,
   CheckCheck,
   CheckCircle2,
+  ChevronLeft,
   Clock3,
   Expand,
   ExternalLink,
@@ -574,15 +575,15 @@ const StatusTicks = ({ status, error }) => {
 const Avatar = ({ size = "md" }) => {
   const cls =
     size === "lg"
-      ? "w-11 h-11"
+      ? "w-9 h-9 sm:w-10 sm:h-10"
       : size === "sm"
-        ? "w-8 h-8"
-        : "w-10 h-10";
+        ? "w-7 h-7"
+        : "w-8 h-8 sm:w-9 sm:h-9";
   return (
     <div
       className={`${cls} rounded-full bg-[#25D366] text-white flex items-center justify-center shrink-0 shadow-sm`}
     >
-      <UserRound size={size === "sm" ? 14 : 18} />
+      <UserRound size={size === "sm" ? 12 : 15} />
     </div>
   );
 };
@@ -1294,9 +1295,9 @@ export default function WhatsAppInbox({ embedded = false }) {
           : "h-[calc(100vh-8.5rem)] min-h-[560px] rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm flex flex-col"
       }
     >
-      <div className="px-3 py-2 border-b border-gray-100 flex flex-wrap items-center gap-2 bg-[#f7f8fa] shrink-0">
+      <div className="px-2.5 sm:px-3 py-1.5 sm:py-2 border-b border-gray-100 flex flex-wrap items-center gap-1.5 sm:gap-2 bg-[#f7f8fa] shrink-0">
         <span
-          className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+          className={`inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border ${
             liveStatus === "live"
               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
               : liveStatus === "reconnect"
@@ -1321,7 +1322,7 @@ export default function WhatsAppInbox({ embedded = false }) {
         </span>
         {health ? (
           <span
-            className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
+            className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border max-w-[min(100%,18rem)] truncate ${
               health.ok
                 ? "bg-white text-gray-600 border-gray-200"
                 : "bg-red-50 text-red-600 border-red-200"
@@ -1334,7 +1335,7 @@ export default function WhatsAppInbox({ embedded = false }) {
           </span>
         ) : null}
         <span
-          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
+          className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border ${
             inboxScope === "all"
               ? "bg-sky-50 text-sky-700 border-sky-200"
               : "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -1350,19 +1351,23 @@ export default function WhatsAppInbox({ embedded = false }) {
 
       <div className="flex flex-1 min-h-0">
       {/* ── LEFT: inbox list ─────────────────────────────── */}
-      <aside className="w-full max-w-[320px] xl:max-w-[360px] border-r border-gray-200 flex flex-col bg-white">
-        <div className="p-3 border-b border-gray-100 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
+      <aside
+        className={`${
+          activeWaId ? "hidden md:flex" : "flex"
+        } w-full md:w-[240px] lg:w-[260px] xl:w-[280px] shrink-0 border-r border-gray-200 flex-col bg-white`}
+      >
+        <div className="p-2 sm:p-2.5 border-b border-gray-100 space-y-1.5">
+          <div className="flex items-center gap-1.5">
+            <div className="relative flex-1 min-w-0">
               <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={13}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
               />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search inbox"
-                className="w-full rounded-xl bg-gray-50 border border-gray-200 pl-9 pr-3 py-2.5 text-sm outline-none focus:border-[#25D366] focus:bg-white"
+                className="w-full rounded-lg bg-gray-50 border border-gray-200 pl-8 pr-2.5 py-1.5 sm:py-2 text-[12px] sm:text-[13px] outline-none focus:border-[#25D366] focus:bg-white"
               />
             </div>
             <button
@@ -1372,14 +1377,14 @@ export default function WhatsAppInbox({ embedded = false }) {
                   s === "all" ? "new" : s === "new" ? "waiting" : s === "waiting" ? "resolved" : "all",
                 )
               }
-              className={`w-10 h-10 rounded-xl border flex items-center justify-center transition ${
+              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg border flex items-center justify-center transition shrink-0 ${
                 statusFilter === "all"
                   ? "border-gray-200 text-gray-500 hover:bg-gray-50"
                   : "border-[#25D366] text-[#128C7E] bg-[#E8F8EF]"
               }`}
               title={`Filter: ${statusFilter}`}
             >
-              <Filter size={15} />
+              <Filter size={13} />
             </button>
             <button
               type="button"
@@ -1387,19 +1392,19 @@ export default function WhatsAppInbox({ embedded = false }) {
                 loadConversations(search);
                 refreshHealth();
               }}
-              className="w-10 h-10 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center shrink-0"
               title="Refresh Cloud inbox"
             >
-              <RefreshCw size={15} className={loadingList ? "animate-spin" : ""} />
+              <RefreshCw size={13} className={loadingList ? "animate-spin" : ""} />
             </button>
             {canAssign ? (
               <button
                 type="button"
                 onClick={() => setShowNewChat(true)}
-                className="w-10 h-10 rounded-xl bg-[#25D366] text-white flex items-center justify-center hover:bg-[#1EAF54]"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-[#25D366] text-white flex items-center justify-center hover:bg-[#1EAF54] shrink-0"
                 title="New chat"
               >
-                <Plus size={16} />
+                <Plus size={14} />
               </button>
             ) : null}
           </div>
@@ -1442,40 +1447,40 @@ export default function WhatsAppInbox({ embedded = false }) {
                   key={chat.waId}
                   type="button"
                   onClick={() => selectChatByWaId(chat.waId)}
-                  className={`w-full flex items-start gap-3 px-4 py-3.5 text-left border-b border-gray-100 transition ${
+                  className={`w-full flex items-start gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 text-left border-b border-gray-100 transition ${
                     selected ? "bg-slate-100" : "bg-white hover:bg-gray-50"
                   }`}
                 >
                   <Avatar />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[15px] font-bold text-gray-900 truncate">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <p className="text-[12px] sm:text-[13px] font-semibold text-gray-900 truncate leading-snug">
                         {chat.profileName || chat.waId}
                       </p>
                       {unread > 0 ? (
-                        <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-[#25D366] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
+                        <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#25D366] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
                           {unread}
                         </span>
                       ) : null}
                     </div>
-                    <p className="text-[13px] text-gray-500 truncate mt-0.5">
+                    <p className="text-[11px] sm:text-[12px] text-gray-500 truncate mt-0.5 leading-snug">
                       {chat.lastMessagePreview || "No messages yet"}
                     </p>
                     {chat.assignedAgentName ? (
-                      <p className="text-[11px] text-[#128C7E] font-medium truncate mt-1">
+                      <p className="text-[10px] text-[#128C7E] font-medium truncate mt-0.5 leading-snug">
                         Agent · {chat.assignedAgentName}
                         {chat.assignedAgentRole
                           ? ` (${chat.assignedAgentRole})`
                           : ""}
                       </p>
                     ) : null}
-                    <div className="flex items-end justify-between gap-2 mt-2">
+                    <div className="flex items-center justify-between gap-1.5 mt-1">
                       <span
-                        className={`text-[11px] font-medium px-2.5 py-0.5 rounded-md border ${meta.chip}`}
+                        className={`text-[10px] font-medium px-1.5 py-px rounded border leading-tight ${meta.chip}`}
                       >
                         {meta.label}
                       </span>
-                      <span className="text-[11px] text-gray-400 shrink-0">
+                      <span className="text-[10px] text-gray-400 shrink-0 tabular-nums">
                         {formatListTime(chat.lastMessageAt)}
                       </span>
                     </div>
@@ -1488,25 +1493,46 @@ export default function WhatsAppInbox({ embedded = false }) {
       </aside>
 
       {/* ── MIDDLE: chat thread ──────────────────────────── */}
-      <section className="flex-1 flex flex-col min-w-0 border-r border-gray-200">
+      <section
+        className={`${
+          activeWaId ? "flex" : "hidden md:flex"
+        } flex-1 flex-col min-w-0 border-r border-gray-200`}
+      >
         {!activeWaId ? (
-          <div className="flex-1 flex flex-col items-center justify-center bg-[#f7f8fa] text-center px-6">
-            <div className="w-16 h-16 rounded-full bg-[#E8F8EF] flex items-center justify-center mb-4">
-              <MessageCircle size={28} className="text-[#128C7E]" />
+          <div className="flex-1 flex flex-col items-center justify-center bg-[#f7f8fa] text-center px-4 sm:px-6">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-[#E8F8EF] flex items-center justify-center mb-3">
+              <MessageCircle size={22} className="text-[#128C7E]" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-700">Select a conversation</h3>
-            <p className="text-sm text-gray-400 mt-2 max-w-sm">
+            <h3 className="text-[15px] sm:text-base font-semibold text-gray-700">
+              Select a conversation
+            </h3>
+            <p className="text-[12px] sm:text-[13px] text-gray-400 mt-1.5 max-w-sm">
               Pick a chat from the inbox to reply, or start a new conversation.
             </p>
             {error ? <p className="mt-3 text-xs text-red-500">{error}</p> : null}
           </div>
         ) : (
           <>
-            <div className="h-14 px-4 flex items-center gap-3 border-b border-gray-200 bg-white shrink-0">
+            <div className="h-12 sm:h-[52px] px-2 sm:px-3 flex items-center gap-2 border-b border-gray-200 bg-white shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveWaId(null);
+                  setActiveConversation(null);
+                  setMessages([]);
+                  clearAttachFile();
+                }}
+                className="md:hidden w-8 h-8 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center justify-center shrink-0"
+                title="Back to inbox"
+              >
+                <ChevronLeft size={18} />
+              </button>
               <Avatar size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-gray-900 truncate">{activeTitle}</p>
-                <p className="text-[11px] text-gray-400 truncate">
+                <p className="text-[13px] font-bold text-gray-900 truncate leading-tight">
+                  {activeTitle}
+                </p>
+                <p className="text-[10px] sm:text-[11px] text-gray-400 truncate leading-tight">
                   {activeWaId}
                   {active?.assignedAgentName
                     ? ` · ${active.assignedAgentName}`
@@ -1520,7 +1546,7 @@ export default function WhatsAppInbox({ embedded = false }) {
                 onChange={(e) =>
                   patchConversation(activeWaId, { inboxStatus: e.target.value })
                 }
-                className={`text-xs font-bold rounded-lg border px-2.5 py-1.5 outline-none ${
+                className={`text-[11px] font-bold rounded-lg border px-2 py-1 outline-none shrink-0 ${
                   STATUS_META[activeStatus]?.select || STATUS_META.new.select
                 }`}
               >
@@ -1530,8 +1556,8 @@ export default function WhatsAppInbox({ embedded = false }) {
               </select>
             </div>
 
-            <div className="px-4 py-2 border-b border-gray-100 bg-white flex justify-center shrink-0">
-              <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+            <div className="px-2 sm:px-3 py-1.5 border-b border-gray-100 bg-white flex justify-center shrink-0 overflow-x-auto">
+              <div className="inline-flex rounded-full border border-slate-200 bg-slate-50 p-0.5">
                 {[
                   ["all", "All"],
                   ["today", "Today"],
@@ -1542,7 +1568,7 @@ export default function WhatsAppInbox({ embedded = false }) {
                     key={id}
                     type="button"
                     onClick={() => setTimeFilter(id)}
-                    className={`rounded-full px-3 py-1 text-[11px] font-bold ${
+                    className={`rounded-full px-2.5 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-bold whitespace-nowrap ${
                       timeFilter === id
                         ? "bg-[#25D366] text-white"
                         : "text-slate-600"
@@ -1555,7 +1581,7 @@ export default function WhatsAppInbox({ embedded = false }) {
             </div>
 
             <div
-              className="flex-1 overflow-y-auto px-4 py-3"
+              className="flex-1 overflow-y-auto px-2.5 sm:px-4 py-2 sm:py-3"
               style={{
                 backgroundColor: "#f3f4f6",
                 backgroundImage:
@@ -1782,17 +1808,17 @@ export default function WhatsAppInbox({ embedded = false }) {
                     placeholder={
                       attachFile ? "Add a caption (optional)" : "Type a reply"
                     }
-                    className="flex-1 rounded-full bg-gray-50 border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#25D366] focus:bg-white"
+                    className="flex-1 min-w-0 rounded-full bg-gray-50 border border-gray-200 px-3 sm:px-4 py-2 text-[13px] outline-none focus:border-[#25D366] focus:bg-white"
                   />
                   <button
                     type="submit"
                     disabled={(!draft.trim() && !attachFile) || sending}
-                    className="w-11 h-11 rounded-full bg-[#25D366] text-white flex items-center justify-center disabled:opacity-50 hover:bg-[#1EAF54] transition shadow-sm"
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center disabled:opacity-50 hover:bg-[#1EAF54] transition shadow-sm shrink-0"
                   >
                     {sending ? (
-                      <Loader2 size={18} className="animate-spin" />
+                      <Loader2 size={16} className="animate-spin" />
                     ) : (
-                      <Send size={18} />
+                      <Send size={16} />
                     )}
                   </button>
                 </div>
@@ -1811,25 +1837,25 @@ export default function WhatsAppInbox({ embedded = false }) {
       </section>
 
       {/* ── RIGHT: customer panel ────────────────────────── */}
-      <aside className="hidden lg:flex w-[280px] xl:w-[300px] flex-col bg-white">
+      <aside className="hidden xl:flex w-[240px] 2xl:w-[260px] shrink-0 flex-col bg-white">
         {!activeWaId ? (
-          <div className="flex-1 flex items-center justify-center p-6 text-center">
-            <p className="text-sm text-gray-400">
+          <div className="flex-1 flex items-center justify-center p-4 text-center">
+            <p className="text-[12px] text-gray-400">
               Customer details appear when a chat is selected.
             </p>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          <div className="flex-1 overflow-y-auto p-3 space-y-4">
             <div className="flex items-start justify-between gap-2">
-              <div>
+              <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
                   Customer
                 </p>
-                <p className="text-base font-extrabold text-gray-900 mt-1 break-all">
+                <p className="text-[13px] font-extrabold text-gray-900 mt-1 break-all leading-snug">
                   {activeWaId}
                 </p>
                 {active?.profileName ? (
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-[11px] text-gray-500 mt-0.5 truncate">
                     {active.profileName}
                   </p>
                 ) : null}

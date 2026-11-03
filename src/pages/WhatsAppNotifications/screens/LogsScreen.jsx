@@ -135,17 +135,17 @@ export default function LogsScreen({ logs = [], stats, loading, onRefresh }) {
   };
 
   return (
-    <div className="w-full min-w-0 p-4 lg:p-6">
-      <div className="min-w-0 space-y-4 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_8px_24px_rgba(16,185,129,0.08)] sm:p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div className="w-full min-w-0 p-3 sm:p-4 lg:p-5">
+      <div className="min-w-0 space-y-3 sm:space-y-4 rounded-2xl border border-emerald-100 bg-white p-3 shadow-[0_8px_24px_rgba(16,185,129,0.08)] sm:p-4 lg:p-5">
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.08em] text-emerald-600">
               WhatsApp activity
             </p>
-            <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-[#0f3d2e] sm:text-2xl">
+            <h1 className="mt-0.5 text-lg sm:text-xl font-semibold tracking-tight text-[#0f3d2e] lg:text-2xl">
               WhatsApp Logs
             </h1>
-            <p className="mt-1 max-w-2xl text-[13px] text-[#5c7d6d]">
+            <p className="mt-1 max-w-2xl text-[12px] sm:text-[13px] text-[#5c7d6d]">
               Live webhook/API feed for inbound messages, delivery status,
               workflow triggers, and sends.
             </p>

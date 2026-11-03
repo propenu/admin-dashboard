@@ -378,8 +378,8 @@ export default function OverviewScreen({
   const display = (n) => (loading ? "…" : Number(n || 0).toLocaleString("en-IN"));
 
   return (
-    <div className="w-full space-y-5 p-5 lg:p-7">
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="w-full space-y-3 sm:space-y-4 p-3 sm:p-4 lg:p-5">
+      <div className="grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-4">
         <StatCard
           label="Total Messages"
           value={display(computed.total)}
