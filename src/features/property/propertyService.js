@@ -104,10 +104,10 @@ export const editFeaturedProject = (id, formData) =>
 export const promoteProject = (id, type) =>
   apiClient.patch(`${BASE}/${id}/promote`, { type });
 
-/** Direct promotion renew. `days` defaults to 10; custom positive integers allowed (1–365). */
-export const RenevaleProject = (id, days = 10) => {
+/** Direct promotion renew. Defaults to 40 days; custom positive integers allowed (1–365). */
+export const RenevaleProject = (id, days = 40) => {
   const n = Math.trunc(Number(days));
-  const renewalDays = Number.isFinite(n) && n > 0 ? Math.min(n, 365) : 10;
+  const renewalDays = Number.isFinite(n) && n > 0 ? Math.min(n, 365) : 40;
   return apiClient.patch(
     `${BASE}/${id}/renew`,
     { days: renewalDays },

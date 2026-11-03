@@ -407,7 +407,8 @@ export default memo(function PropertyCard({
   const [rankValue,   setRankValue]   = useState(p.rank ?? "");
   const [rankLoading, setRankLoading] = useState(false);
   const [renewLoading, setRenewLoading] = useState(false);
-  const [renewDays, setRenewDays] = useState("10");
+  const [renewDays, setRenewDays] = useState("40");
+  const RENEW_DAY_PRESETS = [40, 50, 60];
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [modeBusy, setModeBusy] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -603,6 +604,7 @@ export default memo(function PropertyCard({
           queryClient.invalidateQueries({ queryKey: ["master-project-analytics"] }),
           queryClient.invalidateQueries({ queryKey: ["project-analytics"] }),
         ]);
+        refreshPlanViews?.();
         onRankUpdated?.();
       } catch (err) {
         toast.error(err?.response?.data?.message || "Failed to renew project");
@@ -898,6 +900,58 @@ export default memo(function PropertyCard({
               ) : null}
               {canRenewPromotion && (
                 <div className="mt-1 flex flex-wrap items-center gap-1">
+                  {RENEW_DAY_PRESETS.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      disabled={renewLoading}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRenewDays(String(d));
+                      }}
+                      className={`rounded border px-1.5 py-0.5 text-[9px] font-semibold transition disabled:opacity-60 ${
+                        Number(renewDays) === d
+                          ? "border-[#0f3d2e] bg-[#0f3d2e] text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                      }`}
+                      title={`Set renewal to ${d} days`}
+                    >
+                      {d}d
+                    </button>
+                  ))}
+                  <label
+                    className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] text-slate-500"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Custom renewal days"
+                  >
+                    <span className="font-medium">Days</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={renewDays}
+                      disabled={renewLoading}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/^0+(?=\d)/, "");
+                        setRenewDays(raw);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-10 border-0 bg-transparent p-0 text-[9px] font-semibold text-slate-800 outline-none"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={renewLoading}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRenew();
+                    }}
+                    className="rounded bg-[#27AE60] px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    title="Direct renewal — Super Admin can renew without a paid invoice"
+                  >
+                    {renewLoading ? "Saving..." : "Renew now"}
+                  </button>
                   {planLinked ? (
                     <>
                       <button
@@ -907,7 +961,7 @@ export default memo(function PropertyCard({
                           e.stopPropagation();
                           setRenewMenuOpen((v) => !v);
                         }}
-                        className="rounded bg-[#27AE60] px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-emerald-700"
+                        className="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-medium text-emerald-800 transition hover:bg-emerald-100"
                         title="Renew with an existing invoice of this project or create a new one"
                       >
                         Renew plan
@@ -920,42 +974,7 @@ export default memo(function PropertyCard({
                         onRenewed={refreshPlanViews}
                       />
                     </>
-                  ) : (
-                  <>
-                    <label
-                      className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] text-slate-500"
-                      onClick={(e) => e.stopPropagation()}
-                      title="Custom renewal days"
-                    >
-                      <span className="font-medium">Days</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={365}
-                        value={renewDays}
-                        disabled={renewLoading}
-                        onFocus={(e) => e.target.select()}
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(/^0+(?=\d)/, "");
-                          setRenewDays(raw);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-10 border-0 bg-transparent p-0 text-[9px] font-semibold text-slate-800 outline-none"
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      disabled={renewLoading}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRenew();
-                      }}
-                      className="rounded bg-[#27AE60] px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {renewLoading ? "Renewing..." : "Renew now"}
-                    </button>
-                  </>
-                  )}
+                  ) : null}
                   <button
                     type="button"
                     onClick={(e) => {

@@ -468,7 +468,8 @@ function PropertyCard({
 }) {
   const [openLeads, setOpenLeads] = useState(false);
   const [leadPage, setLeadPage] = useState(1);
-  const [renewDays, setRenewDays] = useState("10");
+  const [renewDays, setRenewDays] = useState("40");
+  const RENEW_DAY_PRESETS = [40, 50, 60];
   const status = getStatus(property);
   const creatorRole = getCreatedByRoleLabel(property);
   const creator = getCreatedByDisplayName(property) || "Unknown user";
@@ -805,6 +806,25 @@ function PropertyCard({
               </button>
               {isBoosted ? (
                 <>
+                  {RENEW_DAY_PRESETS.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      disabled={promoteBusy}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setRenewDays(String(d));
+                      }}
+                      className={`inline-flex min-w-0 items-center justify-center overflow-hidden rounded-full border px-2 py-2 text-[10px] font-bold transition disabled:opacity-50 sm:py-1 ${
+                        Number(renewDays) === d
+                          ? "border-[#0f3d2e] bg-[#0f3d2e] text-white"
+                          : "border-emerald-100 bg-white text-emerald-800 hover:bg-emerald-50"
+                      }`}
+                      title={`Set renewal to ${d} days`}
+                    >
+                      {d}d
+                    </button>
+                  ))}
                   <label
                     className="inline-flex min-w-0 items-center gap-1 overflow-hidden rounded-full border border-emerald-100 bg-white px-2 py-2 text-[10px] font-medium text-slate-500 sm:py-1"
                     onClick={(event) => event.stopPropagation()}
@@ -1456,7 +1476,7 @@ export default function PropertiesDashboard() {
     }
   };
 
-  const handleRenewPromotion = useCallback(async (property, daysInput = 10) => {
+  const handleRenewPromotion = useCallback(async (property, daysInput = 40) => {
     if (!property?._id || !property?._category) return;
     const days = Math.trunc(Number(daysInput));
     if (!Number.isFinite(days) || days < 1 || days > 365) {

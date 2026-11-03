@@ -26,8 +26,8 @@ export const promotePropertyListing = (category, id, data = {}) => {
 /** PATCH /{category}/:id/renew — direct renew with optional custom days (1–365). */
 export const renewPropertyListing = (category, id, data = {}) => {
   const cat = assertCategory(category);
-  const n = Math.trunc(Number(data?.days ?? 10));
-  const days = Number.isFinite(n) && n > 0 ? Math.min(n, 365) : 10;
+  const n = Math.trunc(Number(data?.days ?? 40));
+  const days = Number.isFinite(n) && n > 0 ? Math.min(n, 365) : 40;
   return propertyApi.patch(
     `/${cat}/${id}/renew`,
     { ...data, days },
