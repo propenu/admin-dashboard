@@ -258,7 +258,7 @@ export default function PromoteModal({
   const [scheduleMode, setScheduleMode] = useState("now");
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
-  const [durationDays, setDurationDays] = useState(10);
+  const [durationDays, setDurationDays] = useState(30);
   const [customDays, setCustomDays] = useState("");
   const [leadCountInput, setLeadCountInput] = useState("");
   const [totalLeads, setTotalLeads] = useState(null);
@@ -301,7 +301,7 @@ export default function PromoteModal({
       setScheduleMode("now");
       setScheduleDate("");
       setScheduleTime("");
-      setDurationDays(10);
+      setDurationDays(30);
       setCustomDays("");
       setLeadCountInput("");
       setTotalLeads(null);
