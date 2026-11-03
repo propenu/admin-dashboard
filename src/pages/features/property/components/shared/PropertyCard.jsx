@@ -948,7 +948,7 @@ export default memo(function PropertyCard({
                       handleRenew();
                     }}
                     className="rounded bg-[#27AE60] px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    title="Direct renewal — Super Admin can renew without a paid invoice"
+                    title="Direct renewal — Super Admin and main heads can renew without a paid invoice"
                   >
                     {renewLoading ? "Saving..." : "Renew now"}
                   </button>
