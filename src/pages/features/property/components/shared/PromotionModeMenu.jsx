@@ -1,14 +1,54 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Bot, CalendarClock, Hand, Loader2, MousePointerClick, PackageCheck, RefreshCw } from "lucide-react";
-import { getProjectPlanStatus } from "../../../../../features/property/propertyService";
-import { promotionStatusMeta } from "../../../../../features/builderPlans/planPackage";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import {
+  CalendarClock,
+  FileText,
+  Hand,
+  Loader2,
+  MousePointerClick,
+  PackageCheck,
+  RefreshCw,
+  RotateCcw,
+} from "lucide-react";
+import { getProjectPlanStatus, reuseProjectPlanInvoice } from "../../../../../features/property/propertyService";
 import { formatPromotionDate } from "./promotionTracking";
 
 const MENU_WIDTH = 300;
 
 export const planStatusQueryKey = (projectId) => ["project-plan-status", projectId];
+
+const INVOICE_BLOCKERS = {
+  unpaid: {
+    title: "Invoice not paid yet",
+    desc: "This project has an invoice, but its payment is not marked as Paid. Mark it as Paid in Invoices, then return here to promote.",
+    action: "Open invoices",
+  },
+  cancelled: {
+    title: "Invoice promotion cancelled",
+    desc: "The promotion on this paid invoice was cancelled. Promote again with the same invoice, or create a new one.",
+    action: "Create new invoice",
+    reusable: true,
+  },
+  expired: {
+    title: "Invoice period ended",
+    desc: "The latest paid invoice for this project has expired. Renew or create a new invoice to promote again.",
+    action: "Create invoice",
+  },
+  unavailable: {
+    title: "Invoice not usable",
+    desc: "The latest invoice for this project cannot start a promotion yet. Check it in Invoices.",
+    action: "Open invoices",
+  },
+};
+
+const PAYMENT_TONE = {
+  paid: "bg-emerald-100 text-emerald-700",
+  pending: "bg-amber-100 text-amber-800",
+  failed: "bg-rose-100 text-rose-700",
+};
 
 function Option({ icon: Icon, tone, title, desc, current, disabledReason, busy, onClick }) {
   const disabled = Boolean(disabledReason) || busy;
@@ -21,7 +61,9 @@ function Option({ icon: Icon, tone, title, desc, current, disabledReason, busy, 
         onClick?.();
       }}
       title={disabledReason || undefined}
-      className={`flex w-full items-start gap-2.5 rounded-xl border px-2.5 py-2 text-left transition ${
+      className={`flex w-full gap-2.5 rounded-xl border px-2.5 py-2 text-left transition ${
+        disabledReason || desc ? "items-start" : "items-center"
+      } ${
         disabled
           ? "cursor-not-allowed border-slate-100 bg-slate-50/70 opacity-60"
           : current
@@ -29,28 +71,23 @@ function Option({ icon: Icon, tone, title, desc, current, disabledReason, busy, 
             : "border-slate-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/40"
       }`}
     >
-      <span className={`mt-0.5 rounded-lg p-1.5 ${tone}`}>
+      <span className={`rounded-lg p-1.5 ${desc || disabledReason ? "mt-0.5" : ""} ${tone}`}>
         <Icon className="h-3.5 w-3.5" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-800">
+        <span className="flex items-center gap-1.5 text-[12px] font-semibold leading-5 text-slate-800">
           {title}
-          {current ? (
-            <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[8px] font-bold uppercase text-emerald-700">
-              Current
-            </span>
-          ) : null}
         </span>
-        <span className="mt-0.5 block text-[10px] leading-4 text-slate-500">
-          {disabledReason || desc}
-        </span>
+        {disabledReason || desc ? (
+          <span className="mt-0.5 block text-[10px] leading-4 text-slate-500">{disabledReason || desc}</span>
+        ) : null}
       </span>
     </button>
   );
 }
 
 /**
- * Project card "Promote" dropdown: Automatic (plan drives it), One button from plan, or Direct.
+ * Project card "Promote" dropdown: same as the invoice plan, or set the promotion yourself.
  */
 export default function PromotionModeMenu({
   anchorRef,
@@ -58,11 +95,24 @@ export default function PromotionModeMenu({
   onClose,
   projectId,
   busy = false,
-  onChooseAuto,
   onChoosePlan,
   onChooseDirect,
 }) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const reuseMutation = useMutation({
+    mutationFn: (invoiceId) => reuseProjectPlanInvoice(projectId, invoiceId),
+    onSuccess: (res) => {
+      if (res?.data) queryClient.setQueryData(planStatusQueryKey(projectId), res.data);
+      queryClient.invalidateQueries({ queryKey: planStatusQueryKey(projectId) });
+      toast.success(res?.message || "Invoice is ready to promote again");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "Could not reuse the invoice");
+    },
+  });
 
   const { data: status, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: planStatusQueryKey(projectId),
@@ -97,13 +147,16 @@ export default function PromotionModeMenu({
   const plan = status?.plan || null;
   const runningMode = status?.runningMode || null;
   const savedMode = status?.mode || null;
+  const invoiceMissing = !isLoading && !isError && !plan;
+  const invoiceRequired = invoiceMissing ? "Invoice required before promotion." : "";
   const planMissing = !plan
-    ? "No paid builder plan. Create an invoice in Builder Plans first."
+    ? "Invoice required before promotion."
     : plan.mainType === "normal"
       ? `${plan.planName || "This plan"} is listing only (no promotion).`
       : "";
   const notApproved = status && !status.approved ? "Approve the project first." : "";
-  const statusMeta = plan ? promotionStatusMeta(plan.promotionStatus) : null;
+  const latestInvoice = invoiceMissing ? status?.latestInvoice || null : null;
+  const invoiceBlock = latestInvoice ? INVOICE_BLOCKERS[latestInvoice.reason] || INVOICE_BLOCKERS.unavailable : null;
 
   return createPortal(
     <>
@@ -123,7 +176,7 @@ export default function PromotionModeMenu({
       >
         <div className="bg-gradient-to-br from-[#0f3d2e] via-[#17643f] to-[#27AE60] px-3 py-2 text-white">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[12px] font-bold">Promote · how should it run?</p>
+            <p className="text-[12px] font-bold">Promote this project</p>
             <button
               type="button"
               onClick={() => refetch()}
@@ -134,24 +187,27 @@ export default function PromotionModeMenu({
             </button>
           </div>
           {plan ? (
-            <div className="mt-1.5 rounded-lg bg-white/10 px-2 py-1.5 ring-1 ring-white/20">
+            <div className="mt-1.5 rounded-lg bg-white px-2 py-1.5 text-slate-800 shadow-sm">
               <p className="flex items-center gap-1 truncate text-[11px] font-semibold">
-                <PackageCheck className="h-3 w-3 shrink-0" />
-                {plan.planName || "Builder plan"} · {plan.label}
+                <PackageCheck className="h-3 w-3 shrink-0 text-[#27AE60]" />
+                {plan.planName || plan.label || "Builder plan"}
+                {plan.label && plan.planName && plan.label.trim().toLowerCase() !== plan.planName.trim().toLowerCase()
+                  ? ` · ${plan.label}`
+                  : ""}
               </p>
-              <p className="mt-0.5 flex items-center gap-1 text-[10px] text-emerald-50/90">
-                <CalendarClock className="h-2.5 w-2.5" />
+              <p className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-500">
+                <CalendarClock className="h-2.5 w-2.5 text-slate-400" />
                 {formatPromotionDate(plan.periodStart)} → {formatPromotionDate(plan.periodEnd)}
                 {plan.renewals ? ` · ${plan.renewals} renewal${plan.renewals > 1 ? "s" : ""}` : ""}
               </p>
-              <span className={`mt-1 inline-block rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${statusMeta.tone}`}>
-                {statusMeta.label}
-              </span>
-              {plan.note ? <p className="mt-1 text-[9px] leading-3 text-emerald-50/80">{plan.note}</p> : null}
             </div>
           ) : (
             <p className="mt-1 text-[10px] text-emerald-50/80">
-              {isLoading ? "Checking builder plan…" : "No paid builder plan for this project."}
+              {isLoading
+                ? "Checking invoice…"
+                : latestInvoice
+                  ? `Invoice ${latestInvoice.invoiceNumber} found · ${latestInvoice.paymentStatus}`
+                  : "No invoice for this project."}
             </p>
           )}
         </div>
@@ -165,46 +221,106 @@ export default function PromotionModeMenu({
             <>
               {isError ? (
                 <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[10px] text-amber-800">
-                  Could not load the builder plan. Direct still works.
+                  Could not check the invoice. Refresh and try again.
                 </p>
               ) : null}
-              <Option
-                icon={Bot}
-                tone="bg-emerald-100 text-emerald-700"
-                title="Automatic"
-                desc={
-                  plan?.needsLocations
-                    ? "Plan runs it by itself. First start needs locations (team picks)."
-                    : "The plan starts, renews and ends it by itself."
-                }
-                current={runningMode === "auto" || (!runningMode && savedMode === "auto")}
-                disabledReason={isError ? "Plan status unavailable." : planMissing}
-                busy={busy}
-                onClick={() => onChooseAuto?.(status)}
-              />
-              <Option
-                icon={MousePointerClick}
-                tone="bg-sky-100 text-sky-700"
-                title="One button from plan"
-                desc={
-                  plan
-                    ? `Start ${plan.label} now. Placement, dates and leads come from the plan.`
-                    : "Start the plan's package now."
-                }
-                current={runningMode === "plan"}
-                disabledReason={isError ? "Plan status unavailable." : planMissing || notApproved}
-                busy={busy}
-                onClick={() => onChoosePlan?.(status)}
-              />
-              <Option
-                icon={Hand}
-                tone="bg-amber-100 text-amber-700"
-                title="Direct (no plan)"
-                desc="Pick placement, locations, dates and leads yourself."
-                current={runningMode === "manual" || (!runningMode && savedMode === "manual")}
-                busy={busy}
-                onClick={() => onChooseDirect?.(status)}
-              />
+              {invoiceBlock ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5">
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900">
+                    <FileText className="h-3.5 w-3.5" /> {invoiceBlock.title}
+                  </p>
+                  <div className="mt-1.5 rounded-lg bg-white px-2 py-1.5 ring-1 ring-amber-100">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-[11px] font-semibold text-slate-800">
+                        {latestInvoice.invoiceNumber}
+                      </span>
+                      <span
+                        className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                          PAYMENT_TONE[latestInvoice.paymentStatus] || "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {latestInvoice.paymentStatus}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 truncate text-[10px] text-slate-500">
+                      {latestInvoice.planName ? `${latestInvoice.planName} · ` : ""}
+                      {formatPromotionDate(latestInvoice.startDate)} → {formatPromotionDate(latestInvoice.endDate)}
+                    </p>
+                  </div>
+                  <p className="mt-1.5 text-[10px] leading-4 text-amber-800">{invoiceBlock.desc}</p>
+                  {invoiceBlock.reusable ? (
+                    <button
+                      type="button"
+                      disabled={reuseMutation.isPending}
+                      onClick={() => reuseMutation.mutate(latestInvoice.invoiceId)}
+                      className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#27AE60] px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-[#219653] disabled:opacity-60"
+                    >
+                      {reuseMutation.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-3 w-3" />
+                      )}
+                      Use this invoice again
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose?.();
+                      navigate(invoiceBlock.action === "Open invoices" ? "/builder-plans?view=invoices" : "/builder-plans");
+                    }}
+                    className={`mt-1.5 w-full rounded-lg px-2 py-1.5 text-[11px] font-semibold ${
+                      invoiceBlock.reusable
+                        ? "border border-[#27AE60] bg-white text-[#27AE60] hover:bg-emerald-50"
+                        : "bg-[#27AE60] text-white hover:bg-[#219653]"
+                    }`}
+                  >
+                    {invoiceBlock.action}
+                  </button>
+                </div>
+              ) : invoiceMissing ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5">
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900">
+                    <FileText className="h-3.5 w-3.5" /> Invoice required
+                  </p>
+                  <p className="mt-1 text-[10px] leading-4 text-amber-800">
+                    Promotions can start only after a paid invoice is recorded for this project.
+                    Create an invoice in Builder Plans, mark it as Paid, then return here to promote.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose?.();
+                      navigate("/builder-plans");
+                    }}
+                    className="mt-2 w-full rounded-lg bg-[#27AE60] px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-[#219653]"
+                  >
+                    Create invoice
+                  </button>
+                </div>
+              ) : null}
+              {plan || isError ? (
+                <>
+                  <Option
+                    icon={MousePointerClick}
+                    tone="bg-emerald-100 text-emerald-700"
+                    title="Use existing plan"
+                    current={runningMode === "plan" || runningMode === "auto" || (!runningMode && savedMode === "auto")}
+                    disabledReason={isError ? "Plan status unavailable." : planMissing || notApproved}
+                    busy={busy}
+                    onClick={() => onChoosePlan?.(status)}
+                  />
+                  <Option
+                    icon={Hand}
+                    tone="bg-amber-100 text-amber-700"
+                    title="Customize promotion"
+                    current={runningMode === "manual" || (!runningMode && savedMode === "manual")}
+                    disabledReason={isError ? "Invoice status unavailable." : invoiceRequired}
+                    busy={busy}
+                    onClick={() => onChooseDirect?.(status)}
+                  />
+                </>
+              ) : null}
             </>
           )}
         </div>

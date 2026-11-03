@@ -16,8 +16,10 @@ import { C, GlobalStyles, Badge, Skel, fmtDate } from "./components/shared";
 import UserProfileCard from "./components/UserProfileCard";
 import PaymentsSection from "./components/PaymentsSection";
 import SubscriptionsSection from "./components/SubscriptionsSection";
+import BuilderSubscriptionsSection from "./components/BuilderSubscriptionsSection";
 import FeaturedProjectsSection from "./components/FeaturedProjectsSection";
 import PropertiesSection from "./components/PropertiesSection";
+import ViewAsDashboardButton from "./components/ViewAsDashboardButton";
 import { readUsersListReturn } from "../users/users/utils/usersFilterStorage";
 
 // ─── Nav items config ─────────────────────────────────────────────────────────
@@ -126,7 +128,7 @@ const getNavItemsByRole = (role) => {
 
   // ── BUILDER ──
   if (role === "builder") {
-    return [profile, payments, subscriptions, projects];
+    return [profile, subscriptions, projects];
   }
 
   // ── SALES TEAM ──
@@ -143,8 +145,9 @@ const getNavItemsByRole = (role) => {
     return [profile, projects, properties];
   }
 
-  if (role === "agent") {
-    return [profile, projects, properties];
+  // Owners/agents: payments + subscriptions so telesales can create payment links
+  if (role === "agent" || role === "owner") {
+    return [profile, payments, subscriptions, projects, properties];
   }
 
   // ── DEFAULT (admin, super_admin, etc.) ──
@@ -296,6 +299,7 @@ const PanelContent = ({
   resourceUserIds,
   user,
   userLoading,
+  onNavigate,
 }) => {
   switch (activeKey) {
     case "profile":
@@ -315,11 +319,26 @@ const PanelContent = ({
     case "subscriptions":
       return (
         <div>
-          <PanelHeader
-            title="Subscriptions"
-            subtitle="Active & past subscriptions"
-          />
-          <SubscriptionsSection userId={userId} flat />
+          {user?.roleName === "builder" ? (
+            <>
+              <PanelHeader
+                title="Subscriptions"
+                subtitle="Project-wise plans, dates and renewals"
+              />
+              <BuilderSubscriptionsSection
+                userId={userId}
+                onOpenProjects={() => onNavigate?.("featured")}
+              />
+            </>
+          ) : (
+            <>
+              <PanelHeader
+                title="Subscriptions"
+                subtitle="Active & past subscriptions"
+              />
+              <SubscriptionsSection userId={userId} flat />
+            </>
+          )}
         </div>
       );
     case "featured":
@@ -433,16 +452,10 @@ const UserDetailPage = () => {
           type="button"
           aria-label="Go back"
           onClick={() => {
+            // Never history.back() — after Exit view-as the prior entries are
+            // often web /admin-view pages, which re-opens the wrong app.
             const returnTo = readUsersListReturn();
-            if (returnTo) {
-              navigate(returnTo);
-              return;
-            }
-            if (typeof window !== "undefined" && window.history.length > 1) {
-              navigate(-1);
-              return;
-            }
-            navigate("/users");
+            navigate(returnTo || "/users");
           }}
           style={{
             width: "36px",
@@ -564,6 +577,8 @@ const UserDetailPage = () => {
             </p>
           </div>
         )}
+
+        <ViewAsDashboardButton userId={userId} roleName={user?.roleName} />
       </div>
 
       {/* ── Two-panel layout ── */}
@@ -719,6 +734,7 @@ const UserDetailPage = () => {
             resourceUserIds={resourceUserIds}
             user={user}
             userLoading={userLoading}
+            onNavigate={setActiveSection}
           />
         </div>
       </div>

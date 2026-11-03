@@ -1,5 +1,5 @@
 // src/features/users/components/FeaturedProjectsSection.jsx
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Star, MapPin, Calendar } from "lucide-react";
 import AccordionSection from "./AccordionSection";
 import { C, Badge, Skel, Empty, fmtDate } from "./shared";
@@ -8,13 +8,32 @@ import {
   useUserFeaturedProjectCounts,
 } from "../../UserInformationCenter/useUserDetail";
 import { useNavigate, useLocation } from "react-router-dom";
+import { ProjectSubscriptionDrawer } from "./BuilderSubscriptionsSection";
+import Pager from "./Pager";
 
+/** The five subscription plans plus Normal; `base` is the placement used for badges and public links. */
 const PROJECT_TYPES = [
-  { key: "featured", label: "⭐ Featured", color: C.info },
-  { key: "prime", label: "💎 Prime", color: C.purple },
-  { key: "normal", label: "📌 Normal", color: C.sub },
-  { key: "sponsored", label: "📢 Sponsored", color: C.warn },
+  { key: "all", base: null, label: "🏗️ All projects", color: C.accent },
+  { key: "prime_only", base: "prime", label: "💎 Prime", color: C.purple },
+  { key: "prime_sponsored", base: "prime", label: "💎 Prime + Sponsored", color: C.purple },
+  { key: "featured_only", base: "featured", label: "⭐ Top Selling", color: C.info },
+  { key: "featured_sponsored", base: "featured", label: "⭐ Top Selling + Sponsored", color: C.info },
+  { key: "sponsored_only", base: "sponsored", label: "📢 Sponsored", color: C.warn },
+  { key: "normal", base: "normal", label: "📌 Normal", color: C.sub },
 ];
+
+const baseTypeOf = (key) => PROJECT_TYPES.find((item) => item.key === key)?.base || key;
+
+/** Plan key for one project, used on the "All projects" tab where each card has its own plan. */
+const planKeyOfProject = (p) => {
+  const promoType = String(p?.promotion?.type || "normal").toLowerCase();
+  const sponsored = Boolean(p?.promotion?.sponsoredEnabled);
+  if (promoType === "prime") return sponsored ? "prime_sponsored" : "prime_only";
+  if (promoType === "featured") return sponsored ? "featured_sponsored" : "featured_only";
+  if (promoType === "sponsored") return "sponsored_only";
+  return "normal";
+};
+const labelOf = (key) => PROJECT_TYPES.find((item) => item.key === key)?.label.replace(/^\S+\s/, "") || key;
 
 const publicProjectPath = (type, slug) => {
   if (!slug) return null;
@@ -22,10 +41,38 @@ const publicProjectPath = (type, slug) => {
   return `https://propenu.com/${route}/${slug}`;
 };
 
-const ProjectCard = ({ p, type }) => {
+const DAY_MS = 1000 * 60 * 60 * 24;
+
+/** Days left on active promotion (or plan end) for Propenu project cards. */
+const remainingDaysOf = (p) => {
+  const raw =
+    p?.promotion?.boostExpiry ||
+    p?.promotion?.expiresAt ||
+    p?.promotion?.endDate ||
+    p?.boostExpiry ||
+    p?.expiresAt ||
+    p?.lastEnd ||
+    null;
+  if (!raw) return null;
+  const end = new Date(raw);
+  if (Number.isNaN(end.getTime())) return null;
+  return Math.ceil((end.getTime() - Date.now()) / DAY_MS);
+};
+
+const remainingLabel = (days) => {
+  if (days == null) return null;
+  if (days < 0) return "Expired";
+  if (days === 0) return "Ends today";
+  if (days === 1) return "1 day left";
+  return `${days} days left`;
+};
+
+const ProjectCard = ({ p, type, planLabel, onOpen }) => {
     const navigate = useNavigate();
     const location = useLocation();
   const [imgError, setImgError] = useState(false);
+  const daysLeft = remainingDaysOf(p);
+  const remainText = remainingLabel(daysLeft);
 //   const thumb =
 //     !imgError &&
 //     (p.gallery?.[0]?.url || p.images?.[0]?.url || p.thumbnail || p.coverImage);
@@ -37,12 +84,23 @@ const thumb =
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      title="Open subscription details"
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen?.();
+        }
+      }}
       style={{
         borderRadius: "14px",
         border: `1px solid ${C.border}`,
         overflow: "hidden",
         background: C.card,
         boxShadow: "0 1px 6px rgba(0,0,0,0.05)",
+        cursor: "pointer",
       }}
     >
       <div
@@ -70,7 +128,7 @@ const thumb =
           <span style={{ fontSize: "32px", opacity: 0.35 }}>🏗️</span>
         )}
         <div style={{ position: "absolute", top: "8px", left: "8px" }}>
-          <Badge status={type} />
+          <Badge status={type} label={planLabel} />
         </div>
         {p.rank !== undefined && p.rank !== null && (
           <div
@@ -105,7 +163,8 @@ const thumb =
             color: "#fff",
             cursor: "pointer",
           }}
-          onClick={() => {
+          onClick={(event) => {
+            event.stopPropagation();
             const url = publicProjectPath(type, p.slug);
             if (url) window.open(url, "_blank", "noopener,noreferrer");
           }}
@@ -127,11 +186,12 @@ const thumb =
             color: "#fff",
             cursor: "pointer",
           }}
-          onClick={() =>
+          onClick={(event) => {
+            event.stopPropagation();
             navigate(`/post-property/${p._id}`, {
               state: { from: location.pathname },
-            })
-          }
+            });
+          }}
         >
           Edit
         </div>
@@ -215,14 +275,34 @@ const thumb =
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "4px",
+            justifyContent: "space-between",
+            gap: "6px",
             marginTop: "8px",
           }}
         >
-          <Calendar size={9} color={C.muted} />
-          <p style={{ margin: 0, fontSize: "9px", color: C.muted }}>
-            {fmtDate(p.createdAt)}
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+            <Calendar size={9} color={C.muted} />
+            <p style={{ margin: 0, fontSize: "9px", color: C.muted }}>
+              {fmtDate(p.createdAt)}
+            </p>
+          </div>
+          {remainText ? (
+            <span
+              style={{
+                fontSize: "9px",
+                fontWeight: 800,
+                padding: "2px 7px",
+                borderRadius: "99px",
+                background:
+                  daysLeft != null && daysLeft <= 7 ? "#fef2f2" : "#ecfdf5",
+                color:
+                  daysLeft != null && daysLeft <= 7 ? "#dc2626" : "#15803d",
+              }}
+              title="Time remaining"
+            >
+              {remainText}
+            </span>
+          ) : null}
         </div>
       </div>
     </div>
@@ -230,13 +310,14 @@ const thumb =
 };
 
 const FeaturedContent = ({ userId }) => {
-  const [type, setType] = useState("featured");
+  const [type, setType] = useState("all");
   const [page, setPage] = useState(1);
-  const [userPickedType, setUserPickedType] = useState(false);
+  const [openProject, setOpenProject] = useState(null);
+  const closeDrawer = useCallback(() => setOpenProject(null), []);
 
   const { data, isLoading, isFetching } = useUserFeaturedProjects(
     userId,
-    type,
+    type === "all" ? "" : type,
     page,
     12,
   );
@@ -245,22 +326,8 @@ const FeaturedContent = ({ userId }) => {
   const totalPages = data?.meta?.totalPages || data?.meta?.pages || 1;
   const total = Number(data?.meta?.total) || 0;
   const pageSize = Number(data?.meta?.limit) || 12;
-  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const rangeEnd = Math.min(page * pageSize, total);
-  const canPrev = Boolean(data?.meta?.hasPreviousPage);
-  const canNext = Boolean(data?.meta?.hasNextPage);
 
   const counts = useUserFeaturedProjectCounts(userId);
-
-  // Open the first tab that actually has projects (avoids empty Featured while Normal has data).
-  useEffect(() => {
-    if (userPickedType || counts.isLoading) return;
-    const firstWithData = PROJECT_TYPES.find((t) => (counts[t.key] || 0) > 0);
-    if (firstWithData && firstWithData.key !== type) {
-      setType(firstWithData.key);
-      setPage(1);
-    }
-  }, [counts, userPickedType, type]);
 
   return (
     <>
@@ -276,7 +343,6 @@ const FeaturedContent = ({ userId }) => {
           <button
             key={key}
             onClick={() => {
-              setUserPickedType(true);
               setType(key);
               setPage(1);
             }}
@@ -320,7 +386,7 @@ const FeaturedContent = ({ userId }) => {
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <Empty msg={`No ${type} projects`} icon="🏗️" />
+        <Empty msg={`No ${labelOf(type)} projects`} icon="🏗️" />
       ) : (
         <div
           style={{
@@ -329,74 +395,52 @@ const FeaturedContent = ({ userId }) => {
             gap: "10px",
           }}
         >
-          {projects.map((p) => (
-            <ProjectCard key={p._id} p={p} type={type} />
-          ))}
+          {projects.map((p) => {
+            const key = type === "all" ? planKeyOfProject(p) : type;
+            return (
+              <ProjectCard
+                key={p._id}
+                p={p}
+                type={baseTypeOf(key)}
+                planLabel={labelOf(key)}
+                onOpen={() =>
+                  setOpenProject({
+                    projectId: String(p._id),
+                    title: p.title || p.name || "Project",
+                    image: p.heroImage || p.logo?.url || p.gallerySummary?.[0]?.url || null,
+                    location: [p.locality, p.city].filter(Boolean).join(", ") || null,
+                    latestPlan: labelOf(key),
+                    lastEnd:
+                      p?.promotion?.boostExpiry ||
+                      p?.promotion?.expiresAt ||
+                      p?.promotion?.endDate ||
+                      p?.boostExpiry ||
+                      p?.expiresAt ||
+                      null,
+                    state: "active",
+                  })
+                }
+              />
+            );
+          })}
         </div>
       )}
-      <div
-        style={{
-          marginTop: "24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "14px",
-        }}
-      >
-        <button
-          onClick={() => setPage(page - 1)}
-          disabled={!canPrev || isFetching}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "10px",
-            border: "1px solid #e5e7eb",
-            background: !canPrev ? "#f3f4f6" : "#fff",
-            color: !canPrev ? "#9ca3af" : "#374151",
-            fontSize: "13px",
-            fontWeight: "700",
-            cursor: !canPrev ? "not-allowed" : "pointer",
-          }}
-        >
-          ← Previous
-        </button>
-
-        <div
-          style={{
-            minWidth: "120px",
-            padding: "8px 14px",
-            borderRadius: "10px",
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            textAlign: "center",
-            fontSize: "12px",
-            fontWeight: "800",
-            color: "#475569",
-          }}
-        >
-          {total ? `${rangeStart}–${rangeEnd} of ${total}` : "0 projects"}
-          <div style={{ fontWeight: 600, fontSize: 10, color: "#94a3b8" }}>
-            Page {page} / {totalPages}
-          </div>
+      {openProject ? (
+        <ProjectSubscriptionDrawer userId={userId} project={openProject} onClose={closeDrawer} />
+      ) : null}
+      {!isLoading ? (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <Pager
+            page={page}
+            pages={totalPages}
+            total={total}
+            pageSize={pageSize}
+            onChange={setPage}
+            loading={isFetching}
+            noun={total === 1 ? "project" : "projects"}
+          />
         </div>
-
-        <button
-          onClick={() => setPage((prev) => prev + 1)}
-          disabled={!canNext || isFetching}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "10px",
-            border: "1px solid #e5e7eb",
-            background: !canNext ? "#f3f4f6" : "#27AE60",
-            color: !canNext ? "#9ca3af" : "#fff",
-            fontSize: "13px",
-            fontWeight: "700",
-            cursor: !canNext ? "not-allowed" : "pointer",
-            boxShadow: !canNext ? "none" : "0 4px 12px rgba(39,174,96,.25)",
-          }}
-        >
-          Next →
-        </button>
-      </div>
+      ) : null}
     </>
   );
 };

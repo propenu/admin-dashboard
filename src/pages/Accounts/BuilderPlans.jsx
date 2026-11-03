@@ -1,18 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  BadgeIndianRupee, ChevronRight, CirclePlus,
-  Banknote, Building2, CalendarDays, CreditCard, Download, Edit3, ExternalLink,
-  Eye, FileText, Landmark, PackageOpen, Search, Smartphone, Sparkles, Trash2,
-  UserPlus, WalletCards, X, Zap,
+  ChevronRight, CirclePlus,
+  Building2, CalendarDays, Download, Edit3, ExternalLink,
+  Eye, FileText, FolderOpen, Hash, Home, Map as MapIcon, MapPin, PackageOpen, Search, Sparkles, Trash2,
+  UserPlus, UserRound, X,
 } from "lucide-react";
 import { builderPlanService } from "../../features/builderPlans/builderPlanService";
+import { useBuilderSearch } from "../../features/builderPlans/useBuilderSearch";
 import {
   LOCATION_RULES, describePlanPackage, locationRuleLabel, normalizePlanPackage, planHasPromotion,
   promotionStatusMeta,
 } from "../../features/builderPlans/planPackage";
 import { useLivePermissions } from "../../utils/useLivePermissions";
 import PlanPackageEditor from "./PlanPackageEditor";
+import FixedPlanCards from "./FixedPlanCards";
+import ChangeHistoryMenu from "./ChangeHistoryMenu";
+import PaymentMethodSelect, { PaymentStatusSelect } from "./PaymentMethodSelect";
+import BrandSelect from "./BrandSelect";
+import BuilderInvoicesPage from "./BuilderInvoicesPage";
+import { FIXED_PLAN_CODES, FIXED_PLAN_PRESETS } from "../../features/builderPlans/fixedPlans";
 
 const EMPTY_PACKAGE = {
   mainPlacement: "prime", sponsoredEnabled: false, locationRule: "fixed",
@@ -35,8 +43,7 @@ function PackageChips({ plan, className = "" }) {
     {pkg.mainPlacement === "prime" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-medium text-amber-800">🏆 Prime</span>}
     {pkg.mainPlacement === "featured" && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[9px] font-medium text-sky-800">📈 Top Selling</span>}
     {pkg.sponsoredEnabled && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[9px] font-medium text-violet-800">📣 Sponsored</span>}
-    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] text-emerald-700">📍 {locationRuleLabel(pkg.locationRule)}</span>
-    <span className="rounded-full bg-teal-50 px-2 py-0.5 text-[9px] text-teal-700">👁 {pkg.visibleLeadLimit} leads</span>  </div>;
+  </div>;
 }
 
 const money = (value) => new Intl.NumberFormat("en-IN", {
@@ -54,11 +61,40 @@ const matchesLocation = (item, filters) => ["state", "city", "locality", "pincod
   .every((key) => !filters[key] || locationValue(item, key) === filters[key]);
 const locationOptions = (items, key) => [...new Set(items.map((item) => locationValue(item, key)).filter(Boolean))].sort();
 
-function LocationFilterRow({ items, value, onChange, prefix }) {
-  return <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{[
-    ["state", `All ${prefix} states`], ["city", `All ${prefix} cities`],
-    ["locality", `All ${prefix} localities`], ["pincode", `All ${prefix} pincodes`],
-  ].map(([key, placeholder]) => <select key={key} value={value[key]} onChange={(event) => onChange({ ...value, [key]: event.target.value })} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] text-slate-600 outline-none focus:border-[#27AE60]"><option value="">{placeholder}</option>{locationOptions(items, key).map((option) => <option key={option} value={option}>{option}</option>)}</select>)}</div>;
+const LOCATION_FILTERS = [
+  { key: "state", all: "All states", title: "State", icon: MapIcon, tone: "bg-amber-100 text-amber-700" },
+  { key: "city", all: "All cities", title: "City", icon: Building2, tone: "bg-sky-100 text-sky-700" },
+  { key: "locality", all: "All localities", title: "Locality", icon: MapPin, tone: "bg-violet-100 text-violet-700" },
+  { key: "pincode", all: "All pincodes", title: "Pincode", icon: Hash, tone: "bg-rose-100 text-rose-700" },
+];
+const PICKER_TONES = [
+  "bg-emerald-100 text-emerald-700", "bg-sky-100 text-sky-700", "bg-violet-100 text-violet-700",
+  "bg-amber-100 text-amber-700", "bg-rose-100 text-rose-700", "bg-indigo-100 text-indigo-700",
+];
+
+function LocationFilterRow({ items = [], facets, value, onChange, levels }) {
+  const filters = levels ? LOCATION_FILTERS.filter((filter) => levels.includes(filter.key)) : LOCATION_FILTERS;
+  const valuesFor = (key) => {
+    const values = facets ? facets[key] || [] : locationOptions(items, key);
+    return value[key] && !values.includes(value[key]) ? [value[key], ...values] : values;
+  };
+  const change = (key, next) => {
+    const index = LOCATION_FILTERS.findIndex((filter) => filter.key === key);
+    const cleared = Object.fromEntries(LOCATION_FILTERS.slice(index + 1).map((filter) => [filter.key, ""]));
+    onChange({ ...value, ...cleared, [key]: next });
+  };
+  return <div className={`grid gap-2 sm:grid-cols-2 ${filters.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>{filters.map((filter) => <BrandSelect
+    key={filter.key}
+    size="sm"
+    searchable
+    title={filter.title}
+    value={value[filter.key]}
+    onChange={(next) => change(filter.key, next)}
+    options={[
+      { value: "", label: filter.all, icon: filter.icon, tone: "bg-slate-100 text-slate-500" },
+      ...valuesFor(filter.key).map((option) => ({ value: option, label: option, icon: filter.icon, tone: filter.tone })),
+    ]}
+  />)}</div>;
 }
 
 function validate(form) {
@@ -242,7 +278,7 @@ function AssignPlanDrawer({ plan, onClose, onAssigned }) {
     <section className="flex h-dvh w-[min(100vw,640px)] flex-col overflow-hidden bg-[#f8faf9] shadow-[-20px_0_60px_rgba(15,23,42,.18)] sm:rounded-l-3xl">
       <header className="shrink-0 border-b border-slate-100 bg-white px-6 py-5"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] uppercase tracking-[.18em] text-[#27AE60]">Assign subscription</p><h2 className="mt-1 text-xl font-medium text-slate-900">Choose builder and projects</h2><p className="mt-1 text-[11px] text-slate-500">Assign <span className="font-medium text-slate-700">{plan.title}</span> to projects owned by one builder.</p></div><button onClick={onClose} className="rounded-xl border border-slate-200 p-2.5 text-slate-400 hover:bg-slate-50"><X size={17}/></button></div></header>
       <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6">
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-[10px] uppercase tracking-wider text-emerald-700">Selected plan</p><p className="mt-1 text-[14px] font-medium text-slate-900">{plan.title}</p><p className="mt-1 text-[10px] text-slate-500">{describePlanPackage(plan)} · {plan.durationDays} days</p><PackageChips plan={plan} className="mt-1.5"/></div><p className="text-lg font-medium text-[#27AE60]">{money(plan.finalPrice)}</p></div></div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-[10px] uppercase tracking-wider text-emerald-700">Selected plan</p><p className="mt-1 text-[14px] font-medium text-slate-900">{plan.title}</p><p className="mt-1 text-[10px] text-slate-500">{describePlanPackage(plan)} · {plan.durationDays} days</p></div><p className="text-lg font-medium text-[#27AE60]">{money(plan.finalPrice)}</p></div></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="mb-3 flex items-center justify-between"><div><p className="text-[12px] font-medium text-slate-800">1. Find a builder</p><p className="text-[10px] text-slate-400">Search by name, company, email, phone or user code.</p></div>{selectedBuilder && <button onClick={() => {setSelectedBuilder(null);setProjects([]);setSelectedProjects([]);}} className="text-[10px] text-[#27AE60]">Change</button>}</div>
           {selectedBuilder ? <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-100 text-[#27AE60]"><Building2 size={18}/></span><div className="min-w-0"><p className="truncate text-[12px] font-medium text-slate-800">{selectedBuilder.companyName || selectedBuilder.name}</p><p className="truncate text-[10px] text-slate-500">{selectedBuilder.name} · {selectedBuilder.email || selectedBuilder.phone}</p></div></div> : <><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14}/><input value={builderQuery} onChange={(e) => setBuilderQuery(e.target.value)} placeholder="Search builders…" className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-[11px] outline-none focus:border-[#27AE60]"/></div><div className="mt-2 max-h-52 space-y-1 overflow-y-auto">{loadingBuilders ? <p className="py-5 text-center text-[11px] text-slate-400">Loading builders…</p> : visibleBuilders.length ? visibleBuilders.map((builder) => <button key={builder._id} onClick={() => chooseBuilder(builder)} className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left hover:bg-emerald-50"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500"><Building2 size={15}/></span><span className="min-w-0"><span className="block truncate text-[11px] font-medium text-slate-700">{builder.companyName || builder.name}</span><span className="block truncate text-[9px] text-slate-400">{builder.name} · {builder.email || builder.phone || builder.userCode}</span></span></button>) : <p className="py-5 text-center text-[11px] text-slate-400">No builders found</p>}</div></>}
         </div>
@@ -257,51 +293,77 @@ function AssignPlanDrawer({ plan, onClose, onAssigned }) {
 
 function CreateInvoiceDrawer({ initialPlan, plans, onClose, onCreatePlan, canCreatePlan = false }) {
   const [planId, setPlanId] = useState(initialPlan?._id || "");
-  const [builders, setBuilders] = useState([]);
   const [builderId, setBuilderId] = useState("");
+  const [selectedBuilder, setSelectedBuilder] = useState(null);
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [paymentStatus, setPaymentStatus] = useState("pending");
   const [gstRate, setGstRate] = useState("0");
-  const [loading, setLoading] = useState(true);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [saving, setSaving] = useState(false);
   const [builderSearch, setBuilderSearch] = useState("");
   const [builderLocation, setBuilderLocation] = useState({ state: "", city: "", locality: "", pincode: "" });
   const [projectSearch, setProjectSearch] = useState("");
   const [projectLocation, setProjectLocation] = useState({ state: "", city: "", locality: "", pincode: "" });
-  const [deliveryChoice, setDeliveryChoice] = useState({ planId: "", mode: "" });
+  const builderLookup = useBuilderSearch({ query: builderSearch, location: builderLocation });
   const availablePlans = plans.filter((item) => item.isActive);
+  const planOptions = [
+    { value: "", label: "Select plan", hint: "Choose a subscription for this invoice", icon: PackageOpen, tone: "bg-slate-100 text-slate-500" },
+    ...availablePlans.map((item) => {
+      const preset = FIXED_PLAN_PRESETS.find((entry) => entry.code === String(item.code || "").toUpperCase());
+      const price = item.finalPrice ?? Math.max(Number(item.price || 0) - Number(item.discount || 0), 0);
+      return {
+        value: item._id,
+        label: item.title,
+        hint: `${item.code} · ${money(price)} · ${item.durationDays} days`,
+        icon: preset?.icons[0] || PackageOpen,
+        tone: preset?.iconWrap || "bg-emerald-100 text-emerald-700",
+      };
+    }),
+  ];
   const plan = plans.find((item) => item._id === planId) || initialPlan || null;
-  const planPkg = plan ? normalizePlanPackage(plan) : null;
-  const deliveryMode = deliveryChoice.planId === plan?._id && deliveryChoice.mode ? deliveryChoice.mode : "auto";
-  const selectedBuilder = builders.find((item) => item._id === builderId);
+  const deliveryMode = "auto";
   const selectedBuilderName = selectedBuilder?.companyName || selectedBuilder?.name || "Builder";
   const amount = Number(plan?.finalPrice ?? Math.max(Number(plan?.price || 0) - Number(plan?.discount || 0), 0));
   const gstAmount = Number((amount * Number(gstRate || 0) / 100).toFixed(2));
   const invoiceTotal = Number((amount + gstAmount).toFixed(2));
   const inputClass = "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-[12px] text-slate-700 outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-emerald-100";
-  const paymentIcons = {
-    cash: Banknote, cheque: WalletCards, upi: Smartphone,
-    card: CreditCard, netbanking: Landmark, razorpay: BadgeIndianRupee,
-  };
-  const PaymentIcon = paymentIcons[paymentMethod] || Banknote;
-  const visibleBuilders = builders.filter((builder) => {
-    const text = [builder.name, builder.companyName, builder.email, builder.phone, builder.userCode, locationText(builder)].filter(Boolean).join(" ").toLowerCase();
-    return text.includes(builderSearch.toLowerCase()) && matchesLocation(builder, builderLocation);
-  });
+  const visibleBuilders = selectedBuilder && !builderLookup.items.some((builder) => builder._id === selectedBuilder._id)
+    ? [selectedBuilder, ...builderLookup.items]
+    : builderLookup.items;
   const visibleProjects = projects.filter((project) => {
     const text = [project.title, project.propertyCode, locationText(project)].filter(Boolean).join(" ").toLowerCase();
     return text.includes(projectSearch.toLowerCase()) && matchesLocation(project, projectLocation);
   });
+  const builderOptions = [
+    { value: "", label: builderLookup.loading && !builderLookup.items.length ? "Loading builders…" : `Select builder (${builderLookup.total} found)`, hint: "Search or filter to narrow the list", icon: UserRound, tone: "bg-slate-100 text-slate-500" },
+    ...visibleBuilders.map((builder, index) => ({
+      value: builder._id,
+      label: `${builder.name || "Builder"} — ${builder.companyName || "No company"}`,
+      hint: locationText(builder) || builder.email || builder.phone || "No location",
+      icon: Building2,
+      tone: PICKER_TONES[index % PICKER_TONES.length],
+    })),
+  ];
+  const projectOptions = [
+    { value: "", label: loadingProjects ? "Loading projects…" : builderId ? `Select project (${visibleProjects.length} found)` : "Select a builder first", hint: builderId ? "Search or filter above to narrow the list" : undefined, icon: FolderOpen, tone: "bg-slate-100 text-slate-500" },
+    ...visibleProjects.map((project, index) => ({
+      value: project._id,
+      label: `${project.title}${project.propertyCode ? ` (${project.propertyCode})` : ""}`,
+      hint: [selectedBuilderName, locationText(project)].filter(Boolean).join(" — "),
+      icon: Home,
+      tone: PICKER_TONES[index % PICKER_TONES.length],
+    })),
+  ];
 
   useEffect(() => {
-    builderPlanService.builders().then(setBuilders).catch(() => toast.error("Unable to load builders")).finally(() => setLoading(false));
-  }, []);
+    if (builderLookup.error) toast.error(builderLookup.error);
+  }, [builderLookup.error]);
 
   const selectBuilder = async (id) => {
-    setBuilderId(id); setProjectId(""); setProjects([]); setProjectSearch(""); setProjectLocation({ state: "", city: "", locality: "", pincode: "" });
+    setBuilderId(id); setProjectId("");
+    setSelectedBuilder(visibleBuilders.find((builder) => builder._id === id) || null); setProjects([]); setProjectSearch(""); setProjectLocation({ state: "", city: "", locality: "", pincode: "" });
     if (!id) return;
     setLoadingProjects(true);
     try { setProjects(await builderPlanService.builderProjects(id)); }
@@ -345,15 +407,24 @@ function CreateInvoiceDrawer({ initialPlan, plans, onClose, onCreatePlan, canCre
     <section className="flex h-dvh w-[min(100vw,620px)] flex-col overflow-hidden bg-[#f8faf9] shadow-[-20px_0_60px_rgba(15,23,42,.18)] sm:rounded-l-3xl">
       <header className="border-b border-slate-100 bg-white px-6 py-5"><div className="flex justify-between gap-4"><div><p className="text-[10px] uppercase tracking-[.18em] text-[#27AE60]">Create invoice</p><h2 className="mt-1 text-xl font-medium text-slate-900">Assign plan to builder project</h2><p className="mt-1 text-[11px] text-slate-500">Select the builder first, then one of that builder's projects.</p></div><button type="button" onClick={onClose} className="h-fit rounded-xl border border-slate-200 p-2.5 text-slate-400"><X size={17}/></button></div></header>
       <div className="flex-1 space-y-4 overflow-y-auto p-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="mb-2 flex items-center justify-between gap-3"><p className="text-[12px] text-slate-700">1. Subscription plan *</p>{canCreatePlan && availablePlans.length > 0 && <button type="button" onClick={onCreatePlan} className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-medium text-[#219653] hover:bg-emerald-100"><CirclePlus size={13}/>Create custom plan</button>}</div>{availablePlans.length ? <select value={planId} onChange={(e) => setPlanId(e.target.value)} className={inputClass}><option value="">Select plan</option>{availablePlans.map((item) => <option key={item._id} value={item._id}>{item.title} ({item.code})</option>)}</select> : <div className="rounded-xl bg-amber-50 p-4 text-center"><p className="text-[11px] text-amber-800">No active subscription plan is available.</p>{canCreatePlan && <button type="button" onClick={onCreatePlan} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#27AE60] px-4 py-2 text-[11px] font-medium text-white"><CirclePlus size={13}/>Create plan first</button>}</div>}</div>
-        {plan && <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><p className="text-[10px] uppercase tracking-wider text-emerald-700">Plan values · read only</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Amount", money(amount)],["Duration", `${plan.durationDays} days`],["Promotion", describePlanPackage(plan)],["Discount", money(plan.discount)]].map(([label,value]) => <div key={label}><p className="text-[9px] uppercase text-slate-400">{label}</p><p className="mt-1 text-[12px] font-medium text-slate-800">{value}</p></div>)}</div><PackageChips plan={plan} className="mt-3"/></div>}
-        {plan && planHasPromotion(plan) && <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[12px] font-medium text-slate-800">Promotion delivery</p><p className="mt-1 text-[10px] text-slate-400">What happens on the project once this invoice is Paid. If the project already has a running paid plan, this invoice extends it from its end date.</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">{[{ value: "auto", icon: Zap, title: "Automatic", sub: "Starts when Paid and the project is approved. Renews and ends on its own." }, { value: "team", icon: Sparkles, title: "Team starts (one button)", sub: "Waits for Start from plan on the project card." }].map((option) => { const Icon = option.icon; const active = deliveryMode === option.value; return <button key={option.value} type="button" onClick={() => setDeliveryChoice({ planId: plan._id, mode: option.value })} className={`flex items-start gap-2 rounded-xl border p-3 text-left transition ${active ? "border-emerald-400 bg-emerald-50 ring-2 ring-emerald-200" : "border-slate-200 hover:border-slate-300"}`}><Icon size={15} className={`mt-0.5 shrink-0 ${active ? "text-emerald-700" : "text-slate-400"}`}/><span><span className="block text-[12px] font-semibold text-slate-800">{option.title}</span><span className="block text-[10px] leading-4 text-slate-500">{option.sub}</span></span></button>; })}</div>
-          {deliveryMode === "auto" && planPkg?.locationRule === "team_picks" && <p className="mt-2 rounded-lg bg-sky-50 px-3 py-2 text-[10px] text-sky-800">This plan lets the team pick locations, so the first start still needs Start from plan. Renewals then run on their own.</p>}
-        </div>}
-        <div><p className="mb-2 text-[12px] text-slate-700">2. Builder *</p><div className="mb-2"><input value={builderSearch} onChange={(e) => setBuilderSearch(e.target.value)} placeholder="Search builder name, company, email, phone or code" className={inputClass}/></div><div className="mb-2"><LocationFilterRow items={builders} value={builderLocation} onChange={setBuilderLocation} prefix="builder"/></div><select disabled={loading} value={builderId} onChange={(e) => selectBuilder(e.target.value)} className={inputClass}><option value="">{loading ? "Loading builders…" : `Select builder (${visibleBuilders.length} found)`}</option>{visibleBuilders.map((builder) => <option key={builder._id} value={builder._id}>{builder.name || "Builder"} — {builder.companyName || "No company"} {locationText(builder) ? `— ${locationText(builder)}` : ""}</option>)}</select></div>
-        <div><p className="mb-2 text-[12px] text-slate-700">3. Project *</p>{builderId && <><div className="mb-2"><input value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} placeholder="Search project name, code or location" className={inputClass}/></div><div className="mb-2"><LocationFilterRow items={projects} value={projectLocation} onChange={setProjectLocation} prefix="project"/></div></>}<select disabled={!builderId || loadingProjects} value={projectId} onChange={(e) => setProjectId(e.target.value)} className={inputClass}><option value="">{loadingProjects ? "Loading projects…" : builderId ? `Select project (${visibleProjects.length} found)` : "Select a builder first"}</option>{visibleProjects.map((project) => <option key={project._id} value={project._id}>{project.title} {project.propertyCode ? `(${project.propertyCode})` : ""} — {selectedBuilderName} {locationText(project) ? `— ${locationText(project)}` : ""}</option>)}</select><p className="mt-1 text-[10px] text-slate-400">Only projects belonging to the selected builder and matching location filters are listed.</p></div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[12px] font-medium text-slate-800">4. Payment details</p><p className="mt-1 text-[10px] text-slate-400">Enter GST manually. GST amount and final paid amount are calculated automatically.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Field label="Method"><div className="relative"><PaymentIcon size={17} className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-[#27AE60]"/><select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={`${inputClass} pl-11`}><option value="cash">💵 Cash</option><option value="cheque">🧾 Cheque</option><option value="upi">📱 UPI</option><option value="card">💳 Card</option><option value="netbanking">🏦 Net banking</option><option value="razorpay">₹ Razorpay</option></select></div></Field><Field label="Status"><select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className={inputClass}><option value="pending">Pending</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="failed">Failed</option></select></Field><Field label="GST (%)"><input type="number" min="0" max="100" step="0.01" value={gstRate} onChange={(e) => setGstRate(e.target.value)} className={inputClass} placeholder="18"/></Field><Field label="Paid amount"><div className={`${inputClass} cursor-not-allowed bg-slate-50 font-medium text-slate-800`} aria-readonly="true">{plan ? money(invoiceTotal) : "Select a plan"}</div></Field></div>{plan && <div className="mt-3 flex flex-wrap justify-end gap-x-5 gap-y-1 border-t border-slate-100 pt-3 text-[10px] text-slate-500"><span>Plan amount: <b className="text-slate-700">{money(amount)}</b></span><span>GST: <b className="text-slate-700">{money(gstAmount)}</b></span><span>Total: <b className="text-[#219653]">{money(invoiceTotal)}</b></span></div>}</div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><div className="mb-2 flex items-center justify-between gap-3"><p className="text-[12px] text-slate-700">1. Subscription plan *</p>{canCreatePlan && availablePlans.length > 0 && <button type="button" onClick={onCreatePlan} className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-medium text-[#219653] hover:bg-emerald-100"><CirclePlus size={13}/>Create custom plan</button>}</div>{availablePlans.length ? <BrandSelect searchable value={planId} onChange={setPlanId} title="Subscription plan" options={planOptions}/> : <div className="rounded-xl bg-amber-50 p-4 text-center"><p className="text-[11px] text-amber-800">No active subscription plan is available.</p>{canCreatePlan && <button type="button" onClick={onCreatePlan} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#27AE60] px-4 py-2 text-[11px] font-medium text-white"><CirclePlus size={13}/>Create plan first</button>}</div>}</div>
+        {plan && <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><p className="text-[10px] uppercase tracking-wider text-emerald-700">Plan values · read only</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">{[["Amount", money(amount)],["Duration", `${plan.durationDays} days`],["Promotion", describePlanPackage(plan)],["Discount", money(plan.discount)]].map(([label,value]) => <div key={label}><p className="text-[9px] uppercase text-slate-400">{label}</p><p className="mt-1 text-[12px] font-medium text-slate-800">{value}</p></div>)}</div></div>}
+        <div><p className="mb-2 text-[12px] text-slate-700">2. Builder *</p><div className="mb-2"><input value={builderSearch} onChange={(e) => setBuilderSearch(e.target.value)} placeholder="Search builder name, company, email, phone or code" className={inputClass}/></div><div className="mb-2"><LocationFilterRow facets={builderLookup.facets} value={builderLocation} onChange={setBuilderLocation}/></div><BrandSelect
+          searchable
+          value={builderId}
+          onChange={selectBuilder}
+          title="Builder"
+          options={builderOptions}
+          searchValue={builderSearch}
+          onSearchChange={setBuilderSearch}
+          loading={builderLookup.loading}
+          loadingMore={builderLookup.loadingMore}
+          hasMore={builderLookup.hasMore}
+          onLoadMore={builderLookup.loadMore}
+          footer={`Showing ${builderLookup.items.length} of ${builderLookup.total} builders`}
+        /></div>
+        <div><p className="mb-2 text-[12px] text-slate-700">3. Project *</p>{builderId && <><div className="mb-2"><input value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} placeholder="Search project name, code or location" className={inputClass}/></div><div className="mb-2"><LocationFilterRow items={projects} value={projectLocation} onChange={setProjectLocation}/></div></>}<BrandSelect searchable disabled={!builderId || loadingProjects} value={projectId} onChange={setProjectId} title="Project" options={projectOptions}/><p className="mt-1 text-[10px] text-slate-400">Only projects belonging to the selected builder and matching location filters are listed.</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-[12px] font-medium text-slate-800">4. Payment details</p><p className="mt-1 text-[10px] text-slate-400">Enter GST manually. GST amount and final paid amount are calculated automatically.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Field label="Method"><PaymentMethodSelect value={paymentMethod} onChange={setPaymentMethod}/></Field><Field label="Status"><PaymentStatusSelect value={paymentStatus} onChange={setPaymentStatus}/></Field><Field label="GST (%)"><input type="number" min="0" max="100" step="0.01" value={gstRate} onFocus={(e) => e.target.select()} onChange={(e) => setGstRate(e.target.value.replace(/^0+(?=\d)/, ""))} className={inputClass} placeholder="18"/></Field><Field label="Paid amount"><div className={`${inputClass} cursor-not-allowed bg-slate-50 font-medium text-slate-800`} aria-readonly="true">{plan ? money(invoiceTotal) : "Select a plan"}</div></Field></div>{plan && <div className="mt-3 flex flex-wrap justify-end gap-x-5 gap-y-1 border-t border-slate-100 pt-3 text-[10px] text-slate-500"><span>Plan amount: <b className="text-slate-700">{money(amount)}</b></span><span>GST: <b className="text-slate-700">{money(gstAmount)}</b></span><span>Total: <b className="text-[#219653]">{money(invoiceTotal)}</b></span></div>}</div>
       </div>
       <footer className="border-t border-slate-200 bg-white px-6 py-4"><div className="flex gap-2"><button type="button" onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-3 text-xs text-slate-600">Cancel</button><button type="button" disabled={!planId || !builderId || !projectId || saving} onClick={submit} className="flex-1 rounded-xl bg-[#27AE60] py-3 text-xs font-medium text-white disabled:opacity-40">{saving ? "Creating…" : "Create invoice"}</button></div></footer>
     </section>
@@ -445,112 +516,6 @@ function InvoiceListDrawer({ onClose }) {
   </div>;
 }
 
-function InvoiceTablePage({ onBack, canCreate = false, canUpdate = false, canDelete = false, onCreateInvoice }) {
-  const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
-  const [builderFilter, setBuilderFilter] = useState("all");
-  const [projectFilter, setProjectFilter] = useState("all");
-  const [planFilter, setPlanFilter] = useState("all");
-  const [locationFilter, setLocationFilter] = useState({ state: "", city: "", locality: "", pincode: "" });
-  const [editingId, setEditingId] = useState(null);
-  const [editStatus, setEditStatus] = useState("pending");
-  const [editMethod, setEditMethod] = useState("cash");
-  const [savingId, setSavingId] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
-
-  const loadInvoices = async () => {
-    setLoading(true); setError("");
-    try {
-      const data = await builderPlanService.invoices();
-      setInvoices(Array.isArray(data.invoices) ? data.invoices : []);
-    } catch (requestError) {
-      setError(requestError.response?.data?.message || "Unable to load builder invoices");
-    } finally { setLoading(false); }
-  };
-
-  useEffect(() => { loadInvoices(); }, []);
-
-  const details = (invoice) => ({
-    builder: invoice.builderDetails || invoice.userId || {},
-    project: invoice.propertyId || {}, plan: invoice.servicePlanId || {},
-  });
-  const uniqueOptions = (getter) => [...new Set(invoices.map(getter).filter(Boolean))].sort();
-  const builders = uniqueOptions((invoice) => { const b = details(invoice).builder; return b.companyName || b.name; });
-  const projects = uniqueOptions((invoice) => invoice.propertyTitle || details(invoice).project.title);
-  const plansList = uniqueOptions((invoice) => invoice.servicePlanName || details(invoice).plan.title);
-  const invoiceLocationItems = invoices.flatMap((invoice) => [details(invoice).builder, details(invoice).project]);
-  const filtered = invoices.filter((invoice) => {
-    const { builder, project, plan } = details(invoice);
-    const builderName = builder.companyName || builder.name || "";
-    const projectName = invoice.propertyTitle || project.title || "";
-    const planName = invoice.servicePlanName || plan.title || "";
-    const text = [invoice.invoiceNumber, builder.name, builder.companyName, builder.email, builder.phone,
-      builder.userCode, projectName, invoice.projectCode || project.propertyCode, planName,
-      locationText(builder), locationText(project)].filter(Boolean).join(" ").toLowerCase();
-    return text.includes(query.toLowerCase()) && (status === "all" || invoice.paymentStatus === status) &&
-      (builderFilter === "all" || builderName === builderFilter) && (projectFilter === "all" || projectName === projectFilter) &&
-      (planFilter === "all" || planName === planFilter) &&
-      (matchesLocation(builder, locationFilter) || matchesLocation(project, locationFilter));
-  });
-
-  const openPdf = async (invoice, download = false) => {
-    const popup = download ? null : window.open("", "_blank");
-    try {
-      const blob = await builderPlanService.invoicePdf(invoice._id, download);
-      const url = URL.createObjectURL(blob);
-      if (download) { const link = document.createElement("a"); link.href = url; link.download = `${invoice.invoiceNumber}.pdf`; document.body.appendChild(link); link.click(); link.remove(); }
-      else if (popup) popup.location.href = url;
-      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch { popup?.close(); toast.error("Unable to load invoice PDF"); }
-  };
-
-  const startEdit = (invoice) => {
-    setEditingId(invoice._id);
-    setEditStatus(invoice.paymentStatus || "pending");
-    setEditMethod(invoice.paymentMethod || "cash");
-  };
-
-  const saveEdit = async (invoice) => {
-    setSavingId(invoice._id);
-    try {
-      await builderPlanService.updateInvoice(invoice._id, {
-        paymentStatus: editStatus,
-        paymentMethod: editMethod,
-      });
-      await builderPlanService.syncProjectPromotion(invoice.propertyId?._id || invoice.propertyId);
-      toast.success("Invoice updated");
-      setEditingId(null);
-      await loadInvoices();
-    } catch (e) {
-      toast.error(e.response?.data?.message || "Unable to update invoice");
-    } finally { setSavingId(null); }
-  };
-
-  const removeInvoice = async (invoice) => {
-    if (!window.confirm(`Delete invoice “${invoice.invoiceNumber}”? This cannot be undone.`)) return;
-    setDeletingId(invoice._id);
-    try {
-      await builderPlanService.removeInvoice(invoice._id);
-      await builderPlanService.syncProjectPromotion(invoice.propertyId?._id || invoice.propertyId);
-      toast.success("Invoice deleted");
-      await loadInvoices();
-    } catch (e) {
-      toast.error(e.response?.data?.message || "Unable to delete invoice");
-    } finally { setDeletingId(null); }
-  };
-
-  const statusClass = (value) => ({ paid: "bg-emerald-50 text-emerald-700", pending: "bg-amber-50 text-amber-700", partial: "bg-blue-50 text-blue-700", failed: "bg-red-50 text-red-700" }[value] || "bg-slate-100 text-slate-600");
-
-  return <div className="min-h-full bg-[#f6f8f7] p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-[1600px]">
-    <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><button type="button" onClick={onBack} className="mb-3 flex items-center gap-1 text-[11px] text-slate-500 hover:text-[#219653]"><ChevronRight size={13} className="rotate-180"/>Back to builder plans</button><h1 className="text-2xl font-medium text-slate-900">Builder invoices</h1><p className="mt-1 text-[12px] text-slate-500">All builder billing records in table format.</p></div><div className="flex flex-col items-stretch gap-2 sm:items-end"><p className="text-[11px] text-slate-500">Showing {filtered.length} of {invoices.length}</p>{canCreate && <button type="button" onClick={onCreateInvoice} className="flex items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-2.5 text-xs font-medium text-white shadow-sm hover:bg-[#219653]"><UserPlus size={15}/>Create invoice</button>}</div></div>
-    <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5"><div className="relative xl:col-span-2"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search invoice, builder, phone, project…" className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-[11px] outline-none focus:border-[#27AE60]"/></div><select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All statuses</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="partial">Partial</option><option value="failed">Failed</option></select><select value={builderFilter} onChange={(e) => setBuilderFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All builders</option>{builders.map((item) => <option key={item}>{item}</option>)}</select><button type="button" onClick={() => { setQuery(""); setStatus("all"); setBuilderFilter("all"); setProjectFilter("all"); setPlanFilter("all"); setLocationFilter({ state: "", city: "", locality: "", pincode: "" }); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px] text-slate-500 hover:bg-slate-50">Clear filters</button></div><div className="mt-2 grid gap-2 md:grid-cols-2"><select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All projects</option>{projects.map((item) => <option key={item}>{item}</option>)}</select><select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2.5 text-[11px]"><option value="all">All plans</option>{plansList.map((item) => <option key={item}>{item}</option>)}</select></div><div className="mt-2"><LocationFilterRow items={invoiceLocationItems} value={locationFilter} onChange={setLocationFilter} prefix="invoice"/></div></div>
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">{loading ? <p className="py-20 text-center text-xs text-slate-400">Loading invoices…</p> : error ? <p className="py-20 text-center text-xs text-red-500">{error}</p> : <div className="overflow-x-auto"><table className="min-w-[1600px] w-full text-left"><thead className="bg-slate-50 text-[9px] uppercase tracking-wider text-slate-400"><tr>{["Invoice / Date","Builder / Bill To","Contact","Location","Project / Code","Plan / Period","Subtotal","Discount","GST","Total / Paid","Payment","Promotion","Actions"].map((heading) => <th key={heading} className="px-4 py-3 font-medium">{heading}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filtered.map((invoice) => { const { builder, project, plan } = details(invoice); const isEditing = editingId === invoice._id; return <tr key={invoice._id} className="align-top hover:bg-slate-50/60"><td className="px-4 py-4"><p className="font-mono text-[10px] font-medium text-slate-800">{invoice.invoiceNumber}</p><p className="mt-1 text-[9px] text-slate-400">{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString("en-IN") : "—"}</p></td><td className="px-4 py-4"><p className="text-[11px] font-medium text-slate-800">{builder.name || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{builder.companyName || "No company"}</p></td><td className="px-4 py-4"><p className="text-[10px] text-slate-700">{builder.phone || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{builder.email || "—"}</p></td><td className="max-w-48 px-4 py-4 text-[10px] leading-4 text-slate-600">{locationText(builder) || locationText(project) || "—"}</td><td className="px-4 py-4"><p className="text-[10px] font-medium text-slate-700">{invoice.propertyTitle || project.title || "—"}</p><p className="mt-1 font-mono text-[9px] text-slate-400">{invoice.projectCode || project.propertyCode || "—"}</p></td><td className="px-4 py-4"><p className="text-[10px] font-medium text-slate-700">{invoice.servicePlanName || plan.title || "—"}</p><p className="mt-1 text-[9px] text-slate-400">{describePlanPackage(invoice.planSnapshot || plan)} · {invoice.timePeriod || "—"}</p>{invoice.startDate && <p className="mt-0.5 text-[9px] text-slate-400">{new Date(invoice.startDate).toLocaleDateString("en-IN")} → {invoice.endDate ? new Date(invoice.endDate).toLocaleDateString("en-IN") : "—"}{invoice.renewalOf ? " · renewal" : ""}</p>}</td><td className="px-4 py-4 text-[10px] text-slate-700">{money(invoice.subtotalAmount)}</td><td className="px-4 py-4 text-[10px] text-slate-700">{money(invoice.discountAmount)}</td><td className="px-4 py-4"><p className="text-[10px] text-slate-700">{money(invoice.gstAmount)}</p><p className="text-[9px] text-slate-400">{invoice.gstRate || 0}%</p></td><td className="px-4 py-4"><p className="text-[11px] font-medium text-[#219653]">{money(invoice.totalAmount)}</p><p className="mt-1 text-[9px] text-slate-400">Paid {money(invoice.paidAmount)}</p></td><td className="px-4 py-4">{isEditing ? <div className="space-y-1"><select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[10px]"><option value="pending">Pending</option><option value="paid">Paid</option><option value="partial">Partial</option><option value="failed">Failed</option></select><select value={editMethod} onChange={(e) => setEditMethod(e.target.value)} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[10px]"><option value="cash">Cash</option><option value="cheque">Cheque</option><option value="upi">UPI</option><option value="card">Card</option><option value="netbanking">Net banking</option><option value="razorpay">Razorpay</option></select></div> : <><span className={`rounded-full px-2 py-1 text-[8px] font-medium uppercase ${statusClass(invoice.paymentStatus)}`}>{invoice.paymentStatus}</span><p className="mt-2 text-[9px] capitalize text-slate-500">{invoice.paymentMethod}</p></>}</td><td className="max-w-52 px-4 py-4">{planHasPromotion(invoice.planSnapshot || plan) ? <><span className={`rounded-full px-2 py-1 text-[8px] font-medium uppercase ${promotionStatusMeta(invoice.promotionStatus).tone}`}>{promotionStatusMeta(invoice.promotionStatus).label}</span><p className="mt-2 text-[9px] text-slate-500">{invoice.deliveryMode === "team" ? "⚡ Team start" : "🤖 Automatic"}</p>{invoice.promotionNote && <p className="mt-1 text-[9px] leading-3 text-slate-400">{invoice.promotionNote}</p>}</> : <span className="text-[9px] text-slate-400">Listing only</span>}</td><td className="px-4 py-4"><div className="flex flex-wrap gap-1"><button type="button" onClick={() => openPdf(invoice)} title="Open PDF" className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:text-[#219653]"><ExternalLink size={13}/></button><button type="button" onClick={() => openPdf(invoice, true)} title="Download PDF" className="rounded-lg bg-emerald-50 p-2 text-[#219653]"><Download size={13}/></button>{canUpdate && !isEditing && <button type="button" onClick={() => startEdit(invoice)} title="Edit invoice" className="rounded-lg border border-emerald-200 p-2 text-[#27AE60] hover:bg-emerald-50"><Edit3 size={13}/></button>}{canUpdate && isEditing && <button type="button" disabled={savingId === invoice._id} onClick={() => saveEdit(invoice)} className="rounded-lg bg-[#27AE60] px-2 py-1.5 text-[10px] font-medium text-white disabled:opacity-50">{savingId === invoice._id ? "Saving…" : "Save"}</button>}{canUpdate && isEditing && <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-[10px] text-slate-500">Cancel</button>}{canDelete && <button type="button" disabled={deletingId === invoice._id} onClick={() => removeInvoice(invoice)} title="Delete invoice" className="rounded-lg border border-red-100 p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"><Trash2 size={13}/></button>}</div></td></tr>; })}</tbody></table>{filtered.length === 0 && <p className="py-16 text-center text-xs text-slate-400">No invoices match these filters.</p>}</div>}</div>
-  </div></div>;
-}
-
 export default function BuilderPlans() {
   const { user: currentUser, loading: userLoading, planAccess, invoiceAccess, uiFlags } =
     useLivePermissions();
@@ -564,7 +529,9 @@ export default function BuilderPlans() {
   const [assigningPlan, setAssigningPlan] = useState(null);
   const [invoicingPlan, setInvoicingPlan] = useState(null);
   const [resumeInvoiceAfterPlan, setResumeInvoiceAfterPlan] = useState(false);
-  const [showInvoices, setShowInvoices] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showInvoices = searchParams.get("view") === "invoices";
+  const setShowInvoices = (open) => setSearchParams(open ? { view: "invoices" } : {}, { replace: !open });
   const [deleting, setDeleting] = useState(null);
 
   const load = async () => {
@@ -595,6 +562,7 @@ export default function BuilderPlans() {
   const filtered = useMemo(
     () =>
       plans.filter((plan) => {
+        if (FIXED_PLAN_CODES.has(String(plan.code || "").toUpperCase())) return false;
         const matchesQuery = `${plan.title} ${plan.code} ${describePlanPackage(plan)}`
           .toLowerCase()
           .includes(query.toLowerCase());
@@ -602,15 +570,7 @@ export default function BuilderPlans() {
       }),
     [plans, query, status],
   );
-  const active = plans.filter((plan) => plan.isActive).length;
-  const avgPrice = active
-    ? plans.filter((p) => p.isActive).reduce((sum, p) => sum + Number(p.finalPrice || 0), 0) / active
-    : 0;
-
-  const openCreatePlan = () => {
-    if (!planAccess.canCreate) return toast.error("You need plan:create permission");
-    setModal({ type: "create" });
-  };
+  const hasOtherPlans = plans.some((plan) => !FIXED_PLAN_CODES.has(String(plan.code || "").toUpperCase()));
   const openViewPlan = (plan) => {
     if (!planAccess.canView) return toast.error("You need plan:view permission");
     setModal({ type: "view", plan });
@@ -645,8 +605,7 @@ export default function BuilderPlans() {
 
   if (showInvoices && invoiceAccess.canView) {
     return (
-      <InvoiceTablePage
-        onBack={() => setShowInvoices(false)}
+      <BuilderInvoicesPage
         canCreate={invoiceAccess.canCreate}
         canUpdate={invoiceAccess.canUpdate}
         canDelete={invoiceAccess.canDelete}
@@ -672,7 +631,7 @@ export default function BuilderPlans() {
   }
 
   return (
-    <div className="min-h-full bg-[#f6f8f7] p-4 sm:p-6 lg:p-8">
+    <div className="min-h-full p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1480px]">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -699,6 +658,7 @@ export default function BuilderPlans() {
                 View invoices
               </button>
             )}
+            <ChangeHistoryMenu />
             {uiFlags.showCreateInvoiceButton && (
               <button
                 type="button"
@@ -707,16 +667,6 @@ export default function BuilderPlans() {
               >
                 <UserPlus size={16} />
                 Create invoice
-              </button>
-            )}
-            {uiFlags.showNewPlanButton && (
-              <button
-                type="button"
-                onClick={openCreatePlan}
-                className="flex items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-3 text-xs font-medium text-white shadow-sm hover:bg-[#219653]"
-              >
-                <CirclePlus size={16} />
-                New subscription plan
               </button>
             )}
           </div>
@@ -734,35 +684,46 @@ export default function BuilderPlans() {
           </div>
         ) : (
           <>
-            <div className="mb-5 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
-              <div className="flex min-w-max items-center gap-1">
-                <button className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-[11px] font-normal text-[#219653]">
-                  <PackageOpen size={15} />
-                  Builder plans
-                  <span className="rounded-full bg-white px-2 py-0.5 text-[9px] shadow-sm">
-                    {plans.length}
-                  </span>
-                </button>
-                <span className="mx-1 h-6 w-px bg-slate-200" />
-                <span className="px-3 text-[10px] font-normal uppercase tracking-wider text-slate-400">
-                  Plan performance
-                </span>
-                <span className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-normal text-slate-600">
-                  <Zap size={14} className="text-[#27AE60]" />
-                  {active} live
-                </span>
-                <span className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-normal text-slate-600">
-                  <BadgeIndianRupee size={14} className="text-[#27AE60]" />
-                  {money(avgPrice)} average
-                </span>
-              </div>
+            <div className="mb-8">
+              {loading ? (
+                <div className="grid min-h-64 place-items-center">
+                  <div className="text-center">
+                    <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-emerald-100 border-t-[#27AE60]" />
+                    <p className="mt-3 text-xs text-slate-400">Loading plans…</p>
+                  </div>
+                </div>
+              ) : error ? (
+                <div className="grid min-h-64 place-items-center p-6 text-center">
+                  <div>
+                    <p className="text-sm font-bold text-slate-700">We couldn’t load the plans</p>
+                    <p className="mt-1 text-xs text-red-500">{error}</p>
+                    <button
+                      onClick={load}
+                      className="mt-4 rounded-lg bg-emerald-50 px-4 py-2 text-xs font-bold text-[#27AE60]"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <FixedPlanCards
+                  plans={plans}
+                  canCreate={planAccess.canCreate}
+                  canUpdate={planAccess.canUpdate}
+                  canDelete={planAccess.canDelete}
+                  canCreateInvoice={uiFlags.showCreateInvoiceButton && invoiceAccess.canCreate}
+                  onSaved={load}
+                  onCreateInvoice={openCreateInvoice}
+                />
+              )}
             </div>
 
+            {!loading && !error && hasOtherPlans && (<>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-[16px] font-medium text-slate-900">Available subscriptions</h2>
+                <h2 className="text-[16px] font-medium text-slate-900">Other plans (old)</h2>
                 <p className="mt-0.5 text-[11px] text-slate-500">
-                  Compare pricing, benefits and availability at a glance.
+                  Plans created before the five fixed plans. They still work for existing invoices.
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -791,36 +752,12 @@ export default function BuilderPlans() {
             </div>
 
             <div className="rounded-2xl border border-slate-200/80 bg-white/60 p-3 sm:p-4">
-              {loading ? (
-                <div className="grid min-h-64 place-items-center">
-                  <div className="text-center">
-                    <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-emerald-100 border-t-[#27AE60]" />
-                    <p className="mt-3 text-xs text-slate-400">Loading plans…</p>
-                  </div>
-                </div>
-              ) : error ? (
-                <div className="grid min-h-64 place-items-center p-6 text-center">
+              {filtered.length === 0 ? (
+                <div className="grid min-h-40 place-items-center p-6 text-center">
                   <div>
-                    <p className="text-sm font-bold text-slate-700">We couldn’t load the catalogue</p>
-                    <p className="mt-1 text-xs text-red-500">{error}</p>
-                    <button
-                      onClick={load}
-                      className="mt-4 rounded-lg bg-emerald-50 px-4 py-2 text-xs font-bold text-[#27AE60]"
-                    >
-                      Try again
-                    </button>
-                  </div>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="grid min-h-64 place-items-center p-6 text-center">
-                  <div>
-                    <PackageOpen className="mx-auto text-slate-300" size={32} />
+                    <PackageOpen className="mx-auto text-slate-300" size={28} />
                     <p className="mt-3 text-sm font-bold text-slate-700">No plans found</p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {planAccess.canCreate
-                        ? "Create a plan or adjust your search filters."
-                        : "No plans available for your filters."}
-                    </p>
+                    <p className="mt-1 text-xs text-slate-400">Adjust your search filters.</p>
                   </div>
                 </div>
               ) : (
@@ -960,6 +897,7 @@ export default function BuilderPlans() {
                 </div>
               )}
             </div>
+            </>)}
           </>
         )}
       </div>
@@ -1007,7 +945,7 @@ export default function BuilderPlans() {
             setResumeInvoiceAfterPlan(true);
             setModal({ type: "create" });
           }}
-          canCreatePlan={planAccess.canCreate}
+          canCreatePlan={false}
         />
       )}
     </div>

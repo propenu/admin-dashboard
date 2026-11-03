@@ -6,7 +6,12 @@ const API_BASE_URL =
   trimEnv(import.meta.env.VITE_PROPERIES_API_BASE_URL) ||
   "http://localhost:4000";
 
+/** Public web app origin for SuperAdmin read-only view-as (exact screens). */
+const WEB_APP_URL =
+  trimEnv(import.meta.env.VITE_WEB_APP_URL) || "http://localhost:3000";
+
 export const ENV = {
   API_BASE_URL,
+  WEB_APP_URL,
   MAPPLS_API_KEY: trimEnv(import.meta.env.VITE_MAPPLS_MAP_SDK_KEY),
 };

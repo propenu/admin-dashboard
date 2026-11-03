@@ -156,23 +156,23 @@ export const ROLE_PAGE_META = {
     mode: "region",
   },
   business_development_head: {
-    title: "Sales Field Command",
+    title: "Field Meetings",
     subtitle: "Business Development Head",
     mode: "head",
   },
   operations_head: {
-    title: "Sales Field Command",
+    title: "Field Meetings",
     subtitle: "Operations Head",
     mode: "head",
   },
   super_admin: {
-    title: "Sales Field Command",
-    subtitle: "Super Admin",
+    title: "Field Meetings",
+    subtitle: "",
     mode: "head",
   },
   admin: {
-    title: "Sales Field Command",
-    subtitle: "Admin",
+    title: "Field Meetings",
+    subtitle: "",
     mode: "head",
   },
 };

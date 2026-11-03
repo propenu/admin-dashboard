@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getListingCounts } from "../utils/locationHelpers";
+import { useInventoryKindOptional } from "../../../features/inventoryKind/InventoryKindContext";
 
 function normalize(value = "") {
   return String(value).trim().toLowerCase();
@@ -20,11 +21,14 @@ function normalize(value = "") {
 const springSoft = { type: "spring", stiffness: 380, damping: 28 };
 const springPin = { type: "spring", stiffness: 520, damping: 18 };
 
-/** Separate project / property / combined chips */
+/** Separate project / property / combined chips (dim non-active inventory kind). */
 function ListingCountLine({ counts, className = "" }) {
+  const inventoryKind = useInventoryKindOptional()?.inventoryKind || "all";
   const projects = Number(counts?.projects) || 0;
   const properties = Number(counts?.properties) || 0;
   const total = Number(counts?.total) || projects + properties;
+  const preferProjects = inventoryKind === "projects";
+  const preferProperties = inventoryKind === "properties";
   if (!projects && !properties) {
     return (
       <span className={`text-[10px] font-medium text-gray-400 ${className}`}>
@@ -34,11 +38,11 @@ function ListingCountLine({ counts, className = "" }) {
   }
   return (
     <span className={`inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] font-semibold ${className}`}>
-      <span className="text-sky-700">{projects} proj</span>
+      <span className={preferProperties ? "text-gray-300" : "text-sky-700"}>{projects} proj</span>
       <span className="text-gray-300">·</span>
-      <span className="text-violet-700">{properties} prop</span>
+      <span className={preferProjects ? "text-gray-300" : "text-violet-700"}>{properties} prop</span>
       <span className="text-gray-300">·</span>
-      <span className="text-emerald-700">{total} all</span>
+      <span className={preferProjects || preferProperties ? "text-gray-300" : "text-emerald-700"}>{total} all</span>
     </span>
   );
 }

@@ -17,6 +17,7 @@ import {
   setProjectPromotionMode,
 } from "../../../../../features/property/propertyService";
 import PromotionModeMenu, { planStatusQueryKey } from "./PromotionModeMenu";
+import PlanRenewMenu from "./PlanRenewMenu";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -194,6 +195,8 @@ export default memo(function PropertyCard({
   const queryClient = useQueryClient();
 
   const menuBtnRef = useRef(null);
+  const renewBtnRef = useRef(null);
+  const [renewMenuOpen, setRenewMenuOpen] = useState(false);
   const inputRef   = useRef(null);
   const leadFileRef = useRef(null);
 
@@ -890,12 +893,27 @@ export default memo(function PropertyCard({
               {canRenewPromotion && (
                 <div className="mt-1 flex flex-wrap items-center gap-1">
                   {planLinked ? (
-                    <span
-                      className="rounded bg-emerald-50 px-2 py-0.5 text-[9px] font-medium text-emerald-700"
-                      title="Create a renewal invoice in Builder Plans; the promotion extends on its own."
-                    >
-                      Renews with a new invoice
-                    </span>
+                    <>
+                      <button
+                        ref={renewBtnRef}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenewMenuOpen((v) => !v);
+                        }}
+                        className="rounded bg-[#27AE60] px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-emerald-700"
+                        title="Renew with an existing invoice of this project or create a new one"
+                      >
+                        Renew plan
+                      </button>
+                      <PlanRenewMenu
+                        anchorRef={renewBtnRef}
+                        open={renewMenuOpen}
+                        onClose={() => setRenewMenuOpen(false)}
+                        projectId={p._id}
+                        onRenewed={refreshPlanViews}
+                      />
+                    </>
                   ) : (
                   <button
                     type="button"

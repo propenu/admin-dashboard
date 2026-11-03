@@ -332,7 +332,7 @@ export default function PromoteModal({
   }, [open]);
 
   useEffect(() => {
-    if (!open || !projectId || !canSetLeadCount || planMode) return;
+    if (!open || !projectId || !canSetLeadCount) return;
 
     let cancelled = false;
     setLeadsLoading(true);
@@ -355,7 +355,7 @@ export default function PromoteModal({
     return () => {
       cancelled = true;
     };
-  }, [open, projectId, canSetLeadCount, planMode]);
+  }, [open, projectId, canSetLeadCount]);
 
   // When type is chosen + leads loaded, prefill a sensible visible count.
   useEffect(() => {
@@ -363,6 +363,12 @@ export default function PromoteModal({
 
     if (selected === "normal") {
       setLeadCountInput("0");
+      return;
+    }
+
+    if (plan) {
+      const fromPlan = plan.runningVisibleLeadLimit ?? plan.package?.visibleLeadLimit ?? 0;
+      setLeadCountInput(String(Math.max(0, Math.trunc(Number(fromPlan) || 0))));
       return;
     }
 
@@ -388,6 +394,7 @@ export default function PromoteModal({
     leadsLoading,
     currentVisibleLeadLimit,
     countTouched,
+    plan,
   ]);
 
   const isNormal = selected === "normal";
@@ -414,7 +421,7 @@ export default function PromoteModal({
   const maskedNow = Math.max(0, total - visibleNow);
   const countEnabled =
     canSetLeadCount && Boolean(selected) && !isNormal && !isLoading;
-  const needsLeadCount = canSetLeadCount && selected && !isNormal && !planMode;
+  const needsLeadCount = canSetLeadCount && selected && !isNormal;
   // Allowance is NOT capped by existing leads (e.g. 100 exist → allow 5000).
   const leadCountInvalid =
     needsLeadCount &&
@@ -508,6 +515,7 @@ export default function PromoteModal({
     if (!canPromote) return;
     if (planMode) {
       onConfirm(selected, {
+        visibleLeadLimit: canSetLeadCount ? Math.max(0, Math.trunc(Number(leadCountInput) || 0)) : undefined,
         mainCoverage: isMainPlacement ? mainCoverage : {},
         sponsoredSameAsMain: addOnOn && sponsoredMode === "same",
         sponsoredAd:
@@ -563,9 +571,9 @@ export default function PromoteModal({
     !(addOnOn && sponsoredMode === "same" && isCoverageEmpty(mainCoverage)) &&
     !((addOnOn || isSponsoredOnly) && isCoverageEmpty(effectiveSponsoredAd));
   const trackerSteps = planMode ? [
-    { label: "Plan package", done: true },
+    { label: "Plan", done: true },
     { label: "Locations", done: locationsDone },
-    { label: "Plan dates", done: true },
+    ...(canSetLeadCount ? [{ label: "Leads", done: !leadCountInvalid }] : []),
   ] : [
     { label: "Placement", done: Boolean(selected) },
     ...(isMainPlacement
@@ -684,30 +692,27 @@ export default function PromoteModal({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
-                    Builder plan · {plan.invoiceNumber || "paid invoice"}
+                    Subscription · {plan.invoiceNumber || "paid invoice"}
                   </p>
                   <p className="mt-0.5 truncate text-sm font-bold text-slate-800">
-                    {plan.planName || "Builder plan"} · {plan.label}
+                    {plan.planName || plan.label || "Builder plan"}
+                    {plan.planName && plan.label && plan.label !== plan.planName ? ` · ${plan.label}` : ""}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">
-                    {formatPromotionDate(plan.periodStart)} → {formatPromotionDate(plan.periodEnd)}
-                    {plan.renewals ? ` · includes ${plan.renewals} renewal${plan.renewals > 1 ? "s" : ""}` : ""}
-                    {" · "}
-                    {plan.package?.visibleLeadLimit ?? 0} visible leads
+                  <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500">
+                    <CalendarClock className="h-3 w-3" />
+                    {formatPromotionDateTime(liveFrom)} → {formatPromotionDateTime(liveUntil)} · {planDays} days
+                    {plan.renewals ? ` · ${plan.renewals} renewal${plan.renewals > 1 ? "s" : ""}` : ""}
                   </p>
                 </div>
+                <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">Paid</span>
               </div>
-              <p className="mt-2 rounded-lg bg-white/80 px-2.5 py-1.5 text-[11px] text-slate-600 ring-1 ring-emerald-100">
-                Placement, Sponsored, dates and leads come from the plan. Locations are filled from the plan rule
-                {plan.package?.locationRule === "team_picks" ? " (team picks)" : ""}; change them only if needed.
-                It ends with the plan, and a renewal invoice extends it.
-              </p>
               {plan.coverageMessage ? (
                 <p className="mt-1.5 text-[11px] font-medium text-amber-700">{plan.coverageMessage}</p>
               ) : null}
             </div>
           )}
 
+          {!planMode && (
           <Section
             step={1}
             accent="emerald"
@@ -757,8 +762,9 @@ export default function PromoteModal({
               })}
             </div>
           </Section>
+          )}
 
-          {isMainPlacement && (
+          {isMainPlacement && !planMode && (
             <Section
               step={2}
               accent="violet"
@@ -793,7 +799,7 @@ export default function PromoteModal({
 
           {(isMainPlacement || isSponsoredOnly) && (
             <Section
-              step={isMainPlacement ? 3 : 2}
+              step={planMode ? 1 : isMainPlacement ? 3 : 2}
               accent={locationAccent}
               done={locationsDone}
               title="Choose locations"
@@ -902,29 +908,6 @@ export default function PromoteModal({
             </Section>
           )}
 
-          {planMode && (
-            <Section
-              step={isMainPlacement ? 4 : 3}
-              accent="emerald"
-              done
-              title="Plan dates and leads"
-              hint="Set by the paid invoice. Ends with the plan; a renewal invoice extends it."
-            >
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {[
-                  ["Goes live", formatPromotionDateTime(liveFrom)],
-                  ["Ends", formatPromotionDateTime(liveUntil)],
-                  ["Visible leads", String(plan.package?.visibleLeadLimit ?? 0)],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-xl bg-slate-100 px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-wide text-slate-400">{label}</p>
-                    <p className="mt-0.5 text-xs font-semibold text-slate-700">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          )}
-
           {selected && !isNormal && !planMode && (
             <Section
               step={isMainPlacement ? 4 : 3}
@@ -1026,13 +1009,17 @@ export default function PromoteModal({
             </Section>
           )}
 
-          {canSetLeadCount && selected && !isNormal && !planMode && (
+          {canSetLeadCount && selected && !isNormal && (
             <Section
-              step={isMainPlacement ? 5 : 4}
+              step={planMode ? 2 : isMainPlacement ? 5 : 4}
               accent="teal"
               done={!leadCountInvalid}
               title="Lead visibility"
-              hint="How many leads the builder can see unmasked while this promotion runs."
+              hint={
+                planMode
+                  ? "Prefilled from the plan. Change it only if this builder needs a different number."
+                  : "How many leads the builder can see unmasked while this promotion runs."
+              }
             >
               <div className="flex items-center justify-between text-xs text-slate-500">
                 <span>Visible lead allowance</span>

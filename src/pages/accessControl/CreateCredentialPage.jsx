@@ -146,67 +146,193 @@ export default function CreateCredentialPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl pb-12 text-slate-900">
-      <button onClick={() => navigate(-1)} className="mb-5 flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-emerald-700"><ArrowLeft size={17} /> Back</button>
-      <div className="grid overflow-hidden rounded-[28px] border border-emerald-100 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)] lg:grid-cols-[360px_1fr]">
-        <aside className="relative overflow-hidden bg-slate-950 p-7 text-white sm:p-9">
-          <div className="absolute -left-20 top-40 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl" />
-          <div className="relative">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-xl shadow-emerald-500/20"><KeyRound size={23} /></div>
-            <h1 className="mt-6 text-3xl font-bold tracking-tight">Create credentials</h1>
-            <p className="mt-3 text-sm leading-6 text-slate-300">Create and verify a dashboard account, assign an existing role, then review its permissions.</p>
-            <div className="mt-9 space-y-3">{[
-              [1, "Account & location", UserRound], [2, "Email verification", Mail], [3, "Review & activate", MapPin],
-            ].map(([number, label, stepIcon]) => <div key={number} className={`flex items-center gap-3 rounded-xl border p-3 transition ${step === number ? "border-emerald-400/40 bg-emerald-400/15" : step > number || done ? "border-white/10 bg-white/5" : "border-transparent text-slate-500"}`}><span className={`grid h-8 w-8 place-items-center rounded-lg ${step > number || done ? "bg-emerald-500" : "bg-white/10"}`}>{step > number || done ? <Check size={16} /> : createElement(stepIcon, { size: 16 })}</span><span className="text-sm font-semibold">{label}</span></div>)}</div>
-            <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs leading-5 text-slate-300"><ShieldCheck className="mb-2 text-emerald-400" size={19} />Select an existing active role from the backend. After verification, its permission checkboxes open automatically.</div>
+    <div className="mx-auto w-full max-w-[1480px] pb-8 text-slate-900 sm:pb-12">
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-emerald-700 sm:mb-4"
+      >
+        <ArrowLeft size={17} /> Back
+      </button>
+      <div className="grid overflow-hidden rounded-2xl border border-[#c8ebd6] bg-white shadow-[0_10px_28px_rgba(15,61,46,0.08)] lg:grid-cols-[minmax(220px,260px)_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="relative flex h-full min-h-0 flex-col border-b border-[#d9ebe0] bg-[#f6fbf8] p-4 sm:p-5 lg:border-b-0 lg:border-r">
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#27AE60] text-white shadow-sm shadow-emerald-600/25">
+              <KeyRound size={16} />
+            </div>
+            <h1 className="mt-3 text-lg font-bold tracking-tight text-[#0f3d2e] sm:text-xl">
+              Create credentials
+            </h1>
+            <p className="mt-1.5 text-[11px] leading-4 text-slate-500 sm:text-xs sm:leading-5">
+              Create and verify a dashboard account, assign a role, then review permissions.
+            </p>
+            <div className="mt-4 space-y-1.5">
+              {[
+                [1, "Account & location", UserRound],
+                [2, "Email verification", Mail],
+                [3, "Review & activate", MapPin],
+              ].map(([number, stepLabel, stepIcon]) => {
+                const active = step === number;
+                const complete = step > number || done;
+                return (
+                  <div
+                    key={number}
+                    className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 transition ${
+                      active
+                        ? "border-[#27AE60]/40 bg-white text-[#128C45] shadow-sm"
+                        : complete
+                          ? "border-[#c8ebd6] bg-white/80 text-[#0f3d2e]"
+                          : "border-transparent text-slate-400"
+                    }`}
+                  >
+                    <span
+                      className={`grid h-6 w-6 place-items-center rounded-md ${
+                        complete
+                          ? "bg-[#27AE60] text-white"
+                          : active
+                            ? "bg-[#e8f8ee] text-[#27AE60]"
+                            : "bg-slate-100 text-slate-400"
+                      }`}
+                    >
+                      {complete ? (
+                        <Check size={13} />
+                      ) : (
+                        createElement(stepIcon, { size: 13 })
+                      )}
+                    </span>
+                    <span className="text-[11px] font-semibold sm:text-xs">{stepLabel}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-auto flex items-start gap-2 rounded-lg border border-[#c8ebd6] bg-white p-2.5 pt-3 text-[10px] leading-4 text-slate-600 lg:mt-6">
+              <ShieldCheck className="mt-0.5 shrink-0 text-[#27AE60]" size={14} />
+              <span>Pick an active role. Permissions open after email verification.</span>
+            </div>
           </div>
         </aside>
 
-        <main className="p-6 sm:p-10">
+        <main className="flex min-h-0 min-w-0 flex-col p-3 sm:p-4 lg:p-5">
           {done ? <Success name={form.name} role={createdRole?.label || "Custom access"} onCreateAnother={() => { setForm(EMPTY); setStep(1); setToken(""); setDone(false); }} onDone={() => navigate("/propenu-team-members")} /> : <>
-            <div className="mb-8 flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">Step {step} of 3</p><h2 className="mt-2 text-2xl font-bold">{step === 1 ? "Account, role and work location" : step === 2 ? "Verify the work email" : "Review and activate credential"}</h2></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{Math.round(step / 3 * 100)}% complete</span></div>
-
-            {step === 1 && <form onSubmit={sendOtp} className="grid gap-5 sm:grid-cols-2"><Field label="Full name" icon={UserRound}><input value={form.name} onChange={update("name")} placeholder="e.g. Aarav Sharma" /></Field><Field label="Work email" icon={Mail}><input type="email" value={form.email} onChange={update("email")} placeholder="aarav@propenu.com" /></Field><div className="sm:col-span-2"><RoleSelect roles={roles} value={form.role} onChange={(role) => setForm((current) => ({ ...current, role, reportsToUserId: "" }))} /></div>
-            {form.role && hierarchy && (
-              <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600">
-                <div className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-800"><Network size={16} className="text-emerald-600" /> Hierarchy for {cleanRoleLabel(form.role)}</div>
-                <p><span className="font-semibold text-slate-700">Above:</span> {hierarchyHint?.aboveText || "—"}</p>
-                <p className="mt-1"><span className="font-semibold text-slate-700">Below:</span> {hierarchyHint?.belowText || "—"}</p>
-                <p className="mt-1"><span className="font-semibold text-slate-700">Reports to (person):</span> {hierarchyHint?.reportsToText || "—"}</p>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 sm:mb-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-600">
+                  Step {step} of 3
+                </p>
+                <h2 className="mt-0.5 text-base font-bold sm:text-lg">
+                  {step === 1
+                    ? "Account, role and work location"
+                    : step === 2
+                      ? "Verify the work email"
+                      : "Review and activate credential"}
+                </h2>
               </div>
-            )}
-            {form.role && (hierarchy?.reportsToRoles || []).length > 0 && (
-              <div className="sm:col-span-2">
-                <ActivityFilterSelect
-                  showLabel
-                  searchable
-                  label="Reports to (person)"
-                  value={form.reportsToUserId ? String(form.reportsToUserId) : ""}
-                  onChange={(next) =>
-                    setForm((current) => ({ ...current, reportsToUserId: next }))
-                  }
-                  options={reportsToFilterOptions}
-                  icon={UsersRound}
-                />
-                {!reportsToOptions.length && (
-                  <p className="mt-2 text-xs text-amber-700">
-                    No {preferredReportsLabel} account found yet. Create a {preferredReportsLabel} credential
-                    first (or assign someone to that role), then come back to set who this person reports to.
-                  </p>
+              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                {Math.round((step / 3) * 100)}% complete
+              </span>
+            </div>
+
+            {step === 1 && (
+              <form
+                onSubmit={sendOtp}
+                className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-3.5"
+              >
+                <Field label="Full name" icon={UserRound}>
+                  <input value={form.name} onChange={update("name")} placeholder="e.g. Aarav Sharma" />
+                </Field>
+                <Field label="Work email" icon={Mail}>
+                  <input type="email" value={form.email} onChange={update("email")} placeholder="aarav@propenu.com" />
+                </Field>
+                <Field label="State" icon={MapPin}>
+                  <input value={form.state} onChange={update("state")} placeholder="e.g. Andhra Pradesh" />
+                </Field>
+                <Field label="City" icon={Building2}>
+                  <input value={form.city} onChange={update("city")} placeholder="e.g. Pitapuram" />
+                </Field>
+                <Field label="Locality" icon={MapPin}>
+                  <input value={form.locality} onChange={update("locality")} placeholder="Enter locality" />
+                </Field>
+                <Field label="Pincode" icon={MapPin}>
+                  <input
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={form.pincode}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        pincode: event.target.value.replace(/\D/g, ""),
+                      }))
+                    }
+                    placeholder="500081"
+                  />
+                </Field>
+                <div className="sm:col-span-1 lg:col-span-1">
+                  <RoleSelect
+                    roles={roles}
+                    value={form.role}
+                    onChange={(role) =>
+                      setForm((current) => ({ ...current, role, reportsToUserId: "" }))
+                    }
+                  />
+                </div>
+                {form.role && hierarchy && (
+                  <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-4 text-slate-600">
+                    <div className="mb-1 flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                      <Network size={14} className="text-emerald-600" /> Hierarchy for{" "}
+                      {cleanRoleLabel(form.role)}
+                    </div>
+                    <p>
+                      <span className="font-semibold text-slate-700">Above:</span>{" "}
+                      {hierarchyHint?.aboveText || "—"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-slate-700">Below:</span>{" "}
+                      {hierarchyHint?.belowText || "—"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-slate-700">Reports to:</span>{" "}
+                      {hierarchyHint?.reportsToText || "—"}
+                    </p>
+                  </div>
                 )}
-              </div>
+                {form.role && (hierarchy?.reportsToRoles || []).length > 0 && (
+                  <div className="sm:col-span-2 lg:col-span-3">
+                    <ActivityFilterSelect
+                      showLabel
+                      searchable
+                      label="Reports to (person)"
+                      value={form.reportsToUserId ? String(form.reportsToUserId) : ""}
+                      onChange={(next) =>
+                        setForm((current) => ({ ...current, reportsToUserId: next }))
+                      }
+                      options={reportsToFilterOptions}
+                      icon={UsersRound}
+                    />
+                    {!reportsToOptions.length && (
+                      <p className="mt-1.5 text-[11px] text-amber-700">
+                        No {preferredReportsLabel} account found yet. Create that credential first,
+                        then set reports-to.
+                      </p>
+                    )}
+                  </div>
+                )}
+                {isTerritoryRole(form.role) && (
+                  <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[11px] leading-4 text-sky-950">
+                    <strong>Territory tip.</strong> This location becomes their first working
+                    territory; expand later from Team Directory.
+                  </div>
+                )}
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <Primary busy={busy}>
+                    Send verification code <ArrowRight size={16} />
+                  </Primary>
+                </div>
+              </form>
             )}
-            <Field label="State" icon={MapPin}><input value={form.state} onChange={update("state")} placeholder="e.g. Andhra Pradesh" /></Field><Field label="City" icon={Building2}><input value={form.city} onChange={update("city")} placeholder="e.g. Pitapuram" /></Field><Field label="Locality" icon={MapPin}><input value={form.locality} onChange={update("locality")} placeholder="Enter locality" /></Field><Field label="Pincode" icon={MapPin}><input inputMode="numeric" maxLength={6} value={form.pincode} onChange={(event) => setForm((current) => ({ ...current, pincode: event.target.value.replace(/\D/g, "") }))} placeholder="500081" /></Field>
-            {isTerritoryRole(form.role) && (
-              <div className="sm:col-span-2 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
-                <strong>Territory tip.</strong> This work location becomes their first working territory (CCE / Team Lead / RM). Parent managers (CSH) can later expand to entire Telangana / AP or add cities & localities from Team Directory → Align working locations.
-              </div>
-            )}
-            <div className="sm:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"><strong>Role + reporting line.</strong> The selected role places them in the org tree. Optionally pick the specific person they report to (e.g. which Regional Manager / Sales Manager).</div><div className="sm:col-span-2"><Primary busy={busy}>Send verification code <ArrowRight size={17} /></Primary></div></form>}
 
-            {step === 2 && <form onSubmit={verifyOtp} className="space-y-5"><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">A 4-digit code was sent to <strong className="text-slate-900">{form.email}</strong>.</div><Field label="Verification code" icon={KeyRound}><input inputMode="numeric" maxLength={4} value={form.otp} onChange={(e) => setForm((current) => ({ ...current, otp: e.target.value.replace(/\D/g, "") }))} className="text-center font-mono text-2xl tracking-[0.45em]" placeholder="0000" /></Field><Primary busy={busy}>Verify & continue <ArrowRight size={17} /></Primary><button type="button" onClick={() => setStep(1)} className="w-full text-sm font-semibold text-slate-500 hover:text-slate-800">Change account information</button></form>}
+            {step === 2 && <form onSubmit={verifyOtp} className="space-y-3"><div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600">A 4-digit code was sent to <strong className="text-slate-900">{form.email}</strong>.</div><Field label="Verification code" icon={KeyRound}><input inputMode="numeric" maxLength={4} value={form.otp} onChange={(e) => setForm((current) => ({ ...current, otp: e.target.value.replace(/\D/g, "") }))} className="text-center font-mono text-xl tracking-[0.4em]" placeholder="0000" /></Field><Primary busy={busy}>Verify & continue <ArrowRight size={16} /></Primary><button type="button" onClick={() => setStep(1)} className="w-full text-xs font-semibold text-slate-500 hover:text-slate-800">Change account information</button></form>}
 
-            {step === 3 && <form onSubmit={complete} className="space-y-5"><div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-2"><Review label="Name" value={form.name} /><Review label="Email" value={form.email} /><Review label="Role" value={createdRole?.label || "Created automatically"} /><Review label="Reports to" value={reportsToSummary?.name ? `${reportsToSummary.name}${reportsToSummary.roleName ? ` (${cleanRoleLabel(reportsToSummary.roleName)})` : ""}` : "Not assigned yet"} /><Review label="Work location" value={`${form.locality}, ${form.city}, ${form.state} - ${form.pincode}`} /></div><Primary busy={busy}>Create account & assign permissions <BadgeCheck size={18} /></Primary><button type="button" onClick={() => setStep(1)} className="w-full text-sm font-semibold text-slate-500 hover:text-slate-800">Edit account or location</button></form>}
+            {step === 3 && <form onSubmit={complete} className="space-y-3"><div className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2"><Review label="Name" value={form.name} /><Review label="Email" value={form.email} /><Review label="Role" value={createdRole?.label || "Created automatically"} /><Review label="Reports to" value={reportsToSummary?.name ? `${reportsToSummary.name}${reportsToSummary.roleName ? ` (${cleanRoleLabel(reportsToSummary.roleName)})` : ""}` : "Not assigned yet"} /><Review label="Work location" value={`${form.locality}, ${form.city}, ${form.state} - ${form.pincode}`} /></div><Primary busy={busy}>Create account & assign permissions <BadgeCheck size={16} /></Primary><button type="button" onClick={() => setStep(1)} className="w-full text-xs font-semibold text-slate-500 hover:text-slate-800">Edit account or location</button></form>}
           </>}
         </main>
       </div>

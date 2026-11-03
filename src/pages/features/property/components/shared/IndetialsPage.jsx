@@ -65,6 +65,7 @@ import {
   formatPromotionDate,
   formatPromotionDateTime,
   getPromotionTracking,
+  hasSponsoredAddOn,
   promotionLifecycleClass,
   promotionLifecycleCopy,
   titlePromotionType,
@@ -3241,6 +3242,29 @@ function promotionActor(item) {
   return { name, email, role };
 }
 
+/** "Prime + Sponsored (prime + sponsored)" → "Prime + Sponsored" for older history rows. */
+function dedupeReason(reason) {
+  if (!reason) return reason;
+  const key = (value) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const deduped = String(reason).replace(/([^()]+?)\s*\(([^()]+)\)/g, (match, outer, inner) => {
+    const words = outer.trim();
+    const tail = words.slice(-inner.length - 4);
+    return key(tail).endsWith(key(inner)) ? words : match;
+  });
+  return deduped.replace(/^(.*?\bcancelled):\s*(.+)$/i, (_match, head, text) => {
+    const value = text.trim();
+    const capped = value.charAt(0).toUpperCase() + value.slice(1);
+    return `${head}. Reason: ${/[.!?]$/.test(capped) ? capped : `${capped}.`}`;
+  });
+}
+
+/** Promotion type as the subscription name, e.g. "Prime + Sponsored". */
+function subscriptionLabel(type, sponsoredEnabled) {
+  const value = String(type || "normal").toLowerCase();
+  if (value === "normal" || value === "sponsored") return titlePromotionType(value);
+  return sponsoredEnabled ? `${titlePromotionType(value)} + Sponsored` : titlePromotionType(value);
+}
+
 function PromotionActorLine({ item }) {
   const actor = promotionActor(item);
   if (!actor) return null;
@@ -3296,7 +3320,7 @@ function PromotionTrackerPanel({ property }) {
             <div>
               <p className="text-xs text-slate-400">Current promotion</p>
               <p className="mt-1 text-lg font-bold text-slate-800">
-                {titlePromotionType(tracking.currentType)}
+                {subscriptionLabel(tracking.currentType, hasSponsoredAddOn(property))}
               </p>
             </div>
             <span
@@ -3342,7 +3366,12 @@ function PromotionTrackerPanel({ property }) {
           {tracking.currentType !== "normal" && (
             <div className="mt-4">
               <div className="mb-1 flex justify-between text-[11px] text-slate-500">
-                <span>{titlePromotionType(tracking.previousType)} → {titlePromotionType(tracking.currentType)}</span>
+                <span>
+                  {history.length > 1
+                    ? subscriptionLabel(history[history.length - 2].toType, history[history.length - 2].sponsoredEnabled)
+                    : titlePromotionType(tracking.previousType)}{" "}
+                  → {subscriptionLabel(tracking.currentType, hasSponsoredAddOn(property))}
+                </span>
                 <span>{progress}%</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-white">
@@ -3364,7 +3393,17 @@ function PromotionTrackerPanel({ property }) {
             </div>
           ) : (
             <div className="custom-scrollbar max-h-[360px] space-y-3 overflow-y-auto pr-2">
-              {[...history].reverse().map((item, index) => (
+              {history
+                .map((item, index) => {
+                  const prev = history[index - 1];
+                  const fromLabel =
+                    prev && (prev.toType || "normal") === (item.fromType || "normal")
+                      ? subscriptionLabel(prev.toType, prev.sponsoredEnabled)
+                      : subscriptionLabel(item.fromType, false);
+                  return { item, fromLabel, toLabel: subscriptionLabel(item.toType, item.sponsoredEnabled) };
+                })
+                .reverse()
+                .map(({ item, fromLabel, toLabel }, index) => (
                 <div key={`${item.startedAt}-${index}`} className="relative flex gap-3">
                   <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#27AE60]/10 text-[#27AE60]">
                     <TrendingUp className="h-3.5 w-3.5" />
@@ -3372,14 +3411,14 @@ function PromotionTrackerPanel({ property }) {
                   <div className="min-w-0 flex-1 rounded-xl border border-slate-100 bg-slate-50 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-slate-700">
-                        {titlePromotionType(item.fromType)} → {titlePromotionType(item.toType)}
+                        {fromLabel} → {toLabel}
                       </p>
                       <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-slate-500">
                         {item.source || "manual"}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-500">
-                      {item.reason || "Promotion changed"}
+                      {dedupeReason(item.reason) || "Promotion changed"}
                     </p>
                     <PromotionActorLine item={item} />
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-400">

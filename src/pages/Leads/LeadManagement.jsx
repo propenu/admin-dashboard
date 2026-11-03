@@ -11,6 +11,8 @@ import { useAccessLiveUpdates } from "../../features/property/accessLive";
 import { useMyPendingAccessAreas } from "../../features/property/useAccessRequests";
 import RequestAccessModal from "../../components/access/RequestAccessModal";
 import { saInset, saSurface, saSurfaceHover } from "../Dashboards/superAdminDashboard/dashboardSurface";
+import { useInventoryKindOptional } from "../../features/inventoryKind/InventoryKindContext";
+import { leadCategoryForInventoryKind } from "../../features/inventoryKind/inventoryKindConfig";
 
 const lmInput =
   "h-10 w-full min-w-0 rounded-xl border border-[#b7e4c7] bg-white px-3 text-xs font-medium text-[#0f3d2e] outline-none transition focus:border-[#27AE60] focus:ring-2 focus:ring-[#27AE60]/15";
@@ -240,6 +242,7 @@ const Field = ({ label, children, className = "" }) => (
 
 export default function LeadManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const inventory = useInventoryKindOptional();
   const [filters, setFilters] = useState(() => filtersFromSearchParams(searchParams));
   const [searchInput, setSearchInput] = useState(() => searchParams.get("search") || "");
   const [datePreset, setDatePreset] = useState(() => {
@@ -272,6 +275,17 @@ export default function LeadManagement() {
     setSearchInput(next.search);
     setDatePreset(detectPreset(next.from, next.to));
   }, [searchParams]);
+
+  // Navbar Projects / Properties / All → Lead Management category
+  useEffect(() => {
+    const kind = inventory?.inventoryKind;
+    if (!kind) return;
+    setFilters((old) => {
+      const nextCategory = leadCategoryForInventoryKind(kind, old.category);
+      if (old.category === nextCategory) return old;
+      return { ...old, category: nextCategory, page: 1 };
+    });
+  }, [inventory?.inventoryKind]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

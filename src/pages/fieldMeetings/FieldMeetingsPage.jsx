@@ -5,6 +5,8 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock,
+  ChevronLeft,
+  ChevronRight,
   LogIn,
   LogOut,
   MapPin,
@@ -50,9 +52,11 @@ import {
 } from "./fieldMeetingUtils";
 
 const getId = (u) => String(u?._id || u?.id || u?.userId || "").trim();
+const MEETINGS_PAGE_SIZE = 12;
 
 export default function FieldMeetingsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
+  const [listPage, setListPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const [menuId, setMenuId] = useState(null);
@@ -75,13 +79,15 @@ export default function FieldMeetingsPage() {
   const isSe = pageMeta.mode === "se";
 
   const meetingsQuery = useQuery({
-    queryKey: ["field-meetings", "list", statusFilter],
+    queryKey: ["field-meetings", "list", statusFilter, listPage],
     queryFn: () =>
       listFieldMeetings({
         status: statusFilter === "all" ? undefined : statusFilter,
-        limit: 80,
+        page: listPage,
+        limit: MEETINGS_PAGE_SIZE,
       }),
     staleTime: 15_000,
+    placeholderData: (previous) => previous,
     // Refresh faster while staff are in the 15m punch-out wait window
     refetchInterval: (q) => {
       const list = Array.isArray(q.state.data?.meetings) ? q.state.data.meetings : [];
@@ -110,6 +116,14 @@ export default function FieldMeetingsPage() {
   const meetings = Array.isArray(payload.meetings) ? payload.meetings : [];
   const todayMeetings = Array.isArray(payload.todayMeetings) ? payload.todayMeetings : [];
   const prepTasks = Array.isArray(payload.prepTasks) ? payload.prepTasks : [];
+  const pagination = payload.pagination || {
+    page: listPage,
+    limit: MEETINGS_PAGE_SIZE,
+    total: meetings.length,
+    pages: 1,
+  };
+  const totalPages = Math.max(1, Number(pagination.pages) || 1);
+  const totalMeetings = Number(pagination.total) || 0;
 
   const visibilityHint = useMemo(() => {
     const fromMeeting = todayMeetings[0]?.visibilityChain || meetings[0]?.visibilityChain;
@@ -121,12 +135,17 @@ export default function FieldMeetingsPage() {
   }, [todayMeetings, meetings, isSe, pageMeta.mode]);
 
   const refresh = useCallback(async () => {
+    setListPage(1);
     await Promise.all([
       meetingsQuery.refetch(),
       territoryQuery.refetch(),
       !isSe ? teamQuery.refetch() : Promise.resolve(),
     ]);
   }, [meetingsQuery, territoryQuery, teamQuery, isSe]);
+
+  useEffect(() => {
+    if (listPage > totalPages) setListPage(totalPages);
+  }, [listPage, totalPages]);
 
   const openPrepPending = prepTasks.filter((t) => !t.completed);
 
@@ -281,13 +300,41 @@ export default function FieldMeetingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-4 p-3 sm:p-4 lg:p-5">
+      <style>{`
+        .fm-meetings-scroll {
+          max-height: min(720px, calc(100vh - 260px));
+          overflow-x: hidden;
+          overflow-y: auto;
+          padding-right: 6px;
+          scrollbar-width: thin;
+          scrollbar-color: #27AE60 #e8f8ee;
+        }
+        .fm-meetings-scroll::-webkit-scrollbar { width: 8px; }
+        .fm-meetings-scroll::-webkit-scrollbar-track {
+          background: #e8f8ee;
+          border-radius: 999px;
+        }
+        .fm-meetings-scroll::-webkit-scrollbar-thumb {
+          background: #27AE60;
+          border-radius: 999px;
+          border: 2px solid #e8f8ee;
+        }
+        .fm-meetings-scroll::-webkit-scrollbar-thumb:hover {
+          background: #1e9a4f;
+        }
+        @media (max-width: 640px) {
+          .fm-meetings-scroll { max-height: min(560px, calc(100vh - 200px)); }
+        }
+      `}</style>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-black text-slate-950 sm:text-2xl">
             {pageMeta.title}
-            <span className="ml-2 text-base font-semibold text-slate-400 sm:text-lg">
-              · {pageMeta.subtitle}
-            </span>
+            {pageMeta.subtitle ? (
+              <span className="ml-2 text-base font-semibold text-slate-400 sm:text-lg">
+                · {pageMeta.subtitle}
+              </span>
+            ) : null}
           </h1>
           <p className="mt-1 text-xs text-slate-500">
             CRM field visit: create → punch in → wait 15 minutes → punch out → do follow-up.
@@ -465,7 +512,10 @@ export default function FieldMeetingsPage() {
                 Status
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setListPage(1);
+                  }}
                   className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold"
                 >
                   {MEETING_STATUS_OPTIONS.map((o) => (
@@ -478,7 +528,7 @@ export default function FieldMeetingsPage() {
             </div>
 
             {loading ? (
-              <div className="space-y-2">
+              <div className="fm-meetings-scroll space-y-2">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="h-24 animate-pulse rounded-2xl bg-slate-100" />
                 ))}
@@ -489,7 +539,7 @@ export default function FieldMeetingsPage() {
                 <p className="text-sm font-semibold text-slate-600">No meetings in this filter</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="fm-meetings-scroll space-y-2">
                 {meetings.map((m) => (
                   <article
                     key={m.id}
@@ -657,6 +707,38 @@ export default function FieldMeetingsPage() {
                 ))}
               </div>
             )}
+
+            {!loading && totalMeetings > 0 ? (
+              <footer className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-500">
+                <span>
+                  Showing {(listPage - 1) * MEETINGS_PAGE_SIZE + 1}–
+                  {Math.min(listPage * MEETINGS_PAGE_SIZE, totalMeetings)} of{" "}
+                  {totalMeetings} · newest first
+                  {meetingsQuery.isFetching ? " · Updating" : ""}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={listPage <= 1 || meetingsQuery.isFetching}
+                    onClick={() => setListPage((p) => Math.max(1, p - 1))}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                  </button>
+                  <span className="tabular-nums font-semibold text-slate-700">
+                    {listPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={listPage >= totalPages || meetingsQuery.isFetching}
+                    onClick={() => setListPage((p) => Math.min(totalPages, p + 1))}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    Next <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </footer>
+            ) : null}
           </section>
         </div>
 

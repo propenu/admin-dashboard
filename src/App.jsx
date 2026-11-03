@@ -13,6 +13,13 @@ import PermissionRoute from "./pages/PermissionRoute";
 const Dashboard = lazy(() => import("./pages/Dashboards/MainDashboard"));
 const FollowUpTrackingPage = lazy(() => import("./pages/Dashboards/FollowUpTrackingPage.jsx"));
 const HomeLoansPage = lazy(() => import("./pages/Dashboards/HomeLoansPage.jsx"));
+const HomeLoanUsersPage = lazy(() => import("./pages/Dashboards/HomeLoanUsersPage.jsx"));
+const HomeLoanLeadDetailPage = lazy(() =>
+  import("./pages/Dashboards/HomeLoanLeadDetailPage.jsx"),
+);
+const ServiceWorkspaceComingSoon = lazy(() =>
+  import("./pages/Dashboards/ServiceWorkspaceComingSoon.jsx"),
+);
 const MarketingHeadDashboard = lazy(() =>
   import("./pages/Dashboards/MarketingHeadDashboard.jsx"),
 );
@@ -185,6 +192,10 @@ const RevenueByPlan = lazy(() =>
 
 const BuilderPlans = lazy(() =>
   import("./pages/Accounts/BuilderPlans")
+);
+
+const BuilderPlanHistory = lazy(() =>
+  import("./pages/Accounts/BuilderPlanHistory")
 );
 
 const TeamManagement = lazy(() =>
@@ -392,6 +403,75 @@ function App() {
                     </PermissionRoute>
                   }
                 />
+                <Route
+                  path="/home-loans/users"
+                  element={
+                    <PermissionRoute
+                      anyPermissions={["user:view", "dashboard:view", "team:view"]}
+                      legacyRoles={[
+                        "customer_care",
+                        "customer_care_executive",
+                        "customer_care_executives",
+                        "customer_support_head",
+                        "customer_support_team_lead",
+                      ]}
+                    >
+                      <HomeLoanUsersPage />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/home-loans/leads/:mobile"
+                  element={
+                    <PermissionRoute
+                      anyPermissions={["user:view", "dashboard:view", "team:view"]}
+                      legacyRoles={[
+                        "customer_care",
+                        "customer_care_executive",
+                        "customer_care_executives",
+                        "customer_support_head",
+                        "customer_support_team_lead",
+                      ]}
+                    >
+                      <HomeLoanLeadDetailPage />
+                    </PermissionRoute>
+                  }
+                />
+
+                {/* Other service workspaces (shell ready; screens come later) */}
+                <Route
+                  path="/services/construction"
+                  element={
+                    <PermissionRoute
+                      anyPermissions={["dashboard:view", "user:view", "team:view"]}
+                      legacyRoles={["super_admin", "admin"]}
+                    >
+                      <ServiceWorkspaceComingSoon />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/services/interior"
+                  element={
+                    <PermissionRoute
+                      anyPermissions={["dashboard:view", "user:view", "team:view"]}
+                      legacyRoles={["super_admin", "admin"]}
+                    >
+                      <ServiceWorkspaceComingSoon />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/services/home-care"
+                  element={
+                    <PermissionRoute
+                      anyPermissions={["dashboard:view", "user:view", "team:view"]}
+                      legacyRoles={["super_admin", "admin"]}
+                    >
+                      <ServiceWorkspaceComingSoon />
+                    </PermissionRoute>
+                  }
+                />
 
                 {/* Projects */}
 
@@ -593,6 +673,7 @@ function App() {
                 />
                 <Route path="/revenue-by-plan" element={<RevenueByPlan />} />
                 <Route path="/builder-plans" element={<BuilderPlans />} />
+                <Route path="/builder-plans/history" element={<BuilderPlanHistory />} />
 
                 {/* User detail — navigated to on row click */}
                 <Route
@@ -640,6 +721,8 @@ function App() {
                     <PermissionRoute
                       anyPermissions={["dashboard:view", "user:view", "team:view", "user:create"]}
                       legacyRoles={[
+                        "super_admin",
+                        "admin",
                         "sales_executive",
                         "sales_agent",
                         "sales_manager",

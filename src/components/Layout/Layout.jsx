@@ -19,6 +19,10 @@ import { useSidebarActivityBadges } from "../../hooks/useSidebarActivityBadges";
 import { usePresenceHeartbeat } from "../../hooks/usePresenceHeartbeat";
 
 import { useAuthUserProfile } from "../../hooks/useAuthUser";
+import { AdminWorkspaceProvider } from "../../features/adminWorkspace/AdminWorkspaceContext";
+import { InventoryKindProvider } from "../../features/inventoryKind/InventoryKindContext";
+import OperationsHorizontalNav from "../../features/operations/OperationsHorizontalNav";
+import { isOperationsPath } from "../../features/operations/operationsNavConfig";
 
 
 
@@ -82,6 +86,17 @@ export default function MainLayout() {
 
   const { pathname } = useLocation();
 
+  // Mobile fixed nav covers the top — always land at the page top so
+  // Dashboard / Main Desk content is not hidden under the tab strip.
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [pathname]);
+
   const hideSidebar = HIDE_SIDEBAR_PREFIXES.some(
 
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
@@ -93,6 +108,8 @@ export default function MainLayout() {
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
 
   );
+
+  const onOperations = isOperationsPath(pathname);
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -152,117 +169,140 @@ export default function MainLayout() {
 
 
   return (
+    <AdminWorkspaceProvider>
+    <InventoryKindProvider>
+      <div className="min-h-screen" style={hideSidebar ? { backgroundColor: "#eef1f4" } : APP_BACKGROUND}>
 
-    <div className="min-h-screen" style={hideSidebar ? { backgroundColor: "#eef1f4" } : APP_BACKGROUND}>
+        {/* Stage 1 — chrome first */}
 
-      {/* Stage 1 — chrome first */}
-
-      <Navbar
-
-        toggleSidebar={() => setIsMobileOpen(true)}
-
-        hideSidebarToggle={hideSidebar}
-
-      />
-
-
-
-      <div className="flex min-w-0 pt-16">
-
-        {!hideSidebar ? (
-
-          <Sidebar
-
-            expanded={isHovered}
-
-            isMobileOpen={isMobileOpen}
-
-            closeMobile={() => setIsMobileOpen(false)}
-
-            onHoverStart={() => setIsHovered(true)}
-
-            onHoverEnd={() => setIsHovered(false)}
-
-          />
-
-        ) : null}
-
-
-
-        <main
-
-          className="min-h-[calc(100vh-64px)] min-w-0 flex-1 transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
-
-          style={{
-
-            ...(hideSidebar ? { backgroundColor: "#eef1f4" } : CONTENT_BACKGROUND),
-
-            marginLeft: hideSidebar
-
-              ? "0px"
-
-              : isDesktop
-
-                ? isHovered
-
-                  ? `${SIDEBAR_EXPANDED}px`
-
-                  : `${SIDEBAR_COLLAPSED}px`
-
-                : "0px",
-
+        <Navbar
+          toggleSidebar={() => {
+            setIsMobileOpen((open) => !open);
+            setIsHovered(false);
           }}
+          hideSidebarToggle={hideSidebar}
+          sidebarOpen={isMobileOpen || isHovered}
+          onWorkspaceDropdownOpen={() => {
+            setIsMobileOpen(false);
+            setIsHovered(false);
+          }}
+        />
 
+
+
+        <div
+          className={`flex min-w-0 lg:pt-16 ${
+            onOperations ? "pt-14" : "pt-32"
+          }`}
         >
 
-          <div
+          {!hideSidebar ? (
 
-            className={`min-w-0 max-w-full ${
+            <Sidebar
 
-              hideSidebar || fullWidthContent
+              expanded={isHovered}
 
-                ? "p-0"
+              isMobileOpen={isMobileOpen}
 
-                : "px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:p-4 lg:p-6"
+              closeMobile={() => setIsMobileOpen(false)}
 
+              onHoverStart={() => setIsHovered(true)}
+
+              onHoverEnd={() => setIsHovered(false)}
+
+            />
+
+          ) : null}
+
+
+
+          <main
+
+            className={`min-w-0 flex-1 transition-[margin-left] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] lg:min-h-[calc(100vh-4rem)] ${
+              onOperations
+                ? "min-h-[calc(100vh-3.5rem)]"
+                : "min-h-[calc(100vh-8rem)]"
             }`}
+
+            style={{
+
+              ...(hideSidebar ? { backgroundColor: "#eef1f4" } : CONTENT_BACKGROUND),
+
+              marginLeft: hideSidebar
+
+                ? "0px"
+
+                : isDesktop
+
+                  ? isHovered
+
+                    ? `${SIDEBAR_EXPANDED}px`
+
+                    : `${SIDEBAR_COLLAPSED}px`
+
+                  : "0px",
+
+            }}
 
           >
 
-            {!hideSidebar && !fullWidthContent ? <PageBackNav /> : null}
+            <div
 
-            {fullWidthContent && !hideSidebar ? (
+              className={`min-w-0 max-w-full ${
 
-              <div className="px-3 pt-2 sm:px-4">
+                hideSidebar || fullWidthContent
 
+                  ? "p-0"
+
+                  : onOperations
+
+                    ? "px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-0 sm:px-4 lg:px-6"
+
+                    : "px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:p-4 lg:p-6"
+
+              }`}
+
+            >
+
+              {!hideSidebar && !fullWidthContent ? (
+                <OperationsHorizontalNav />
+              ) : null}
+
+              {!hideSidebar && !fullWidthContent && !onOperations ? (
                 <PageBackNav />
+              ) : null}
 
-              </div>
+              {fullWidthContent && !hideSidebar ? (
 
-            ) : null}
+                <div className="px-3 pt-2 sm:px-4">
 
+                  <PageBackNav />
 
+                </div>
 
-            {/* Stage 2 — page body after shell; soft skeleton while /me settles */}
+              ) : null}
 
-            {!sessionReady ? (
+              {/* Stage 2 — page body after shell; soft skeleton while /me settles */}
 
-              <ContentSkeleton rows={4} />
+              {!sessionReady ? (
 
-            ) : (
+                <ContentSkeleton rows={4} />
 
-              <Outlet />
+              ) : (
 
-            )}
+                <Outlet />
 
-          </div>
+              )}
 
-        </main>
+            </div>
+
+          </main>
+
+        </div>
 
       </div>
-
-    </div>
-
+    </InventoryKindProvider>
+    </AdminWorkspaceProvider>
   );
 
 }

@@ -516,13 +516,44 @@ export default function PropenuTeam() {
 
   return <div className="mx-auto max-w-[1500px] pb-10 text-slate-900">
     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">Operations</p><h1 className="mt-1 text-3xl font-black tracking-tight">Team directory</h1></div>
-      <div className="flex items-center gap-2">
-        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{roleOptions.length} roles</span>
-        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{users.length} members</span>
-        <button type="button" onClick={() => applyQuickFilter("active")} className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${filters.status === "active" ? "bg-emerald-600 text-white" : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}>{activeCount} active</button>
-        <button type="button" onClick={() => applyQuickFilter("joinedToday")} className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${filters.fromDate === todayIso() && filters.toDate === todayIso() ? "bg-emerald-600 text-white" : "bg-sky-50 text-sky-700 hover:bg-sky-100"}`}>{joinedTodayCount} joined today</button>
-        <button onClick={() => refetch()} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"><RefreshCw size={15} className={isFetching ? "animate-spin" : ""} /></button>
+      <div><h1 className="text-3xl font-black tracking-tight">Team directory</h1></div>
+      <div className="flex items-start gap-2 sm:items-center">
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-[11px] font-bold leading-tight text-slate-600 sm:rounded-full sm:border-0 sm:bg-slate-100 sm:py-1.5 sm:text-left sm:text-xs">
+            {roleOptions.length} roles
+          </span>
+          <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-[11px] font-bold leading-tight text-slate-600 sm:rounded-full sm:border-0 sm:bg-slate-100 sm:py-1.5 sm:text-left sm:text-xs">
+            {users.length} members
+          </span>
+          <button
+            type="button"
+            onClick={() => applyQuickFilter("active")}
+            className={`rounded-xl border px-3 py-2 text-center text-[11px] font-bold leading-tight transition sm:rounded-full sm:border-0 sm:py-1.5 sm:text-left sm:text-xs ${
+              filters.status === "active"
+                ? "border-emerald-600 bg-emerald-600 text-white"
+                : "border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            }`}
+          >
+            {activeCount} active
+          </button>
+          <button
+            type="button"
+            onClick={() => applyQuickFilter("joinedToday")}
+            className={`rounded-xl border px-3 py-2 text-center text-[11px] font-bold leading-tight transition sm:rounded-full sm:border-0 sm:py-1.5 sm:text-left sm:text-xs ${
+              filters.fromDate === todayIso() && filters.toDate === todayIso()
+                ? "border-emerald-600 bg-emerald-600 text-white"
+                : "border-sky-100 bg-sky-50 text-sky-700 hover:bg-sky-100"
+            }`}
+          >
+            {joinedTodayCount} joined today
+          </button>
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"
+        >
+          <RefreshCw size={15} className={isFetching ? "animate-spin" : ""} />
+        </button>
       </div>
     </div>
 

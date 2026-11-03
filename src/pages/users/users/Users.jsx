@@ -18,7 +18,11 @@ import { DesktopTable } from "./components/DesktopTable";
 import { DeletedUsersPanel } from "./components/DeletedUsersPanel";
 import { Pagination } from "./components/Pagination";
 import SafeUserDeleteModal from "./components/SafeUserDeleteModal";
-import { roleLabel } from "./constants/roleLabels";
+import {
+  ROLE_DEDICATED_PAGES,
+  ROLE_PAGE_TITLES,
+  roleLabel,
+} from "./constants/roleLabels";
 import { todayIstIso } from "./utils/dateTime";
 import {
   clearUsersFilterStorage,
@@ -625,6 +629,14 @@ export default function Users() {
     syncUrl(next);
   };
 
+  const roleKey = String(filterRole || "").toLowerCase();
+  const rolePageHref = ROLE_DEDICATED_PAGES[roleKey] || "";
+  const rolePageLabel = ROLE_PAGE_TITLES[roleKey] || roleLabel(filterRole);
+  const openRolePage = () => {
+    if (!rolePageHref) return;
+    navigate(rolePageHref);
+  };
+
   const hasFilters = Boolean(
     searchInput ||
       locationInput ||
@@ -956,6 +968,9 @@ export default function Users() {
         setFilterRole={(value) => patchFilters({ role: value || "all" })}
         hasFilters={hasFilters}
         clearAll={clearAll}
+        rolePageHref={rolePageHref}
+        rolePageLabel={rolePageLabel}
+        onOpenRolePage={openRolePage}
         filteredCount={totalFiltered}
         isExporting={isExporting}
         onExportExcel={handleExportExcel}

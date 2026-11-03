@@ -71,6 +71,9 @@ export const UserFilters = ({
   setFilterRole,
   hasFilters,
   clearAll,
+  rolePageHref = "",
+  rolePageLabel = "",
+  onOpenRolePage,
   filteredCount = 0,
   isExporting = false,
   onExportExcel,
@@ -327,6 +330,16 @@ export const UserFilters = ({
               className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 px-3 text-sm font-semibold text-red-500"
             >
               Clear
+            </button>
+          ) : null}
+
+          {rolePageHref && onOpenRolePage ? (
+            <button
+              type="button"
+              onClick={onOpenRolePage}
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-[#12A150]/30 bg-[#12A150]/10 px-3 text-sm font-semibold text-[#0f8f46] transition hover:bg-[#12A150]/15"
+            >
+              View {rolePageLabel || "role"} page
             </button>
           ) : null}
         </div>

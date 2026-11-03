@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
@@ -12,7 +12,6 @@ import {
   RotateCcw,
   Save,
   Search,
-  ShieldCheck,
   Trash2,
   UserRound,
   Users,
@@ -36,9 +35,7 @@ import { fetchLoggedInUser } from "../../services/UserServices/userServices";
 import { PERMISSIONS_UPDATED_EVENT } from "../../utils/useLivePermissions";
 import {
   getAssignedUserCountForRole,
-  getExactRoleMatch,
   orderRolesByHierarchy,
-  userMatchesExactRole,
 } from "../../utils/roleHierarchy";
 
 const EXCLUDED_ROLES = new Set(["super_admin", "user", "builder", "builder_staff", "agent"]);
@@ -65,6 +62,8 @@ const displayRoleLabel = (role) => {
   return role.label || cleanRole(role.name);
 };
 
+const PAGE_LIMIT = 12;
+
 const formatDateTime = (value) => {
   if (!value) return "Never logged in";
   const date = new Date(value);
@@ -78,6 +77,15 @@ const formatDateTime = (value) => {
   });
 };
 
+const normalizeAccessUsers = (userResult) => {
+  const rows = Array.isArray(userResult)
+    ? userResult
+    : userResult?.data || userResult?.users || [];
+  return (Array.isArray(rows) ? rows : []).filter(
+    (user) => user.roleId && !EXCLUDED_ROLES.has(String(user.roleName || "")),
+  );
+};
+
 export default function UserPermissionsPage() {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
@@ -88,8 +96,11 @@ export default function UserPermissionsPage() {
   const [permissions, setPermissions] = useState(new Set());
   const [expanded, setExpanded] = useState(new Set(["dashboard", "user", "project"]));
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [listPage, setListPage] = useState(1);
+  const [hasMoreUsers, setHasMoreUsers] = useState(true);
+  const [listReady, setListReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
@@ -99,6 +110,9 @@ export default function UserPermissionsPage() {
   const [userStatusSaving, setUserStatusSaving] = useState(false);
   const [userDeleting, setUserDeleting] = useState(false);
   const [userDeleteConfirmation, setUserDeleteConfirmation] = useState("");
+  const listScrollRef = useRef(null);
+  const listFetchLockRef = useRef(false);
+  const listRequestIdRef = useRef(0);
 
   useEffect(() => {
     fetchLoggedInUser()
@@ -107,8 +121,12 @@ export default function UserPermissionsPage() {
   }, []);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
     let cancelled = false;
-    setLoading(true);
 
     // Roles first → Filter by Role dropdown opens fast with API user counts.
     Promise.all([
@@ -147,30 +165,10 @@ export default function UserPermissionsPage() {
         if (Array.isArray(catalogModules) && catalogModules.length) {
           setExpanded(new Set(catalogModules.map((item) => item.key)));
         }
-        setLoading(false);
       })
       .catch((error) => {
         if (cancelled) return;
         toast.error(error.response?.data?.message || "Unable to load user access data");
-        setLoading(false);
-      });
-
-    getAccessUsers({ scope: "team_directory" })
-      .then((userResult) => {
-        if (cancelled) return;
-        const dashboardUsers = (Array.isArray(userResult) ? userResult : userResult.users || []).filter(
-          (user) => user.roleId && !EXCLUDED_ROLES.has(String(user.roleName || "")),
-        );
-        setUsers(dashboardUsers);
-        setSelectedUserId((current) => {
-          if (current) return current;
-          return dashboardUsers[0] ? String(dashboardUsers[0]._id) : "";
-        });
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          toast.error(error.response?.data?.message || "Unable to load team users");
-        }
       });
 
     return () => {
@@ -178,10 +176,80 @@ export default function UserPermissionsPage() {
     };
   }, []);
 
-  const selectedRoleMatch = useMemo(
-    () => (selectedRole ? getExactRoleMatch(selectedRole, roles) : null),
-    [roles, selectedRole],
+  const loadUsersPage = useCallback(
+    async ({ page, replace }) => {
+      if (listFetchLockRef.current) return;
+      listFetchLockRef.current = true;
+      const requestId = ++listRequestIdRef.current;
+      try {
+        const params = {
+          scope: "team_directory",
+          page,
+          limit: PAGE_LIMIT,
+        };
+        if (debouncedQuery) params.q = debouncedQuery;
+        if (selectedRole) params.role = selectedRole;
+
+        const userResult = await getAccessUsers(params);
+        if (requestId !== listRequestIdRef.current) return;
+
+        const dashboardUsers = normalizeAccessUsers(userResult);
+        const meta = userResult?.meta;
+        const nextHasMore = meta
+          ? Number(meta.page || page) < Number(meta.pages || 1)
+          : dashboardUsers.length >= PAGE_LIMIT;
+
+        setUsers((current) => (replace ? dashboardUsers : [...current, ...dashboardUsers]));
+        setListPage(page);
+        setHasMoreUsers(nextHasMore);
+        setListReady(true);
+
+        if (replace) {
+          setSelectedUserId(dashboardUsers[0] ? String(dashboardUsers[0]._id) : "");
+        }
+      } catch (error) {
+        if (requestId === listRequestIdRef.current) {
+          toast.error(error.response?.data?.message || "Unable to load team users");
+          if (replace) {
+            setUsers([]);
+            setHasMoreUsers(false);
+            setListReady(true);
+          }
+        }
+      } finally {
+        if (requestId === listRequestIdRef.current) {
+          listFetchLockRef.current = false;
+        }
+      }
+    },
+    [debouncedQuery, selectedRole],
   );
+
+  useEffect(() => {
+    setListReady(false);
+    setHasMoreUsers(true);
+    setListPage(1);
+    setUsers([]);
+    listFetchLockRef.current = false;
+    loadUsersPage({ page: 1, replace: true });
+  }, [debouncedQuery, selectedRole, loadUsersPage]);
+
+  useEffect(() => {
+    const root = listScrollRef.current;
+    if (!root || !listReady) return undefined;
+
+    const onScroll = () => {
+      if (!hasMoreUsers || listFetchLockRef.current) return;
+      // Only fetch next page after the user scrolls near the bottom.
+      if (root.scrollTop < 8) return;
+      const remaining = root.scrollHeight - root.scrollTop - root.clientHeight;
+      if (remaining > 140) return;
+      loadUsersPage({ page: listPage + 1, replace: false });
+    };
+
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => root.removeEventListener("scroll", onScroll);
+  }, [hasMoreUsers, listPage, listReady, loadUsersPage]);
 
   const roleOptions = useMemo(
     () =>
@@ -192,20 +260,11 @@ export default function UserPermissionsPage() {
     [roles],
   );
 
-  const visibleUsers = useMemo(() => {
-    const value = query.trim().toLowerCase();
-    return users.filter((user) => {
-      const matchesRole = !selectedRoleMatch || userMatchesExactRole(user, selectedRoleMatch);
-      const searchable =
-        `${user.name} ${user.email} ${user.phone} ${user.roleName} ${user.state} ${user.city} ${user.locality} ${user.pincode}`.toLowerCase();
-      return matchesRole && (!value || searchable.includes(value));
-    });
-  }, [query, selectedRoleMatch, users]);
-
+  const visibleUsers = users;
   const selectedUser = visibleUsers.find((user) => String(user._id) === selectedUserId) || null;
   const selectedRoleRecord = roles.find((item) => item.name === selectedRole) || null;
 
-  // Keep selection in sync with the active role filter (clear when empty).
+  // Keep selection in sync when the loaded page changes.
   useEffect(() => {
     if (!visibleUsers.length) {
       if (selectedUserId) setSelectedUserId("");
@@ -249,18 +308,15 @@ export default function UserPermissionsPage() {
   const selectRole = (roleName) => {
     setSelectedRole(roleName);
     setQuery("");
-    const match = roleName ? getExactRoleMatch(roleName, roles) : null;
-    const matched = users.filter((user) => !match || userMatchesExactRole(user, match));
-    setSelectedUserId(matched[0] ? String(matched[0]._id) : "");
   };
 
   const location = [selectedUser?.locality, selectedUser?.city, selectedUser?.state, selectedUser?.pincode]
     .filter(Boolean)
     .join(", ");
 
-  const sharedCount = role ? users.filter((user) => String(user.roleId) === String(role._id)).length : 0;
+  const sharedCount = role ? getAssignedUserCountForRole(role, roles) : 0;
   const sharedCountForSelectedRole = selectedRoleRecord
-    ? users.filter((user) => String(user.roleId) === String(selectedRoleRecord._id)).length
+    ? getAssignedUserCountForRole(selectedRoleRecord, roles)
     : 0;
 
   const togglePermission = (key) =>
@@ -329,9 +385,7 @@ export default function UserPermissionsPage() {
 
   const deleteSelectedRole = async () => {
     const targetRole = selectedRoleRecord || role;
-    const assignedCount = targetRole
-      ? users.filter((user) => String(user.roleId) === String(targetRole._id)).length
-      : 0;
+    const assignedCount = targetRole ? getAssignedUserCountForRole(targetRole, roles) : 0;
     if (!targetRole || targetRole.isActive !== false || deleteConfirmation !== targetRole.name) {
       return;
     }
@@ -407,37 +461,37 @@ export default function UserPermissionsPage() {
     <div className="mx-auto max-w-[1500px] pb-12 text-slate-900">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-700">
-            <ShieldCheck size={14} /> Access control
-          </div>
           <h1 className="text-3xl font-bold tracking-tight">User permissions</h1>
           <p className="mt-1 text-sm text-slate-500">
             Filter by organisation hierarchy, review login activity, and update module access.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-row flex-wrap items-center gap-2">
           {isSuperAdmin && role && role.name !== "super_admin" && (
             <button
               type="button"
               onClick={() => navigate(`/access-control/roles/${role._id}/permissions`)}
-              className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-5 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50"
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-emerald-200 bg-white px-3 text-xs font-bold text-emerald-700 shadow-sm hover:bg-emerald-50 sm:h-auto sm:flex-none sm:gap-2 sm:px-5 sm:py-3 sm:text-sm"
             >
-              <Pencil size={17} /> Edit role & parent
+              <Pencil size={16} /> Edit role & parent
             </button>
           )}
           <button
             onClick={save}
             disabled={!role || saving}
-            className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:opacity-50 sm:h-auto sm:flex-none sm:gap-2 sm:px-5 sm:py-3 sm:text-sm"
           >
-            <Save size={17} />
+            <Save size={16} />
             {saving ? "Saving…" : "Save permissions"}
           </button>
         </div>
       </div>
 
-      <div className="grid min-h-[700px] overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.07)] lg:grid-cols-[380px_minmax(0,1fr)]">
-        <aside className="border-b border-slate-200 bg-slate-50/70 p-5 lg:border-b-0 lg:border-r">
+      <div className="grid overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.07)] lg:h-[calc(100vh-12.5rem)] lg:grid-cols-[300px_minmax(0,1fr)] lg:min-h-[560px]">
+        <aside
+          ref={listScrollRef}
+          className="min-h-0 border-b border-slate-200 bg-slate-50/70 p-4 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:p-5"
+        >
           <div className="space-y-3">
             <HierarchyRoleFilterSelect
               label="Filter by role"
@@ -577,61 +631,48 @@ export default function UserPermissionsPage() {
               />
             </div>
           </div>
-          <div className="mt-4 max-h-[620px] space-y-2 overflow-y-auto pr-1">
-            {loading ? (
-              <p className="py-10 text-center text-sm text-slate-500">Loading users…</p>
-            ) : visibleUsers.length ? (
-              visibleUsers.map((user) => {
-                const userLocation = [user.locality, user.city, user.state, user.pincode]
-                  .filter(Boolean)
-                  .join(", ");
-                const isSelected = selectedUserId === String(user._id);
-                return (
-                  <button
-                    key={user._id}
-                    onClick={() => setSelectedUserId(String(user._id))}
-                    className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition ${
-                      isSelected
-                        ? "border-emerald-300 bg-emerald-50 shadow-sm"
-                        : "border-transparent bg-white hover:border-slate-200"
-                    }`}
-                  >
-                    <span
-                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
-                        isSelected ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"
+          <div className="mt-3 space-y-1 pr-1">
+            {visibleUsers.length ? (
+              <>
+                {visibleUsers.map((user) => {
+                  const isSelected = selectedUserId === String(user._id);
+                  const roleLabel = CUSTOMER_CARE_LIFECYCLE_ROLES.has(
+                    String(user.roleName || "").toLowerCase(),
+                  )
+                    ? "Customer Care Executive"
+                    : cleanRole(user.roleName);
+                  return (
+                    <button
+                      key={user._id}
+                      type="button"
+                      onClick={() => setSelectedUserId(String(user._id))}
+                      className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${
+                        isSelected
+                          ? "border-emerald-300 bg-emerald-50 shadow-sm"
+                          : "border-transparent bg-white hover:border-slate-200"
                       }`}
                     >
-                      <UserRound size={18} />
-                    </span>
-                    <span className="min-w-0 flex-1 space-y-1">
-                      <span className="block truncate text-sm font-bold">{user.name || "Unnamed user"}</span>
-                      <span className="flex items-center gap-1.5 truncate text-xs text-slate-500">
-                        <Mail size={12} className="shrink-0" />
-                        {user.email || "No email"}
+                      <span
+                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${
+                          isSelected ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        <UserRound size={14} />
                       </span>
-                      <span className="flex items-center gap-1.5 truncate text-xs text-slate-500">
-                        <Phone size={12} className="shrink-0" />
-                        {user.phone || "No phone"}
+                      <span className="min-w-0 flex-1 leading-tight">
+                        <span className="block truncate text-[12px] font-bold">
+                          {user.name || "Unnamed user"}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[10px] font-semibold capitalize text-emerald-700">
+                          {roleLabel}
+                          {user.isActive === false ? " · Deactivated" : ""}
+                        </span>
                       </span>
-                      <span className="flex items-center gap-1.5 truncate text-xs text-slate-500">
-                        <MapPin size={12} className="shrink-0" />
-                        {userLocation || "Location not set"}
-                      </span>
-                      <span className="flex items-center gap-1.5 truncate text-xs text-slate-500">
-                        <Clock3 size={12} className="shrink-0" />
-                        Last login: {formatDateTime(user.lastLoginAt)}
-                      </span>
-                      <span className="mt-1 block text-[11px] font-semibold capitalize text-emerald-700">
-                        {CUSTOMER_CARE_LIFECYCLE_ROLES.has(String(user.roleName || "").toLowerCase())
-                          ? "Customer Care Executive"
-                          : cleanRole(user.roleName)}
-                        {user.isActive === false ? " · Deactivated" : ""}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })
-            ) : (
+                    </button>
+                  );
+                })}
+              </>
+            ) : listReady ? (
               <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
                 <Users className="mx-auto mb-3 text-slate-300" size={32} />
                 <p className="text-sm font-semibold text-slate-600">
@@ -645,13 +686,13 @@ export default function UserPermissionsPage() {
                     : "Create credentials for a dashboard role to see people here."}
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         </aside>
 
-        <section className="max-h-[calc(100vh-140px)] overflow-y-auto p-5 sm:p-7">
+        <section className="min-h-0 overflow-y-auto p-5 sm:p-7">
           {!role ? (
-            <div className="grid h-full place-items-center text-center text-slate-500">
+            <div className="grid min-h-[280px] place-items-center text-center text-slate-500 lg:min-h-full">
               <div>
                 <Users className="mx-auto mb-3" size={42} />
                 <p>Select a dashboard role or user to inspect access.</p>
@@ -688,7 +729,7 @@ export default function UserPermissionsPage() {
                       </p>
                       <p className="flex items-center gap-1.5">
                         <Clock3 size={15} className="shrink-0 text-emerald-600" />
-                        <span>Last login: {formatDateTime(selectedUser.lastLoginAt)}</span>
+                        <span>Last login: {formatDateTime(selectedUser.lastLoginAt || selectedUser.lastLogin)}</span>
                       </p>
                     </div>
                   ) : (

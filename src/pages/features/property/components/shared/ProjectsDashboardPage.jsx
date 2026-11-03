@@ -3161,6 +3161,7 @@ export default function ProjectsDashboardPage() {
     (newType, options = {}) => {
       if (promotePlanStatus?.plan) {
         startFromPlan({
+          visibleLeadLimit: options.visibleLeadLimit,
           mainCoverage: options.mainCoverage,
           sponsoredSameAsMain: options.sponsoredSameAsMain,
           sponsoredAd: options.sponsoredAd,

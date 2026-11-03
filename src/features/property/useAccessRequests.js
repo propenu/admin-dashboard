@@ -10,6 +10,8 @@ export const ACCESS_AREA_LABELS = {
   projects: "Deleted projects",
   projectLeads: "Deleted project leads",
   leadContacts: "Full lead contacts",
+  editedSubscriptions: "Edited subscriptions history",
+  deletedSubscriptions: "Deleted subscriptions history",
 };
 
 function useRefreshOnAccessChange() {

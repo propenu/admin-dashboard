@@ -65,6 +65,14 @@ import {
   requestSidebarPathAck,
   SIDEBAR_ACCOUNT_PATHS,
 } from "../../utils/sidebarActivity";
+import { useAdminWorkspace } from "../../features/adminWorkspace/AdminWorkspaceContext";
+import { buildWorkspaceMenu } from "../../features/adminWorkspace/adminWorkspaceConfig";
+import { useInventoryKindOptional } from "../../features/inventoryKind/InventoryKindContext";
+import {
+  filterMainDeskMenu,
+  getInventoryKindMenu,
+} from "../../features/inventoryKind/inventoryKindConfig";
+import { isOperationsPath } from "../../features/operations/operationsNavConfig";
 
 const CreateUserModal = lazy(() => import("./CreateUserModal"));
 const AssignReportsTo = lazy(() => import("./AssignReportsTo"));
@@ -344,11 +352,24 @@ export default function Sidebar({
   const location = useLocation();
   const queryClient = useQueryClient();
   const { user, isPending: userPending } = useAuthUserProfile();
+  const { workspaceId } = useAdminWorkspace();
+  const inventory = useInventoryKindOptional();
 
   const [showCreateModal,         setShowCreateModal]         = useState(false);
   const [showAssignAgentModal,    setShowAssignAgentModal]    = useState(false);
   const [showTransferCredentials, setShowTransferCredentials] = useState(false);
   const [openMenus, setOpenMenus] = useState({ dashboard: true });
+
+  useEffect(() => {
+    const onTransfer = () => setShowTransferCredentials(true);
+    const onAssign = () => setShowAssignAgentModal(true);
+    window.addEventListener("propenu:open-transfer-credentials", onTransfer);
+    window.addEventListener("propenu:open-assign-reports", onAssign);
+    return () => {
+      window.removeEventListener("propenu:open-transfer-credentials", onTransfer);
+      window.removeEventListener("propenu:open-assign-reports", onAssign);
+    };
+  }, []);
   const [labelCard, setLabelCard] = useState(null);
   const asideRef = useRef(null);
   const activeIconRef = useRef(null);
@@ -365,6 +386,8 @@ export default function Sidebar({
     if (!path) return false;
     const pathname = String(path).split("?")[0];
     if (location.pathname === pathname) return true;
+    // /home-loans has sibling routes (/home-loans/users, /leads) — exact match only
+    if (pathname === "/home-loans") return false;
     // Nested screens under the same sidebar entry (e.g. /projects/...)
     if (pathname !== "/" && location.pathname.startsWith(`${pathname}/`)) return true;
     return false;
@@ -402,12 +425,25 @@ export default function Sidebar({
     setOpenMenus((p) => ({ ...p, ...autoOpen }));
   }, [location.pathname, user]);
 
+  const closeMobileIfNeeded = () => {
+    if (isMobileOpen) closeMobile?.();
+  };
+
   const handleChildClick = (child) => {
-    if      (child.action === "openCreateUserModal")         setShowCreateModal(true);
-    else if (child.action === "openTranforCredentialsModal") setShowTransferCredentials(true);
-    else if (child.action === "openAssignAgentModal")        setShowAssignAgentModal(true);
-    else if (child.children)                                 toggleMenu(child.key);
-    else                                                     navigateMenuPath(child.path);
+    if (child.action === "openCreateUserModal") {
+      setShowCreateModal(true);
+      closeMobileIfNeeded();
+    } else if (child.action === "openTranforCredentialsModal") {
+      setShowTransferCredentials(true);
+      closeMobileIfNeeded();
+    } else if (child.action === "openAssignAgentModal") {
+      setShowAssignAgentModal(true);
+      closeMobileIfNeeded();
+    } else if (child.children) {
+      toggleMenu(child.key);
+    } else {
+      navigateMenuPath(child.path);
+    }
   };
 
   const getPermissionMenu = (permissions = []) => {
@@ -470,35 +506,21 @@ export default function Sidebar({
               key: "assign-agent",
               action: "openAssignAgentModal",
             },
-          !isLeafHierarchyRole &&
-            canView("team") && {
-              path: "/sales-managers",
-              label: "Sales Managers",
-              icon: SalesManagerIcon,
-            },
-          !isLeafHierarchyRole &&
-            canView("team") && {
-              path: "/sales-agents",
-              label: "Sales Executives",
-              icon: SalesAgentIcon,
-            },
-          !isLeafHierarchyRole &&
-            canView("team") && {
-              path: "/relationship-managers",
-              label: "Relationship Managers",
-              icon: SalesManagerIcon,
-            },
         ].filter(Boolean);
+    const canUsersActivity =
+      canView("lead") || canView("user") || canView("builder") || canView("agent");
     const userChildren = [
       canView("user") && { path: "/users", label: "All Users", icon: AllUsersIcon },
-      canView("user") && { path: "/owners", label: "Owners", icon: OwnerIcon },
-      canView("builder") && { path: "/builders", label: "Builders", icon: BuilderIcon },
-      (canView("builder") || canView("builder_staff")) && {
-        path: "/builder-staff",
-        label: "Builder Staff",
-        icon: BuilderIcon,
+      canUsersActivity && {
+        path: "/all-users-activity",
+        label: "All Users Activity",
+        icon: Activity,
       },
-      canView("agent") && { path: "/all-agents", label: "Agents", icon: AgentIcon },
+      canUsersActivity && {
+        path: "/lead-capture",
+        label: "User Journey",
+        icon: SalesManagerIcon,
+      },
     ].filter(Boolean);
     const accessControlChildren = [
       allowed.has("role:create") && { path: "/access-control/roles/new", label: "Create Role & Access", icon: Shield },
@@ -635,30 +657,7 @@ export default function Sidebar({
       },
       canView("project") && { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
       propertyAccess && { path: "/properties", label: "Properties", icon: PropertiesIcon },
-      // CSH keeps Team Directory / Team Management under Operations only.
-      !isCustomerSupportHead &&
-        canOpenTeamDirectory && {
-          path: "/propenu-team-members",
-          label: "Team Directory",
-          icon: AllUsersIcon,
-        },
-      !isCustomerSupportHead &&
-        canOpenTeamManagement && {
-          path: "/dashboard/team-management",
-          label: "Team Management",
-          icon: TeamManagementIcon,
-        },
       canView("lead") && { path: "/leads", label: "Leads", icon: UsersRound },
-      (canView("lead") || canView("user") || canView("builder") || canView("agent")) && {
-        path: "/all-users-activity",
-        label: "All Users Activity",
-        icon: Activity,
-      },
-      (canView("lead") || canView("user") || canView("builder") || canView("agent")) && {
-        path: "/lead-capture",
-        label: "User Journey",
-        icon: SalesManagerIcon,
-      },
       (canView("project") || propertyAccess) && {
         path: "/property-progress",
         label: "Property Progress",
@@ -666,17 +665,14 @@ export default function Sidebar({
       },
       canView("location") && { path: "/locations", label: "Locations", icon: LocationsIcon },
       canView("ticket") && { path: "/tickets", label: "Tickets", icon: Ticket },
-      operationsChildren.length && {
+      // Ops tools open from horizontal strip — sidebar only keeps one Operations entry.
+      (operationsChildren.length || accessControlChildren.length) && {
+        path:
+          accessControlChildren.find((c) => c.path)?.path ||
+          operationsChildren.find((c) => c.path)?.path ||
+          "/propenu-team-members",
         label: "Operations",
         icon: Briefcase,
-        key: "permission-operations",
-        children: operationsChildren,
-      },
-      accessControlChildren.length && {
-        label: "Access Control",
-        icon: Shield,
-        key: "permission-access-control",
-        children: accessControlChildren,
       },
       userChildren.length && {
         label: "Users",
@@ -720,12 +716,10 @@ export default function Sidebar({
           icon: DashboardIcon,
           key: "dashboard",
           children: [
-            { path: "/", label: "Dashboard", icon: DashboardIcon },
+            { path: "/", label: "Overview", icon: DashboardIcon },
             { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
             { path: "/properties", label: "Properties", icon: PropertiesIcon },
             { path: "/leads", label: "Lead Management", icon: UsersRound },
-            { path: "/all-users-activity", label: "All Users Activity", icon: Activity },
-            { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
             {
               path: "/property-progress",
               label: "Property Progress",
@@ -737,49 +731,11 @@ export default function Sidebar({
         },
         { path: "/home-loans", label: "Home Loans", icon: Landmark },
 
+        // Children live in the horizontal Operations strip (no sidebar scroll list).
         {
+          path: "/access-control/roles/new",
           label: "Operations",
           icon: Briefcase,
-          key: "Operations",
-          children: [
-            {
-              path: "/access-control/roles/new",
-              label: "Create Role & Access",
-              icon: Shield,
-            },
-            {
-              path: "/access-control/credentials/new",
-              label: "Create Credentials",
-              icon: KeyRound,
-            },
-            {
-              path: "/access-control/users",
-              label: "User Permissions",
-              icon: FileText,
-            },
-            {
-              path: "/propenu-team-members",
-              label: "Team Directory",
-              icon: AllUsersIcon,
-            },
-            {
-              path: "/dashboard/team-management",
-              label: "Team Management",
-              icon: TeamManagementIcon,
-            },
-            {
-              label: "Transfer Credentials",
-              icon: CreateCredentialsIcon,
-              key: "transfer-credentials",
-              action: "openTranforCredentialsModal",
-            },
-            {
-              label: "Assign Reports To",
-              icon: AgentIcon,
-              key: "assign-agent",
-              action: "openAssignAgentModal",
-            },
-          ],
         },
 
         {
@@ -788,10 +744,8 @@ export default function Sidebar({
           key: "Users",
           children: [
             { path: "/users", label: "All Users", icon: AllUsersIcon },
-            { path: "/builders", label: "Builders", icon: BuilderIcon },
-            { path: "/builder-staff", label: "Builder Staff", icon: SalesAgentIcon },
-            { path: "/all-agents", label: "Agents", icon: AgentIcon },
-            { path: "/owners", label: "Owners", icon: OwnerIcon },
+            { path: "/all-users-activity", label: "All Users Activity", icon: Activity },
+            { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
           ],
         },
 
@@ -940,8 +894,6 @@ export default function Sidebar({
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         { path: "/leads", label: "Lead Management", icon: UsersRound },
-        { path: "/all-users-activity", label: "All Users Activity", icon: Activity },
-        { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
         {
           path: "/property-progress",
           label: "Property Progress",
@@ -950,33 +902,9 @@ export default function Sidebar({
         { path: "/tickets", label: "Tickets", icon: Ticket },
 
         {
+          path: "/propenu-team-members",
           label: "Operations",
           icon: Briefcase,
-          key: "Operations",
-          children: [
-            {
-              path: "/propenu-team-members",
-              label: "Team Directory",
-              icon: AllUsersIcon,
-            },
-            {
-              path: "/dashboard/team-management",
-              label: "Team Management",
-              icon: TeamManagementIcon,
-            },
-            {
-              label: "Transfer Credentials",
-              icon: CreateCredentialsIcon,
-              key: "transfer-credentials",
-              action: "openTranforCredentialsModal",
-            },
-            {
-              label: "Assign Reports To",
-              icon: AgentIcon,
-              key: "assign-agent",
-              action: "openAssignAgentModal",
-            },
-          ],
         },
 
         {
@@ -985,10 +913,8 @@ export default function Sidebar({
           key: "Users",
           children: [
             { path: "/users", label: "All Users", icon: AllUsersIcon },
-            { path: "/builders", label: "Builders", icon: BuilderIcon },
-            { path: "/builder-staff", label: "Builder Staff", icon: SalesAgentIcon },
-            { path: "/all-agents", label: "Agents", icon: AgentIcon },
-            { path: "/owners", label: "Owners", icon: OwnerIcon },
+            { path: "/all-users-activity", label: "All Users Activity", icon: Activity },
+            { path: "/lead-capture", label: "User Journey", icon: SalesManagerIcon },
           ],
         },
 
@@ -1211,38 +1137,9 @@ export default function Sidebar({
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
         { path: "/tickets", label: "Tickets", icon: Ticket },
         {
+          path: "/sales-managers",
           label: "Operations",
           icon: Briefcase,
-          key: "Operations",
-          children: [
-            {
-              path: "/sales-managers",
-              label: "Sales Managers",
-              icon: SalesManagerIcon,
-            },
-            {
-              path: "/sales-agents",
-              label: "Sales Executives",
-              icon: SalesAgentIcon,
-            },
-            {
-              path: "/relationship-managers",
-              label: "Relationship Managers",
-              icon: SalesManagerIcon,
-            },
-            {
-              label: "Transfer Credentials",
-              icon: CreateCredentialsIcon,
-              key: "transfer-credentials",
-              action: "openTranforCredentialsModal",
-            },
-            {
-              label: "Assign Reports To",
-              icon: AgentIcon,
-              key: "assign-agent",
-              action: "openAssignAgentModal",
-            },
-          ],
         },
       ],
       accounts: [
@@ -1350,8 +1247,11 @@ export default function Sidebar({
         { path: "/operations/reports", label: "Reports", icon: RevenueByPlanIcon },
         { path: "/projects", label: "Projects", icon: FeaturedProjetsIcon },
         { path: "/properties", label: "Properties", icon: PropertiesIcon },
-        { path: "/propenu-team-members", label: "Team Directory", icon: AllUsersIcon },
-        { path: "/dashboard/team-management", label: "Team Management", icon: TeamManagementIcon },
+        {
+          path: "/propenu-team-members",
+          label: "Operations",
+          icon: Briefcase,
+        },
         { path: "/tickets", label: "Tickets", icon: Ticket },
         { path: "/leads", label: "Leads", icon: Activity },
         { path: "/locations", label: "Locations", icon: LocationsIcon },
@@ -1389,11 +1289,26 @@ export default function Sidebar({
     );
     return SIDEBAR_ROLE_ALIASES[raw] || raw;
   })();
-  const menuItems = user
+  // Build the existing role/permission menu first, then scope it by top-nav workspace.
+  // This keeps all ready-to-push Main Admin menus intact — we only filter/swap at the end.
+  const rawMenuItems = user
     ? user.roleName === "super_admin" || sidebarRoleKey === "super_admin"
       ? getMenuByRole("super_admin")
       : getPermissionMenu(user.permissions || [])
     : [];
+  // Projects / Properties → focused sidebar. Main Desk → full menu minus those (already in nav tabs).
+  const menuItems = (() => {
+    if (workspaceId !== "main") {
+      return buildWorkspaceMenu(rawMenuItems, workspaceId);
+    }
+    if (
+      inventory?.inventoryKind === "projects" ||
+      inventory?.inventoryKind === "properties"
+    ) {
+      return getInventoryKindMenu(inventory.inventoryKind);
+    }
+    return filterMainDeskMenu(buildWorkspaceMenu(rawMenuItems, workspaceId));
+  })();
   const showText  = expanded || isMobileOpen;
   const sidebarClosed = !showText;
   const activePageLabel = findActiveMenuLabel(
@@ -1586,6 +1501,7 @@ export default function Sidebar({
       (isInventory || isAccount || isFollowUp) && Number(badge?.primary || 0) > 0;
     // Clear badge on click (even if already on same route with different query)
     requestSidebarPathAck(path);
+    closeMobileIfNeeded();
     if (hasToday && isAccount) {
       navigate(accountTodayHref(path));
       return;
@@ -1605,6 +1521,12 @@ export default function Sidebar({
           })
         : path,
     );
+  };
+
+  const navigateAndCloseMobile = (path) => {
+    if (!path) return;
+    closeMobileIfNeeded();
+    navigate(path);
   };
 
   const sidebarBadge = (item) => {
@@ -1748,11 +1670,15 @@ export default function Sidebar({
         className={`
           fixed left-0 z-50 flex flex-col bg-white
           transition-[width] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
+          lg:top-16 lg:h-[calc(100vh-4rem)]
+          ${
+            isOperationsPath(location.pathname)
+              ? "top-14 h-[calc(100vh-3.5rem)]"
+              : "top-32 h-[calc(100vh-8rem)]"
+          }
           ${isMobileOpen ? "translate-x-0" : "lg:translate-x-0 -translate-x-full"}
         `}
         style={{
-          top:         "64px",
-          height:      "calc(100vh - 64px)",
           width:       expanded || isMobileOpen ? S.expandedW : S.collapsedW,
           borderRight: "1px solid #e8f5e9",
           boxShadow:   "2px 0 10px rgba(39,174,96,0.06)",
@@ -1895,7 +1821,7 @@ export default function Sidebar({
                                 <CollapsePanel open={!!openMenus[child.key]}>
                                   <SubChildren
                                     items={child.children}
-                                    navigate={navigate}
+                                    navigate={navigateAndCloseMobile}
                                     isActiveRoute={isActiveRoute}
                                   />
                                 </CollapsePanel>

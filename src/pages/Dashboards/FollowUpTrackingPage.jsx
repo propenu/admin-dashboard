@@ -35,6 +35,7 @@ import {
 import FollowUpInventoryWorkspace from "./followUpTracking/FollowUpInventoryWorkspace";
 import HomeLoanQueueWorkspace from "./followUpTracking/HomeLoanQueueWorkspace";
 import AssignedUserActivityPanel from "./followUpTracking/AssignedUserActivityPanel";
+import ClientPaymentLinkPanel from "./followUpTracking/ClientPaymentLinkPanel";
 import FollowUpWorkStatusSelect, {
   followUpWorkLabel,
   normalizeFollowUpWorkStatus,
@@ -1645,7 +1646,9 @@ export default function FollowUpTrackingPage() {
             <header className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5">
               <div>
                 <p className="text-xs font-bold text-slate-900">Person details</p>
-                <p className="text-[10px] text-slate-500">CCE follow-up snapshot</p>
+                <p className="text-[10px] text-slate-500">
+                  Follow-up · payment link · activity
+                </p>
               </div>
               {selectedUser ? (
                 <button
@@ -1718,6 +1721,17 @@ export default function FollowUpTrackingPage() {
                     Journey stage stays separate.
                   </p>
                 </div>
+                <ClientPaymentLinkPanel
+                  userId={userIdOf(selectedUser)}
+                  roleName={
+                    selectedUser.roleName ||
+                    selectedUser.role ||
+                    selectedUser.roleId?.name ||
+                    selectedUser.roleId?.label
+                  }
+                  customerName={selectedUser.name}
+                  customerPhone={selectedUser.phone}
+                />
                 <div className="rounded-xl border border-slate-100 bg-white p-2.5">
                   <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">
                     Property completion

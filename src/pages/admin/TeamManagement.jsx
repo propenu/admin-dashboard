@@ -208,31 +208,21 @@ export default function TeamManagement() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/40 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
-        <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-700">
-              Operations · Team Management
-            </p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+        <header className="mb-6 flex items-center justify-between gap-3 lg:items-end">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
               Role work center
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              Select a role. See what they do and their people — <strong>work stays on this page</strong> (scroll + View all).
-              {me?.roleName ? (
-                <span className="mt-1 block text-xs font-semibold text-slate-500">
-                  Logged in as {labelFor({ name: me.roleName })}
-                  {me.state ? ` · ${[me.locality, me.city, me.state].filter(Boolean).join(", ")}` : ""}
-                </span>
-              ) : null}
-            </p>
           </div>
           <button
             type="button"
             onClick={() => refetch()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-800"
+            title="Refresh team data"
+            aria-label="Refresh team data"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-800 sm:inline-flex sm:h-auto sm:w-auto sm:items-center sm:justify-center sm:gap-2 sm:px-4 sm:py-2.5 sm:text-xs sm:font-bold"
           >
             <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
-            Refresh team data
+            <span className="hidden sm:inline">Refresh team data</span>
           </button>
         </header>
 

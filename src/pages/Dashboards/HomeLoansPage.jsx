@@ -82,6 +82,24 @@ const statusClass = (status) => {
   return "bg-slate-100 text-slate-600";
 };
 
+const roleBadgeClass = (roleName, roleLabel) => {
+  const key = String(roleName || roleLabel || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_");
+  if (key === "user" || key === "owner" || roleLabel === "Owner") {
+    return "bg-emerald-50 text-emerald-800 ring-emerald-100";
+  }
+  if (key === "builder" || roleLabel === "Builder") {
+    return "bg-violet-50 text-violet-800 ring-violet-100";
+  }
+  if (key === "agent" || roleLabel === "Agent") {
+    return "bg-sky-50 text-sky-800 ring-sky-100";
+  }
+  if (key.includes("sales")) return "bg-indigo-50 text-indigo-800 ring-indigo-100";
+  return "bg-slate-100 text-slate-700 ring-slate-200";
+};
+
 const locationLabel = (user) => {
   if (!user) return "No account location";
   const parts = [user.locality, user.city, user.state].filter(Boolean);
@@ -270,6 +288,16 @@ export default function HomeLoansPage() {
                           <p className="text-[11px] text-slate-500">
                             {row.user?.accountStep || "No account yet"}
                           </p>
+                          {row.kind === "existing" ? (
+                            <span
+                              className={`mt-1 inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ring-1 ring-inset ${roleBadgeClass(
+                                row.user?.roleName || "user",
+                                row.user?.roleLabel || "Owner",
+                              )}`}
+                            >
+                              {row.user?.roleLabel || "Owner"}
+                            </span>
+                          ) : null}
                         </td>
                         <td className="border-t border-slate-100 px-3 py-2.5">
                           <p className="text-xs font-semibold capitalize text-slate-800">

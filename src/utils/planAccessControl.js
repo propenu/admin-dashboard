@@ -60,6 +60,7 @@ export const getPlanAccess = (user) => ({
   canActivate: hasPermission(user, "plan:activate"),
   canDeactivate: hasPermission(user, "plan:deactivate"),
   canAssign: hasPermission(user, "plan:assign"),
+  canDeleteHistory: hasPermission(user, "plan:delete_history"),
 });
 
 export const getBuilderInvoiceAccess = (user) => ({

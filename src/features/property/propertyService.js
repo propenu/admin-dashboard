@@ -122,6 +122,14 @@ export const promoteProjectWithRank = (id, data) =>
 export const getProjectPlanStatus = (id) =>
   apiClient.get(`${BASE}/${id}/plan-status`).then((res) => res.data?.data || null);
 
+/** Make a cancelled (paid, not expired) invoice usable for promotion again. */
+export const reuseProjectPlanInvoice = (id, invoiceId) =>
+  apiClient.post(`${BASE}/${id}/plan-invoice/reuse`, { invoiceId }).then((res) => res.data);
+
+/** Renew the plan promotion with an invoice the project already paid for. */
+export const renewProjectWithInvoice = (id, invoiceId) =>
+  apiClient.post(`${BASE}/${id}/plan-invoice/renew`, { invoiceId }).then((res) => res.data);
+
 /** Project card mode: "auto" (plan drives it) or "manual" (Direct). */
 export const setProjectPromotionMode = (id, mode, confirmReplace = false) =>
   apiClient.patch(`${BASE}/${id}/promotion-mode`, { mode, confirmReplace });

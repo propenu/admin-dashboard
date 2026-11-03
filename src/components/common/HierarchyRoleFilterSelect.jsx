@@ -1,4 +1,5 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search, ShieldCheck } from "lucide-react";
 
 const DEPTH_STYLE = [
@@ -37,8 +38,11 @@ const DEPTH_STYLE = [
 const depthStyle = (depth = 0) =>
   DEPTH_STYLE[Math.min(Math.max(depth, 0), DEPTH_STYLE.length - 1)];
 
+const MENU_MAX_H = 320;
+
 /**
  * Colorful hierarchy role dropdown with search + tree depth colors.
+ * Menu is portaled + fixed so it is not clipped by overflow:hidden parents.
  */
 export default function HierarchyRoleFilterSelect({
   label = "Filter by role",
@@ -61,7 +65,10 @@ export default function HierarchyRoleFilterSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [menuPos, setMenuPos] = useState(null);
   const rootRef = useRef(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
   const searchRef = useRef(null);
 
   const minDepth = useMemo(
@@ -93,13 +100,61 @@ export default function HierarchyRoleFilterSelect({
   // Defer heavy list paint while typing so the search input stays snappy.
   const deferredFiltered = useDeferredValue(filtered);
 
+  const updateMenuPosition = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const gap = 6;
+    const width = Math.min(
+      Math.max(rect.width, 280),
+      Math.min(360, window.innerWidth - 16),
+    );
+    const spaceBelow = window.innerHeight - rect.bottom - gap - 8;
+    const spaceAbove = rect.top - gap - 8;
+    const openUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(
+      160,
+      Math.min(MENU_MAX_H, openUp ? spaceAbove : spaceBelow),
+    );
+    let left = rect.left;
+    if (left + width > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - width - 8);
+    }
+
+    setMenuPos({
+      left,
+      width,
+      maxHeight,
+      ...(openUp
+        ? { bottom: window.innerHeight - rect.top + gap, top: "auto" }
+        : { top: rect.bottom + gap, bottom: "auto" }),
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return undefined;
+    }
+    updateMenuPosition();
+    const onReposition = () => updateMenuPosition();
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
+    return () => {
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) {
       setQuery("");
       return undefined;
     }
     const onDoc = (event) => {
-      if (!rootRef.current?.contains(event.target)) setOpen(false);
+      const t = event.target;
+      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
     const onKey = (event) => {
       if (event.key === "Escape") setOpen(false);
@@ -114,44 +169,23 @@ export default function HierarchyRoleFilterSelect({
     };
   }, [open]);
 
-  return (
-    <div ref={rootRef} className={`relative z-30 min-w-0 ${className}`}>
-      <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-        {label}
-      </span>
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className={`flex h-10 w-full items-center gap-2 rounded-xl border bg-white py-2 pl-3 pr-2.5 text-left text-[13px] font-semibold transition duration-200 outline-none focus:ring-4 focus:ring-[#12A150]/15 ${
-          open || value
-            ? "border-[#12A150] shadow-md shadow-emerald-600/15 text-[#101820]"
-            : "border-[#d9ebe0] hover:border-[#12A150]/50 hover:shadow-sm text-[#101820]"
-        }`}
-      >
-        <span
-          className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition duration-200 ${
-            open || value
-              ? "bg-[#12A150] text-white shadow-sm shadow-emerald-600/30"
-              : "bg-[#EAF8F0] text-[#12A150]"
-          }`}
+  const menu = open && menuPos
+    ? createPortal(
+        <div
+          ref={menuRef}
+          role="listbox"
+          aria-label={label}
+          className="overflow-hidden rounded-xl border border-[#d9ebe0] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.18)]"
+          style={{
+            position: "fixed",
+            zIndex: 2000,
+            left: menuPos.left,
+            width: menuPos.width,
+            top: menuPos.top,
+            bottom: menuPos.bottom,
+            maxHeight: menuPos.maxHeight,
+          }}
         >
-          <ShieldCheck size={14} strokeWidth={2.25} />
-        </span>
-        <span className={`min-w-0 flex-1 truncate ${selected ? "" : "text-slate-400"}`}>
-          {selected ? getLabel(selected) : allLabel}
-        </span>
-        <ChevronDown
-          size={16}
-          className={`shrink-0 text-slate-400 transition-transform duration-300 ${
-            open ? "rotate-180 text-[#12A150]" : ""
-          }`}
-        />
-      </button>
-
-      {open ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-xl border border-[#d9ebe0] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.14)] motion-safe:animate-[tlFadeUp_180ms_ease-out] sm:min-w-[340px]">
           <div className="border-b border-[#e8f2ec] bg-[#F6FBF8] p-2">
             <div className="relative">
               <Search
@@ -171,7 +205,10 @@ export default function HierarchyRoleFilterSelect({
             </div>
           </div>
 
-          <div className="max-h-80 overflow-y-auto p-1.5">
+          <div
+            className="overflow-y-auto overscroll-contain p-1.5"
+            style={{ maxHeight: Math.max(120, menuPos.maxHeight - 56) }}
+          >
             <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               {emptyHint}
             </div>
@@ -283,8 +320,49 @@ export default function HierarchyRoleFilterSelect({
               </p>
             )}
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div ref={rootRef} className={`relative z-30 min-w-0 ${className}`}>
+      <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+        {label}
+      </span>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={`flex h-10 w-full items-center gap-2 rounded-xl border bg-white py-2 pl-3 pr-2.5 text-left text-[13px] font-semibold transition duration-200 outline-none focus:ring-4 focus:ring-[#12A150]/15 ${
+          open || value
+            ? "border-[#12A150] shadow-md shadow-emerald-600/15 text-[#101820]"
+            : "border-[#d9ebe0] hover:border-[#12A150]/50 hover:shadow-sm text-[#101820]"
+        }`}
+      >
+        <span
+          className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition duration-200 ${
+            open || value
+              ? "bg-[#12A150] text-white shadow-sm shadow-emerald-600/30"
+              : "bg-[#EAF8F0] text-[#12A150]"
+          }`}
+        >
+          <ShieldCheck size={14} strokeWidth={2.25} />
+        </span>
+        <span className={`min-w-0 flex-1 truncate ${selected ? "" : "text-slate-400"}`}>
+          {selected ? getLabel(selected) : allLabel}
+        </span>
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-slate-400 transition-transform duration-300 ${
+            open ? "rotate-180 text-[#12A150]" : ""
+          }`}
+        />
+      </button>
+
+      {menu}
     </div>
   );
 }

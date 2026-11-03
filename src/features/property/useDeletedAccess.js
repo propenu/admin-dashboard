@@ -34,5 +34,7 @@ export function useDeletedAccess() {
     propertyLeads: access?.propertyLeads || NO_AREA,
     projects: access?.projects || NO_AREA,
     projectLeads: access?.projectLeads || NO_AREA,
+    editedSubscriptions: access?.editedSubscriptions || NO_AREA,
+    deletedSubscriptions: access?.deletedSubscriptions || NO_AREA,
   };
 }

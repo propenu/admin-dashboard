@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, ChevronLeft, ChevronRight, Home, Loader2, ShieldCheck, Users, X } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, Home, Loader2, Pencil, ShieldCheck, Trash2, Users, X } from "lucide-react";
 import {
   getDeletedAccessHistory,
   updateDeletedAccess,
@@ -33,6 +33,31 @@ const GROUP_AREAS = {
     { key: "projects", label: "Deleted projects", detail: "Deleted projects page", Icon: Building2 },
     { key: "projectLeads", label: "Deleted project leads", detail: "Deleted project leads page", Icon: Users },
   ],
+  subscriptions: [
+    { key: "editedSubscriptions", label: "Edited subscriptions", detail: "Plan created / edited history page", Icon: Pencil },
+    { key: "deletedSubscriptions", label: "Deleted subscriptions", detail: "Deleted plans history page", Icon: Trash2 },
+  ],
+};
+
+const GROUP_COPY = {
+  properties: {
+    eyebrow: "Deleted access",
+    title: "Deleted property pages",
+    heads: "Turn on to let all heads view deleted pages. Heads can then share view access with their own team. Only Super Admin can permanently delete.",
+    team: "Turn on to let staff who report to you view these deleted pages. View only — no one except Super Admin can permanently delete.",
+  },
+  projects: {
+    eyebrow: "Deleted access",
+    title: "Deleted project pages",
+    heads: "Turn on to let all heads view deleted pages. Heads can then share view access with their own team. Only Super Admin can permanently delete.",
+    team: "Turn on to let staff who report to you view these deleted pages. View only — no one except Super Admin can permanently delete.",
+  },
+  subscriptions: {
+    eyebrow: "History access",
+    title: "Subscription change history",
+    heads: "Turn on to let all heads open the subscription history pages. Heads can then share view access with their own team. Only Super Admin can permanently delete history.",
+    team: "Turn on to let staff who report to you open these history pages. View only — no one except Super Admin can permanently delete.",
+  },
 };
 
 const AREA_LABELS = {
@@ -40,6 +65,8 @@ const AREA_LABELS = {
   propertyLeads: "Deleted property leads",
   projects: "Deleted projects",
   projectLeads: "Deleted project leads",
+  editedSubscriptions: "Edited subscriptions",
+  deletedSubscriptions: "Deleted subscriptions",
 };
 
 function Switch({ on, busy, disabled, onChange }) {
@@ -66,6 +93,7 @@ function Switch({ on, busy, disabled, onChange }) {
 
 export default function DeletedAccessPanel({ group = "properties", onClose }) {
   const areas = GROUP_AREAS[group] || GROUP_AREAS.properties;
+  const copy = GROUP_COPY[group] || GROUP_COPY.properties;
   const areaKeys = areas.map((area) => area.key);
   const queryClient = useQueryClient();
   const { access, level } = useDeletedAccess();
@@ -107,24 +135,20 @@ export default function DeletedAccessPanel({ group = "properties", onClose }) {
       <button
         type="button"
         className="absolute inset-0 cursor-default"
-        aria-label="Close deleted access"
+        aria-label={`Close ${copy.eyebrow.toLowerCase()}`}
         onClick={onClose}
       />
       <aside className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-600">Deleted access</p>
-            <h2 className="mt-1 text-lg font-bold text-slate-900">
-              {group === "projects" ? "Deleted project pages" : "Deleted property pages"}
-            </h2>
+            <p className={`text-[10px] font-bold uppercase tracking-[0.18em] ${group === "subscriptions" ? "text-[#219653]" : "text-rose-600"}`}>
+              {copy.eyebrow}
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-slate-900">{copy.title}</h2>
             <p className="mt-0.5 text-xs font-semibold text-slate-600">
               {isSuperAdmin ? "Access for all heads" : "Access for my team"}
             </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {isSuperAdmin
-                ? "Turn on to let all heads view deleted pages. Heads can then share view access with their own team. Only Super Admin can permanently delete."
-                : "Turn on to let staff who report to you view these deleted pages. View only — no one except Super Admin can permanently delete."}
-            </p>
+            <p className="mt-1 text-xs text-slate-500">{isSuperAdmin ? copy.heads : copy.team}</p>
           </div>
           <button
             type="button"

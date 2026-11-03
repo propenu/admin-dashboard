@@ -129,21 +129,24 @@ export const useUserFeaturedProjects = (
   });
 
 export const useUserFeaturedProjectCounts = (userId) => {
-  const featured = useUserFeaturedProjects(userId, "featured", 1, 1);
-  const prime = useUserFeaturedProjects(userId, "prime", 1, 1);
+  const allProjects = useUserFeaturedProjects(userId, "", 1, 1);
+  const primeOnly = useUserFeaturedProjects(userId, "prime_only", 1, 1);
+  const primeSponsored = useUserFeaturedProjects(userId, "prime_sponsored", 1, 1);
+  const featuredOnly = useUserFeaturedProjects(userId, "featured_only", 1, 1);
+  const featuredSponsored = useUserFeaturedProjects(userId, "featured_sponsored", 1, 1);
+  const sponsoredOnly = useUserFeaturedProjects(userId, "sponsored_only", 1, 1);
   const normal = useUserFeaturedProjects(userId, "normal", 1, 1);
-  const sponsored = useUserFeaturedProjects(userId, "sponsored", 1, 1);
   const totalOf = (query) => Number(query.data?.meta?.total) || 0;
+  const all = [allProjects, primeOnly, primeSponsored, featuredOnly, featuredSponsored, sponsoredOnly, normal];
   return {
-    featured: totalOf(featured),
-    prime: totalOf(prime),
+    all: totalOf(allProjects),
+    prime_only: totalOf(primeOnly),
+    prime_sponsored: totalOf(primeSponsored),
+    featured_only: totalOf(featuredOnly),
+    featured_sponsored: totalOf(featuredSponsored),
+    sponsored_only: totalOf(sponsoredOnly),
     normal: totalOf(normal),
-    sponsored: totalOf(sponsored),
-    isLoading:
-      featured.isLoading ||
-      prime.isLoading ||
-      normal.isLoading ||
-      sponsored.isLoading,
+    isLoading: all.some((query) => query.isLoading),
   };
 };
 
