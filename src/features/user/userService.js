@@ -542,6 +542,21 @@ export const sendWhatsAppInboxMessage = (waId, text) => {
   );
 };
 
+export const sendWhatsAppInboxMedia = (waId, { file, caption = "" }) => {
+  const form = new FormData();
+  if (file) form.append("file", file);
+  if (caption) form.append("text", caption);
+  return apiClient.post(
+    `${SERVICES.USER}/whatsapp/inbox/conversations/${encodeURIComponent(waId)}/messages`,
+    form,
+    {
+      timeout: 120000,
+      // Let the browser set multipart boundary.
+      headers: { "Content-Type": undefined },
+    },
+  );
+};
+
 export const markWhatsAppInboxRead = (waId) => {
   return apiClient.post(
     `${SERVICES.USER}/whatsapp/inbox/conversations/${encodeURIComponent(waId)}/read`,

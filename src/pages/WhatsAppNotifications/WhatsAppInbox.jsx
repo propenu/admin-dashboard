@@ -35,6 +35,7 @@ import {
   markWhatsAppInboxRead,
   registerWhatsAppInboxWebhook,
   searchWhatsAppInboxAssignableAgents,
+  sendWhatsAppInboxMedia,
   sendWhatsAppInboxMessage,
   startWhatsAppInboxConversation,
   subscribeWhatsAppInboxStream,
@@ -601,6 +602,8 @@ export default function WhatsAppInbox({ embedded = false }) {
   const [activeConversation, setActiveConversation] = useState(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [draft, setDraft] = useState("");
+  const [attachFile, setAttachFile] = useState(null);
+  const [attachPreviewUrl, setAttachPreviewUrl] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [showNewChat, setShowNewChat] = useState(false);
@@ -622,6 +625,7 @@ export default function WhatsAppInbox({ embedded = false }) {
   const [failureDetail, setFailureDetail] = useState(null);
   const [retryingMsgId, setRetryingMsgId] = useState("");
   const bottomRef = useRef(null);
+  const fileInputRef = useRef(null);
   const activeWaIdRef = useRef(null);
   const searchRef = useRef(search);
   const agentSearchSeq = useRef(0);
@@ -1111,9 +1115,36 @@ export default function WhatsAppInbox({ embedded = false }) {
     setAgentQuery("");
   };
 
+  const clearAttachFile = () => {
+    setAttachFile(null);
+    setAttachPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return "";
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleAttachPick = (event) => {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+    const maxBytes = 20 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setError("File is too large. Max 20MB.");
+      clearAttachFile();
+      return;
+    }
+    setError("");
+    setAttachFile(file);
+    setAttachPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file.type?.startsWith("image/") ? URL.createObjectURL(file) : "";
+    });
+  };
+
   const handleSend = async (event) => {
     event?.preventDefault?.();
-    if (!activeWaId || !draft.trim() || sending) return;
+    if (!activeWaId || sending) return;
+    if (!attachFile && !draft.trim()) return;
     const conv =
       activeConversation ||
       conversations.find((c) => c.waId === activeWaId) ||
@@ -1125,17 +1156,27 @@ export default function WhatsAppInbox({ embedded = false }) {
       return;
     }
     const text = draft.trim();
+    const file = attachFile;
     setDraft("");
+    clearAttachFile();
     setSending(true);
     setError("");
     try {
-      const res = await sendWhatsAppInboxMessage(activeWaId, text);
+      const res = file
+        ? await sendWhatsAppInboxMedia(activeWaId, { file, caption: text })
+        : await sendWhatsAppInboxMessage(activeWaId, text);
       const message = res?.data?.data || res?.data;
       if (message) setMessages((prev) => [...prev, message]);
       else await loadMessages(activeWaId, { silent: true });
       await loadConversations(search);
     } catch (err) {
       setDraft(text);
+      if (file) {
+        setAttachFile(file);
+        setAttachPreviewUrl(
+          file.type?.startsWith("image/") ? URL.createObjectURL(file) : "",
+        );
+      }
       const apiMsg =
         err?.response?.data?.message || err?.message || "Send failed";
       setError(apiMsg);
@@ -1228,6 +1269,7 @@ export default function WhatsAppInbox({ embedded = false }) {
     setActiveWaId(id);
     setActiveConversation(chat);
     setError("");
+    clearAttachFile();
   };
   const isAssignedToMe = Boolean(
     meId && assignedAgentId && meId === assignedAgentId,
@@ -1670,39 +1712,83 @@ export default function WhatsAppInbox({ embedded = false }) {
             {canReply ? (
               <form
                 onSubmit={handleSend}
-                className="px-3 py-2.5 flex items-center gap-2 bg-white border-t border-gray-200 shrink-0"
+                className="px-3 py-2.5 flex flex-col gap-2 bg-white border-t border-gray-200 shrink-0"
               >
-                <button
-                  type="button"
-                  className="w-9 h-9 rounded-full text-gray-400 hover:bg-gray-50 flex items-center justify-center"
-                  title="Emoji"
-                >
-                  <Smile size={18} />
-                </button>
-                <button
-                  type="button"
-                  className="w-9 h-9 rounded-full text-gray-400 hover:bg-gray-50 flex items-center justify-center"
-                  title="Attach"
-                >
-                  <Paperclip size={18} />
-                </button>
-                <input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder="Type a reply"
-                  className="flex-1 rounded-full bg-gray-50 border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#25D366] focus:bg-white"
-                />
-                <button
-                  type="submit"
-                  disabled={!draft.trim() || sending}
-                  className="w-11 h-11 rounded-full bg-[#25D366] text-white flex items-center justify-center disabled:opacity-50 hover:bg-[#1EAF54] transition shadow-sm"
-                >
-                  {sending ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <Send size={18} />
-                  )}
-                </button>
+                {attachFile ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 px-2.5 py-2">
+                    {attachPreviewUrl ? (
+                      <img
+                        src={attachPreviewUrl}
+                        alt="Attachment preview"
+                        className="h-12 w-12 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-[#027a48]">
+                        <FileText size={18} />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-slate-700">
+                        {attachFile.name}
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        {(attachFile.size / 1024).toFixed(0)} KB · ready to send
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearAttachFile}
+                      className="rounded-full p-1.5 text-slate-400 hover:bg-white hover:text-slate-700"
+                      title="Remove attachment"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : null}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="w-9 h-9 rounded-full text-gray-400 hover:bg-gray-50 flex items-center justify-center"
+                    title="Emoji"
+                  >
+                    <Smile size={18} />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx,.xls,.xlsx,video/mp4,audio/*"
+                    className="hidden"
+                    onChange={handleAttachPick}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={sending}
+                    className="w-9 h-9 rounded-full text-gray-400 hover:bg-gray-50 hover:text-[#128C7E] flex items-center justify-center disabled:opacity-50"
+                    title="Attach image or document"
+                  >
+                    <Paperclip size={18} />
+                  </button>
+                  <input
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    placeholder={
+                      attachFile ? "Add a caption (optional)" : "Type a reply"
+                    }
+                    className="flex-1 rounded-full bg-gray-50 border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-[#25D366] focus:bg-white"
+                  />
+                  <button
+                    type="submit"
+                    disabled={(!draft.trim() && !attachFile) || sending}
+                    className="w-11 h-11 rounded-full bg-[#25D366] text-white flex items-center justify-center disabled:opacity-50 hover:bg-[#1EAF54] transition shadow-sm"
+                  >
+                    {sending ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Send size={18} />
+                    )}
+                  </button>
+                </div>
               </form>
             ) : (
               <div className="px-4 py-3 bg-[#f7f8fa] border-t border-gray-200 text-center shrink-0">
