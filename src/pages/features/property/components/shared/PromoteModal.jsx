@@ -146,7 +146,7 @@ const SECTION_INNER_CARD = "border-emerald-200 bg-gradient-to-br from-emerald-50
 
 function Section({ step, title, hint, done, children }) {
   return (
-    <section className="rounded-2xl bg-white p-4">
+    <section>
       <div className="mb-3 flex items-start gap-3">
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold shadow-sm ${
@@ -668,7 +668,7 @@ export default function PromoteModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+        <div className="flex-1 space-y-6 overflow-y-auto px-5 py-4">
           {!projectIsApproved && (
             <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
