@@ -862,6 +862,7 @@ export default function PromoteModal({
                   subtitle={planMode ? `Only for the Sponsored ad. Independent of the ${mainLabel} list.` : ""}
                   accentClass={SECTION_INNER_CARD}
                   showRefresh={false}
+                  defaultAllIndia
                   hideEmptySummary={!planMode}
                 />
               )}
@@ -875,6 +876,7 @@ export default function PromoteModal({
                   subtitle={planMode ? "Tick states, cities or localities for the Sponsored ad." : ""}
                   accentClass={SECTION_INNER_CARD}
                   showRefresh={false}
+                  defaultAllIndia
                   hideEmptySummary={!planMode}
                 />
               )}

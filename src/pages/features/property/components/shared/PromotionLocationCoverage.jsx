@@ -71,6 +71,18 @@ function CheckboxRow({ checked, onChange, label }) {
  * Promotion location coverage — uses ONLY Locations page saved data
  * (same auth API as /locations). Refetches when modal opens / cache invalidated.
  */
+function selectEverything(hierarchy) {
+  const states = Object.keys(hierarchy).sort((a, b) => a.localeCompare(b));
+  const cities = {};
+  const locs = {};
+  for (const st of states) {
+    const byCity = hierarchy[st] || {};
+    cities[st] = Object.keys(byCity).sort((a, b) => a.localeCompare(b));
+    locs[st] = Object.fromEntries(cities[st].map((c) => [c, [...(byCity[c] || [])]]));
+  }
+  return { states, cities, locs };
+}
+
 export default function PromotionLocationCoverage({
   enabled = true,
   value,
@@ -80,6 +92,7 @@ export default function PromotionLocationCoverage({
   accentClass = "border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-sky-50/60",
   hideEmptySummary = false,
   showRefresh = true,
+  defaultAllIndia = false,
 }) {
   const [stateQuery, setStateQuery] = useState("");
   const [cityQueryByState, setCityQueryByState] = useState({});
@@ -91,6 +104,7 @@ export default function PromotionLocationCoverage({
   const [selectedCitiesByState, setSelectedCitiesByState] = useState({});
   const [selectedLocalitiesByCity, setSelectedLocalitiesByCity] = useState({});
   const hydratedKeyRef = useRef("");
+  const collapseNextHydrateRef = useRef(false);
   const [maximized, setMaximized] = useState(false);
 
   // Esc leaves full view without closing the surrounding promote panel.
@@ -158,11 +172,13 @@ export default function PromotionLocationCoverage({
         nextExpandedCities[`${st}||${city}`] = true;
       }
     }
+    const collapse = collapseNextHydrateRef.current;
+    collapseNextHydrateRef.current = false;
     setSelectedStates(nextStates);
     setSelectedCitiesByState(nextCities);
     setSelectedLocalitiesByCity(nextLocs);
-    setExpandedStates(nextExpandedStates);
-    setExpandedCities(nextExpandedCities);
+    setExpandedStates(collapse ? {} : nextExpandedStates);
+    setExpandedCities(collapse ? {} : nextExpandedCities);
   }, [enabled, value]);
 
   const emitChange = useCallback((states, citiesByState, locsByCity) => {
@@ -256,21 +272,23 @@ export default function PromotionLocationCoverage({
       emitChange([], {}, {});
       return;
     }
-    const nextStates = Object.keys(hierarchy).sort((a, b) => a.localeCompare(b));
-    const nextCities = {};
-    const nextLocs = {};
-    for (const st of nextStates) {
-      const byCity = hierarchy[st] || {};
-      nextCities[st] = Object.keys(byCity).sort((a, b) => a.localeCompare(b));
-      nextLocs[st] = Object.fromEntries(
-        nextCities[st].map((c) => [c, [...(byCity[c] || [])]]),
-      );
-    }
+    const { states: nextStates, cities: nextCities, locs: nextLocs } = selectEverything(hierarchy);
     setSelectedStates(nextStates);
     setSelectedCitiesByState(nextCities);
     setSelectedLocalitiesByCity(nextLocs);
     emitChange(nextStates, nextCities, nextLocs);
   };
+
+  const defaultAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!defaultAllIndia || !enabled || defaultAppliedRef.current) return;
+    if (!Object.keys(hierarchy).length) return;
+    defaultAppliedRef.current = true;
+    if (!isCoverageEmpty(value)) return;
+    const { states, cities, locs } = selectEverything(hierarchy);
+    collapseNextHydrateRef.current = true;
+    onChangeRef.current?.(buildSponsoredAdFromSelection(states, cities, locs));
+  }, [defaultAllIndia, enabled, hierarchy, value]);
 
   const selectAllCities = (stateName) => {
     const st = stateName;
