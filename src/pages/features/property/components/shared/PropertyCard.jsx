@@ -750,7 +750,11 @@ export default memo(function PropertyCard({
                   e.stopPropagation();
                   setMenuOpen((o) => !o);
                 }}
-                className="p-1 rounded-md hover:bg-slate-100 text-slate-500 transition"
+                className={`p-1 rounded-md transition ${
+                  modeMenuOpen
+                    ? "bg-emerald-50 text-[#27AE60] ring-1 ring-emerald-200"
+                    : "hover:bg-slate-100 text-slate-500"
+                }`}
               >
                 <MoreVertical className="w-3 h-3" />
               </button>

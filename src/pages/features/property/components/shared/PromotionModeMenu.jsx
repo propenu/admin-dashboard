@@ -134,11 +134,12 @@ export default function PromotionModeMenu({
     if (!open || !anchorRef?.current) return undefined;
     const recalc = () => {
       const rect = anchorRef.current.getBoundingClientRect();
-      let left = rect.right - MENU_WIDTH;
+      const anchorCenter = rect.left + rect.width / 2;
+      let left = anchorCenter - (MENU_WIDTH - 26);
       if (left < 8) left = 8;
       if (left + MENU_WIDTH > window.innerWidth - 8) left = window.innerWidth - MENU_WIDTH - 8;
-      const arrowLeft = Math.min(Math.max(rect.left + rect.width / 2 - left, 16), MENU_WIDTH - 16);
-      setPos({ top: rect.bottom + window.scrollY + 9, left: left + window.scrollX, arrowLeft });
+      const arrowLeft = Math.min(Math.max(anchorCenter - left, 24), MENU_WIDTH - 24);
+      setPos({ top: rect.bottom + window.scrollY + 14, left: left + window.scrollX, arrowLeft });
     };
     recalc();
     const onKey = (e) => e.key === "Escape" && onClose?.();
@@ -199,14 +200,20 @@ export default function PromotionModeMenu({
       <div
         data-action
         onClick={(e) => e.stopPropagation()}
-        className="absolute rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        className="absolute rounded-2xl border border-slate-300 bg-white shadow-2xl"
         style={{ zIndex: 9999, top: pos.top, left: pos.left, width: MENU_WIDTH, animation: "menuIn 0.12s ease" }}
       >
-        <span
+        <svg
           aria-hidden
-          className="absolute -top-[7px] h-3 w-3 rotate-45 border-l border-t border-slate-200 bg-emerald-50"
-          style={{ left: pos.arrowLeft - 6 }}
-        />
+          width="28"
+          height="14"
+          viewBox="0 0 28 14"
+          className="pointer-events-none absolute -top-[14px] z-10"
+          style={{ left: pos.arrowLeft - 14 }}
+        >
+          <path d="M0 14 L14 0.5 L28 14 Z" fill="#ecfdf5" />
+          <path d="M0.5 14 L14 0.9 L27.5 14" fill="none" stroke="#cbd5e1" strokeWidth="1" />
+        </svg>
         <div className="relative rounded-t-2xl border-b border-slate-100 bg-emerald-50 px-3 py-2">
           <p className="text-[12px] font-bold text-[#0f3d2e]">Promote this project</p>
           {plan ? (
