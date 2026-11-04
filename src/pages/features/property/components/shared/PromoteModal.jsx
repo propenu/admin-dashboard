@@ -254,7 +254,10 @@ export default function PromoteModal({
   const planMode = Boolean(plan);
   const [selected, setSelected] = useState(null);
   const [withSponsored, setWithSponsored] = useState(false);
-  const [sponsoredMode, setSponsoredMode] = useState("same");
+  const [sponsoredModeChoice, setSponsoredMode] = useState("same");
+  // Outside plan mode, Prime / Top Selling always use the project's own city;
+  // locations are picked only for the Sponsored ad.
+  const sponsoredMode = planMode ? sponsoredModeChoice : "separate";
   const [mainCoverage, setMainCoverage] = useState({});
   const [sponsoredAd, setSponsoredAd] = useState({});
   const [scheduleMode, setScheduleMode] = useState("now");
@@ -338,7 +341,11 @@ export default function PromoteModal({
     if (liveType && liveType !== "normal") {
       setSelected(liveType);
       setMainCoverage(cloneSponsoredAd(promo.mainCoverage));
-      setSponsoredAd(cloneSponsoredAd(promo.sponsoredAd));
+      setSponsoredAd(
+        cloneSponsoredAd(
+          promo.sponsoredSameAsMain && isCoverageEmpty(promo.sponsoredAd) ? promo.mainCoverage : promo.sponsoredAd,
+        ),
+      );
       setWithSponsored(Boolean(promo.sponsoredEnabled));
       setSponsoredMode(promo.sponsoredSameAsMain === false ? "separate" : "same");
     }
@@ -488,7 +495,9 @@ export default function PromoteModal({
     }
     if ((addOnOn || isSponsoredOnly) && isCoverageEmpty(effectiveSponsoredAd)) {
       return addOnOn
-        ? "Pick at least one location in ② Sponsored locations."
+        ? planMode
+          ? "Pick at least one location in ② Sponsored locations."
+          : "Pick at least one Sponsored location."
         : "Pick at least one Sponsored location.";
     }
     if (durationInvalid) return `Duration must be 1 to ${MAX_DAYS} days.`;
@@ -498,6 +507,7 @@ export default function PromoteModal({
     }
     return "";
   }, [
+    planMode,
     projectIsApproved,
     selected,
     isNormal,
@@ -552,18 +562,16 @@ export default function PromoteModal({
         !isNormal && scheduleMode === "later" && scheduleStart
           ? scheduleStart.toISOString()
           : undefined,
-      mainCoverage: isMainPlacement ? mainCoverage : {},
+      mainCoverage: {},
       sponsoredEnabled: addOnOn,
-      sponsoredSameAsMain: addOnOn && sponsoredMode === "same",
-      sponsoredAd:
-        isSponsoredOnly || (addOnOn && sponsoredMode === "separate")
-          ? sponsoredAd
-          : {},
+      sponsoredSameAsMain: false,
+      sponsoredAd: isSponsoredOnly || addOnOn ? sponsoredAd : {},
     });
   };
 
+  const showLocations = planMode ? isMainPlacement || isSponsoredOnly : addOnOn || isSponsoredOnly;
   const mainCoverageText =
-    describeCoverage(mainCoverage) ||
+    (planMode && describeCoverage(mainCoverage)) ||
     `Project's own location${projectCity ? ` (${projectCity})` : ""}`;
   const sponsoredCoverageText = describeCoverage(effectiveSponsoredAd) || "No locations yet";
   const isUpdate = selected && selected === liveType && !isNormal;
@@ -600,7 +608,7 @@ export default function PromoteModal({
     ...(isMainPlacement
       ? [{ label: "Sponsored", done: true }]
       : []),
-    ...(isMainPlacement || isSponsoredOnly
+    ...(showLocations
       ? [{ label: "Locations", done: locationsDone }]
       : []),
     ...(selected && !isNormal
@@ -615,6 +623,7 @@ export default function PromoteModal({
       ? [{ label: "Leads", done: !leadCountInvalid }]
       : []),
   ];
+  const scheduleStep = 1 + (isMainPlacement ? 1 : 0) + (showLocations ? 1 : 0) + 1;
   const locationAccent =
     selected === "prime" ? "amber" : selected === "featured" ? "sky" : "violet";
 
@@ -644,6 +653,14 @@ export default function PromoteModal({
                 <TrendingUp className="h-3.5 w-3.5" />
               </span>
               <h2 className="shrink-0 text-sm font-bold">{planMode ? "Start from plan" : "Promote"}</h2>
+              {isDemo ? (
+                <span
+                  className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-[#219653]"
+                  title="Free trial, no invoice. Shows a Demo badge on the card and ends on its own."
+                >
+                  Demo · free trial
+                </span>
+              ) : null}
               <span className="truncate text-xs text-emerald-50/90">
                 {projectTitle ? `· ${projectTitle}` : ""}
               </span>
@@ -733,15 +750,6 @@ export default function PromoteModal({
             </div>
           )}
 
-          {isDemo && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-              <p className="font-semibold">Demo promotion · free trial, no invoice</p>
-              <p className="mt-0.5 opacity-80">
-                Pick placement, locations and lead visibility, then start now or schedule for 7, 15, 20 days or a custom duration.
-              </p>
-            </div>
-          )}
-
           {!planMode && (
           <Section
             step={1}
@@ -817,8 +825,8 @@ export default function PromoteModal({
                     </p>
                     <p className="text-[11px] text-slate-500">
                       {withSponsored
-                        ? `${mainLabel} + Sponsored will run as one promotion.`
-                        : `Only the ${mainLabel} section.`}
+                        ? `${mainLabel} + Sponsored will run as one promotion. Pick Sponsored locations next.`
+                        : `${mainLabel} shows in the project's own city${projectCity ? ` (${projectCity})` : ""}.`}
                     </p>
                   </div>
                 </div>
@@ -827,21 +835,21 @@ export default function PromoteModal({
             </Section>
           )}
 
-          {(isMainPlacement || isSponsoredOnly) && (
+          {showLocations && (
             <Section
               step={planMode ? 1 : isMainPlacement ? 3 : 2}
-              accent={locationAccent}
+              accent={planMode ? locationAccent : "violet"}
               done={locationsDone}
-              title="Choose locations"
+              title={planMode ? "Choose locations" : "Sponsored locations"}
               hint={
-                isSponsoredOnly
+                !planMode || isSponsoredOnly
                   ? "The Sponsored ad shows to people searching in these locations."
                   : addOnOn
                     ? `Use one location list for ${mainLabel} and Sponsored, or set each one separately.`
                     : `Where the project appears in the ${mainLabel} section. Leave empty to use the project's own city.`
               }
             >
-              {addOnOn && (
+              {addOnOn && planMode && (
                 <div className="mb-3 grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -880,7 +888,7 @@ export default function PromoteModal({
                 </div>
               )}
 
-              {isMainPlacement && (
+              {isMainPlacement && planMode && (
                 <PromotionLocationCoverage
                   enabled
                   value={mainCoverage}
@@ -919,8 +927,12 @@ export default function PromoteModal({
                   enabled
                   value={sponsoredAd}
                   onChange={setSponsoredAd}
-                  title="② Sponsored locations"
-                  subtitle={`Only for the Sponsored ad. Independent of the ${mainLabel} list.`}
+                  title={planMode ? "② Sponsored locations" : "Sponsored locations"}
+                  subtitle={
+                    planMode
+                      ? `Only for the Sponsored ad. Independent of the ${mainLabel} list.`
+                      : `Tick states, cities or localities for the Sponsored ad. ${mainLabel} stays in the project's own city.`
+                  }
                   accentClass="border-violet-200 bg-gradient-to-br from-violet-50/80 via-white to-white"
                 />
               )}
@@ -940,7 +952,7 @@ export default function PromoteModal({
 
           {selected && !isNormal && !planMode && (
             <Section
-              step={isMainPlacement ? 4 : 3}
+              step={scheduleStep}
               accent="emerald"
               done={!scheduleInvalid && !durationInvalid}
               title="When and how long?"
@@ -950,12 +962,6 @@ export default function PromoteModal({
                   : "The promotion ends on its own and the project goes back to normal."
               }
             >
-              {isDemo && (
-                <p className="mb-3 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800">
-                  Demo promotion: no invoice needed. It is marked as Demo on the project card and ends on its own.
-                </p>
-              )}
-
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { key: "now", label: "Start now" },
@@ -1047,7 +1053,7 @@ export default function PromoteModal({
 
           {canSetLeadCount && selected && !isNormal && (
             <Section
-              step={planMode ? 2 : isMainPlacement ? 5 : 4}
+              step={planMode ? 2 : scheduleStep + 1}
               accent="teal"
               done={!leadCountInvalid}
               title="Lead visibility"
