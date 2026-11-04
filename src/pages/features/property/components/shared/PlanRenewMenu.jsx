@@ -133,7 +133,7 @@ export default function PlanRenewMenu({ anchorRef, open, onClose, projectId, onR
         className="absolute overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
         style={{ zIndex: 9999, top: pos.top, left: pos.left, width: MENU_WIDTH, animation: "menuIn 0.12s ease" }}
       >
-        <div className="border-b border-slate-100 bg-emerald-50/60 px-3 py-2">
+        <div className="border-b border-slate-100 bg-emerald-50 px-3 py-2">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[12px] font-bold text-[#0f3d2e]">Renew plan</p>
             <button

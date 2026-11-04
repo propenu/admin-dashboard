@@ -103,7 +103,7 @@ export default function PromotionModeMenu({
   onChoosePlan,
   onChooseDirect,
 }) {
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, arrowLeft: MENU_WIDTH - 20 });
   const [askInvoice, setAskInvoice] = useState(false);
   if (!open && askInvoice) setAskInvoice(false);
   const navigate = useNavigate();
@@ -137,7 +137,8 @@ export default function PromotionModeMenu({
       let left = rect.right - MENU_WIDTH;
       if (left < 8) left = 8;
       if (left + MENU_WIDTH > window.innerWidth - 8) left = window.innerWidth - MENU_WIDTH - 8;
-      setPos({ top: rect.bottom + window.scrollY + 4, left: left + window.scrollX });
+      const arrowLeft = Math.min(Math.max(rect.left + rect.width / 2 - left, 16), MENU_WIDTH - 16);
+      setPos({ top: rect.bottom + window.scrollY + 9, left: left + window.scrollX, arrowLeft });
     };
     recalc();
     const onKey = (e) => e.key === "Escape" && onClose?.();
@@ -198,10 +199,15 @@ export default function PromotionModeMenu({
       <div
         data-action
         onClick={(e) => e.stopPropagation()}
-        className="absolute overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        className="absolute rounded-2xl border border-slate-200 bg-white shadow-2xl"
         style={{ zIndex: 9999, top: pos.top, left: pos.left, width: MENU_WIDTH, animation: "menuIn 0.12s ease" }}
       >
-        <div className="border-b border-slate-100 bg-emerald-50/60 px-3 py-2">
+        <span
+          aria-hidden
+          className="absolute -top-[7px] h-3 w-3 rotate-45 border-l border-t border-slate-200 bg-emerald-50"
+          style={{ left: pos.arrowLeft - 6 }}
+        />
+        <div className="relative rounded-t-2xl border-b border-slate-100 bg-emerald-50 px-3 py-2">
           <p className="text-[12px] font-bold text-[#0f3d2e]">Promote this project</p>
           {plan ? (
             <div className="mt-1.5 rounded-lg bg-white px-2 py-1.5 text-slate-800 ring-1 ring-slate-200">
