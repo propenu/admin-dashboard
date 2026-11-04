@@ -113,6 +113,7 @@ export default function PropertyListPage({
   // ── Modal states ───────────────────────────────────────────────────────────
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [promoteTarget, setPromoteTarget] = useState(null);
+  const [promoteChoice, setPromoteChoice] = useState({});
   const [resetTarget, setResetTarget] = useState(null);
 
   // ── Status filter ──────────────────────────────────────────────────────────
@@ -373,6 +374,8 @@ export default function PropertyListPage({
             ?.visibleLeadLimit
         }
         canSetLeadCount={canSetPromotionLeadCount(user?.user || user)}
+        initialBasis={promoteChoice.basis}
+        prefillPlan={promoteChoice.prefillPlan}
         isLoading={promoteMutation.isPending}
         onConfirm={(newType, options = {}) => {
           if (!promoteTarget || !newType) return;
@@ -754,7 +757,13 @@ export default function PropertyListPage({
                 property={p}
                 type={type}
                 onDelete={() => setDeleteTarget(p._id)}
-                onPromote={() => setPromoteTarget(p._id)}
+                onPromote={(options = {}) => {
+                  setPromoteChoice({
+                    basis: options.basis === "demo" ? "demo" : "invoice",
+                    prefillPlan: options.basis === "invoice" ? options.planStatus?.plan || null : null,
+                  });
+                  setPromoteTarget(p._id);
+                }}
                 onReset={() => setResetTarget(p._id)}
               />
             ))}

@@ -2236,6 +2236,7 @@ export default function ProjectsDashboardPage() {
   const [promoteCurrentType, setPromoteCurrentType] = useState("normal");
   const [promotePlanStatus,  setPromotePlanStatus]  = useState(null);
   const [promoteBasis,       setPromoteBasis]       = useState("invoice");
+  const [promotePrefillPlan, setPromotePrefillPlan] = useState(null);
   const [planStartLoading,   setPlanStartLoading]   = useState(false);
 
   const { data: masterAnalyticsData } = useQuery({
@@ -3128,6 +3129,7 @@ export default function ProjectsDashboardPage() {
     setPromoteTarget(null);
     setPromotePlanStatus(null);
     setPromoteBasis("invoice");
+    setPromotePrefillPlan(null);
   }, []);
 
   const startFromPlan = useCallback(
@@ -3208,6 +3210,7 @@ export default function ProjectsDashboardPage() {
     setPromoteCurrentType(allProperties.find((p) => p._id === id)?.promotion?.type || "normal");
     setPromotePlanStatus(options?.mode === "plan" && options.planStatus?.plan ? options.planStatus : null);
     setPromoteBasis(options?.basis === "demo" ? "demo" : "invoice");
+    setPromotePrefillPlan(options?.basis === "invoice" ? options.planStatus?.plan || null : null);
     setPromoteTarget(id);
   }, [allProperties]);
 
@@ -3377,6 +3380,7 @@ export default function ProjectsDashboardPage() {
         canSetLeadCount={canSetPromotionLeadCount(currentUser)}
         planStatus={promotePlanStatus}
         initialBasis={promoteBasis}
+        prefillPlan={promotePrefillPlan}
         isLoading={Boolean(normalHook?.promoteMutation?.isPending) || planStartLoading}
         onConfirm={handlePromote}
         onCancel={closePromote}

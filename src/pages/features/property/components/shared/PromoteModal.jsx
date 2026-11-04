@@ -246,6 +246,7 @@ export default function PromoteModal({
   canSetLeadCount = true,
   planStatus = null,
   initialBasis = "invoice",
+  prefillPlan = null,
   isLoading,
   onConfirm,
   onCancel,
@@ -335,6 +336,22 @@ export default function PromoteModal({
       );
       return;
     }
+    const invoicePlan =
+      initialBasis !== "demo" && prefillPlan?.mainType && prefillPlan.mainType !== "normal"
+        ? prefillPlan
+        : null;
+    if (invoicePlan && (!liveType || liveType === "normal")) {
+      const pkg = invoicePlan.package || {};
+      const coverage = invoicePlan.coverage || {};
+      setSelected(invoicePlan.mainType);
+      setWithSponsored(Boolean(pkg.sponsoredEnabled));
+      setMainCoverage(cloneSponsoredAd(coverage.mainCoverage));
+      setSponsoredAd(cloneSponsoredAd(coverage.sponsoredAd));
+      setSponsoredMode(
+        (coverage.sponsoredSameAsMain ?? pkg.sponsoredSameAsMain) === false ? "separate" : "same",
+      );
+      return;
+    }
     if (liveType && liveType !== "normal") {
       setSelected(liveType);
       setMainCoverage(cloneSponsoredAd(promo.mainCoverage));
@@ -414,11 +431,6 @@ export default function PromoteModal({
   const isNormal = selected === "normal";
   const isDemo = canBypassInvoice && !planMode && basis === "demo";
   const durationPresets = isDemo ? DEMO_PRESETS : DURATION_PRESETS;
-  const chooseBasis = (next) => {
-    setBasis(next);
-    setCustomDays("");
-    setDurationDays(next === "demo" ? DEMO_PRESETS[0] : 30);
-  };
   const isMainPlacement = selected === "prime" || selected === "featured";
   const isSponsoredOnly = selected === "sponsored";
   const addOnOn = isMainPlacement && withSponsored;
@@ -738,6 +750,27 @@ export default function PromoteModal({
             </div>
           )}
 
+          {!planMode && (isDemo || prefillPlan) && (
+            <div
+              className={`rounded-2xl border px-3 py-2 text-[11px] ${
+                isDemo
+                  ? "border-amber-200 bg-amber-50 text-amber-900"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-900"
+              }`}
+            >
+              <p className="font-semibold">
+                {isDemo
+                  ? "Demo promotion · free trial, no invoice"
+                  : `Invoice-based · ${prefillPlan.invoiceNumber || prefillPlan.planName || "paid invoice"}`}
+              </p>
+              <p className="mt-0.5 opacity-80">
+                {isDemo
+                  ? "Pick placement and locations, then 7, 15, 20 days or a custom duration."
+                  : "Placement and locations are filled from the invoice. Change them if needed."}
+              </p>
+            </div>
+          )}
+
           {!planMode && (
           <Section
             step={1}
@@ -946,37 +979,10 @@ export default function PromoteModal({
                   : "The promotion ends on its own and the project goes back to normal."
               }
             >
-              {canBypassInvoice && (
-                <div className="mb-3">
-                  <p className="mb-1.5 text-xs font-semibold text-slate-700">Promotion basis</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { key: "invoice", label: "Invoice-based", hint: "Paid / to be invoiced" },
-                      { key: "demo", label: "Demo", hint: "Free trial · 7, 15, 20 days or custom" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        onClick={() => chooseBasis(opt.key)}
-                        className={`rounded-xl border px-3 py-2 text-left transition ${
-                          basis === opt.key
-                            ? opt.key === "demo"
-                              ? "border-amber-400 bg-amber-50 text-amber-900 ring-2 ring-amber-100"
-                              : "border-[#27AE60] bg-emerald-50 text-emerald-900 ring-2 ring-emerald-100"
-                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
-                        <span className="block text-xs font-semibold">{opt.label}</span>
-                        <span className="block text-[10px] text-slate-500">{opt.hint}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {isDemo && (
-                    <p className="mt-2 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800">
-                      Demo promotion: no invoice needed. It is marked as Demo on the project card and ends on its own.
-                    </p>
-                  )}
-                </div>
+              {isDemo && (
+                <p className="mb-3 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800">
+                  Demo promotion: no invoice needed. It is marked as Demo on the project card and ends on its own.
+                </p>
               )}
 
               <div className="grid grid-cols-2 gap-2">

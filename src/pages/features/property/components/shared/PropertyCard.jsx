@@ -819,9 +819,9 @@ export default memo(function PropertyCard({
                     setModeMenuOpen(false);
                     onPromote?.({ mode: "plan", planStatus: status });
                   }}
-                  onChooseDirect={(_status, choice = {}) => {
+                  onChooseDirect={(status, choice = {}) => {
                     setModeMenuOpen(false);
-                    onPromote?.({ mode: "manual", basis: choice.basis || "invoice" });
+                    onPromote?.({ mode: "manual", basis: choice.basis || "invoice", planStatus: status });
                   }}
                 />
               ) : null}
