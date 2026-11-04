@@ -28,7 +28,7 @@ import {
   ChevronRight,
   Star,
   IndianRupee,
-  MoreVertical,
+  ChevronDown,
   Pencil,
   Check,
   X,
@@ -762,13 +762,18 @@ export default memo(function PropertyCard({
                   e.stopPropagation();
                   setMenuOpen((o) => !o);
                 }}
-                className={`p-1 rounded-md transition ${
+                title="Promote, edit rank or delete"
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm transition ${
                   menuOpen || modeMenuOpen
-                    ? "bg-emerald-50 text-[#27AE60] ring-1 ring-emerald-200"
-                    : "hover:bg-slate-100 text-slate-500"
+                    ? "border-[#27AE60] bg-[#27AE60] text-white"
+                    : "border-emerald-200 bg-emerald-50 text-[#219653] hover:border-[#27AE60] hover:bg-emerald-100"
                 }`}
               >
-                <MoreVertical className="w-3 h-3" />
+                <TrendingUp className="h-3 w-3" />
+                Promote
+                <ChevronDown
+                  className={`h-3 w-3 transition-transform ${menuOpen || modeMenuOpen ? "rotate-180" : ""}`}
+                />
               </button>
               <PortalMenu
                 anchorRef={menuBtnRef}
