@@ -47,6 +47,7 @@ import {
   Building2,
   Eye,
   MousePointerClick,
+  SlidersHorizontal,
 } from "lucide-react";
 import { updateProjectRank } from "../../../../../features/property/propertyService";
 import { projectAnalytics } from "../../../../../features/property/propertyService";
@@ -762,15 +763,15 @@ export default memo(function PropertyCard({
                   e.stopPropagation();
                   setMenuOpen((o) => !o);
                 }}
-                title="Promote, edit rank or delete"
+                title={hasPromotion ? "Edit rank, cancel promotion or delete" : "Promote, edit rank or delete"}
                 className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm transition ${
                   menuOpen || modeMenuOpen
                     ? "border-[#27AE60] bg-[#27AE60] text-white"
                     : "border-emerald-200 bg-emerald-50 text-[#219653] hover:border-[#27AE60] hover:bg-emerald-100"
                 }`}
               >
-                <TrendingUp className="h-3 w-3" />
-                Promote
+                {hasPromotion ? <SlidersHorizontal className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
+                {hasPromotion ? "Manage" : "Promote"}
                 <ChevronDown
                   className={`h-3 w-3 transition-transform ${menuOpen || modeMenuOpen ? "rotate-180" : ""}`}
                 />
@@ -786,12 +787,14 @@ export default memo(function PropertyCard({
                   label="Edit Rank"
                   onClick={openRankDrawer}
                 />
-                <MenuItem
-                  icon={TrendingUp}
-                  iconClass="text-blue-500"
-                  label={planModes ? "Promote ▾" : "Promote"}
-                  onClick={planModes ? () => setModeMenuOpen(true) : onPromote}
-                />
+                {!hasPromotion ? (
+                  <MenuItem
+                    icon={TrendingUp}
+                    iconClass="text-blue-500"
+                    label={planModes ? "Promote ▾" : "Promote"}
+                    onClick={planModes ? () => setModeMenuOpen(true) : onPromote}
+                  />
+                ) : null}
                 {hasPromotion ? (
                   <MenuItem
                     icon={Ban}
