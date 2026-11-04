@@ -37,35 +37,28 @@ const TYPES = [
     label: "Prime",
     desc: "Top of the homepage Prime section. Highest visibility.",
     icon: Crown,
-    active:
-      "border-amber-400 bg-gradient-to-br from-amber-50 to-yellow-100 ring-2 ring-amber-200 shadow-md",
-    iconWrap: "bg-amber-100 text-amber-600",
+    iconTone: "text-amber-500",
   },
   {
     value: "featured",
     label: "Top Selling",
     desc: "Shown in the Top Selling projects section.",
     icon: TrendingUp,
-    active:
-      "border-sky-400 bg-gradient-to-br from-sky-50 to-cyan-100 ring-2 ring-sky-200 shadow-md",
-    iconWrap: "bg-sky-100 text-sky-600",
+    iconTone: "text-sky-500",
   },
   {
     value: "sponsored",
-    label: "Sponsored only",
+    label: "Sponsored",
     desc: "Only as a Sponsored ad in search results for chosen locations.",
     icon: Megaphone,
-    active:
-      "border-violet-400 bg-gradient-to-br from-violet-50 to-fuchsia-100 ring-2 ring-violet-200 shadow-md",
-    iconWrap: "bg-violet-100 text-violet-600",
+    iconTone: "text-violet-500",
   },
   {
     value: "normal",
     label: "Normal",
     desc: "Remove all promotion. Leads stay masked.",
     icon: Ban,
-    active: "border-slate-400 bg-slate-50 ring-2 ring-slate-200",
-    iconWrap: "bg-slate-100 text-slate-500",
+    iconTone: "text-slate-400",
   },
 ];
 
@@ -762,43 +755,52 @@ export default function PromoteModal({
                 : "Prime and Top Selling are separate sections. Pick one. You can add Sponsored on top in the next step."
             }
           >
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div role="radiogroup" className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
               {TYPES.filter((t) => !planMode || t.value === selected).map((t) => {
                 const Icon = t.icon;
                 const isActive = selected === t.value;
+                const tag = planMode
+                  ? "Plan"
+                  : liveType === t.value && t.value !== "normal"
+                    ? "Current"
+                    : "";
                 return (
                   <button
                     key={t.value}
                     type="button"
+                    role="radio"
+                    aria-checked={isActive}
+                    title={t.desc}
                     onClick={() => chooseType(t.value)}
-                    className={`relative flex items-start gap-3 rounded-xl border p-3 text-left transition ${
-                      isActive ? t.active : "border-slate-200 bg-white hover:border-slate-300"
+                    className={`flex h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 text-left text-xs font-semibold transition ${
+                      isActive
+                        ? "border-[#27AE60] bg-emerald-50 text-[#0f3d2e] ring-1 ring-[#27AE60]"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300"
                     }`}
                   >
-                    <span className={`rounded-lg p-2 ${t.iconWrap}`}>
-                      <Icon className="h-4 w-4" />
+                    <span
+                      className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border ${
+                        isActive ? "border-[#27AE60]" : "border-slate-300"
+                      }`}
+                    >
+                      {isActive ? <span className="h-2 w-2 rounded-full bg-[#27AE60]" /> : null}
                     </span>
-                    <span className="min-w-0">
-                      <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-                        {t.label}
-                        {planMode ? (
-                          <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-700">
-                            From plan
-                          </span>
-                        ) : liveType === t.value && t.value !== "normal" ? (
-                          <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-700">
-                            Current
-                          </span>
-                        ) : null}
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${t.iconTone}`} />
+                    <span className="truncate">{t.label}</span>
+                    {tag ? (
+                      <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-1 py-px text-[8px] font-bold uppercase text-emerald-700">
+                        {tag}
                       </span>
-                      <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">
-                        {t.desc}
-                      </span>
-                    </span>
+                    ) : null}
                   </button>
                 );
               })}
             </div>
+            {selected ? (
+              <p className="mt-1.5 text-[11px] text-slate-500">
+                {TYPES.find((t) => t.value === selected)?.desc}
+              </p>
+            ) : null}
           </Section>
           )}
 
