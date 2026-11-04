@@ -145,8 +145,7 @@ const SECTION_INNER_CARD = "border-emerald-200 bg-gradient-to-br from-emerald-50
 
 function Section({ step, title, hint, done, children }) {
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
-      <span className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-[#27AE60] to-emerald-300" />
+    <section className="rounded-2xl bg-white p-4">
       <div className="mb-3 flex items-start gap-3">
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold shadow-sm ${
