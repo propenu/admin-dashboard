@@ -200,19 +200,18 @@ export default function PromotionModeMenu({
       <div
         data-action
         onClick={(e) => e.stopPropagation()}
-        className="absolute rounded-2xl border border-slate-300 bg-white shadow-2xl"
+        className="absolute rounded-2xl border border-slate-200 border-t-[3px] border-t-[#27AE60] bg-white shadow-2xl"
         style={{ zIndex: 9999, top: pos.top, left: pos.left, width: MENU_WIDTH, animation: "menuIn 0.12s ease" }}
       >
         <svg
           aria-hidden
-          width="28"
-          height="14"
-          viewBox="0 0 28 14"
+          width="22"
+          height="11"
+          viewBox="0 0 22 11"
           className="pointer-events-none absolute -top-[14px] z-10"
-          style={{ left: pos.arrowLeft - 14 }}
+          style={{ left: pos.arrowLeft - 11 }}
         >
-          <path d="M0 14 L14 0.5 L28 14 Z" fill="#ecfdf5" />
-          <path d="M0.5 14 L14 0.9 L27.5 14" fill="none" stroke="#cbd5e1" strokeWidth="1" />
+          <path d="M0 11 L11 0 L22 11 Z" fill="#27AE60" />
         </svg>
         <div className="relative rounded-t-2xl border-b border-slate-100 bg-emerald-50 px-3 py-2">
           <p className="text-[12px] font-bold text-[#0f3d2e]">Promote this project</p>
