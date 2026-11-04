@@ -20,6 +20,7 @@ import {
 } from "../../../../../features/locations/adminLocationsQuery";
 import {
   buildSponsoredAdFromSelection,
+  isCoverageEmpty,
   summarizeSponsoredAd,
 } from "./promotionCoverageUtils";
 
@@ -77,6 +78,7 @@ export default function PromotionLocationCoverage({
   title = "Promotion locations",
   subtitle = "Live from Locations page. Expand ▶ to browse cities/localities even without ticking; tick to select for save.",
   accentClass = "border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-sky-50/60",
+  hideEmptySummary = false,
 }) {
   const [stateQuery, setStateQuery] = useState("");
   const [cityQueryByState, setCityQueryByState] = useState({});
@@ -405,12 +407,14 @@ export default function PromotionLocationCoverage({
             <MapPin size={12} className="text-[#27AE60]" />
             {title}
           </p>
-          <p className="mt-0.5 text-[11px] leading-4 text-slate-600">{subtitle}</p>
+          {subtitle ? <p className="mt-0.5 text-[11px] leading-4 text-slate-600">{subtitle}</p> : null}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <p className="rounded-full bg-emerald-100 px-2 py-0.5 text-right text-[10px] font-bold text-emerald-800">
-            {coverageSummary}
-          </p>
+          {hideEmptySummary && isCoverageEmpty(value) ? null : (
+            <p className="rounded-full bg-emerald-100 px-2 py-0.5 text-right text-[10px] font-bold text-emerald-800">
+              {coverageSummary}
+            </p>
+          )}
           <button
             type="button"
             onClick={() => refetch()}

@@ -781,14 +781,6 @@ export default function PromoteModal({
                 );
               })}
             </div>
-            {selectedPlacement ? (
-              <p className="mt-1.5 text-[11px] text-slate-500">
-                {selectedPlacement.desc.replace(
-                  "the project's own city",
-                  `the project's own city${projectCity ? ` (${projectCity})` : ""}`,
-                )}
-              </p>
-            ) : null}
           </Section>
           )}
 
@@ -799,7 +791,7 @@ export default function PromoteModal({
               title={planMode ? "Choose locations" : "Sponsored locations"}
               hint={
                 !planMode || isSponsoredOnly
-                  ? "The Sponsored ad shows to people searching in these locations."
+                  ? null
                   : addOnOn
                     ? `Use one location list for ${mainLabel} and Sponsored, or set each one separately.`
                     : `Where the project appears in the ${mainLabel} section. Leave empty to use the project's own city.`
@@ -880,12 +872,9 @@ export default function PromoteModal({
                   value={sponsoredAd}
                   onChange={setSponsoredAd}
                   title={planMode ? "② Sponsored locations" : "Sponsored locations"}
-                  subtitle={
-                    planMode
-                      ? `Only for the Sponsored ad. Independent of the ${mainLabel} list.`
-                      : `Tick states, cities or localities for the Sponsored ad. ${mainLabel} stays in the project's own city.`
-                  }
+                  subtitle={planMode ? `Only for the Sponsored ad. Independent of the ${mainLabel} list.` : ""}
                   accentClass={SECTION_INNER_CARD}
+                  hideEmptySummary={!planMode}
                 />
               )}
 
@@ -895,8 +884,9 @@ export default function PromoteModal({
                   value={sponsoredAd}
                   onChange={setSponsoredAd}
                   title="Sponsored locations"
-                  subtitle="Tick states, cities or localities for the Sponsored ad."
+                  subtitle={planMode ? "Tick states, cities or localities for the Sponsored ad." : ""}
                   accentClass={SECTION_INNER_CARD}
+                  hideEmptySummary={!planMode}
                 />
               )}
             </Section>
@@ -907,11 +897,6 @@ export default function PromoteModal({
               step={scheduleStep}
               done={!scheduleInvalid && !durationInvalid}
               title="When and how long?"
-              hint={
-                addOnOn
-                  ? `${mainLabel} and Sponsored share this schedule and end at the same time.`
-                  : "The promotion ends on its own and the project goes back to normal."
-              }
             >
               <div className="grid grid-cols-2 gap-2">
                 {[
@@ -1008,9 +993,7 @@ export default function PromoteModal({
               done={!leadCountInvalid}
               title="Lead visibility"
               hint={
-                planMode
-                  ? "Prefilled from the plan. Change it only if this builder needs a different number."
-                  : "How many leads the builder can see unmasked while this promotion runs."
+                planMode ? "Prefilled from the plan. Change it only if this builder needs a different number." : null
               }
             >
               <div className="flex items-center justify-between text-xs text-slate-500">
