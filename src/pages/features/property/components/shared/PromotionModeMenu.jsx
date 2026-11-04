@@ -186,16 +186,6 @@ export default function PromotionModeMenu({
     }
     return `/builder-plans?${params.toString()}`;
   };
-  const startWithoutInvoice = canBypassInvoice ? (
-    <button
-      type="button"
-      onClick={() => onChooseDirect?.(status, { basis: "invoice" })}
-      className="mt-1.5 w-full rounded-lg px-2 py-1 text-[10px] font-semibold text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
-    >
-      Promote now without invoice
-    </button>
-  ) : null;
-
   return createPortal(
     <>
       <div
@@ -315,17 +305,18 @@ export default function PromotionModeMenu({
                   >
                     {invoiceBlock.action}
                   </button>
-                  {startWithoutInvoice}
                 </div>
               ) : invoiceMissing && askingForInvoice ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5">
                   <p className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900">
                     <FileText className="h-3.5 w-3.5" /> {canBypassInvoice ? "Create an invoice first?" : "Invoice required"}
                   </p>
-                  <p className="mt-1 text-[10px] leading-4 text-amber-800">
-                    This project has no invoice. Create one for {builder?.name || "the builder"}, mark it as Paid,
-                    and the promotion runs with the invoice&apos;s placement, locations, lead visibility and dates.
-                  </p>
+                  {!canBypassInvoice ? (
+                    <p className="mt-1 text-[10px] leading-4 text-amber-800">
+                      Promotions can start only after a paid invoice is recorded for this project.
+                      Create an invoice, mark it as Paid, then return here to promote.
+                    </p>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => {
@@ -336,7 +327,6 @@ export default function PromotionModeMenu({
                   >
                     Create invoice
                   </button>
-                  {startWithoutInvoice}
                 </div>
               ) : null}
               {invoiceMissing && canBypassInvoice && !askInvoice ? (
