@@ -6,7 +6,9 @@ import { toast } from "sonner";
 import {
   CalendarClock,
   FileText,
+  FlaskConical,
   Hand,
+  Receipt,
   Loader2,
   MousePointerClick,
   PackageCheck,
@@ -96,6 +98,7 @@ export default function PromotionModeMenu({
   open,
   onClose,
   projectId,
+  currentBasis = null,
   busy = false,
   onChoosePlan,
   onChooseDirect,
@@ -316,10 +319,10 @@ export default function PromotionModeMenu({
               {invoiceMissing && canBypassInvoice ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5">
                   <p className="text-[11px] font-semibold text-emerald-900">
-                    Direct promotion allowed
+                    Choose how to start
                   </p>
                   <p className="mt-1 text-[10px] leading-4 text-emerald-800">
-                    Super Admin and main heads can promote (Prime / Top Selling / Sponsored / Normal) without a paid invoice.
+                    Pick Invoice-based for a paying builder, or Demo for a free trial. Both work without a paid invoice for Super Admin and main heads.
                   </p>
                 </div>
               ) : null}
@@ -336,26 +339,47 @@ export default function PromotionModeMenu({
                       onClick={() => onChoosePlan?.(status)}
                     />
                   ) : null}
-                  <Option
-                    icon={Hand}
-                    tone="bg-amber-100 text-amber-700"
-                    title="Customize promotion"
-                    desc={
-                      canBypassInvoice
-                        ? "Set Prime, Top Selling, Sponsored, or Normal anytime — invoice not required."
-                        : undefined
-                    }
-                    current={runningMode === "manual" || (!runningMode && savedMode === "manual")}
-                    disabledReason={
-                      canBypassInvoice
-                        ? undefined
-                        : isError
-                          ? "Invoice status unavailable."
-                          : invoiceRequired
-                    }
-                    busy={busy}
-                    onClick={() => onChooseDirect?.(status)}
-                  />
+                  {canBypassInvoice ? (
+                    <>
+                      <Option
+                        icon={Receipt}
+                        tone="bg-emerald-100 text-emerald-700"
+                        title="Invoice-based promotion"
+                        desc={
+                          plan
+                            ? "Paid invoice found · set Prime, Top Selling or Sponsored yourself (30 days default)."
+                            : latestInvoice
+                              ? `Invoice ${latestInvoice.invoiceNumber} is ${latestInvoice.paymentStatus} · you can still start; record payment in Invoices.`
+                              : "No invoice yet · start now and raise the pro-forma / invoice in Builder Plans."
+                        }
+                        current={
+                          (runningMode === "manual" || (!runningMode && savedMode === "manual")) &&
+                          currentBasis !== "demo"
+                        }
+                        busy={busy}
+                        onClick={() => onChooseDirect?.(status, { basis: "invoice" })}
+                      />
+                      <Option
+                        icon={FlaskConical}
+                        tone="bg-orange-100 text-orange-700"
+                        title="Demo promotion"
+                        desc="Free trial without invoice · 7, 15, 20 days or custom. Shows a Demo badge."
+                        current={currentBasis === "demo"}
+                        busy={busy}
+                        onClick={() => onChooseDirect?.(status, { basis: "demo" })}
+                      />
+                    </>
+                  ) : (
+                    <Option
+                      icon={Hand}
+                      tone="bg-amber-100 text-amber-700"
+                      title="Customize promotion"
+                      current={runningMode === "manual" || (!runningMode && savedMode === "manual")}
+                      disabledReason={isError ? "Invoice status unavailable." : invoiceRequired}
+                      busy={busy}
+                      onClick={() => onChooseDirect?.(status, { basis: "invoice" })}
+                    />
+                  )}
                 </>
               ) : null}
             </>

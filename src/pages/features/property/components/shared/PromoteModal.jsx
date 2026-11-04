@@ -245,6 +245,7 @@ export default function PromoteModal({
   currentVisibleLeadLimit,
   canSetLeadCount = true,
   planStatus = null,
+  initialBasis = "invoice",
   isLoading,
   onConfirm,
   onCancel,
@@ -311,6 +312,11 @@ export default function PromoteModal({
       setLeadsError("");
       setCountTouched(false);
       return;
+    }
+    if (!plan && initialBasis === "demo") {
+      setBasis("demo");
+      setDurationDays(DEMO_PRESETS[0]);
+      setCustomDays("");
     }
     const promo = currentPromotion || {};
     if (plan) {
