@@ -230,7 +230,8 @@ export default function PromotionModeMenu({
               </p>
             </div>
           ) : (
-            <p className="mt-1 text-[10px] text-emerald-50/80">
+            <p className="mt-1 flex items-center gap-1 text-[10px] text-emerald-50/90">
+              <FileText className="h-2.5 w-2.5" />
               {isLoading
                 ? "Checking invoice…"
                 : latestInvoice
@@ -307,8 +308,16 @@ export default function PromotionModeMenu({
                   </button>
                 </div>
               ) : invoiceMissing && askingForInvoice ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5">
-                  <p className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900">
+                <div
+                  className={`rounded-xl border p-2.5 ${
+                    canBypassInvoice ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"
+                  }`}
+                >
+                  <p
+                    className={`flex items-center gap-1.5 text-[11px] font-semibold ${
+                      canBypassInvoice ? "text-emerald-900" : "text-amber-900"
+                    }`}
+                  >
                     <FileText className="h-3.5 w-3.5" /> {canBypassInvoice ? "Create an invoice first?" : "Invoice required"}
                   </p>
                   {!canBypassInvoice ? (
@@ -369,7 +378,7 @@ export default function PromotionModeMenu({
                       ) : null}
                       <Option
                         icon={FlaskConical}
-                        tone="bg-orange-100 text-orange-700"
+                        tone="bg-emerald-100 text-emerald-700"
                         title="Demo promotion"
                         current={currentBasis === "demo"}
                         busy={busy}
