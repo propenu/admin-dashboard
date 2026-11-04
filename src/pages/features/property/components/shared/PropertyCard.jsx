@@ -606,8 +606,8 @@ export default memo(function PropertyCard({
   })();
 
 
-    const handleRenew = async () => {
-      const days = Math.trunc(Number(renewDays));
+    const handleRenew = async (daysOverride) => {
+      const days = Math.trunc(Number(daysOverride ?? renewDays));
       if (!Number.isFinite(days) || days < 1 || days > 365) {
         toast.error("Enter renewal days between 1 and 365");
         return;
@@ -934,7 +934,7 @@ export default memo(function PropertyCard({
               ) : null}
               {canRenewPromotion && (
                 <div className="mt-1 flex flex-wrap items-center gap-1">
-                  {RENEW_DAY_PRESETS.map((d) => (
+                  {!renewChoosesBasis && RENEW_DAY_PRESETS.map((d) => (
                     <button
                       key={d}
                       type="button"
@@ -953,6 +953,7 @@ export default memo(function PropertyCard({
                       {d}d
                     </button>
                   ))}
+                  {!renewChoosesBasis && (
                   <label
                     className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] text-slate-500"
                     onClick={(e) => e.stopPropagation()}
@@ -974,6 +975,7 @@ export default memo(function PropertyCard({
                       className="w-10 border-0 bg-transparent p-0 text-[9px] font-semibold text-slate-800 outline-none"
                     />
                   </label>
+                  )}
                   <button
                     ref={renewNowBtnRef}
                     type="button"
@@ -1010,9 +1012,9 @@ export default memo(function PropertyCard({
                         setRenewModeOpen(false);
                         onPromote?.({ mode: "plan", planStatus: status });
                       }}
-                      onChooseDirect={() => {
+                      onChooseDirect={(_status, choice = {}) => {
                         setRenewModeOpen(false);
-                        handleRenew();
+                        handleRenew(choice.days);
                       }}
                     />
                   ) : null}

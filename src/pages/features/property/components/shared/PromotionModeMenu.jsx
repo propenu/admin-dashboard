@@ -20,6 +20,7 @@ import { canForceManualPromotion } from "../../../../../utils/projectAccessContr
 import { formatPromotionDate } from "./promotionTracking";
 
 const MENU_WIDTH = 300;
+const RENEW_PRESETS = [40, 50, 60];
 
 export const planStatusQueryKey = (projectId) => ["project-plan-status", projectId];
 
@@ -108,7 +109,14 @@ export default function PromotionModeMenu({
   const renewing = variant === "renew";
   const [pos, setPos] = useState({ top: 0, left: 0, arrowLeft: MENU_WIDTH - 20 });
   const [askInvoice, setAskInvoice] = useState(false);
-  if (!open && askInvoice) setAskInvoice(false);
+  const [demoDaysOpen, setDemoDaysOpen] = useState(false);
+  const [demoDays, setDemoDays] = useState(String(renewDays || RENEW_PRESETS[0]));
+  if (!open && (askInvoice || demoDaysOpen)) {
+    setAskInvoice(false);
+    setDemoDaysOpen(false);
+  }
+  const demoDaysNum = Math.trunc(Number(demoDays));
+  const demoDaysValid = Number.isFinite(demoDaysNum) && demoDaysNum >= 1 && demoDaysNum <= 365;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthUserProfile();
@@ -373,15 +381,57 @@ export default function PromotionModeMenu({
                       <Option
                         icon={FlaskConical}
                         tone="bg-emerald-100 text-emerald-700"
-                        title={
-                          renewing
-                            ? `Demo renewal${renewDays ? ` · ${renewDays} day${Number(renewDays) === 1 ? "" : "s"}` : ""}`
-                            : "Demo promotion"
-                        }
-                        current={!renewing && currentBasis === "demo"}
+                        title={renewing ? "Demo renewal" : "Demo promotion"}
+                        current={renewing ? demoDaysOpen : currentBasis === "demo"}
                         busy={busy}
-                        onClick={() => onChooseDirect?.(status, { basis: "demo" })}
+                        onClick={() =>
+                          renewing ? setDemoDaysOpen((v) => !v) : onChooseDirect?.(status, { basis: "demo" })
+                        }
                       />
+                      {renewing && demoDaysOpen ? (
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-2">
+                          <p className="text-[10px] font-semibold text-slate-600">Extend the demo by</p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                            {RENEW_PRESETS.map((d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => setDemoDays(String(d))}
+                                className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold transition ${
+                                  demoDaysNum === d
+                                    ? "border-[#27AE60] bg-[#27AE60] text-white"
+                                    : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200"
+                                }`}
+                              >
+                                {d}d
+                              </button>
+                            ))}
+                            <label className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] text-slate-500">
+                              Days
+                              <input
+                                type="number"
+                                min={1}
+                                max={365}
+                                value={demoDays}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => setDemoDays(e.target.value.replace(/^0+(?=\d)/, ""))}
+                                className="w-10 border-0 bg-transparent p-0 text-[10px] font-semibold text-slate-800 outline-none"
+                              />
+                            </label>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={busy || !demoDaysValid}
+                            onClick={() => onChooseDirect?.(status, { basis: "demo", days: demoDaysNum })}
+                            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#27AE60] px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-[#219653] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                            {demoDaysValid
+                              ? `Renew demo · ${demoDaysNum} day${demoDaysNum === 1 ? "" : "s"}`
+                              : "Enter 1 to 365 days"}
+                          </button>
+                        </div>
+                      ) : null}
                     </>
                   ) : (
                     <Option
