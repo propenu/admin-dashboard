@@ -132,7 +132,7 @@ const formatLeadDateTime = (value) => {
 
 // ─── Portal Menu ─────────────────────────────────────────────────────────────
 function PortalMenu({ anchorRef, open, onClose, children }) {
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, arrowLeft: 134 });
 
   useEffect(() => {
     if (!open || !anchorRef.current) return;
@@ -140,10 +140,12 @@ function PortalMenu({ anchorRef, open, onClose, children }) {
       const rect = anchorRef.current.getBoundingClientRect();
       const menuWidth = 160;
       const viewportWidth = window.innerWidth;
-      let left = rect.right - menuWidth;
+      const anchorCenter = rect.left + rect.width / 2;
+      let left = anchorCenter - (menuWidth - 26);
       if (left < 8) left = 8;
       if (left + menuWidth > viewportWidth - 8) left = viewportWidth - menuWidth - 8;
-      setPos({ top: rect.bottom + window.scrollY + 4, left: left + window.scrollX });
+      const arrowLeft = Math.min(Math.max(anchorCenter - left, 20), menuWidth - 20);
+      setPos({ top: rect.bottom + window.scrollY + 14, left: left + window.scrollX, arrowLeft });
     };
     recalc();
     window.addEventListener("scroll", recalc, true);
@@ -160,10 +162,20 @@ function PortalMenu({ anchorRef, open, onClose, children }) {
     <>
       <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={onClose} />
       <div
-        className="absolute bg-white border border-slate-200 shadow-2xl rounded-xl overflow-hidden"
+        className="absolute bg-white border border-slate-200 border-t-[3px] border-t-[#27AE60] shadow-2xl rounded-xl"
         style={{ zIndex: 9999, top: pos.top, left: pos.left, width: 160, animation: "menuIn 0.12s ease" }}
       >
-        {children}
+        <svg
+          aria-hidden
+          width="22"
+          height="11"
+          viewBox="0 0 22 11"
+          className="pointer-events-none absolute -top-[14px] z-10"
+          style={{ left: pos.arrowLeft - 11 }}
+        >
+          <path d="M0 11 L11 0 L22 11 Z" fill="#27AE60" />
+        </svg>
+        <div className="overflow-hidden rounded-b-[11px] rounded-t-[9px]">{children}</div>
       </div>
       <style>{`
         @keyframes menuIn {
@@ -751,7 +763,7 @@ export default memo(function PropertyCard({
                   setMenuOpen((o) => !o);
                 }}
                 className={`p-1 rounded-md transition ${
-                  modeMenuOpen
+                  menuOpen || modeMenuOpen
                     ? "bg-emerald-50 text-[#27AE60] ring-1 ring-emerald-200"
                     : "hover:bg-slate-100 text-slate-500"
                 }`}
