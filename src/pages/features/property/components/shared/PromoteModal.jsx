@@ -151,7 +151,7 @@ function Section({ step, title, hint, done, children }) {
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold shadow-sm ${
             done
-              ? "bg-gradient-to-br from-[#0f3d2e] to-[#27AE60] text-white"
+              ? "bg-[#27AE60] text-white"
               : "border border-[#27AE60] bg-white text-[#27AE60]"
           }`}
         >
@@ -696,7 +696,7 @@ export default function PromoteModal({
           {planMode && (
             <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-sky-50 p-3 shadow-sm">
               <div className="flex items-start gap-2.5">
-                <span className="rounded-xl bg-gradient-to-br from-[#0f3d2e] to-[#27AE60] p-2 text-white shadow">
+                <span className="rounded-xl bg-[#27AE60] p-2 text-white shadow">
                   <PackageCheck className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -982,7 +982,7 @@ export default function PromoteModal({
                     }}
                     className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                       durationDays === d && !customDays
-                        ? "border-[#0f3d2e] bg-[#0f3d2e] text-white"
+                        ? "border-[#27AE60] bg-[#27AE60] text-white"
                         : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                     }`}
                   >
@@ -1084,7 +1084,7 @@ export default function PromoteModal({
                 className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white shadow transition disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none ${
                   isNormal
                     ? "bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-700 hover:to-rose-600"
-                    : "bg-gradient-to-r from-[#0f3d2e] to-[#27AE60] hover:from-[#0c3326] hover:to-[#219653]"
+                    : "bg-[#27AE60] hover:bg-[#219653]"
                 }`}
               >
                 {confirmLabel}
