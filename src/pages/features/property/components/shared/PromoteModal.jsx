@@ -283,6 +283,20 @@ export default function PromoteModal({
     };
   }, [open, onCancel]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const { documentElement: html, body } = document;
+    const prevOverflow = html.style.overflow;
+    const prevPadding = body.style.paddingRight;
+    const scrollbar = window.innerWidth - html.clientWidth;
+    html.style.overflow = "hidden";
+    if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
+    return () => {
+      html.style.overflow = prevOverflow;
+      body.style.paddingRight = prevPadding;
+    };
+  }, [open]);
+
   // Prefill from the running promotion so a location change is one click away.
   useEffect(() => {
     if (!open) {
@@ -668,7 +682,7 @@ export default function PromoteModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 space-y-6 overflow-y-auto px-5 py-4">
+        <div className="flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 py-4">
           {!projectIsApproved && (
             <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
