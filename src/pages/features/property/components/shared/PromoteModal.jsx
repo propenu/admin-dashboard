@@ -29,6 +29,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DURATION_PRESETS = [7, 10, 15, 30, 60];
 const DEMO_PRESETS = [7, 15, 20];
 const MAX_DAYS = 365;
+const DEFAULT_VISIBLE_LEADS = 5000;
 
 const PLACEMENTS = [
   {
@@ -379,26 +380,13 @@ export default function PromoteModal({
       return;
     }
 
-    if (totalLeads == null || leadsLoading) return;
-
     const existing = Number(currentVisibleLeadLimit);
-    if (Number.isFinite(existing) && existing > 0) {
-      setLeadCountInput(String(Math.min(existing, Math.max(totalLeads, existing))));
-      return;
-    }
-
-    // If leads already exist, default visible = total (admin can lower it).
-    if (totalLeads > 0) {
-      setLeadCountInput(String(totalLeads));
-      return;
-    }
-
-    setLeadCountInput("0");
+    setLeadCountInput(
+      String(Number.isFinite(existing) && existing > 0 ? Math.trunc(existing) : DEFAULT_VISIBLE_LEADS),
+    );
   }, [
     open,
     selected,
-    totalLeads,
-    leadsLoading,
     currentVisibleLeadLimit,
     countTouched,
     plan,
@@ -599,6 +587,9 @@ export default function PromoteModal({
     ...(showLocations
       ? [{ label: "Locations", done: locationsDone }]
       : []),
+    ...(canSetLeadCount && selected && !isNormal
+      ? [{ label: "Leads", done: !leadCountInvalid }]
+      : []),
     ...(selected && !isNormal
       ? [
           {
@@ -607,11 +598,9 @@ export default function PromoteModal({
           },
         ]
       : []),
-    ...(canSetLeadCount && selected && !isNormal
-      ? [{ label: "Leads", done: !leadCountInvalid }]
-      : []),
   ];
-  const scheduleStep = 1 + (showLocations ? 1 : 0) + 1;
+  const leadsStep = 1 + (showLocations ? 1 : 0) + 1;
+  const scheduleStep = leadsStep + (canSetLeadCount ? 1 : 0);
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <button
@@ -854,6 +843,7 @@ export default function PromoteModal({
                       : `Only for the ${mainLabel} section. Leave empty to use the project's own city.`
                   }
                   accentClass={SECTION_INNER_CARD}
+                  showRefresh={false}
                 />
               )}
 
@@ -874,6 +864,7 @@ export default function PromoteModal({
                   title={planMode ? "② Sponsored locations" : "Sponsored locations"}
                   subtitle={planMode ? `Only for the Sponsored ad. Independent of the ${mainLabel} list.` : ""}
                   accentClass={SECTION_INNER_CARD}
+                  showRefresh={false}
                   hideEmptySummary={!planMode}
                 />
               )}
@@ -886,9 +877,47 @@ export default function PromoteModal({
                   title="Sponsored locations"
                   subtitle={planMode ? "Tick states, cities or localities for the Sponsored ad." : ""}
                   accentClass={SECTION_INNER_CARD}
+                  showRefresh={false}
                   hideEmptySummary={!planMode}
                 />
               )}
+            </Section>
+          )}
+
+          {canSetLeadCount && selected && !isNormal && (
+            <Section
+              step={planMode ? 2 : leadsStep}
+              done={!leadCountInvalid}
+              title="Lead visibility"
+              hint={
+                planMode ? "Prefilled from the plan. Change it only if this builder needs a different number." : null
+              }
+            >
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>Visible lead allowance</span>
+                <span>{leadsLoading ? "Loading leads…" : `Total leads: ${total}`}</span>
+              </div>
+              {leadsError ? (
+                <p className="mt-1 text-xs text-amber-700">{leadsError}</p>
+              ) : null}
+              <input
+                type="number"
+                min={0}
+                step={1}
+                disabled={!countEnabled}
+                value={leadCountInput}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  setCountTouched(true);
+                  setLeadCountInput(e.target.value.replace(/^0+(?=\d)/, ""));
+                }}
+                placeholder={String(DEFAULT_VISIBLE_LEADS)}
+                className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-[#27AE60] disabled:bg-slate-100 disabled:text-slate-400"
+              />
+              <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-emerald-700">
+                <Eye className="h-3 w-3" />
+                Allow {allowance} · now {visibleNow} of {total} visible · {maskedNow} masked
+              </p>
             </Section>
           )}
 
@@ -984,43 +1013,6 @@ export default function PromoteModal({
                   ? "Pick a start date and time."
                   : `Live ${formatPromotionDateTime(liveFrom)} → ${formatPromotionDateTime(liveUntil)}`}
               </div>
-            </Section>
-          )}
-
-          {canSetLeadCount && selected && !isNormal && (
-            <Section
-              step={planMode ? 2 : scheduleStep + 1}
-              done={!leadCountInvalid}
-              title="Lead visibility"
-              hint={
-                planMode ? "Prefilled from the plan. Change it only if this builder needs a different number." : null
-              }
-            >
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>Visible lead allowance</span>
-                <span>{leadsLoading ? "Loading leads…" : `Total leads: ${total}`}</span>
-              </div>
-              {leadsError ? (
-                <p className="mt-1 text-xs text-amber-700">{leadsError}</p>
-              ) : null}
-              <input
-                type="number"
-                min={0}
-                step={1}
-                disabled={!countEnabled}
-                value={leadCountInput}
-                onFocus={(e) => e.target.select()}
-                onChange={(e) => {
-                  setCountTouched(true);
-                  setLeadCountInput(e.target.value.replace(/^0+(?=\d)/, ""));
-                }}
-                placeholder="e.g. 5000"
-                className="mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-[#27AE60] disabled:bg-slate-100 disabled:text-slate-400"
-              />
-              <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-emerald-700">
-                <Eye className="h-3 w-3" />
-                Allow {allowance} · now {visibleNow} of {total} visible · {maskedNow} masked
-              </p>
             </Section>
           )}
 

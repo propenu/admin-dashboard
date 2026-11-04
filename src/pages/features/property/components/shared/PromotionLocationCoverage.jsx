@@ -79,6 +79,7 @@ export default function PromotionLocationCoverage({
   subtitle = "Live from Locations page. Expand ▶ to browse cities/localities even without ticking; tick to select for save.",
   accentClass = "border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-sky-50/60",
   hideEmptySummary = false,
+  showRefresh = true,
 }) {
   const [stateQuery, setStateQuery] = useState("");
   const [cityQueryByState, setCityQueryByState] = useState({});
@@ -415,19 +416,21 @@ export default function PromotionLocationCoverage({
               {coverageSummary}
             </p>
           )}
-          <button
-            type="button"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-            title="Refresh locations"
-          >
-            <RefreshCw
-              size={11}
-              className={isFetching ? "animate-spin" : ""}
-            />
-            Refresh
-          </button>
+          {showRefresh ? (
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+              title="Refresh locations"
+            >
+              <RefreshCw
+                size={11}
+                className={isFetching ? "animate-spin" : ""}
+              />
+              Refresh
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setMaximized((m) => !m)}
