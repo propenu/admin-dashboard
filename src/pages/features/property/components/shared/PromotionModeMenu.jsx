@@ -338,16 +338,6 @@ export default function PromotionModeMenu({
                   </button>
                 </div>
               ) : null}
-              {invoiceMissing && canBypassInvoice && !askInvoice ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5">
-                  <p className="text-[11px] font-semibold text-emerald-900">
-                    Choose how to start
-                  </p>
-                  <p className="mt-1 text-[10px] leading-4 text-emerald-800">
-                    Invoice-based runs from the builder&apos;s paid invoice. Demo is a free trial with no invoice.
-                  </p>
-                </div>
-              ) : null}
               {showPromoteOptions ? (
                 <>
                   {(plan || isError) && !canBypassInvoice ? (
