@@ -107,7 +107,6 @@ export default function PromotionLocationCoverage({
   const [selectedCitiesByState, setSelectedCitiesByState] = useState({});
   const [selectedLocalitiesByCity, setSelectedLocalitiesByCity] = useState({});
   const hydratedKeyRef = useRef("");
-  const collapseNextHydrateRef = useRef(false);
   const [maximized, setMaximized] = useState(false);
 
   // Esc leaves full view without closing the surrounding promote panel.
@@ -161,27 +160,19 @@ export default function PromotionLocationCoverage({
     const nextStates = Object.keys(map);
     const nextCities = {};
     const nextLocs = {};
-    const nextExpandedStates = {};
-    const nextExpandedCities = {};
     for (const st of nextStates) {
       const cities = map[st] && typeof map[st] === "object" ? map[st] : {};
       nextCities[st] = Object.keys(cities);
       nextLocs[st] = {};
-      nextExpandedStates[st] = true;
       for (const city of nextCities[st]) {
         nextLocs[st][city] = Array.isArray(cities[city])
           ? [...cities[city]]
           : [];
-        nextExpandedCities[`${st}||${city}`] = true;
       }
     }
-    const collapse = collapseNextHydrateRef.current;
-    collapseNextHydrateRef.current = false;
     setSelectedStates(nextStates);
     setSelectedCitiesByState(nextCities);
     setSelectedLocalitiesByCity(nextLocs);
-    setExpandedStates(collapse ? {} : nextExpandedStates);
-    setExpandedCities(collapse ? {} : nextExpandedCities);
   }, [enabled, value]);
 
   const emitChange = useCallback((states, citiesByState, locsByCity) => {
@@ -225,7 +216,6 @@ export default function PromotionLocationCoverage({
       setSelectedStates(nextStates);
       setSelectedCitiesByState(nextCities);
       setSelectedLocalitiesByCity(nextLocs);
-      setExpandedStates((p) => ({ ...p, [st]: false }));
       emitChange(nextStates, nextCities, nextLocs);
       return;
     }
@@ -243,7 +233,6 @@ export default function PromotionLocationCoverage({
     setSelectedStates(nextStates);
     setSelectedCitiesByState(nextCities);
     setSelectedLocalitiesByCity(nextLocs);
-    setExpandedStates((p) => ({ ...p, [st]: true }));
     emitChange(nextStates, nextCities, nextLocs);
   };
 
@@ -268,8 +257,6 @@ export default function PromotionLocationCoverage({
       setSelectedStates([]);
       setSelectedCitiesByState({});
       setSelectedLocalitiesByCity({});
-      setExpandedStates({});
-      setExpandedCities({});
       emitChange([], {}, {});
       return;
     }
@@ -287,7 +274,6 @@ export default function PromotionLocationCoverage({
     defaultAppliedRef.current = true;
     if (!isCoverageEmpty(value)) return;
     const { states, cities, locs } = selectEverything(hierarchy);
-    collapseNextHydrateRef.current = true;
     onChangeRef.current?.(buildSponsoredAdFromSelection(states, cities, locs));
   }, [defaultAllIndia, enabled, hierarchy, value]);
 
@@ -346,7 +332,6 @@ export default function PromotionLocationCoverage({
     if (checked) {
       nextCitiesList = current.includes(city) ? current : [...current, city];
       nextLocsForState[city] = [...(hierarchy[st]?.[city] || [])];
-      setExpandedCities((p) => ({ ...p, [`${st}||${city}`]: true }));
     } else {
       nextCitiesList = current.filter((c) => c !== city);
       delete nextLocsForState[city];
