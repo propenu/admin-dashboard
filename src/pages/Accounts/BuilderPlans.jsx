@@ -292,7 +292,7 @@ function AssignPlanDrawer({ plan, onClose, onAssigned }) {
   </div>;
 }
 
-function CreateInvoiceDrawer({ initialPlan, plans, onClose, onCreatePlan, canCreatePlan = false }) {
+function CreateInvoiceDrawer({ initialPlan, initialBuilder = null, initialProjectId = "", plans, onClose, onCreatePlan, canCreatePlan = false }) {
   const [planId, setPlanId] = useState(initialPlan?._id || "");
   const [builderId, setBuilderId] = useState("");
   const [selectedBuilder, setSelectedBuilder] = useState(null);
@@ -361,6 +361,24 @@ function CreateInvoiceDrawer({ initialPlan, plans, onClose, onCreatePlan, canCre
   useEffect(() => {
     if (builderLookup.error) toast.error(builderLookup.error);
   }, [builderLookup.error]);
+
+  useEffect(() => {
+    if (!initialBuilder?._id) return undefined;
+    let cancelled = false;
+    setBuilderId(initialBuilder._id);
+    setSelectedBuilder(initialBuilder);
+    setLoadingProjects(true);
+    builderPlanService.builderProjects(initialBuilder._id)
+      .then((items) => {
+        if (cancelled) return;
+        setProjects(items);
+        if (initialProjectId && items.some((project) => project._id === initialProjectId)) setProjectId(initialProjectId);
+      })
+      .catch(() => { if (!cancelled) toast.error("Unable to load this builder's projects"); })
+      .finally(() => { if (!cancelled) setLoadingProjects(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const selectBuilder = async (id) => {
     setBuilderId(id); setProjectId("");
@@ -536,6 +554,18 @@ export default function BuilderPlans() {
   const setShowInvoices = (open) => setSearchParams(open ? { view: "invoices" } : {}, { replace: !open });
   const setShowProformas = (open) => setSearchParams(open ? { view: "proformas" } : {}, { replace: !open });
   const [deleting, setDeleting] = useState(null);
+  const [invoicePrefill, setInvoicePrefill] = useState(null);
+
+  useEffect(() => {
+    if (searchParams.get("createInvoice") !== "1" || !invoiceAccess.canCreate) return;
+    const builderId = searchParams.get("builderId") || "";
+    setInvoicePrefill({
+      builder: builderId ? { _id: builderId, name: searchParams.get("builderName") || "Builder" } : null,
+      projectId: searchParams.get("projectId") || "",
+    });
+    setInvoicingPlan({});
+    setSearchParams({}, { replace: true });
+  }, [searchParams, invoiceAccess.canCreate, setSearchParams]);
 
   const load = async () => {
     if (!planAccess.canView) {
@@ -965,8 +995,13 @@ export default function BuilderPlans() {
       {invoicingPlan && invoiceAccess.canCreate && (
         <CreateInvoiceDrawer
           initialPlan={invoicingPlan._id ? invoicingPlan : null}
+          initialBuilder={invoicePrefill?.builder || null}
+          initialProjectId={invoicePrefill?.projectId || ""}
           plans={plans}
-          onClose={() => setInvoicingPlan(null)}
+          onClose={() => {
+            setInvoicingPlan(null);
+            setInvoicePrefill(null);
+          }}
           onCreatePlan={() => {
             if (!planAccess.canCreate) return toast.error("You need plan:create permission");
             setInvoicingPlan(null);

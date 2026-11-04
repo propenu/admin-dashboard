@@ -99,11 +99,14 @@ export default function PromotionModeMenu({
   onClose,
   projectId,
   currentBasis = null,
+  builder = null,
   busy = false,
   onChoosePlan,
   onChooseDirect,
 }) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [askInvoice, setAskInvoice] = useState(false);
+  if (!open && askInvoice) setAskInvoice(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthUserProfile();
@@ -169,11 +172,29 @@ export default function PromotionModeMenu({
       ? "Approve the project first."
       : "";
   const latestInvoice = invoiceMissing ? status?.latestInvoice || null : null;
+  const askingForInvoice = !canBypassInvoice || askInvoice;
   const invoiceBlock =
-    !canBypassInvoice && latestInvoice
+    askingForInvoice && latestInvoice
       ? INVOICE_BLOCKERS[latestInvoice.reason] || INVOICE_BLOCKERS.unavailable
       : null;
   const showPromoteOptions = Boolean(plan || isError || canBypassInvoice);
+  const createInvoicePath = () => {
+    const params = new URLSearchParams({ createInvoice: "1", projectId: String(projectId || "") });
+    if (builder?.id) {
+      params.set("builderId", String(builder.id));
+      if (builder.name) params.set("builderName", builder.name);
+    }
+    return `/builder-plans?${params.toString()}`;
+  };
+  const startWithoutInvoice = canBypassInvoice ? (
+    <button
+      type="button"
+      onClick={() => onChooseDirect?.(status, { basis: "invoice" })}
+      className="mt-1.5 w-full rounded-lg px-2 py-1 text-[10px] font-semibold text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
+    >
+      Promote now without invoice
+    </button>
+  ) : null;
 
   return createPortal(
     <>
@@ -284,7 +305,7 @@ export default function PromotionModeMenu({
                     type="button"
                     onClick={() => {
                       onClose?.();
-                      navigate(invoiceBlock.action === "Open invoices" ? "/builder-plans?view=invoices" : "/builder-plans");
+                      navigate(invoiceBlock.action === "Open invoices" ? "/builder-plans?view=invoices" : createInvoicePath());
                     }}
                     className={`mt-1.5 w-full rounded-lg px-2 py-1.5 text-[11px] font-semibold ${
                       invoiceBlock.reusable
@@ -294,41 +315,43 @@ export default function PromotionModeMenu({
                   >
                     {invoiceBlock.action}
                   </button>
+                  {startWithoutInvoice}
                 </div>
-              ) : invoiceMissing && !canBypassInvoice ? (
+              ) : invoiceMissing && askingForInvoice ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5">
                   <p className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-900">
-                    <FileText className="h-3.5 w-3.5" /> Invoice required
+                    <FileText className="h-3.5 w-3.5" /> {canBypassInvoice ? "Create an invoice first?" : "Invoice required"}
                   </p>
                   <p className="mt-1 text-[10px] leading-4 text-amber-800">
-                    Promotions can start only after a paid invoice is recorded for this project.
-                    Create an invoice in Builder Plans, mark it as Paid, then return here to promote.
+                    This project has no invoice. Create one for {builder?.name || "the builder"}, mark it as Paid,
+                    and the promotion runs with the invoice&apos;s placement, locations, lead visibility and dates.
                   </p>
                   <button
                     type="button"
                     onClick={() => {
                       onClose?.();
-                      navigate("/builder-plans");
+                      navigate(createInvoicePath());
                     }}
                     className="mt-2 w-full rounded-lg bg-[#27AE60] px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-[#219653]"
                   >
                     Create invoice
                   </button>
+                  {startWithoutInvoice}
                 </div>
               ) : null}
-              {invoiceMissing && canBypassInvoice ? (
+              {invoiceMissing && canBypassInvoice && !askInvoice ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5">
                   <p className="text-[11px] font-semibold text-emerald-900">
                     Choose how to start
                   </p>
                   <p className="mt-1 text-[10px] leading-4 text-emerald-800">
-                    Pick Invoice-based for a paying builder, or Demo for a free trial. Both work without a paid invoice for Super Admin and main heads.
+                    Invoice-based runs from the builder&apos;s paid invoice. Demo is a free trial with no invoice.
                   </p>
                 </div>
               ) : null}
               {showPromoteOptions ? (
                 <>
-                  {plan || isError ? (
+                  {(plan || isError) && !canBypassInvoice ? (
                     <Option
                       icon={MousePointerClick}
                       tone="bg-emerald-100 text-emerald-700"
@@ -347,23 +370,23 @@ export default function PromotionModeMenu({
                         title="Invoice-based promotion"
                         desc={
                           plan
-                            ? "Paid invoice found · set Prime, Top Selling or Sponsored yourself (30 days default)."
+                            ? `Runs ${plan.invoiceNumber || "the paid invoice"} · placement, locations, lead visibility and start date from the invoice.`
                             : latestInvoice
-                              ? `Invoice ${latestInvoice.invoiceNumber} is ${latestInvoice.paymentStatus} · you can still start; record payment in Invoices.`
-                              : "No invoice yet · start now and raise the pro-forma / invoice in Builder Plans."
+                              ? `Invoice ${latestInvoice.invoiceNumber} is ${latestInvoice.paymentStatus} · not ready to promote yet.`
+                              : "No invoice yet · you will be asked to create one."
                         }
                         current={
-                          (runningMode === "manual" || (!runningMode && savedMode === "manual")) &&
-                          currentBasis !== "demo"
+                          Boolean(runningMode) && currentBasis !== "demo"
                         }
+                        disabledReason={isError ? "Invoice status unavailable." : plan ? planMissing : ""}
                         busy={busy}
-                        onClick={() => onChooseDirect?.(status, { basis: "invoice" })}
+                        onClick={() => (plan ? onChoosePlan?.(status) : setAskInvoice(true))}
                       />
                       <Option
                         icon={FlaskConical}
                         tone="bg-orange-100 text-orange-700"
                         title="Demo promotion"
-                        desc="Free trial without invoice · 7, 15, 20 days or custom. Shows a Demo badge."
+                        desc="Free trial, no invoice · set placement, locations, lead visibility, start now or schedule, 7/15/20 days or custom."
                         current={currentBasis === "demo"}
                         busy={busy}
                         onClick={() => onChooseDirect?.(status, { basis: "demo" })}

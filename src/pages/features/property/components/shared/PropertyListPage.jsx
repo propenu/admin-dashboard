@@ -374,9 +374,7 @@ export default function PropertyListPage({
             ?.visibleLeadLimit
         }
         canSetLeadCount={canSetPromotionLeadCount(user?.user || user)}
-        initialBasis={promoteChoice.basis}
-        prefillPlan={promoteChoice.prefillPlan}
-        isLoading={promoteMutation.isPending}
+        initialBasis={promoteChoice.basis}        isLoading={promoteMutation.isPending}
         onConfirm={(newType, options = {}) => {
           if (!promoteTarget || !newType) return;
           promoteMutation.mutate(
@@ -758,10 +756,7 @@ export default function PropertyListPage({
                 type={type}
                 onDelete={() => setDeleteTarget(p._id)}
                 onPromote={(options = {}) => {
-                  setPromoteChoice({
-                    basis: options.basis === "demo" ? "demo" : "invoice",
-                    prefillPlan: options.basis === "invoice" ? options.planStatus?.plan || null : null,
-                  });
+                  setPromoteChoice({ basis: options.basis === "demo" ? "demo" : "invoice" });
                   setPromoteTarget(p._id);
                 }}
                 onReset={() => setResetTarget(p._id)}

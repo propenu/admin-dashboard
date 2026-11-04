@@ -813,15 +813,19 @@ export default memo(function PropertyCard({
                   onClose={() => setModeMenuOpen(false)}
                   projectId={p._id}
                   currentBasis={hasPromotion ? p?.promotion?.basis || null : null}
+                  builder={{
+                    id: p?.createdBy?._id || (typeof p?.createdBy === "string" ? p.createdBy : ""),
+                    name: creatorName,
+                  }}
                   busy={modeBusy}
                   onChooseAuto={chooseAutomatic}
                   onChoosePlan={(status) => {
                     setModeMenuOpen(false);
                     onPromote?.({ mode: "plan", planStatus: status });
                   }}
-                  onChooseDirect={(status, choice = {}) => {
+                  onChooseDirect={(_status, choice = {}) => {
                     setModeMenuOpen(false);
-                    onPromote?.({ mode: "manual", basis: choice.basis || "invoice", planStatus: status });
+                    onPromote?.({ mode: "manual", basis: choice.basis || "invoice" });
                   }}
                 />
               ) : null}

@@ -246,7 +246,6 @@ export default function PromoteModal({
   canSetLeadCount = true,
   planStatus = null,
   initialBasis = "invoice",
-  prefillPlan = null,
   isLoading,
   onConfirm,
   onCancel,
@@ -333,22 +332,6 @@ export default function PromoteModal({
         (sameAsRunning ? promo.sponsoredSameAsMain : coverage.sponsoredSameAsMain ?? pkg.sponsoredSameAsMain) === false
           ? "separate"
           : "same",
-      );
-      return;
-    }
-    const invoicePlan =
-      initialBasis !== "demo" && prefillPlan?.mainType && prefillPlan.mainType !== "normal"
-        ? prefillPlan
-        : null;
-    if (invoicePlan && (!liveType || liveType === "normal")) {
-      const pkg = invoicePlan.package || {};
-      const coverage = invoicePlan.coverage || {};
-      setSelected(invoicePlan.mainType);
-      setWithSponsored(Boolean(pkg.sponsoredEnabled));
-      setMainCoverage(cloneSponsoredAd(coverage.mainCoverage));
-      setSponsoredAd(cloneSponsoredAd(coverage.sponsoredAd));
-      setSponsoredMode(
-        (coverage.sponsoredSameAsMain ?? pkg.sponsoredSameAsMain) === false ? "separate" : "same",
       );
       return;
     }
@@ -750,23 +733,11 @@ export default function PromoteModal({
             </div>
           )}
 
-          {!planMode && (isDemo || prefillPlan) && (
-            <div
-              className={`rounded-2xl border px-3 py-2 text-[11px] ${
-                isDemo
-                  ? "border-amber-200 bg-amber-50 text-amber-900"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-900"
-              }`}
-            >
-              <p className="font-semibold">
-                {isDemo
-                  ? "Demo promotion · free trial, no invoice"
-                  : `Invoice-based · ${prefillPlan.invoiceNumber || prefillPlan.planName || "paid invoice"}`}
-              </p>
+          {isDemo && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+              <p className="font-semibold">Demo promotion · free trial, no invoice</p>
               <p className="mt-0.5 opacity-80">
-                {isDemo
-                  ? "Pick placement and locations, then 7, 15, 20 days or a custom duration."
-                  : "Placement and locations are filled from the invoice. Change them if needed."}
+                Pick placement, locations and lead visibility, then start now or schedule for 7, 15, 20 days or a custom duration.
               </p>
             </div>
           )}
