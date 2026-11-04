@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
-  Ban,
   CalendarClock,
   CheckCircle2,
   Copy,
@@ -31,34 +30,51 @@ const DURATION_PRESETS = [7, 10, 15, 30, 60];
 const DEMO_PRESETS = [7, 15, 20];
 const MAX_DAYS = 365;
 
-const TYPES = [
+const PLACEMENTS = [
   {
-    value: "prime",
+    key: "prime",
+    type: "prime",
+    sponsored: false,
     label: "Prime",
-    desc: "Top of the homepage Prime section. Highest visibility.",
+    desc: "Top of the homepage Prime section in the project's own city. Highest visibility.",
     icon: Crown,
     iconTone: "text-amber-500",
   },
   {
-    value: "featured",
+    key: "featured",
+    type: "featured",
+    sponsored: false,
     label: "Top Selling",
-    desc: "Shown in the Top Selling projects section.",
+    desc: "Top Selling projects section in the project's own city.",
     icon: TrendingUp,
     iconTone: "text-sky-500",
   },
   {
-    value: "sponsored",
+    key: "sponsored",
+    type: "sponsored",
+    sponsored: false,
     label: "Sponsored",
-    desc: "Only as a Sponsored ad in search results for chosen locations.",
+    desc: "Only as a Sponsored ad in search results for the locations you pick.",
     icon: Megaphone,
     iconTone: "text-violet-500",
   },
   {
-    value: "normal",
-    label: "Normal",
-    desc: "Remove all promotion. Leads stay masked.",
-    icon: Ban,
-    iconTone: "text-slate-400",
+    key: "prime+sponsored",
+    type: "prime",
+    sponsored: true,
+    label: "Prime + Sponsored",
+    desc: "Prime in the project's own city plus a Sponsored ad in the locations you pick. Both end together.",
+    icon: Crown,
+    iconTone: "text-amber-500",
+  },
+  {
+    key: "featured+sponsored",
+    type: "featured",
+    sponsored: true,
+    label: "Top Selling + Sponsored",
+    desc: "Top Selling in the project's own city plus a Sponsored ad in the locations you pick. Both end together.",
+    icon: TrendingUp,
+    iconTone: "text-sky-500",
   },
 ];
 
@@ -190,27 +206,6 @@ function StepTracker({ steps }) {
         </li>
       ))}
     </ol>
-  );
-}
-
-function Switch({ checked, onChange, disabled }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
-        checked ? "bg-violet-600" : "bg-slate-300"
-      } disabled:opacity-50`}
-    >
-      <span
-        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
-          checked ? "translate-x-5" : "translate-x-0.5"
-        }`}
-      />
-    </button>
   );
 }
 
@@ -520,13 +515,18 @@ export default function PromoteModal({
 
   if (!open) return null;
 
-  const chooseType = (value) => {
+  const choosePlacement = (option) => {
     if (planMode) return;
-    setSelected(value);
-    setCountTouched(false);
-    if (value === "normal") setScheduleMode("now");
-    if (value !== "prime" && value !== "featured") setWithSponsored(false);
+    if (option.type !== selected) setCountTouched(false);
+    setSelected(option.type);
+    setWithSponsored(option.sponsored);
   };
+  const selectedPlacement =
+    PLACEMENTS.find((o) => o.type === selected && o.sponsored === (isMainPlacement && withSponsored)) || null;
+  const livePlacementKey =
+    liveType && liveType !== "normal"
+      ? `${liveType}${currentPromotion?.sponsoredEnabled && liveType !== "sponsored" ? "+sponsored" : ""}`
+      : "";
 
   const chooseSponsoredMode = (mode) => setSponsoredMode(mode);
 
@@ -598,9 +598,6 @@ export default function PromoteModal({
     ...(canSetLeadCount ? [{ label: "Leads", done: !leadCountInvalid }] : []),
   ] : [
     { label: "Placement", done: Boolean(selected) },
-    ...(isMainPlacement
-      ? [{ label: "Sponsored", done: true }]
-      : []),
     ...(showLocations
       ? [{ label: "Locations", done: locationsDone }]
       : []),
@@ -616,7 +613,7 @@ export default function PromoteModal({
       ? [{ label: "Leads", done: !leadCountInvalid }]
       : []),
   ];
-  const scheduleStep = 1 + (isMainPlacement ? 1 : 0) + (showLocations ? 1 : 0) + 1;
+  const scheduleStep = 1 + (showLocations ? 1 : 0) + 1;
   const locationAccent =
     selected === "prime" ? "amber" : selected === "featured" ? "sky" : "violet";
 
@@ -748,31 +745,24 @@ export default function PromoteModal({
             step={1}
             accent="emerald"
             done={Boolean(selected)}
-            title={planMode ? "Placement from the plan" : "Where should this project appear?"}
-            hint={
-              planMode
-                ? "Locked by the builder plan."
-                : "Prime and Top Selling are separate sections. Pick one. You can add Sponsored on top in the next step."
-            }
+            title="Where should this project appear?"
+            hint="Pick one. Sponsored and the combined options ask for Sponsored locations next."
           >
-            <div role="radiogroup" className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-              {TYPES.filter((t) => !planMode || t.value === selected).map((t) => {
-                const Icon = t.icon;
-                const isActive = selected === t.value;
-                const tag = planMode
-                  ? "Plan"
-                  : liveType === t.value && t.value !== "normal"
-                    ? "Current"
-                    : "";
+            <div role="radiogroup" className="grid grid-cols-2 gap-1.5 sm:grid-cols-6">
+              {PLACEMENTS.map((option) => {
+                const Icon = option.icon;
+                const isActive = selectedPlacement?.key === option.key;
                 return (
                   <button
-                    key={t.value}
+                    key={option.key}
                     type="button"
                     role="radio"
                     aria-checked={isActive}
-                    title={t.desc}
-                    onClick={() => chooseType(t.value)}
+                    title={option.desc}
+                    onClick={() => choosePlacement(option)}
                     className={`flex h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 text-left text-xs font-semibold transition ${
+                      option.sponsored ? "sm:col-span-3" : "sm:col-span-2"
+                    } ${
                       isActive
                         ? "border-[#27AE60] bg-emerald-50 text-[#0f3d2e] ring-1 ring-[#27AE60]"
                         : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300"
@@ -785,61 +775,32 @@ export default function PromoteModal({
                     >
                       {isActive ? <span className="h-2 w-2 rounded-full bg-[#27AE60]" /> : null}
                     </span>
-                    <Icon className={`h-3.5 w-3.5 shrink-0 ${t.iconTone}`} />
-                    <span className="truncate">{t.label}</span>
-                    {tag ? (
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${option.iconTone}`} />
+                    {option.sponsored ? <Megaphone className="h-3.5 w-3.5 shrink-0 text-violet-500" /> : null}
+                    <span className="truncate">{option.label}</span>
+                    {livePlacementKey === option.key ? (
                       <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-1 py-px text-[8px] font-bold uppercase text-emerald-700">
-                        {tag}
+                        Current
                       </span>
                     ) : null}
                   </button>
                 );
               })}
             </div>
-            {selected ? (
+            {selectedPlacement ? (
               <p className="mt-1.5 text-[11px] text-slate-500">
-                {TYPES.find((t) => t.value === selected)?.desc}
+                {selectedPlacement.desc.replace(
+                  "the project's own city",
+                  `the project's own city${projectCity ? ` (${projectCity})` : ""}`,
+                )}
               </p>
             ) : null}
           </Section>
           )}
 
-          {isMainPlacement && !planMode && (
-            <Section
-              step={2}
-              accent="violet"
-              done={withSponsored}
-              title="Add Sponsored ads too?"
-              hint="Runs the same project as a Sponsored ad in search results. Same start and end, so both come down together."
-            >
-              <div
-                className={`flex items-center justify-between gap-3 rounded-xl border p-3 transition ${
-                  withSponsored ? "border-violet-300 bg-violet-50" : "border-slate-200 bg-white"
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  <Megaphone
-                    className={`mt-0.5 h-4 w-4 ${withSponsored ? "text-violet-600" : "text-slate-400"}`}
-                  />
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800">
-                      Also show this {mainLabel} project as Sponsored
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      {withSponsored
-                        ? `${mainLabel} + Sponsored will run as one promotion. Pick Sponsored locations next.`
-                        : `${mainLabel} shows in the project's own city${projectCity ? ` (${projectCity})` : ""}.`}
-                    </p>
-                  </div>
-                </div>
-                <Switch checked={withSponsored} onChange={setWithSponsored} disabled={planMode} />
-              </div>
-            </Section>
-          )}
-
           {showLocations && (
             <Section
-              step={planMode ? 1 : isMainPlacement ? 3 : 2}
+              step={planMode ? 1 : 2}
               accent={planMode ? locationAccent : "violet"}
               done={locationsDone}
               title={planMode ? "Choose locations" : "Sponsored locations"}
