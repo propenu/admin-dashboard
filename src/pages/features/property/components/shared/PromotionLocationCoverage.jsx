@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   CheckSquare,
+  MinusSquare,
   MapPin,
   Maximize2,
   Minimize2,
@@ -44,19 +45,21 @@ function buildHierarchyFromLocations(locations = []) {
   return buildHierarchyFromAdminLocations(locations);
 }
 
-function CheckboxRow({ checked, onChange, label }) {
+function CheckboxRow({ checked, partial = false, onChange, label }) {
   return (
     <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition hover:bg-slate-50">
       <button
         type="button"
         onClick={(e) => {
           e.preventDefault();
-          onChange(!checked);
+          onChange(partial || !checked);
         }}
         className="shrink-0 text-[#27AE60]"
-        aria-pressed={checked}
+        aria-pressed={partial ? "mixed" : checked}
       >
-        {checked ? (
+        {partial ? (
+          <MinusSquare size={16} />
+        ) : checked ? (
           <CheckSquare size={16} />
         ) : (
           <Square size={16} className="text-slate-400" />
@@ -227,17 +230,15 @@ export default function PromotionLocationCoverage({
       return;
     }
 
-    // Ticking a state only opens it; cities are picked one by one (or via "Select all").
+    const byCity = hierarchy[st] || {};
+    const allCities = Object.keys(byCity).sort((a, b) => a.localeCompare(b));
     const nextStates = selectedStates.includes(st)
       ? selectedStates
       : [...selectedStates, st];
-    const nextCities = {
-      ...selectedCitiesByState,
-      [st]: selectedCitiesByState[st] || [],
-    };
+    const nextCities = { ...selectedCitiesByState, [st]: allCities };
     const nextLocs = {
       ...selectedLocalitiesByCity,
-      [st]: selectedLocalitiesByCity[st] || {},
+      [st]: Object.fromEntries(allCities.map((c) => [c, [...(byCity[c] || [])]])),
     };
     setSelectedStates(nextStates);
     setSelectedCitiesByState(nextCities);
@@ -303,7 +304,9 @@ export default function PromotionLocationCoverage({
     const nextCities = { ...selectedCitiesByState, [st]: allCities };
     const nextLocs = {
       ...selectedLocalitiesByCity,
-      [st]: Object.fromEntries(allCities.map((c) => [c, existingLocs[c] || []])),
+      [st]: Object.fromEntries(
+        allCities.map((c) => [c, existingLocs[c] || [...(hierarchy[st]?.[c] || [])]]),
+      ),
     };
     setSelectedStates(nextStates);
     setSelectedCitiesByState(nextCities);
@@ -341,9 +344,8 @@ export default function PromotionLocationCoverage({
     let nextCitiesList;
 
     if (checked) {
-      // Ticking a city only adds that city; localities are picked one by one.
       nextCitiesList = current.includes(city) ? current : [...current, city];
-      nextLocsForState[city] = nextLocsForState[city] || [];
+      nextLocsForState[city] = [...(hierarchy[st]?.[city] || [])];
       setExpandedCities((p) => ({ ...p, [`${st}||${city}`]: true }));
     } else {
       nextCitiesList = current.filter((c) => c !== city);
@@ -376,6 +378,11 @@ export default function PromotionLocationCoverage({
         ? current
         : [...current, localityName]
       : current.filter((l) => l !== localityName);
+
+    if (!checked && nextList.length === 0) {
+      toggleCity(st, city, false);
+      return;
+    }
 
     let nextStates = selectedStates.includes(st)
       ? selectedStates
@@ -524,6 +531,17 @@ export default function PromotionLocationCoverage({
               const expanded = Boolean(expandedStates[stateName]);
               const cityMap = hierarchy[stateName] || {};
               const cityNames = Object.keys(cityMap);
+              const pickedCities = selectedCitiesByState[stateName] || [];
+              const statePartial =
+                stateOn &&
+                cityNames.some((c) => {
+                  if (!pickedCities.includes(c)) return true;
+                  const picked = selectedLocalitiesByCity[stateName]?.[c] || [];
+                  return (
+                    picked.length > 0 &&
+                    (cityMap[c] || []).some((l) => !picked.some((x) => norm(x) === norm(l)))
+                  );
+                });
               const cityQuery = cityQueryByState[stateName] || "";
               const filteredCities = cityNames.filter((c) =>
                 matchesQuery(c, cityQuery),
@@ -554,6 +572,7 @@ export default function PromotionLocationCoverage({
                     <div className="min-w-0 flex-1">
                       <CheckboxRow
                         checked={stateOn}
+                        partial={statePartial}
                         label={stateName}
                         onChange={(next) => toggleState(stateName, next)}
                       />
@@ -655,6 +674,11 @@ export default function PromotionLocationCoverage({
                                   <div className="min-w-0 flex-1">
                                     <CheckboxRow
                                       checked={cityOn}
+                                      partial={
+                                        cityOn &&
+                                        selectedLocs.length > 0 &&
+                                        allLocs.some((l) => !selectedLocs.some((x) => norm(x) === norm(l)))
+                                      }
                                       label={cityName}
                                       onChange={(next) =>
                                         toggleCity(stateName, cityName, next)
@@ -673,9 +697,7 @@ export default function PromotionLocationCoverage({
                                     {allLocs.length > 0 && (
                                       <div className="flex items-center justify-between px-1 text-[10px] text-slate-500">
                                         <span>
-                                          {cityOn && selectedLocs.length === 0
-                                            ? "No locality ticked = whole city"
-                                            : "Tick the localities you need"}
+                                          Tick the localities you need
                                         </span>
                                         <button
                                           type="button"
