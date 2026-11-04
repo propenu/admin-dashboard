@@ -364,29 +364,23 @@ export default function PromotionModeMenu({
                   ) : null}
                   {canBypassInvoice ? (
                     <>
-                      <Option
-                        icon={Receipt}
-                        tone="bg-emerald-100 text-emerald-700"
-                        title="Invoice-based promotion"
-                        desc={
-                          plan
-                            ? `Runs ${plan.invoiceNumber || "the paid invoice"} · placement, locations, lead visibility and start date from the invoice.`
-                            : latestInvoice
-                              ? `Invoice ${latestInvoice.invoiceNumber} is ${latestInvoice.paymentStatus} · not ready to promote yet.`
-                              : "No invoice yet · you will be asked to create one."
-                        }
-                        current={
-                          Boolean(runningMode) && currentBasis !== "demo"
-                        }
-                        disabledReason={isError ? "Invoice status unavailable." : plan ? planMissing : ""}
-                        busy={busy}
-                        onClick={() => (plan ? onChoosePlan?.(status) : setAskInvoice(true))}
-                      />
+                      {!askInvoice ? (
+                        <Option
+                          icon={Receipt}
+                          tone="bg-emerald-100 text-emerald-700"
+                          title="Invoice-based promotion"
+                          current={
+                            Boolean(runningMode) && currentBasis !== "demo"
+                          }
+                          disabledReason={isError ? "Invoice status unavailable." : plan ? planMissing : ""}
+                          busy={busy}
+                          onClick={() => (plan ? onChoosePlan?.(status) : setAskInvoice(true))}
+                        />
+                      ) : null}
                       <Option
                         icon={FlaskConical}
                         tone="bg-orange-100 text-orange-700"
                         title="Demo promotion"
-                        desc="Free trial, no invoice · set placement, locations, lead visibility, start now or schedule, 7/15/20 days or custom."
                         current={currentBasis === "demo"}
                         busy={busy}
                         onClick={() => onChooseDirect?.(status, { basis: "demo" })}
