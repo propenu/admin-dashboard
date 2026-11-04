@@ -182,15 +182,15 @@ function StepTracker({ steps }) {
           <span
             className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold transition ${
               s.done
-                ? "bg-white text-[#0f3d2e]"
-                : "border border-white/60 text-white/90"
+                ? "bg-[#27AE60] text-white"
+                : "border border-[#27AE60] bg-white text-[#27AE60]"
             }`}
           >
             {s.done ? <CheckCircle2 className="h-3 w-3" /> : index + 1}
           </span>
           <span
             className={`truncate text-[10px] font-semibold ${
-              s.done ? "text-white" : "text-white/70"
+              s.done ? "text-[#0f3d2e]" : "text-slate-500"
             }`}
           >
             {s.label}
@@ -198,7 +198,7 @@ function StepTracker({ steps }) {
           {index < steps.length - 1 ? (
             <span
               className={`h-0.5 min-w-2 flex-1 rounded-full ${
-                s.done ? "bg-white/80" : "bg-white/25"
+                s.done ? "bg-[#27AE60]" : "bg-emerald-200"
               }`}
             />
           ) : null}
@@ -619,28 +619,27 @@ export default function PromoteModal({
         }`}
       >
         {/* Header */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#0f3d2e] via-[#17643f] to-[#27AE60] px-4 py-2.5 text-white">
-          <span className="pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full bg-white/10" />
-          <div className="relative flex items-center justify-between gap-2">
+        <div className="border-b border-emerald-100 border-t-[3px] border-t-[#27AE60] bg-emerald-50 px-4 py-2.5 text-[#0f3d2e]">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="rounded-md bg-white/15 p-1">
+              <span className="rounded-md bg-[#27AE60] p-1 text-white">
                 <TrendingUp className="h-3.5 w-3.5" />
               </span>
               <h2 className="shrink-0 text-sm font-bold">{planMode ? "Start from plan" : "Promote"}</h2>
               {isDemo ? (
                 <span
-                  className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-[#219653]"
+                  className="shrink-0 rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-bold text-[#219653]"
                   title="Free trial, no invoice. Shows a Demo badge on the card and ends on its own."
                 >
                   Demo · free trial
                 </span>
               ) : null}
-              <span className="truncate text-xs text-emerald-50/90">
+              <span className="truncate text-xs text-slate-500">
                 {projectTitle ? `· ${projectTitle}` : ""}
               </span>
               {liveType !== "normal" ? (
                 <span
-                  className="hidden shrink-0 items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold ring-1 ring-white/25 sm:inline-flex"
+                  className="hidden shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-800 sm:inline-flex"
                   title={
                     currentPromotion?.boostExpiry
                       ? `Ends ${formatPromotionDateTime(currentPromotion.boostExpiry)}`
@@ -659,15 +658,13 @@ export default function PromoteModal({
             <button
               type="button"
               onClick={onCancel}
-              className="shrink-0 rounded-lg bg-white/10 p-1 text-white transition hover:bg-white/20"
+              className="shrink-0 rounded-lg p-1 text-slate-500 transition hover:bg-white hover:text-[#27AE60]"
               aria-label="Close"
             >
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
-          <div className="relative">
-            <StepTracker steps={trackerSteps} />
-          </div>
+          <StepTracker steps={trackerSteps} />
         </div>
 
         {/* Body */}
