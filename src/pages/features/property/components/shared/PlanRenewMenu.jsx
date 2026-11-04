@@ -133,20 +133,20 @@ export default function PlanRenewMenu({ anchorRef, open, onClose, projectId, onR
         className="absolute overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
         style={{ zIndex: 9999, top: pos.top, left: pos.left, width: MENU_WIDTH, animation: "menuIn 0.12s ease" }}
       >
-        <div className="bg-gradient-to-br from-[#0f3d2e] via-[#17643f] to-[#27AE60] px-3 py-2 text-white">
+        <div className="border-b border-slate-100 bg-emerald-50/60 px-3 py-2">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[12px] font-bold">Renew plan</p>
+            <p className="text-[12px] font-bold text-[#0f3d2e]">Renew plan</p>
             <button
               type="button"
               onClick={() => refetch()}
-              className="rounded-md bg-white/10 p-1 hover:bg-white/20"
+              className="rounded-md p-1 text-slate-500 hover:bg-white hover:text-[#27AE60]"
               title="Refresh"
             >
               <RefreshCw className={`h-3 w-3 ${isFetching ? "animate-spin" : ""}`} />
             </button>
           </div>
-          <p className="mt-1 flex items-center gap-1 text-[10px] text-emerald-50/90">
-            <CalendarClock className="h-2.5 w-2.5" />
+          <p className="mt-1 flex items-center gap-1 text-[10px] text-slate-500">
+            <CalendarClock className="h-2.5 w-2.5 text-[#27AE60]" />
             {endsAt ? `Current plan ends ${formatPromotionDate(endsAt, true)}` : "No plan running"}
             {renewal?.queuedRenewals
               ? ` · ${renewal.queuedRenewals} renewal${renewal.queuedRenewals > 1 ? "s" : ""} queued`

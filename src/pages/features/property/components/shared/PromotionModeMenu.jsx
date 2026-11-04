@@ -201,10 +201,10 @@ export default function PromotionModeMenu({
         className="absolute overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
         style={{ zIndex: 9999, top: pos.top, left: pos.left, width: MENU_WIDTH, animation: "menuIn 0.12s ease" }}
       >
-        <div className="bg-gradient-to-br from-[#0f3d2e] via-[#17643f] to-[#27AE60] px-3 py-2 text-white">
-          <p className="text-[12px] font-bold">Promote this project</p>
+        <div className="border-b border-slate-100 bg-emerald-50/60 px-3 py-2">
+          <p className="text-[12px] font-bold text-[#0f3d2e]">Promote this project</p>
           {plan ? (
-            <div className="mt-1.5 rounded-lg bg-white px-2 py-1.5 text-slate-800 shadow-sm">
+            <div className="mt-1.5 rounded-lg bg-white px-2 py-1.5 text-slate-800 ring-1 ring-slate-200">
               <p className="flex items-center gap-1 truncate text-[11px] font-semibold">
                 <PackageCheck className="h-3 w-3 shrink-0 text-[#27AE60]" />
                 {plan.planName || plan.label || "Builder plan"}
@@ -219,8 +219,8 @@ export default function PromotionModeMenu({
               </p>
             </div>
           ) : (
-            <p className="mt-1 flex items-center gap-1 text-[10px] text-emerald-50/90">
-              <FileText className="h-2.5 w-2.5" />
+            <p className="mt-1 flex items-center gap-1 text-[10px] text-slate-500">
+              <FileText className="h-2.5 w-2.5 text-[#27AE60]" />
               {isLoading
                 ? "Checking invoice…"
                 : latestInvoice
