@@ -12,7 +12,6 @@ import {
   Loader2,
   MousePointerClick,
   PackageCheck,
-  RefreshCw,
   RotateCcw,
 } from "lucide-react";
 import { getProjectPlanStatus, reuseProjectPlanInvoice } from "../../../../../features/property/propertyService";
@@ -124,7 +123,7 @@ export default function PromotionModeMenu({
     },
   });
 
-  const { data: status, isLoading, isError, refetch, isFetching } = useQuery({
+  const { data: status, isLoading, isError } = useQuery({
     queryKey: planStatusQueryKey(projectId),
     queryFn: () => getProjectPlanStatus(projectId),
     enabled: Boolean(open && projectId),
@@ -203,17 +202,7 @@ export default function PromotionModeMenu({
         style={{ zIndex: 9999, top: pos.top, left: pos.left, width: MENU_WIDTH, animation: "menuIn 0.12s ease" }}
       >
         <div className="bg-gradient-to-br from-[#0f3d2e] via-[#17643f] to-[#27AE60] px-3 py-2 text-white">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[12px] font-bold">Promote this project</p>
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className="rounded-md bg-white/10 p-1 hover:bg-white/20"
-              title="Refresh plan status"
-            >
-              <RefreshCw className={`h-3 w-3 ${isFetching ? "animate-spin" : ""}`} />
-            </button>
-          </div>
+          <p className="text-[12px] font-bold">Promote this project</p>
           {plan ? (
             <div className="mt-1.5 rounded-lg bg-white px-2 py-1.5 text-slate-800 shadow-sm">
               <p className="flex items-center gap-1 truncate text-[11px] font-semibold">
@@ -250,7 +239,7 @@ export default function PromotionModeMenu({
             <>
               {isError ? (
                 <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[10px] text-amber-800">
-                  Could not check the invoice. Refresh and try again.
+                  Could not check the invoice. Close and reopen this menu to try again.
                 </p>
               ) : null}
               {invoiceBlock ? (
