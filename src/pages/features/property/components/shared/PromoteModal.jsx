@@ -141,30 +141,29 @@ const resolveLeadTotal = (res) => {
   return 0;
 };
 
-const SECTION_ACCENTS = {
-  emerald: {
-    bar: "from-[#27AE60] to-emerald-300",
-    badge: "from-[#0f3d2e] to-[#27AE60]",
-  },
-  violet: { bar: "from-violet-500 to-fuchsia-300", badge: "from-violet-700 to-violet-500" },
-  amber: { bar: "from-amber-500 to-yellow-300", badge: "from-amber-600 to-amber-400" },
-  sky: { bar: "from-sky-500 to-cyan-300", badge: "from-sky-700 to-sky-500" },
-  teal: { bar: "from-teal-500 to-emerald-300", badge: "from-teal-700 to-teal-500" },
-};
+const SECTION_INNER_CARD = "border-emerald-200 bg-gradient-to-br from-emerald-50/60 via-white to-white";
 
-function Section({ step, title, hint, accent = "emerald", done, children }) {
-  const tone = SECTION_ACCENTS[accent] || SECTION_ACCENTS.emerald;
+function Section({ step, title, hint, done, children }) {
   return (
     <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 pl-5 shadow-sm">
-      <span className={`absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b ${tone.bar}`} />
+      <span className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-[#27AE60] to-emerald-300" />
       <div className="mb-3 flex items-start gap-3">
         <span
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[11px] font-bold text-white shadow ${tone.badge}`}
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold shadow-sm ${
+            done
+              ? "bg-gradient-to-br from-[#0f3d2e] to-[#27AE60] text-white"
+              : "border border-[#27AE60] bg-white text-[#27AE60]"
+          }`}
         >
           {done ? <CheckCircle2 className="h-4 w-4" /> : step}
         </span>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              Step {step}
+            </span>
+          </div>
           {hint ? (
             <p className="mt-0.5 text-[11px] leading-4 text-slate-500">{hint}</p>
           ) : null}
@@ -614,9 +613,6 @@ export default function PromoteModal({
       : []),
   ];
   const scheduleStep = 1 + (showLocations ? 1 : 0) + 1;
-  const locationAccent =
-    selected === "prime" ? "amber" : selected === "featured" ? "sky" : "violet";
-
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <button
@@ -743,7 +739,6 @@ export default function PromoteModal({
           {!planMode && (
           <Section
             step={1}
-            accent="emerald"
             done={Boolean(selected)}
             title="Where should this project appear?"
             hint="Pick one. Sponsored and the combined options ask for Sponsored locations next."
@@ -801,7 +796,6 @@ export default function PromoteModal({
           {showLocations && (
             <Section
               step={planMode ? 1 : 2}
-              accent={planMode ? locationAccent : "violet"}
               done={locationsDone}
               title={planMode ? "Choose locations" : "Sponsored locations"}
               hint={
@@ -868,11 +862,7 @@ export default function PromoteModal({
                       ? `Saved for both: the ${mainLabel} section and the Sponsored ad.`
                       : `Only for the ${mainLabel} section. Leave empty to use the project's own city.`
                   }
-                  accentClass={
-                    selected === "prime"
-                      ? "border-amber-200 bg-gradient-to-br from-amber-50/80 via-white to-white"
-                      : "border-sky-200 bg-gradient-to-br from-sky-50/80 via-white to-white"
-                  }
+                  accentClass={SECTION_INNER_CARD}
                 />
               )}
 
@@ -896,7 +886,7 @@ export default function PromoteModal({
                       ? `Only for the Sponsored ad. Independent of the ${mainLabel} list.`
                       : `Tick states, cities or localities for the Sponsored ad. ${mainLabel} stays in the project's own city.`
                   }
-                  accentClass="border-violet-200 bg-gradient-to-br from-violet-50/80 via-white to-white"
+                  accentClass={SECTION_INNER_CARD}
                 />
               )}
 
@@ -907,7 +897,7 @@ export default function PromoteModal({
                   onChange={setSponsoredAd}
                   title="Sponsored locations"
                   subtitle="Tick states, cities or localities for the Sponsored ad."
-                  accentClass="border-violet-200 bg-gradient-to-br from-violet-50/80 via-white to-white"
+                  accentClass={SECTION_INNER_CARD}
                 />
               )}
             </Section>
@@ -916,7 +906,6 @@ export default function PromoteModal({
           {selected && !isNormal && !planMode && (
             <Section
               step={scheduleStep}
-              accent="emerald"
               done={!scheduleInvalid && !durationInvalid}
               title="When and how long?"
               hint={
@@ -1017,7 +1006,6 @@ export default function PromoteModal({
           {canSetLeadCount && selected && !isNormal && (
             <Section
               step={planMode ? 2 : scheduleStep + 1}
-              accent="teal"
               done={!leadCountInvalid}
               title="Lead visibility"
               hint={
@@ -1069,14 +1057,14 @@ export default function PromoteModal({
               {isMainPlacement && (
                 <ReviewChip
                   icon={selected === "prime" ? Crown : TrendingUp}
-                  tone={selected === "prime" ? "bg-amber-100 text-amber-800" : "bg-sky-100 text-sky-800"}
+                  tone="bg-emerald-100 text-emerald-800"
                   text={`${mainLabel}: ${mainCoverageText}`}
                 />
               )}
               {(addOnOn || isSponsoredOnly) && (
                 <ReviewChip
                   icon={Megaphone}
-                  tone="bg-violet-100 text-violet-800"
+                  tone="bg-emerald-100 text-emerald-800"
                   text={
                     addOnOn && sponsoredMode === "same"
                       ? `Sponsored: same as ${mainLabel}`
