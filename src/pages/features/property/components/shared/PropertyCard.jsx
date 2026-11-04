@@ -210,6 +210,8 @@ export default memo(function PropertyCard({
   const menuBtnRef = useRef(null);
   const renewBtnRef = useRef(null);
   const [renewMenuOpen, setRenewMenuOpen] = useState(false);
+  const renewNowBtnRef = useRef(null);
+  const [renewModeOpen, setRenewModeOpen] = useState(false);
   const inputRef   = useRef(null);
   const leadFileRef = useRef(null);
 
@@ -524,6 +526,7 @@ export default memo(function PropertyCard({
     p?.promotion?.promotedBy?.name || tracking.activeRecord?.changedByName || "";
   const planLinked =
     hasPromotion && p?.promotion?.source === "subscription" && Boolean(p?.promotion?.plan?.invoiceId);
+  const renewChoosesBasis = planModes && hasPromotion && !planLinked && p?.promotion?.basis === "demo";
   const deliveryChip = planLinked
     ? p.promotion.deliveryMode === "plan"
       ? { text: `⚡ Plan · ${p.promotion.plan.title || "builder plan"}`, tone: "bg-sky-50 text-sky-700 border-sky-100" }
@@ -972,17 +975,47 @@ export default memo(function PropertyCard({
                     />
                   </label>
                   <button
+                    ref={renewNowBtnRef}
                     type="button"
                     disabled={renewLoading}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRenew();
+                      if (renewChoosesBasis) setRenewModeOpen((v) => !v);
+                      else handleRenew();
                     }}
                     className="rounded bg-[#27AE60] px-2 py-0.5 text-[9px] font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    title="Direct renewal — Super Admin and main heads can renew without a paid invoice"
+                    title={
+                      renewChoosesBasis
+                        ? "Renew with an invoice or as another demo"
+                        : "Direct renewal — Super Admin and main heads can renew without a paid invoice"
+                    }
                   >
                     {renewLoading ? "Saving..." : "Renew now"}
                   </button>
+                  {renewChoosesBasis ? (
+                    <PromotionModeMenu
+                      anchorRef={renewNowBtnRef}
+                      open={renewModeOpen}
+                      onClose={() => setRenewModeOpen(false)}
+                      projectId={p._id}
+                      variant="renew"
+                      renewDays={renewDays}
+                      currentBasis="demo"
+                      builder={{
+                        id: p?.createdBy?._id || (typeof p?.createdBy === "string" ? p.createdBy : ""),
+                        name: creatorName,
+                      }}
+                      busy={renewLoading}
+                      onChoosePlan={(status) => {
+                        setRenewModeOpen(false);
+                        onPromote?.({ mode: "plan", planStatus: status });
+                      }}
+                      onChooseDirect={() => {
+                        setRenewModeOpen(false);
+                        handleRenew();
+                      }}
+                    />
+                  ) : null}
                   {planLinked ? (
                     <>
                       <button

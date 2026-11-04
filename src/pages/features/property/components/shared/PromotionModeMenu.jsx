@@ -100,9 +100,12 @@ export default function PromotionModeMenu({
   currentBasis = null,
   builder = null,
   busy = false,
+  variant = "promote",
+  renewDays = null,
   onChoosePlan,
   onChooseDirect,
 }) {
+  const renewing = variant === "renew";
   const [pos, setPos] = useState({ top: 0, left: 0, arrowLeft: MENU_WIDTH - 20 });
   const [askInvoice, setAskInvoice] = useState(false);
   if (!open && askInvoice) setAskInvoice(false);
@@ -214,7 +217,9 @@ export default function PromotionModeMenu({
           <path d="M0 11 L11 0 L22 11 Z" fill="#27AE60" />
         </svg>
         <div className="relative rounded-t-2xl border-b border-slate-100 bg-emerald-50 px-3 py-2">
-          <p className="text-[12px] font-bold text-[#0f3d2e]">Promote this project</p>
+          <p className="text-[12px] font-bold text-[#0f3d2e]">
+            {renewing ? "Renew this promotion" : "Promote this project"}
+          </p>
           {plan ? (
             <div className="mt-1.5 rounded-lg bg-white px-2 py-1.5 text-slate-800 ring-1 ring-slate-200">
               <p className="flex items-center gap-1 truncate text-[11px] font-semibold">
@@ -358,10 +363,8 @@ export default function PromotionModeMenu({
                         <Option
                           icon={Receipt}
                           tone="bg-emerald-100 text-emerald-700"
-                          title="Invoice-based promotion"
-                          current={
-                            Boolean(runningMode) && currentBasis !== "demo"
-                          }
+                          title={renewing ? "Invoice-based renewal" : "Invoice-based promotion"}
+                          current={!renewing && Boolean(runningMode) && currentBasis !== "demo"}
                           disabledReason={isError ? "Invoice status unavailable." : plan ? planMissing : ""}
                           busy={busy}
                           onClick={() => (plan ? onChoosePlan?.(status) : setAskInvoice(true))}
@@ -370,8 +373,12 @@ export default function PromotionModeMenu({
                       <Option
                         icon={FlaskConical}
                         tone="bg-emerald-100 text-emerald-700"
-                        title="Demo promotion"
-                        current={currentBasis === "demo"}
+                        title={
+                          renewing
+                            ? `Demo renewal${renewDays ? ` · ${renewDays} day${Number(renewDays) === 1 ? "" : "s"}` : ""}`
+                            : "Demo promotion"
+                        }
+                        current={!renewing && currentBasis === "demo"}
                         busy={busy}
                         onClick={() => onChooseDirect?.(status, { basis: "demo" })}
                       />
