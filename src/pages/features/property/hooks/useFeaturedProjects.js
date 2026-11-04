@@ -252,6 +252,7 @@ export function useFeaturedProjects(type, options = {}) {
       mainCoverage,
       sponsoredEnabled,
       sponsoredSameAsMain,
+      basis,
     }) => {
       if (!id || !newType) {
         throw new Error("Missing project id or promotion type");
@@ -283,14 +284,16 @@ export function useFeaturedProjects(type, options = {}) {
       if (typeof sponsoredSameAsMain === "boolean") {
         promotePayload.sponsoredSameAsMain = sponsoredSameAsMain;
       }
+      if (basis === "demo") promotePayload.basis = "demo";
       return promoteProjectWithRank(id, promotePayload);
     },
     onSuccess: (_data, variables) => {
       const start = variables?.startAt ? new Date(variables.startAt) : null;
+      const demo = variables?.basis === "demo";
       toast.success(
         start && start.getTime() > Date.now()
-          ? "Promotion scheduled"
-          : "Promotion updated",
+          ? demo ? "Demo promotion scheduled" : "Promotion scheduled"
+          : demo ? `Demo promotion started for ${variables?.days || 7} days` : "Promotion updated",
       );
       invalidate();
     },

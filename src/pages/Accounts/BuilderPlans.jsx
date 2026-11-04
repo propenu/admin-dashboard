@@ -20,6 +20,7 @@ import ChangeHistoryMenu from "./ChangeHistoryMenu";
 import PaymentMethodSelect, { PaymentStatusSelect } from "./PaymentMethodSelect";
 import BrandSelect from "./BrandSelect";
 import BuilderInvoicesPage from "./BuilderInvoicesPage";
+import BuilderProformasPage from "./BuilderProformasPage";
 import { FIXED_PLAN_CODES, FIXED_PLAN_PRESETS } from "../../features/builderPlans/fixedPlans";
 
 const EMPTY_PACKAGE = {
@@ -531,7 +532,9 @@ export default function BuilderPlans() {
   const [resumeInvoiceAfterPlan, setResumeInvoiceAfterPlan] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const showInvoices = searchParams.get("view") === "invoices";
+  const showProformas = searchParams.get("view") === "proformas";
   const setShowInvoices = (open) => setSearchParams(open ? { view: "invoices" } : {}, { replace: !open });
+  const setShowProformas = (open) => setSearchParams(open ? { view: "proformas" } : {}, { replace: !open });
   const [deleting, setDeleting] = useState(null);
 
   const load = async () => {
@@ -603,6 +606,20 @@ export default function BuilderPlans() {
     }
   };
 
+  if (showProformas && invoiceAccess.canView) {
+    return (
+      <BuilderProformasPage
+        plans={plans}
+        canCreate={invoiceAccess.canCreate}
+        canUpdate={invoiceAccess.canUpdate}
+        canDelete={invoiceAccess.canDelete}
+        canCreateInvoice={invoiceAccess.canCreate}
+        onBack={() => setShowProformas(false)}
+        onOpenInvoices={() => setShowInvoices(true)}
+      />
+    );
+  }
+
   if (showInvoices && invoiceAccess.canView) {
     return (
       <BuilderInvoicesPage
@@ -613,6 +630,7 @@ export default function BuilderPlans() {
           setShowInvoices(false);
           openCreateInvoice({});
         }}
+        onOpenProformas={() => setShowProformas(true)}
       />
     );
   }
@@ -656,6 +674,16 @@ export default function BuilderPlans() {
               >
                 <Eye size={16} />
                 View invoices
+              </button>
+            )}
+            {invoiceAccess.canView && (
+              <button
+                type="button"
+                onClick={() => setShowProformas(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-medium text-slate-700 shadow-sm hover:border-emerald-200 hover:text-[#219653]"
+              >
+                <FileText size={16} />
+                Pro-forma
               </button>
             )}
             <ChangeHistoryMenu />

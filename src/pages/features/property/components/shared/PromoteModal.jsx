@@ -28,6 +28,7 @@ import { formatPromotionDate, formatPromotionDateTime } from "./promotionTrackin
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DURATION_PRESETS = [7, 10, 15, 30, 60];
+const DEMO_PRESETS = [7, 15, 20];
 const MAX_DAYS = 365;
 
 const TYPES = [
@@ -260,6 +261,7 @@ export default function PromoteModal({
   const [scheduleTime, setScheduleTime] = useState("");
   const [durationDays, setDurationDays] = useState(30);
   const [customDays, setCustomDays] = useState("");
+  const [basis, setBasis] = useState("invoice");
   const [leadCountInput, setLeadCountInput] = useState("");
   const [totalLeads, setTotalLeads] = useState(null);
   const [leadsLoading, setLeadsLoading] = useState(false);
@@ -303,6 +305,7 @@ export default function PromoteModal({
       setScheduleTime("");
       setDurationDays(30);
       setCustomDays("");
+      setBasis("invoice");
       setLeadCountInput("");
       setTotalLeads(null);
       setLeadsError("");
@@ -403,6 +406,13 @@ export default function PromoteModal({
   ]);
 
   const isNormal = selected === "normal";
+  const isDemo = canBypassInvoice && !planMode && basis === "demo";
+  const durationPresets = isDemo ? DEMO_PRESETS : DURATION_PRESETS;
+  const chooseBasis = (next) => {
+    setBasis(next);
+    setCustomDays("");
+    setDurationDays(next === "demo" ? DEMO_PRESETS[0] : 30);
+  };
   const isMainPlacement = selected === "prime" || selected === "featured";
   const isSponsoredOnly = selected === "sponsored";
   const addOnOn = isMainPlacement && withSponsored;
@@ -536,6 +546,7 @@ export default function PromoteModal({
     onConfirm(selected, {
       visibleLeadLimit,
       days: isNormal ? undefined : durationDays,
+      basis: !isNormal && isDemo ? "demo" : undefined,
       startAt:
         !isNormal && scheduleMode === "later" && scheduleStart
           ? scheduleStart.toISOString()
@@ -566,11 +577,15 @@ export default function PromoteModal({
           : "Start from plan"
     : isNormal
       ? "Remove promotion"
-      : scheduleMode === "later"
-        ? "Schedule promotion"
-        : isUpdate
-          ? "Update promotion"
-          : "Start promotion";
+      : isDemo
+        ? scheduleMode === "later"
+          ? "Schedule demo"
+          : `Start ${durationDays || 0}-day demo`
+        : scheduleMode === "later"
+          ? "Schedule promotion"
+          : isUpdate
+            ? "Update promotion"
+            : "Start promotion";
 
   const locationsDone =
     !(addOnOn && sponsoredMode === "same" && isCoverageEmpty(mainCoverage)) &&
@@ -925,6 +940,39 @@ export default function PromoteModal({
                   : "The promotion ends on its own and the project goes back to normal."
               }
             >
+              {canBypassInvoice && (
+                <div className="mb-3">
+                  <p className="mb-1.5 text-xs font-semibold text-slate-700">Promotion basis</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { key: "invoice", label: "Invoice-based", hint: "Paid / to be invoiced" },
+                      { key: "demo", label: "Demo", hint: "Free trial · 7, 15, 20 days or custom" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => chooseBasis(opt.key)}
+                        className={`rounded-xl border px-3 py-2 text-left transition ${
+                          basis === opt.key
+                            ? opt.key === "demo"
+                              ? "border-amber-400 bg-amber-50 text-amber-900 ring-2 ring-amber-100"
+                              : "border-[#27AE60] bg-emerald-50 text-emerald-900 ring-2 ring-emerald-100"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="block text-xs font-semibold">{opt.label}</span>
+                        <span className="block text-[10px] text-slate-500">{opt.hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {isDemo && (
+                    <p className="mt-2 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800">
+                      Demo promotion: no invoice needed. It is marked as Demo on the project card and ends on its own.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { key: "now", label: "Start now" },
@@ -969,9 +1017,9 @@ export default function PromoteModal({
                 </div>
               )}
 
-              <p className="mt-3 text-xs font-semibold text-slate-700">Duration</p>
+              <p className="mt-3 text-xs font-semibold text-slate-700">{isDemo ? "Demo duration" : "Duration"}</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                {DURATION_PRESETS.map((d) => (
+                {durationPresets.map((d) => (
                   <button
                     key={d}
                     type="button"

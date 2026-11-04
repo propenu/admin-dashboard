@@ -12,6 +12,7 @@ import { useInvoicePdfCache } from "../../features/builderPlans/useInvoicePdfCac
 import BrandSelect from "./BrandSelect";
 import InvoiceViewDrawer from "./InvoiceViewDrawer";
 import PaymentMethodSelect, { PaymentStatusSelect } from "./PaymentMethodSelect";
+import InvoicePaymentsPanel from "./InvoicePaymentsPanel";
 
 const PAGE_SIZE = 12;
 const EMPTY_FILTERS = { q: "", paymentStatus: "", invoiceType: "", userId: "", propertyId: "", planName: "", state: "", city: "", locality: "" };
@@ -142,6 +143,20 @@ function InvoiceDetailsDrawer({ invoice, canUpdate, canDelete, startEditing = fa
     }
   };
 
+  const onPaymentsChanged = async (fresh) => {
+    if (!fresh) return;
+    await builderPlanService.syncProjectPromotion(projectId);
+    onSaved({
+      ...invoice,
+      ...fresh,
+      userId: invoice.userId,
+      propertyId: invoice.propertyId,
+      servicePlanId: invoice.servicePlanId,
+      renewalOf: invoice.renewalOf,
+      updatedAt: fresh.updatedAt || new Date().toISOString(),
+    });
+  };
+
   const remove = async () => {
     setDeleting(true);
     try {
@@ -235,7 +250,10 @@ function InvoiceDetailsDrawer({ invoice, canUpdate, canDelete, startEditing = fa
             <DetailRow label="Paid" value={money(invoice.paidAmount)} />
             {invoice.orderId && <DetailRow label="Order ID" value={invoice.orderId} />}
             {invoice.paymentId && <DetailRow label="Payment ID" value={invoice.paymentId} />}
+            {invoice.proformaNumber && <DetailRow label="From pro-forma" value={invoice.proformaNumber} />}
           </dl>
+
+          <InvoicePaymentsPanel invoice={invoice} canUpdate={canUpdate} canDelete={canDelete} onChanged={onPaymentsChanged} />
 
           <div ref={editRef} className={`rounded-2xl border bg-white p-4 transition ${editing ? "border-[#27AE60] ring-2 ring-emerald-100" : "border-slate-200"}`}>
             <div className="flex items-center justify-between gap-2">
@@ -291,7 +309,7 @@ function InvoiceDetailsDrawer({ invoice, canUpdate, canDelete, startEditing = fa
   );
 }
 
-export default function BuilderInvoicesPage({ canCreate = false, canUpdate = false, canDelete = false, onCreateInvoice }) {
+export default function BuilderInvoicesPage({ canCreate = false, canUpdate = false, canDelete = false, onCreateInvoice, onOpenProformas }) {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
@@ -410,6 +428,11 @@ export default function BuilderInvoicesPage({ canCreate = false, canUpdate = fal
             <button type="button" onClick={reload} disabled={fetching} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] text-slate-600 hover:border-emerald-300 hover:text-[#219653] disabled:opacity-60">
               <RefreshCw size={13} className={fetching ? "animate-spin" : ""} />Refresh
             </button>
+            {onOpenProformas && (
+              <button type="button" onClick={onOpenProformas} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] text-slate-600 hover:border-emerald-300 hover:text-[#219653]">
+                <FileText size={13} />Pro-forma
+              </button>
+            )}
             {canCreate && (
               <button type="button" onClick={onCreateInvoice} className="flex items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-4 py-2.5 text-xs font-medium text-white shadow-sm hover:bg-[#219653]"><UserPlus size={15} />Create invoice</button>
             )}

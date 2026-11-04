@@ -515,6 +515,8 @@ export default memo(function PropertyCard({
     ? p.promotion.deliveryMode === "plan"
       ? { text: `⚡ Plan · ${p.promotion.plan.title || "builder plan"}`, tone: "bg-sky-50 text-sky-700 border-sky-100" }
       : { text: `🤖 Auto · ${p.promotion.plan.title || "builder plan"}`, tone: "bg-emerald-50 text-emerald-700 border-emerald-100" }
+    : hasPromotion && p?.promotion?.basis === "demo"
+      ? { text: "🧪 Demo", tone: "bg-orange-50 text-orange-700 border-orange-200" }
     : hasPromotion
       ? { text: "✋ Manual", tone: "bg-amber-50 text-amber-700 border-amber-100" }
       : p?.promotionMode === "auto"

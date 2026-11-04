@@ -387,6 +387,7 @@ export default function PropertyListPage({
               mainCoverage: options.mainCoverage,
               sponsoredEnabled: options.sponsoredEnabled,
               sponsoredSameAsMain: options.sponsoredSameAsMain,
+              basis: options.basis,
             },
             { onSettled: () => setPromoteTarget(null) },
           );

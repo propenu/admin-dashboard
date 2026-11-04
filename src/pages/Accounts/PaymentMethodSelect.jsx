@@ -1,16 +1,17 @@
 import {
-  AlertTriangle, BadgeIndianRupee, Banknote, CheckCircle2, Clock3, CreditCard,
+  AlertTriangle, BadgeIndianRupee, Banknote, CheckCircle2, CircleEllipsis, Clock3, CreditCard,
   Landmark, PieChart, Smartphone, WalletCards,
 } from "lucide-react";
 import BrandSelect from "./BrandSelect";
 
-const METHODS = [
+export const PAYMENT_METHODS = [
   { value: "cash", label: "Cash", hint: "Paid at the office", icon: Banknote, tone: "bg-emerald-100 text-emerald-700" },
-  { value: "cheque", label: "Cheque", hint: "Cheque or DD", icon: WalletCards, tone: "bg-amber-100 text-amber-700" },
+  { value: "cheque", label: "Cheque / DD", hint: "Cheque or demand draft", icon: WalletCards, tone: "bg-amber-100 text-amber-700" },
   { value: "upi", label: "UPI", hint: "GPay, PhonePe, Paytm", icon: Smartphone, tone: "bg-violet-100 text-violet-700" },
   { value: "card", label: "Card", hint: "Debit or credit card", icon: CreditCard, tone: "bg-sky-100 text-sky-700" },
   { value: "netbanking", label: "Net banking", hint: "Bank transfer, NEFT, RTGS", icon: Landmark, tone: "bg-indigo-100 text-indigo-700" },
   { value: "razorpay", label: "Razorpay", hint: "Online payment link", icon: BadgeIndianRupee, tone: "bg-blue-100 text-blue-700" },
+  { value: "other", label: "Other", hint: "Any other method", icon: CircleEllipsis, tone: "bg-slate-100 text-slate-600" },
 ];
 
 const STATUSES = [
@@ -21,7 +22,7 @@ const STATUSES = [
 ];
 
 export default function PaymentMethodSelect({ value, onChange }) {
-  return <BrandSelect value={value} onChange={onChange} options={METHODS} title="Payment method" />;
+  return <BrandSelect value={value} onChange={onChange} options={PAYMENT_METHODS} title="Payment method" />;
 }
 
 export function PaymentStatusSelect({ value, onChange }) {

@@ -3189,6 +3189,7 @@ export default function ProjectsDashboardPage() {
           mainCoverage: options.mainCoverage,
           sponsoredEnabled: options.sponsoredEnabled,
           sponsoredSameAsMain: options.sponsoredSameAsMain,
+          basis: options.basis,
         },
         {
           onSuccess: () => {

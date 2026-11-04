@@ -3,6 +3,17 @@ import { SERVICES } from "../../config/services";
 
 const BASE_URL = `${SERVICES.PAYMENT}/builder-plans`;
 const INVOICE_URL = `${SERVICES.PAYMENT}/builder-invoices`;
+const PROFORMA_URL = `${SERVICES.PAYMENT}/builder-proformas`;
+const UPLOAD_TIMEOUT = 120000;
+
+const filesForm = (field, files = [], extra = {}) => {
+  const form = new FormData();
+  files.forEach((file) => form.append(field, file));
+  Object.entries(extra).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") form.append(key, typeof value === "string" ? value : JSON.stringify(value));
+  });
+  return form;
+};
 
 export const builderPlanService = {
   list: (params = {}) => apiClient.get(BASE_URL, { params }).then((response) => response.data),
@@ -89,6 +100,40 @@ export const builderPlanService = {
   invoicePdf: (id, download = false) => apiClient.get(`${INVOICE_URL}/${id}/pdf`, {
     params: download ? { download: true } : {}, responseType: "blob",
   }).then((response) => response.data),
+  /** Record one receipt (cash / cheque / UPI / card / net banking / other) with optional proof files. */
+  recordPayment: (invoiceId, entry, proofs = []) =>
+    apiClient
+      .post(`${INVOICE_URL}/${invoiceId}/payments`, filesForm("proofs", proofs, { payload: entry }), { timeout: UPLOAD_TIMEOUT })
+      .then((response) => response.data),
+  updatePayment: (invoiceId, paymentId, changes, proofs = []) =>
+    apiClient
+      .patch(`${INVOICE_URL}/${invoiceId}/payments/${paymentId}`, filesForm("proofs", proofs, { payload: changes }), { timeout: UPLOAD_TIMEOUT })
+      .then((response) => response.data),
+  removePayment: (invoiceId, paymentId) =>
+    apiClient.delete(`${INVOICE_URL}/${invoiceId}/payments/${paymentId}`).then((response) => response.data),
+
+  proformaPage: (params = {}, signal) =>
+    apiClient
+      .get(PROFORMA_URL, {
+        params: Object.fromEntries(Object.entries({ page: 1, limit: 12, ...params }).filter(([, value]) => value !== "" && value != null)),
+        signal,
+      })
+      .then((response) => response.data),
+  getProforma: (id) => apiClient.get(`${PROFORMA_URL}/${id}`).then((response) => response.data),
+  createProforma: (payload) => apiClient.post(PROFORMA_URL, payload).then((response) => response.data),
+  updateProforma: (id, payload) => apiClient.patch(`${PROFORMA_URL}/${id}`, payload).then((response) => response.data),
+  removeProforma: (id) => apiClient.delete(`${PROFORMA_URL}/${id}`).then((response) => response.data),
+  proformaPdf: (id, download = false) =>
+    apiClient
+      .get(`${PROFORMA_URL}/${id}/pdf`, { params: download ? { download: true } : {}, responseType: "blob" })
+      .then((response) => response.data),
+  uploadProformaFiles: (id, files, label = "") =>
+    apiClient
+      .post(`${PROFORMA_URL}/${id}/attachments`, filesForm("files", files, { label }), { timeout: UPLOAD_TIMEOUT })
+      .then((response) => response.data),
+  removeProformaFile: (id, attachmentId) =>
+    apiClient.delete(`${PROFORMA_URL}/${id}/attachments/${attachmentId}`).then((response) => response.data),
+  convertProforma: (id, payload = {}) => apiClient.post(`${PROFORMA_URL}/${id}/convert`, payload).then((response) => response.data),
   assign: async (plan, builderId, projectIds) => {
     const payload = {
       builder: builderId,
