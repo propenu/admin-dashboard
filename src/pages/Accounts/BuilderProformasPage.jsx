@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import {
   ArrowLeft, Building2, CalendarDays, CheckCircle2, CheckSquare, ChevronLeft, ChevronRight, CircleDashed, Crown, Download, Eye,
-  FileSpreadsheet, FileText, FolderOpen, Home, Link2, ListFilter, Loader2, Megaphone, PackageOpen, Paperclip, Pencil,
-  Plus, ReceiptText, RefreshCw, Search, Send, Square, Trash2, TrendingUp, Upload, UserRound, X, XCircle,
+  FileSpreadsheet, FileText, FolderOpen, Home, ListFilter, Loader2, Megaphone, PackageOpen, Pencil,
+  Plus, ReceiptText, RefreshCw, Search, Send, Square, Trash2, TrendingUp, UserRound, X, XCircle,
 } from "lucide-react";
 import { builderPlanService } from "../../features/builderPlans/builderPlanService";
 import { useBuilderSearch } from "../../features/builderPlans/useBuilderSearch";
@@ -15,7 +15,7 @@ import PaymentMethodSelect from "./PaymentMethodSelect";
 
 const PAGE_SIZE = 12;
 const MAX_ITEMS = 10;
-const DEFAULT_SAC = "998365";
+const DEFAULT_SAC = "998362";
 
 const STATUS_META = {
   draft: { label: "Draft", icon: Pencil, tone: "bg-slate-100 text-slate-600", badge: "bg-slate-50 text-slate-600 ring-slate-200" },
@@ -50,8 +50,14 @@ const toInputDate = (value) => {
 };
 const addDays = (days) => toInputDate(new Date(Date.now() + days * 86400000));
 const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
-const emptyItem = () => ({ productName: "", sacCode: DEFAULT_SAC, qty: "1", days: "", amount: "" });
-const fileSize = (bytes) => (bytes > 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round((bytes || 0) / 1024))} KB`);
+const emptyItem = () => ({ productName: "", sacCode: DEFAULT_SAC, qty: "", days: "", amount: "" });
+const wholeNumber = (value) => value.replace(/\D/g, "").replace(/^0+(?=\d)/, "").replace(/^0$/, "");
+const decimalNumber = (value) => {
+  const [whole = "", ...rest] = value.replace(/[^\d.]/g, "").split(".");
+  const cleanWhole = whole.replace(/^0+(?=\d)/, "");
+  return rest.length ? `${cleanWhole || "0"}.${rest.join("").slice(0, 2)}` : cleanWhole.replace(/^0$/, "");
+};
+const numberText = (value) => (Number(value) ? String(value) : "");
 const inputClass = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] text-slate-700 outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-emerald-100";
 const errorMessage = (error, fallback) => error?.response?.data?.message || fallback;
 
@@ -121,7 +127,7 @@ function formFromProforma(proforma) {
     items: proforma?.items?.length
       ? proforma.items.map((item) => ({
           productName: item.productName || "", sacCode: item.sacCode || DEFAULT_SAC,
-          qty: String(item.qty ?? 1), days: item.days ? String(item.days) : "", amount: String(item.amount ?? ""),
+          qty: numberText(item.qty), days: numberText(item.days), amount: numberText(item.amount),
         }))
       : [emptyItem()],
     gstRate: String(proforma?.gstRate ?? 18),
@@ -143,13 +149,8 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState(proforma?.propertyId ? String(proforma.propertyId?._id || proforma.propertyId) : "");
   const planId = proforma?.servicePlanId ? String(proforma.servicePlanId?._id || proforma.servicePlanId) : "";
-  const [attachments, setAttachments] = useState(proforma?.attachments || []);
-  const [queuedFiles, setQueuedFiles] = useState([]);
-  const [fileLabel, setFileLabel] = useState("");
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const fileInputRef = useRef(null);
   const builderLookup = useBuilderSearch({ query: builderSearch, location: { state: "", city: "", locality: "", pincode: "" }, enabled: !readOnly });
 
   useEffect(() => {
@@ -190,7 +191,7 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
       }
       const filled = current.items.filter((row) => row.productName || row.amount);
       if (filled.length >= MAX_ITEMS) return current;
-      return { ...current, items: [...filled, { ...emptyItem(), productName: name, days: "30" }] };
+      return { ...current, items: [...filled, { ...emptyItem(), productName: name }] };
     });
   const visibleBuilders = linkedBuilder && !builderLookup.items.some((b) => String(b._id) === String(linkedBuilder._id))
     ? [linkedBuilder, ...builderLookup.items]
@@ -258,22 +259,6 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
     status: form.status,
   });
 
-  const uploadFiles = async (id, files) => {
-    if (!files.length) return null;
-    setUploading(true);
-    try {
-      const result = await builderPlanService.uploadProformaFiles(id, files, fileLabel);
-      setAttachments(result?.proforma?.attachments || []);
-      setFileLabel("");
-      return result?.proforma || null;
-    } catch (error) {
-      toast.error(errorMessage(error, "Upload failed"));
-      return null;
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const save = async () => {
     const body = payload();
     if (!body.client.name.trim() && !body.client.companyName.trim()) return toast.error("Enter the client / builder name");
@@ -282,44 +267,12 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
     setSaving(true);
     try {
       const result = isNew ? await builderPlanService.createProforma(body) : await builderPlanService.updateProforma(proforma._id, body);
-      let saved = result?.proforma;
-      if (saved && queuedFiles.length) {
-        saved = (await uploadFiles(saved._id, queuedFiles)) || saved;
-        setQueuedFiles([]);
-      }
       toast.success(result?.message || "Pro-forma saved");
-      onSaved(saved, isNew);
+      onSaved(result?.proforma, isNew);
     } catch (error) {
       toast.error(errorMessage(error, "Unable to save pro-forma"));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const onPickFiles = async (event) => {
-    const files = Array.from(event.target.files || []);
-    event.target.value = "";
-    if (!files.length) return;
-    const tooBig = files.find((file) => file.size > 10 * 1024 * 1024);
-    if (tooBig) return toast.error(`${tooBig.name} is larger than 10 MB`);
-    if (isNew) {
-      setQueuedFiles((current) => [...current, ...files].slice(0, 10));
-      return;
-    }
-    const saved = await uploadFiles(proforma._id, files);
-    if (saved) {
-      toast.success(`${files.length} document(s) uploaded`);
-      onSaved(saved, false, { keepOpen: true });
-    }
-  };
-
-  const removeAttachment = async (attachment) => {
-    try {
-      const result = await builderPlanService.removeProformaFile(proforma._id, attachment._id);
-      setAttachments(result?.proforma?.attachments || []);
-      onSaved(result?.proforma, false, { keepOpen: true });
-    } catch (error) {
-      toast.error(errorMessage(error, "Unable to remove document"));
     }
   };
 
@@ -409,18 +362,20 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
                 <div className="sm:col-span-2">
                   <Field label="Promotion type">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
-                      {PLACEMENTS.map((option) => {
+                      {PLACEMENTS.filter((option) => !selectedPlacements.size || selectedPlacements.has(option.key)).map((option) => {
                         const active = selectedPlacements.has(option.key);
                         const Icon = option.icon;
+                        const span =
+                          selectedPlacements.size === 1
+                            ? "col-span-2 sm:col-span-6"
+                            : option.sponsored && option.main !== "none" ? "sm:col-span-3" : "sm:col-span-2";
                         return (
                           <button
                             key={option.key}
                             type="button"
                             aria-pressed={active}
                             onClick={() => togglePlacement(option)}
-                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-[11px] font-medium transition ${
-                              option.sponsored && option.main !== "none" ? "sm:col-span-3" : "sm:col-span-2"
-                            } ${active ? "border-[#27AE60] bg-emerald-50 text-[#0f3d2e]" : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50/50"}`}
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-[11px] font-medium transition ${span} ${active ? "border-[#27AE60] bg-emerald-50 text-[#0f3d2e]" : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50/50"}`}
                           >
                             <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${active ? "bg-[#27AE60] text-white" : "bg-emerald-50 text-[#219653]"}`}>
                               <Icon size={12} />
@@ -461,10 +416,10 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
                     <tr key={index}>
                       <td className="px-2 py-2 text-slate-400">{String(index + 1).padStart(2, "0")}</td>
                       <td className="px-1 py-1.5"><input disabled={readOnly} value={item.productName} onChange={(e) => setItem(index, "productName", e.target.value)} className={inputClass} placeholder="e.g. Prime listing — 30 days" /></td>
-                      <td className="px-1 py-1.5"><input disabled={readOnly} value={item.sacCode} onChange={(e) => setItem(index, "sacCode", e.target.value)} className={`${inputClass} font-mono`} /></td>
-                      <td className="px-1 py-1.5"><input disabled={readOnly} type="number" min="0" value={item.qty} onChange={(e) => setItem(index, "qty", e.target.value)} className={inputClass} /></td>
-                      <td className="px-1 py-1.5"><input disabled={readOnly} type="number" min="0" value={item.days} onChange={(e) => setItem(index, "days", e.target.value)} className={inputClass} /></td>
-                      <td className="px-1 py-1.5"><input disabled={readOnly} type="number" min="0" step="0.01" value={item.amount} onChange={(e) => setItem(index, "amount", e.target.value)} className={`${inputClass} text-right`} /></td>
+                      <td className="px-1 py-1.5"><input disabled={readOnly} inputMode="numeric" value={item.sacCode} onChange={(e) => setItem(index, "sacCode", e.target.value.replace(/\D/g, "").slice(0, 8))} className={`${inputClass} font-mono`} placeholder={DEFAULT_SAC} /></td>
+                      <td className="px-1 py-1.5"><input disabled={readOnly} inputMode="numeric" value={item.qty} onChange={(e) => setItem(index, "qty", wholeNumber(e.target.value))} className={inputClass} placeholder="1" /></td>
+                      <td className="px-1 py-1.5"><input disabled={readOnly} inputMode="numeric" value={item.days} onChange={(e) => setItem(index, "days", wholeNumber(e.target.value))} className={inputClass} placeholder="30" /></td>
+                      <td className="px-1 py-1.5"><input disabled={readOnly} inputMode="decimal" value={item.amount} onChange={(e) => setItem(index, "amount", decimalNumber(e.target.value))} className={`${inputClass} text-right`} placeholder="0.00" /></td>
                       <td className="px-1 py-1.5 text-center">{!readOnly && <button type="button" onClick={() => removeItem(index)} title="Remove line" className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={13} /></button>}</td>
                     </tr>
                   ))}
@@ -493,48 +448,6 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
             </div>
           </div>
 
-          <div>
-            <SectionTitle
-              icon={Paperclip}
-              title="Documents"
-              action={(isNew || canUpdate) && (
-                <div className="flex items-center gap-2">
-                  <input value={fileLabel} onChange={(e) => setFileLabel(e.target.value)} placeholder="Label (optional)" className="w-36 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:border-[#27AE60]" />
-                  <button type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 rounded-lg bg-[#27AE60] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#219653] disabled:opacity-50">
-                    {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}Upload
-                  </button>
-                  <input ref={fileInputRef} type="file" multiple hidden accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onChange={onPickFiles} />
-                </div>
-              )}
-            />
-            <p className="mb-2 text-[10px] text-slate-400">Agreements, KYC, signed pro-forma, cheque copies — images, PDF, Word or Excel up to 10 MB each.</p>
-            {queuedFiles.length > 0 && (
-              <ul className="mb-2 space-y-1">
-                {queuedFiles.map((file, index) => (
-                  <li key={`${file.name}-${index}`} className="flex items-center justify-between rounded-lg border border-dashed border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] text-emerald-900">
-                    <span className="truncate">{file.name} · {fileSize(file.size)} · uploads on save</span>
-                    <button type="button" onClick={() => setQueuedFiles((c) => c.filter((_, i) => i !== index))} className="text-emerald-700 hover:text-red-600"><X size={12} /></button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {attachments.length ? (
-              <ul className="space-y-1">
-                {attachments.map((file) => (
-                  <li key={file._id || file.url} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px]">
-                    <a href={file.url} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 text-slate-700 hover:text-[#219653]">
-                      <Link2 size={12} className="shrink-0" />
-                      <span className="truncate">{file.label ? `${file.label} — ` : ""}{file.name}</span>
-                    </a>
-                    <span className="flex shrink-0 items-center gap-2 text-[10px] text-slate-400">
-                      {fileSize(file.size)} · {dateText(file.uploadedAt)}
-                      {canUpdate && <button type="button" onClick={() => removeAttachment(file)} title="Remove" className="rounded p-1 hover:bg-red-50 hover:text-red-600"><Trash2 size={12} /></button>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : !queuedFiles.length ? <p className="text-[11px] text-slate-400">No documents yet.</p> : null}
-          </div>
         </div>
 
         <footer className="border-t border-slate-200 bg-white px-4 py-3">
@@ -554,7 +467,7 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
               <div className="flex gap-2">
                 <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-[11px] text-slate-600">Close</button>
                 {(!readOnly || (converted && canUpdate)) && (
-                  <button type="button" disabled={saving || uploading} onClick={converted ? async () => {
+                  <button type="button" disabled={saving} onClick={converted ? async () => {
                     setSaving(true);
                     try {
                       const result = await builderPlanService.updateProforma(proforma._id, { notes: form.notes });
@@ -726,7 +639,6 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
         Total: row.totalAmount,
         Status: STATUS_META[row.status]?.label || row.status,
         Invoice: row.convertedInvoiceId?.invoiceNumber || "",
-        Documents: (row.attachments || []).length,
         "Created by": row.createdByName || "",
       })));
       const book = XLSX.utils.book_new();
@@ -796,7 +708,7 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
                   </td>
                   <td className="px-4 py-3">
                     <p className="truncate text-[11px] font-medium text-slate-800">{row.client?.companyName || row.client?.name || "—"}</p>
-                    <p className="mt-0.5 truncate text-[9px] text-slate-400">{row.client?.phone || row.client?.email || "—"}{row.attachments?.length ? ` · ${row.attachments.length} doc(s)` : ""}</p>
+                    <p className="mt-0.5 truncate text-[9px] text-slate-400">{row.client?.phone || row.client?.email || "—"}</p>
                   </td>
                   <td className="hidden px-4 py-3 md:table-cell">
                     <p className="truncate text-[10px] font-medium text-slate-700">{row.projectName || "—"}</p>
