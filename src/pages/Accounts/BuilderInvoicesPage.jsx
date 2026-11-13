@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
-  Building2, CalendarDays, CheckCircle2, CirclePlus, ChevronLeft, ChevronRight, CircleDashed, Clock, Download, Eye,
-  FileText, Layers, ListFilter, Loader2, Map as MapIcon, MapPin, Pencil, RefreshCw, Search, Trash2, UserPlus,
+  Building2, Calculator, CalendarDays, CheckCircle2, CirclePlus, ChevronLeft, ChevronRight, CircleDashed, Clock, CreditCard, Download, Eye,
+  FileText, Layers, ListFilter, Loader2, Map as MapIcon, MapPin, Pencil, ReceiptText, RefreshCw, Search, Trash2, UserPlus,
   UserRound, X, XCircle,
 } from "lucide-react";
 import { builderPlanService } from "../../features/builderPlans/builderPlanService";
@@ -11,8 +11,9 @@ import { describePlanPackage } from "../../features/builderPlans/planPackage";
 import { useInvoicePdfCache } from "../../features/builderPlans/useInvoicePdfCache";
 import BrandSelect from "./BrandSelect";
 import InvoiceViewDrawer from "./InvoiceViewDrawer";
-import PaymentMethodSelect, { PaymentStatusSelect } from "./PaymentMethodSelect";
+import PaymentMethodSelect, { PAYMENT_METHODS, PaymentStatusSelect } from "./PaymentMethodSelect";
 import InvoicePaymentsPanel from "./InvoicePaymentsPanel";
+import SectionTitle from "./SectionTitle";
 
 const PAGE_SIZE = 12;
 const EMPTY_FILTERS = { q: "", paymentStatus: "", invoiceType: "", userId: "", propertyId: "", planName: "", state: "", city: "", locality: "" };
@@ -47,6 +48,7 @@ const STATUS_BADGE = {
 
 const money = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value || 0));
 const date = (value) => (value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—");
+const methodLabel = (value) => (value ? PAYMENT_METHODS.find((item) => item.value === value)?.label || value : "—");
 const locationText = (item = {}) => [
   item.locality || item.location?.locality, item.city || item.location?.city,
   item.state || item.location?.state, item.pincode || item.location?.pincode,
@@ -173,36 +175,39 @@ function InvoiceDetailsDrawer({ invoice, canUpdate, canDelete, startEditing = fa
   return createPortal(
     <div className="fixed inset-0 z-[110] flex justify-end bg-slate-950/40 backdrop-blur-[2px]" style={{ animation: "invoicesFade .15s ease-out" }} onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="flex h-dvh w-[min(100vw,560px)] flex-col overflow-hidden bg-[#f8faf9] shadow-[-20px_0_60px_rgba(15,23,42,.18)] sm:rounded-l-3xl" style={{ animation: "invoicesSlide .22s cubic-bezier(.4,0,.2,1)" }}>
-        <header className="bg-gradient-to-r from-[#0f3d2e] via-[#17643f] to-[#27AE60] px-5 py-4 text-white">
+        <header className="border-b border-emerald-100 border-t-[3px] border-t-[#27AE60] bg-emerald-50 px-5 py-3.5 text-[#0f3d2e]">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-[.18em] text-emerald-100">Invoice details</p>
-              <h2 className="mt-1 truncate font-mono text-lg font-medium">{invoice.invoiceNumber}</h2>
-              <p className="mt-1 flex items-center gap-1 text-[11px] text-emerald-50"><CalendarDays size={12} />{date(invoice.invoiceDate)}</p>
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#27AE60] text-white"><ReceiptText size={16} /></span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-[.16em] text-[#219653]">Invoice details</p>
+                <h2 className="truncate font-mono text-base font-semibold">{invoice.invoiceNumber}</h2>
+                <p className="mt-0.5 flex items-center gap-1 text-[11px] text-emerald-800/80"><CalendarDays size={12} />{date(invoice.invoiceDate)}</p>
+              </div>
             </div>
-            <button type="button" onClick={onClose} title="Close" className="rounded-xl bg-white/15 p-2.5 hover:bg-white/25"><X size={15} /></button>
+            <button type="button" onClick={onClose} title="Close" className="rounded-xl p-2 text-[#0f3d2e] hover:bg-emerald-100"><X size={15} /></button>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={() => onViewPdf(invoice)} className="flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-semibold text-[#17643f] shadow-sm hover:bg-emerald-50"><Eye size={13} />View PDF</button>
-            <button type="button" onClick={() => onDownload(invoice)} className="flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-[11px] font-medium hover:bg-white/25"><Download size={13} />Download</button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => onViewPdf(invoice)} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[11px] font-semibold text-[#219653] hover:bg-emerald-100"><Eye size={13} />View PDF</button>
+            <button type="button" onClick={() => onDownload(invoice)} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[11px] font-semibold text-[#219653] hover:bg-emerald-100"><Download size={13} />Download PDF</button>
           </div>
         </header>
 
-        <div className="flex-1 space-y-3 overflow-y-auto p-4">
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 py-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3">
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-slate-400">Total amount</p>
-              <p className="mt-1 text-2xl font-semibold text-[#219653]">{money(invoice.totalAmount)}</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-[#219653]">Total amount</p>
+              <p className="mt-0.5 text-2xl font-semibold text-[#0f3d2e]">{money(invoice.totalAmount)}</p>
             </div>
             <div className="text-right">
               <StatusBadge value={invoice.paymentStatus} />
-              <p className="mt-1 text-[10px] capitalize text-slate-500">{invoice.paymentMethod || "—"}</p>
+              <p className="mt-1 text-[10px] text-slate-500">{methodLabel(invoice.paymentMethod)}</p>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-slate-400"><UserRound size={12} />Bill to</p>
-            <p className="mt-2 text-[13px] font-semibold text-slate-900">{builder.companyName || builder.name || "Builder"}</p>
+          <section>
+            <SectionTitle icon={UserRound} title="Bill to" />
+            <p className="text-[13px] font-semibold text-slate-900">{builder.companyName || builder.name || "Builder"}</p>
             {builder.companyName && builder.name && <p className="text-[11px] text-slate-500">{builder.name}</p>}
             <div className="mt-2 grid gap-1 text-[11px] text-slate-600 sm:grid-cols-2">
               <p>{builder.phone || "—"}</p>
@@ -210,14 +215,14 @@ function InvoiceDetailsDrawer({ invoice, canUpdate, canDelete, startEditing = fa
             </div>
             <p className="mt-1 text-[11px] leading-4 text-slate-500">{builder.address || locationText(builder) || "—"}</p>
             {builder.userCode && <p className="mt-1 font-mono text-[10px] text-slate-400">{builder.userCode}</p>}
-          </div>
+          </section>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-slate-400"><Building2 size={12} />Project & plan</p>
-            <p className="mt-2 text-[13px] font-semibold text-slate-900">{invoice.propertyTitle || project.title || "—"}</p>
+          <section>
+            <SectionTitle icon={Building2} title="Project & plan" />
+            <p className="text-[13px] font-semibold text-slate-900">{invoice.propertyTitle || project.title || "—"}</p>
             <p className="font-mono text-[10px] text-slate-400">{invoice.projectCode || project.propertyCode || "—"}</p>
             {locationText(project) && <p className="mt-1 text-[11px] text-slate-500">{locationText(project)}</p>}
-            <div className="mt-3 rounded-xl bg-emerald-50/60 p-3">
+            <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
               <p className="text-[12px] font-semibold text-slate-800">{invoice.servicePlanName || plan.title || "Builder plan"}</p>
               <p className="text-[10px] text-slate-500">{describePlanPackage(pkg)} · {invoice.timePeriod || "—"}</p>
               {invoice.startDate && <p className="mt-1 text-[10px] text-slate-500">{date(invoice.startDate)} → {date(invoice.endDate)}</p>}
@@ -240,33 +245,35 @@ function InvoiceDetailsDrawer({ invoice, canUpdate, canDelete, startEditing = fa
                 </div>
               </div>
             ) : null}
-          </div>
+          </section>
 
-          <dl className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-4 py-1">
-            <DetailRow label="Subtotal" value={money(invoice.subtotalAmount ?? invoice.totalAmount)} />
-            <DetailRow label="Discount" value={`− ${money(invoice.discountAmount)}`} />
-            <DetailRow label={`GST (${invoice.gstRate || 0}%)`} value={money(invoice.gstAmount)} />
-            <DetailRow label="Total" value={money(invoice.totalAmount)} strong />
-            <DetailRow label="Paid" value={money(invoice.paidAmount)} />
-            {invoice.orderId && <DetailRow label="Order ID" value={invoice.orderId} />}
-            {invoice.paymentId && <DetailRow label="Payment ID" value={invoice.paymentId} />}
-            {invoice.proformaNumber && <DetailRow label="From pro-forma" value={invoice.proformaNumber} />}
-          </dl>
+          <section>
+            <SectionTitle icon={Calculator} title="Amount" />
+            <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white px-4 py-1">
+              <DetailRow label="Subtotal" value={money(invoice.subtotalAmount ?? invoice.totalAmount)} />
+              <DetailRow label="Discount" value={`− ${money(invoice.discountAmount)}`} />
+              <DetailRow label={`GST (${invoice.gstRate || 0}%)`} value={money(invoice.gstAmount)} />
+              <DetailRow label="Total" value={money(invoice.totalAmount)} strong />
+              <DetailRow label="Paid" value={money(invoice.paidAmount)} />
+              {invoice.orderId && <DetailRow label="Order ID" value={invoice.orderId} />}
+              {invoice.paymentId && <DetailRow label="Payment ID" value={invoice.paymentId} />}
+              {invoice.proformaNumber && <DetailRow label="From pro-forma" value={invoice.proformaNumber} />}
+            </dl>
+          </section>
 
-          <InvoicePaymentsPanel invoice={invoice} canUpdate={canUpdate} canDelete={canDelete} onChanged={onPaymentsChanged} />
-
-          <div ref={editRef} className={`rounded-2xl border bg-white p-4 transition ${editing ? "border-[#27AE60] ring-2 ring-emerald-100" : "border-slate-200"}`}>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] uppercase tracking-wide text-slate-400">Payment</p>
-              {!editing && (
-                <button type="button" onClick={startEdit} className="flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-1.5 text-[11px] font-semibold text-[#219653] hover:bg-emerald-50">
+          <section ref={editRef} className={`rounded-xl transition ${editing ? "ring-2 ring-emerald-100 ring-offset-4 ring-offset-[#f8faf9]" : ""}`}>
+            <SectionTitle
+              icon={CreditCard}
+              title="Payment status"
+              action={!editing && (
+                <button type="button" onClick={startEdit} className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-[#219653] hover:bg-emerald-50">
                   <Pencil size={12} />Edit
                 </button>
               )}
-            </div>
+            />
             {editing ? (
               <>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <div><p className="mb-1 text-[10px] text-slate-500">Status</p><PaymentStatusSelect value={status} onChange={setStatus} /></div>
                   <div><p className="mb-1 text-[10px] text-slate-500">Method</p><PaymentMethodSelect value={method} onChange={setMethod} /></div>
                 </div>
@@ -278,12 +285,14 @@ function InvoiceDetailsDrawer({ invoice, canUpdate, canDelete, startEditing = fa
                 </div>
               </>
             ) : (
-              <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+              <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-white p-3 text-[11px]">
                 <div><p className="text-[10px] text-slate-400">Status</p><div className="mt-1"><StatusBadge value={invoice.paymentStatus} /></div></div>
-                <div><p className="text-[10px] text-slate-400">Method</p><p className="mt-1 font-medium capitalize text-slate-700">{invoice.paymentMethod || "—"}</p></div>
+                <div><p className="text-[10px] text-slate-400">Method</p><p className="mt-1 font-medium text-slate-700">{methodLabel(invoice.paymentMethod)}</p></div>
               </div>
             )}
-          </div>
+          </section>
+
+          <InvoicePaymentsPanel invoice={invoice} canUpdate={canUpdate} canDelete={canDelete} onChanged={onPaymentsChanged} />
         </div>
 
         {canDelete && (
@@ -560,7 +569,7 @@ export default function BuilderInvoicesPage({ canCreate = false, canUpdate = fal
 
           <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-100 px-4 py-3 sm:flex-row">
             <p className="text-[11px] text-slate-500">
-              {total ? <>Showing <b className="font-medium text-slate-700">{rangeStart}–{rangeEnd}</b> of <b className="font-medium text-slate-700">{total}</b> invoices</> : "No invoices"}
+              {total ? <>Showing <b className="font-medium text-slate-700">{rangeStart}–{rangeEnd}</b> of <b className="font-medium text-slate-700">{total}</b> invoices · {PAGE_SIZE} per page</> : "No invoices"}
             </p>
             {pages > 1 && (
               <div className="flex items-center gap-1">

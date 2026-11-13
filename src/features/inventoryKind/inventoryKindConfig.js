@@ -1,4 +1,18 @@
-import { Building2, Home, MapPin, UsersRound, ListChecks } from "lucide-react";
+import {
+  Building2,
+  Home,
+  MapPin,
+  UsersRound,
+  ListChecks,
+  Store,
+  Map as MapIcon,
+  Sprout,
+  Layers,
+  Star,
+  TrendingUp,
+  Zap,
+  LayoutGrid,
+} from "lucide-react";
 
 /** Shared Projects ↔ Properties scope across Main Desk inventory pages. */
 export const INVENTORY_KIND_STORAGE_KEY = "propenu:inventory-kind";
@@ -53,28 +67,91 @@ export const filterMainDeskMenu = (items = []) =>
     })
     .filter(Boolean);
 
+/** Query keys the Projects / Properties boards read from the URL (category, listing tier). */
+export const INVENTORY_FILTER_KEYS = ["category", "promotion"];
+
+const CATEGORY_META = {
+  residential: { label: "Residential", icon: Home },
+  commercial: { label: "Commercial", icon: Store },
+  land: { label: "Land", icon: MapIcon },
+  agricultural: { label: "Agricultural", icon: Sprout },
+};
+
+const CATEGORY_ORDER = {
+  projects: ["residential", "land", "commercial", "agricultural"],
+  properties: ["residential", "commercial", "land", "agricultural"],
+};
+
+const PROMOTION_TIERS = [
+  { value: "normal", label: "Normal", icon: Layers },
+  { value: "prime", label: "Prime", icon: Star },
+  { value: "featured", label: "Top Selling", icon: TrendingUp },
+  { value: "sponsored", label: "Sponsored", icon: Zap },
+];
+
+const inventoryBoardPath = (kind) => (kind === "projects" ? "/projects" : "/properties");
+
 /**
- * Focused sidebar for Projects / Properties mode (same idea as Home Care).
- * Projects: Projects → Lead Management → Locations
- * Properties: Properties → Property Progress → Lead Management → Locations
+ * One catalog for the Properties mega menu and the Projects / Properties sidebar,
+ * so picking a link in either place highlights the same entry in the other.
  */
-export const getInventoryKindMenu = (kind) => {
-  if (kind === "projects") {
-    return [
-      inventoryLeaf("/projects", "Projects", Building2),
+export const getInventoryCatalog = (kind) => {
+  if (kind !== "projects" && kind !== "properties") return null;
+  const board = inventoryBoardPath(kind);
+  const noun = kind === "projects" ? "Projects" : "Properties";
+  return {
+    kind,
+    label: noun,
+    overview: inventoryLeaf(board, `All ${noun}`, LayoutGrid),
+    categories: CATEGORY_ORDER[kind].map((value) =>
+      inventoryLeaf(`${board}?category=${value}`, CATEGORY_META[value].label, CATEGORY_META[value].icon),
+    ),
+    tiers: PROMOTION_TIERS.map((tier) =>
+      inventoryLeaf(`${board}?promotion=${tier.value}`, tier.label, tier.icon),
+    ),
+    manage: [
+      ...(kind === "properties"
+        ? [inventoryLeaf("/property-progress", "Property Progress", ListChecks)]
+        : []),
       inventoryLeaf("/leads", "Lead Management", UsersRound),
       inventoryLeaf("/locations", "Locations", MapPin),
-    ];
+    ],
+  };
+};
+
+/**
+ * Projects / Properties links for the Main Desk sidebar (single entries — category and
+ * tier filters live in the top Properties menu). `access` mirrors the role menu.
+ */
+export const getInventorySidebarItems = (access = {}) => {
+  const items = [];
+  if (access.projects) items.push(inventoryLeaf("/projects", "Projects", Building2));
+  if (access.properties) items.push(inventoryLeaf("/properties", "Properties", Home));
+  if (access.leads) items.push(inventoryLeaf("/leads", "Lead Management", UsersRound));
+  if (access.locations) items.push(inventoryLeaf("/locations", "Locations", MapPin));
+  return items;
+};
+
+/**
+ * Active check for inventory links that carry a query (e.g. /projects?category=land).
+ * The bare board path is only active when no category / tier filter is applied.
+ */
+export const isInventoryLinkActive = (linkPath, pathname, search) => {
+  const [linkPathname, linkQuery] = String(linkPath).split("?");
+  const current = String(pathname || "").split("?")[0];
+  if (current !== linkPathname) return null;
+  const have = new URLSearchParams(search || "");
+  if (linkQuery) {
+    const want = new URLSearchParams(linkQuery);
+    for (const [key, value] of want) {
+      if (have.get(key) !== value) return false;
+    }
+    return true;
   }
-  if (kind === "properties") {
-    return [
-      inventoryLeaf("/properties", "Properties", Home),
-      inventoryLeaf("/property-progress", "Property Progress", ListChecks),
-      inventoryLeaf("/leads", "Lead Management", UsersRound),
-      inventoryLeaf("/locations", "Locations", MapPin),
-    ];
+  if (linkPathname === "/projects" || linkPathname === "/properties") {
+    return !INVENTORY_FILTER_KEYS.some((key) => have.get(key));
   }
-  return [];
+  return null;
 };
 
 export const INVENTORY_KIND_PATHS = {

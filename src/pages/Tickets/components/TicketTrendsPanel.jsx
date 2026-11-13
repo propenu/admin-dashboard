@@ -1,10 +1,13 @@
 import DashboardCard from "./DashboardCard";
 
-const formatDay = (day) => {
-  if (!day) return "";
+const dayParts = (day) => {
+  if (!day) return { day: "", month: "" };
   const date = new Date(`${day}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return day;
-  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+  if (Number.isNaN(date.getTime())) return { day, month: "" };
+  return {
+    day: date.toLocaleDateString("en-IN", { day: "2-digit" }),
+    month: date.toLocaleDateString("en-IN", { month: "short" }).slice(0, 3),
+  };
 };
 
 export default function TicketTrendsPanel({
@@ -31,7 +34,7 @@ export default function TicketTrendsPanel({
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="flex h-40 items-end gap-1.5 overflow-x-auto pb-1">
+          <div className="flex items-end gap-1.5 overflow-x-auto px-0.5 pb-1 pt-1">
             {trends.map((row) => {
               const count = Number(row.count) || 0;
               const height = Math.max(8, Math.round((count / max) * 100));
@@ -47,14 +50,14 @@ export default function TicketTrendsPanel({
                       createdTo: `${row.day}T23:59:59.999`,
                     })
                   }
-                  className={`flex min-w-[28px] flex-1 flex-col items-center gap-1 rounded-md px-0.5 transition ${
+                  className={`flex min-w-[28px] flex-1 shrink-0 flex-col items-center gap-1 rounded-md px-0.5 py-0.5 transition ${
                     clickable ? "hover:bg-[#f7fbf8] focus:outline-none focus:ring-2 focus:ring-[#27AE60]/20" : "cursor-default"
                   }`}
                   title={`${row.day}: ${count} ticket${count === 1 ? "" : "s"}${
                     clickable ? " — open queue" : ""
                   }`}
                 >
-                  <span className="text-[10px] font-bold tabular-nums text-[#5c7d6d]">
+                  <span className="h-[14px] text-[10px] font-bold leading-[14px] tabular-nums text-[#5c7d6d]">
                     {count || ""}
                   </span>
                   <div className="flex h-28 w-full items-end justify-center rounded-md bg-[#f7fbf8] px-0.5">
@@ -63,8 +66,9 @@ export default function TicketTrendsPanel({
                       style={{ height: `${height}%` }}
                     />
                   </div>
-                  <span className="text-[9px] font-semibold text-[#5c7d6d]">
-                    {formatDay(row.day)}
+                  <span className="flex h-[22px] flex-col items-center whitespace-nowrap text-[9px] font-semibold leading-[11px] text-[#5c7d6d]">
+                    <span>{dayParts(row.day).day}</span>
+                    <span className="font-medium uppercase text-[#8aa598]">{dayParts(row.day).month}</span>
                   </span>
                 </button>
               );

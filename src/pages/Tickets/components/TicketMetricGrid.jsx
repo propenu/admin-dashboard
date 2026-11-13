@@ -48,32 +48,34 @@ export default function TicketMetricGrid({ overview, onOpenQueue, rangeLabel }) 
           KPI period · <span className="text-[#0f3d2e]">{rangeLabel}</span>
         </p>
       ) : null}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {metrics.map((metric) => {
           const Icon = metric.icon;
           const value = Number(overview?.[metric.key] || 0);
+          const subtitle = metric.subtitle(overview || {});
           return (
             <button
               type="button"
               key={metric.key}
               onClick={() => onOpenQueue?.(metric.filter)}
-              className={`group min-h-[116px] p-4 text-left ${ticketSurface} ${ticketSurfaceHover}`}
+              title={`${metric.title}: ${value.toLocaleString("en-IN")} · ${subtitle}`}
+              className={`group min-w-0 px-3 py-2.5 text-left ${ticketSurface} ${ticketSurfaceHover}`}
             >
-              <div className="flex h-full items-start gap-3">
+              <div className="flex items-center gap-2.5">
                 <span
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border ${metric.tone}`}
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${metric.tone}`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-bold leading-tight text-[#0f3d2e]">
+                  <p className="truncate text-[11px] font-bold leading-tight text-[#0f3d2e]">
                     {metric.title}
                   </p>
-                  <p className="mt-2 text-[28px] font-black leading-none tabular-nums text-[#0f3d2e]">
+                  <p className="mt-0.5 text-[20px] font-black leading-none tabular-nums text-[#0f3d2e]">
                     {value.toLocaleString("en-IN")}
                   </p>
-                  <p className="mt-1 text-[12px] font-medium leading-tight text-[#5c7d6d]">
-                    {metric.subtitle(overview || {})}
+                  <p className="mt-0.5 truncate text-[10.5px] font-medium leading-tight text-[#5c7d6d]">
+                    {subtitle}
                   </p>
                 </div>
               </div>

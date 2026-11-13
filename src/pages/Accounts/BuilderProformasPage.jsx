@@ -3,15 +3,19 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import {
-  ArrowLeft, Building2, CalendarDays, CheckCircle2, CheckSquare, ChevronLeft, ChevronRight, CircleDashed, Crown, Download, Eye,
+  ArrowLeft, Building2, CalendarDays, CheckCircle2, CheckSquare, ChevronLeft, ChevronRight, CircleDashed, Clock3, Copy, Crown, Download, Eye,
   FileSpreadsheet, FileText, FolderOpen, Home, ListFilter, Loader2, Megaphone, PackageOpen, Pencil,
-  Plus, ReceiptText, RefreshCw, Search, Send, Square, Trash2, TrendingUp, UserRound, X, XCircle,
+  Plus, ReceiptText, Search, Send, Square, Trash2, TrendingUp, UserRound, X, XCircle,
 } from "lucide-react";
 import { builderPlanService } from "../../features/builderPlans/builderPlanService";
 import { useBuilderSearch } from "../../features/builderPlans/useBuilderSearch";
-import { describePlanPackage } from "../../features/builderPlans/planPackage";
+import { useBuilderProjects } from "../../features/builderPlans/useBuilderProjects";
+import { describePlanPackage, normalizePlanPackage } from "../../features/builderPlans/planPackage";
 import BrandSelect from "./BrandSelect";
 import PaymentMethodSelect from "./PaymentMethodSelect";
+import SectionTitle from "./SectionTitle";
+import { PaymentEntryFields } from "./InvoicePaymentsPanel";
+import { emptyPaymentForm, paymentEntry, paymentFormError } from "./paymentForm";
 
 const PAGE_SIZE = 12;
 const MAX_ITEMS = 10;
@@ -28,6 +32,7 @@ const EDITABLE_STATUSES = ["draft", "sent", "accepted", "cancelled"];
 const STATUS_FILTER_OPTIONS = [
   { value: "", label: "All statuses", icon: ListFilter, tone: "bg-slate-100 text-slate-500" },
   ...Object.entries(STATUS_META).map(([value, meta]) => ({ value, label: meta.label, icon: meta.icon, tone: meta.tone })),
+  { value: "expired", label: "Expired", hint: "Past the valid-until date", icon: Clock3, tone: "bg-amber-100 text-amber-700" },
 ];
 const STATUS_EDIT_OPTIONS = EDITABLE_STATUSES.map((value) => ({
   value, label: STATUS_META[value].label, icon: STATUS_META[value].icon, tone: STATUS_META[value].tone,
@@ -58,26 +63,58 @@ const decimalNumber = (value) => {
   return rest.length ? `${cleanWhole || "0"}.${rest.join("").slice(0, 2)}` : cleanWhole.replace(/^0$/, "");
 };
 const numberText = (value) => (Number(value) ? String(value) : "");
-const inputClass = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] text-slate-700 outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-emerald-100";
+const inputClass = "min-h-[46px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] text-slate-700 outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-emerald-100";
 const errorMessage = (error, fallback) => error?.response?.data?.message || fallback;
+const projectFromProforma = (proforma) => {
+  const ref = proforma?.propertyId;
+  if (!ref) return null;
+  return {
+    _id: String(ref._id || ref),
+    title: ref.title || proforma.projectName || "Linked project",
+    propertyCode: ref.propertyCode || proforma.projectCode || "",
+    locality: ref.locality || "",
+    city: ref.city || "",
+  };
+};
+const withLinked = (items, linked) =>
+  linked && !items.some((item) => String(item._id) === String(linked._id)) ? [linked, ...items] : items;
+const PLACEMENTS_LONGEST_FIRST = [...PLACEMENTS].sort((a, b) => b.label.length - a.label.length);
+const placementOfLine = (productName = "") => {
+  const name = productName.trim().toLowerCase();
+  return PLACEMENTS_LONGEST_FIRST.find((option) => {
+    const suffix = `${option.label} promotion`.toLowerCase();
+    return name.endsWith(suffix) && /^$|[\s-]$/.test(name.slice(0, -suffix.length));
+  });
+};
+const planForProforma = (proforma, plans) => {
+  for (const item of proforma.items || []) {
+    const option = placementOfLine(item.productName);
+    if (!option) continue;
+    const matches = plans.filter((plan) => {
+      if (!plan.isActive) return false;
+      const pkg = normalizePlanPackage(plan);
+      return pkg.mainPlacement === option.main && pkg.sponsoredEnabled === option.sponsored;
+    });
+    const plan = matches.find((p) => Number(p.durationDays) === Number(item.days)) || matches[0];
+    if (plan) return { planId: String(plan._id), productName: item.productName };
+  }
+  return null;
+};
+const pageWindow = (page, pages) => {
+  const start = Math.max(1, Math.min(page - 2, pages - 4));
+  return Array.from({ length: Math.min(5, pages) }, (_, index) => start + index);
+};
+
+const isExpired = (proforma) =>
+  ["draft", "sent", "accepted"].includes(proforma?.status) && Boolean(proforma?.validUntil) && toInputDate(proforma.validUntil) < toInputDate(new Date());
+
+function ExpiredBadge() {
+  return <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold uppercase text-amber-700 ring-1 ring-amber-200">Expired</span>;
+}
 
 function StatusBadge({ value }) {
   const meta = STATUS_META[value] || STATUS_META.draft;
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase ring-1 ${meta.badge}`}>{meta.label}</span>;
-}
-
-function SectionTitle({ icon: Icon, title, action }) {
-  return (
-    <div className="mb-3 flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#27AE60] bg-white text-[#27AE60]">
-          <Icon size={13} />
-        </span>
-        <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-      </div>
-      {action}
-    </div>
-  );
 }
 
 function Field({ label, children, hint }) {
@@ -136,29 +173,26 @@ function formFromProforma(proforma) {
   };
 }
 
-function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete, onClose, onSaved, onDeleted, onConvert }) {
+function ProformaEditorDrawer({ proforma, canCreate, canUpdate, canCreateInvoice, canDelete, onClose, onSaved, onDeleted, onConvert, onDuplicate }) {
   const isNew = !proforma?._id;
   const converted = proforma?.status === "converted";
-  const readOnly = (!isNew && !canUpdate) || converted;
+  const expired = isExpired(proforma);
+  const readOnly = (!isNew && !canUpdate) || converted || expired;
   const [form, setForm] = useState(() => formFromProforma(proforma));
   const [builderId, setBuilderId] = useState(proforma?.userId ? String(proforma.userId?._id || proforma.userId) : "");
   const [linkedBuilder, setLinkedBuilder] = useState(
     proforma?.userId ? { _id: String(proforma.userId?._id || proforma.userId), name: proforma.client?.name, companyName: proforma.client?.companyName } : null,
   );
   const [builderSearch, setBuilderSearch] = useState("");
-  const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState(proforma?.propertyId ? String(proforma.propertyId?._id || proforma.propertyId) : "");
+  const [linkedProject, setLinkedProject] = useState(() => projectFromProforma(proforma));
+  const [projectSearch, setProjectSearch] = useState("");
   const planId = proforma?.servicePlanId ? String(proforma.servicePlanId?._id || proforma.servicePlanId) : "";
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const builderLookup = useBuilderSearch({ query: builderSearch, location: { state: "", city: "", locality: "", pincode: "" }, enabled: !readOnly });
-
-  useEffect(() => {
-    if (!builderId) { setProjects([]); return; }
-    let alive = true;
-    builderPlanService.builderProjects(builderId).then((list) => alive && setProjects(list)).catch(() => alive && setProjects([]));
-    return () => { alive = false; };
-  }, [builderId]);
+  const projectLookup = useBuilderProjects({ builderId: readOnly ? "" : builderId, query: projectSearch });
+  const projects = withLinked(projectLookup.items, linkedProject);
 
   useEffect(() => {
     const onKey = (event) => event.key === "Escape" && onClose();
@@ -207,7 +241,7 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
     })),
   ];
   const projectOptions = [
-    { value: "", label: builderId ? `No project linked (${projects.length} available)` : "Link a builder to pick a project", icon: FolderOpen, tone: "bg-slate-100 text-slate-500" },
+    { value: "", label: !builderId ? "Link a builder to pick a project" : projectLookup.loading ? "Loading projects…" : `No project linked (${projectLookup.total} available)`, icon: FolderOpen, tone: "bg-slate-100 text-slate-500" },
     ...projects.map((project) => ({
       value: String(project._id),
       label: `${project.title}${project.propertyCode ? ` (${project.propertyCode})` : ""}`,
@@ -219,6 +253,8 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
   const selectBuilder = (id) => {
     setBuilderId(id);
     setProjectId("");
+    setLinkedProject(null);
+    setProjectSearch("");
     const builder = visibleBuilders.find((b) => String(b._id) === id) || null;
     setLinkedBuilder(builder);
     if (builder) {
@@ -240,7 +276,8 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
   };
   const selectProject = (id) => {
     setProjectId(id);
-    const project = projects.find((item) => String(item._id) === id);
+    const project = projects.find((item) => String(item._id) === id) || null;
+    setLinkedProject(project);
     if (project) setForm((current) => ({ ...current, projectName: project.title || current.projectName }));
   };
   const payload = () => ({
@@ -264,6 +301,7 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
     if (!body.client.name.trim() && !body.client.companyName.trim()) return toast.error("Enter the client / builder name");
     if (!body.items.length) return toast.error("Add at least one product line");
     if (Number(form.gstRate) < 0 || Number(form.gstRate) > 100) return toast.error("GST must be between 0 and 100");
+    if (form.validUntil && form.validUntil < form.proformaDate) return toast.error("Valid until must be on or after the pro-forma date");
     setSaving(true);
     try {
       const result = isNew ? await builderPlanService.createProforma(body) : await builderPlanService.updateProforma(proforma._id, body);
@@ -296,7 +334,7 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
               <div className="min-w-0">
                 <p className="text-[10px] font-medium uppercase tracking-[.16em] text-[#219653]">{isNew ? "New pro-forma" : "Pro-forma invoice"}</p>
                 <h2 className="truncate font-mono text-base font-semibold">{isNew ? "Draft" : proforma.proformaNumber}</h2>
-                {!isNew && <div className="mt-0.5 flex items-center gap-2 text-[11px] text-emerald-800/80"><StatusBadge value={proforma.status} />{proforma.createdByName && <span>by {proforma.createdByName}</span>}</div>}
+                {!isNew && <div className="mt-0.5 flex items-center gap-2 text-[11px] text-emerald-800/80"><StatusBadge value={proforma.status} />{expired && <ExpiredBadge />}{proforma.createdByName && <span>by {proforma.createdByName}</span>}</div>}
               </div>
             </div>
             <button type="button" onClick={onClose} title="Close" className="rounded-xl p-2 text-[#0f3d2e] hover:bg-emerald-100"><X size={15} /></button>
@@ -305,7 +343,10 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" onClick={() => openProformaPdf(proforma)} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[11px] font-semibold text-[#219653] hover:bg-emerald-100"><Eye size={13} />View PDF</button>
               <button type="button" onClick={() => openProformaPdf(proforma, true)} className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-3 py-2 text-[11px] font-semibold text-[#219653] hover:bg-emerald-100"><Download size={13} />Download PDF</button>
-              {canCreateInvoice && !converted && proforma.status !== "cancelled" && (
+              {canCreate && expired && (
+                <button type="button" onClick={() => onDuplicate(proforma)} className="flex items-center gap-1.5 rounded-xl bg-[#27AE60] px-3 py-2 text-[11px] font-semibold text-white hover:bg-[#219653]"><Copy size={13} />Duplicate with new dates</button>
+              )}
+              {canCreateInvoice && !converted && !expired && proforma.status !== "cancelled" && (
                 <button type="button" onClick={() => onConvert(proforma)} className="flex items-center gap-1.5 rounded-xl bg-[#27AE60] px-3 py-2 text-[11px] font-semibold text-white hover:bg-[#219653]"><ReceiptText size={13} />Create invoice</button>
               )}
             </div>
@@ -313,6 +354,12 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
         </header>
 
         <div className="flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 py-4">
+          {expired && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900">
+              <Clock3 size={14} className="mt-0.5 shrink-0" />
+              <p>This pro-forma expired on <b>{dateText(proforma.validUntil)}</b>. It can no longer be edited or turned into an invoice. Use <b>Duplicate with new dates</b> to quote the same details again.</p>
+            </div>
+          )}
           {converted && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-[11px] text-emerald-900">
               Converted to invoice <b className="font-mono">{proforma.convertedInvoiceId?.invoiceNumber || ""}</b> on {dateText(proforma.convertedAt)}. Record payments on that invoice; this pro-forma is now read only.
@@ -321,8 +368,8 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
 
           <div>
             <SectionTitle icon={UserRound} title="Bill to" />
-            {!readOnly && (
-              <div className="mb-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {!readOnly && (
                 <Field label="Link builder (optional)">
                   <BrandSelect
                     searchable
@@ -336,16 +383,15 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
                     loadingMore={builderLookup.loadingMore}
                     hasMore={builderLookup.hasMore}
                     onLoadMore={builderLookup.loadMore}
+                    footer={`Showing ${builderLookup.items.length} of ${builderLookup.total} builders · 20 per page`}
                   />
                 </Field>
-              </div>
-            )}
-            <div className="grid gap-3 sm:grid-cols-2">
+              )}
               <Field label="Client / Builder name *"><input disabled={readOnly} value={form.client.name} onChange={(e) => setClient("name", e.target.value)} className={inputClass} placeholder="Contact person" /></Field>
               <Field label="Company name"><input disabled={readOnly} value={form.client.companyName} onChange={(e) => setClient("companyName", e.target.value)} className={inputClass} placeholder="Company / firm" /></Field>
               <Field label="Phone"><input disabled={readOnly} value={form.client.phone} onChange={(e) => setClient("phone", e.target.value)} className={inputClass} /></Field>
               <Field label="Email"><input disabled={readOnly} type="email" value={form.client.email} onChange={(e) => setClient("email", e.target.value)} className={inputClass} /></Field>
-              <div className="sm:col-span-2"><Field label="Address"><input disabled={readOnly} value={form.client.address} onChange={(e) => setClient("address", e.target.value)} className={inputClass} placeholder="Street, area" /></Field></div>
+              <div className={readOnly ? "sm:col-span-2" : ""}><Field label="Address"><input disabled={readOnly} value={form.client.address} onChange={(e) => setClient("address", e.target.value)} className={inputClass} placeholder="Street, area" /></Field></div>
               <Field label="City"><input disabled={readOnly} value={form.client.city} onChange={(e) => setClient("city", e.target.value)} className={inputClass} /></Field>
               <Field label="State"><input disabled={readOnly} value={form.client.state} onChange={(e) => setClient("state", e.target.value)} className={inputClass} /></Field>
               <Field label="Pincode"><input disabled={readOnly} value={form.client.pincode} onChange={(e) => setClient("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))} className={inputClass} /></Field>
@@ -356,7 +402,25 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
           <div>
             <SectionTitle icon={Building2} title="Project & plan" />
             <div className="grid gap-3 sm:grid-cols-2">
-              {!readOnly && <Field label="Linked project"><BrandSelect searchable disabled={!builderId} value={projectId} onChange={selectProject} title="Project" options={projectOptions} /></Field>}
+              {!readOnly && (
+                <Field label="Linked project">
+                  <BrandSelect
+                    searchable
+                    disabled={!builderId}
+                    value={projectId}
+                    onChange={selectProject}
+                    title="Project"
+                    options={projectOptions}
+                    searchValue={projectSearch}
+                    onSearchChange={setProjectSearch}
+                    loading={projectLookup.loading}
+                    loadingMore={projectLookup.loadingMore}
+                    hasMore={projectLookup.hasMore}
+                    onLoadMore={projectLookup.loadMore}
+                    footer={`Showing ${projectLookup.items.length} of ${projectLookup.total} projects · 12 per page`}
+                  />
+                </Field>
+              )}
               <Field label="Project name (printed)"><input disabled={readOnly} value={form.projectName} onChange={(e) => setForm((c) => ({ ...c, projectName: e.target.value }))} className={inputClass} /></Field>
               {!readOnly && (
                 <div className="sm:col-span-2">
@@ -441,8 +505,8 @@ function ProformaEditorDrawer({ proforma, canUpdate, canCreateInvoice, canDelete
           <div>
             <SectionTitle icon={CalendarDays} title="Dates & notes" />
             <div className="grid gap-3 sm:grid-cols-3">
-              <Field label="Pro-forma date"><input disabled={readOnly} type="date" value={form.proformaDate} onChange={(e) => setForm((c) => ({ ...c, proformaDate: e.target.value }))} className={inputClass} /></Field>
-              <Field label="Valid until"><input disabled={readOnly} type="date" value={form.validUntil} onChange={(e) => setForm((c) => ({ ...c, validUntil: e.target.value }))} className={inputClass} /></Field>
+              <Field label="Pro-forma date"><input disabled={readOnly} type="date" value={form.proformaDate} onChange={(e) => setForm((c) => ({ ...c, proformaDate: e.target.value, validUntil: c.validUntil && c.validUntil < e.target.value ? e.target.value : c.validUntil }))} className={inputClass} /></Field>
+              <Field label="Valid until" hint={readOnly ? "" : "After this date the pro-forma expires and can't be invoiced."}><input disabled={readOnly} type="date" min={form.proformaDate} value={form.validUntil} onChange={(e) => setForm((c) => ({ ...c, validUntil: e.target.value }))} className={inputClass} /></Field>
               <Field label="Status">{readOnly ? <div className="py-2"><StatusBadge value={proforma?.status} /></div> : <BrandSelect value={form.status} onChange={(value) => setForm((c) => ({ ...c, status: value }))} title="Status" options={STATUS_EDIT_OPTIONS} />}</Field>
               <div className="sm:col-span-3"><Field label="Notes (printed on PDF)"><textarea disabled={readOnly && !(converted && canUpdate)} rows={2} value={form.notes} onChange={(e) => setForm((c) => ({ ...c, notes: e.target.value }))} className={inputClass} placeholder="Payment terms, offer details…" /></Field></div>
             </div>
@@ -493,27 +557,41 @@ function ConvertProformaModal({ proforma, plans, onClose, onConverted }) {
   const needsBuilder = !proforma.userId;
   const [builderSearch, setBuilderSearch] = useState("");
   const [builderId, setBuilderId] = useState(proforma.userId ? String(proforma.userId?._id || proforma.userId) : "");
-  const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState(proforma.propertyId ? String(proforma.propertyId?._id || proforma.propertyId) : "");
-  const [planId, setPlanId] = useState(proforma.servicePlanId ? String(proforma.servicePlanId?._id || proforma.servicePlanId) : "");
-  const [paymentMethod, setPaymentMethod] = useState("upi");
+  const [linkedProject, setLinkedProject] = useState(() => projectFromProforma(proforma));
+  const [projectSearch, setProjectSearch] = useState("");
+  const [suggestedPlan] = useState(() => planForProforma(proforma, plans));
+  const [planId, setPlanId] = useState(() => (proforma.servicePlanId ? String(proforma.servicePlanId?._id || proforma.servicePlanId) : suggestedPlan?.planId || ""));
+  const [collectNow, setCollectNow] = useState(true);
+  const [paymentForm, setPaymentForm] = useState(() => emptyPaymentForm(round2(proforma.totalAmount), "upi"));
+  const [proofs, setProofs] = useState([]);
   const [saving, setSaving] = useState(false);
   const builderLookup = useBuilderSearch({ query: builderSearch, location: { state: "", city: "", locality: "", pincode: "" }, enabled: needsBuilder });
-
-  useEffect(() => {
-    if (!builderId) { setProjects([]); return; }
-    let alive = true;
-    builderPlanService.builderProjects(builderId).then((list) => alive && setProjects(list)).catch(() => alive && setProjects([]));
-    return () => { alive = false; };
-  }, [builderId]);
+  const projectLookup = useBuilderProjects({ builderId, query: projectSearch });
+  const projects = withLinked(projectLookup.items, linkedProject);
+  const autoPicked = suggestedPlan && planId === suggestedPlan.planId;
 
   const submit = async () => {
     if (!builderId || !projectId || !planId) return toast.error("Choose the builder, project and plan");
+    if (collectNow) {
+      const problem = paymentFormError(paymentForm);
+      if (problem) return toast.error(problem);
+    }
     setSaving(true);
     try {
-      const result = await builderPlanService.convertProforma(proforma._id, { userId: builderId, propertyId: projectId, servicePlanId: planId, paymentMethod });
-      toast.success(result?.message || "Invoice created");
-      onConverted(result);
+      const result = await builderPlanService.convertProforma(proforma._id, { userId: builderId, propertyId: projectId, servicePlanId: planId, paymentMethod: paymentForm.method });
+      if (!collectNow) {
+        toast.success(result?.message || "Invoice created");
+        return onConverted(result, false);
+      }
+      try {
+        const paid = await builderPlanService.recordPayment(result.invoice._id, paymentEntry(paymentForm), proofs);
+        toast.success(`${result?.message || "Invoice created"} · payment of ${money(paymentForm.amount)} recorded`);
+        onConverted({ ...result, invoice: paid?.invoice || result.invoice }, true);
+      } catch (error) {
+        toast.error(errorMessage(error, "Invoice created, but the payment could not be saved — record it on the invoice"));
+        onConverted(result, false);
+      }
     } catch (error) {
       toast.error(errorMessage(error, "Unable to create invoice"));
     } finally {
@@ -523,12 +601,12 @@ function ConvertProformaModal({ proforma, plans, onClose, onConverted }) {
 
   return createPortal(
     <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/50 p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
+      <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] uppercase tracking-[.18em] text-[#27AE60]">Create invoice</p>
             <h3 className="mt-1 text-base font-semibold text-slate-900">From {proforma.proformaNumber}</h3>
-            <p className="mt-1 text-[11px] text-slate-500">The invoice copies the pro-forma totals ({money(proforma.totalAmount)}) and starts as Pending. Record each payment on the invoice.</p>
+            <p className="mt-1 text-[11px] text-slate-500">The invoice copies the pro-forma totals ({money(proforma.totalAmount)}). Enter the payment received now and it is saved on the invoice.</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 p-2 text-slate-400"><X size={14} /></button>
         </div>
@@ -536,27 +614,48 @@ function ConvertProformaModal({ proforma, plans, onClose, onConverted }) {
           {needsBuilder ? (
             <Field label="Builder *">
               <BrandSelect
-                searchable value={builderId} onChange={(id) => { setBuilderId(id); setProjectId(""); }} title="Builder"
+                searchable value={builderId} onChange={(id) => { setBuilderId(id); setProjectId(""); setLinkedProject(null); setProjectSearch(""); }} title="Builder"
                 options={[{ value: "", label: "Select builder", icon: UserRound, tone: "bg-slate-100 text-slate-500" },
                   ...builderLookup.items.map((b) => ({ value: String(b._id), label: `${b.name || "Builder"} — ${b.companyName || "No company"}`, hint: b.phone || b.email, icon: Building2, tone: "bg-emerald-100 text-emerald-700" }))]}
                 searchValue={builderSearch} onSearchChange={setBuilderSearch} loading={builderLookup.loading}
                 loadingMore={builderLookup.loadingMore} hasMore={builderLookup.hasMore} onLoadMore={builderLookup.loadMore}
+                footer={`Showing ${builderLookup.items.length} of ${builderLookup.total} builders · 20 per page`}
               />
             </Field>
           ) : (
             <p className="rounded-xl bg-emerald-50 px-3 py-2 text-[11px] text-emerald-900">Builder: <b>{proforma.client?.companyName || proforma.client?.name}</b></p>
           )}
           <Field label="Project *">
-            <BrandSelect searchable disabled={!builderId} value={projectId} onChange={setProjectId} title="Project"
+            <BrandSelect searchable disabled={!builderId} value={projectId} title="Project"
+              onChange={(id) => { setProjectId(id); setLinkedProject(projects.find((p) => String(p._id) === id) || null); }}
               options={[{ value: "", label: builderId ? "Select project" : "Select a builder first", icon: FolderOpen, tone: "bg-slate-100 text-slate-500" },
-                ...projects.map((p) => ({ value: String(p._id), label: `${p.title}${p.propertyCode ? ` (${p.propertyCode})` : ""}`, hint: [p.locality, p.city].filter(Boolean).join(", "), icon: Home, tone: "bg-emerald-100 text-emerald-700" }))]} />
+                ...projects.map((p) => ({ value: String(p._id), label: `${p.title}${p.propertyCode ? ` (${p.propertyCode})` : ""}`, hint: [p.locality, p.city].filter(Boolean).join(", "), icon: Home, tone: "bg-emerald-100 text-emerald-700" }))]}
+              searchValue={projectSearch} onSearchChange={setProjectSearch} loading={projectLookup.loading}
+              loadingMore={projectLookup.loadingMore} hasMore={projectLookup.hasMore} onLoadMore={projectLookup.loadMore}
+              footer={`Showing ${projectLookup.items.length} of ${projectLookup.total} projects · 12 per page`} />
           </Field>
-          <Field label="Plan (sets the promotion package) *">
+          <Field label="Plan (sets the promotion package) *" hint={autoPicked ? `Auto-selected from the pro-forma line "${suggestedPlan.productName}"` : ""}>
             <BrandSelect searchable value={planId} onChange={setPlanId} title="Plan"
               options={[{ value: "", label: "Select plan", icon: PackageOpen, tone: "bg-slate-100 text-slate-500" },
                 ...plans.filter((p) => p.isActive || String(p._id) === planId).map((p) => ({ value: String(p._id), label: p.title, hint: `${p.code} · ${describePlanPackage(p)}`, icon: PackageOpen, tone: "bg-emerald-100 text-emerald-700" }))]} />
           </Field>
-          <Field label="Expected payment method" hint="You can record payments in any method later."><PaymentMethodSelect value={paymentMethod} onChange={setPaymentMethod} /></Field>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold text-[#0f3d2e]">Payment</p>
+              <div className="flex rounded-lg bg-white p-0.5 ring-1 ring-emerald-100">
+                {[[true, "Received now"], [false, "Record later"]].map(([value, label]) => (
+                  <button key={label} type="button" onClick={() => setCollectNow(value)} className={`rounded-md px-3 py-1 text-[10px] font-medium ${collectNow === value ? "bg-[#27AE60] text-white" : "text-slate-500 hover:text-[#219653]"}`}>{label}</button>
+                ))}
+              </div>
+            </div>
+            {collectNow ? (
+              <PaymentEntryFields form={paymentForm} setForm={setPaymentForm} proofs={proofs} setProofs={setProofs} />
+            ) : (
+              <Field label="Expected payment method" hint="Record the payment on the invoice when it arrives.">
+                <PaymentMethodSelect value={paymentForm.method} onChange={(method) => setPaymentForm((current) => ({ ...current, method }))} />
+              </Field>
+            )}
+          </div>
         </div>
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-[11px] text-slate-600">Cancel</button>
@@ -593,7 +692,12 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
     builderPlanService
       .proformaPage({ q: debouncedQ, status, page, limit: PAGE_SIZE }, controller.signal)
       .then((result) => {
-        setData({ proformas: result.proformas || [], counts: result.counts || {}, meta: result.meta || { total: 0, pages: 1 } });
+        const meta = result.meta || { total: 0, pages: 1 };
+        if (page > meta.pages) {
+          setPage(meta.pages);
+          return;
+        }
+        setData({ proformas: result.proformas || [], counts: result.counts || {}, expiredCount: result.expiredCount || 0, meta });
         setLoading(false);
       })
       .catch((error) => {
@@ -610,6 +714,19 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
   const onSaved = (saved) => {
     if (saved) setEditing(saved);
     reload();
+  };
+
+  const duplicate = async (row) => {
+    try {
+      const result = await builderPlanService.duplicateProforma(row._id);
+      toast.success(result?.message || "Pro-forma duplicated");
+      setStatus("");
+      setPage(1);
+      setEditing(result?.proforma || null);
+      reload();
+    } catch (error) {
+      toast.error(errorMessage(error, "Unable to duplicate pro-forma"));
+    }
   };
 
   const exportExcel = async () => {
@@ -652,6 +769,8 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
   };
 
   const { total = 0, pages = 1 } = data.meta;
+  const rangeStart = total ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const rangeEnd = Math.min(page * PAGE_SIZE, total);
 
   return (
     <div className="min-h-full p-4 sm:p-6 lg:p-8">
@@ -663,7 +782,6 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
             <p className="mt-1 text-[12px] text-slate-500">Quote a builder before payment, share the PDF, then turn it into an invoice with one click.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={reload} disabled={loading} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] text-slate-600 hover:border-emerald-300 hover:text-[#219653] disabled:opacity-60"><RefreshCw size={13} className={loading ? "animate-spin" : ""} />Refresh</button>
             <button type="button" onClick={exportExcel} disabled={exporting || !total} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] text-slate-600 hover:border-emerald-300 hover:text-[#219653] disabled:opacity-50">{exporting ? <Loader2 size={13} className="animate-spin" /> : <FileSpreadsheet size={13} />}Export Excel</button>
             {onOpenInvoices && <button type="button" onClick={onOpenInvoices} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] text-slate-600 hover:border-emerald-300 hover:text-[#219653]"><ReceiptText size={13} />Invoices</button>}
             {canCreate && <button type="button" onClick={() => setEditing({})} className="flex items-center gap-2 rounded-xl bg-[#27AE60] px-4 py-2.5 text-xs font-medium text-white shadow-sm hover:bg-[#219653]"><Plus size={15} />Create pro-forma</button>}
@@ -677,6 +795,9 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
               {meta.label} · {data.counts[value]?.count || 0}
             </button>
           ))}
+          <button type="button" onClick={() => { setStatus("expired"); setPage(1); }} className={`rounded-full px-3 py-1.5 text-[11px] ring-1 ${status === "expired" ? "bg-amber-500 text-white ring-amber-500" : "bg-white text-amber-700 ring-amber-200"}`}>
+            Expired · {data.expiredCount || 0}
+          </button>
         </div>
 
         <div className="mb-4 grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -719,15 +840,17 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
                     <p className="mt-0.5 text-[9px] text-slate-400">GST {row.gstRate}%</p>
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge value={row.status} />
+                    <div className="flex flex-wrap gap-1"><StatusBadge value={row.status} />{isExpired(row) && <ExpiredBadge />}</div>
                     {row.convertedInvoiceId?.invoiceNumber && <p className="mt-0.5 truncate font-mono text-[8px] text-violet-600">{row.convertedInvoiceId.invoiceNumber}</p>}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => openProformaPdf(row)} title="View PDF" className="rounded-lg bg-[#27AE60] p-1.5 text-white hover:bg-[#219653]"><Eye size={13} /></button>
                       <button type="button" onClick={() => openProformaPdf(row, true)} title="Download PDF" className="rounded-lg bg-emerald-50 p-1.5 text-[#219653] hover:bg-emerald-100"><Download size={13} /></button>
-                      {canUpdate && row.status !== "converted" && <button type="button" onClick={() => setEditing(row)} title="Edit" className="rounded-lg border border-emerald-200 p-1.5 text-[#27AE60] hover:bg-emerald-50"><Pencil size={13} /></button>}
-                      {canCreateInvoice && !["converted", "cancelled"].includes(row.status) && (
+                      {isExpired(row) ? (
+                        canCreate && <button type="button" onClick={() => duplicate(row)} title="Expired — duplicate with new dates" className="rounded-lg bg-amber-100 p-1.5 text-amber-800 hover:bg-amber-200"><Copy size={13} /></button>
+                      ) : canUpdate && row.status !== "converted" && <button type="button" onClick={() => setEditing(row)} title="Edit" className="rounded-lg border border-emerald-200 p-1.5 text-[#27AE60] hover:bg-emerald-50"><Pencil size={13} /></button>}
+                      {canCreateInvoice && !isExpired(row) && !["converted", "cancelled"].includes(row.status) && (
                         <button type="button" onClick={() => setConverting(row)} title="Create invoice from this pro-forma" className="rounded-lg bg-amber-100 p-1.5 text-amber-800 hover:bg-amber-200"><ReceiptText size={13} /></button>
                       )}
                     </div>
@@ -744,13 +867,17 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
             </div>
           )}
           {loading && !data.proformas.length && <div className="flex justify-center py-12"><CircleDashed size={22} className="animate-spin text-emerald-300" /></div>}
-          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
-            <p className="text-[11px] text-slate-500">{total ? `${total} pro-forma invoice${total === 1 ? "" : "s"}` : "No pro-forma invoices"}</p>
+          <div className="flex flex-col items-center justify-between gap-2 border-t border-slate-100 px-4 py-3 sm:flex-row">
+            <p className="text-[11px] text-slate-500">
+              {total ? <>Showing <b className="font-medium text-slate-700">{rangeStart}–{rangeEnd}</b> of <b className="font-medium text-slate-700">{total}</b> pro-forma invoices · {PAGE_SIZE} per page</> : "No pro-forma invoices"}
+            </p>
             {pages > 1 && (
               <div className="flex items-center gap-1">
-                <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30"><ChevronLeft size={14} /></button>
-                <span className="px-2 text-[11px] text-slate-600">{page} / {pages}</span>
-                <button type="button" disabled={page >= pages} onClick={() => setPage(page + 1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-30"><ChevronRight size={14} /></button>
+                <button type="button" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-[#219653] disabled:opacity-30"><ChevronLeft size={14} /></button>
+                {pageWindow(page, pages).map((number) => (
+                  <button key={number} type="button" disabled={loading} onClick={() => setPage(number)} className={`h-8 min-w-8 rounded-lg px-2 text-[11px] font-medium transition ${number === page ? "bg-[#27AE60] text-white shadow-sm" : "border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-[#219653]"}`}>{number}</button>
+                ))}
+                <button type="button" disabled={page >= pages || loading} onClick={() => setPage(page + 1)} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-[#219653] disabled:opacity-30"><ChevronRight size={14} /></button>
               </div>
             )}
           </div>
@@ -761,6 +888,7 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
         <ProformaEditorDrawer
           key={`${editing._id || "new"}:${editing.updatedAt || ""}`}
           proforma={editing}
+          canCreate={canCreate}
           canUpdate={canUpdate}
           canDelete={canDelete}
           canCreateInvoice={canCreateInvoice}
@@ -768,6 +896,7 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
           onSaved={onSaved}
           onDeleted={() => { setEditing(null); reload(); }}
           onConvert={(row) => setConverting(row)}
+          onDuplicate={duplicate}
         />
       )}
       {converting && (
@@ -775,12 +904,12 @@ export default function BuilderProformasPage({ plans = [], canCreate = false, ca
           proforma={converting}
           plans={plans}
           onClose={() => setConverting(null)}
-          onConverted={(result) => {
+          onConverted={(result, paymentSaved) => {
             setConverting(null);
             setEditing(null);
             reload();
             if (result?.invoice?.propertyId) builderPlanService.syncProjectPromotion(String(result.invoice.propertyId));
-            if (onOpenInvoices) {
+            if (onOpenInvoices && !paymentSaved) {
               toast.message("Open the invoice to record the payment", {
                 action: { label: "Open invoices", onClick: onOpenInvoices },
               });

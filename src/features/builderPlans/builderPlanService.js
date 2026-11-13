@@ -67,6 +67,24 @@ export const builderPlanService = {
           },
         };
       }),
+  /** One page of a builder's projects, optionally filtered by title / code. */
+  searchBuilderProjects: (builderId, { q = "", page = 1, limit = 12 } = {}, signal) =>
+    apiClient
+      .get("/api/properties/featured-project", {
+        params: { createdBy: builderId, page, limit, promotionStatus: "all", ...(q.trim() ? { q: q.trim() } : {}) },
+        signal,
+      })
+      .then((response) => {
+        const body = response.data || {};
+        const meta = body.meta || {};
+        const current = Number(meta.page || page);
+        return {
+          items: body.items || [],
+          page: current,
+          total: Number(meta.total || 0),
+          hasMore: current < Number(meta.pages || 1),
+        };
+      }),
   builderProjects: (builderId) => apiClient.get("/api/properties/featured-project", { params: { createdBy: builderId, limit: 100, promotionStatus: "all" } }).then((response) => response.data?.items || []),
   createInvoice: (payload) => apiClient.post(INVOICE_URL, payload).then((response) => response.data),
   updateInvoice: (id, payload) => apiClient.patch(`${INVOICE_URL}/${id}`, payload).then((response) => response.data),
@@ -133,6 +151,7 @@ export const builderPlanService = {
       .then((response) => response.data),
   removeProformaFile: (id, attachmentId) =>
     apiClient.delete(`${PROFORMA_URL}/${id}/attachments/${attachmentId}`).then((response) => response.data),
+  duplicateProforma: (id, payload = {}) => apiClient.post(`${PROFORMA_URL}/${id}/duplicate`, payload).then((response) => response.data),
   convertProforma: (id, payload = {}) => apiClient.post(`${PROFORMA_URL}/${id}/convert`, payload).then((response) => response.data),
   assign: async (plan, builderId, projectIds) => {
     const payload = {

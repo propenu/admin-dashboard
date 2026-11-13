@@ -22,6 +22,7 @@ import {
   Download,
   Gauge,
   Globe2,
+  Layers,
   ListFilter,
   LoaderCircle,
   MapPin,
@@ -31,7 +32,6 @@ import {
   RefreshCw,
   Search,
   Send,
-  ShieldCheck,
   Smartphone,
   UserCheck,
   UserRound,
@@ -46,9 +46,12 @@ import {
   getUserProperties,
 } from "../../features/user/userDetailService";
 import { saSurface } from "../Dashboards/superAdminDashboard/dashboardSurface";
+import journeyBrochureCover from "../../assets/journey-brochure-cover.jpg";
 
 const roles = ["user", "builder", "builder_staff", "agent"];
 const USER_PAGE_SIZE = 12;
+const LISTING_PAGE_SIZE = 12;
+const LISTING_KINDS = ["Residential", "Commercial", "Land", "Agricultural", "Project"];
 const EVENT_PAGE_SIZE = 12;
 const ROLE_LABELS = {
   all: "All roles",
@@ -789,6 +792,14 @@ function DynamicJourneyMap({ journey }) {
   );
 }
 
+function WhatsAppGlyph({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38a9.9 9.9 0 0 0 4.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.22 8.22 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.81-.78.97-.15.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.43.13-.15.17-.25.25-.42.08-.16.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.22.25-.86.85-.86 2.07 0 1.22.89 2.39 1.01 2.56.12.16 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.1-.22-.16-.47-.28Z" />
+    </svg>
+  );
+}
+
 function ReferenceJourneyMap({ journey }) {
   const [mapZoom, setMapZoom] = useState(1);
   const [selectedDetail, setSelectedDetail] = useState(null);
@@ -847,24 +858,6 @@ function ReferenceJourneyMap({ journey }) {
       "project_click",
       "property_click",
     );
-  const sessionTotal = Math.max(1, Number(journey?.sessions || 0));
-  const sessionsFor = (...types) =>
-    new Set(
-      raw
-        .filter((event) => types.includes(event.eventType))
-        .map((event) => event.sessionId)
-        .filter(Boolean),
-    ).size;
-  const stagePercent = (...types) =>
-    Math.min(100, Math.round((sessionsFor(...types) / sessionTotal) * 100));
-  const searchPercent = stagePercent("search_performed", "search_result_click");
-  const explorePercent = stagePercent(
-    "filter_applied",
-    "project_view",
-    "property_view",
-    "project_click",
-    "property_click",
-  );
   const agent = first?.userAgent || latest?.userAgent || first?.deviceType || "";
   const browser = /edg/i.test(agent)
     ? "Edge"
@@ -882,54 +875,35 @@ function ReferenceJourneyMap({ journey }) {
     : agent
       ? "Desktop"
       : "Unknown device";
-  const sourceValue = asText(
-    first?.metadata?.utmSource ||
-      first?.searchContext?.utmSource ||
-      first?.metadata?.referrer ||
-      first?.source,
-    "Direct",
-  );
+  const reachedLines = (event) =>
+    event
+      ? [
+          time(event.serverTimestamp),
+          event.durationMs ? `Time spent ${elapsed(event.durationMs)}` : "",
+        ].filter(Boolean)
+      : ["—"];
   const stages = [
-    [
-      "Acquisition",
-      Globe2,
-      title(sourceValue),
-      time(first?.serverTimestamp),
-      `UTM: ${String(sourceValue).toLowerCase()}`,
-      "Entry",
-      raw.length ? 100 : 0,
-      `${journey?.sessions || 0} Sessions`,
-    ],
-    [
-      "Sign Up",
-      UserRound,
-      "Registered",
-      time(first?.serverTimestamp),
-      `${device} · ${browser}`,
-      raw.length ? "Done" : "Waiting",
-      raw.length ? 100 : 0,
-      `${raw.length} events`,
-    ],
-    [
-      "Search",
-      Search,
-      detail(search, "No search yet"),
-      time(search?.serverTimestamp),
-      elapsed(search?.durationMs),
-      search ? "Reached" : "Waiting",
-      searchPercent,
-      search ? `${100 - searchPercent}% drop-off` : "Not reached",
-    ],
-    [
-      "Explore",
-      ListFilter,
-      detail(explore, "No listing opened"),
-      time(explore?.serverTimestamp),
-      elapsed(explore?.durationMs),
-      explore ? "Reached" : "Waiting",
-      explorePercent,
-      explore ? `${100 - explorePercent}% drop-off` : "Not reached",
-    ],
+    {
+      name: "Sign Up",
+      Icon: UserRound,
+      tone: "blue",
+      value: "Registered",
+      lines: [browser === "Unknown browser" ? device : `${device} · ${browser}`],
+    },
+    {
+      name: "Search",
+      Icon: Search,
+      tone: "sky",
+      value: detail(search, "No search yet"),
+      lines: reachedLines(search),
+    },
+    {
+      name: "Explore",
+      Icon: Layers,
+      tone: "violet",
+      value: detail(explore, "No listing opened"),
+      lines: reachedLines(explore),
+    },
   ];
   const grouped = new Map();
   raw
@@ -996,7 +970,6 @@ function ReferenceJourneyMap({ journey }) {
           capturedAt: latest.serverTimestamp,
         }
       : null);
-  const coverImage = cards.find((item) => item.image)?.image || "";
   const stopPage = (() => {
     const rawUrl = asText(stop?.pageUrl, "");
     if (!rawUrl) return "Tracking is ready";
@@ -1013,123 +986,116 @@ function ReferenceJourneyMap({ journey }) {
     return last.length > 22 ? `${last.slice(0, 20)}…` : last;
   })();
   const leadListing = cards[0];
+  const actionRows = [
+    [CircleCheck, "Compared", compared, "listings compared"],
+    [Calculator, "Price Calc", calculators, "price calculator uses"],
+    [WhatsAppGlyph, "WhatsApp", whatsapp, "WhatsApp clicks"],
+    [ClipboardList, "Form Started", forms, "forms started"],
+  ];
+  const openBrochures = () =>
+    setSelectedDetail({
+      title: `Brochure downloads (${brochureDownloads.length})`,
+      description: brochureDownloads.length
+        ? "Files downloaded by this user in the selected period."
+        : "No brochure download has been captured for this user.",
+      items: brochureDownloads,
+    });
   return (
-    <div className="uj-path">
-      <div className="uj-path-legend">
-        <span className="done">Completed</span>
-        <span className="active">Exploring</span>
-        <span className="risk">Friction / Drop-off</span>
-        <em>All times in IST</em>
-      </div>
-      <div className="uj-path-board">
-        {stages.map(([name, Icon, text, meta, sub, stat, pct]) => (
-          <article className="uj-path-stage" key={name}>
-            <h3>
-              {name}
-              <ArrowRight size={13} />
-            </h3>
-            <i>
-              <Icon size={16} />
-            </i>
-            <strong title={text}>{text}</strong>
-            <small>{meta}</small>
-            <em title={sub}>{sub}</em>
-            <div className="uj-path-stat">
-              <b>{stat}</b>
-              <strong>{pct}%</strong>
+    <div className="ujm">
+      <div className="ujm-board">
+        {stages.map(({ name, Icon, tone, value, lines }) => (
+          <article className={`ujm-stage ujm-tone-${tone}`} key={name}>
+            <div className="ujm-stage-head">
+              <span className="ujm-stage-icon">
+                <Icon size={18} />
+              </span>
+              <h3>{name}</h3>
             </div>
+            <strong title={value}>{value}</strong>
+            {lines.map((line, index) => (
+              <small key={`${name}-${index}`} title={line}>
+                {line}
+              </small>
+            ))}
+            <svg
+              className="ujm-wave"
+              viewBox="0 0 120 32"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <path d="M0 20 C24 6 46 30 74 16 C92 8 106 10 120 18 V32 H0 Z" />
+            </svg>
           </article>
         ))}
-        <section className="uj-path-visual">
-          <h3>
-            Properties explored
-            <ArrowRight size={13} />
-          </h3>
-          <div className="uj-path-property">
+        <section className="ujm-properties">
+          <header>
+            <span aria-hidden="true">
+              <Building2 size={16} />
+            </span>
+            <h3>Properties Explored</h3>
+          </header>
+          <div className="ujm-listing">
             {leadListing?.image ? (
               <img src={leadListing.image} alt="" />
             ) : (
-              <span className="uj-path-photo" aria-hidden="true">
+              <span className="ujm-listing-icon" aria-hidden="true">
                 <Building2 size={18} />
               </span>
             )}
-            <span>
-              <b title={leadListing?.label}>{leadListing?.label || "No listing"}</b>
+            <span className="ujm-listing-copy">
+              <b title={leadListing?.label}>
+                {leadListing?.label || "No listing activity"}
+              </b>
               <small>
                 {leadListing?.type || "Waiting"} · {leadListing?.promotion || "Normal"}
               </small>
-              <em>
+              <small>
                 {leadListing?.views || 0} views
                 {cards.length > 1 ? ` · +${cards.length - 1} more` : ""}
-              </em>
+              </small>
             </span>
           </div>
-          <button
-            type="button"
-            className="uj-path-brochure"
-            onClick={() =>
-              setSelectedDetail({
-                title: `Brochure downloads (${brochureDownloads.length})`,
-                description: brochureDownloads.length
-                  ? "Files downloaded by this user in the selected period."
-                  : "No brochure download has been captured for this user.",
-                items: brochureDownloads,
-              })
-            }
-          >
-            {coverImage ? (
-              <img src={coverImage} alt="" />
-            ) : (
-              <span className="uj-path-brochure-fallback" />
-            )}
-            <i>PDF</i>
-            <span className="uj-path-brochure-copy">
+          <div className="ujm-brochure">
+            <img
+              className="ujm-brochure-cover"
+              src={journeyBrochureCover}
+              alt="Propenu brochure"
+              loading="lazy"
+            />
+            <i className="ujm-pdf">PDF</i>
+            <div className="ujm-brochure-copy">
               <b>Brochures</b>
-              <small>{brochures ? `${brochures} downloaded` : "No download yet"}</small>
-            </span>
-          </button>
-        </section>
-        <section className="uj-path-actions">
-          <h3>
-            Compare
-            <ArrowRight size={13} />
-          </h3>
-          <div className="uj-path-row">
-            <CircleCheck size={16} />
-            <span>
-              <b>Compared</b>
-              <small>{compared} listings</small>
-            </span>
-          </div>
-          <h3>Enquire</h3>
-          <div className="uj-path-row">
-            <Calculator size={16} />
-            <span>
-              <b>Price Calc Used</b>
-              <small>{calculators} times</small>
-            </span>
-          </div>
-          <div className="uj-path-row">
-            <MessageCircle size={16} />
-            <span>
-              <b>WhatsApp Click</b>
-              <small>{whatsapp} clicks</small>
-            </span>
-          </div>
-          <div className="uj-path-row">
-            <ClipboardList size={16} />
-            <span>
-              <b>Form Started</b>
-              <small>{forms} started</small>
-            </span>
+              <small>
+                {brochures ? `${brochures} downloaded` : "No download yet"}
+              </small>
+              <button type="button" onClick={openBrochures}>
+                <Download size={13} />
+                Download
+              </button>
+            </div>
           </div>
         </section>
-        <section className="uj-path-stop">
-          <b>{stop ? "STOPPED" : "WAITING"}</b>
-          <AlertTriangle size={22} />
-          <strong>{stop ? eventLabel(stop.eventType) : "No activity"}</strong>
-          <em title={asText(stop?.pageUrl, "")}>{stopPage}</em>
-          <small>{time(stop?.capturedAt)}</small>
+        <section className="ujm-actions">
+          <h3>Compare &amp; Enquire</h3>
+          {actionRows.map(([RowIcon, label, value, unit]) => (
+            <div className="ujm-action" key={label} title={`${value} ${unit}`}>
+              <RowIcon size={18} />
+              <span>
+                <b>{label}</b>
+                <small>{value}</small>
+              </span>
+            </div>
+          ))}
+        </section>
+        <section className="ujm-status">
+          <h3 title="Current Status">Current Status</h3>
+          <span className="ujm-status-pill">{stop ? "STOPPED" : "WAITING"}</span>
+          <AlertTriangle size={24} />
+          <strong title={stop ? eventLabel(stop.eventType) : "No activity"}>
+            {stop ? eventLabel(stop.eventType) : "No activity"}
+          </strong>
+          <em title={asText(stop?.pageUrl, "") || stopPage}>{stopPage}</em>
+          <small title={time(stop?.capturedAt)}>{time(stop?.capturedAt)}</small>
         </section>
       </div>
       {selectedDetail && (
@@ -1208,14 +1174,14 @@ function DynamicAttribution({ journey }) {
   );
 }
 
-function DynamicInsightRail({ journey, user, notify }) {
+function intentSignalValues(journey) {
   const raw = journey?.rawEvents || [];
   const count = (...types) =>
     raw.filter((event) => types.includes(event.eventType)).length;
   const uniqueLocations = new Set(
     raw.map((event) => entityLocation(entityFor(event))).filter(Boolean),
   ).size;
-  const signalValues = [
+  return [
     Math.min(100, 25 + uniqueLocations * 20),
     Math.min(
       100,
@@ -1244,6 +1210,10 @@ function DynamicInsightRail({ journey, user, notify }) {
         count("brochure_downloaded", "compare_added") * 8,
     ),
   ];
+}
+
+function IntentSignalsPanel({ journey }) {
+  const signalValues = intentSignalValues(journey);
   const signalItems = [
     ["Location fit", signalValues[0]],
     ["Budget", signalValues[1]],
@@ -1259,6 +1229,53 @@ function DynamicInsightRail({ journey, user, notify }) {
     const y = 62 + Math.sin(angle) * radius;
     return `${Number.isFinite(x) ? x : 80},${Number.isFinite(y) ? y : 62}`;
   };
+  return (
+    <Panel
+      title="Intent Signals"
+      subtitle="Calculated from captured behavior"
+    >
+      <div className="uj-intent-signals">
+        <div className="uj-radar-chart" aria-label="Intent signal radar chart">
+          <svg viewBox="0 0 160 124" role="img">
+            {[25, 50, 75, 100].map((level) => (
+              <polygon
+                key={level}
+                points={signalItems.map((_, index) => radarPoint(index, level)).join(" ")}
+                className="uj-radar-grid"
+              />
+            ))}
+            {signalItems.map((_, index) => (
+              <line key={index} x1="80" y1="62" x2={radarPoint(index).split(",")[0]} y2={radarPoint(index).split(",")[1]} />
+            ))}
+            <polygon
+              points={signalItems.map(([, value], index) => radarPoint(index, value)).join(" ")}
+              className="uj-radar-value"
+            />
+            {signalItems.map(([, value], index) => {
+              const [cx, cy] = radarPoint(index, value).split(",");
+              return <circle key={index} cx={cx} cy={cy} r="2.5" />;
+            })}
+          </svg>
+          <strong>{journey?.buyingIntent || 0}<small>/100 intent</small></strong>
+        </div>
+        <div className="uj-signal-list">
+          {signalItems.map(([label, value]) => (
+            <div key={label}>
+              <span><i />{label}</span>
+              <b>{value}%</b>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
+function DynamicInsightRail({ journey, user, notify }) {
+  const raw = journey?.rawEvents || [];
+  const count = (...types) =>
+    raw.filter((event) => types.includes(event.eventType)).length;
+  const signalValues = intentSignalValues(journey);
   const summary = [
     `${journey?.sessions || 0} session${journey?.sessions === 1 ? "" : "s"} in the selected period`,
     `${(journey?.projectsViewed || 0) + (journey?.propertiesViewed || 0)} unique listings explored`,
@@ -1312,7 +1329,7 @@ function DynamicInsightRail({ journey, user, notify }) {
       })
     : "No activity";
   return (
-    <aside className="grid content-start gap-2 md:grid-cols-2 xl:grid-cols-1">
+    <aside className="grid content-start gap-2 sm:grid-cols-2 md:grid-cols-1">
       <Panel
         title="1. AI Journey Summary"
         subtitle="Live behavioral intelligence"
@@ -1404,44 +1421,6 @@ function DynamicInsightRail({ journey, user, notify }) {
           ))}
         </div>
       </Panel>
-      <Panel
-        title="Intent Signals"
-        subtitle="Calculated from captured behavior"
-      >
-        <div className="uj-intent-signals">
-          <div className="uj-radar-chart" aria-label="Intent signal radar chart">
-            <svg viewBox="0 0 160 124" role="img">
-              {[25, 50, 75, 100].map((level) => (
-                <polygon
-                  key={level}
-                  points={signalItems.map((_, index) => radarPoint(index, level)).join(" ")}
-                  className="uj-radar-grid"
-                />
-              ))}
-              {signalItems.map((_, index) => (
-                <line key={index} x1="80" y1="62" x2={radarPoint(index).split(",")[0]} y2={radarPoint(index).split(",")[1]} />
-              ))}
-              <polygon
-                points={signalItems.map(([, value], index) => radarPoint(index, value)).join(" ")}
-                className="uj-radar-value"
-              />
-              {signalItems.map(([, value], index) => {
-                const [cx, cy] = radarPoint(index, value).split(",");
-                return <circle key={index} cx={cx} cy={cy} r="2.5" />;
-              })}
-            </svg>
-            <strong>{journey?.buyingIntent || 0}<small>/100 intent</small></strong>
-          </div>
-          <div className="uj-signal-list">
-            {signalItems.map(([label, value]) => (
-              <div key={label}>
-                <span><i />{label}</span>
-                <b>{value}%</b>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Panel>
     </aside>
   );
 }
@@ -1473,6 +1452,9 @@ export default function LeadCaptureAnalytics() {
   const [userListings, setUserListings] = useState([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [listingFilter, setListingFilter] = useState("all");
+  const [listingPage, setListingPage] = useState(1);
+  const [listingTotals, setListingTotals] = useState(null);
+  const listingPageCache = useRef(new Map());
   const user = useMemo(
     () => users.find((item) => item._id === selectedId) || users[0],
     [selectedId, users],
@@ -1573,33 +1555,100 @@ export default function LeadCaptureAnalytics() {
   useEffect(() => {
     if (user) loadJourney(user);
   }, [user, loadJourney]);
+  const listingUserIds = useMemo(
+    () => (user ? [user._id, user.userId, user.builderId].filter(Boolean) : []),
+    [user],
+  );
+  const fetchListingPage = useCallback(
+    async (kind, page) => {
+      const key = `${listingUserIds.join(",")}:${kind}:${page}`;
+      if (listingPageCache.current.has(key)) return listingPageCache.current.get(key);
+      const response = await (kind === "Project"
+        ? getUserFeaturedProjects(listingUserIds, "", page, LISTING_PAGE_SIZE)
+        : getUserProperties(listingUserIds, kind.toLowerCase(), page, LISTING_PAGE_SIZE));
+      const result = {
+        items: (response?.data?.items || []).map((item) => ({ ...item, _listingKind: kind })),
+        total: Number(response?.data?.meta?.total) || 0,
+      };
+      listingPageCache.current.set(key, result);
+      return result;
+    },
+    [listingUserIds],
+  );
   useEffect(() => {
-    if (!user) return undefined;
+    if (!listingUserIds.length) return undefined;
     let active = true;
-    const userIds = [user._id, user.userId, user.builderId].filter(Boolean);
+    listingPageCache.current = new Map();
+    setListingTotals(null);
+    setUserListings([]);
     setListingsLoading(true);
-    Promise.all([
-      getUserProperties(userIds, "residential", 1, USER_PAGE_SIZE),
-      getUserProperties(userIds, "commercial", 1, USER_PAGE_SIZE),
-      getUserProperties(userIds, "land", 1, USER_PAGE_SIZE),
-      getUserProperties(userIds, "agricultural", 1, USER_PAGE_SIZE),
-      getUserFeaturedProjects(userIds, "", 1, USER_PAGE_SIZE),
-    ])
-      .then((responses) => {
+    Promise.all(LISTING_KINDS.map((kind) => fetchListingPage(kind, 1)))
+      .then((pages) => {
         if (!active) return;
-        const kinds = ["Residential", "Commercial", "Land", "Agricultural", "Project"];
-        setUserListings(
-          responses.flatMap((response, index) =>
-            (response?.data?.items || []).map((item) => ({ ...item, _listingKind: kinds[index] })),
+        setListingTotals({
+          key: listingUserIds.join(","),
+          ...Object.fromEntries(
+            LISTING_KINDS.map((kind, index) => [
+              kind,
+              Math.max(pages[index].total, pages[index].items.length),
+            ]),
           ),
-        );
+        });
       })
+      .catch(() => {
+        if (!active) return;
+        setListingTotals({
+          key: listingUserIds.join(","),
+          ...Object.fromEntries(LISTING_KINDS.map((kind) => [kind, 0])),
+        });
+        setListingsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [fetchListingPage, listingUserIds]);
+  useEffect(() => {
+    setListingPage(1);
+  }, [listingFilter, listingUserIds]);
+  useEffect(() => {
+    if (!listingTotals || listingTotals.key !== listingUserIds.join(",")) return undefined;
+    let active = true;
+    const kinds =
+      listingFilter === "all"
+        ? LISTING_KINDS
+        : LISTING_KINDS.filter((kind) => kind.toLowerCase() === listingFilter);
+    const start = (listingPage - 1) * LISTING_PAGE_SIZE;
+    const end = start + LISTING_PAGE_SIZE;
+    const requests = [];
+    let offset = 0;
+    kinds.forEach((kind) => {
+      const total = listingTotals[kind] || 0;
+      const from = Math.max(start, offset) - offset;
+      const to = Math.min(end, offset + total) - offset;
+      offset += total;
+      if (to <= from) return;
+      const firstPage = Math.floor(from / LISTING_PAGE_SIZE) + 1;
+      const lastPage = Math.floor((to - 1) / LISTING_PAGE_SIZE) + 1;
+      const pages = [];
+      for (let page = firstPage; page <= lastPage; page += 1) pages.push(page);
+      requests.push(
+        Promise.all(pages.map((page) => fetchListingPage(kind, page))).then((results) =>
+          results
+            .flatMap((result) => result.items)
+            .slice(from - (firstPage - 1) * LISTING_PAGE_SIZE)
+            .slice(0, to - from),
+        ),
+      );
+    });
+    setListingsLoading(true);
+    Promise.all(requests)
+      .then((chunks) => active && setUserListings(chunks.flat()))
       .catch(() => active && setUserListings([]))
       .finally(() => active && setListingsLoading(false));
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [fetchListingPage, listingFilter, listingPage, listingTotals, listingUserIds]);
   useEffect(() => {
     if (!toast) return undefined;
     const timer = window.setTimeout(() => setToast(""), 2600);
@@ -1694,22 +1743,17 @@ export default function LeadCaptureAnalytics() {
       }));
   }, [journey]);
   const listingCounts = useMemo(() => {
-    const counts = { all: userListings.length };
-    userListings.forEach((item) => {
-      const key = String(item._listingKind || "property").toLowerCase();
-      counts[key] = (counts[key] || 0) + 1;
+    const counts = { all: 0 };
+    LISTING_KINDS.forEach((kind) => {
+      const total = listingTotals?.[kind] || 0;
+      counts[kind.toLowerCase()] = total;
+      counts.all += total;
     });
     return counts;
-  }, [userListings]);
-  const visibleUserListings = useMemo(
-    () =>
-      userListings.filter(
-        (item) =>
-          listingFilter === "all" ||
-          String(item._listingKind).toLowerCase() === listingFilter,
-      ),
-    [listingFilter, userListings],
-  );
+  }, [listingTotals]);
+  const visibleUserListings = userListings;
+  const listingFilterTotal = listingCounts[listingFilter] || 0;
+  const listingPages = Math.max(1, Math.ceil(listingFilterTotal / LISTING_PAGE_SIZE));
   const rawEvents = journey?.rawEvents || [];
   const eventCount = (...types) =>
     rawEvents.filter((event) =>
@@ -1811,32 +1855,6 @@ export default function LeadCaptureAnalytics() {
       }),
     };
   });
-  const riskMap = new Map();
-  rawEvents
-    .filter((event) =>
-      /fail|error|abandon|timeout|denied|blocked|invalid|friction/i.test(
-        event.eventType || "",
-      ),
-    )
-    .forEach((event) => {
-      const name = eventLabel(event.eventType),
-        current = riskMap.get(name) || { total: 0, high: false };
-      current.total += 1;
-      current.high ||= /fail|error|denied|blocked|otp/i.test(
-        event.eventType || "",
-      );
-      riskMap.set(name, current);
-    });
-  const calculatorRepeats = Math.max(0, eventCount("price_calculator") - 1);
-  if (calculatorRepeats)
-    riskMap.set("Price calculator repeated", {
-      total: calculatorRepeats,
-      high: false,
-    });
-  const detectedRisks = [...riskMap.entries()]
-    .map(([name, value]) => [name, value.total, value.high ? "High" : "Medium"])
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4);
   const locationMap = new Map();
   properties
     .filter((item) => item.location)
@@ -2112,19 +2130,9 @@ export default function LeadCaptureAnalytics() {
       )}
       <section className="uj-workspace mt-3 grid min-w-0 gap-3">
         <div className="min-w-0 space-y-2">
-          <Panel
-            className="uj-map-panel"
-            title="Live Journey Map"
-            subtitle="Complete path, exploration branches and exact stopping point"
-            action={
-              <Chip>
-                <Wifi size={10} />
-                Streaming
-              </Chip>
-            }
-          >
+          <section className="uj-panel uj-map-panel overflow-hidden rounded-2xl border border-[#e3ede7] bg-white shadow-[0_1px_2px_rgba(15,61,46,0.04),0_14px_30px_-16px_rgba(15,61,46,0.22)]">
             <ReferenceJourneyMap journey={journey} />
-          </Panel>
+          </section>
           <div className="uj-detail-stack grid grid-cols-1 gap-2">
             <Panel
               className="hidden"
@@ -2390,10 +2398,40 @@ export default function LeadCaptureAnalytics() {
                 ) : (
                   <div className="uj-listing-empty">No {listingFilter === "all" ? "created or assigned" : listingFilter} listings found for this user.</div>
                 )}
+                {listingFilterTotal > 0 && (
+                  <div className="uj-listing-pager">
+                    <span>
+                      {(listingPage - 1) * LISTING_PAGE_SIZE + 1}–
+                      {Math.min(listingPage * LISTING_PAGE_SIZE, listingFilterTotal)} of{" "}
+                      {listingFilterTotal}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={listingPage <= 1 || listingsLoading}
+                        onClick={() => setListingPage((page) => Math.max(1, page - 1))}
+                        className="uj-control h-7 disabled:opacity-40"
+                      >
+                        Prev
+                      </button>
+                      <b>
+                        {listingPage} / {listingPages}
+                      </b>
+                      <button
+                        type="button"
+                        disabled={listingPage >= listingPages || listingsLoading}
+                        onClick={() => setListingPage((page) => Math.min(listingPages, page + 1))}
+                        className="uj-control h-7 disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </span>
+                  </div>
+                )}
               </div>
             </Panel>
           </div>
-          <div className="grid gap-2 lg:grid-cols-4">
+          <div className="grid gap-2 lg:grid-cols-2 xl:grid-cols-4">
             <Panel
               title={`Multi-session Timeline (${journey?.sessions || 0} Sessions)`}
               subtitle={`${mobileSessions} mobile · ${desktopSessions} desktop`}
@@ -2461,36 +2499,7 @@ export default function LeadCaptureAnalytics() {
                 ))}
               </div>
             </Panel>
-            <Panel
-              title="Friction & Risk"
-              subtitle="Signals requiring attention"
-            >
-              <div className="space-y-2 p-3 text-[8px]">
-                {detectedRisks.map(([name, total, status]) => (
-                  <div
-                    className="flex items-center justify-between gap-2"
-                    key={name}
-                  >
-                    <span className="min-w-0 flex-1 truncate">
-                      <i
-                        className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${status === "High" ? "bg-red-500" : "bg-orange-400"}`}
-                      />
-                      {name}
-                    </span>
-                    <b>{total}</b>
-                    <Chip tone="orange">{status}</Chip>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 p-2">
-                  <span className="font-bold text-emerald-700">
-                    {detectedRisks.length
-                      ? `${detectedRisks.length} risk signal${detectedRisks.length > 1 ? "s" : ""} detected`
-                      : "No fraud or friction detected"}
-                  </span>
-                  <Chip>{detectedRisks.length ? "Review" : "Clear"}</Chip>
-                </div>
-              </div>
-            </Panel>
+            <IntentSignalsPanel journey={journey} />
             <Panel
               title="Location Interest Heatmap"
               subtitle="Behavioral hotspots from viewed listings"
@@ -2520,18 +2529,6 @@ export default function LeadCaptureAnalytics() {
         </div>
         <DynamicInsightRail journey={journey} user={user} notify={notify} />
       </section>
-      <footer className={`mt-3 flex flex-wrap items-center justify-center gap-3 rounded-2xl px-4 py-2.5 text-xs text-[#128C45] ${saSurface}`}>
-        <ShieldCheck size={15} />
-        <b>Consent active</b>
-        <span>· PII masked</span>
-        <span>· Role-based access</span>
-        <span>· Audit logged</span>
-        <span>· Retention 90 days</span>
-        <span className="ml-auto flex items-center gap-1.5 font-semibold">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-[#27AE60]" />
-          Live
-        </span>
-      </footer>
     </div>
   );
 }

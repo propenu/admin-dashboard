@@ -88,8 +88,8 @@ export default function BrandSelect({
             className="fixed overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-2xl shadow-emerald-950/15"
             style={{ zIndex: 10001, top: pos.top, left: pos.left, width: pos.width, animation: "brandMenuIn .16s ease-out" }}
           >
-            <div className="bg-gradient-to-r from-[#0f3d2e] via-[#17643f] to-[#27AE60] px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-emerald-50">{title}</p>
+            <div className="border-b border-emerald-100 border-t-[3px] border-t-[#27AE60] bg-emerald-50 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#219653]">{title}</p>
             </div>
             {searchable ? (
               <div className="border-b border-emerald-50 p-1.5">
@@ -100,7 +100,7 @@ export default function BrandSelect({
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder={`Search ${title.toLowerCase()}…`}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-2.5 text-[11px] text-slate-700 outline-none focus:border-[#27AE60] focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                    className="w-full rounded-lg border border-emerald-100 bg-white py-2 pl-8 pr-2.5 text-[11px] text-slate-700 outline-none focus:border-[#27AE60] focus:bg-white focus:ring-2 focus:ring-emerald-100"
                   />
                 </div>
               </div>

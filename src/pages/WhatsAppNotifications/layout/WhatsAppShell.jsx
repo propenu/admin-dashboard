@@ -83,7 +83,7 @@ export default function WhatsAppShell({
             </button>
             <button
               type="button"
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#2563eb] px-2 py-1.5 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.35)]"
+              className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#27AE60] px-2 py-1.5 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(39,174,96,0.35)]"
             >
               <MessageCircle size={13} />
               WhatsApp
@@ -160,7 +160,7 @@ export default function WhatsAppShell({
             </button>
             <button
               type="button"
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#2563eb] px-2 py-1.5 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(37,99,235,0.35)]"
+              className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg bg-[#27AE60] px-2 py-1.5 text-[11px] font-semibold text-white shadow-[0_8px_18px_rgba(39,174,96,0.35)]"
             >
               <MessageCircle size={13} /> WhatsApp
             </button>

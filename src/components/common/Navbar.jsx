@@ -198,7 +198,7 @@ export default function Navbar({
                 onClick={openMainDesk}
                 className={`box-border flex h-9 shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-xl border px-1.5 py-0.5 transition-[border-color,box-shadow,background-color] duration-200 ease-out sm:h-11 sm:gap-2 sm:rounded-2xl sm:px-2.5 sm:py-1 ${
                   mainDeskSelected
-                    ? "border-[#27AE60] bg-white shadow-[0_8px_18px_rgba(39,174,96,0.22)]"
+                    ? "border-transparent bg-white shadow-none"
                     : "border-transparent bg-transparent shadow-none"
                 }`}
                 title="Main Desk"
@@ -385,7 +385,7 @@ export default function Navbar({
 
           {/* Row 2 — product workspaces (hidden on Operations pages) */}
           {!hideProductTabs ? (
-            <div className="relative flex min-h-0 flex-1 items-end bg-[#FFF8EC] px-0 pb-3 pt-0 lg:hidden">
+            <div className="relative flex min-h-0 flex-1 items-end bg-[#F7FBF8] px-0 pb-3 pt-0 lg:hidden">
               <WorkspaceSwitcher
                 variant="chips"
                 sidebarOpen={sidebarOpen}

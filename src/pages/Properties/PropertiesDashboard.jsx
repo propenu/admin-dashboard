@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDispatch } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -208,27 +209,27 @@ function MetricCard({ label, value, sub, icon: Icon, tone = "emerald", active, o
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-2xl p-3 text-left hover:-translate-y-0.5 ${saSurfaceHover} ${
+      className={`rounded-xl px-2.5 py-2 text-left hover:-translate-y-0.5 ${saSurfaceHover} ${
         active
           ? "border-[#27AE60] bg-[#e8f8ee] shadow-[0_8px_18px_-6px_rgba(39,174,96,0.45)]"
           : saSurface
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-600">{label}</p>
-          <p className="mt-1 text-xl font-semibold text-[#0f3d2e]">{fmtNum(value)}</p>
-          {sub && <p className="mt-0.5 truncate text-[11px] font-medium text-[#5c7d6d]">{sub}</p>}
+          <p className="truncate text-[10px] font-semibold uppercase tracking-[0.06em] text-emerald-600">{label}</p>
+          <p className="mt-0.5 text-lg font-semibold leading-tight text-[#0f3d2e]">{fmtNum(value)}</p>
+          {sub && <p className="mt-0.5 truncate text-[10.5px] font-medium text-[#5c7d6d]">{sub}</p>}
         </div>
         <div
-          className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full"
+          className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
           style={{
             background: `conic-gradient(${ringColor} ${safePercent * 3.6}deg, #e8f5ee 0deg)`,
           }}
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white">
-            <span className={`rounded-xl bg-gradient-to-br ${toneClass} p-2 shadow-sm`}>
-              <Icon className="h-4 w-4" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white">
+            <span className={`rounded-lg bg-gradient-to-br ${toneClass} p-1.5 shadow-sm`}>
+              <Icon className="h-3.5 w-3.5" />
             </span>
           </div>
         </div>
@@ -244,20 +245,20 @@ function BreakdownRow({ row, total, color = "bg-emerald-500", onClick, selected 
     <button
       type="button"
       onClick={onClick}
-      className={`w-full rounded-xl p-2.5 text-left transition ${
+      className={`w-full rounded-xl px-2 py-1.5 text-left transition ${
         selected ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-emerald-50/60"
       }`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-semibold text-[#0f3d2e]">{titleCase(row._id)}</p>
+          <p className="truncate text-[12px] font-semibold text-[#0f3d2e]">{titleCase(row._id)}</p>
           <p className="truncate text-[10.5px] text-[#5c7d6d]">
             Active {row.active || 0} • Pending {row.pending || 0} • Draft {row.draft || 0}
           </p>
         </div>
-        <span className="text-sm font-semibold text-[#0f3d2e]">{fmtNum(row.total)}</span>
+        <span className="text-[13px] font-semibold text-[#0f3d2e]">{fmtNum(row.total)}</span>
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-emerald-50">
+      <div className="mt-1 h-1 overflow-hidden rounded-full bg-emerald-50">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${width}%` }} />
       </div>
     </button>
@@ -266,17 +267,19 @@ function BreakdownRow({ row, total, color = "bg-emerald-500", onClick, selected 
 
 function Panel({ title, sub, icon: Icon, children, action, className = "" }) {
   return (
-    <section className={`min-w-0 max-w-full overflow-hidden rounded-2xl p-3 sm:p-4 ${saSurface} ${className}`}>
-      <div className="mb-3 flex min-w-0 flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
-        <div className="min-w-0 max-w-full">
-          <div className="flex items-center gap-2">
-            {Icon && <Icon className="h-4 w-4 text-emerald-600" />}
-            <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h2>
+    <section className={`min-w-0 max-w-full overflow-hidden rounded-2xl p-2.5 sm:p-3 ${saSurface} ${className}`}>
+      {(title || sub || action) && (
+        <div className="mb-2 flex min-w-0 flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
+          <div className="min-w-0 max-w-full">
+            <div className="flex items-center gap-2">
+              {Icon && <Icon className="h-4 w-4 text-emerald-600" />}
+              <h2 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h2>
+            </div>
+            {sub && <p className="mt-0.5 break-words text-[11px] text-[#5c7d6d]">{sub}</p>}
           </div>
-          {sub && <p className="mt-0.5 break-words text-[11px] text-[#5c7d6d]">{sub}</p>}
+          {action}
         </div>
-        {action}
-      </div>
+      )}
       {children}
     </section>
   );
@@ -291,14 +294,14 @@ function StatusDonut({ overview, total }) {
   const draftDeg = draft * 3.6;
 
   return (
-    <div className="mb-3 flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
+    <div className="mb-2 flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-2">
       <div
-        className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full"
+        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full"
         style={{
           background: `conic-gradient(#27AE60 0deg ${activeDeg}deg, #F59E0B ${activeDeg}deg ${activeDeg + pendingDeg}deg, #5c7d6d ${activeDeg + pendingDeg}deg ${activeDeg + pendingDeg + draftDeg}deg, #e8f5ee ${activeDeg + pendingDeg + draftDeg}deg 360deg)`,
         }}
       >
-        <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full bg-white">
+        <div className="flex h-10 w-10 flex-col items-center justify-center rounded-full bg-white">
           <span className="text-sm font-semibold text-[#0f3d2e]">{fmtNum(total)}</span>
           <span className="text-[9px] font-medium text-[#5c7d6d]">Total</span>
         </div>
@@ -321,6 +324,407 @@ function StatusDonut({ overview, total }) {
   );
 }
 
+const STATUS_DETAIL_META = {
+  active: { label: "Active", hint: "Live and visible to buyers", color: "#27AE60", icon: CheckCircle2 },
+  pending: { label: "Pending review", hint: "Waiting for document checks", color: "#F59E0B", icon: Clock3 },
+  draft: { label: "Draft", hint: "Incomplete listings", color: "#5c7d6d", icon: Activity },
+  deactivated: { label: "Deactivated", hint: "Hidden from the marketplace", color: "#F43F5E", icon: Trash2 },
+};
+const CATEGORY_DETAIL_COLORS = {
+  residential: "#27AE60",
+  commercial: "#3B82F6",
+  land: "#F59E0B",
+  agricultural: "#84CC16",
+};
+const STATUS_MODAL_MS = 260;
+const STATUS_MODAL_OPEN_MS = 560;
+const EASE_OUT = "cubic-bezier(0.22,1,0.36,1)";
+const EASE_SPRING = "cubic-bezier(0.16,1,0.3,1)";
+const EASE_IN = "cubic-bezier(0.4,0,1,1)";
+
+function useCountUp(target, run, duration = 850) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!run) {
+      setValue(0);
+      return undefined;
+    }
+    const end = Number(target) || 0;
+    const start = performance.now();
+    let frame;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      setValue(Math.round(end * (1 - Math.pow(1 - t, 3))));
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, run, duration]);
+  return value;
+}
+
+function CountUp({ value, run }) {
+  return fmtNum(useCountUp(value, run));
+}
+
+function StatusRing({ segments, total, run }) {
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const count = useCountUp(total, run);
+  let offset = 0;
+
+  return (
+    <div className="relative h-36 w-36 shrink-0 sm:h-40 sm:w-40">
+      <svg viewBox="0 0 140 140" className="h-full w-full -rotate-90">
+        <circle cx="70" cy="70" r={radius} fill="none" stroke="#e8f5ee" strokeWidth="14" />
+        {segments.map((segment) => {
+          const length = total ? (segment.value / total) * circumference : 0;
+          const node = (
+            <circle
+              key={segment.id}
+              cx="70"
+              cy="70"
+              r={radius}
+              fill="none"
+              stroke={segment.color}
+              strokeWidth="14"
+              strokeDasharray={`${run ? length : 0} ${circumference}`}
+              strokeDashoffset={run ? -offset : 0}
+              style={{
+                transition: `stroke-dasharray 950ms ${EASE_OUT} 120ms, stroke-dashoffset 950ms ${EASE_OUT} 120ms`,
+              }}
+            />
+          );
+          offset += length;
+          return node;
+        })}
+      </svg>
+      <div className="absolute inset-[22px] flex flex-col items-center justify-center rounded-full bg-white shadow-[inset_0_0_0_1px_rgba(39,174,96,0.08)]">
+        <span className="text-3xl font-bold tabular-nums text-[#0f3d2e]">{fmtNum(count)}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5c7d6d]">
+          Listings
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function StatusDetailsModal({
+  open,
+  onClose,
+  rows,
+  total,
+  categoryRows,
+  scopeLabel,
+  activeStatus,
+  onFilter,
+}) {
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(false);
+  const closeRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      let second;
+      const first = requestAnimationFrame(() => {
+        second = requestAnimationFrame(() => setVisible(true));
+      });
+      return () => {
+        cancelAnimationFrame(first);
+        cancelAnimationFrame(second);
+      };
+    }
+    setVisible(false);
+    const timer = setTimeout(() => setMounted(false), STATUS_MODAL_MS);
+    return () => clearTimeout(timer);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (event) => {
+      if (event.key === "Escape") onCloseRef.current?.();
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    const focusTimer = setTimeout(() => closeRef.current?.focus(), 60);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+      clearTimeout(focusTimer);
+    };
+  }, [open]);
+
+  if (!mounted) return null;
+
+  const segments = rows.map((row) => ({
+    id: row._id,
+    value: Number(row.total || 0),
+    color: STATUS_DETAIL_META[row._id]?.color || "#94a3b8",
+  }));
+  const countOf = (id) => Number(rows.find((row) => row._id === id)?.total || 0);
+  const highlights = [
+    { label: "Live rate", value: `${pct(countOf("active"), total)}%`, tone: "#27AE60" },
+    { label: "Needs review", value: fmtNum(countOf("pending")), tone: "#F59E0B" },
+    { label: "Incomplete", value: fmtNum(countOf("draft")), tone: "#5c7d6d" },
+  ];
+
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-end justify-center sm:items-center sm:p-4">
+      <style>
+        {`
+          @keyframes statusCardIn {
+            from { opacity: 0; transform: translate3d(0,16px,0) scale(0.97); }
+            to { opacity: 1; transform: translate3d(0,0,0) scale(1); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            [aria-labelledby="status-details-title"], [aria-labelledby="status-details-title"] * {
+              animation-duration: 1ms !important;
+              transition-duration: 1ms !important;
+            }
+          }
+        `}
+      </style>
+      <div
+        aria-hidden
+        onClick={onClose}
+        className="absolute inset-0 bg-[#0b2a20]/45"
+        style={{
+          opacity: visible ? 1 : 0,
+          backdropFilter: visible ? "blur(6px) saturate(120%)" : "blur(0px)",
+          WebkitBackdropFilter: visible ? "blur(6px) saturate(120%)" : "blur(0px)",
+          transition: visible
+            ? `opacity ${STATUS_MODAL_OPEN_MS - 160}ms ease-out, backdrop-filter ${STATUS_MODAL_OPEN_MS}ms ${EASE_SPRING}`
+            : `opacity ${STATUS_MODAL_MS}ms ease-in, backdrop-filter ${STATUS_MODAL_MS}ms ease-in`,
+        }}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="status-details-title"
+        className="relative flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl bg-[#f7fbf8] shadow-[0_30px_80px_-20px_rgba(15,61,46,0.55)] sm:rounded-3xl"
+        style={{
+          opacity: visible ? 1 : 0,
+          transform: visible
+            ? "translate3d(0,0,0) scale(1)"
+            : "translate3d(0,36px,0) scale(0.94)",
+          transformOrigin: "50% 60%",
+          willChange: "transform, opacity",
+          transition: visible
+            ? `opacity ${STATUS_MODAL_OPEN_MS - 200}ms ease-out, transform ${STATUS_MODAL_OPEN_MS}ms ${EASE_SPRING}`
+            : `opacity ${STATUS_MODAL_MS}ms ${EASE_IN}, transform ${STATUS_MODAL_MS}ms ${EASE_IN}`,
+        }}
+      >
+        <div className="relative shrink-0 overflow-hidden bg-gradient-to-br from-[#0f3d2e] via-[#15573f] to-[#27AE60] px-4 py-4 text-white sm:px-5">
+          <span aria-hidden className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/10" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-16 right-24 h-32 w-32 rounded-full bg-white/5" />
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+                <PieChart className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <h2 id="status-details-title" className="text-base font-semibold tracking-wide sm:text-lg">
+                  Status Control
+                </h2>
+                <p className="truncate text-[11.5px] text-white/75">
+                  {scopeLabel} · {fmtNum(total)} listings
+                </p>
+              </div>
+            </div>
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={onClose}
+              aria-label="Close status details"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25 transition hover:rotate-90 hover:bg-white/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
+          <div
+            className="flex flex-col items-center gap-4 rounded-2xl border border-emerald-100 bg-white p-3 sm:flex-row sm:p-4"
+            style={{ animation: visible ? `statusCardIn 460ms ${EASE_OUT} 60ms both` : "none" }}
+          >
+            <StatusRing segments={segments} total={total} run={visible} />
+            <div className="grid w-full min-w-0 flex-1 gap-2">
+              <div className="grid grid-cols-3 gap-2">
+                {highlights.map((item) => (
+                  <div key={item.label} className="rounded-xl bg-[#f4fbf7] px-2.5 py-2">
+                    <p className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-[#5c7d6d]">
+                      {item.label}
+                    </p>
+                    <p className="mt-0.5 text-lg font-bold tabular-nums" style={{ color: item.tone }}>
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex h-2.5 overflow-hidden rounded-full bg-[#eef6f1]">
+                {segments.map((segment, index) => (
+                  <span
+                    key={segment.id}
+                    className="h-full"
+                    style={{
+                      width: visible ? `${pct(segment.value, total)}%` : 0,
+                      background: segment.color,
+                      transition: `width 900ms ${EASE_OUT} ${180 + index * 60}ms`,
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#5c7d6d]">
+                {segments.map((segment) => (
+                  <span key={segment.id} className="inline-flex items-center gap-1.5">
+                    <i className="inline-block h-2 w-2 rounded-full" style={{ background: segment.color }} />
+                    {STATUS_DETAIL_META[segment.id]?.label || titleCase(segment.id)}
+                    <b className="text-[#0f3d2e]">{pct(segment.value, total)}%</b>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {rows.map((row, index) => {
+              const meta = STATUS_DETAIL_META[row._id] || {
+                label: titleCase(row._id),
+                hint: "Listings in this state",
+                color: "#94a3b8",
+                icon: Activity,
+              };
+              const Icon = meta.icon;
+              const share = pct(row.total, total);
+              const selected = activeStatus === row._id;
+              const split = categoryRows
+                .map((category) => ({ id: category._id, value: Number(category[row._id] || 0) }))
+                .filter((item) => item.value > 0);
+
+              return (
+                <div
+                  key={row._id}
+                  className={`group relative overflow-hidden rounded-2xl border bg-white p-3 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-14px_rgba(15,61,46,0.35)] ${
+                    selected ? "ring-2" : ""
+                  }`}
+                  style={{
+                    borderColor: `${meta.color}33`,
+                    "--tw-ring-color": `${meta.color}66`,
+                    animation: visible
+                      ? `statusCardIn 480ms ${EASE_OUT} ${140 + index * 70}ms both`
+                      : "none",
+                  }}
+                >
+                  <span aria-hidden className="absolute inset-x-0 top-0 h-1" style={{ background: meta.color }} />
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
+                        style={{ background: `${meta.color}1a`, color: meta.color }}
+                      >
+                        <Icon className="h-[18px] w-[18px]" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-[13px] font-semibold text-[#0f3d2e]">{meta.label}</p>
+                        <p className="truncate text-[11px] text-[#5c7d6d]">{meta.hint}</p>
+                      </div>
+                    </div>
+                    <span
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tabular-nums"
+                      style={{ background: `${meta.color}1a`, color: meta.color }}
+                    >
+                      {share}%
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-2xl font-bold tabular-nums leading-none text-[#0f3d2e]">
+                    <CountUp value={row.total} run={visible} />
+                  </p>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#eef6f1]">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: visible ? `${share}%` : 0,
+                        background: meta.color,
+                        transition: `width 900ms ${EASE_OUT} ${220 + index * 70}ms`,
+                      }}
+                    />
+                  </div>
+
+                  {split.length ? (
+                    <div className="mt-2.5">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#5c7d6d]">
+                        By category
+                      </p>
+                      <div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-[#eef6f1]">
+                        {split.map((item) => (
+                          <span
+                            key={item.id}
+                            style={{
+                              width: visible ? `${pct(item.value, row.total)}%` : 0,
+                              background: CATEGORY_DETAIL_COLORS[item.id] || "#94a3b8",
+                              transition: `width 900ms ${EASE_OUT} ${300 + index * 70}ms`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-[#5c7d6d]">
+                        {split.map((item) => (
+                          <span key={item.id} className="inline-flex items-center gap-1">
+                            <i
+                              className="inline-block h-1.5 w-1.5 rounded-full"
+                              style={{ background: CATEGORY_DETAIL_COLORS[item.id] || "#94a3b8" }}
+                            />
+                            {titleCase(item.id)}
+                            <b className="text-[#0f3d2e]">{fmtNum(item.value)}</b>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={() => onFilter(row._id)}
+                    className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-xl py-1.5 text-[11.5px] font-semibold transition hover:brightness-95 active:scale-[0.98]"
+                    style={
+                      selected
+                        ? { background: meta.color, color: "#fff" }
+                        : { background: `${meta.color}14`, color: meta.color }
+                    }
+                  >
+                    {selected ? "Filtered · tap to clear" : "Show these cards"}
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-emerald-100 bg-white px-4 py-2.5">
+          <p className="truncate text-[11px] text-[#5c7d6d]">
+            Pick a status to filter the property cards.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-full bg-[#27AE60] px-4 py-1.5 text-xs font-semibold text-white shadow-[0_6px_14px_-4px_rgba(39,174,96,0.55)] transition hover:bg-[#1e8f4d] active:scale-[0.97]"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function MiniLineChart({ values = [], color = "#27AE60" }) {
   const numericValues = (Array.isArray(values) ? values : []).map((value) => {
     const n = Number(value);
@@ -337,7 +741,7 @@ function MiniLineChart({ values = [], color = "#27AE60" }) {
     .join(" ");
 
   return (
-    <svg viewBox="0 0 100 38" className="mt-2 h-9 w-full overflow-visible">
+    <svg viewBox="0 0 100 38" className="mt-1 h-7 w-full overflow-visible">
       <polyline
         points={points}
         fill="none"
@@ -607,21 +1011,21 @@ function PropertyCard({
         </div>
       </PropertyCardThumb>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3 sm:p-3.5">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col p-2.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h3 className="line-clamp-2 min-h-[2.4em] text-[13px] font-semibold leading-snug text-[#0f3d2e] group-hover:text-emerald-700 sm:text-sm">
               {property?.title || "Unnamed property"}
             </h3>
             <p
-              className={`mt-1 flex h-4 items-center gap-1 text-[11px] font-medium text-[#5c7d6d] ${
+              className={`mt-0.5 flex h-4 items-center gap-1 text-[11px] font-medium text-[#5c7d6d] ${
                 propertyName?.trim() ? "" : "invisible"
               }`}
             >
               <Building2 className="h-3 w-3 shrink-0 text-emerald-600" />
               <span className="truncate">{propertyName?.trim() || "—"}</span>
             </p>
-            <p className="mt-1 flex h-4 items-center gap-1 text-[11px] text-[#5c7d6d]">
+            <p className="mt-0.5 flex h-4 items-center gap-1 text-[11px] text-[#5c7d6d]">
               <MapPin className="h-3 w-3 shrink-0 text-emerald-600" />
               <span className="truncate">{location || "Location unavailable"}</span>
             </p>
@@ -629,13 +1033,13 @@ function PropertyCard({
           <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300 transition group-hover:translate-x-0.5 group-hover:text-emerald-600" />
         </div>
 
-        <p className="mt-2 text-sm font-medium text-emerald-700">
+        <p className="mt-1 text-sm font-medium text-emerald-700">
           {formatPrice(property?.price)}
         </p>
 
         {/* Promotion lifecycle strip — same concept as projects */}
         <div
-          className={`mt-2 flex flex-wrap items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[10px] font-semibold ${promotionLifecycleClass(
+          className={`mt-1.5 flex flex-wrap items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-semibold ${promotionLifecycleClass(
             tracking.lifecycle,
           )}`}
         >
@@ -648,7 +1052,7 @@ function PropertyCard({
           ) : null}
         </div>
 
-        <div className="mt-2 grid gap-x-3 gap-y-1 border-t border-emerald-50 pt-2 text-[10px] text-[#5c7d6d] sm:grid-cols-2">
+        <div className="mt-1.5 grid gap-x-3 gap-y-0.5 border-t border-emerald-50 pt-1.5 text-[10px] text-[#5c7d6d] sm:grid-cols-2">
           <span className="flex min-w-0 items-center gap-1.5">
             <UserRound className="h-3 w-3 shrink-0" />
             <span className="truncate" title={creator}>
@@ -682,7 +1086,7 @@ function PropertyCard({
           </span>
         </div>
 
-        <div className="mt-auto grid grid-cols-2 gap-2 pt-3 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5 sm:pt-2">
+        <div className="mt-auto grid grid-cols-2 gap-2 pt-2 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5 sm:pt-1.5">
           <button
             type="button"
             onClick={(event) => {
@@ -1103,6 +1507,14 @@ export default function PropertiesDashboard() {
     () => searchParams.get("createdTo") || searchParams.get("to") || "",
   );
   const [createOpen, setCreateOpen] = useState(false);
+  const [statusDetailsOpen, setStatusDetailsOpen] = useState(false);
+  const [statusFilterFlash, setStatusFilterFlash] = useState(false);
+
+  useEffect(() => {
+    if (!statusFilterFlash) return undefined;
+    const timer = setTimeout(() => setStatusFilterFlash(false), 1800);
+    return () => clearTimeout(timer);
+  }, [statusFilterFlash]);
   const [page, setPage] = useState(() => {
     const savedPage = Number(searchParams.get("page"));
     return Number.isInteger(savedPage) && savedPage > 0 ? savedPage : 1;
@@ -1168,6 +1580,14 @@ export default function PropertiesDashboard() {
   useEffect(() => {
     const nextStatus = normalizeStatusParam(searchParams.get("status") || "all");
     if (nextStatus !== status) setStatus(nextStatus);
+    // Properties mega menu / sidebar: ?category=… and ?promotion=…
+    const nextCategory = searchParams.get("category") || "all";
+    const nextPromotion = searchParams.get("promotion") || "all";
+    if (nextCategory !== category || nextPromotion !== promotionType) {
+      setCategory(nextCategory);
+      setPromotionType(nextPromotion);
+      setPage(1);
+    }
     const nextFrom = searchParams.get("createdFrom") || searchParams.get("from") || "";
     const nextTo = searchParams.get("createdTo") || searchParams.get("to") || "";
     if (nextFrom !== createdFrom) setCreatedFrom(nextFrom);
@@ -1592,7 +2012,7 @@ export default function PropertiesDashboard() {
   };
 
   return (
-    <main className="min-h-full w-full min-w-0 max-w-full overflow-x-hidden bg-[#f7fbf8] p-2 text-[#0f3d2e] sm:p-4">
+    <main className="min-h-full w-full min-w-0 max-w-full overflow-x-hidden bg-transparent p-2 text-[#0f3d2e] sm:p-4">
       <ConfirmModal
         open={!!deleteTarget}
         title="Deactivate Property"
@@ -1621,6 +2041,25 @@ export default function PropertiesDashboard() {
         }}
         isLoading={permanentDeleteLoading}
       />
+      <StatusDetailsModal
+        open={statusDetailsOpen}
+        onClose={() => setStatusDetailsOpen(false)}
+        rows={cleanRows(analytics.statusWise)}
+        total={analyticsTotal}
+        categoryRows={cleanRows(analytics.categoryWise)}
+        scopeLabel={activeLocationLabel}
+        activeStatus={status}
+        onFilter={(id) => {
+          setStatus(status === id ? "all" : id);
+          setStatusDetailsOpen(false);
+          window.setTimeout(() => {
+            document
+              .getElementById("property-filters")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            setStatusFilterFlash(true);
+          }, STATUS_MODAL_MS + 40);
+        }}
+      />
       <PropertyPromoteModal
         open={!!promoteTarget}
         propertyTitle={promoteTarget?.title}
@@ -1646,19 +2085,11 @@ export default function PropertiesDashboard() {
         `}
       </style>
       <section className="mx-auto w-full min-w-0 max-w-7xl">
-        <header className={`flex min-w-0 max-w-full flex-col gap-4 rounded-2xl p-3 sm:p-4 lg:flex-row lg:items-center lg:justify-between ${saSurface}`}>
+        <header className="flex min-w-0 max-w-full flex-col gap-4 px-1 py-1 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-emerald-700">
-              <Building2 className="h-4 w-4" /> Property workspace
-            </div>
-            {/* <h1 className="mt-1 text-xl font-medium text-slate-900 sm:text-2xl">All properties, one place</h1> */}
-            <h1 className="mt-1 text-xl font-semibold text-[#0f3d2e] sm:text-2xl">
+            <h1 className="text-xl font-semibold text-[#0f3d2e] sm:text-2xl">
               Properties
             </h1>
-            <p className="mt-0.5 break-words text-sm text-[#5c7d6d]">
-              Browse every category by location, status, poster, and posting
-              time.
-            </p>
           </div>
           <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap">
             <div className="relative min-w-0">
@@ -1698,42 +2129,17 @@ export default function PropertiesDashboard() {
           </div>
         </header>
 
-        <Panel
-          title="Start by Location"
-          sub="Choose the business area first. All analytics and cards below update for that scope."
-          icon={Globe}
-          className="mt-5"
-          action={
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium">
-              <span className="rounded-full bg-[#27AE60] px-3 py-1 text-white">
-                {activeLocationLabel}
-              </span>
-              {(locationFilters.state ||
-                locationFilters.city ||
-                locationFilters.locality) && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLocationSearch("");
-                    setLocationFilters({ state: "", city: "", locality: "" });
-                  }}
-                  className="rounded-full border border-emerald-100 bg-white px-3 py-1 text-[#0f3d2e] transition hover:bg-emerald-50"
-                >
-                  Reset location
-                </button>
-              )}
-            </div>
-          }
-        >
-          <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-4 grid min-w-0 items-stretch gap-3 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
+        <Panel className="flex flex-col">
+          <div className="mb-2 flex flex-col gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 p-1.5 sm:flex-row sm:items-center sm:justify-between">
             <label className="relative block w-full sm:max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-emerald-600" />
               <input
                 type="search"
                 value={locationSearch}
                 onChange={(event) => setLocationSearch(event.target.value)}
                 placeholder="Search state, city or locality"
-                className="h-10 w-full rounded-xl border border-emerald-100 bg-white pl-9 pr-9 text-sm text-[#0f3d2e] outline-none transition placeholder:text-[#5c7d6d] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25"
+                className="h-8 w-full rounded-lg border border-emerald-100 bg-white pl-8 pr-8 text-xs text-[#0f3d2e] outline-none transition placeholder:text-[#5c7d6d] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25"
               />
               {locationSearch && (
                 <button
@@ -1762,28 +2168,28 @@ export default function PropertiesDashboard() {
             </p>
           </div>
 
-          <div className="grid items-start gap-3 lg:grid-cols-[160px_repeat(3,minmax(0,1fr))]">
+          <div className="grid items-start gap-2 sm:grid-cols-2 lg:grid-cols-[124px_repeat(3,minmax(0,1fr))]">
             <button
               type="button"
               onClick={() => {
                 setLocationSearch("");
                 setLocationFilters({ state: "", city: "", locality: "" });
               }}
-              className={`h-fit rounded-2xl p-3 text-left ${saSurfaceHover} ${
+              className={`h-fit rounded-xl p-2.5 text-left ${saSurfaceHover} ${
                 !locationFilters.state
                   ? "border-[#27AE60] bg-[#e8f8ee] shadow-[0_8px_18px_-6px_rgba(39,174,96,0.45)]"
                   : saSurface
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#27AE60] text-white">
-                  <Globe className="h-4 w-4" />
+                <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#27AE60] text-white">
+                  <Globe className="h-3.5 w-3.5" />
                 </span>
-                <span className="text-xl font-semibold text-[#0f3d2e]">
+                <span className="text-lg font-semibold text-[#0f3d2e]">
                   {fmtNum(analyticsTotal)}
                 </span>
               </div>
-              <p className="mt-2 text-[13px] font-semibold text-[#0f3d2e]">
+              <p className="mt-1.5 text-[12px] font-semibold text-[#0f3d2e]">
                 All India
               </p>
               <p className="mt-0.5 text-[11px] text-[#5c7d6d]">
@@ -1791,7 +2197,7 @@ export default function PropertiesDashboard() {
               </p>
             </button>
 
-            <div className={`rounded-2xl p-2.5 ${saInset}`}>
+            <div className={`rounded-xl p-2 ${saInset}`}>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-600">
                   1. Select State
@@ -1800,7 +2206,7 @@ export default function PropertiesDashboard() {
                   {stateRows.length}
                 </span>
               </div>
-              <div className="max-h-48 space-y-1 overflow-auto pr-1">
+              <div className="max-h-32 space-y-1 overflow-auto pr-1 xl:max-h-[114px]">
                 {stateRows.map((row) => (
                   <BreakdownRow
                     key={row._id}
@@ -1820,7 +2226,7 @@ export default function PropertiesDashboard() {
               </div>
             </div>
 
-            <div className={`rounded-2xl p-2.5 ${saInset}`}>
+            <div className={`rounded-xl p-2 ${saInset}`}>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-600">
                   2. Select City
@@ -1829,7 +2235,7 @@ export default function PropertiesDashboard() {
                   {cityRows.length}
                 </span>
               </div>
-              <div className="max-h-48 space-y-1 overflow-auto pr-1">
+              <div className="max-h-32 space-y-1 overflow-auto pr-1 xl:max-h-[114px]">
                 {cityRows.map((row) => (
                   <BreakdownRow
                     key={row._id}
@@ -1849,7 +2255,7 @@ export default function PropertiesDashboard() {
               </div>
             </div>
 
-            <div className={`rounded-2xl p-2.5 ${saInset}`}>
+            <div className={`rounded-xl p-2 ${saInset}`}>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-600">
                   3. Select Locality
@@ -1858,7 +2264,7 @@ export default function PropertiesDashboard() {
                   {localityRows.length}
                 </span>
               </div>
-              <div className="max-h-48 space-y-1 overflow-auto pr-1">
+              <div className="max-h-32 space-y-1 overflow-auto pr-1 xl:max-h-[114px]">
                 {localityRows.map((row) => (
                   <BreakdownRow
                     key={row._id}
@@ -1932,6 +2338,49 @@ export default function PropertiesDashboard() {
           </div>
         </Panel>
 
+          <Panel
+            title="Status Control"
+            sub="Click a row to filter cards below"
+            icon={PieChart}
+            action={
+              <button
+                type="button"
+                onClick={() => setStatusDetailsOpen(true)}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition duration-200 hover:-translate-y-px hover:border-[#27AE60] hover:bg-[#27AE60] hover:text-white hover:shadow-[0_6px_14px_-4px_rgba(39,174,96,0.55)] active:scale-95"
+              >
+                <Eye className="h-3.5 w-3.5" /> View
+              </button>
+            }
+          >
+            <div className="sm:max-xl:grid sm:max-xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] sm:max-xl:items-start sm:max-xl:gap-3">
+            <StatusDonut overview={overview} total={analyticsTotal} />
+            <div className="grid gap-1 xl:grid-cols-2">
+              {cleanRows(analytics.statusWise).map((row) => (
+                <BreakdownRow
+                  key={row._id}
+                  row={row}
+                  total={analyticsTotal}
+                  color={
+                    row._id === "active"
+                      ? "bg-emerald-500"
+                      : row._id === "pending"
+                        ? "bg-amber-500"
+                        : row._id === "draft"
+                          ? "bg-[#5c7d6d]"
+                          : "bg-rose-500"
+                  }
+                  selected={status === row._id}
+                  onClick={() =>
+                    setStatus(status === row._id ? "all" : row._id)
+                  }
+                />
+              ))}
+            </div>
+            </div>
+          </Panel>
+        </div>
+
+        {/* Metric cards hidden for now — uncomment to show again.
         <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           <MetricCard
             label="Total Properties"
@@ -1978,9 +2427,11 @@ export default function PropertiesDashboard() {
             onClick={() => setStatus(status === "draft" ? "all" : "draft")}
           />
         </div>
+        */}
 
-        <div className="mt-3 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="mt-3 grid min-w-0 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-3">
           <Panel
+            className="md:col-span-2 xl:col-span-1"
             title="CRM Performance"
             sub="Pipeline health, engagement and listing mix"
             icon={BarChart3}
@@ -1992,12 +2443,12 @@ export default function PropertiesDashboard() {
               )
             }
           >
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
-                <p className="flex items-center gap-2 text-xs font-semibold text-[#5c7d6d]">
-                  <Eye className="h-4 w-4 text-emerald-600" /> Views
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/40 px-2 py-1.5">
+                <p className="flex items-center gap-1 truncate text-[11px] font-semibold text-[#5c7d6d]">
+                  <Eye className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Views
                 </p>
-                <p className="mt-1 text-xl font-semibold text-[#0f3d2e]">
+                <p className="mt-0.5 text-base font-semibold leading-tight text-[#0f3d2e]">
                   {fmtNum(overview.totalViews)}
                 </p>
                 <MiniLineChart
@@ -2009,12 +2460,12 @@ export default function PropertiesDashboard() {
                   ]}
                 />
               </div>
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
-                <p className="flex items-center gap-2 text-xs font-semibold text-[#5c7d6d]">
-                  <MousePointerClick className="h-4 w-4 text-emerald-600" />{" "}
+              <div className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/40 px-2 py-1.5">
+                <p className="flex items-center gap-1 truncate text-[11px] font-semibold text-[#5c7d6d]">
+                  <MousePointerClick className="h-3.5 w-3.5 shrink-0 text-emerald-600" />{" "}
                   Clicks
                 </p>
-                <p className="mt-1 text-xl font-semibold text-[#0f3d2e]">
+                <p className="mt-0.5 text-base font-semibold leading-tight text-[#0f3d2e]">
                   {fmtNum(overview.totalClicks)}
                 </p>
                 <MiniLineChart
@@ -2027,12 +2478,12 @@ export default function PropertiesDashboard() {
                   color="#27AE60"
                 />
               </div>
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
-                <p className="flex items-center gap-2 text-xs font-semibold text-[#5c7d6d]">
-                  <MessageSquare className="h-4 w-4 text-emerald-600" />{" "}
+              <div className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/40 px-2 py-1.5">
+                <p className="flex items-center gap-1 truncate text-[11px] font-semibold text-[#5c7d6d]">
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0 text-emerald-600" />{" "}
                   Inquiries
                 </p>
-                <p className="mt-1 text-xl font-semibold text-[#0f3d2e]">
+                <p className="mt-0.5 text-base font-semibold leading-tight text-[#0f3d2e]">
                   {fmtNum(overview.totalInquiries)}
                 </p>
                 <MiniLineChart
@@ -2046,12 +2497,12 @@ export default function PropertiesDashboard() {
                 />
               </div>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className={`rounded-2xl p-4 ${saInset}`}>
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+            <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+              <div className={`min-w-0 rounded-xl p-1.5 ${saInset}`}>
+                <p className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                   Listing Type
                 </p>
-                <div className="mt-3 space-y-2">
+                <div className="mt-1 space-y-1">
                   {cleanRows(analytics.listingTypeWise).map((row) => (
                     <BreakdownRow
                       key={row._id}
@@ -2067,11 +2518,11 @@ export default function PropertiesDashboard() {
                   )}
                 </div>
               </div>
-              <div className={`rounded-2xl p-4 ${saInset}`}>
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+              <div className={`min-w-0 rounded-xl p-1.5 ${saInset}`}>
+                <p className="px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                   Promotion Mix
                 </p>
-                <div className="mt-3 space-y-2">
+                <div className="mt-1 space-y-1">
                   {cleanRows(analytics.promotionWise).map((row) => (
                     <BreakdownRow
                       key={row._id}
@@ -2091,43 +2542,11 @@ export default function PropertiesDashboard() {
           </Panel>
 
           <Panel
-            title="Status Control"
-            sub="Click a row to filter cards below"
-            icon={PieChart}
-          >
-            <StatusDonut overview={overview} total={analyticsTotal} />
-            <div className="space-y-2">
-              {cleanRows(analytics.statusWise).map((row) => (
-                <BreakdownRow
-                  key={row._id}
-                  row={row}
-                  total={analyticsTotal}
-                  color={
-                    row._id === "active"
-                      ? "bg-emerald-500"
-                      : row._id === "pending"
-                        ? "bg-amber-500"
-                        : row._id === "draft"
-                          ? "bg-[#5c7d6d]"
-                          : "bg-rose-500"
-                  }
-                  selected={status === row._id}
-                  onClick={() =>
-                    setStatus(status === row._id ? "all" : row._id)
-                  }
-                />
-              ))}
-            </div>
-          </Panel>
-        </div>
-
-        <div className="mt-3 grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
-          <Panel
             title="Category Inventory"
             sub="Residential, commercial, land and agricultural"
             icon={Layers}
           >
-            <div className="space-y-2">
+            <div className="space-y-1">
               <BreakdownRow
                 row={{
                   _id: "all properties",
@@ -2159,7 +2578,7 @@ export default function PropertiesDashboard() {
             sub="Best performing inventory buckets"
             icon={TrendingUp}
           >
-            <div className="max-h-[420px] space-y-2 overflow-auto pr-1">
+            <div className="max-h-[300px] space-y-1 overflow-auto pr-1 xl:max-h-[244px]">
               {cleanRows(analytics.propertyTypeWise)
                 .slice(0, 12)
                 .map((row) => (
@@ -2167,29 +2586,29 @@ export default function PropertiesDashboard() {
                     key={`${row.category}-${row._id}`}
                     type="button"
                     onClick={() => setCategory(row.category || "all")}
-                    className={`w-full rounded-2xl p-3 text-left hover:bg-[#f4fbf7] ${saInset} ${saSurfaceHover}`}
+                    className={`w-full rounded-xl px-2 py-1.5 text-left hover:bg-[#f4fbf7] ${saInset} ${saSurfaceHover}`}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-[#0f3d2e]">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-[12px] font-semibold text-[#0f3d2e]">
                           {titleCase(row._id)}
                         </p>
-                        <p className="text-[11px] font-medium capitalize text-emerald-700">
+                        <p className="text-[10.5px] font-medium capitalize text-emerald-700">
                           {row.category || "Unknown category"}
                         </p>
                       </div>
-                      <span className="text-lg font-semibold text-[#0f3d2e]">
+                      <span className="text-sm font-semibold text-[#0f3d2e]">
                         {fmtNum(row.total)}
                       </span>
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-1 text-center text-[10px] font-medium">
-                      <span className="rounded-lg bg-emerald-50 py-1 text-emerald-700">
+                    <div className="mt-1 grid grid-cols-3 gap-1 text-center text-[10px] font-medium">
+                      <span className="rounded-md bg-emerald-50 py-0.5 text-emerald-700">
                         A {row.active || 0}
                       </span>
-                      <span className="rounded-lg bg-amber-50 py-1 text-amber-700">
+                      <span className="rounded-md bg-amber-50 py-0.5 text-amber-700">
                         P {row.pending || 0}
                       </span>
-                      <span className="rounded-lg bg-emerald-50 py-1 text-[#5c7d6d]">
+                      <span className="rounded-md bg-emerald-50 py-0.5 text-[#5c7d6d]">
                         D {row.draft || 0}
                       </span>
                     </div>
@@ -2199,22 +2618,24 @@ export default function PropertiesDashboard() {
           </Panel>
         </div>
 
-        <div className={`mt-3 rounded-2xl p-3 sm:p-4 ${saSurface}`}>
-          <div className="mb-3 flex min-h-[40px] items-start justify-between gap-3">
+        <div
+          id="property-filters"
+          className={`mt-3 scroll-mt-36 rounded-2xl p-2.5 transition-shadow duration-500 sm:p-3 lg:scroll-mt-24 ${saSurface} ${
+            statusFilterFlash ? "!shadow-[0_0_0_3px_rgba(39,174,96,0.25),0_18px_40px_-18px_rgba(39,174,96,0.6)]" : ""
+          }`}
+        >
+          <div className="mb-2 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.06em] text-[#0f3d2e]">
-                <Filter className="h-4 w-4 shrink-0 text-emerald-600" /> Filter property
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.06em] text-[#0f3d2e]">
+                <Filter className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Filter property
                 cards
-              </p>
-              <p className="mt-1 text-xs text-[#5c7d6d]">
-                Cards below follow location, category, sale/rent, status, date, search and sort.
               </p>
             </div>
             <button
               type="button"
               onClick={clearFilters}
               disabled={activeFilterCount === 0}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
                 activeFilterCount > 0
                   ? "border border-emerald-100 bg-white text-[#0f3d2e] hover:bg-emerald-50"
                   : "invisible border border-emerald-50 bg-white text-[#5c7d6d]"
@@ -2224,14 +2645,14 @@ export default function PropertiesDashboard() {
             </button>
           </div>
 
-          <div className="mb-3 space-y-2">
-            <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <div className="flex gap-1.5 overflow-x-auto">
               {CATEGORIES.map((item) => (
                 <button
                   key={item.value}
                   type="button"
                   onClick={() => setCategory(item.value)}
-                  className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+                  className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
                     category === item.value
                       ? "border-[#27AE60] bg-[#27AE60] text-white"
                       : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300 hover:text-emerald-700"
@@ -2243,7 +2664,7 @@ export default function PropertiesDashboard() {
             </div>
 
             {/* Sub-filter: Sale / Rent — works with every category (scalable config) */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+            <div className="flex items-center gap-2 overflow-x-auto">
               <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-emerald-600">
                 Listing
               </span>
@@ -2253,7 +2674,7 @@ export default function PropertiesDashboard() {
                     key={item.value}
                     type="button"
                     onClick={() => setListingType(item.value)}
-                    className={`shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition ${
+                    className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
                       listingType === item.value
                         ? "border-[#27AE60] bg-[#27AE60] text-white"
                         : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300 hover:bg-emerald-50"
@@ -2266,14 +2687,14 @@ export default function PropertiesDashboard() {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_160px]">
+          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_170px_150px]">
             <label className="relative min-w-0">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5c7d6d]" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#5c7d6d]" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search title, location, created by, posted by, phone, ID…"
-                className="h-11 w-full rounded-xl border border-emerald-100 bg-white pl-10 pr-9 text-sm text-[#0f3d2e] outline-none transition placeholder:text-[#5c7d6d] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25"
+                className="h-9 w-full rounded-lg border border-emerald-100 bg-white pl-9 pr-9 text-xs text-[#0f3d2e] outline-none transition placeholder:text-[#5c7d6d] focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25"
               />
               {search ? (
                 <button
@@ -2288,7 +2709,14 @@ export default function PropertiesDashboard() {
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value)}
-              className="h-11 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm text-[#0f3d2e] outline-none focus:border-emerald-500"
+              aria-label="Filter by status"
+              className={`h-9 w-full rounded-lg border bg-white px-3 text-xs text-[#0f3d2e] outline-none transition-[box-shadow,border-color,background-color] duration-500 focus:border-emerald-500 ${
+                statusFilterFlash
+                  ? "border-[#27AE60] bg-[#effaf3] font-semibold shadow-[0_0_0_4px_rgba(39,174,96,0.22)]"
+                  : status !== "all"
+                    ? "border-[#27AE60]/60 font-semibold"
+                    : "border-emerald-100"
+              }`}
             >
               {STATUSES.map((item) => (
                 <option key={item.value} value={item.value}>
@@ -2299,7 +2727,7 @@ export default function PropertiesDashboard() {
             <select
               value={sort}
               onChange={(event) => setSort(event.target.value)}
-              className="h-11 w-full rounded-xl border border-emerald-100 bg-white px-3 text-sm text-[#0f3d2e] outline-none focus:border-emerald-500"
+              className="h-9 w-full rounded-lg border border-emerald-100 bg-white px-3 text-xs text-[#0f3d2e] outline-none focus:border-emerald-500"
             >
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
@@ -2307,9 +2735,10 @@ export default function PropertiesDashboard() {
           </div>
 
           {/* Promotion filters — same concept as projects */}
-          <div className="mt-3 space-y-2 rounded-2xl border border-amber-100 bg-gradient-to-r from-amber-50/80 via-white to-violet-50/60 p-3">
+          <div className="mt-2 grid min-w-0 gap-2 lg:grid-cols-2">
+          <div className="min-w-0 space-y-1.5 rounded-xl border border-amber-100 bg-gradient-to-r from-amber-50/80 via-white to-violet-50/60 p-2">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-amber-600" />
+              <Sparkles className="h-3.5 w-3.5 text-amber-600" />
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-800">
                 Property promotions
               </p>
@@ -2325,7 +2754,7 @@ export default function PropertiesDashboard() {
                       .getElementById("property-cards-grid")
                       ?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
-                  className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${promoFilterChipClass(
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${promoFilterChipClass(
                     item.tone,
                     promotionType === item.value,
                   )}`}
@@ -2348,7 +2777,7 @@ export default function PropertiesDashboard() {
                       .getElementById("property-cards-grid")
                       ?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
-                  className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
                     trackingFilter === item.value
                       ? "border-[#27AE60] bg-[#27AE60] text-white shadow-[0_4px_10px_rgba(39,174,96,0.25)]"
                       : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300"
@@ -2363,16 +2792,16 @@ export default function PropertiesDashboard() {
             </div>
           </div>
 
-          <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0 rounded-xl border border-emerald-100 bg-emerald-50/40 p-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0 flex-1">
-                <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
+                <p className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-600">
                   <CalendarClock className="h-3.5 w-3.5 text-emerald-600" />
                   Custom date range
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-2">
                   <label className="block min-w-0">
-                    <span className="mb-1 block text-[11px] font-medium text-[#5c7d6d]">
+                    <span className="mb-0.5 block text-[10.5px] font-medium text-[#5c7d6d]">
                       From
                     </span>
                     <input
@@ -2380,11 +2809,11 @@ export default function PropertiesDashboard() {
                       value={createdFrom}
                       max={createdTo || undefined}
                       onChange={(event) => setCreatedFrom(event.target.value)}
-                      className="h-11 w-full min-w-[11.5rem] rounded-xl border border-emerald-100 bg-white px-3 text-sm text-[#0f3d2e] outline-none focus:border-emerald-500"
+                      className="h-8 w-full min-w-0 rounded-lg border border-emerald-100 bg-white px-2 text-xs text-[#0f3d2e] outline-none focus:border-emerald-500"
                     />
                   </label>
                   <label className="block min-w-0">
-                    <span className="mb-1 block text-[11px] font-medium text-[#5c7d6d]">
+                    <span className="mb-0.5 block text-[10.5px] font-medium text-[#5c7d6d]">
                       To
                     </span>
                     <input
@@ -2392,7 +2821,7 @@ export default function PropertiesDashboard() {
                       value={createdTo}
                       min={createdFrom || undefined}
                       onChange={(event) => setCreatedTo(event.target.value)}
-                      className="h-11 w-full min-w-[11.5rem] rounded-xl border border-emerald-100 bg-white px-3 text-sm text-[#0f3d2e] outline-none focus:border-emerald-500"
+                      className="h-8 w-full min-w-0 rounded-lg border border-emerald-100 bg-white px-2 text-xs text-[#0f3d2e] outline-none focus:border-emerald-500"
                     />
                   </label>
                 </div>
@@ -2402,7 +2831,7 @@ export default function PropertiesDashboard() {
                 <button
                   type="button"
                   onClick={() => (isTodayRange ? clearDateRange() : applyTodayRange())}
-                  className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                  className={`rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition ${
                     isTodayRange
                       ? "border-[#27AE60] bg-[#27AE60] text-white"
                       : "border-emerald-100 bg-white text-[#0f3d2e] hover:border-emerald-300 hover:text-emerald-700"
@@ -2414,7 +2843,7 @@ export default function PropertiesDashboard() {
                   type="button"
                   onClick={clearDateRange}
                   disabled={!createdFrom && !createdTo}
-                  className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                  className={`rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition ${
                     createdFrom || createdTo
                       ? "border-emerald-100 bg-white text-[#0f3d2e] hover:bg-emerald-50"
                       : "cursor-not-allowed border-emerald-50 bg-white text-emerald-200"
@@ -2425,14 +2854,15 @@ export default function PropertiesDashboard() {
               </div>
               </div>
             </div>
-            <p className="mt-2 min-h-[18px] text-xs text-[#5c7d6d]">
+            <p className="mt-1 text-[11px] text-[#5c7d6d]">
               {createdFrom || createdTo
                 ? `${isTodayRange ? "Today" : "Selected"}: ${createdFrom || "—"} → ${createdTo || "—"}`
                 : "Pick From / To, or use Today properties."}
             </p>
           </div>
+          </div>
 
-          <div className="mt-3 flex flex-col gap-2 text-xs text-[#5c7d6d] sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-2 flex flex-col gap-2 text-[11px] text-[#5c7d6d] sm:flex-row sm:items-center sm:justify-between">
             <span className="inline-flex flex-wrap items-center gap-1.5">
               <Filter className="h-4 w-4 shrink-0" /> {visibleCount} cards
               match current filters • {activeFilterCount} filters active
@@ -2485,7 +2915,7 @@ export default function PropertiesDashboard() {
         ) : isInitialListLoading ? (
           <div
             id="property-cards-grid"
-            className="mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3"
+            className="mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-3"
           >
             {Array.from({ length: Math.min(PAGE_SIZE, 6) }).map((_, index) => (
               <div
@@ -2508,7 +2938,7 @@ export default function PropertiesDashboard() {
           <>
             <div
               id="property-cards-grid"
-              className={`mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 ${
+              className={`mt-3 grid items-stretch gap-3 lg:grid-cols-2 xl:grid-cols-3 ${
                 isListRefreshing ? "opacity-70" : ""
               }`}
             >

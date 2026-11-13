@@ -90,6 +90,8 @@ const CATEGORY_TYPES = [
   { value: "all",         label: "All"           },
   { value: "residential", label: "Residential"   },
   { value: "land",        label: "Land"          },
+  { value: "commercial",  label: "Commercial"    },
+  { value: "agricultural", label: "Agricultural" },
 ];
 
 const PRICE_SLICE_SORTS = new Set([
@@ -446,10 +448,13 @@ function FilterMenu({
   activeWhenNot = "all",
   searchable = false,
   searchPlaceholder = "Search…",
+  menuPortal = false,
 }) {
   const [open, setOpen] = useState(false);
   const [menuQuery, setMenuQuery] = useState("");
+  const [menuPos, setMenuPos] = useState(null);
   const rootRef = useRef(null);
+  const triggerRef = useRef(null);
   const menuRef = useRef(null);
 
   const selected = options.find((o) => o.value === value && !o.isGroup);
@@ -474,64 +479,61 @@ function FilterMenu({
     };
   }, [open]);
 
-  return (
-    <div className={`relative z-20 ${className}`} ref={rootRef}>
-      {label ? (
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-700">{label}</p>
-      ) : null}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`flex h-9 w-full items-center justify-between gap-1 border bg-white px-2 text-left text-xs font-semibold outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25 ${
-          open
-            ? "rounded-t-xl rounded-b-none border-emerald-100 border-b-transparent"
-            : "rounded-xl"
-        } ${
-          isActive
-            ? "border-emerald-300 text-emerald-800 ring-1 ring-emerald-100"
-            : "border-emerald-100 text-[#0f3d2e]"
-        } ${triggerClassName}`}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span className="min-w-0 flex-1 truncate">
-          {selected?.label || placeholder}
-        </span>
-        <ChevronDown
-          size={14}
-          className={`shrink-0 text-[#5c7d6d] transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </button>
+  useLayoutEffect(() => {
+    if (!open || !menuPortal) {
+      setMenuPos(null);
+      return undefined;
+    }
+    const place = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const gutter = 8;
+      const below = window.innerHeight - rect.bottom - gutter;
+      const above = rect.top - gutter;
+      const openUp = below < 120 && above > below;
+      const maxHeight = Math.max(72, Math.min(menuMaxHeight, openUp ? above : below));
+      setMenuPos({
+        left: rect.left,
+        width: rect.width,
+        top: openUp ? Math.max(gutter, rect.top - maxHeight) : rect.bottom,
+        maxHeight,
+      });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, menuPortal, menuMaxHeight]);
 
-      {open ? (
-        <div
-          ref={menuRef}
-          className="absolute left-0 right-0 top-full z-50 w-full overflow-hidden rounded-b-xl border border-t-0 border-emerald-100 bg-white shadow-[0_12px_28px_rgba(16,185,129,0.14)]"
-          role="listbox"
-        >
-          {searchable ? (
-            <div className="border-b border-emerald-50 p-2">
-              <input
-                type="text"
-                value={menuQuery}
-                onChange={(event) => setMenuQuery(event.target.value)}
-                placeholder={searchPlaceholder}
-                className="h-8 w-full rounded-lg border border-emerald-100 px-2 text-xs font-semibold text-[#0f3d2e] outline-none focus:border-emerald-500"
-                autoFocus
-              />
-            </div>
-          ) : null}
-          <div className="overflow-y-auto" style={{ maxHeight: menuMaxHeight }}>
-          {options
-            .filter((opt) => {
-              if (!searchable || !menuQuery.trim() || opt.isGroup) return true;
-              return String(opt.label || "")
-                .toLowerCase()
-                .includes(menuQuery.trim().toLowerCase());
-            })
-            .map((opt, idx) => {
+  const optionList = (
+    <>
+      {searchable ? (
+        <div className="border-b border-emerald-50 p-2">
+          <input
+            type="text"
+            value={menuQuery}
+            onChange={(event) => setMenuQuery(event.target.value)}
+            placeholder={searchPlaceholder}
+            className="h-8 w-full rounded-lg border border-emerald-100 px-2 text-xs font-semibold text-[#0f3d2e] outline-none focus:border-emerald-500"
+            autoFocus
+          />
+        </div>
+      ) : null}
+      <div
+        className="overflow-y-auto overscroll-contain"
+        style={{ maxHeight: menuPos?.maxHeight ?? menuMaxHeight }}
+      >
+        {options
+          .filter((opt) => {
+            if (!searchable || !menuQuery.trim() || opt.isGroup) return true;
+            return String(opt.label || "")
+              .toLowerCase()
+              .includes(menuQuery.trim().toLowerCase());
+          })
+          .map((opt, idx) => {
             if (opt.isGroup) {
               return (
                 <p
@@ -576,7 +578,63 @@ function FilterMenu({
               </button>
             );
           })}
-          </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className={`relative z-20 ${className}`} ref={rootRef}>
+      {label ? (
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-emerald-700">{label}</p>
+      ) : null}
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex h-9 w-full items-center justify-between gap-1 border bg-white px-2 text-left text-xs font-semibold outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25 ${
+          open
+            ? "rounded-t-xl rounded-b-none border-emerald-100 border-b-transparent"
+            : "rounded-xl"
+        } ${
+          isActive
+            ? "border-emerald-300 text-emerald-800 ring-1 ring-emerald-100"
+            : "border-emerald-100 text-[#0f3d2e]"
+        } ${triggerClassName}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="min-w-0 flex-1 truncate">
+          {selected?.label || placeholder}
+        </span>
+        <ChevronDown
+          size={14}
+          className={`shrink-0 text-[#5c7d6d] transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open && menuPortal && menuPos
+        ? createPortal(
+            <div
+              ref={menuRef}
+              data-location-submenu=""
+              role="listbox"
+              className="fixed z-[45] overflow-hidden rounded-b-xl border border-t-0 border-emerald-100 bg-white shadow-[0_12px_28px_rgba(16,185,129,0.14)]"
+              style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
+            >
+              {optionList}
+            </div>,
+            document.body,
+          )
+        : null}
+      {open && !menuPortal ? (
+        <div
+          ref={menuRef}
+          className="absolute left-0 right-0 top-full z-50 w-full overflow-hidden rounded-b-xl border border-t-0 border-emerald-100 bg-white shadow-[0_12px_28px_rgba(16,185,129,0.14)]"
+          role="listbox"
+        >
+          {optionList}
         </div>
       ) : null}
     </div>
@@ -592,6 +650,7 @@ function SelectDropdown({ label, value, options, onChange, placeholder = "Select
       options={options}
       onChange={onChange}
       placeholder={placeholder}
+      menuPortal
       activeWhenNot={null}
     />
   );
@@ -801,6 +860,7 @@ function InlineLocationSelector({
     const handler = (e) => {
       const t = e.target;
       if (ref.current?.contains(t) || menuRef.current?.contains(t)) return;
+      if (t.closest?.("[data-location-submenu]")) return;
       setOpen(false);
     };
     document.addEventListener("mousedown", handler);
@@ -817,23 +877,27 @@ function InlineLocationSelector({
       const trigger = ref.current?.getBoundingClientRect();
       if (!trigger) return;
 
-      const gutter = 8;
-      const width = Math.min(420, Math.max(280, window.innerWidth - gutter * 2));
-      let left =
-        menuAlign === "end" ? trigger.right - width : trigger.left;
+      const vw = document.documentElement.clientWidth || window.innerWidth;
+      const gutter = vw < 640 ? 36 : 8;
+      const width = Math.min(vw < 640 ? 240 : 420, Math.max(160, vw - gutter * 2));
+      let left = vw < 640 ? gutter : menuAlign === "end" ? trigger.right - width : trigger.left;
 
-      // Keep fully inside the viewport (Create hidden or narrow screens).
-      if (left + width > window.innerWidth - gutter) {
-        left = window.innerWidth - gutter - width;
-      }
+      if (left + width > vw - gutter) left = vw - gutter - width;
       if (left < gutter) left = gutter;
 
-      const top = Math.min(
-        trigger.bottom + gutter,
-        Math.max(gutter, window.innerHeight - gutter - 120),
-      );
+      const gap = 2;
+      const below = window.innerHeight - trigger.bottom - gap;
+      const above = trigger.top - gap;
+      const openUp = below < 160 && above > below;
+      const maxHeight = Math.max(120, Math.min(openUp ? above : below, 420));
 
-      setMenuPos({ top, left, width });
+      setMenuPos({
+        top: openUp ? undefined : trigger.bottom + gap,
+        bottom: openUp ? window.innerHeight - trigger.top + gap : undefined,
+        left,
+        width,
+        maxHeight,
+      });
     };
 
     place();
@@ -986,7 +1050,7 @@ function InlineLocationSelector({
               ${isActive("state", { state }) ? "bg-emerald-50 font-semibold text-emerald-700" : "text-[#0f3d2e] hover:bg-emerald-50"}`}
           >
             <MapPin className="w-3 h-3 flex-shrink-0 opacity-40" />
-            <span className="flex-1 text-left">{state}</span>
+            <span className="min-w-0 flex-1 truncate text-left">{state}</span>
             <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700">
               {stateCount}
             </span>
@@ -1122,12 +1186,12 @@ function InlineLocationSelector({
   };
 
   return (
-    <div ref={ref} className={`relative ${open ? "z-[100]" : ""}`}>
+    <div ref={ref} className="relative z-10">
       {/* Trigger button */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex min-w-[180px] items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition
+        className={`flex min-w-0 flex-1 items-center gap-2 rounded-full border px-3 py-2.5 text-sm font-semibold transition sm:w-auto sm:min-w-[180px] sm:flex-none sm:px-4
           ${
             selectedLocation
               ? "border-emerald-300 bg-emerald-50 text-emerald-700 shadow-[0_4px_12px_rgba(16,185,129,0.10)]"
@@ -1168,14 +1232,19 @@ function InlineLocationSelector({
             style={{
               position: "fixed",
               top: menuPos.top,
+              bottom: menuPos.bottom,
               left: menuPos.left,
               width: menuPos.width,
-              zIndex: 9999,
+              boxSizing: "border-box",
+              maxHeight: menuPos.maxHeight,
+              zIndex: 40,
+              boxShadow:
+                "0 1px 2px rgba(15,61,46,0.06), 0 16px 36px -12px rgba(39,174,96,0.45)",
             }}
-            className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_16px_40px_rgba(16,185,129,0.16)]"
+            className="flex flex-col overflow-hidden rounded-2xl border border-[#8fd0a8] bg-white"
           >
           {/* Search */}
-          <div className="border-b border-emerald-50 bg-[#f7fbf8] p-3">
+          <div className="shrink-0 border-b border-emerald-50 bg-[#f7fbf8] p-3">
             <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-white px-3 py-2 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/25">
               <Search className="w-3.5 h-3.5 shrink-0 text-[#5c7d6d]" />
               <input
@@ -1201,7 +1270,7 @@ function InlineLocationSelector({
               onLocationChange(null);
               setOpen(false);
             }}
-            className={`flex w-full items-center gap-2 border-b border-emerald-50 px-3 py-2.5 text-xs font-semibold transition
+            className={`flex w-full shrink-0 items-center gap-2 border-b border-emerald-50 px-3 py-2.5 text-xs font-semibold transition
               ${!selectedLocation ? "bg-emerald-50 text-emerald-700" : "text-[#0f3d2e] hover:bg-emerald-50"}`}
           >
             <Globe className="w-3.5 h-3.5" />
@@ -1212,7 +1281,7 @@ function InlineLocationSelector({
           </button>
 
           {/* Zone tree */}
-          <div className="max-h-[min(60vh,430px)] min-h-[280px] overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {zonesWithData.map((zone) => {
               const zoneStates = zone.states.filter((s) => hierarchy[s]);
               const childMatch = zoneStates.some(stateVisible);
@@ -1232,7 +1301,7 @@ function InlineLocationSelector({
                     className="flex w-full items-center gap-2 border-b border-emerald-50 bg-emerald-50/50 px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-emerald-700 transition hover:bg-emerald-50"
                   >
                     <Navigation className="h-3 w-3 text-emerald-600" />
-                    <span className="flex-1 text-left">{zone.zone}</span>
+                    <span className="min-w-0 flex-1 truncate text-left">{zone.zone}</span>
                     <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-emerald-700">
                       {zoneCount}
                     </span>
@@ -1264,7 +1333,7 @@ function KPICard({ label, display, onClick, isActive }) {
   return (
     <div
       onClick={onClick}
-      className={`group flex min-h-[52px] w-full min-w-0 flex-col items-start justify-center gap-1 rounded-xl px-3 py-2
+      className={`group flex min-h-[52px] w-[7.75rem] shrink-0 flex-col items-start justify-center gap-1 rounded-xl px-3 py-2 lg:w-full lg:min-w-0
         ${onClick ? `cursor-pointer ${saSurfaceHover}` : saSurface}
         ${isActive ? "border-[#27AE60] bg-[#27AE60] text-white shadow-[0_8px_18px_-6px_rgba(37,211,102,0.55)]" : saSurface}`}
     >
@@ -1425,7 +1494,7 @@ function AnalyticsPromotionRow({ ov, total: _total, activePromotionFilter, onPro
             onClick={() =>
               onPromotionFilter(isActive ? "all" : c.key)
             }
-            className={`flex min-h-[52px] w-full min-w-0 cursor-pointer flex-col items-start justify-center gap-1 rounded-xl px-3 py-2 ${saSurfaceHover}
+            className={`flex min-h-[52px] w-[7.75rem] shrink-0 cursor-pointer flex-col items-start justify-center gap-1 rounded-xl px-3 py-2 lg:w-full lg:min-w-0 ${saSurfaceHover}
               ${isActive ? "border-[#27AE60] bg-[#27AE60] text-white shadow-[0_8px_18px_-6px_rgba(37,211,102,0.55)]" : saSurface}`}
           >
             <p className={`whitespace-nowrap text-[10px] font-semibold leading-none ${isActive ? "text-white" : "text-[#5c7d6d]"}`}>{c.label}</p>
@@ -1706,7 +1775,7 @@ function AnalyticsDashboard({
   return (
     <div className="space-y-4">
       {/* Row 1 — Overview KPIs */}
-      <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-11">
+      <div className="flex w-full gap-2 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:grid lg:grid-cols-11 lg:overflow-visible">
       <AnalyticsOverviewRow
         ov={ov}
         total={total}
@@ -2280,6 +2349,12 @@ export default function ProjectsDashboardPage() {
     } else {
       if (nextStatus !== statusFilter) setStatusFilter(nextStatus);
       if (nextPromotion !== promotionFilter) setPromotionFilter(nextPromotion);
+    }
+    // Properties mega menu / sidebar: ?category=…
+    const nextCategory = searchParams.get("category") || "all";
+    if (nextCategory !== categoryFilter) {
+      setCategoryFilter(nextCategory);
+      setPropertyTypeFilter(searchParams.get("propertyType") || "all");
     }
     const nextFrom = searchParams.get("createdFrom") || searchParams.get("from") || "";
     const nextTo = searchParams.get("createdTo") || searchParams.get("to") || "";
@@ -3381,9 +3456,9 @@ export default function ProjectsDashboardPage() {
       />
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────────── */}
-      <section className="flex items-center justify-between gap-4 px-4 py-2 sm:px-6">
+      <section className="flex flex-col items-stretch gap-3 px-4 py-2 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight text-[#0f3d2e] sm:text-3xl">Projects</h1>
-        <div className="relative flex items-center gap-3">
+        <div className="relative flex w-full min-w-0 flex-row items-center gap-2 sm:w-auto sm:gap-3">
           <InlineLocationSelector
             properties={allProperties}
             analytics={analytics}
@@ -3408,7 +3483,7 @@ export default function ProjectsDashboardPage() {
             <button
               type="button"
               onClick={() => navigate("/create-featured-project")}
-              className="flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#27AE60] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_6px_14px_rgba(18,161,80,0.24)] transition hover:bg-[#1e8f4d] focus:outline-none focus:ring-4 focus:ring-emerald-200 sm:px-5"
+              className="flex shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#27AE60] px-3 py-2.5 text-sm font-semibold text-white shadow-[0_6px_14px_rgba(18,161,80,0.24)] transition hover:bg-[#1e8f4d] focus:outline-none focus:ring-4 focus:ring-emerald-200 sm:gap-2 sm:px-5"
             >
               <Plus className="h-4 w-4" />
               Create Project
@@ -3693,7 +3768,7 @@ export default function ProjectsDashboardPage() {
             </button>
           )}
         </div>
-        <div className="relative z-30 grid grid-cols-4 gap-2.5">
+        <div className="relative z-30 grid grid-cols-2 gap-2.5 md:grid-cols-4">
           <FilterMenu
             className="min-w-0"
             label="State"

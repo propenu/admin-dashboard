@@ -56,6 +56,11 @@ import {
   UsersRound,
   Activity,
   PanelTop,
+  LayoutGrid,
+  Hammer,
+  Paintbrush,
+  HeartHandshake,
+  FolderOpen,
 } from "lucide-react";
 import {
   accountTodayHref,
@@ -66,11 +71,14 @@ import {
   SIDEBAR_ACCOUNT_PATHS,
 } from "../../utils/sidebarActivity";
 import { useAdminWorkspace } from "../../features/adminWorkspace/AdminWorkspaceContext";
-import { buildWorkspaceMenu } from "../../features/adminWorkspace/adminWorkspaceConfig";
-import { useInventoryKindOptional } from "../../features/inventoryKind/InventoryKindContext";
+import {
+  buildWorkspaceMenu,
+  getServiceWorkspaceMenu,
+} from "../../features/adminWorkspace/adminWorkspaceConfig";
 import {
   filterMainDeskMenu,
-  getInventoryKindMenu,
+  getInventorySidebarItems,
+  isInventoryLinkActive,
 } from "../../features/inventoryKind/inventoryKindConfig";
 import { isOperationsPath } from "../../features/operations/operationsNavConfig";
 
@@ -138,6 +146,21 @@ const S = {
   navPy:  "py-2",
   navPx:  "px-2",
   space:  "space-y-[1px]",
+};
+
+const menuContainsPath = (items = [], path) =>
+  items.some(
+    (item) =>
+      item &&
+      (String(item.path || "").split("?")[0] === path ||
+        (Array.isArray(item.children) && menuContainsPath(item.children, path))),
+  );
+
+const SERVICE_ICONS = {
+  home_loans: Landmark,
+  construction: Hammer,
+  interior: Paintbrush,
+  home_care: HeartHandshake,
 };
 
 const LEAF_HIERARCHY_ROLES = new Set([
@@ -270,18 +293,14 @@ const findActiveMenuLabel = (items, isActiveRoute, hasActiveDescendant) => {
 };
 
 /* ─── Nav icon wrapper (SVG url string or Lucide/React component) ────── */
-const NavIcon = ({ src, active, isParent = false, size = "md" }) => {
+// Icon color always follows the row state class (.sb-item / .sb-open / .sb-card / .sb-pick).
+const NavIcon = ({ src, size = "md" }) => {
   const dim = size === "sm" ? S.iconSm : S.iconMd;
   // Vite SVG imports are strings; Lucide icons are forwardRef objects/functions.
   const isComponent = Boolean(src) && typeof src !== "string";
 
   if (isComponent) {
     const Icon = src;
-    const color = active
-      ? isParent
-        ? "#27AE60"
-        : "#ffffff"
-      : "#475569";
     const px = size === "sm" ? 12 : 16;
     return (
       <span className={`inline-flex ${S.iconBox} shrink-0 items-center justify-center`}>
@@ -289,8 +308,8 @@ const NavIcon = ({ src, active, isParent = false, size = "md" }) => {
           className={dim}
           width={px}
           height={px}
-          color={color}
-          stroke={color}
+          color="currentColor"
+          stroke="currentColor"
           strokeWidth={2.1}
           aria-hidden
         />
@@ -298,38 +317,48 @@ const NavIcon = ({ src, active, isParent = false, size = "md" }) => {
     );
   }
 
-  const filterStyle = active
-    ? isParent
-      ? { filter: "invert(47%) sepia(72%) saturate(500%) hue-rotate(104deg) brightness(92%) contrast(90%)" }
-      : { filter: "brightness(0) invert(1)" }
-    : { filter: "brightness(0) " };
   return (
     <span className={`inline-flex ${S.iconBox} shrink-0 items-center justify-center`}>
-      <img src={src} alt="" className={`${dim} object-contain`} style={filterStyle} draggable={false} />
+      <img src={src} alt="" className={`sb-ico ${dim} object-contain`} draggable={false} />
     </span>
+  );
+};
+
+/* ─── Tree connector (├ / └) ────────────────────────────────────────── */
+// Drawn per row so the trunk always ends on the last item's branch,
+// even when a middle or last item has its own sub-list open.
+const TREE_BRANCH_Y = 17; // vertical center of a 34px child row
+const TreeLines = ({ left, width, first, last }) => {
+  const top = first ? -2 : -1;
+  return (
+    <>
+      <span
+        aria-hidden
+        className={`sb-tree-v pointer-events-none absolute ${left}`}
+        style={last ? { top, height: TREE_BRANCH_Y + 1 - top } : { top, bottom: 0 }}
+      />
+      <span
+        aria-hidden
+        className={`sb-tree-h pointer-events-none absolute ${left} ${width}`}
+        style={{ top: TREE_BRANCH_Y }}
+      />
+    </>
   );
 };
 
 /* ─── Sub-children (3rd level) ──────────────────────────────────────── */
 const SubChildren = ({ items, navigate, isActiveRoute }) => (
   <div className={`relative ${S.subGuideML} mt-0.5 pb-0.5 space-y-[1px]`}>
-    <div
-      className={`absolute ${S.subGuideLeft} top-0 w-px bg-green-200`}
-      style={{ height: "calc(100% - 18px)" }}
-    />
-    {items.map((sub) => {
+    {items.map((sub, idx) => {
       const active = isActiveRoute(sub.path);
       return (
         <div key={sub.path} className="relative">
-          <div className={`absolute ${S.subGuideLeft} top-[15px] w-2.5 h-px bg-green-200`} />
+          <TreeLines left={S.subGuideLeft} width="w-2.5" first={idx === 0} last={idx === items.length - 1} />
           <button
             onClick={() => navigate(sub.path)}
-            className={`relative ${S.subML} ${S.subW} flex items-center gap-1.5 ${S.subPx} ${S.subPy} ${S.subRadius} ${S.subText} ${S.subFont} transition-all duration-150 ${active ? "sb-pick" : ""}`}
-            style={active ? { color: "white" } : { color: "#64748b" }}
-            onMouseEnter={e => { if (!active) { e.currentTarget.style.background = "#f0fdf4"; e.currentTarget.style.color = "#27AE60"; } }}
-            onMouseLeave={e => { if (!active) { e.currentTarget.style.background = ""; e.currentTarget.style.color = "#64748b"; } }}
+            className={`sb-item relative ${S.subML} ${S.subW} flex items-center gap-1.5 ${S.subPx} ${S.subPy} ${S.subRadius} ${S.subText} ${S.subFont} ${active ? "sb-pick" : ""}`}
           >
-            <NavIcon src={sub.icon} active={active} size="sm" />
+            <NavIcon src={sub.icon} size="sm" />
             <span className="truncate">{sub.label}</span>
           </button>
         </div>
@@ -352,9 +381,7 @@ export default function Sidebar({
   const location = useLocation();
   const queryClient = useQueryClient();
   const { user, isPending: userPending } = useAuthUserProfile();
-  const { workspaceId } = useAdminWorkspace();
-  const inventory = useInventoryKindOptional();
-
+  const { workspaceId, visibleWorkspaces, setWorkspace } = useAdminWorkspace();
   const [showCreateModal,         setShowCreateModal]         = useState(false);
   const [showAssignAgentModal,    setShowAssignAgentModal]    = useState(false);
   const [showTransferCredentials, setShowTransferCredentials] = useState(false);
@@ -384,6 +411,14 @@ export default function Sidebar({
 
   const isActiveRoute = (path) => {
     if (!path) return false;
+    // Sidebar Projects / Properties stay selected under any ?category / ?promotion filter.
+    if (String(path).includes("?")) {
+    // Sidebar Projects / Properties stay selected under any ?category / ?promotion filter.
+    if (String(path).includes("?")) {
+      const inventoryMatch = isInventoryLinkActive(path, location.pathname, location.search);
+      if (inventoryMatch !== null) return inventoryMatch;
+    }
+    }
     const pathname = String(path).split("?")[0];
     if (location.pathname === pathname) return true;
     // /home-loans has sibling routes (/home-loans/users, /leads) — exact match only
@@ -392,9 +427,15 @@ export default function Sidebar({
     if (pathname !== "/" && location.pathname.startsWith(`${pathname}/`)) return true;
     return false;
   };
+  // Service workspace entries (Services → Home Loans, …) are active for the whole workspace,
+  // not just their home route (e.g. /home-loans/users keeps Home Loans selected).
+  const isItemSelf = (item) => {
+    if (item?.workspaceId) return !item.children && workspaceId === item.workspaceId;
+    return Boolean(item?.path) && isActiveRoute(item.path);
+  };
   const hasActiveDescendant = (item) => {
     if (!item?.children) return false;
-    return item.children.some((c) => (c.path && isActiveRoute(c.path)) || hasActiveDescendant(c));
+    return item.children.some((c) => isItemSelf(c) || hasActiveDescendant(c));
   };
   const toggleMenu = (key) => setOpenMenus((p) => ({ ...p, [key]: !p[key] }));
 
@@ -422,15 +463,35 @@ export default function Sidebar({
       if (item.children) walk(item.children);
     });
     walk(user.roleName === "super_admin" ? getMenuByRole("super_admin") : getPermissionMenu(user.permissions || []));
+    walk(
+      getInventorySidebarItems({
+        projects: true,
+        properties: true,
+        leads: true,
+        locations: true,
+      }),
+    );
+    if (workspaceId && workspaceId !== "main") {
+      autoOpen.services = true;
+      autoOpen[`service-${workspaceId}`] = true;
+    }
     setOpenMenus((p) => ({ ...p, ...autoOpen }));
-  }, [location.pathname, user]);
+  }, [location.pathname, location.search, user, workspaceId]);
 
   const closeMobileIfNeeded = () => {
     if (isMobileOpen) closeMobile?.();
   };
 
   const handleChildClick = (child) => {
-    if (child.action === "openCreateUserModal") {
+    if (child.workspaceId) {
+      if (child.children && workspaceId === child.workspaceId) {
+        toggleMenu(child.key);
+        return;
+      }
+      if (child.children) setOpenMenus((p) => ({ ...p, [child.key]: true }));
+      setWorkspace(child.workspaceId);
+      if (!child.children) closeMobileIfNeeded();
+    } else if (child.action === "openCreateUserModal") {
       setShowCreateModal(true);
       closeMobileIfNeeded();
     } else if (child.action === "openTranforCredentialsModal") {
@@ -621,6 +682,7 @@ export default function Sidebar({
     const contentChildren = [
       canView("blog") && { path: "/blogs", label: "Blogs", icon: Newspaper },
       canView("site_banner") && { path: "/site-banner", label: "Banner", icon: PanelTop },
+      canView("data_library") && { path: "/data-library", label: "Data Library", icon: FolderOpen },
     ].filter(Boolean);
 
     return [
@@ -866,6 +928,11 @@ export default function Sidebar({
               label: "Banner",
               icon: PanelTop,
             },
+            {
+              path: "/data-library",
+              label: "Data Library",
+              icon: FolderOpen,
+            },
           ],
         },
       ],
@@ -1035,6 +1102,11 @@ export default function Sidebar({
               path: "/site-banner",
               label: "Banner",
               icon: PanelTop,
+            },
+            {
+              path: "/data-library",
+              label: "Data Library",
+              icon: FolderOpen,
             },
           ],
         },
@@ -1276,6 +1348,11 @@ export default function Sidebar({
               label: "Banner",
               icon: PanelTop,
             },
+            {
+              path: "/data-library",
+              label: "Data Library",
+              icon: FolderOpen,
+            },
           ],
         },
       ],
@@ -1296,18 +1373,47 @@ export default function Sidebar({
       ? getMenuByRole("super_admin")
       : getPermissionMenu(user.permissions || [])
     : [];
-  // Projects / Properties → focused sidebar. Main Desk → full menu minus those (already in nav tabs).
+  // One sidebar everywhere: Projects / Properties and service pages are groups inside it.
+  const workspaceMenuItems = filterMainDeskMenu(buildWorkspaceMenu(rawMenuItems, "main"));
+  const rawMenuHasPath = (path) => menuContainsPath(rawMenuItems, path);
+  const inventoryItems = getInventorySidebarItems({
+    projects: rawMenuHasPath("/projects"),
+    properties: rawMenuHasPath("/properties"),
+    leads: rawMenuHasPath("/leads"),
+    locations: rawMenuHasPath("/locations"),
+  });
+  // Services group — same visibility rules as the top-nav product tabs.
+  // Multi-page services (Home Loans) nest their pages; single-page ones are plain leaves.
+  const serviceChildren = (visibleWorkspaces || [])
+    .filter((ws) => ws.id !== "main")
+    .map((ws) => {
+      const pages = getServiceWorkspaceMenu(ws.id);
+      return {
+        key: `service-${ws.id}`,
+        workspaceId: ws.id,
+        path: ws.homePath,
+        label: ws.label,
+        icon: SERVICE_ICONS[ws.id] || LayoutGrid,
+        ...(pages.length > 1 ? { children: pages } : {}),
+      };
+    });
+  // Dashboard → Projects → Properties → Lead Management → Locations → Services → rest.
   const menuItems = (() => {
-    if (workspaceId !== "main") {
-      return buildWorkspaceMenu(rawMenuItems, workspaceId);
-    }
-    if (
-      inventory?.inventoryKind === "projects" ||
-      inventory?.inventoryKind === "properties"
-    ) {
-      return getInventoryKindMenu(inventory.inventoryKind);
-    }
-    return filterMainDeskMenu(buildWorkspaceMenu(rawMenuItems, workspaceId));
+    const inserted = [
+      ...inventoryItems,
+      ...(serviceChildren.length
+        ? [{ key: "services", label: "Services", icon: LayoutGrid, children: serviceChildren }]
+        : []),
+    ];
+    const dashboardIndex = workspaceMenuItems.findIndex(
+      (item) => item.key === "dashboard" || item.label === "Dashboard",
+    );
+    const insertAt = dashboardIndex + 1;
+    return [
+      ...workspaceMenuItems.slice(0, insertAt),
+      ...inserted,
+      ...workspaceMenuItems.slice(insertAt),
+    ];
   })();
   const showText  = expanded || isMobileOpen;
   const sidebarClosed = !showText;
@@ -1562,8 +1668,8 @@ export default function Sidebar({
     if (compact) {
       return (
         <span className="absolute right-0.5 top-0.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-60" />
-          <span className="relative grid h-3.5 min-w-3.5 place-items-center rounded-full bg-red-600 px-0.5 text-[7px] font-black text-white shadow-sm ring-1 ring-white">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-50" />
+          <span className="relative grid h-3.5 min-w-3.5 place-items-center rounded-full bg-white px-0.5 text-[7px] font-black text-[#1e8f4d] shadow-sm ring-1 ring-[#27AE60]">
             {badge.primary > 99 ? "99+" : badge.primary}
           </span>
         </span>
@@ -1574,8 +1680,8 @@ export default function Sidebar({
         title={badge.title}
         className={`ml-auto flex min-w-5 shrink-0 items-center justify-center gap-1 rounded-full border px-1.5 py-0.5 text-[8px] font-black tabular-nums ${
           active
-            ? "border-white/25 bg-white/20 text-white"
-            : "border-red-200 bg-red-50 text-red-600"
+            ? "border-transparent bg-[#27AE60] text-white"
+            : "border-transparent bg-white text-[#1e8f4d]"
         }`}
       >
         <b>{badge.primary}</b>
@@ -1589,63 +1695,84 @@ export default function Sidebar({
   return (
     <>
       <style>{`
-        .sb-scroll::-webkit-scrollbar       { width: 2px; }
-        .sb-scroll::-webkit-scrollbar-track { background: transparent; }
-        .sb-scroll::-webkit-scrollbar-thumb { background: #bbf7d0; border-radius: 10px; }
-        .sb-scroll::-webkit-scrollbar-thumb:hover { background: #27AE60; }
+        @supports not selector(::-webkit-scrollbar) {
+          .sb-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.75) rgba(15,61,46,0.18); }
+        }
+        .sb-tree-v {
+          width: 1px;
+          background-image: linear-gradient(to bottom, rgba(255,255,255,0.75) 50%, transparent 50%);
+          background-size: 1px 4px;
+        }
+        .sb-tree-h {
+          height: 1px;
+          background-image: linear-gradient(to right, rgba(255,255,255,0.75) 50%, transparent 50%);
+          background-size: 4px 1px;
+        }
+        .sb-scroll::-webkit-scrollbar       { width: 6px; }
+        .sb-scroll::-webkit-scrollbar-track { background: rgba(15,61,46,0.18); border-radius: 10px; }
+        .sb-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.75);
+          border-radius: 10px;
+          box-shadow: 0 0 0 1px rgba(15,61,46,0.15);
+        }
+        .sb-scroll::-webkit-scrollbar-thumb:hover { background: #ffffff; }
 
-        @property --sb-angle {
-          syntax: "<angle>";
-          inherits: false;
-          initial-value: 0deg;
-        }
-        @keyframes sbSpin {
-          to { --sb-angle: 360deg; }
-        }
-        @keyframes sbPickGlow {
-          0%, 100% { box-shadow: 0 3px 12px rgba(39,174,96,0.28); }
-          50% { box-shadow: 0 7px 20px rgba(39,174,96,0.50); }
-        }
-        @keyframes sbBar {
-          0%, 100% { opacity: 0.55; height: 46%; }
-          50% { opacity: 1; height: 72%; }
-        }
-        .sb-card {
-          background: #f4fdf8 !important;
-          color: #27AE60 !important;
-          border: 1px solid #9fe0b8;
-          box-shadow: 0 2px 8px rgba(39,174,96,0.10);
-        }
-        .sb-pick {
-          isolation: isolate;
-          color: #ffffff !important;
-          border: 2px solid transparent;
+        /*
+         * Primary green (#27AE60) sidebar — one state system for every level:
+         *   idle    → white text + icon
+         *   hover   → faint white tint
+         *   open    → expanded group, faint white tint
+         *   card    → group/child that CONTAINS the current page (white tint + border)
+         *   pick    → the current page itself (white pill, primary green text)
+         */
+        .sb-aside {
           background:
-            linear-gradient(180deg, #2ecc71 0%, #27AE60 48%, #1c934b 100%) padding-box,
-            conic-gradient(from var(--sb-angle), #c8f8d8, #27AE60, #ffffff, #3dcc73, #c8f8d8) border-box !important;
-          animation: sbSpin 2.2s linear infinite, sbPickGlow 2s ease-in-out infinite;
+            radial-gradient(120% 55% at 0% 100%, rgba(255,255,255,0.10), transparent 60%),
+            linear-gradient(180deg, #27AE60 0%, #22a457 55%, #1e9a4f 100%);
         }
-        .sb-pick::before {
-          content: "";
-          position: absolute;
-          left: 3px;
-          top: 50%;
-          width: 3px;
-          height: 58%;
-          border-radius: 99px;
+        .sb-item {
+          color: rgba(255,255,255,0.92);
+          background: transparent;
+          border: 1px solid transparent;
+          transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+        }
+        .sb-item:hover {
+          background: rgba(255,255,255,0.12);
+          color: #ffffff;
+        }
+        .sb-item.sb-open {
+          color: #ffffff;
+          background: rgba(255,255,255,0.10);
+        }
+        .sb-item.sb-open:hover {
+          background: rgba(255,255,255,0.15);
+        }
+        .sb-item.sb-card,
+        .sb-item.sb-card:hover {
+          color: #ffffff;
+          background: rgba(255,255,255,0.16);
+          border-color: rgba(255,255,255,0.28);
+        }
+        .sb-item.sb-pick,
+        .sb-item.sb-pick:hover {
+          color: #1e8f4d;
           background: #ffffff;
-          box-shadow: 0 0 8px rgba(255,255,255,0.85);
-          transform: translateY(-50%);
-          pointer-events: none;
-          z-index: 1;
-          animation: sbBar 1.5s ease-in-out infinite;
+          border-color: #ffffff;
+          box-shadow: 0 6px 16px rgba(15,61,46,0.22);
         }
-        .sb-pick > * {
-          position: relative;
-          z-index: 2;
+        .sb-ico {
+          filter: brightness(0) invert(1);
+          opacity: 0.92;
+          transition: filter .15s ease, opacity .15s ease;
         }
-        @media (prefers-reduced-motion: reduce) {
-          .sb-pick, .sb-pick::before { animation: none; }
+        .sb-item:hover .sb-ico,
+        .sb-item.sb-open .sb-ico,
+        .sb-item.sb-card .sb-ico {
+          opacity: 1;
+        }
+        .sb-item.sb-pick .sb-ico {
+          opacity: 1;
+          filter: brightness(0) invert(47%) sepia(72%) saturate(500%) hue-rotate(104deg) brightness(92%) contrast(90%);
         }
       `}</style>
 
@@ -1668,7 +1795,7 @@ export default function Sidebar({
         onMouseEnter={onHoverStart}
         onMouseLeave={onHoverEnd}
         className={`
-          fixed left-0 z-50 flex flex-col bg-white
+          sb-aside fixed left-0 z-50 flex flex-col
           transition-[width] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]
           lg:top-16 lg:h-[calc(100vh-4rem)]
           ${
@@ -1680,13 +1807,13 @@ export default function Sidebar({
         `}
         style={{
           width:       expanded || isMobileOpen ? S.expandedW : S.collapsedW,
-          borderRight: "1px solid #e8f5e9",
-          boxShadow:   "2px 0 10px rgba(39,174,96,0.06)",
+          borderRight: "1px solid rgba(255,255,255,0.12)",
+          boxShadow:   "4px 0 18px rgba(39,174,96,0.20)",
         }}
       >
         <div
           className="h-[2px] w-full flex-shrink-0"
-          style={{ background: "linear-gradient(90deg, #27AE60, #4ade80, #27AE60)" }}
+          style={{ background: "linear-gradient(90deg, rgba(255,255,255,0), #ffffff, rgba(255,255,255,0))", opacity: 0.45 }}
         />
 
         <nav className={`sb-scroll flex-1 ${S.navPy} ${S.navPx} overflow-y-auto overflow-x-hidden ${S.space}`}>
@@ -1696,7 +1823,7 @@ export default function Sidebar({
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-8 animate-pulse rounded-xl bg-emerald-50"
+                  className="h-8 animate-pulse rounded-xl bg-white/10"
                 />
               ))}
             </div>
@@ -1713,23 +1840,18 @@ export default function Sidebar({
                     <button
                       ref={bindActiveIconRef(parentActive)}
                       onClick={() => toggleMenu(item.key)}
-                      className={`relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-colors duration-150 ${parentActive ? "sb-card" : ""}`}
-                      style={parentActive ? { color: "#27AE60" } : { color: "#64748b" }}
-                      onMouseEnter={(e) => {
-                        if (!parentActive) e.currentTarget.style.background = "#f8fffe";
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!parentActive) e.currentTarget.style.background = "";
-                      }}
+                      className={`sb-item relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} ${
+                        parentActive ? "sb-card" : openMenus[item.key] ? "sb-open" : ""
+                      }`}
                     >
                       {parentActive ? (
                         <span
                           className="absolute left-0 top-1/2 h-5 w-[2.5px] -translate-y-1/2 rounded-r-full"
-                          style={{ background: "#27AE60" }}
+                          style={{ background: "#ffffff" }}
                         />
                       ) : null}
 
-                      <NavIcon src={item.icon} active={parentActive} isParent />
+                      <NavIcon src={item.icon} />
                       {showText && (
                         <span className={`${S.rowText} ${S.rowFont} min-w-0 flex-1 truncate text-left leading-[1.3]`}>
                           {item.label}
@@ -1741,7 +1863,8 @@ export default function Sidebar({
                           className="shrink-0 transition-transform duration-200"
                           style={{
                             width: S.chevronSize, height: S.chevronSize,
-                            color: parentActive ? "#27AE60" : "#94a3b8",
+                            color: "currentColor",
+                            opacity: parentActive || openMenus[item.key] ? 0.95 : 0.6,
                             transform: openMenus[item.key] ? "rotate(180deg)" : "rotate(0deg)",
                           }}
                         />
@@ -1754,48 +1877,33 @@ export default function Sidebar({
                   {showText && (
                     <CollapsePanel open={!!openMenus[item.key]}>
                       <div className={`relative ${S.guideML} mt-0.5 pb-0.5 space-y-[1px]`}>
-                        {/* Vertical guide line */}
-                        <div
-                          className={`absolute ${S.guideLeft} top-0 w-px bg-green-200`}
-                          style={{ height: "calc(100% - 18px)" }}
-                        />
-
-                        {item.children.map((child) => {
-                          const childSelf      = child.path && isActiveRoute(child.path);
+                        {item.children.map((child, idx) => {
+                          const childSelf      = isItemSelf(child);
                           const childHasActive = hasActiveDescendant(child);
-                          const childActive    = childSelf || childHasActive;
 
                           return (
                             <div key={child.key || child.path} className="relative">
-                              {/* Horizontal connector */}
-                              <div className={`absolute ${S.horizLeft} top-[15px] ${S.horizW} h-px bg-green-200`} />
+                              <TreeLines
+                                left={S.horizLeft}
+                                width={S.horizW}
+                                first={idx === 0}
+                                last={idx === item.children.length - 1}
+                              />
 
                               <button
                                 onClick={() => handleChildClick(child)}
-                                className={`relative ${S.childML} ${S.childW} flex items-center justify-between ${S.childPx} ${S.childPy} ${S.childRadius} ${S.childText} ${S.childFont} transition-all duration-150 ${
-                                  childSelf ? "sb-pick" : childHasActive ? "sb-card" : ""
-                                }`}
-                                style={
+                                className={`sb-item relative ${S.childML} ${S.childW} flex items-center justify-between ${S.childPx} ${S.childPy} ${S.childRadius} ${S.childText} ${S.childFont} ${
                                   childSelf
-                                    ? { color: "white" }
+                                    ? "sb-pick"
                                     : childHasActive
-                                    ? { color: "#27AE60" }
-                                    : { color: "#64748b" }
-                                }
-                                onMouseEnter={e => {
-                                  if (!childActive) { e.currentTarget.style.background = "#f0fdf4"; e.currentTarget.style.color = "#27AE60"; }
-                                }}
-                                onMouseLeave={e => {
-                                  if (!childActive) { e.currentTarget.style.background = ""; e.currentTarget.style.color = "#64748b"; }
-                                }}
+                                    ? "sb-card"
+                                    : child.children && openMenus[child.key]
+                                    ? "sb-open"
+                                    : ""
+                                }`}
                               >
                                 <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                                  <NavIcon
-                                    src={child.icon}
-                                    active={childActive}
-                                    isParent={childHasActive && !childSelf}
-                                    size="sm"
-                                  />
+                                  <NavIcon src={child.icon} size="sm" />
                                   <span className="truncate">{child.label}</span>
                                 </div>
 
@@ -1808,7 +1916,8 @@ export default function Sidebar({
                                     style={{
                                       width: S.chevronSize, height: S.chevronSize,
                                       flexShrink: 0,
-                                      color: childHasActive ? "#27AE60" : "#94a3b8",
+                                      color: "currentColor",
+                                      opacity: childHasActive || openMenus[child.key] ? 0.95 : 0.6,
                                       transform: openMenus[child.key] ? "rotate(90deg)" : "rotate(0deg)",
                                       transition: "transform 0.2s",
                                     }}
@@ -1844,22 +1953,9 @@ export default function Sidebar({
                 <button
                   ref={bindActiveIconRef(leafActive)}
                   onClick={() => navigateMenuPath(item.path)}
-                  className={`relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} transition-colors duration-150 ${leafActive ? "sb-pick" : ""}`}
-                  style={leafActive ? { color: "white" } : { color: "#64748b" }}
-                  onMouseEnter={(e) => {
-                    if (!leafActive) {
-                      e.currentTarget.style.background = "#f0fdf4";
-                      e.currentTarget.style.color = "#27AE60";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!leafActive) {
-                      e.currentTarget.style.background = "";
-                      e.currentTarget.style.color = "#64748b";
-                    }
-                  }}
+                  className={`sb-item relative flex min-h-8 w-full items-center justify-start ${S.rowGap} ${S.rowPx} ${S.rowPy} ${S.rowRadius} ${leafActive ? "sb-pick" : ""}`}
                 >
-                  <NavIcon src={item.icon} active={leafActive} />
+                  <NavIcon src={item.icon} />
                   {showText && (
                     <span className={`${S.rowText} ${S.rowFont} min-w-0 flex-1 truncate text-left leading-[1.3]`}>
                       {item.label}
@@ -1875,33 +1971,36 @@ export default function Sidebar({
 
         {/* ── User footer ── */}
         {user && (
-          <div
-            className={`flex-shrink-0 ${S.footerP}`}
-            style={{ borderTop: "1px solid #e8f5e9", background: "#fafffe" }}
-          >
-            <div className="flex items-center justify-start gap-2">
+          <div className={`flex-shrink-0 ${S.footerP}`}>
+            <div
+              className={`flex items-center justify-start gap-2 rounded-xl ${showText ? "p-2" : "p-0.5"}`}
+              style={{
+                background: showText ? "rgba(255,255,255,0.14)" : "transparent",
+                border: showText ? "1px solid rgba(255,255,255,0.24)" : "1px solid transparent",
+              }}
+            >
               {/* Avatar */}
               <div
                 className={`relative ${S.avatarSize} shrink-0 rounded-full flex items-center justify-center`}
                 style={{
-                  background: "linear-gradient(135deg, #27AE60, #1a8a49)",
-                  boxShadow: "0 0 0 2px #bbf7d0",
+                  background: "#ffffff",
+                  boxShadow: "0 0 0 2px rgba(255,255,255,0.35)",
                 }}
               >
-                <UserCircle className={`${S.avatarIcon} text-white`} />
+                <UserCircle className={`${S.avatarIcon}`} style={{ color: "#27AE60" }} />
                 {/* Online dot */}
                 <span
                   className="absolute -bottom-[2px] -right-[2px] h-[8px] w-[8px] rounded-full"
-                  style={{ background: "#22c55e", border: "2px solid white" }}
+                  style={{ background: "#bbf7d0", border: "2px solid #1e9a4f" }}
                 />
               </div>
 
               {showText && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold truncate uppercase tracking-wide leading-none" style={{ color: "#1e293b" }}>
+                  <p className="text-[11px] font-bold truncate leading-none text-white">
                     {user.name}
                   </p>
-                  <p className="text-[9.5px] truncate mt-0.5 capitalize leading-none" style={{ color: "#27AE60" }}>
+                  <p className="text-[9.5px] truncate mt-1 capitalize leading-none" style={{ color: "#dcfce7" }}>
                     {user.roleName?.replace(/_/g, " ")}
                   </p>
                 </div>

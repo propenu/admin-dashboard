@@ -486,10 +486,9 @@ function OverviewTab({
         onApplyCustom={dateRange.applyCustomRange}
         presets={TICKET_DATE_PRESETS}
         label="Ticket period"
-        trailing="Live counts · click any KPI or chart to open the matching queue"
-        className={ticketSurface}
+        className="px-0 py-0.5"
         activeClassName="rounded-full bg-[#27AE60] text-white shadow-[0_6px_14px_-6px_rgba(39,174,96,0.7)]"
-        idleClassName="rounded-full bg-[#f7fbf8] text-[#5c7d6d] hover:bg-white hover:text-[#0f3d2e]"
+        idleClassName="rounded-full bg-white text-[#5c7d6d] ring-1 ring-[#d8ebe0] hover:text-[#0f3d2e] hover:ring-[#27AE60]"
       />
 
       <TicketMetricGrid

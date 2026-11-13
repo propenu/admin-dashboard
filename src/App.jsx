@@ -261,6 +261,9 @@ const SiteBrandingPage = lazy(() =>
   import("./pages/siteBranding/SiteBrandingPage")
 );
 
+const DataLibrary = lazy(() => import("./pages/dataLibrary/DataLibrary"));
+const DataLibraryItemPage = lazy(() => import("./pages/dataLibrary/DataLibraryItemPage"));
+
 const TicketDashboard = lazy(() =>
   import("./pages/Tickets/TicketDashboard")
 );
@@ -752,6 +755,22 @@ function App() {
                   element={
                     <PermissionRoute permission="site_banner:view">
                       <SiteBrandingPage />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/data-library"
+                  element={
+                    <PermissionRoute permission="data_library:view">
+                      <DataLibrary />
+                    </PermissionRoute>
+                  }
+                />
+                <Route
+                  path="/data-library/:id"
+                  element={
+                    <PermissionRoute permission="data_library:view">
+                      <DataLibraryItemPage />
                     </PermissionRoute>
                   }
                 />

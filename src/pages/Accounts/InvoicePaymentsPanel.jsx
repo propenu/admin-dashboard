@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  BadgeCheck, FileText, ImagePlus, Loader2, Paperclip, Plus, ShieldAlert, Trash2, X,
+  BadgeCheck, FileText, ImagePlus, Loader2, Paperclip, Plus, ShieldAlert, Trash2, Wallet, X,
 } from "lucide-react";
 import { builderPlanService } from "../../features/builderPlans/builderPlanService";
 import BrandSelect from "./BrandSelect";
+import SectionTitle from "./SectionTitle";
 import { PAYMENT_METHODS } from "./PaymentMethodSelect";
+import { emptyPaymentForm, moneyInput, paymentEntry, paymentFormError, today } from "./paymentForm";
 
 const CHEQUE_STATUSES = [
   { value: "received", label: "Received", hint: "Collected, not yet deposited", icon: FileText, tone: "bg-slate-100 text-slate-600" },
@@ -23,10 +25,6 @@ const CARD_NETWORKS = ["Visa", "Mastercard", "RuPay", "Amex", "Diners", "Other"]
 
 const money = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number(value || 0));
 const dateText = (value) => (value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—");
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
 const methodMeta = (value) => PAYMENT_METHODS.find((item) => item.value === value) || PAYMENT_METHODS[PAYMENT_METHODS.length - 1];
 const input = "w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] text-slate-700 outline-none focus:border-[#27AE60] focus:ring-2 focus:ring-emerald-100";
 const counts = (entry) => (entry.method === "cheque" ? entry.cheque?.status === "cleared" : true);
@@ -40,16 +38,6 @@ function F({ label, children, wide = false }) {
     </label>
   );
 }
-
-const emptyForm = (balance) => ({
-  method: "cash", amount: balance > 0 ? String(balance) : "", paidAt: today(),
-  receivedByName: "", receiptNumber: "", payerName: "", transactionId: "", note: "",
-  cheque: { instrumentType: "cheque", number: "", date: "", bankName: "", branch: "", ifsc: "", accountHolder: "", status: "received" },
-  upi: { upiId: "", app: "GPay" },
-  card: { cardType: "debit", network: "Visa", last4: "", cardHolder: "", approvalCode: "", terminalId: "" },
-  netbanking: { transferMode: "neft", bankName: "", accountLast4: "" },
-  other: { methodName: "", reference: "" },
-});
 
 function detailLines(entry) {
   const lines = [];
@@ -190,6 +178,120 @@ function PaymentCard({ entry, invoiceId, canUpdate, canDelete, onChanged }) {
   );
 }
 
+export function PaymentEntryFields({ form, setForm, proofs, setProofs }) {
+  const fileRef = useRef(null);
+  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const setNested = (group, key, value) => setForm((current) => ({ ...current, [group]: { ...current[group], [key]: value } }));
+  const m = form.method;
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <F label="Method *" wide><BrandSelect value={m} onChange={(value) => set("method", value)} options={PAYMENT_METHODS} title="Payment method" /></F>
+      <F label="Amount received (₹) *"><input inputMode="decimal" value={form.amount} onChange={(e) => set("amount", moneyInput(e.target.value))} className={input} placeholder="0.00" /></F>
+      <F label="Payment date"><input type="date" value={form.paidAt} max={today()} onChange={(e) => set("paidAt", e.target.value)} className={input} /></F>
+      <F label={m === "cash" ? "Received by (staff name) *" : "Received / verified by"}><input value={form.receivedByName} onChange={(e) => set("receivedByName", e.target.value)} className={input} placeholder="Who collected / verified it" /></F>
+      <F label="Paid by (payer name)"><input value={form.payerName} onChange={(e) => set("payerName", e.target.value)} className={input} /></F>
+      {m === "cash" && <F label="Receipt number"><input value={form.receiptNumber} onChange={(e) => set("receiptNumber", e.target.value)} className={input} /></F>}
+
+      {m === "cheque" && (
+        <>
+          <F label="Instrument">
+            <select value={form.cheque.instrumentType} onChange={(e) => setNested("cheque", "instrumentType", e.target.value)} className={input}>
+              <option value="cheque">Cheque</option><option value="dd">Demand draft (DD)</option>
+            </select>
+          </F>
+          <F label={`${form.cheque.instrumentType === "dd" ? "DD" : "Cheque"} number *`}><input value={form.cheque.number} onChange={(e) => setNested("cheque", "number", e.target.value)} className={`${input} font-mono`} /></F>
+          <F label="Cheque / DD date"><input type="date" value={form.cheque.date} onChange={(e) => setNested("cheque", "date", e.target.value)} className={input} /></F>
+          <F label="Bank name *"><input value={form.cheque.bankName} onChange={(e) => setNested("cheque", "bankName", e.target.value)} className={input} /></F>
+          <F label="Branch"><input value={form.cheque.branch} onChange={(e) => setNested("cheque", "branch", e.target.value)} className={input} /></F>
+          <F label="IFSC"><input value={form.cheque.ifsc} onChange={(e) => setNested("cheque", "ifsc", e.target.value.toUpperCase().slice(0, 11))} className={`${input} font-mono`} /></F>
+          <F label="Account holder"><input value={form.cheque.accountHolder} onChange={(e) => setNested("cheque", "accountHolder", e.target.value)} className={input} /></F>
+          <F label="Status"><BrandSelect value={form.cheque.status} onChange={(value) => setNested("cheque", "status", value)} options={CHEQUE_STATUSES} title="Cheque status" /></F>
+        </>
+      )}
+
+      {m === "upi" && (
+        <>
+          <F label="UTR / transaction ID *"><input value={form.transactionId} onChange={(e) => set("transactionId", e.target.value)} className={`${input} font-mono`} /></F>
+          <F label="Payer UPI ID"><input value={form.upi.upiId} onChange={(e) => setNested("upi", "upiId", e.target.value)} className={input} placeholder="name@bank" /></F>
+          <F label="UPI app">
+            <select value={form.upi.app} onChange={(e) => setNested("upi", "app", e.target.value)} className={input}>{UPI_APPS.map((app) => <option key={app}>{app}</option>)}</select>
+          </F>
+        </>
+      )}
+
+      {m === "card" && (
+        <>
+          <p className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[10px] text-amber-800 sm:col-span-2"><ShieldAlert size={12} />Never enter the full card number or CVV — only the last 4 digits.</p>
+          <F label="Card type">
+            <select value={form.card.cardType} onChange={(e) => setNested("card", "cardType", e.target.value)} className={input}>
+              <option value="debit">Debit</option><option value="credit">Credit</option><option value="prepaid">Prepaid</option>
+            </select>
+          </F>
+          <F label="Network">
+            <select value={form.card.network} onChange={(e) => setNested("card", "network", e.target.value)} className={input}>{CARD_NETWORKS.map((n) => <option key={n}>{n}</option>)}</select>
+          </F>
+          <F label="Last 4 digits"><input inputMode="numeric" value={form.card.last4} onChange={(e) => setNested("card", "last4", e.target.value.replace(/\D/g, "").slice(0, 4))} className={`${input} font-mono`} placeholder="1234" /></F>
+          <F label="Card holder name"><input value={form.card.cardHolder} onChange={(e) => setNested("card", "cardHolder", e.target.value)} className={input} /></F>
+          <F label="Approval / auth code"><input value={form.card.approvalCode} onChange={(e) => setNested("card", "approvalCode", e.target.value)} className={`${input} font-mono`} /></F>
+          <F label="Transaction ID"><input value={form.transactionId} onChange={(e) => set("transactionId", e.target.value)} className={`${input} font-mono`} /></F>
+          <F label="POS terminal ID"><input value={form.card.terminalId} onChange={(e) => setNested("card", "terminalId", e.target.value)} className={input} /></F>
+        </>
+      )}
+
+      {m === "netbanking" && (
+        <>
+          <F label="Transfer mode">
+            <select value={form.netbanking.transferMode} onChange={(e) => setNested("netbanking", "transferMode", e.target.value)} className={input}>
+              <option value="neft">NEFT</option><option value="rtgs">RTGS</option><option value="imps">IMPS</option><option value="other">Other</option>
+            </select>
+          </F>
+          <F label="UTR / reference *"><input value={form.transactionId} onChange={(e) => set("transactionId", e.target.value)} className={`${input} font-mono`} /></F>
+          <F label="Payer bank"><input value={form.netbanking.bankName} onChange={(e) => setNested("netbanking", "bankName", e.target.value)} className={input} /></F>
+          <F label="Payer account (last 4)"><input value={form.netbanking.accountLast4} onChange={(e) => setNested("netbanking", "accountLast4", e.target.value.replace(/\D/g, "").slice(0, 4))} className={`${input} font-mono`} /></F>
+        </>
+      )}
+
+      {m === "razorpay" && <F label="Razorpay payment ID *" wide><input value={form.transactionId} onChange={(e) => set("transactionId", e.target.value)} className={`${input} font-mono`} placeholder="pay_XXXXXXXX" /></F>}
+
+      {m === "other" && (
+        <>
+          <F label="Method name *"><input value={form.other.methodName} onChange={(e) => setNested("other", "methodName", e.target.value)} className={input} placeholder="e.g. Adjustment, Barter, Wallet" /></F>
+          <F label="Reference"><input value={form.other.reference} onChange={(e) => setNested("other", "reference", e.target.value)} className={input} /></F>
+        </>
+      )}
+
+      <F label="Note" wide><input value={form.note} onChange={(e) => set("note", e.target.value)} className={input} /></F>
+      <div className="sm:col-span-2">
+        <span className="mb-1 block text-[10px] text-slate-500">Proof ({m === "cheque" ? "cheque / DD image" : m === "cash" ? "receipt photo" : "screenshot or slip"})</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => fileRef.current?.click()} className="flex items-center gap-1 rounded-lg border border-dashed border-emerald-300 px-3 py-1.5 text-[11px] text-[#219653] hover:bg-emerald-50"><ImagePlus size={12} />Add files</button>
+          {proofs.map((file, index) => (
+            <span key={`${file.name}-${index}`} className="flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-[10px] text-slate-600 ring-1 ring-slate-200">
+              <span className="max-w-[140px] truncate">{file.name}</span>
+              <button type="button" onClick={() => setProofs((c) => c.filter((_, i) => i !== index))} className="text-slate-400 hover:text-red-600"><X size={10} /></button>
+            </span>
+          ))}
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          hidden
+          accept="image/*,.pdf"
+          onChange={(event) => {
+            const files = Array.from(event.target.files || []);
+            event.target.value = "";
+            const tooBig = files.find((file) => file.size > 10 * 1024 * 1024);
+            if (tooBig) return toast.error(`${tooBig.name} is larger than 10 MB`);
+            setProofs((current) => [...current, ...files].slice(0, 10));
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function InvoicePaymentsPanel({ invoice, canUpdate, canDelete, onChanged }) {
   const payments = Array.isArray(invoice.payments) ? invoice.payments : [];
   const received = payments.filter(counts).reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
@@ -197,36 +299,16 @@ export default function InvoicePaymentsPanel({ invoice, canUpdate, canDelete, on
     .reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
   const balance = Math.max(0, Math.round((Number(invoice.totalAmount || 0) - received) * 100) / 100);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(() => emptyForm(balance));
+  const [form, setForm] = useState(() => emptyPaymentForm(balance));
   const [proofs, setProofs] = useState([]);
   const [saving, setSaving] = useState(false);
-  const fileRef = useRef(null);
-
-  const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  const setNested = (group, key, value) => setForm((current) => ({ ...current, [group]: { ...current[group], [key]: value } }));
 
   const submit = async () => {
-    const amount = Number(form.amount);
-    if (!(amount > 0)) return toast.error("Enter the amount received");
-    if (form.method === "cash" && !form.receivedByName.trim()) return toast.error("Enter who received the cash");
-    if (form.method === "cheque" && (!form.cheque.number.trim() || !form.cheque.bankName.trim())) return toast.error("Cheque/DD number and bank are required");
-    if (["upi", "netbanking", "razorpay"].includes(form.method) && !form.transactionId.trim()) return toast.error("Enter the transaction / UTR / payment ID");
-    if (form.method === "card" && form.card.last4 && !/^\d{4}$/.test(form.card.last4)) return toast.error("Card last 4 digits must be 4 numbers");
-    if (form.method === "card" && !form.transactionId.trim() && !form.card.approvalCode.trim()) return toast.error("Enter the card transaction ID or approval code");
-    if (form.method === "other" && !form.other.methodName.trim()) return toast.error("Enter the payment method name");
-
-    const entry = {
-      method: form.method, amount, paidAt: form.paidAt, receivedByName: form.receivedByName, receiptNumber: form.receiptNumber,
-      payerName: form.payerName, transactionId: form.transactionId, note: form.note,
-      ...(form.method === "cheque" ? { cheque: form.cheque } : {}),
-      ...(form.method === "upi" ? { upi: form.upi } : {}),
-      ...(form.method === "card" ? { card: form.card } : {}),
-      ...(form.method === "netbanking" ? { netbanking: form.netbanking } : {}),
-      ...(form.method === "other" ? { other: form.other } : {}),
-    };
+    const problem = paymentFormError(form);
+    if (problem) return toast.error(problem);
     setSaving(true);
     try {
-      const result = await builderPlanService.recordPayment(invoice._id, entry, proofs);
+      const result = await builderPlanService.recordPayment(invoice._id, paymentEntry(form), proofs);
       toast.success(result?.message || "Payment recorded");
       setOpen(false);
       setProofs([]);
@@ -238,129 +320,25 @@ export default function InvoicePaymentsPanel({ invoice, canUpdate, canDelete, on
     }
   };
 
-  const m = form.method;
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] uppercase tracking-wide text-slate-400">Payments received</p>
-        {canUpdate && !open && invoice.promotionStatus !== "cancelled" && (
-          <button type="button" onClick={() => { setForm(emptyForm(balance)); setOpen(true); }} className="flex items-center gap-1.5 rounded-lg bg-[#27AE60] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#219653]"><Plus size={12} />Record payment</button>
+    <section>
+      <SectionTitle
+        icon={Wallet}
+        title="Payments received"
+        action={canUpdate && !open && invoice.promotionStatus !== "cancelled" && (
+          <button type="button" onClick={() => { setForm(emptyPaymentForm(balance)); setOpen(true); }} className="flex items-center gap-1.5 rounded-lg bg-[#27AE60] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#219653]"><Plus size={12} />Record payment</button>
         )}
-      </div>
+      />
 
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-xl bg-slate-50 p-2"><p className="text-[9px] uppercase text-slate-400">Total</p><p className="text-[12px] font-semibold text-slate-800">{money(invoice.totalAmount)}</p></div>
-        <div className="rounded-xl bg-emerald-50 p-2"><p className="text-[9px] uppercase text-emerald-600">Received</p><p className="text-[12px] font-semibold text-emerald-700">{money(received)}</p></div>
-        <div className="rounded-xl bg-amber-50 p-2"><p className="text-[9px] uppercase text-amber-600">Balance</p><p className="text-[12px] font-semibold text-amber-700">{money(balance)}</p></div>
+      <div className="grid grid-cols-2 gap-2 text-center">
+        <div className="rounded-xl border border-slate-200 bg-white p-2"><p className="text-[9px] uppercase text-slate-400">Total</p><p className="text-[12px] font-semibold text-slate-800">{money(invoice.totalAmount)}</p></div>
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-2"><p className="text-[9px] uppercase text-[#219653]">Received</p><p className="text-[12px] font-semibold text-[#0f3d2e]">{money(received)}</p></div>
       </div>
       {awaiting > 0 && <p className="mt-2 rounded-lg bg-sky-50 px-3 py-1.5 text-[10px] text-sky-800">{money(awaiting)} in cheques/DD waiting to clear. Mark them Cleared to count them as paid.</p>}
 
       {open && (
         <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/30 p-3">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <F label="Method *" wide><BrandSelect value={m} onChange={(value) => set("method", value)} options={PAYMENT_METHODS} title="Payment method" /></F>
-            <F label="Amount received (₹) *"><input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => set("amount", e.target.value)} className={input} /></F>
-            <F label="Payment date"><input type="date" value={form.paidAt} max={today()} onChange={(e) => set("paidAt", e.target.value)} className={input} /></F>
-            <F label={m === "cash" ? "Received by (staff name) *" : "Received / verified by"}><input value={form.receivedByName} onChange={(e) => set("receivedByName", e.target.value)} className={input} placeholder="Who collected / verified it" /></F>
-            <F label="Paid by (payer name)"><input value={form.payerName} onChange={(e) => set("payerName", e.target.value)} className={input} /></F>
-            {m === "cash" && <F label="Receipt number"><input value={form.receiptNumber} onChange={(e) => set("receiptNumber", e.target.value)} className={input} /></F>}
-
-            {m === "cheque" && (
-              <>
-                <F label="Instrument">
-                  <select value={form.cheque.instrumentType} onChange={(e) => setNested("cheque", "instrumentType", e.target.value)} className={input}>
-                    <option value="cheque">Cheque</option><option value="dd">Demand draft (DD)</option>
-                  </select>
-                </F>
-                <F label={`${form.cheque.instrumentType === "dd" ? "DD" : "Cheque"} number *`}><input value={form.cheque.number} onChange={(e) => setNested("cheque", "number", e.target.value)} className={`${input} font-mono`} /></F>
-                <F label="Cheque / DD date"><input type="date" value={form.cheque.date} onChange={(e) => setNested("cheque", "date", e.target.value)} className={input} /></F>
-                <F label="Bank name *"><input value={form.cheque.bankName} onChange={(e) => setNested("cheque", "bankName", e.target.value)} className={input} /></F>
-                <F label="Branch"><input value={form.cheque.branch} onChange={(e) => setNested("cheque", "branch", e.target.value)} className={input} /></F>
-                <F label="IFSC"><input value={form.cheque.ifsc} onChange={(e) => setNested("cheque", "ifsc", e.target.value.toUpperCase().slice(0, 11))} className={`${input} font-mono`} /></F>
-                <F label="Account holder"><input value={form.cheque.accountHolder} onChange={(e) => setNested("cheque", "accountHolder", e.target.value)} className={input} /></F>
-                <F label="Status"><BrandSelect value={form.cheque.status} onChange={(value) => setNested("cheque", "status", value)} options={CHEQUE_STATUSES} title="Cheque status" /></F>
-              </>
-            )}
-
-            {m === "upi" && (
-              <>
-                <F label="UTR / transaction ID *"><input value={form.transactionId} onChange={(e) => set("transactionId", e.target.value)} className={`${input} font-mono`} /></F>
-                <F label="Payer UPI ID"><input value={form.upi.upiId} onChange={(e) => setNested("upi", "upiId", e.target.value)} className={input} placeholder="name@bank" /></F>
-                <F label="UPI app">
-                  <select value={form.upi.app} onChange={(e) => setNested("upi", "app", e.target.value)} className={input}>{UPI_APPS.map((app) => <option key={app}>{app}</option>)}</select>
-                </F>
-              </>
-            )}
-
-            {m === "card" && (
-              <>
-                <p className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[10px] text-amber-800 sm:col-span-2"><ShieldAlert size={12} />Never enter the full card number or CVV — only the last 4 digits.</p>
-                <F label="Card type">
-                  <select value={form.card.cardType} onChange={(e) => setNested("card", "cardType", e.target.value)} className={input}>
-                    <option value="debit">Debit</option><option value="credit">Credit</option><option value="prepaid">Prepaid</option>
-                  </select>
-                </F>
-                <F label="Network">
-                  <select value={form.card.network} onChange={(e) => setNested("card", "network", e.target.value)} className={input}>{CARD_NETWORKS.map((n) => <option key={n}>{n}</option>)}</select>
-                </F>
-                <F label="Last 4 digits"><input inputMode="numeric" value={form.card.last4} onChange={(e) => setNested("card", "last4", e.target.value.replace(/\D/g, "").slice(0, 4))} className={`${input} font-mono`} placeholder="1234" /></F>
-                <F label="Card holder name"><input value={form.card.cardHolder} onChange={(e) => setNested("card", "cardHolder", e.target.value)} className={input} /></F>
-                <F label="Approval / auth code"><input value={form.card.approvalCode} onChange={(e) => setNested("card", "approvalCode", e.target.value)} className={`${input} font-mono`} /></F>
-                <F label="Transaction ID"><input value={form.transactionId} onChange={(e) => set("transactionId", e.target.value)} className={`${input} font-mono`} /></F>
-                <F label="POS terminal ID"><input value={form.card.terminalId} onChange={(e) => setNested("card", "terminalId", e.target.value)} className={input} /></F>
-              </>
-            )}
-
-            {m === "netbanking" && (
-              <>
-                <F label="Transfer mode">
-                  <select value={form.netbanking.transferMode} onChange={(e) => setNested("netbanking", "transferMode", e.target.value)} className={input}>
-                    <option value="neft">NEFT</option><option value="rtgs">RTGS</option><option value="imps">IMPS</option><option value="other">Other</option>
-                  </select>
-                </F>
-                <F label="UTR / reference *"><input value={form.transactionId} onChange={(e) => set("transactionId", e.target.value)} className={`${input} font-mono`} /></F>
-                <F label="Payer bank"><input value={form.netbanking.bankName} onChange={(e) => setNested("netbanking", "bankName", e.target.value)} className={input} /></F>
-                <F label="Payer account (last 4)"><input value={form.netbanking.accountLast4} onChange={(e) => setNested("netbanking", "accountLast4", e.target.value.replace(/\D/g, "").slice(0, 4))} className={`${input} font-mono`} /></F>
-              </>
-            )}
-
-            {m === "razorpay" && <F label="Razorpay payment ID *" wide><input value={form.transactionId} onChange={(e) => set("transactionId", e.target.value)} className={`${input} font-mono`} placeholder="pay_XXXXXXXX" /></F>}
-
-            {m === "other" && (
-              <>
-                <F label="Method name *"><input value={form.other.methodName} onChange={(e) => setNested("other", "methodName", e.target.value)} className={input} placeholder="e.g. Adjustment, Barter, Wallet" /></F>
-                <F label="Reference"><input value={form.other.reference} onChange={(e) => setNested("other", "reference", e.target.value)} className={input} /></F>
-              </>
-            )}
-
-            <F label="Note" wide><input value={form.note} onChange={(e) => set("note", e.target.value)} className={input} /></F>
-            <div className="sm:col-span-2">
-              <span className="mb-1 block text-[10px] text-slate-500">Proof ({m === "cheque" ? "cheque / DD image" : m === "cash" ? "receipt photo" : "screenshot or slip"})</span>
-              <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => fileRef.current?.click()} className="flex items-center gap-1 rounded-lg border border-dashed border-emerald-300 px-3 py-1.5 text-[11px] text-[#219653] hover:bg-emerald-50"><ImagePlus size={12} />Add files</button>
-                {proofs.map((file, index) => (
-                  <span key={`${file.name}-${index}`} className="flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-[10px] text-slate-600 ring-1 ring-slate-200">
-                    <span className="max-w-[140px] truncate">{file.name}</span>
-                    <button type="button" onClick={() => setProofs((c) => c.filter((_, i) => i !== index))} className="text-slate-400 hover:text-red-600"><X size={10} /></button>
-                  </span>
-                ))}
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                hidden
-                accept="image/*,.pdf"
-                onChange={(event) => {
-                  const files = Array.from(event.target.files || []);
-                  event.target.value = "";
-                  const tooBig = files.find((file) => file.size > 10 * 1024 * 1024);
-                  if (tooBig) return toast.error(`${tooBig.name} is larger than 10 MB`);
-                  setProofs((current) => [...current, ...files].slice(0, 10));
-                }}
-              />
-            </div>
-          </div>
+          <PaymentEntryFields form={form} setForm={setForm} proofs={proofs} setProofs={setProofs} />
           <div className="mt-3 flex justify-end gap-2">
             <button type="button" disabled={saving} onClick={() => { setOpen(false); setProofs([]); }} className="rounded-lg border border-slate-200 px-3 py-2 text-[11px] text-slate-600">Cancel</button>
             <button type="button" disabled={saving} onClick={submit} className="flex items-center gap-1.5 rounded-lg bg-[#27AE60] px-4 py-2 text-[11px] font-semibold text-white hover:bg-[#219653] disabled:opacity-50">
@@ -379,6 +357,6 @@ export default function InvoicePaymentsPanel({ invoice, canUpdate, canDelete, on
       ) : (
         !open && <p className="mt-3 text-[11px] text-slate-400">No payments recorded yet. Use Record payment for each amount received — cash, cheque/DD, UPI, card, net banking or any other method.</p>
       )}
-    </div>
+    </section>
   );
 }

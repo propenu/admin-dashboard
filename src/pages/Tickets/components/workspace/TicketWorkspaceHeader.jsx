@@ -1,6 +1,5 @@
-import { BarChart3, Bell, Inbox, Plus, RefreshCw, Settings2 } from "lucide-react";
-import { formatLabel } from "../../utils/ticketFormatters";
-import { ghostButton, primaryButton, ticketSurface } from "../ticketUi";
+import { BarChart3, Bell, Inbox, Plus, Settings2 } from "lucide-react";
+import { ghostButton, primaryButton } from "../ticketUi";
 
 const tabs = [
   { key: "overview", label: "Overview", icon: BarChart3 },
@@ -15,9 +14,6 @@ export default function TicketWorkspaceHeader({
   activeTab,
   onTabChange,
   onCreate,
-  onRefresh,
-  isRefreshing,
-  roleName,
   availableTabs = tabs,
   canCreate = true,
   title = "Ticket Desk",
@@ -26,15 +22,10 @@ export default function TicketWorkspaceHeader({
   onOpenNotifications,
 }) {
   return (
-    <header className={`mb-1 flex flex-col gap-3 p-3 lg:flex-row lg:items-center lg:justify-between ${ticketSurface}`}>
+    <header className="mb-1 flex flex-col gap-3 py-1 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-[20px] font-black tracking-tight text-[#0f3d2e] sm:text-[22px]">{title}</h1>
-          {roleName && (
-            <span className="rounded-full border border-[#b7e4c7] bg-[#f7fbf8] px-3 py-1 text-[12px] font-bold capitalize text-[#27AE60]">
-              {formatLabel(roleName)}
-            </span>
-          )}
         </div>
         <p className="mt-0.5 max-w-xl text-[11px] font-medium leading-4 text-[#5c7d6d] sm:block">
           {subtitle}
@@ -77,15 +68,6 @@ export default function TicketWorkspaceHeader({
               {notificationCount}
             </span>
           ) : null}
-        </button>
-
-        <button
-          type="button"
-          onClick={onRefresh}
-          className={`${ghostButton} h-9 shrink-0 px-3`}
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-          Refresh
         </button>
 
         {canCreate && (

@@ -11,7 +11,9 @@ import {
   FileText,
   Filter,
   Image as ImageIcon,
+  List,
   Loader2,
+  Phone,
   MessageCircle,
   Paperclip,
   Play,
@@ -146,7 +148,7 @@ const TemplateCtaButtons = ({ buttons }) => {
   return (
     <div className="overflow-hidden rounded-b-xl bg-white">
       {buttons.map((btn) => {
-        const isUrl = btn.kind === "url";
+        const isUrl = btn.kind === "url" || btn.kind === "phone";
         const color = isUrl ? WA_URL_COLOR : WA_REPLY_COLOR;
         return (
           <div
@@ -154,8 +156,12 @@ const TemplateCtaButtons = ({ buttons }) => {
             className="flex items-center justify-center gap-2 border-t border-[#e9edef] px-3 py-[10px] text-[14px] font-medium leading-none"
             style={{ color }}
           >
-            {isUrl ? (
+            {btn.kind === "url" ? (
               <ExternalLink size={15} strokeWidth={2.2} />
+            ) : btn.kind === "phone" ? (
+              <Phone size={15} strokeWidth={2.2} />
+            ) : btn.kind === "list" ? (
+              <List size={15} strokeWidth={2.2} />
             ) : (
               <Reply size={15} strokeWidth={2.2} className="-scale-x-100" />
             )}
@@ -163,6 +169,139 @@ const TemplateCtaButtons = ({ buttons }) => {
           </div>
         );
       })}
+    </div>
+  );
+};
+
+/** Meta template buttons → bubble CTAs. WhatsApp shows 3; more collapse into "See all options". */
+const previewButtonsToCta = (list) => {
+  const buttons = (Array.isArray(list) ? list : [])
+    .map((btn) => {
+      const label = String(btn?.text || "").trim();
+      if (!label) return null;
+      const type = String(btn?.type || "").toUpperCase();
+      const kind =
+        type === "URL" ? "url" : type === "PHONE_NUMBER" ? "phone" : "quick_reply";
+      return { label, kind };
+    })
+    .filter(Boolean);
+  if (buttons.length <= 3) return buttons;
+  return [...buttons.slice(0, 2), { label: "See all options", kind: "list" }];
+};
+
+/** WhatsApp inline formatting: *bold*, _italic_, ~strike~. */
+const renderWaText = (textRaw) => {
+  const text = String(textRaw || "");
+  const parts = text.split(/(\*\S(?:[^*\n]*?\S)?\*|_\S(?:[^_\n]*?\S)?_|~\S(?:[^~\n]*?\S)?~)/g);
+  return parts.map((part, index) => {
+    if (part.length > 2 && part.startsWith("*") && part.endsWith("*")) {
+      return <strong key={index}>{part.slice(1, -1)}</strong>;
+    }
+    if (part.length > 2 && part.startsWith("_") && part.endsWith("_")) {
+      return <em key={index}>{part.slice(1, -1)}</em>;
+    }
+    if (part.length > 2 && part.startsWith("~") && part.endsWith("~")) {
+      return <s key={index}>{part.slice(1, -1)}</s>;
+    }
+    return part;
+  });
+};
+
+const TemplateHeaderMedia = ({ format, url, className = "" }) => {
+  const [failed, setFailed] = useState(false);
+  const kind = String(format || "").toUpperCase();
+  if (url && !failed && kind === "IMAGE") {
+    return (
+      <img
+        src={url}
+        alt="Template header"
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className={`w-full max-h-72 rounded-lg object-cover ${className}`}
+      />
+    );
+  }
+  if (url && !failed && kind === "VIDEO") {
+    return (
+      <video
+        src={url}
+        controls
+        preload="metadata"
+        onError={() => setFailed(true)}
+        className={`w-full max-h-72 rounded-lg bg-black ${className}`}
+      />
+    );
+  }
+  if (url && !failed && kind === "DOCUMENT") {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className={`flex items-center gap-2 rounded-lg bg-white/70 px-3 py-2 text-[13px] text-gray-700 ${className}`}
+      >
+        <FileText size={16} /> Document
+      </a>
+    );
+  }
+  const Icon = kind === "VIDEO" ? Video : kind === "DOCUMENT" ? FileText : ImageIcon;
+  return (
+    <div
+      className={`flex h-32 w-full items-center justify-center rounded-lg bg-black/5 text-gray-400 ${className}`}
+    >
+      <Icon size={28} />
+    </div>
+  );
+};
+
+/** Exact Meta template content (header, body, footer, carousel) saved on the message. */
+const TemplatePreviewContent = ({ preview }) => {
+  const header = preview?.header;
+  const cards = Array.isArray(preview?.cards) ? preview.cards : [];
+  return (
+    <div className="space-y-1.5">
+      {header && header.format !== "TEXT" ? (
+        <TemplateHeaderMedia format={header.format} url={header.mediaUrl} />
+      ) : null}
+      {header?.format === "TEXT" && header.text ? (
+        <p className="text-[14px] font-semibold text-gray-900 whitespace-pre-wrap break-words leading-snug">
+          {renderWaText(header.text)}
+        </p>
+      ) : null}
+      {preview?.body ? (
+        <p className="text-[14px] text-gray-900 whitespace-pre-wrap break-words leading-snug">
+          {renderWaText(preview.body)}
+        </p>
+      ) : null}
+      {preview?.footer ? (
+        <p className="text-[12px] text-gray-500 whitespace-pre-wrap break-words">
+          {preview.footer}
+        </p>
+      ) : null}
+      {cards.length ? (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {cards.map((card, index) => (
+            <div
+              key={index}
+              className="w-56 shrink-0 overflow-hidden rounded-lg border border-[#e9edef] bg-white"
+            >
+              {card.mediaFormat ? (
+                <TemplateHeaderMedia
+                  format={card.mediaFormat}
+                  url={card.mediaUrl}
+                  className="rounded-none"
+                />
+              ) : null}
+              {card.body ? (
+                <p className="px-2.5 py-2 text-[13px] text-gray-900 whitespace-pre-wrap break-words leading-snug">
+                  {renderWaText(card.body)}
+                </p>
+              ) : null}
+              <TemplateCtaButtons buttons={previewButtonsToCta(card.buttons)} />
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -416,6 +555,55 @@ const STATUS_META = {
     select: "border-emerald-200 text-emerald-700 bg-emerald-50",
   },
 };
+
+const CONTACT_ROLE_CHIP = {
+  agent: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  agents: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  owner: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  owners: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  property_owner: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  property_owners: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  user: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  users: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  builder: "bg-orange-50 text-orange-700 border-orange-200",
+  builders: "bg-orange-50 text-orange-700 border-orange-200",
+  builder_staff: "bg-amber-50 text-amber-700 border-amber-200",
+};
+const NEW_USER_CHIP = "bg-sky-50 text-sky-700 border-sky-200";
+
+const capitalizeFirst = (value) => {
+  const text = String(value || "").trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+};
+
+/** Dashboard user behind a WhatsApp number (from the conversations API). */
+const chatContactInfo = (chat) => {
+  const contact = chat?.contact;
+  const waId = String(chat?.waId || "");
+  if (!contact?.registered) {
+    return {
+      title: waId || chat?.profileName || "Chat",
+      tag: contact ? "New User" : "",
+      chip: NEW_USER_CHIP,
+      orgName: "",
+    };
+  }
+  return {
+    title: capitalizeFirst(contact.name || chat?.profileName) || waId,
+    tag: contact.roleLabel || "",
+    chip: CONTACT_ROLE_CHIP[contact.roleKey] || "bg-slate-50 text-slate-700 border-slate-200",
+    orgName: contact.orgName || "",
+  };
+};
+
+const ContactTag = ({ info, className = "" }) =>
+  info?.tag ? (
+    <span
+      className={`text-[10px] font-semibold px-1.5 py-px rounded border leading-tight whitespace-nowrap ${info.chip} ${className}`}
+    >
+      {info.tag}
+    </span>
+  ) : null;
 
 const INBOX_ASSIGNER_ROLES = new Set([
   "super_admin",
@@ -967,11 +1155,15 @@ export default function WhatsAppInbox({ embedded = false }) {
       if (statusFilter !== "all" && status !== statusFilter) return false;
       if (!q) return true;
       const name = String(c.profileName || "").toLowerCase();
+      const contactName = String(c.contact?.name || "").toLowerCase();
+      const contactRole = String(c.contact?.roleLabel || "").toLowerCase();
       const phone = String(c.waId || "").toLowerCase();
       const preview = String(c.lastMessagePreview || "").toLowerCase();
       const agent = String(c.assignedAgentName || "").toLowerCase();
       return (
         name.includes(q) ||
+        contactName.includes(q) ||
+        contactRole.includes(q) ||
         phone.includes(q) ||
         preview.includes(q) ||
         agent.includes(q)
@@ -1249,7 +1441,14 @@ export default function WhatsAppInbox({ embedded = false }) {
     conversations.find((c) => String(c.waId) === String(activeWaId)) ||
     null;
   const activeStatus = active?.inboxStatus || "new";
-  const activeTitle = active?.profileName || activeWaId || "Chat";
+  const activeContact =
+    active?.contact ||
+    conversations.find((c) => String(c.waId) === String(activeWaId))?.contact ||
+    null;
+  const activeContactInfo = active ? chatContactInfo({ ...active, contact: activeContact }) : null;
+  const activeTitle = activeContact?.registered
+    ? activeContactInfo.title
+    : active?.profileName || activeWaId || "Chat";
   const assignedAgentId = String(active?.assignedAgentId || "").trim();
 
   const filteredMessages = useMemo(() => {
@@ -1442,6 +1641,7 @@ export default function WhatsAppInbox({ embedded = false }) {
               const status = chat.inboxStatus || "new";
               const meta = STATUS_META[status] || STATUS_META.new;
               const unread = Number(chat.unreadCount || 0);
+              const contactInfo = chatContactInfo(chat);
               return (
                 <button
                   key={chat.waId}
@@ -1454,15 +1654,24 @@ export default function WhatsAppInbox({ embedded = false }) {
                   <Avatar />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1.5">
-                      <p className="text-[12px] sm:text-[13px] font-semibold text-gray-900 truncate leading-snug">
-                        {chat.profileName || chat.waId}
-                      </p>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <p className="text-[12px] sm:text-[13px] font-semibold text-gray-900 truncate leading-snug">
+                          {contactInfo.title}
+                        </p>
+                        <ContactTag info={contactInfo} className="shrink-0" />
+                      </div>
                       {unread > 0 ? (
                         <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#25D366] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
                           {unread}
                         </span>
                       ) : null}
                     </div>
+                    {chat.contact?.registered ? (
+                      <p className="text-[10px] text-gray-400 truncate leading-snug tabular-nums">
+                        {chat.waId}
+                        {contactInfo.orgName ? ` · ${contactInfo.orgName}` : ""}
+                      </p>
+                    ) : null}
                     <p className="text-[11px] sm:text-[12px] text-gray-500 truncate mt-0.5 leading-snug">
                       {chat.lastMessagePreview || "No messages yet"}
                     </p>
@@ -1529,9 +1738,12 @@ export default function WhatsAppInbox({ embedded = false }) {
               </button>
               <Avatar size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-bold text-gray-900 truncate leading-tight">
-                  {activeTitle}
-                </p>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <p className="text-[13px] font-bold text-gray-900 truncate leading-tight">
+                    {activeTitle}
+                  </p>
+                  <ContactTag info={activeContactInfo} className="shrink-0" />
+                </div>
                 <p className="text-[10px] sm:text-[11px] text-gray-400 truncate leading-tight">
                   {activeWaId}
                   {active?.assignedAgentName
@@ -1613,12 +1825,18 @@ export default function WhatsAppInbox({ embedded = false }) {
                       msg.senderType === "bot" ||
                       Boolean(msg.conditionBranch));
                   const label = outbound
-                    ? isBot
-                      ? "BOT"
-                      : "AGENT"
+                    ? msg.raw?.fromCampaign
+                      ? "CAMPAIGN"
+                      : isBot
+                        ? "BOT"
+                        : "AGENT"
                     : "CUSTOMER";
+                  const templatePreview =
+                    outbound && msg.raw?.templatePreview ? msg.raw.templatePreview : null;
                   const templateButtons = outbound
-                    ? templateButtonsForMessage(msg)
+                    ? templatePreview
+                      ? previewButtonsToCta(templatePreview.buttons)
+                      : templateButtonsForMessage(msg)
                     : [];
                   return (
                     <div key={msg._id || `${msg.wamid}-${index}`}>
@@ -1659,7 +1877,10 @@ export default function WhatsAppInbox({ embedded = false }) {
                             ) : null}
                           </div>
                           <InboxMediaAttachment msg={msg} waId={activeWaId} />
-                          {(() => {
+                          {templatePreview ? (
+                            <TemplatePreviewContent preview={templatePreview} />
+                          ) : null}
+                          {!templatePreview && (() => {
                             const media = messageMediaMeta(msg);
                             const body = String(msg.body || "");
                             // Never show raw WhatsApp placeholders like [Image].
@@ -1854,9 +2075,24 @@ export default function WhatsAppInbox({ embedded = false }) {
                 <p className="text-[13px] font-extrabold text-gray-900 mt-1 break-all leading-snug">
                   {activeWaId}
                 </p>
+                {activeContact?.registered && activeContact.name ? (
+                  <p className="text-[12px] font-semibold text-gray-800 mt-0.5 truncate">
+                    {capitalizeFirst(activeContact.name)}
+                  </p>
+                ) : null}
+                {activeContactInfo?.tag ? (
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <ContactTag info={activeContactInfo} />
+                    {activeContactInfo.orgName ? (
+                      <span className="text-[11px] text-gray-500 truncate">
+                        {activeContactInfo.orgName}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
                 {active?.profileName ? (
                   <p className="text-[11px] text-gray-500 mt-0.5 truncate">
-                    {active.profileName}
+                    WhatsApp name: {active.profileName}
                   </p>
                 ) : null}
               </div>
